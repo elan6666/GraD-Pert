@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(TxPert/official-repo/**)",
+      "Edit(TxPert/official-repo.incomplete-archive/**)",
+      "Edit(data/**)",
+      "Edit(datasets/**)",
+      "Edit(artifacts/**)",
+      "Edit(checkpoints/**)",
+      "Edit(runs/**)",
+      "Read(**/.env)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)"
+    ]
+  }
+}

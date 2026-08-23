@@ -1,0 +1,57 @@
+# Python and local tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Datasets, graphs, caches, and large experiment artifacts
+data/
+datasets/
+graphs/
+cache/
+caches/
+artifacts/
+checkpoints/
+outputs/
+runs/
+wandb/
+mlruns/
+*.h5ad
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.npz
+*.npy
+
+# Local/server synchronization receipts that may reveal machine layout
+.server/
+
+# Historical design notes and frozen upstream checkouts are local evidence.
+# The active, pruned specification is migrated into docs/design/.
+TxPert/
+tmp/
