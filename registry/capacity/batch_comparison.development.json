@@ -1,0 +1,86 @@
+{
+  "allocator_config": "expandable_segments:True",
+  "datasets": [
+    {
+      "batch256_cell_throughput_ratio": 3.9158265097646052,
+      "batch256_cells_per_second": 103.68369227645424,
+      "batch256_epoch_speedup": 3.619987968504917,
+      "batch256_estimated_epoch_seconds": 898.7334261934011,
+      "batch256_memory_headroom_bytes": 7708724428,
+      "batch256_memory_headroom_fraction": 0.2886424950303927,
+      "batch256_peak_reserved_bytes": 18998099968,
+      "batch64_cells_per_second": 26.478111841243713,
+      "batch64_estimated_epoch_seconds": 3253.404189713314,
+      "batch64_peak_reserved_bytes": 18845007872,
+      "dataset_id": "replogle_k562_essential"
+    },
+    {
+      "batch256_cell_throughput_ratio": 4.040125616069571,
+      "batch256_cells_per_second": 99.30426212138298,
+      "batch256_epoch_speedup": 3.5923979081805353,
+      "batch256_estimated_epoch_seconds": 1477.1571417619343,
+      "batch256_memory_headroom_bytes": 7488523468,
+      "batch256_memory_headroom_fraction": 0.28039737547836613,
+      "batch256_peak_reserved_bytes": 19218300928,
+      "batch64_cells_per_second": 24.579498648854127,
+      "batch64_estimated_epoch_seconds": 5306.536226119511,
+      "batch64_peak_reserved_bytes": 18880659456,
+      "dataset_id": "replogle_rpe1_essential"
+    },
+    {
+      "batch256_cell_throughput_ratio": 4.007546425994707,
+      "batch256_cells_per_second": 97.96532233715892,
+      "batch256_epoch_speedup": 3.5737398541086813,
+      "batch256_estimated_epoch_seconds": 1520.8646942152336,
+      "batch256_memory_headroom_bytes": 6555290828,
+      "batch256_memory_headroom_fraction": 0.2454537735673963,
+      "batch256_peak_reserved_bytes": 20151533568,
+      "batch64_cells_per_second": 24.445212088302412,
+      "batch64_estimated_epoch_seconds": 5435.174770423793,
+      "batch64_peak_reserved_bytes": 19153289216,
+      "dataset_id": "nadig_jurkat"
+    },
+    {
+      "batch256_cell_throughput_ratio": 3.9304195520059824,
+      "batch256_cells_per_second": 96.29985130080641,
+      "batch256_epoch_speedup": 3.223389405965246,
+      "batch256_estimated_epoch_seconds": 938.4022797472717,
+      "batch256_memory_headroom_bytes": 6932778188,
+      "batch256_memory_headroom_fraction": 0.2595882642280133,
+      "batch256_peak_reserved_bytes": 19774046208,
+      "batch64_cells_per_second": 24.50116330498547,
+      "batch64_estimated_epoch_seconds": 3024.8359670709906,
+      "batch64_peak_reserved_bytes": 19008585728,
+      "dataset_id": "nadig_hepg2"
+    },
+    {
+      "batch256_cell_throughput_ratio": 3.837790408285857,
+      "batch256_cells_per_second": 179.27642445974314,
+      "batch256_epoch_speedup": 3.7210155356653174,
+      "batch256_estimated_epoch_seconds": 434.10058090195525,
+      "batch256_memory_headroom_bytes": 15136836812,
+      "batch256_memory_headroom_fraction": 0.5667778612520893,
+      "batch256_peak_reserved_bytes": 11569987584,
+      "batch64_cells_per_second": 46.713448465732306,
+      "batch64_estimated_epoch_seconds": 1615.2950055775145,
+      "batch64_peak_reserved_bytes": 11565793280,
+      "dataset_id": "norman"
+    }
+  ],
+  "inputs": {
+    "batch256_sha256": "b989729189f68a190fde912e5d828b6b55a9d12ecc1f023bab8181b1f4ce375b",
+    "batch64_sha256": "e45e30af044877270fe7317a00701f7787ab916a3965e1161a7c417880a0bdd6"
+  },
+  "minimum_batch256_epoch_speedup": 3.223389405965246,
+  "minimum_batch256_memory_headroom_fraction": 0.2454537735673963,
+  "probe_steps_per_dataset": 128,
+  "prototype_count": 16384,
+  "schema_version": "batch-capacity-comparison-v1",
+  "selected_batch_size": 256,
+  "selection_rule": {
+    "minimum_epoch_speedup_for_batch256": 1.25,
+    "minimum_memory_headroom_fraction_for_batch256": 0.1
+  },
+  "selection_uses_test_metrics": false,
+  "source_commit_attestation": "e1aa70ff88c35a61f1461ae3b4d17acb97a7b6ea"
+}
