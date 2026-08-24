@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from gradpert.data._io import atomic_json
 from gradpert.data.registry import DATASET_IDS
@@ -18,7 +18,7 @@ MINIMUM_MEMORY_HEADROOM_FRACTION = 0.10
 def _load_passed_receipt(path: Path, *, expected_batch_size: int) -> dict[str, Any]:
     if not path.is_file() or path.is_symlink():
         raise ValueError(f"capacity receipt must be a regular file: {path}")
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
     if (
         payload.get("schema_version") != "prototype-head-capacity-v2"
         or payload.get("status") != "development_capacity_passed"
