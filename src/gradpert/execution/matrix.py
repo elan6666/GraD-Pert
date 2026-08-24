@@ -263,7 +263,7 @@ def build_experiment_tasks(
                 identity_arguments=identity_arguments,
                 resume=resume_native_full and phase == "full",
             )
-            expected_epochs = 1 if phase == "smoke" else 200
+            expected_epochs = 1 if phase == "smoke" else int(config.training.max_epochs.value)
         elif model_id in LEARNED_MODEL_IDS:
             command = _official_command(
                 runtime=runtime,

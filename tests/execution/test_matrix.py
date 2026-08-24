@@ -105,6 +105,8 @@ def test_exact_phase_counts_seeds_and_official_isolation(tmp_path: Path) -> None
     assert {task.run_seed for task in full} == {1, 2, 3, 4}
     assert {task.model_id for task in full} == {"gradpert_b2"}
     assert {task.dataset_id for task in full} == set(DATASET_IDS)
+    assert {task.expected_epochs for task in smoke} == {1}
+    assert {task.expected_epochs for task in full} == {100}
     assert len({task.task_id for task in smoke + nonlearned + full}) == 50
 
     gears = next(task for task in smoke if task.model_id == "gears")
