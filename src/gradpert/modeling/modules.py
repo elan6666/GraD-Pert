@@ -181,7 +181,11 @@ class AdaptiveGeneGraphEncoder(nn.Module):
         stacked_states = torch.stack(source_states, dim=1)
         weights = torch.softmax(torch.stack(source_scores, dim=1), dim=1).unsqueeze(-1)
         fused = (stacked_states * weights).sum(dim=1)
-        chunks = fused.split(node_counts, dim=0)
+        chunks = []
+        start = 0
+        for node_count in node_counts:
+            chunks.append(fused[start : start + node_count])
+            start += node_count
         return tuple(
             EncodedGraphView(node_ids=view.node_ids, node_states=states)
             for view, states in zip(views, chunks, strict=True)
