@@ -21,6 +21,12 @@ Formal job preflight aborts unless:
 - exact target output path is new or resumable by matching receipt;
 - GPU, disk, and active-job state are recorded.
 
+Git commands used by source identity are noninteractive and have a 30-second
+timeout. A server without direct GitHub egress may use an operator-controlled
+SSH remote dynamic forward bound only to server loopback; the formal check must
+still execute `git ls-remote` against the configured GitHub `origin` and match
+the exact public ref. A local tracking ref or copied bundle alone is not enough.
+
 ## Formal compute boundary
 
 Server only:

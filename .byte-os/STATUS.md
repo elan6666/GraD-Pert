@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-24T19:03:40+08:00
+updated_at: 2026-08-24T19:16:44+08:00
 ---
 
 # Status
@@ -106,6 +106,16 @@ updated_at: 2026-08-24T19:03:40+08:00
   launcher bug before training: resolving interpreter symlinks collapsed every
   isolated Python path to `/usr/bin/python3.12`. The launcher now validates but
   preserves each virtualenv path, with a subprocess regression test.
-- Next action: run the complete local/server gate on the launcher fix, publish
-  and synchronize one new clean commit, repeat the 15-task dry run, then execute
-  the first exact one-epoch GraD-Pert smoke.
+- The repaired launcher passed the fresh server gate at `1412939`: 154 tests,
+  three honest pending-receipt skips, Ruff, strict mypy on 62 source files,
+  isolated build, all 30 configs, clean tree and a 15-task no-write dry run.
+- The first deliberate K562 smoke attempt failed before training because the
+  server's direct `git ls-remote` path to GitHub timed out. Its empty run,
+  failed matrix receipt and log are retained for superseding; no GPU work or
+  scientific artifact was produced.
+- A loopback-only remote SOCKS forward on the SSH ControlMaster restored live
+  GitHub verification and returned public `main=1412939`. Git identity commands
+  now also disable interactive prompts and fail closed after 30 seconds.
+- Next action: publish/synchronize the bounded Git identity fix, archive the
+  failed empty attempt, repeat all gates at the final frozen commit, then rerun
+  the first exact one-epoch GraD-Pert smoke through the verified SSH tunnel.

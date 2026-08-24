@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import gradpert.execution.identity as identity_module
 from gradpert.execution.identity import inspect_source_identity
 
 COMMIT = "a" * 40
@@ -89,3 +90,32 @@ def test_development_worktree_rejects_declared_commit_drift(tmp_path: Path) -> N
             expected_repository="https://github.com/elan6666/GraD-Pert.git",
             development_commit="0" * 40,
         )
+
+
+def test_git_identity_commands_are_noninteractive_and_bounded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    observed: dict[str, object] = {}
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed.update(kwargs)
+        return subprocess.CompletedProcess(command, 0, stdout="observed\n", stderr="")
+
+    monkeypatch.setattr(identity_module.subprocess, "run", fake_run)
+
+    assert identity_module._git(tmp_path, "rev-parse", "HEAD") == "observed"
+    environment = observed["env"]
+    assert isinstance(environment, dict)
+    assert environment["GIT_TERMINAL_PROMPT"] == "0"
+    assert observed["timeout"] == 30.0
+
+
+def test_git_identity_timeout_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_timeout(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        del kwargs
+        raise subprocess.TimeoutExpired(command, timeout=30.0)
+
+    monkeypatch.setattr(identity_module.subprocess, "run", fake_timeout)
+
+    with pytest.raises(RuntimeError, match="Git ls-remote timed out after 30 seconds"):
+        identity_module._git(tmp_path, "ls-remote", "origin")

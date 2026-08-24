@@ -308,3 +308,14 @@
 - Replaced interpreter canonicalization with existence/execute validation that
   preserves the requested virtualenv path. Added a subprocess regression test;
   the focused launcher/matrix suite passes 8 tests and Ruff passes.
+- Synchronized commit `1412939` and reran the complete server gate: 154 tests
+  passed, three pending-receipt tests skipped, Ruff and strict mypy passed,
+  isolated wheel/sdist build passed, all 30 configs verified and the tree stayed
+  clean. The repaired dry run preserved all three virtualenv interpreters.
+- The first selected K562 task reached the formal source gate but direct server
+  `git ls-remote` failed before any GPU work or receipt files inside the run.
+  The matrix correctly wrote `state=failed`, `returncode=1`.
+- Established an SSH remote dynamic SOCKS endpoint on server loopback only;
+  through it, the same server checkout observed GitHub `main=1412939` live.
+  Hardened internal Git calls with `GIT_TERMINAL_PROMPT=0` and a 30-second
+  timeout; 13 focused identity/matrix/launcher tests and Ruff pass locally.

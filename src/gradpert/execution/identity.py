@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import os
 import platform
 import subprocess
 from dataclasses import asdict, dataclass
@@ -12,6 +13,7 @@ from gradpert.hashing import sha256_file, sha256_json
 
 _TREE_ROOTS = ("src", "benchmarks", "configs", "registry")
 _TREE_FILES = ("pyproject.toml", "uv.lock", "AGENTS.md")
+_GIT_TIMEOUT_SECONDS = 30.0
 
 
 @dataclass(frozen=True)
@@ -47,12 +49,22 @@ class EnvironmentIdentity:
 
 
 def _git(root: Path, *arguments: str) -> str:
-    result = subprocess.run(
-        ["git", "-C", str(root), *arguments],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    environment = os.environ.copy()
+    environment["GIT_TERMINAL_PROMPT"] = "0"
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), *arguments],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=environment,
+            timeout=_GIT_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as error:
+        operation = arguments[0] if arguments else "unknown"
+        raise RuntimeError(
+            f"Git {operation} timed out after {_GIT_TIMEOUT_SECONDS:g} seconds"
+        ) from error
     return result.stdout.strip()
 
 

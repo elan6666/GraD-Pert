@@ -3,7 +3,7 @@ id: 007
 title: Server Synchronization and Five-Dataset Experiment Matrix
 status: in_progress
 wave: 4
-updated_at: 2026-08-24T19:03:40+08:00
+updated_at: 2026-08-24T19:16:44+08:00
 owner_role: Research Operations Engineer
 depends_on: [003, 004, 005, 006]
 start_directory: scripts/server
@@ -143,4 +143,8 @@ Live progress: the clean server checkout and full dependency regression pass;
 all five datasets pass full canonical verification; all ten official runner
 preflights pass. A no-execution 15-task dry run caught virtualenv interpreter
 symlink expansion before launch. The preservation fix and regression test pass
-locally and must be committed/synchronized before the first one-epoch task.
+locally and on the server. The first deliberate task then failed before GPU
+work at the live GitHub parity check because direct server egress timed out.
+A loopback-only SSH SOCKS forward now proves the public ref live; Git identity
+commands are being frozen with noninteractive 30-second fail-closed behavior
+before the task is retried.
