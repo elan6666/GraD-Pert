@@ -270,3 +270,7 @@
   job uses Python 3.12, a hash-pinned official uv setup action plus uv 0.12.5,
   `uv sync --locked --all-extras --dev`, hash-pinned checkout, read-only
   repository permission, concurrency cancellation, and a 30-minute timeout.
+- After the user completed GitHub authentication, the same HTTPS Git credential
+  successfully created public `origin/main`. A read-only `ls-remote` check
+  proved both local `HEAD` and the remote ref were
+  `5a9109f47470a3b85bcb937097fc092d79226ae3` before this status-only follow-up.
