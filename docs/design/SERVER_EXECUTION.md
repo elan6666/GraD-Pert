@@ -7,8 +7,10 @@ local working copy -> Git commit -> GitHub main -> server clean checkout
 ```
 
 Canonical remote: `https://github.com/elan6666/GraD-Pert.git`.
-Canonical server root: `/data/yilangliu/GraD-Pert` unless a pre-existing path is
-discovered before creation.
+Canonical server storage root: `/data/yilangliu/GraD-Pert`. Because that root
+already contains data, runs, environments, and frozen upstreams, the clean Git
+checkout is `/data/yilangliu/GraD-Pert/source`; it must never be cloned over the
+non-Git storage root or the preserved `dev-snapshots/current` tree.
 
 Formal job preflight aborts unless:
 
@@ -79,10 +81,10 @@ Example planning invocation from the clean server checkout:
 ```bash
 PYTHONPATH=src:. .venv/bin/python scripts/server/run_experiment_matrix.py \
   --phase smoke \
-  --project-root /data/yilangliu/GraD-Pert \
+  --project-root /data/yilangliu/GraD-Pert/source \
   --data-root /data/yilangliu/GraD-Pert/data \
   --runs-root /data/yilangliu/GraD-Pert/runs/formal-v1 \
-  --native-python /data/yilangliu/GraD-Pert/.venv/bin/python \
+  --native-python /data/yilangliu/GraD-Pert/source/.venv/bin/python \
   --gears-python /data/yilangliu/GraD-Pert/envs/gears/bin/python \
   --gears-checkout /data/yilangliu/GraD-Pert/upstreams/gears \
   --gears-data-root /data/yilangliu/GraD-Pert/data/gears-official \

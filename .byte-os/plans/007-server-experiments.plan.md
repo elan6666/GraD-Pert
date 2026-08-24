@@ -1,9 +1,9 @@
 ---
 id: 007
 title: Server Synchronization and Five-Dataset Experiment Matrix
-status: pending
+status: in_progress
 wave: 4
-updated_at: 2026-08-24T17:49:30+08:00
+updated_at: 2026-08-24T18:42:00+08:00
 owner_role: Research Operations Engineer
 depends_on: [003, 004, 005, 006]
 start_directory: scripts/server

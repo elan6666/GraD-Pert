@@ -274,3 +274,19 @@
   successfully created public `origin/main`. A read-only `ls-remote` check
   proved both local `HEAD` and the remote ref were
   `5a9109f47470a3b85bcb937097fc092d79226ae3` before this status-only follow-up.
+
+## 2026-08-24 — live server recovery and clean regression
+
+- Re-tested the connection instead of relying on the earlier cooldown notice:
+  port 22, BatchMode SSH, `/data/yilangliu`, disk, and both RTX 5090 GPUs all
+  passed. The prior 2026-08-27 access estimate is superseded.
+- Preserved the existing non-Git storage root and `dev-snapshots/current` by
+  cloning public `main` into the new `/data/yilangliu/GraD-Pert/source`
+  checkout. Local, GitHub, and server matched clean commit `1ec6bd6`.
+- Installed all locked extras in `source/.venv`; Torch 2.13 CUDA detected both
+  GPUs. Full server verification reached 153 passed and three honest pending
+  datasets-v2 receipt-sync skips; Ruff, all 62 source files under strict mypy,
+  isolated wheel/sdist build, all 30 configs, diff check, and Git clean passed.
+- An initial `build --no-isolation` attempt correctly failed because `wheel`
+  is a build-system dependency rather than a runtime/dev dependency. Re-running
+  the repository's specified isolated `python -m build` command passed.

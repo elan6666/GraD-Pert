@@ -36,13 +36,14 @@ formal result catalog, source parity and final post-result review.
 
 ## Open release blockers
 
-1. Latest source has not undergone fresh server Torch/PyG/mypy/full regression.
+1. Resolved after review: the clean server checkout passed 153 tests, Ruff,
+   full strict mypy, isolated build, config verification, and Git-clean gates.
 2. The 15 learned model/dataset one-epoch gates do not yet have current receipts.
 3. Seed-1 nonlearned formal results and GraD-Pert full seeds 1--4 are absent.
 4. datasets-v2 small receipt chains have not been allowlist-staged and verified
    after transfer.
-5. Local/GitHub parity is established and verified on the authorized public
-   `main`, but the server has not yet been synchronized to that clean commit.
+5. Resolved after review: local, GitHub, and the clean server checkout were
+   verified at `1ec6bd6a60a6480ec641806318ca5efab0e3ac90`.
 6. The strict 45-run ResultCatalog builder and executed notebook are ready, but
    no actual formal catalog, post-result metric recomputation audit, final ship
    review or delivery record exists.

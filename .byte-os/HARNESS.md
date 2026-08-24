@@ -49,9 +49,11 @@ PYTHONPATH=src:. python scripts/server/stage_small_results.py --help
 
 ## Known gaps and follow-up setup
 
-- The latest local source still needs fresh server Torch/PyG/mypy regression.
+- Fresh server regression passed from the clean public checkout: 153 tests,
+  Ruff, full 62-file strict mypy, isolated build, and 30 config verification.
 - Fifteen learned one-epoch integrations have not yet all passed.
-- Formal execution requires one clean commit shared by local, GitHub and server.
+- Local, GitHub, and the server checkout currently share one clean commit; any
+  follow-up source change must repeat the push/pull parity gate.
 - Current datasets-v2 small receipts still need allowlisted synchronization.
 
 ## Subagent exploration

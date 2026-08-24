@@ -2,14 +2,14 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: blocked
-current_workflow: byte-review
-next_workflow: byte-build
+stage: building
+current_workflow: byte-build
+next_workflow: byte-review
 review_verdict: block
 iteration_count: 3
 harness_status: ready
-hard_blocked: true
-updated_at: 2026-08-24T18:24:00+08:00
+hard_blocked: false
+updated_at: 2026-08-24T18:42:00+08:00
 ---
 
 # Status
@@ -42,6 +42,10 @@ updated_at: 2026-08-24T18:24:00+08:00
   complete source and CI history was pushed to public `origin/main`, and local
   `HEAD` and the remote ref were byte-identical at `5a9109f` immediately before
   this status update. No CI file was removed and no history was rewritten.
+- Server source gate: restored and verified. The non-Git storage root remains
+  untouched; public `main` was cloned to the new clean checkout
+  `/data/yilangliu/GraD-Pert/source`, whose HEAD matches local/GitHub
+  `1ec6bd6a60a6480ec641806318ca5efab0e3ac90`.
 - Data state: all five official sources remain sealed and all five datasets are
   `canonical_ready` under `datasets-v2`. The canonical H5AD hashes did not
   change; split/control hashes did. Server verification passed for all five,
@@ -86,11 +90,11 @@ updated_at: 2026-08-24T18:24:00+08:00
   without newest-result discovery or runner-side Truth.
 - Notebook handoff: the read-only benchmark notebook is generated and executed;
   it reports no result until an explicit hash-pinned catalog is synchronized.
-- Hard execution blocker: new server sessions and sync calls are unavailable
-  until the account/tool usage window resets on 2026-08-27 14:11 CST. Public
-  GitHub publication is complete; the server must next be synchronized to the
-  same clean commit before formal work. The completed capacity session was
-  collected normally; no alternate SSH path is used.
-- Next action after access is restored: synchronize the selected configs and
-  v2 small receipts, run the fresh server regression, then execute the 15
-  learned one-epoch gates and regenerated seed-1 nonlearned matrix.
+- Fresh server regression: pass on the clean checkout with Torch 2.13 CUDA
+  enabled on two RTX 5090 GPUs: 153 tests passed, three datasets-v2 receipt-sync
+  tests skipped, Ruff passed, strict mypy passed on all 62 source files,
+  isolated wheel/sdist build passed, all 30 configs verified, and Git remained
+  clean. The earlier access-window notice is superseded by this live evidence.
+- Next action: verify all five datasets-v2 receipt chains from the storage root,
+  dry-run the exact 15-task learned smoke matrix, and synchronize the current
+  small readiness receipts before any training launch.
