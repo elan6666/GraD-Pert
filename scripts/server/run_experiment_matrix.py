@@ -46,6 +46,17 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _executable_path(path: Path) -> Path:
+    """Validate an interpreter path without resolving its virtualenv symlink."""
+
+    candidate = path.expanduser().absolute()
+    if not candidate.is_file():
+        raise FileNotFoundError(f"Python executable does not exist: {candidate}")
+    if not os.access(candidate, os.X_OK):
+        raise PermissionError(f"Python executable is not executable: {candidate}")
+    return candidate
+
+
 def _runtime(args: argparse.Namespace) -> MatrixRuntime:
     project_root = args.project_root.resolve(strict=True)
     return MatrixRuntime(
@@ -55,11 +66,11 @@ def _runtime(args: argparse.Namespace) -> MatrixRuntime:
         ),
         data_root=args.data_root.resolve(strict=True),
         runs_root=args.runs_root.resolve(),
-        native_python=args.native_python.resolve(strict=True),
-        gears_python=args.gears_python.resolve(strict=True),
+        native_python=_executable_path(args.native_python),
+        gears_python=_executable_path(args.gears_python),
         gears_checkout=args.gears_checkout.resolve(strict=True),
         gears_data_root=args.gears_data_root.resolve(strict=True),
-        txpert_python=args.txpert_python.resolve(strict=True),
+        txpert_python=_executable_path(args.txpert_python),
         txpert_checkout=args.txpert_checkout.resolve(strict=True),
         devices=tuple(args.devices),
     )

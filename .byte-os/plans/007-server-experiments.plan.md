@@ -3,7 +3,7 @@ id: 007
 title: Server Synchronization and Five-Dataset Experiment Matrix
 status: in_progress
 wave: 4
-updated_at: 2026-08-24T18:42:00+08:00
+updated_at: 2026-08-24T19:03:40+08:00
 owner_role: Research Operations Engineer
 depends_on: [003, 004, 005, 006]
 start_directory: scripts/server
@@ -138,3 +138,9 @@ dry-run and deliberate execution surfaces, completion identity validation,
 15-smoke full-run dependency gate, cross-model fairness hashes, and sealed
 small-file staging/verification are implemented and tested. Plan status remains
 pending until the actual server matrix and result synchronization complete.
+
+Live progress: the clean server checkout and full dependency regression pass;
+all five datasets pass full canonical verification; all ten official runner
+preflights pass. A no-execution 15-task dry run caught virtualenv interpreter
+symlink expansion before launch. The preservation fix and regression test pass
+locally and must be committed/synchronized before the first one-epoch task.

@@ -290,3 +290,21 @@
 - An initial `build --no-isolation` attempt correctly failed because `wheel`
   is a build-system dependency rather than a runtime/dev dependency. Re-running
   the repository's specified isolated `python -m build` command passed.
+
+## 2026-08-24 — formal smoke dry-run preflight
+
+- Verified all five server datasets with the full canonical data verifier; all
+  are `canonical_ready` with explicit canonical-data, split and ordered
+  300-control manifest hashes.
+- Verified the five GEARS and five TxPert configurations through the guarded
+  official-checkout preflight. Both detached upstream worktrees are clean and
+  match their frozen commits.
+- Created the dedicated GEARS official cache root and hard-linked the two
+  already-present resources only after their SHA-256 values matched every
+  dataset registry entry.
+- The 15-task formal smoke planning command wrote no run and selected no task,
+  but revealed that `Path.resolve()` erased all three virtualenv identities by
+  converting their Python symlinks to `/usr/bin/python3.12`.
+- Replaced interpreter canonicalization with existence/execute validation that
+  preserves the requested virtualenv path. Added a subprocess regression test;
+  the focused launcher/matrix suite passes 8 tests and Ruff passes.

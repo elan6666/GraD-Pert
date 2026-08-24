@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-24T18:42:00+08:00
+updated_at: 2026-08-24T19:03:40+08:00
 ---
 
 # Status
@@ -45,7 +45,7 @@ updated_at: 2026-08-24T18:42:00+08:00
 - Server source gate: restored and verified. The non-Git storage root remains
   untouched; public `main` was cloned to the new clean checkout
   `/data/yilangliu/GraD-Pert/source`, whose HEAD matches local/GitHub
-  `1ec6bd6a60a6480ec641806318ca5efab0e3ac90`.
+  `a8a7247c3ac54e570f67cf0b392397e9309abb66` before the current launcher fix.
 - Data state: all five official sources remain sealed and all five datasets are
   `canonical_ready` under `datasets-v2`. The canonical H5AD hashes did not
   change; split/control hashes did. Server verification passed for all five,
@@ -95,6 +95,17 @@ updated_at: 2026-08-24T18:42:00+08:00
   tests skipped, Ruff passed, strict mypy passed on all 62 source files,
   isolated wheel/sdist build passed, all 30 configs verified, and Git remained
   clean. The earlier access-window notice is superseded by this live evidence.
-- Next action: verify all five datasets-v2 receipt chains from the storage root,
-  dry-run the exact 15-task learned smoke matrix, and synchronize the current
-  small readiness receipts before any training launch.
+- Fresh data gate: all five server datasets passed full `data verify --all` as
+  `canonical_ready`; their canonical-data, split and ordered 300-control hashes
+  were observed directly from the storage root.
+- Official-runner gate: all five GEARS and all five TxPert configs passed the
+  guarded official-checkout preflight at commits `f374e43` and `08d82ee`.
+  The two GEARS graph resources were hard-linked into the dedicated official
+  cache only after their hashes matched all five registry entries.
+- The first exact 15-task smoke dry run selected no execution and exposed a
+  launcher bug before training: resolving interpreter symlinks collapsed every
+  isolated Python path to `/usr/bin/python3.12`. The launcher now validates but
+  preserves each virtualenv path, with a subprocess regression test.
+- Next action: run the complete local/server gate on the launcher fix, publish
+  and synchronize one new clean commit, repeat the 15-task dry run, then execute
+  the first exact one-epoch GraD-Pert smoke.

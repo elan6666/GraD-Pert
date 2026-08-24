@@ -71,6 +71,11 @@ config hash, commit, formal status and one-time test lifecycle validate. An
 incomplete directory fails closed; only native full runs accept the explicit
 `--resume-native-full` path.
 
+Interpreter arguments are validated for existence and execute permission while
+preserving their lexical virtualenv paths. They must not be canonicalized to the
+base interpreter behind a `venv/bin/python` symlink, because doing so discards
+the native, GEARS, or TxPert environment selection.
+
 The `full` phase is formal-only and is unavailable until all 15 smoke run
 manifests plus training receipts prove one epoch, checkpoint identity, no test
 Truth during fit, and equal canonical-data/split/300-control hashes for each
