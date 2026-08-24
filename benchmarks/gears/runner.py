@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from scipy import sparse
 
 from benchmarks.common import (
     build_training_validation_adata,
@@ -33,6 +34,20 @@ from gradpert.hashing import sha256_file, sha256_json
 from gradpert.training.data import CanonicalTrainingData, write_training_data_receipt
 
 PROJECT_REPOSITORY = "https://github.com/elan6666/GraD-Pert.git"
+
+
+def _ensure_official_sparse_expression(adata: Any) -> dict[str, object]:
+    """Preserve values while satisfying the frozen GEARS sparse-X contract."""
+
+    observed_sparse = bool(sparse.issparse(adata.X))
+    if observed_sparse:
+        adata.X = adata.X.tocsr()
+    else:
+        adata.X = sparse.csr_matrix(np.asarray(adata.X))
+    return {
+        "input_expression_storage": "sparse" if observed_sparse else "dense",
+        "official_expression_storage": "scipy_csr_matrix",
+    }
 
 
 def _parameter(config: ExperimentConfig, name: str, expected: type) -> Any:
@@ -138,6 +153,7 @@ def run_one_epoch(
         )
         write_training_data_receipt(training_data, small_root / "training_data.json")
         adapted = build_training_validation_adata(training_data, axis="graph")
+        storage_receipt = _ensure_official_sparse_expression(adapted.adata)
         split_path = destination / "official_adapter" / "custom_split.pkl"
         split_sha256 = write_pickle(
             split_path,
@@ -151,6 +167,7 @@ def run_one_epoch(
             **adapted.receipt,
             "official_model": "gears",
             "official_test_loader_policy": "empty_then_removed_before_fit",
+            **storage_receipt,
             "split_pickle_sha256": split_sha256,
             "nonzero_metadata": "official_formula_without_DE_ranking",
         }
