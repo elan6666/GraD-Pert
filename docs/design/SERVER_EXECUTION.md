@@ -40,7 +40,7 @@ Server only:
 
 Execution policy is encoded independently in every model/dataset config:
 
-- `gradpert_b2`: one-epoch integration gate, then full training up to 200
+- `gradpert_b2`: one-epoch integration gate, then full training up to 100
   epochs with validation-only patience 10;
 - `gears` and `txpert_public`: exactly one training epoch on each dataset, using
   isolated frozen official packages/configuration; no full run in this phase;
@@ -94,7 +94,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/server/run_experiment_matrix.py \
   --phase smoke \
   --project-root /data/yilangliu/GraD-Pert/source \
   --data-root /data/yilangliu/GraD-Pert/data \
-  --runs-root /data/yilangliu/GraD-Pert/runs/formal-v1 \
+  --runs-root /data/yilangliu/GraD-Pert/runs/formal-v2 \
   --native-python /data/yilangliu/GraD-Pert/source/.venv/bin/python \
   --gears-python /data/yilangliu/GraD-Pert/envs/gears/bin/python \
   --gears-checkout /data/yilangliu/GraD-Pert/upstreams/gears \
@@ -102,6 +102,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/server/run_experiment_matrix.py \
   --txpert-python /data/yilangliu/GraD-Pert/envs/txpert/bin/python \
   --txpert-checkout /data/yilangliu/GraD-Pert/upstreams/txpert \
   --device cuda:0 --device cuda:1 \
+  --namespace formal-v2 \
   --expected-commit COMMIT_SHA --formal
 ```
 
