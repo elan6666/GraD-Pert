@@ -47,7 +47,7 @@ def fit_global_prototype_head(
     output_path: str | Path,
     device_name: str = "cuda:0",
     run_seed: int = 1,
-    batch_size: int = 64,
+    batch_size: int = 256,
     max_unique_conditions: int = 8,
     usable_memory_fraction: float = 0.85,
     probe_steps: int = CAPACITY_PROBE_STEPS,
@@ -63,8 +63,8 @@ def fit_global_prototype_head(
 
     if not torch.cuda.is_available() or not device_name.startswith("cuda:"):
         raise RuntimeError("prototype-head fit requires an explicit CUDA device")
-    if (batch_size, max_unique_conditions) != (64, 8):
-        raise ValueError("v1 prototype fit requires batch 64 and condition cap 8")
+    if (batch_size, max_unique_conditions) != (256, 8):
+        raise ValueError("v1 prototype fit requires batch 256 and condition cap 8")
     if usable_memory_fraction != 0.85:
         raise ValueError("v1 prototype fit threshold is frozen at 85% of usable memory")
     if probe_steps != CAPACITY_PROBE_STEPS:
@@ -144,7 +144,7 @@ def fit_global_prototype_head(
                     optimizer=optimizer,
                     centers=centers,
                     run_seed=run_seed,
-                    total_schedule_steps=200 * steps_per_epoch,
+                    total_schedule_steps=100 * steps_per_epoch,
                     heldout_target_ids=heldout_ids,
                 )
                 expected_probe_steps = min(probe_steps, steps_per_epoch)

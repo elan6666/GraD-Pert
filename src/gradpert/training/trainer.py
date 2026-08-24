@@ -68,16 +68,20 @@ class GraDPertTrainer:
         checkpoint_identity: CheckpointIdentity,
         run_root: str | Path,
         steps_per_epoch: int,
+        max_epochs: int,
         run_meta: Mapping[str, Any],
     ) -> None:
         if steps_per_epoch <= 0:
             raise ValueError("steps_per_epoch must be positive")
-        if engine.total_schedule_steps != 200 * steps_per_epoch:
-            raise ValueError("Teacher schedule must span the maximum 200-epoch budget")
+        if max_epochs != 100:
+            raise ValueError("full native budget must be exactly 100 epochs")
+        if engine.total_schedule_steps != max_epochs * steps_per_epoch:
+            raise ValueError("Teacher schedule must span the configured full budget")
         self.engine = engine
         self.identity = checkpoint_identity
         self.run_root = Path(run_root)
         self.steps_per_epoch = steps_per_epoch
+        self.max_epochs = max_epochs
         self.receipts = TrainingReceiptWriter(self.run_root / "small_results")
         self.receipts.write_run_meta(run_meta)
         self.progress = GraDPertTrainingProgress()
@@ -120,7 +124,7 @@ class GraDPertTrainer:
         train_epoch_factory: TrainEpochFactory,
         validate: ValidationFunction,
     ) -> GraDPertTrainingProgress:
-        target_epochs = 1 if mode == "smoke" else 200
+        target_epochs = 1 if mode == "smoke" else self.max_epochs
         if self.progress.completed_epochs > target_epochs:
             raise ValueError("checkpoint is beyond the requested run mode")
         for epoch in range(self.progress.completed_epochs, target_epochs):

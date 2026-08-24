@@ -140,18 +140,38 @@ class AdaptiveGeneGraphEncoder(nn.Module):
             inputs.index_copy_(0, index, self.mask_token.expand(len(local_mask_ids), -1))
         return inputs
 
-    def forward(self, view: GraphView) -> EncodedGraphView:
-        if any(node_id < 0 or node_id >= self.n_genes for node_id in view.node_ids):
+    def forward_many(self, views: Sequence[GraphView]) -> tuple[EncodedGraphView, ...]:
+        """Encode disjoint graph views in one accelerator launch group.
+
+        Offsetting each view's local edge indices creates one disconnected graph,
+        so message passing remains identical to independent encoder calls while
+        avoiding Python and kernel-launch overhead for every condition-local view.
+        """
+
+        if not views:
+            raise ValueError("at least one graph view is required")
+        if any(
+            node_id < 0 or node_id >= self.n_genes for view in views for node_id in view.node_ids
+        ):
             raise ValueError("graph view node ID is outside embedding table")
-        inputs = self._node_inputs(view)
+
+        inputs_by_view = tuple(self._node_inputs(view) for view in views)
+        node_counts = tuple(inputs.shape[0] for inputs in inputs_by_view)
+        inputs = torch.cat(inputs_by_view, dim=0)
         source_states = []
         source_scores = []
         for source_name in ("go", "string"):
-            edge_index = torch.as_tensor(
-                view.local_edge_index(source_name),
-                device=inputs.device,
-                dtype=torch.long,
-            )
+            edges = []
+            node_offset = 0
+            for view, node_count in zip(views, node_counts, strict=True):
+                local_edges = torch.as_tensor(
+                    view.local_edge_index(source_name),
+                    device=inputs.device,
+                    dtype=torch.long,
+                )
+                edges.append(local_edges + node_offset)
+                node_offset += node_count
+            edge_index = torch.cat(edges, dim=1)
             state = F.leaky_relu(
                 self.towers[source_name](inputs, edge_index),
                 negative_slope=0.2,
@@ -161,7 +181,16 @@ class AdaptiveGeneGraphEncoder(nn.Module):
         stacked_states = torch.stack(source_states, dim=1)
         weights = torch.softmax(torch.stack(source_scores, dim=1), dim=1).unsqueeze(-1)
         fused = (stacked_states * weights).sum(dim=1)
-        return EncodedGraphView(node_ids=view.node_ids, node_states=fused)
+        chunks = fused.split(node_counts, dim=0)
+        return tuple(
+            EncodedGraphView(node_ids=view.node_ids, node_states=states)
+            for view, states in zip(views, chunks, strict=True)
+        )
+
+    def forward(self, view: GraphView) -> EncodedGraphView:
+        if any(node_id < 0 or node_id >= self.n_genes for node_id in view.node_ids):
+            raise ValueError("graph view node ID is outside embedding table")
+        return self.forward_many((view,))[0]
 
 
 class ConsistencyProjector(nn.Module):

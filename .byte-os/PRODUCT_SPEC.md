@@ -59,7 +59,7 @@ protocol.
    coverage gates before training.
 3. Each model/dataset config is self-contained, strict, and hashable.
 4. Every learned model/dataset pair must first pass an exact one-epoch smoke
-   run. In the current phase, only GraD-Pert may continue to max 200 epochs
+   run. In the current phase, only GraD-Pert may continue to max 100 epochs
    with validation-only early stopping patience 10; GEARS and TxPert stop after
    the smoke checkpoint. Test is evaluated only after the selected checkpoint.
 5. Every runner emits prediction-only condition artifacts using exact shared

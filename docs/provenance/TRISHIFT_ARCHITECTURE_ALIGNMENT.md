@@ -174,6 +174,6 @@ following from receipts, not just exit code:
 7. valid truth-free PredictionArtifact and common evaluator output;
 8. no unexplained condition/gene coverage loss.
 
-Only GraD-Pert proceeds from this gate to full `max_epochs=200`, validation-only
+Only GraD-Pert proceeds from this gate to full `max_epochs=100`, validation-only
 early stopping with patience 10. GEARS and TxPert remain `smoke_only` in the
 current execution policy.

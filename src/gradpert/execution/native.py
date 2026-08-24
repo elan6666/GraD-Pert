@@ -159,6 +159,7 @@ def run_native_experiment(
     eval_batch_size = _training_integer(config, "eval_batch_size")
     max_unique_conditions = _integer_parameter(config, "max_unique_conditions_per_batch")
     prototype_count = _integer_parameter(config, "prototype_count")
+    max_epochs = _training_integer(config, "max_epochs")
 
     with (
         CanonicalTrainingData(
@@ -218,7 +219,7 @@ def run_native_experiment(
             optimizer=optimizer,
             centers=centers,
             run_seed=run_seed,
-            total_schedule_steps=200 * steps_per_epoch,
+            total_schedule_steps=max_epochs * steps_per_epoch,
             heldout_target_ids=heldout_ids,
         )
         checkpoint_identity = CheckpointIdentity(
@@ -242,7 +243,7 @@ def run_native_experiment(
             "config_path": str(config_file),
             "config_sha256": config_sha256,
             "steps_per_epoch": steps_per_epoch,
-            "max_epochs": 1 if mode == "smoke" else 200,
+            "max_epochs": 1 if mode == "smoke" else max_epochs,
             "early_stopping_patience": int(config.training.early_stopping_patience.value),
             "validation_monitor": config.training.monitor,
         }
@@ -252,6 +253,7 @@ def run_native_experiment(
             checkpoint_identity=checkpoint_identity,
             run_root=destination,
             steps_per_epoch=steps_per_epoch,
+            max_epochs=max_epochs,
             run_meta=run_meta,
         )
         if resume:
@@ -298,7 +300,7 @@ def run_native_experiment(
                 "model_id": config.model_id,
                 "dataset_id": config.dataset_id,
                 "mode": mode,
-                "epochs_requested": 1 if mode == "smoke" else 200,
+                "epochs_requested": 1 if mode == "smoke" else max_epochs,
                 "epochs_completed": progress.completed_epochs,
                 "optimizer_steps": progress.global_step,
                 "early_stopping_patience": int(config.training.early_stopping_patience.value),

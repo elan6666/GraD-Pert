@@ -162,7 +162,7 @@ Each step uses this order:
    gradient norms/ratios.
 
 Teacher momentum follows a step-level cosine from 0.996 to 1 over the maximum
-200-epoch schedule; resumed runs restore global step and all state exactly.
+100-epoch schedule; resumed runs restore global step and all state exactly.
 
 Gradient ownership:
 
@@ -173,25 +173,24 @@ Gradient ownership:
 
 ## 9. Optimization and selection
 
-- Default native optimizer: AdamW, LR 1e-3, weight decay 0, batch size 64.
-  These start from the frozen public TxPert values and are marked with their
-  source in every dataset config.
+- Default native optimizer: AdamW, LR 1e-3, weight decay 0. The user-locked
+  native train/evaluation batch size is 256 in every dataset config.
 - Native batches use a deterministic condition-limited order: at most eight
-  unique perturbation conditions per 64-cell batch, with every condition's
+  unique perturbation conditions per 256-cell batch, with every condition's
   cells independently reshuffled each epoch. This keeps the graph objective at
   the condition statistical unit, preserves multi-condition spread terms, and
-  bounds the eight condition-specific local-view forwards. Batch size 64 is the
-  maximum: tail batches of 2--63 cells are retained so conditions with few
+  bounds the eight condition-specific local-view forwards. Tail batches of
+  2--255 cells are retained so conditions with few
   remaining cells are not discarded; only an unavoidable one-cell tail is
   dropped because both prediction MLPs contain BatchNorm. The cap, ordering and
   singleton policy are explicit `project_preregistered` values in every
   GraD-Pert dataset config; they are not tuned by dataset or test results.
-- Maximum 200 epochs. Validate every epoch using the fixed validation
+- Maximum 100 epochs. Validate every epoch using the fixed validation
   300-control manifest and `txpert_macro_pearson_delta`.
 - Stop after 10 consecutive validations without a strict improvement. Save best
   and last. Test the sealed best checkpoint once.
 - Four run seeds: 1, 2, 3, 4. Split seed: 42. Evaluation seed: 20260824.
-- If batch 64 cannot fit even with `K_head=8192`, this is a blocked capacity
+- If batch 256 cannot fit even with `K_head=8192`, this is a blocked capacity
   gate requiring a preregistered config change; do not silently reduce batch.
 
 ## 10. Required implementation evidence

@@ -67,7 +67,7 @@ No local formal compute, force sync, large download to Mac, or unplanned sweep.
 ## Step 4: Run formal matrix
 
 - Purpose: fulfill five-dataset comparison.
-- Actions: GraD-Pert × five datasets × seeds 1–4 at max 200/patience 10, three
+- Actions: GraD-Pert × five datasets × seeds 1–4 at max 100/patience 10, three
   nonlearned models per dataset, common inference/evaluation; do not launch
   full GEARS/TxPert runs; resume idempotently and never overwrite sealed runs.
 - Files/modules: server-only artifacts and small summaries.

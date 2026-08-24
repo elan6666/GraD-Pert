@@ -108,8 +108,8 @@ class TrainingConfig(StrictModel):
             if self.smoke_epochs.value != 1:
                 raise ValueError("learned models require a one-epoch integration smoke")
             if self.formal_run_policy == "smoke_then_full":
-                if self.max_epochs.value != 200:
-                    raise ValueError("full native runs require max_epochs=200")
+                if self.max_epochs.value != 100:
+                    raise ValueError("full native runs require max_epochs=100")
                 if not self.early_stopping or self.early_stopping_patience.value != 10:
                     raise ValueError("full native runs require early-stopping patience=10")
                 if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":

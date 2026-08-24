@@ -65,7 +65,7 @@ No B3, ablation flag, alternate backbone/decoder, or real formal training.
 ## Step 4: Trainer, resume, and inference
 
 - Purpose: run B2 reliably.
-- Actions: control pairing, AdamW config, max 200/patience 10, best/last
+- Actions: control pairing, AdamW config, max 100/patience 10, best/last
   checkpoint, deterministic condition inference with manifest controls, receipts.
 - Files or modules: `src/gradpert/training`, CLI, tests.
 - Expected output: synthetic train-resume-predict flow.

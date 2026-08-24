@@ -88,3 +88,21 @@ def test_masked_view_routes_gradient_to_shared_mask_token() -> None:
     loss.backward()
     assert model.student_encoder.mask_token.grad is not None
     assert torch.isfinite(model.student_encoder.mask_token.grad).all()
+
+
+def test_disconnected_view_batch_matches_independent_encoding() -> None:
+    model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+    )
+    views = _views()
+    selected = (views.globals[0], views.locals[0], views.globals[1])
+    model.eval()
+
+    independent = tuple(model.student_encoder(view) for view in selected)
+    batched = model.student_encoder.forward_many(selected)
+
+    assert tuple(item.node_ids for item in batched) == tuple(item.node_ids for item in independent)
+    for expected, observed in zip(independent, batched, strict=True):
+        torch.testing.assert_close(observed.node_states, expected.node_states)

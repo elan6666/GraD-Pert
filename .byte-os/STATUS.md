@@ -9,10 +9,20 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-24T20:34:00+08:00
+updated_at: 2026-08-25T00:30:00+08:00
 ---
 
 # Status
+
+- 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
+  and train/evaluation batch size 256. The ad6 full gate/final watcher were
+  stopped before any full task launched. Completed ad6 smoke/nonlearned outputs
+  remain evidence but the native capacity gate and learned smoke matrix must be
+  rerun at the next clean commit before full training.
+- Performance work in progress: batch disconnected graph views per encoder
+  call and reuse the two actual branch-backward traversals for gradient
+  diagnostics, without changing losses, view identities, gradient ownership,
+  optimizer→Teacher EMA→center order, splits, or evaluation.
 
 - Goal mode: on; Codex goal created for the end-to-end GraD-Pert delivery.
 - Project state: root Git repository and standalone package shell exist; plans
@@ -24,13 +34,14 @@ updated_at: 2026-08-24T20:34:00+08:00
 - Fairness: one canonical condition split/evaluation manifest; paired run seeds and shared 300-control evaluation draws.
 - Metric contract: frozen union with three distinct Pearson headlines: TxPert macro delta, TriShift delta, Systema Pearson.
 - Artifact contract: versioned condition-level PKL plus Parquet/JSON/H5AD; notebooks consume artifacts only.
-- Execution policy: all 15 learned model/dataset integrations must pass exactly 1 epoch; only GraD-Pert continues to max 200 with validation-only patience 10. GEARS/TxPert are official-package `smoke_only` runners.
+- Execution policy: all 15 learned model/dataset integrations must pass exactly 1 epoch; only GraD-Pert continues to max 100 with validation-only patience 10. GEARS/TxPert are official-package `smoke_only` runners.
 - Server topology: formal compute only on `/data/yilangliu`; local/GitHub/server must share one clean commit; large artifacts remain server-only.
-- Hardware decision: two RTX 5090 with 32607 MiB each; the sustained global
+- Historical batch-64 hardware decision: two RTX 5090 with 32607 MiB each; the sustained global
   gate selected `K_head=16384`. Candidate 65,536 failed on K562 at step 34,
   32,768 failed on Jurkat at step 20, and 16,384 completed 128 real steps on
   each dataset. Its worst peak reserved memory was 24,226,299,904 bytes on
-  Jurkat, below the 28,168,037,990-byte threshold.
+  Jurkat, below the 28,168,037,990-byte threshold. This receipt does not qualify
+  the new batch-256 implementation; a fresh capacity receipt is required.
 - Harness: ready; Claude context ready; Codex context ready; `AGENTS.md` ready.
 - Config contract: exactly 30 self-contained model/dataset YAML files verified with 30 unique byte hashes; no global config/default/merge/inheritance path.
 - Evidence iteration 1 migrated all five splits to the frozen

@@ -56,11 +56,12 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
 - After all one-epoch gates pass, only GraD-Pert may enter full training.
   GEARS and TxPert have `formal_run_policy=smoke_only`; nonlearned models use
   `inference_only`.
-- `max_epochs=200`; validate each epoch; stop after 10 validation checks with
+- `max_epochs=100`; validate each epoch; stop after 10 validation checks with
   no strict improvement in `val/txpert_macro_pearson_delta`; `min_delta=0`.
 - Save best and last resumable checkpoints. Test only the sealed best checkpoint
   after training/selection is finished.
-- Preserve frozen official LR/batch/optimizer/weight-decay/dataset differences.
+- Preserve frozen official LR/optimizer/weight-decay/dataset differences.
+  GraD-Pert train/evaluation batch size 256 is a user-locked project override.
   Every value has provenance `official`, `paper`, or `project_preregistered`.
 - The public TxPert configs currently expose batch 64 and defaults AdamW,
   LR 1e-3, weight decay 0. The frozen GEARS code exposes train/test batch
@@ -70,6 +71,11 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
   matching, view construction, evaluation-control sampling, and statistics.
 - Every run logs losses, schedules, gradient norms/ratios, EMA/center states,
   config/environment/data hashes, hardware, source commit, and dirty status.
+- Disconnected graph views may be batched into one encoder call, and prediction
+  and SSL gradients may be accumulated from separate backward traversals, only
+  when tests prove the same loss, gradient ownership, update order, and view IDs.
+- After long training is launched, stop the active execution loop and resume
+  work through scheduled receipt/process checks; never busy-poll the server.
 
 ## Official learned benchmark boundary
 

@@ -1,5 +1,12 @@
 # Decision Log
 
+## 2026-08-25
+
+- GraD-Pert full-run 上限由 200 改为 100 epochs，仍采用 validation-only early stopping `patience=10`。
+- GraD-Pert 五数据集的 train/evaluation batch size 统一由 64 改为用户锁定的 256；必须经过服务器真实显存 smoke，不能静默回退。
+- 训练性能优化必须保持 B2 损失、view、梯度归属、optimizer→Teacher EMA→center 顺序及公平评估协议不变。允许批处理互不相连的 graph views，并复用实际 prediction/SSL 反向梯度计算诊断指标。
+- 启动长时间训练后暂停持续目标执行，改由定时任务检查进程、receipt 与失败证据，不进行前台 busy polling。
+
 ## 2026-08-24
 
 - MVP 只实现一个 GraD-Pert 版本：B2 从随机初始化联合优化表达预测与图自蒸馏；不实现 B3 和消融矩阵。
@@ -15,7 +22,7 @@
 - 正式数据准备、图构建、GPU fit-test、训练、推理和指标物化只在服务器执行；本地仅做开发、单元测试和合成 smoke。
 - 代码唯一远端为 `https://github.com/elan6666/GraD-Pert.git`；每个服务器任务必须证明本地、GitHub、服务器三端为同一 commit，且服务器 worktree 干净。
 - 数据集、H5AD、prediction PKL、checkpoint、逐细胞矩阵等大产物只留服务器；回传本地采用小型结果白名单，并保存服务器路径与 checksum 指针。
-- Learned models 默认最多训练 200 epochs 并启用早停：每 epoch 检查 `val/txpert_macro_pearson_delta`，`mode=max`、`patience=10`、`min_delta=0`；测试只在 checkpoint 锁定后运行一次。
+- Learned models 原始约定最多训练 200 epochs；该上限已由 2026-08-25 决策改为 GraD-Pert 100 epochs，早停和测试门禁不变。
 - 学习率、optimizer、weight decay、batch size 和模型数值配置先逐模型、逐数据集沿用冻结官方代码；官方若有数据集差异则保留差异，未公开值必须标记为 `project_preregistered`，不能冒充官方参数。
 - 已核对 TxPert 当前公开配置：所有发布 YAML 的 batch size 都是 64，训练模块默认 AdamW、LR `1e-3`、weight decay `0`，但仓库没有五数据集的完整训练配置。已核对 GEARS 冻结 commit：官方示例 train/test batch 为 32/128，训练默认 Adam、LR `1e-3`、weight decay `5e-4`；未发布五数据集差异。
 - 配置采用 `configs/experiments/<model_id>/<dataset_id>.yaml` 模型×数据集矩阵；每份文件自包含全部有效值。禁止单一总配置、隐藏 defaults 链和跨文件继承；共享内容仅限 Python schema/validator。

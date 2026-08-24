@@ -8,7 +8,7 @@
 
 1. 干净环境安装、静态检查、单元测试和合成端到端 smoke 全部通过，并记录命令与环境 hash。
 2. Replogle K562、Replogle RPE1、Nadig Jurkat、Nadig HepG2、Norman 五个数据集均通过下载校验、预处理/QC 和 canonical split 门禁；所有模型加载后的 train/validation/test condition IDs 与 `split_hash` 完全一致。
-3. 唯一 GraD-Pert B2 路线完成完整训练 step、EMA/center 更新、checkpoint 恢复和 Scouter-style 每条件 300-control 推理；`K_head` 由服务器最坏情况显存 fit-test 一次性锁定；默认 200 epochs 上限与 validation-only early stopping 可验证生效。
+3. 唯一 GraD-Pert B2 路线完成完整训练 step、EMA/center 更新、checkpoint 恢复和 Scouter-style 每条件 300-control 推理；`K_head` 由服务器最坏情况显存 fit-test 一次性锁定；默认 100 epochs 上限与 validation-only early stopping 可验证生效。
 4. GraD-Pert、官方包调用的 GEARS、官方包调用的 TxPert 在五数据集上均通过 1 epoch 集成门禁并进入统一 evaluator；只对 GraD-Pert 跑完整训练，三个 nonlearned baselines 做完整推理评估；每个适用指标具有逐 condition 值、macro 汇总、availability 和来源 commit。
 5. 每次正式运行在服务器保存完整 manifest、checkpoint、history、prediction PKL、Parquet/JSON/H5AD 与 notebook provenance，并能从 prediction payload 独立重算已发布指标；本地仅同步小型指标、日志、receipt 和 server-artifact pointer。
 6. 每个正式服务器任务的 preflight receipt 证明本地 HEAD、GitHub commit 与服务器 HEAD 完全一致，且服务器 worktree 干净；任何不一致均中止任务。

@@ -80,14 +80,8 @@ def _stack_condition_states(
     )
 
 
-def _gradient_norm(loss: Tensor, parameters: tuple[Tensor, ...]) -> float:
-    gradients = torch.autograd.grad(
-        loss,
-        parameters,
-        retain_graph=True,
-        allow_unused=True,
-    )
-    squared = loss.new_zeros(())
+def _gradient_norm(gradients: tuple[Tensor | None, ...], reference: Tensor) -> float:
+    squared = reference.new_zeros(())
     for gradient in gradients:
         if gradient is not None:
             squared = squared + gradient.detach().float().square().sum()
@@ -151,7 +145,7 @@ class GraDPertStepEngine:
 
         clean_globals = tuple(clean_graph_view(view) for view in views.globals)
         with torch.no_grad():
-            teacher_encoded = tuple(self.model.teacher_encoder(view) for view in clean_globals)
+            teacher_encoded = self.model.teacher_encoder.forward_many(clean_globals)
             teacher_condition_states = tuple(
                 _stack_condition_states(encoded, views) for encoded in teacher_encoded
             )
@@ -159,7 +153,7 @@ class GraDPertStepEngine:
                 self.model.teacher_projector(states) for states in teacher_condition_states
             )
 
-        student_encoded = tuple(self.model.student_encoder(view) for view in views.globals)
+        student_encoded = self.model.student_encoder.forward_many(views.globals)
         student_global_states = tuple(
             _stack_condition_states(encoded, views) for encoded in student_encoded
         )
@@ -167,14 +161,16 @@ class GraDPertStepEngine:
             self.model.student_projector(states) for states in student_global_states
         ]
         for local_index in range(8):
-            local_states = []
-            for condition_id in views.anchors_by_condition:
-                encoded = self.model.student_encoder(
-                    views.locals_by_condition[condition_id][local_index]
-                )
-                local_states.append(
-                    encoded.condition_state(views.anchors_by_condition[condition_id])
-                )
+            condition_ids = tuple(views.anchors_by_condition)
+            local_views = tuple(
+                views.locals_by_condition[condition_id][local_index]
+                for condition_id in condition_ids
+            )
+            local_encoded = self.model.student_encoder.forward_many(local_views)
+            local_states = [
+                encoded.condition_state(views.anchors_by_condition[condition_id])
+                for condition_id, encoded in zip(condition_ids, local_encoded, strict=True)
+            ]
             student_view_logits.append(self.model.student_projector(torch.stack(local_states)))
 
         condition_loss = condition_consistency_loss(
@@ -214,20 +210,6 @@ class GraDPertStepEngine:
         prediction_loss = F.mse_loss(prediction, batch.target_expression)
         total_loss = prediction_loss + 0.1 * ssl_loss
 
-        graph_parameters = tuple(
-            parameter
-            for name, parameter in self.model.student_encoder.named_parameters()
-            if name != "mask_token" and parameter.requires_grad
-        )
-        prediction_gradient_norm = _gradient_norm(prediction_loss, graph_parameters)
-        ssl_gradient_norm = _gradient_norm(ssl_loss, graph_parameters)
-        weighted_ssl_gradient_norm = 0.1 * ssl_gradient_norm
-        gradient_ratio = (
-            prediction_gradient_norm / weighted_ssl_gradient_norm
-            if weighted_ssl_gradient_norm > 0
-            else None
-        )
-
         condition_probabilities = torch.cat(
             [
                 centered_teacher_probabilities(logits, self.centers.condition)
@@ -244,8 +226,52 @@ class GraDPertStepEngine:
             )
             masked_entropy, masked_used = _distribution_health(masked_probabilities)
 
+        trainable_parameters = tuple(
+            parameter for parameter in self.model.parameters() if parameter.requires_grad
+        )
+        ssl_gradients = torch.autograd.grad(
+            ssl_loss,
+            trainable_parameters,
+            allow_unused=True,
+        )
         self.optimizer.zero_grad(set_to_none=True)
-        total_loss.backward()  # type: ignore[no-untyped-call]
+        prediction_loss.backward()  # type: ignore[no-untyped-call]
+
+        graph_parameter_ids = {
+            id(parameter)
+            for name, parameter in self.model.student_encoder.named_parameters()
+            if name != "mask_token" and parameter.requires_grad
+        }
+        prediction_graph_gradients = tuple(
+            parameter.grad
+            for parameter in trainable_parameters
+            if id(parameter) in graph_parameter_ids
+        )
+        ssl_graph_gradients = tuple(
+            gradient
+            for parameter, gradient in zip(trainable_parameters, ssl_gradients, strict=True)
+            if id(parameter) in graph_parameter_ids
+        )
+        prediction_gradient_norm = _gradient_norm(
+            prediction_graph_gradients,
+            prediction_loss,
+        )
+        ssl_gradient_norm = _gradient_norm(ssl_graph_gradients, ssl_loss)
+        weighted_ssl_gradient_norm = 0.1 * ssl_gradient_norm
+        gradient_ratio = (
+            prediction_gradient_norm / weighted_ssl_gradient_norm
+            if weighted_ssl_gradient_norm > 0
+            else None
+        )
+
+        for parameter, ssl_gradient in zip(trainable_parameters, ssl_gradients, strict=True):
+            if ssl_gradient is None:
+                continue
+            weighted_gradient = ssl_gradient.detach().mul(0.1)
+            if parameter.grad is None:
+                parameter.grad = weighted_gradient
+            else:
+                parameter.grad.add_(weighted_gradient)
         self.optimizer.step()
         schedule_last_step = max(1, self.total_schedule_steps - 1)
         momentum = cosine_teacher_momentum(

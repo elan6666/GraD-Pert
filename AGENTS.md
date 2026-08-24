@@ -44,21 +44,24 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   config, hidden defaults chain, or config inheritance.
 - Every GraD-Pert, GEARS, and TxPert dataset integration must first pass an
   exactly one-epoch server smoke. Only GraD-Pert proceeds to a full run with
-  `max_epochs=200` and validation-only early stopping `patience=10`; GEARS and
+  `max_epochs=100` and validation-only early stopping `patience=10`; GEARS and
   TxPert remain smoke-only until the user changes the execution policy.
 - GEARS and TxPert models are never reimplemented in this repository. Their
   isolated runners import and call the frozen official checkout/package with
   official model/training configuration; local code is limited to canonical
   data/split adaptation, leakage guards, prediction export, and receipts.
-- LR, batch size, optimizer, weight decay, and architecture values start from
-  each model/dataset's frozen official config; preserve genuine dataset
-  differences and label missing values `project_preregistered`.
+- LR, optimizer, weight decay, and architecture values start from each
+  model/dataset's frozen official config; preserve genuine dataset differences
+  and label missing values `project_preregistered`. GraD-Pert train/eval batch
+  size 256 is the explicit user-locked override.
 - Formal data preparation, graphs, GPU fitting, training, inference, and metric
   materialization run only on `/data/yilangliu`.
 - Local, GitHub `elan6666/GraD-Pert`, and server source must be the same clean
   commit before formal work. Abort on mismatch.
 - Datasets, H5AD, PKL predictions, checkpoints, weights, and per-cell matrices
   stay on the server. Pull only dry-run-reviewed small result/receipt files.
+- After launching long-running training, stop continuous goal execution and use
+  the scheduled monitor for periodic receipt/process checks. Do not busy-poll.
 
 ## Repository Map
 

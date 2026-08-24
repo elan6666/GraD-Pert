@@ -148,21 +148,21 @@ training:
     reference: "user requirement: learned integration gate is exactly one epoch"
   formal_run_policy: smoke_then_full
   max_epochs:
-    value: 200
+    value: 100
     source: user_locked
-    reference: "user requirement: maximum 200 epochs"
+    reference: "user requirement 2026-08-25: maximum 100 epochs"
   early_stopping_patience:
     value: 10
     source: user_locked
     reference: "user requirement: patience 10"
   train_batch_size:
-    value: 64
-    source: official
-    reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    value: 256
+    source: user_locked
+    reference: "user requirement 2026-08-25: batch size 256"
   eval_batch_size:
-    value: 64
-    source: official
-    reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    value: 256
+    source: user_locked
+    reference: "user requirement 2026-08-25: batch size 256"
   optimizer:
     value: "AdamW"
     source: official
