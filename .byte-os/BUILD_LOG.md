@@ -253,3 +253,20 @@
 - Final local handoff regression: 137 tests passed and 9 honest skips; Ruff,
   strict mypy over 20 available-dependency modules, offline build, Byte state,
   notebook structure/execution and Git diff checks passed.
+
+## 2026-08-24 — authorized publication preflight
+
+- Received explicit approval to publish the current repository, completed the
+  credential/large-file review, preserved hash-bound CRLF audit CSVs through
+  path-scoped Git attributes, and created snapshot commit `06fb363`.
+- GitHub rejected the first push before creating `main`: the available HTTPS
+  OAuth credential can write repository content but lacks the additional
+  `workflow` scope required to publish `.github/workflows/ci.yml`. SSH is not
+  configured and the GitHub CLI token is expired; no CI file was removed and no
+  history was rewritten.
+- CI preflight found and repaired two latent failures before retry: the project
+  requires Python 3.12 but the workflow included 3.10, and the workflow ran the
+  full suite/mypy without installing the data/model/analysis extras. The revised
+  job uses Python 3.12, a hash-pinned official uv setup action plus uv 0.12.5,
+  `uv sync --locked --all-extras --dev`, hash-pinned checkout, read-only
+  repository permission, concurrency cancellation, and a 30-minute timeout.

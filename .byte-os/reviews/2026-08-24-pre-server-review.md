@@ -41,7 +41,9 @@ formal result catalog, source parity and final post-result review.
 3. Seed-1 nonlearned formal results and GraD-Pert full seeds 1--4 are absent.
 4. datasets-v2 small receipt chains have not been allowlist-staged and verified
    after transfer.
-5. Local/GitHub/server are not yet one identical clean published commit.
+5. Publication approval is recorded and local snapshot `06fb363` is clean, but
+   the first GitHub push was rejected before ref creation because the available
+   OAuth credential lacks `workflow` scope. GitHub/server parity is still absent.
 6. The strict 45-run ResultCatalog builder and executed notebook are ready, but
    no actual formal catalog, post-result metric recomputation audit, final ship
    review or delivery record exists.

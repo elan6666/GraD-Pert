@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: true
-updated_at: 2026-08-24T18:03:31+08:00
+updated_at: 2026-08-24T18:26:00+08:00
 ---
 
 # Status
@@ -38,7 +38,11 @@ updated_at: 2026-08-24T18:03:31+08:00
   reshuffling retained conditions. Data/hash verification, graph rebuild and
   evaluator-state rebuild passed. The sustained `K_head` refit is complete and
   the five native configs now freeze 16,384.
-- Publication gate: the first public push is paused because the safety review requires explicit approval to publish internal design/server-topology material; no workaround is used.
+- Publication gate: explicit approval to publish the current repository was
+  received on 2026-08-24. Snapshot commit `06fb363` was created, but GitHub
+  rejected the push before writing a ref because the available OAuth credential
+  lacks `workflow` scope. No CI file was removed and no history was rewritten;
+  refreshed `repo,workflow` authentication is required.
 - Data state: all five official sources remain sealed and all five datasets are
   `canonical_ready` under `datasets-v2`. The canonical H5AD hashes did not
   change; split/control hashes did. Server verification passed for all five,
@@ -83,11 +87,11 @@ updated_at: 2026-08-24T18:03:31+08:00
   without newest-result discovery or runner-side Truth.
 - Notebook handoff: the read-only benchmark notebook is generated and executed;
   it reports no result until an explicit hash-pinned catalog is synchronized.
-- Hard execution blocker: new remote sessions and sync calls are unavailable
-  until the account/tool usage window resets on 2026-08-27 14:11 CST. The
-  completed capacity session was collected normally; no alternate SSH path is
-  used. Publication/formal execution also still needs approval for the first
-  public push of the internal design and server-topology material.
+- Hard execution blockers: new server sessions and sync calls are unavailable
+  until the account/tool usage window resets on 2026-08-27 14:11 CST, and the
+  GitHub credential must be refreshed with `repo,workflow` scope before the
+  authorized public snapshot can be pushed. The completed capacity session was
+  collected normally; no alternate SSH path is used.
 - Next action after access is restored: synchronize the selected configs and
   v2 small receipts, run the fresh server regression, then execute the 15
   learned one-epoch gates and regenerated seed-1 nonlearned matrix.
