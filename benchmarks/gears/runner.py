@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from scipy import sparse
+from scipy import sparse  # type: ignore[import-untyped]
 
 from benchmarks.common import (
     build_training_validation_adata,
