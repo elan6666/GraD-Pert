@@ -77,6 +77,36 @@ def fit_global_prototype_head(
 
     candidates: list[PrototypeCandidateObservation] = []
     selected: int | None = None
+
+    def write_receipt(status: str) -> dict[str, object]:
+        receipt: dict[str, object] = {
+            "schema_version": "prototype-head-capacity-v2",
+            "status": status,
+            "formal_eligible": False,
+            "formal_eligibility_reason": ("requires_identical_clean_local_github_server_commit"),
+            "device": device_name,
+            "device_name": properties.name,
+            "device_total_bytes": int(total_bytes),
+            "initial_free_bytes": int(free_bytes),
+            "usable_memory_fraction": usable_memory_fraction,
+            "acceptance_threshold_bytes": threshold_bytes,
+            "batch_size": batch_size,
+            "max_unique_conditions_per_batch": max_unique_conditions,
+            "capacity_probe_steps": probe_steps,
+            "run_seed": run_seed,
+            "selected_prototype_count": selected,
+            "candidates": [
+                {
+                    "prototype_count": item.prototype_count,
+                    "accepted": item.accepted,
+                    "datasets": [asdict(dataset) for dataset in item.datasets],
+                }
+                for item in candidates
+            ],
+        }
+        atomic_json(output_path, receipt)
+        return receipt
+
     for prototype_count in PROTOTYPE_CANDIDATES:
         dataset_observations: list[DatasetCapacityObservation] = []
         candidate_accepted = True
@@ -222,33 +252,10 @@ def fit_global_prototype_head(
         candidates.append(observation)
         if candidate_accepted:
             selected = prototype_count
+            write_receipt("development_capacity_passed")
             break
+        write_receipt("development_capacity_in_progress")
     if selected is None:
+        write_receipt("development_capacity_failed")
         raise RuntimeError("no frozen prototype-head candidate passed the server fit gate")
-    receipt: dict[str, object] = {
-        "schema_version": "prototype-head-capacity-v2",
-        "status": "development_capacity_passed",
-        "formal_eligible": False,
-        "formal_eligibility_reason": "requires_identical_clean_local_github_server_commit",
-        "device": device_name,
-        "device_name": properties.name,
-        "device_total_bytes": int(total_bytes),
-        "initial_free_bytes": int(free_bytes),
-        "usable_memory_fraction": usable_memory_fraction,
-        "acceptance_threshold_bytes": threshold_bytes,
-        "batch_size": batch_size,
-        "max_unique_conditions_per_batch": max_unique_conditions,
-        "capacity_probe_steps": probe_steps,
-        "run_seed": run_seed,
-        "selected_prototype_count": selected,
-        "candidates": [
-            {
-                "prototype_count": item.prototype_count,
-                "accepted": item.accepted,
-                "datasets": [asdict(dataset) for dataset in item.datasets],
-            }
-            for item in candidates
-        ],
-    }
-    atomic_json(output_path, receipt)
-    return receipt
+    return write_receipt("development_capacity_passed")

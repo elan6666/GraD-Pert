@@ -23,6 +23,10 @@ updated_at: 2026-08-25T00:30:00+08:00
   call and reuse the two actual branch-backward traversals for gradient
   diagnostics, without changing losses, view identities, gradient ownership,
   optimizer→Teacher EMA→center order, splits, or evaluation.
+- First batch-256 capacity attempt at `4d68da40` exhausted all frozen prototype
+  candidates but emitted no structured failure receipt. The log is retained;
+  the gate is being repaired to atomically persist every rejected candidate and
+  terminal failure before any memory-policy change is considered.
 
 - Goal mode: on; Codex goal created for the end-to-end GraD-Pert delivery.
 - Project state: root Git repository and standalone package shell exist; plans

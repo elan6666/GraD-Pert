@@ -13,6 +13,15 @@ def test_prototype_candidates_are_frozen_largest_first() -> None:
     assert CAPACITY_PROBE_STEPS == 128
 
 
+def test_capacity_gate_persists_failure_evidence_before_raising() -> None:
+    source = (PROJECT_ROOT / "src/gradpert/training/capacity.py").read_text(encoding="utf-8")
+    failed_write = source.index('write_receipt("development_capacity_failed")')
+    terminal_raise = source.index(
+        'raise RuntimeError("no frozen prototype-head candidate passed the server fit gate")'
+    )
+    assert failed_write < terminal_raise
+
+
 def test_development_capacity_receipt_covers_all_five_datasets() -> None:
     receipt = json.loads(
         (PROJECT_ROOT / "registry/capacity/prototype_head.development.json").read_text(
