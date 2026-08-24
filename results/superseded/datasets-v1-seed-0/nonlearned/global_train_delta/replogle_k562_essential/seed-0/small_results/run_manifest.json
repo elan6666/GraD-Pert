@@ -1,0 +1,19 @@
+{
+  "best_checkpoint_sha256": null,
+  "canonical_data_sha256": "b7a06e114342d78e3d89ddff3bcae4e385dfb3a2330e54df53eb852ddb192fc3",
+  "config_sha256": "e97042da17308b86129e24f1536e79bcc419f8f71ea86192afeebd801dfd88d8",
+  "control_manifest_sha256": "3d43a45bc3c1f4bbb433c5b5e10a0c86b1fefe1dab71163f38d470b7db40661e",
+  "dataset_id": "replogle_k562_essential",
+  "environment_sha256": "bb26727f12ea35040c23c424541805be8dc16cacd1fd9d9422fc71c776a9433c",
+  "formal_eligible": false,
+  "model_id": "global_train_delta",
+  "protocol_id": "within_cell_unseen_single",
+  "run_id": "dev__global_train_delta__replogle_k562_essential__seed0",
+  "run_seed": 0,
+  "schema_version": "run-manifest-v1",
+  "source_commit": "a0c621a8f8040b91e4d794b643352bfe6e49cd95",
+  "source_dirty": true,
+  "split_content_sha256": "fd121fdd7336190fe37af9d325fa5db083769097a6e6fe4e18128364b0282db1",
+  "status": "evaluated",
+  "test_evaluations": 1
+}

@@ -1,0 +1,11 @@
+{
+  "evaluation_manifest_path": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/matched_control_mean/nadig_jurkat/seed-0/small_results/evaluation_manifest.json",
+  "evaluation_manifest_sha256": "74ff51851445f99920e71e4c68ecc8b80bb1b4ebd9828edb2de903a8e9f6be78",
+  "prediction_manifest_path": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/matched_control_mean/nadig_jurkat/seed-0/small_results/prediction_manifest.json",
+  "prediction_manifest_sha256": "374643236b63fb675d1adf44a707813ff5f3e28380f11f8ed5adb4e83bcae251",
+  "run_id": "dev__matched_control_mean__nadig_jurkat__seed0",
+  "schema_version": "server-artifact-pointer-v1",
+  "server_root": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/matched_control_mean/nadig_jurkat/seed-0",
+  "source_commit": "a0c621a8f8040b91e4d794b643352bfe6e49cd95",
+  "synchronized_large_artifacts": false
+}

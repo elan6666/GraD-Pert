@@ -40,11 +40,22 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
   node masking and exactly four locals mask all active anchors.
 - Prediction uses a deterministic full Top-20 view, no stochastic graph/view
   operation, no projection head, and additive D0 decoding.
-- Projection capacity is selected once by a worst-case one-GPU full-step fit at
-  no more than 85% usable memory. It is then frozen across datasets and seeds.
+- Projection capacity is selected once by a one-GPU, 128-consecutive-step fit
+  on every dataset at no more than 85% initially usable memory. It is then
+  frozen across datasets and seeds.
 
 ## Training and hyperparameters
 
+- The server integration gate is exactly one epoch for every learned
+  model/dataset pair. Passing means the official/native model actually trains,
+  validates, checkpoints, predicts 300 rows per condition, and enters the
+  common evaluator; import-only or forward-only checks do not pass.
+- Seed 1 is the paired run identity across every model and dataset, including
+  deterministic nonlearned baselines. GraD-Pert-only replicate seeds remain
+  additional runs, not substitutes for seed 1.
+- After all one-epoch gates pass, only GraD-Pert may enter full training.
+  GEARS and TxPert have `formal_run_policy=smoke_only`; nonlearned models use
+  `inference_only`.
 - `max_epochs=200`; validate each epoch; stop after 10 validation checks with
   no strict improvement in `val/txpert_macro_pearson_delta`; `min_delta=0`.
 - Save best and last resumable checkpoints. Test only the sealed best checkpoint
@@ -59,6 +70,19 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
   matching, view construction, evaluation-control sampling, and statistics.
 - Every run logs losses, schedules, gradient norms/ratios, EMA/center states,
   config/environment/data hashes, hardware, source commit, and dirty status.
+
+## Official learned benchmark boundary
+
+- GEARS and TxPert are invoked from their frozen official checkouts in separate
+  environments. Do not reproduce their model classes, losses, or optimizers in
+  `src/gradpert` or in an adapter.
+- Each external config points to the official commit and exact official config
+  file/symbol. When no dataset-specific official recipe exists, record that
+  absence and the selected published official profile; never label a locally
+  invented value as official.
+- Adapter code may only translate the canonical AnnData/split/control
+  manifests, deny validation-time test truth, call the official training and
+  forward APIs, retain the exact 300 predictions, and emit common artifacts.
 
 ## Config matrix
 
@@ -125,4 +149,3 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
   schema conformance, server commit preflight, artifact sync dry-run.
 - Evidence, not narrative, determines completion. Do not claim ready/trained/
   reproduced/publishable without current receipts.
-

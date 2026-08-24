@@ -1,0 +1,13 @@
+{
+  "batch_order": "condition_limited_seeded_v1",
+  "canonical_data_sha256": "24be9c93304b7e38f62acf9292d8fe00820c3e5e7b81e7eeb9fb2eee055589a7",
+  "dataset_id": "replogle_rpe1_essential",
+  "drop_last": false,
+  "expression_gene_order_sha256": "ee2ba9f8a1ddb146bff0d801608222ed8bd781c0cb437cc3b3589e0bbd0b305a",
+  "graph_gene_order_sha256": "f2d40594fcc911aff9e923017cac860bb996669961988a70921d7e58a3344103",
+  "protocol_id": "within_cell_unseen_single",
+  "schema_version": "native-training-data-v1",
+  "singleton_tail_policy": "drop_for_batchnorm",
+  "split_content_sha256": "7038cdebfccd2e2feef21f0de6b7b6668531a110b77b108e9e3a02187dded6cd",
+  "train_perturbed_cell_count": 127136
+}

@@ -1,0 +1,25 @@
+schema_version: graph-source-registry-v1
+registry_id: public_string_go_v1
+repository: "https://github.com/valence-labs/TxPert.git"
+commit: "08d82eea86746b044cf7531f4ec8c5f60e1cb73f"
+license_notice_path: "license.pdf"
+use_scope: "noncommercial_research; underlying STRING and GO terms also apply"
+sources:
+  go:
+    relative_path: "data/graphs/go/go_top_50.csv"
+    size_bytes: 12814602
+    sha256: "ad469c852ba9b8b5489749c7987467687aa566598fc0706fd7232aa27edce27b"
+    format: csv
+    source_column: source
+    target_column: target
+    weight_column: importance
+    expected_empty_endpoint_rows: 0
+  string:
+    relative_path: "data/graphs/string/v11.5.parquet"
+    size_bytes: 38828749
+    sha256: "55d312f8d6186078eb00a7caf108ef731cd27aa08a5b48de59cd0333f0206404"
+    format: parquet
+    source_column: regulator
+    target_column: target
+    weight_column: weight
+    expected_empty_endpoint_rows: 142820

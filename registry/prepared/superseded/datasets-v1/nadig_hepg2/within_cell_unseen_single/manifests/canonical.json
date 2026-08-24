@@ -1,0 +1,22 @@
+{
+  "canonical_adata_path": "data/nadig_hepg2/within_cell_unseen_single/canonical/adata.h5ad",
+  "canonical_adata_sha256": "e310a8ed4e81e96e8817217fe089b24327f48b4c4a4b2dfe9fb07afd873f9bda",
+  "dataset_id": "nadig_hepg2",
+  "evaluation_controls_sha256": "b14bf11b43c18b6fb606a02910dde1c23d55d1be41bf02f0e9553a17335b4eb5",
+  "expression_gene_order_sha256": "8726282ac4937f584f499c2cf2c195917fed2a904ad83e3619bd23c51148a639",
+  "graph_gene_order_sha256": "4d85413892a9ada59224a260599197bcf5f1afc135d98ebed29da58dcbc610c4",
+  "n_cells": 130879,
+  "n_conditions": 2394,
+  "n_controls": 4976,
+  "n_expression_genes": 5000,
+  "n_graph_genes": 6530,
+  "observation_order_sha256": "01741b76f2e2b0416be8dd8b108c1b566e08b2a5d9ee59874ea3a4f0f468ba08",
+  "preprocessing_manifest_sha256": "616b38abf8658f5afb180a4f20288793e1027b88158ec8084d5f580a03d4c3b3",
+  "protocol_id": "within_cell_unseen_single",
+  "qc_manifest_sha256": "0d7e2a749bf70b8fea3d0c06001af70eb3e2b944bdfd1f78a243ac95f4269fa6",
+  "schema_version": "canonical-data-v1",
+  "source_manifest_sha256": "9d6179bedffb37641d78a00d79feba2c0e67c6a4a77141b9d1af063aef74e093",
+  "split_content_sha256": "c28681abb62a1306fc89084cfdae1b6825ec0d593ec73bbb0ad74d906f1afe4a",
+  "split_manifest_sha256": "ad60ac5ab121aa833019527b44791e68e3daa84143451902928004aebe30e48a",
+  "state": "canonical_ready"
+}

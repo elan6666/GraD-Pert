@@ -1,9 +1,9 @@
 ---
 id: 002
 title: Contracts, Config Matrix, and Artifact Schemas
-status: pending
+status: complete
 wave: 1
-updated_at: 2026-08-24T01:20:00Z
+updated_at: 2026-08-24T01:39:02Z
 owner_role: Research Platform Engineer
 depends_on: [001]
 start_directory: .
@@ -56,7 +56,7 @@ No real data, learned training, or metrics beyond schema fixtures.
 
 - Purpose: one auditable file for every model/dataset pair.
 - Actions: write five configs for each of six models; include exact split/run/
-  eval seeds, max 200/patience 10, official or preregistered provenance, server
+  eval seeds, per-model smoke/full execution policy, official or preregistered provenance, server
   artifact policy, metric registry version.
 - Files or modules: `configs/experiments/**`.
 - Expected output: exactly 30 resolved YAML files.
@@ -114,3 +114,9 @@ YAML parsers can resolve anchors before validation; scan tokens/nodes first.
 
 `project_preregistered` is honest metadata, not a validation error.
 
+Completed locally with 30/30 independently resolved YAML files, strict
+composition/path/protocol rejection, hash-linked manifest contracts, and
+execution-policy tests. Every learned pair declares a one-epoch gate; only
+GraD-Pert declares full max-200/patience-10 execution. External configs pin
+frozen official packages/configuration and are smoke-only. The formal server
+run will seal exact commit/environment/data hashes into run manifests.

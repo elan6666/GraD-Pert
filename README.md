@@ -11,6 +11,7 @@ The repository is under active implementation. Current authoritative material:
 - [data and evaluation contract](docs/design/DATA_AND_EVALUATION.md)
 - [server execution contract](docs/design/SERVER_EXECUTION.md)
 - [reference alignment and licenses](docs/provenance/REFERENCE_ALIGNMENT.md)
+- [experiment architecture alignment](docs/provenance/TRISHIFT_ARCHITECTURE_ALIGNMENT.md)
 
 ## Scope
 
@@ -31,6 +32,14 @@ python -m ruff check .
 python -m mypy src
 ```
 
+Server experiment planning and result staging are dry-run-first:
+
+```bash
+PYTHONPATH=src:. python scripts/server/run_experiment_matrix.py --help
+PYTHONPATH=src:. python scripts/server/stage_small_results.py --help
+PYTHONPATH=src:. python scripts/results/build_final_catalog.py --help
+```
+
 Do not use historical design alternatives under `TxPert/` as active scope. See
 root `AGENTS.md` before editing.
 
@@ -45,4 +54,3 @@ frozen TxPert checkout is not distributed by this repository.
 No project license has been granted yet. All rights are reserved unless and
 until the repository owner adds an explicit license. External references and
 datasets retain their own terms.
-

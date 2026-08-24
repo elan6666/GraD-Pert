@@ -7,7 +7,7 @@ name = "gradpert"
 version = "0.1.0.dev0"
 description = "Reproducible graph-distilled single-cell perturbation prediction"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [{name = "GraD-Pert contributors"}]
 dependencies = [
   "numpy>=1.24",
@@ -19,6 +19,7 @@ dependencies = [
 data = [
   "anndata>=0.10",
   "pandas>=2.0",
+  "pyarrow>=15",
   "scanpy>=1.10",
   "scipy>=1.10",
 ]
@@ -36,6 +37,10 @@ analysis = [
 dev = [
   "build>=1.2",
   "mypy>=1.10",
+  "nbclient>=0.10",
+  "nbformat>=5.10",
+  "ipykernel>=6.29",
+  "pandas>=2.0",
   "pytest>=8.0",
   "ruff>=0.8",
   "types-PyYAML>=6.0",
@@ -53,6 +58,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
 testpaths = ["tests"]
+pythonpath = ["src", "."]
 
 [tool.ruff]
 target-version = "py310"
@@ -67,8 +73,7 @@ extend-exclude = [
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 strict = true
 packages = ["gradpert"]
-exclude = ["TxPert/", "benchmarks/"]
-
+exclude = ["^TxPert/"]

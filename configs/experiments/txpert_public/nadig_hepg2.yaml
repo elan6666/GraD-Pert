@@ -1,0 +1,154 @@
+schema_version: 1
+experiment_id: txpert_public__nadig_hepg2
+model_id: txpert_public
+dataset_id: nadig_hepg2
+source_code:
+  repository: "https://github.com/valence-labs/TxPert.git"
+  commit: "08d82eea86746b044cf7531f4ec8c5f60e1cb73f"
+  license_boundary: "isolated_noncommercial_upstream_environment_with_attribution"
+  execution: isolated
+data:
+  dataset_id: nadig_hepg2
+  protocol_id: within_cell_unseen_single
+  registry_version: "datasets-v2"
+  canonical_data_root: "data/nadig_hepg2/within_cell_unseen_single/canonical"
+  preprocessing_id: txpert_within_cell_v1
+  split_policy: grouped_0.5625_0.1875_0.25__gears_default_graph_intersection_v1
+  split_seed: 42
+  expected_split_hash: from_canonical_manifest
+  expected_expression_gene_order_hash: from_canonical_manifest
+  expected_graph_gene_order_hash: from_canonical_manifest
+  expected_control_manifest_hash: from_canonical_manifest
+model:
+  model_id: txpert_public
+  family: external_learned
+  implementation: "benchmarks.txpert.runner"
+  parameters:
+    architecture_profile:
+      value: "public_exphormer_mg"
+      source: project_preregistered
+      reference: "public exphormer-mg architecture applied to canonical dataset; no published dataset-specific YAML"
+    official_config_file:
+      value: "configs/config-exphormer-mg.yaml"
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    official_config_sha256:
+      value: "2991e704496809979a47c4fade782698f9e465f593e0bc7fb87412f0c416df21"
+      source: official
+      reference: "sha256 of frozen official config at commit 08d82eea86746b044cf7531f4ec8c5f60e1cb73f"
+    hidden_dim:
+      value: 512
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    latent_dim:
+      value: 64
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    prediction_dropout:
+      value: 0.2
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    use_batch_norm:
+      value: true
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    perturbation_layers:
+      value: 4
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    perturbation_hidden_dim:
+      value: 128
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    perturbation_heads:
+      value: 2
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    perturbation_dropout:
+      value: 0.1
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    graph_sources:
+      value: "string_go"
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    graph_top_k_incoming:
+      value: 20
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    match_control:
+      value: true
+      source: official
+      reference: "ref_txpert_public:configs/config-exphormer-mg.yaml"
+    prediction_adapter_average_controls:
+      value: false
+      source: user_locked
+      reference: "docs/design/DATA_AND_EVALUATION.md"
+    custom_split_source:
+      value: "canonical_manifest"
+      source: user_locked
+      reference: "docs/design/DATA_AND_EVALUATION.md"
+training:
+  learned: true
+  smoke_epochs:
+    value: 1
+    source: user_locked
+    reference: "user requirement: learned integration gate is exactly one epoch"
+  formal_run_policy: smoke_only
+  max_epochs:
+    value: 1
+    source: user_locked
+    reference: "user requirement: external learned models stop after the one-epoch integration gate"
+  early_stopping_patience:
+    value: 0
+    source: user_locked
+    reference: "one-epoch external smoke: no orchestrator early stopping"
+  train_batch_size:
+    value: 64
+    source: official
+    reference: "ref_txpert_public:published configs"
+  eval_batch_size:
+    value: 64
+    source: official
+    reference: "ref_txpert_public:gspp/data/datamodule.py"
+  optimizer:
+    value: "AdamW"
+    source: official
+    reference: "ref_txpert_public:gspp/predictor.py:configure_optimizers"
+  learning_rate:
+    value: 0.001
+    source: official
+    reference: "ref_txpert_public:gspp/predictor.py:PertPredictor.__init__"
+  weight_decay:
+    value: 0
+    source: official
+    reference: "ref_txpert_public:gspp/predictor.py:PertPredictor.__init__"
+  scheduler:
+    value: "none"
+    source: official
+    reference: "ref_txpert_public:gspp/predictor.py default lr_scheduler_args"
+  early_stopping: false
+  monitor: "none"
+  monitor_mode: none
+  min_delta: 0.0
+  run_seeds: [1]
+evaluation:
+  evaluator_version: "gradpert-evaluator-v1"
+  prediction_schema_version: "prediction-artifact-v1"
+  bundle_schema_version: "evaluation-bundle-v1"
+  evaluation_seed: 20260824
+  n_controls_per_condition: 300
+  sample_controls_with_replacement: true
+  control_context_policy: truth_cell_context_resampling
+  truth_access: evaluator_only
+  headline_metrics:
+    - txpert_macro_pearson_delta
+    - trishift_pearson_delta
+    - systema_pearson
+artifacts:
+  root: "runs/txpert_public/nadig_hepg2"
+  large_artifacts_server_only: true
+  prediction_format: pkl
+  evaluation_formats: [pkl, parquet, json, h5ad]
+  small_sync_extensions: [".txt", ".json", ".jsonl", ".csv", ".md"]
+  sync_requires_dry_run: true

@@ -1,9 +1,9 @@
 ---
 id: 004
 title: Native GraD-Pert B2 Model and Training
-status: pending
+status: in_progress
 wave: 2
-updated_at: 2026-08-24T01:20:00Z
+updated_at: 2026-08-24T08:13:34+08:00
 owner_role: ML Engineer
 depends_on: [001, 002]
 start_directory: src/gradpert/modeling
@@ -122,3 +122,6 @@ PyG availability and memory; server plan owns formal fit.
 
 The active spec is authoritative over historical alternatives.
 
+Development capacity evidence selected a global `K_head=16384` after 128 real
+steps on each of the five datasets. Plan completion still requires a fresh
+server regression and the five native one-epoch integration runs.

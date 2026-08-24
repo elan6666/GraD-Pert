@@ -1,0 +1,21 @@
+{
+  "schema_version": "prototype-head-sustained-failure-v1",
+  "status": "development_capacity_failed",
+  "formal_eligible": false,
+  "dataset_id": "replogle_k562_essential",
+  "protocol_id": "within_cell_unseen_single",
+  "prototype_count": 65536,
+  "device_name": "NVIDIA GeForce RTX 5090",
+  "device_total_mib": 32607,
+  "observed_used_mib": 31688,
+  "observed_used_fraction": 0.9718158677584567,
+  "acceptance_fraction": 0.85,
+  "first_external_observation_global_step": 65,
+  "completed_logged_steps_before_interrupt": 122,
+  "termination": "SIGINT_after_resolved_pid_audit",
+  "run_root": "/data/yilangliu/GraD-Pert/runs/development/gradpert_b2/replogle_k562_essential/smoke-seed-1",
+  "run_meta_sha256": "70d0704cf959e673ead0f9f2041c6df1e4695f40b2059db37fa6df3c9865ee45",
+  "train_steps_sha256": "38ce755bb3d0da228456c80bbec962b6271cb236628c106c0c73f603d0ca409c",
+  "supersedes": "registry/capacity/prototype_head.single-step-superseded.json",
+  "reason": "single-step gate underestimated sustained CUDA allocator reservation"
+}

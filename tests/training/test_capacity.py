@@ -1,0 +1,47 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from gradpert.training.capacity import CAPACITY_PROBE_STEPS, PROTOTYPE_CANDIDATES
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_prototype_candidates_are_frozen_largest_first() -> None:
+    assert PROTOTYPE_CANDIDATES == (65536, 32768, 16384, 8192)
+    assert CAPACITY_PROBE_STEPS == 128
+
+
+def test_development_capacity_receipt_covers_all_five_datasets() -> None:
+    receipt = json.loads(
+        (PROJECT_ROOT / "registry/capacity/prototype_head.development.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert receipt["schema_version"] == "prototype-head-capacity-summary-v2"
+    assert receipt["formal_eligible"] is False
+    assert receipt["full_server_receipt_sync_status"] == "pending_allowlisted_sync"
+    assert receipt["capacity_probe_steps"] == CAPACITY_PROBE_STEPS
+    assert receipt["selected_prototype_count"] == 16384
+    selected = receipt["candidate_decisions"][-1]
+    assert selected["prototype_count"] == 16384
+    assert selected["accepted"] is True
+    assert {item["dataset_id"] for item in selected["datasets"]} == {
+        "replogle_k562_essential",
+        "replogle_rpe1_essential",
+        "nadig_jurkat",
+        "nadig_hepg2",
+        "norman",
+    }
+    assert all(
+        item["observed_probe_steps"] == CAPACITY_PROBE_STEPS
+        and item["peak_reserved_bytes"] <= receipt["acceptance_threshold_bytes"]
+        for item in selected["datasets"]
+    )
+    assert [item["prototype_count"] for item in receipt["candidate_decisions"]] == [
+        65536,
+        32768,
+        16384,
+    ]
+    assert all(not item["accepted"] for item in receipt["candidate_decisions"][:-1])

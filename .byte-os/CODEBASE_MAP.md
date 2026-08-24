@@ -10,12 +10,13 @@
 | `TxPert/grad-pert/` | Local-only historical design discussion source | Ignored by the project Git repository after active-spec migration |
 | `TxPert/official-repo/` | Frozen upstream TxPert checkout at `08d82ee...` | Never edit |
 | `TxPert/official-repo.incomplete-archive/` | Incomplete/noisy earlier upstream archive | Avoid; not authoritative |
-| `src/gradpert/` | Planned standalone product package | Active implementation surface |
-| `configs/experiments/` | Planned self-contained model-by-dataset YAML matrix | Active configuration surface |
-| `benchmarks/` | Planned isolated GEARS/TxPert runners and environment locks | No native-package imports from here |
-| `tests/` | Planned unit/contract/integration tests with synthetic fixtures | No large real datasets |
-| `notebooks/` | Planned read-only frozen-artifact analysis | Never source of split/training/metric truth |
-| `scripts/server/` | Planned commit preflight, server launch, and result allowlist sync | No secrets or embedded credentials |
+| `src/gradpert/` | Standalone package: contracts, data, graphs, model, execution, artifacts, evaluation | Active implementation surface |
+| `configs/experiments/` | Exact 30-file self-contained model-by-dataset YAML matrix | Active configuration surface |
+| `benchmarks/` | Isolated official GEARS/TxPert adapters and environment locks | No native learned-model dependency |
+| `tests/` | Unit/contract/integration tests with synthetic fixtures | No large real datasets |
+| `notebooks/` | Read-only hash-pinned result analysis | Never source of split/training/metric truth |
+| `scripts/server/` | Dry-run-first server launch, matrix orchestration and small-result staging | No secrets or embedded credentials |
+| `scripts/results/` | Explicit-source final 45-run ResultCatalog planner/sealer | Never discover latest result directories |
 
 ## Primary stacks and package managers
 
@@ -35,10 +36,9 @@
 | model/loss/graph | `python -m pytest -q tests/modeling tests/graphs` | `python -m ruff check src/gradpert/modeling src/gradpert/graphs tests/modeling tests/graphs` | `python -m mypy src/gradpert/modeling src/gradpert/graphs` | `gradpert smoke model` |
 | evaluation/artifacts | `python -m pytest -q tests/evaluation tests/artifacts` | `python -m ruff check src/gradpert/evaluation src/gradpert/artifacts tests/evaluation tests/artifacts` | `python -m mypy src/gradpert/evaluation src/gradpert/artifacts` | `gradpert smoke evaluation` |
 | external runners | `python -m pytest -q tests/benchmarks` | `python -m ruff check benchmarks tests/benchmarks` | N/A across isolated envs | runner-specific `--preflight-only` |
-| server topology | `python -m pytest -q tests/server` | `python -m ruff check scripts/server tests/server` | N/A | `scripts/server/preflight.sh` then dry-run sync |
+| server topology | `python -m pytest -q tests/server tests/execution/test_matrix.py tests/execution/test_small_sync.py` | `python -m ruff check scripts/server tests/server src/gradpert/execution` | matrix/staging core only | matrix dry run, then small-result staging dry run |
 
-Commands referencing planned paths become active in foundation/build. Until
-then, use the Byte state and reference-integrity commands in `HARNESS.md`.
+Server commands remain dry-run-first and require exact explicit paths.
 
 ## Generated and noisy paths
 
@@ -58,9 +58,9 @@ then, use the Byte state and reference-integrity commands in `HARNESS.md`.
 - Begin implementation from the relevant `.byte-os/plans/*.plan.md`, load root
   `AGENTS.md`, then the nearest module `AGENTS.md`.
 
-## Exploration candidates
+## Remaining execution evidence
 
-- Data-source readiness and exact checksums on the server.
-- Native GAT-Hybrid memory/shape profile after the synthetic full-step exists.
-- Isolated runner compatibility against the exact pinned CUDA environments.
-- Metric golden-output comparison against frozen source implementations.
+- Fresh server regression after the latest source synchronization.
+- Fifteen learned one-epoch gates and their fairness-hash audit.
+- Seed-1 nonlearned matrix, then GraD-Pert formal full runs.
+- Verified allowlisted small-result transfer and explicit ResultCatalog.

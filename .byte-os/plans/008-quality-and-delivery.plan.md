@@ -3,7 +3,7 @@ id: 008
 title: Quality Review, Three Iterations, and Delivery
 status: pending
 wave: 5
-updated_at: 2026-08-24T01:20:00Z
+updated_at: 2026-08-24T17:56:09+08:00
 owner_role: Release Engineer
 depends_on: [007]
 start_directory: .
@@ -112,3 +112,8 @@ do not mark delivery complete while required scope remains unresolved.
 
 User acceptance can replace the default iteration count only if explicit.
 
+Three evidence-led iteration records now exist. The current pre-server review
+is `block`, not ship: it resolved official test-reader lifetime, development
+commit binding, matrix/sync implementation and stale documentation, while
+retaining the missing formal runs/source parity/catalog/final review as release
+blockers. This plan remains pending until the post-result fresh review ships.

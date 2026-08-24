@@ -24,7 +24,8 @@ server-only large artifacts -> allowlisted small sync -> notebooks/reports
 - `gradpert.baselines`: three train-only nonlearned models.
 - `gradpert.artifacts`: schemas, safe trusted loading, sealing/checksums.
 - `gradpert.evaluation`: truth join, metric registry, macro summaries.
-- `gradpert.runs`: manifests, preflight, orchestration, receipts.
+- `gradpert.execution`: source identity, runners, deterministic matrix,
+  completion/fairness gates, and small-result staging.
 - `gradpert.cli`: thin command surface over tested services.
 - `benchmarks/gears`, `benchmarks/txpert`: isolated upstream-dependent runners.
 
@@ -62,7 +63,8 @@ keys, and missing provenance.
 - STRING/GO public graph materializers with pinned source/version receipts.
 - GEARS commit `f374e43...` in its own environment.
 - TxPert commit `08d82ee...` in its own environment.
-- GitHub `elan6666/GraD-Pert` and SSH server preflight scripts.
+- GitHub `elan6666/GraD-Pert`, dry-run-first server orchestration, and
+  hash-sealed small-result staging.
 
 ## Implementation risks
 
@@ -86,4 +88,3 @@ formal runs can ignore.
 - Synthetic end-to-end data -> split -> train -> predict -> evaluate.
 - Isolated runner contract tests with tiny fixtures and truth-access denial.
 - Server smoke, worst-case fit, one-dataset one-seed pilot, then full matrix.
-

@@ -1,0 +1,12 @@
+{
+  "dataset_id": "nadig_hepg2",
+  "filename": "GSE264667_hepg2_raw_singlecell_01.h5ad",
+  "license_id": "NCBI-GEO-public-record; no redistribution by project",
+  "protocol_id": "within_cell_unseen_single",
+  "registry_version": "datasets-v1",
+  "schema_version": "dataset-source-v1",
+  "size_bytes": 5614460941,
+  "source_semantics": "raw",
+  "source_sha256": "e1ad7c3c5a201c861a207a858aa7e59f5e6ac1955674c415f7de0d1dadadb52e",
+  "source_url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE264nnn/GSE264667/suppl/GSE264667_hepg2_raw_singlecell_01.h5ad"
+}

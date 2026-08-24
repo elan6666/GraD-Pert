@@ -15,6 +15,7 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
 - Plans: `.byte-os/plans/`
 - Active design: `docs/design/GRADPERT_V1.md`
 - Reference alignment: `docs/provenance/REFERENCE_ALIGNMENT.md`
+- Experiment architecture: `docs/provenance/TRISHIFT_ARCHITECTURE_ALIGNMENT.md`
 
 ## Non-Negotiable Rules
 
@@ -29,13 +30,26 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
 - v1 is B2 only: from-scratch joint prediction plus graph self-distillation.
   No B3, ablations, cross-cell task, extra learned model, or test-set tuning.
 - Five datasets only: Replogle K562/RPE1 essential, Nadig Jurkat/HepG2, Norman.
+- Keep observed upstream metadata columns separate from canonical columns. A
+  blocked or unaudited source cannot be relabeled ready, and no cross-cell cache
+  may substitute for an independent within-cell dataset.
 - All models consume the exact same canonical condition split and 300-control
   evaluation manifests; equality means IDs and hashes, not merely equal seeds.
+- Apply the frozen official GEARS default-graph representability intersection
+  to every model's train/validation/test partitions. Preserve the source split
+  assignment and order of retained conditions; never let one runner silently
+  drop unsupported conditions on its own.
 - Configs are self-contained files at
   `configs/experiments/<model_id>/<dataset_id>.yaml`. No global experiment
   config, hidden defaults chain, or config inheritance.
-- Learned runs use `max_epochs=200` and validation-only early stopping with
-  `patience=10`. Test runs once after checkpoint/config hashes are sealed.
+- Every GraD-Pert, GEARS, and TxPert dataset integration must first pass an
+  exactly one-epoch server smoke. Only GraD-Pert proceeds to a full run with
+  `max_epochs=200` and validation-only early stopping `patience=10`; GEARS and
+  TxPert remain smoke-only until the user changes the execution policy.
+- GEARS and TxPert models are never reimplemented in this repository. Their
+  isolated runners import and call the frozen official checkout/package with
+  official model/training configuration; local code is limited to canonical
+  data/split adaptation, leakage guards, prediction export, and receipts.
 - LR, batch size, optimizer, weight decay, and architecture values start from
   each model/dataset's frozen official config; preserve genuine dataset
   differences and label missing values `project_preregistered`.
@@ -89,4 +103,3 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
 - Last reviewed: 2026-08-24
 - Next review: after v1 server smoke or 2026-11-24
 - DRI: repository owner
-

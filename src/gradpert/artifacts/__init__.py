@@ -1,0 +1,61 @@
+"""Sealed, condition-keyed experiment artifact interfaces."""
+
+from gradpert.artifacts.catalog import (
+    CatalogEntrySource,
+    FinalCatalogAudit,
+    FinalCatalogPlan,
+    LoadedCatalogEntry,
+    ResultCatalog,
+    build_catalog_entry,
+    load_final_result_catalog,
+    load_result_catalog,
+    plan_final_result_catalog,
+    require_final_benchmark_catalog,
+    seal_final_result_catalog_from_spec,
+    seal_result_catalog,
+)
+from gradpert.artifacts.evaluation import (
+    EvaluationBundle,
+    EvaluationConditionArrays,
+    EvaluationConditionInput,
+    EvaluationProvenance,
+    load_evaluation_bundle,
+    seal_evaluation_bundle,
+    seal_frozen_evaluation_bundle,
+)
+from gradpert.artifacts.prediction import (
+    PredictionArtifact,
+    PredictionConditionArrays,
+    PredictionProvenance,
+    load_prediction_artifact,
+    seal_prediction_artifact,
+    sha256_array,
+)
+
+__all__ = [
+    "CatalogEntrySource",
+    "EvaluationBundle",
+    "EvaluationConditionArrays",
+    "EvaluationConditionInput",
+    "EvaluationProvenance",
+    "FinalCatalogAudit",
+    "FinalCatalogPlan",
+    "LoadedCatalogEntry",
+    "PredictionArtifact",
+    "PredictionConditionArrays",
+    "PredictionProvenance",
+    "ResultCatalog",
+    "build_catalog_entry",
+    "load_evaluation_bundle",
+    "load_final_result_catalog",
+    "load_prediction_artifact",
+    "load_result_catalog",
+    "plan_final_result_catalog",
+    "require_final_benchmark_catalog",
+    "seal_evaluation_bundle",
+    "seal_final_result_catalog_from_spec",
+    "seal_frozen_evaluation_bundle",
+    "seal_prediction_artifact",
+    "seal_result_catalog",
+    "sha256_array",
+]

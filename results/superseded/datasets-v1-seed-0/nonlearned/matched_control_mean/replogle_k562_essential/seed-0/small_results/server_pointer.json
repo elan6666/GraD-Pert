@@ -1,0 +1,11 @@
+{
+  "evaluation_manifest_path": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/matched_control_mean/replogle_k562_essential/seed-0/small_results/evaluation_manifest.json",
+  "evaluation_manifest_sha256": "820c03c4e73589048a6915a6d7b598dd2919ed42f85b55f396652b97eb368cf7",
+  "prediction_manifest_path": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/matched_control_mean/replogle_k562_essential/seed-0/small_results/prediction_manifest.json",
+  "prediction_manifest_sha256": "7985dd65c294c40131e5836795e6bf851ed26bc9233444c3f85d55197e862341",
+  "run_id": "dev__matched_control_mean__replogle_k562_essential__seed0",
+  "schema_version": "server-artifact-pointer-v1",
+  "server_root": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/matched_control_mean/replogle_k562_essential/seed-0",
+  "source_commit": "a0c621a8f8040b91e4d794b643352bfe6e49cd95",
+  "synchronized_large_artifacts": false
+}

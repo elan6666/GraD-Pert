@@ -1,0 +1,13 @@
+{
+  "batch_order": "condition_limited_seeded_v1",
+  "canonical_data_sha256": "37d17eae90cbeb7eec258d7512a0eb4d549fee308aa4b31db2e1eafdaf8e6325",
+  "dataset_id": "norman",
+  "drop_last": false,
+  "expression_gene_order_sha256": "76ed3a702c1cb54b4c957facdbf9ceb565cdacac1de5dbbd93dd62acd37c013b",
+  "graph_gene_order_sha256": "76ed3a702c1cb54b4c957facdbf9ceb565cdacac1de5dbbd93dd62acd37c013b",
+  "protocol_id": "norman_combo_seen2",
+  "schema_version": "native-training-data-v1",
+  "singleton_tail_policy": "drop_for_batchnorm",
+  "split_content_sha256": "0c3038f129efff8eafae4f991298a0f53b0572677f165acef91eb05439eef689",
+  "train_perturbed_cell_count": 76500
+}

@@ -1,0 +1,5 @@
+# Immutable audit snapshots are byte-preserved because their hashes are bound
+# by adjacent manifests. Treat them as opaque in diffs rather than normalizing
+# historical CRLF records during checkout or publication.
+registry/prepared/superseded/**/*.csv -text -diff
+results/superseded/**/*.csv -text -diff

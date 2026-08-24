@@ -9,33 +9,30 @@
 
 ## Module context files
 
-- None yet because active implementation modules do not exist.
-- Foundation must add local `AGENTS.md` only for:
-  - `src/gradpert/modeling/`: model/loss/graph-gradient boundaries.
-  - `benchmarks/`: isolated environments, no truth access, upstream licenses.
-- Data/evaluation command detail is already covered by `CODEBASE_MAP.md`; add a
-  local file only if implementation makes navigation materially cheaper.
+- `src/gradpert/modeling/AGENTS.md`: native model/loss/gradient boundaries.
+- `src/gradpert/graphs/AGENTS.md`: graph materialization/view invariants.
+- `benchmarks/AGENTS.md`: isolated official environments, no fit-time test
+  Truth, upstream licenses and adapter-only scope.
+- Data/evaluation/execution commands remain centralized in `CODEBASE_MAP.md`
+  and the active design documents.
 
 ## Coverage
 
-- Scoped commands: ready in `CODEBASE_MAP.md`, activation gated by foundation.
+- Scoped commands: active and current in `CODEBASE_MAP.md`.
 - Noise paths: ready in `.gitignore`, settings, and root rules.
-- LSP/symbol navigation: ready for planned Python/YAML stack.
+- LSP/symbol navigation: ready for the implemented Python/YAML stack.
 - Subagent boundaries: ready; three read-only exploration handoffs recorded.
 - Server and large-artifact boundaries: ready.
 - Config matrix/no-global-config boundary: ready.
 
-## Proposed updates from this session
+## Remaining update
 
-- After plan 001: add actual package/module commands and modeling/benchmark
-  local context files.
-- After first server smoke: replace provisional environment commands with exact
-  lock/install/launch commands and GPU evidence.
-- After delivery: remove stale planned paths and record final artifact pointers.
+- After the 15 learned server smokes: record exact post-fit runtime receipts and
+  replace the current external-execution blocker with result pointers.
+- After delivery: record the final catalog and artifact pointers.
 
 ## Freshness
 
 - Last reviewed: 2026-08-24
 - Next review: after first server smoke or 2026-11-24
 - Owner/DRI: repository owner
-

@@ -1,0 +1,12 @@
+{
+  "dataset_id": "norman",
+  "filename": "norman.zip",
+  "license_id": "CC0-1.0",
+  "protocol_id": "norman_combo_seen2",
+  "registry_version": "datasets-v1",
+  "schema_version": "dataset-source-v1",
+  "size_bytes": 168758985,
+  "source_semantics": "upstream_processed",
+  "source_sha256": "c1938353f6f41829c9137f073ecb843ce4d4114528b001b48312b019f739d877",
+  "source_url": "https://dataverse.harvard.edu/api/access/datafile/6154020"
+}

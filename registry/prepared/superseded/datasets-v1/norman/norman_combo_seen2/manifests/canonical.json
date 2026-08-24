@@ -1,0 +1,22 @@
+{
+  "canonical_adata_path": "data/norman/norman_combo_seen2/canonical/adata.h5ad",
+  "canonical_adata_sha256": "37d17eae90cbeb7eec258d7512a0eb4d549fee308aa4b31db2e1eafdaf8e6325",
+  "dataset_id": "norman",
+  "evaluation_controls_sha256": "99337c8d76c6517e2e198a3a62894a8cec8615eb47e1ccad6bfed838c8ed7559",
+  "expression_gene_order_sha256": "76ed3a702c1cb54b4c957facdbf9ceb565cdacac1de5dbbd93dd62acd37c013b",
+  "graph_gene_order_sha256": "76ed3a702c1cb54b4c957facdbf9ceb565cdacac1de5dbbd93dd62acd37c013b",
+  "n_cells": 91205,
+  "n_conditions": 237,
+  "n_controls": 7353,
+  "n_expression_genes": 5045,
+  "n_graph_genes": 5045,
+  "observation_order_sha256": "16fd22f3aebd3929c644c56bc55977ca63318237381008437787bf1fdb390b1c",
+  "preprocessing_manifest_sha256": "b227a9e82bc2e32bd36fd58f42ccd2ad2334e8a6340b1e1db8852ba27d7257ec",
+  "protocol_id": "norman_combo_seen2",
+  "qc_manifest_sha256": "556fefceb693d10cde969e2ff3d8b99383d1050eb69d3183fafb75725b85fd48",
+  "schema_version": "canonical-data-v1",
+  "source_manifest_sha256": "7bcc8f58b5aaa8c5b83ce2a06d75af44b30049b4683d89019694e2ec6ef0de92",
+  "split_content_sha256": "0c3038f129efff8eafae4f991298a0f53b0572677f165acef91eb05439eef689",
+  "split_manifest_sha256": "7efffc992452d30677b44ffe6ae0acaae2ed4fa6f4d318abd93efae135aa779f",
+  "state": "canonical_ready"
+}

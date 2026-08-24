@@ -1,0 +1,63 @@
+schema_version: dataset-registry-v2
+dataset_id: norman
+protocol_id: norman_combo_seen2
+cell_context: K562
+perturbation_modality: CRISPRa
+source:
+  url: "https://dataverse.harvard.edu/api/access/datafile/6154020"
+  filename: "norman.zip"
+  size_bytes: 168758985
+  checksum:
+    algorithm: md5
+    value: "cdc41d6050e619c37fd9dd44d440e2b4"
+  license_id: "CC0-1.0"
+  semantics: upstream_processed_archive
+  archive_h5ad_member: "norman/perturb_processed.h5ad"
+  evidence_url: "https://doi.org/10.7910/DVN/Q2ZV3E"
+  immutable_source_id: "harvard-dataverse:datafile:6154020"
+  availability: ready_for_download
+  blocked_reason: null
+source_metadata:
+  audit_state: verified_from_frozen_reference
+  condition_column: condition
+  batch_column: null
+  constant_batch_value: norman_upstream_single_batch
+  cell_type_column: cell_type
+  observed_cell_type_values: [A549]
+  control_identifier: ctrl
+  gene_symbol_location: var_column
+  gene_symbol_column: gene_name
+  gene_symbol_duplicate_policy: reject
+  canonical_cell_type_value: K562
+  condition_transform: normalize_perturbation_components
+canonical_metadata:
+  condition_column: condition
+  batch_column: batch
+  cell_type_column: cell_type
+  control_column: control
+  condition_name_column: condition_name
+  gene_symbol_column: gene_name
+preprocessing:
+  profile_id: gears_norman_audited_v1
+  signal_filter: "audit upstream GEARS-targeted processed artifact"
+  normalize_total: 4000
+  log1p: true
+  hvg_count: null
+  hvg_fit_scope: upstream_frozen_and_audited
+  forced_non_hvg_policy: known_candidate_targets_only
+benchmark_condition_policy:
+  policy_id: gears_default_graph_intersection_v1
+  official_repository: "https://github.com/snap-stanford/GEARS.git"
+  official_commit: "f374e43e197b295016d80395d7a54ddb81cc6769"
+  gene2go_resource_sha256: "f145c5e84a53048d87942a417d870a4f2d8db50200b96e492b358c13aba8c771"
+  essential_gene_resource_sha256: "46c3dfe354d8ad5c0da22c69f3d0ca451987b1a61ed9d984279b22b9565ff8d7"
+  excluded_conditions:
+    - IER5L+LYL1
+    - IER5L+ctrl
+    - KIAA1804+ctrl
+    - RHOXF2BB+SET
+    - RHOXF2BB+ZBTB25
+    - RHOXF2BB+ctrl
+control_condition_id: ctrl
+split_policy: gears_predefined_combo_seen2
+split_seed: 42

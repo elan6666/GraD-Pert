@@ -1,0 +1,4 @@
+metric_id,available,macro_mean,reason,finite_condition_count,total_condition_count
+txpert_macro_pearson_delta,true,0.52091518584098284,,13,13
+trishift_pearson_delta,true,0.59989907469735804,,13,13
+systema_pearson,true,0.28710695474775527,,13,13

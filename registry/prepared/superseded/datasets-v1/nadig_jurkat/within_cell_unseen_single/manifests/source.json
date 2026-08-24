@@ -1,0 +1,12 @@
+{
+  "dataset_id": "nadig_jurkat",
+  "filename": "GSE264667_jurkat_raw_singlecell_01.h5ad",
+  "license_id": "NCBI-GEO-public-record; no redistribution by project",
+  "protocol_id": "within_cell_unseen_single",
+  "registry_version": "datasets-v1",
+  "schema_version": "dataset-source-v1",
+  "size_bytes": 9366490264,
+  "source_semantics": "raw",
+  "source_sha256": "ffbe15f2c8f7ffcfd7b0ba9e6937d4ebc2d03b0179fa8234648a59bcb82c04a3",
+  "source_url": "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE264nnn/GSE264667/suppl/GSE264667_jurkat_raw_singlecell_01.h5ad"
+}

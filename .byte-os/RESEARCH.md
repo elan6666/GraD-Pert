@@ -63,8 +63,9 @@
   path with exact `condition`, `cell_type`, and `gene_name` semantics.
 - The official repository's documented defaults are train/test batch 32/128,
   hidden size 64, 20 epochs, and its code defaults to Adam, LR 1e-3, weight
-  decay 5e-4. This project overrides only the run budget to max 200 epochs plus
-  common validation-only patience 10.
+  decay 5e-4. The isolated runner preserves official model/training settings
+  except for the explicit one-epoch smoke budget. GEARS does not enter full
+  training in the current phase.
 - Official `.predict()` forms control-derived graphs but averages outputs to a
   single population vector. The benchmark runner must forward the exact shared
   300 control row IDs and retain all 300 predicted rows.
@@ -100,6 +101,21 @@
 - K562 has an upstream processed single-cell-line cache. RPE1/Jurkat/HepG2 are
   present in a cross-cell cache, but independent within-cell Top-5000-HVG views
   still require source-level reconstruction or separately verified assets.
+- Independent Nadig HepG2/Jurkat raw H5AD URLs, byte sizes, and SHA-256 values
+  are now frozen from GEO plus an independently exposed file hash. Their public
+  onboarding mapping is `gene -> condition`, `gem_group -> batch`, control
+  `non-targeting`, then `target+ctrl` encoding.
+- The official Replogle RPE1 Figshare file is not currently downloadable: the
+  frozen file reports `ic_checking`, and the endpoint returned HTTP 202 with a
+  zero-byte body on 2026-08-24. The explicit replacement source is scPerturb
+  v1.4's independently packaged RPE1 H5AD, not a cross-cell cache. Its public
+  MD5 matched; a full server scan confirmed a 247,914 × 8,749 finite,
+  nonnegative integer-count matrix, and its raw `gene`/`batch`/`cell_line`
+  layout plus var-index gene symbols is frozen in the registry.
+- The public onboarding notebook encodes `target+ctrl` before calling a helper
+  that only filters when condition IDs equal gene symbols. The project freezes
+  the only semantically operative order—filter on raw target IDs, then encode
+  canonical conditions—and records that resolution in preprocessing receipts.
 - Norman uses the GEARS-targeted processed data and frozen doubles protocol.
 - A runner must emit prediction-only condition bundles; the evaluator joins
   all truth cells after sealing. This prevents accidental test-truth access.
@@ -140,9 +156,10 @@
 
 ## Risks and caveats
 
-- Public data URLs/checksums for independent RPE1, Jurkat, and HepG2 within-cell
-  artifacts are not yet fully resolved. Data preparation must block rather than
-  substitute the cross-cell gene intersection.
+- Independent Nadig Jurkat/HepG2 and audited scPerturb RPE1 source URLs and
+  checksums are frozen. The unavailable original RPE1 Figshare endpoint remains
+  documented. Data preparation must never substitute the cross-cell gene
+  intersection.
 - TxPert lacks a complete public five-dataset training recipe. A fair public-
   code benchmark is possible; an exact paper-best reproduction is not currently
   supportable.
@@ -164,6 +181,7 @@
 3. Build and locally validate the standalone graph/self-distillation model on
    synthetic data.
 4. Add server preflight/sync, then resolve/download and QC five datasets.
-5. Fit projection capacity, run learned models with max 200/patience 10, seal
-   prediction-only artifacts, evaluate once, and sync only small summaries.
-
+5. Fit projection capacity and run one epoch for every learned model/dataset
+   pair. Seal prediction-only artifacts and evaluate the smoke outputs once.
+6. Continue only GraD-Pert to max 200 epochs with validation-only patience 10,
+   then evaluate the selected checkpoints and sync only small summaries.

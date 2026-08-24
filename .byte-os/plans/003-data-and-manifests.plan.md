@@ -1,9 +1,9 @@
 ---
 id: 003
 title: Five-Dataset Preparation and Fairness Manifests
-status: pending
+status: complete
 wave: 2
-updated_at: 2026-08-24T01:20:00Z
+updated_at: 2026-08-24T04:33:00+08:00
 owner_role: Data Engineer
 depends_on: [002]
 start_directory: .
@@ -15,7 +15,7 @@ subagent_policy: read_only_exploration
 # Goal
 
 Implement idempotent server-side acquisition, canonicalization, QC, split,
-control sampling, GEARS conversion, and readiness for all five datasets.
+  control sampling and model-independent readiness for all five datasets.
 
 # OKR Link
 
@@ -24,7 +24,8 @@ KR2 all five canonical-ready; KR6 server receipts and server-only assets.
 # Scope
 
 Source registry/checksums/licenses, download resume, four within-cell pipelines,
-Norman audit, QC, canonical splits, 300-control manifests, GEARS custom views.
+Norman audit, QC, canonical splits and exact 300-control manifests. Model-owned
+GEARS conversion remains isolated in plan 005 and consumes these same receipts.
 
 # Non-Goals
 
@@ -56,21 +57,24 @@ No model training and no cross-cell feature construction.
 
 - Purpose: guarantee model-independent fairness.
 - Actions: implement 0.5625/0.1875/0.25 condition split excluding control,
-  Norman official split import, hash/overlap gates, exact per-condition 300 row
-  sampling with replacement and stable seed derivation.
+  Norman frozen combo-seen2-compatible split, hash/overlap gates, and exact
+  per-condition 300-control sampling. First sample 300 real truth-cell contexts
+  with replacement, then one control row from each exact context, using stable
+  seed derivation.
 - Files or modules: split/control services and manifests.
 - Expected output: canonical IDs/hashes reused by all runners.
 - Step verification: deterministic/golden/overlap/with-replacement tests.
 - Subagent: none.
 
-## Step 4: Build GEARS-compatible views and server readiness
+## Step 4: Seal model-independent server readiness
 
-- Purpose: use identical canonical biology across runners.
-- Actions: build custom AnnData paths, inject exact split, report condition/gene
-  drops, compare Replogle published assets, seal five readiness receipts.
-- Files or modules: data adapters, `benchmarks/gears/data_adapter.py`.
-- Expected output: five `canonical_ready` datasets and GEARS coverage reports.
-- Step verification: server QC and hash summary; zero unexplained condition loss.
+- Purpose: give every runner one identical canonical biology and fairness input.
+- Actions: seal canonical AnnData paths, split/control hashes, expression/graph
+  axes and readiness receipts; mirror only small receipts locally.
+- Files or modules: data preparation/contracts and `registry/prepared`.
+- Expected output: five `canonical_ready` datasets and a versioned small receipt mirror.
+- Step verification: complete server source/H5AD/control verification and local
+  receipt-chain tests.
 - Subagent: none.
 
 # Dependencies
@@ -108,7 +112,7 @@ unknown scale/checksum/license ready. Safe archive extraction only.
 # Acceptance Criteria
 
 All five have canonical files, hashes, QC, split and control manifests; exact
-condition/gene coverage is known and train gates pass.
+condition/gene coverage is known and the complete server verifier passes.
 
 # Verification
 
@@ -125,5 +129,7 @@ datasets; preserve blocked state without substitution.
 
 # Notes
 
-Formal data remains server-only.
-
+Completed evidence: the full server verifier returned success for all five
+datasets. Canonical H5AD hashes, counts and small lineage receipts are recorded
+under `registry/prepared/README.md`; large data and ordered control manifests
+remain server-only.

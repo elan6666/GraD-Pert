@@ -25,6 +25,8 @@ V_master(d) = ordered(HVG_d union known_candidate_targets_d)
 
 - Ordinary context is restricted to the finalized dataset HVGs.
 - A known candidate perturbation target is the only allowed forced non-HVG.
+- The expression input/output axis remains the ordered HVGs; the graph axis is
+  `V_master`. Forced non-HVG candidate targets do not become decoder outputs.
 - Every node has one stable integer ID and one canonical gene ID.
 - Source graphs are STRING and GO. Each source is independently filtered to
   nodes in `V_master`, deduplicated deterministically, and independently pruned
@@ -92,9 +94,16 @@ code; it is not represented as an upstream class.
   weight-normalized bias-free final linear.
 - The condition and masked-node objectives share this projector but keep
   independent centers. `K_head` is not hard-coded until server fit; candidate
-  order is 65536, 32768, 16384, 8192. Select the first whose worst-case full
-  train step stays at or below 85% of the observed usable memory, then freeze it
-  for every dataset and seed.
+  order is 65536, 32768, 16384, 8192. Select the first whose 128 consecutive
+  real train steps on every dataset keep peak reserved memory at or below 85%
+  of initially observed usable memory, then freeze it for every dataset and
+  seed. A one-step probe is insufficient because CUDA reservation can rise
+  during sustained training.
+- The completed development fit on the server RTX 5090 selected
+  `K_head=16384`. The 65,536 candidate failed on K562 and 32,768 failed on
+  Jurkat; 16,384 completed all 128 steps on all five datasets. The decision
+  summary is `registry/capacity/prototype_head.development.json`; the exact
+  per-step receipt remains server-side pending allowlisted synchronization.
 
 ## 6. Basal prediction
 
@@ -126,7 +135,10 @@ L_total = L_prediction + 0.1 * L_ssl
   student global with the same index: 9 + 9 = 18 equally weighted terms.
 - `L_masked_node`: only nodes masked in the single masked global contribute;
   use the clean teacher state on the matching topology, separate node center,
-  and normalize masked-node terms per condition before the batch mean.
+  and average uniformly over the masked nodes in that one batch-shared global
+  view. This follows the original graph design's `1 / |M|` objective; the
+  condition axis belongs to the perturbation consistency loss, not this node
+  loss.
 - `L_spread`: unique-condition pre-projector student global representations are
   L2-normalized; find each off-diagonal nearest neighbor by maximum dot product
   and average negative log Euclidean distance. If fewer than two unique
@@ -164,6 +176,16 @@ Gradient ownership:
 - Default native optimizer: AdamW, LR 1e-3, weight decay 0, batch size 64.
   These start from the frozen public TxPert values and are marked with their
   source in every dataset config.
+- Native batches use a deterministic condition-limited order: at most eight
+  unique perturbation conditions per 64-cell batch, with every condition's
+  cells independently reshuffled each epoch. This keeps the graph objective at
+  the condition statistical unit, preserves multi-condition spread terms, and
+  bounds the eight condition-specific local-view forwards. Batch size 64 is the
+  maximum: tail batches of 2--63 cells are retained so conditions with few
+  remaining cells are not discarded; only an unavoidable one-cell tail is
+  dropped because both prediction MLPs contain BatchNorm. The cap, ordering and
+  singleton policy are explicit `project_preregistered` values in every
+  GraD-Pert dataset config; they are not tuned by dataset or test results.
 - Maximum 200 epochs. Validate every epoch using the fixed validation
   300-control manifest and `txpert_macro_pearson_delta`.
 - Stop after 10 consecutive validations without a strict improvement. Save best
@@ -180,4 +202,3 @@ Gradient ownership:
 - Static test for forbidden native imports and upstream-named native classes.
 - Server fit receipt selecting one `K_head` globally.
 - One training and evaluation manifest per learned model/dataset/seed.
-

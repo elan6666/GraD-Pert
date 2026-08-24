@@ -3,7 +3,7 @@ id: 007
 title: Server Synchronization and Five-Dataset Experiment Matrix
 status: pending
 wave: 4
-updated_at: 2026-08-24T01:20:00Z
+updated_at: 2026-08-24T17:49:30+08:00
 owner_role: Research Operations Engineer
 depends_on: [003, 004, 005, 006]
 start_directory: scripts/server
@@ -23,8 +23,9 @@ KR2–KR6 formal evidence and source/artifact topology.
 
 # Scope
 
-Server clone/envs/preflight, five data gates, K-head fit, native/external smoke,
-pilot, four-seed learned runs, nonlearned/evaluation, small result sync.
+Server clone/envs/preflight, five data gates, K-head fit, every learned
+model/dataset one-epoch gate, GraD-Pert-only full runs, nonlearned/evaluation,
+and small result sync.
 
 # Non-Goals
 
@@ -52,22 +53,23 @@ No local formal compute, force sync, large download to Mac, or unplanned sweep.
 - Verification: `data verify --all` and manifest hashes.
 - Subagent: none.
 
-## Step 3: Select K-head and run pilots
+## Step 3: Select K-head and run all one-epoch gates
 
 - Purpose: prevent expensive invalid matrix launch.
 - Actions: worst-case full-step candidates under 85% usable memory; freeze one;
-  run one dataset/seed for native, GEARS, TxPert; seal/recompute predictions.
+  run GraD-Pert and the official GEARS/TxPert packages for exactly one epoch on
+  each of five datasets; seal/recompute predictions and verify hashes.
 - Files/modules: server run roots, fit registry, receipts.
-- Expected output: global K and three runner pilots.
+- Expected output: global K and 15 passed learned integration receipts.
 - Verification: memory, gradient, early-stop, artifact and metric health gates.
 - Subagent: none.
 
 ## Step 4: Run formal matrix
 
 - Purpose: fulfill five-dataset comparison.
-- Actions: all applicable learned model × dataset × seeds 1–4 at max 200/
-  patience 10, three nonlearned per dataset, common inference/evaluation; resume
-  idempotently and never overwrite sealed runs.
+- Actions: GraD-Pert × five datasets × seeds 1–4 at max 200/patience 10, three
+  nonlearned models per dataset, common inference/evaluation; do not launch
+  full GEARS/TxPert runs; resume idempotently and never overwrite sealed runs.
 - Files/modules: server-only artifacts and small summaries.
 - Expected output: complete run/metric index with explicit failures.
 - Verification: split/control/config/code hashes equal and recomputation passes.
@@ -131,3 +133,8 @@ gaps. Resume and failure receipts are mandatory.
 
 Do not call a launched job complete until artifacts and metrics are verified.
 
+Local execution-layer evidence is complete: the exact 15/15/20 task phases,
+dry-run and deliberate execution surfaces, completion identity validation,
+15-smoke full-run dependency gate, cross-model fairness hashes, and sealed
+small-file staging/verification are implemented and tested. Plan status remains
+pending until the actual server matrix and result synchronization complete.

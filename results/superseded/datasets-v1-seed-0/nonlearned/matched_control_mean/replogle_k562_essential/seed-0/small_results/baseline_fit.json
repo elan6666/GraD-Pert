@@ -1,0 +1,5 @@
+{
+  "reads_train": false,
+  "schema_version": "nonlearned-fit-v1",
+  "strategy": "return_input_control_rows"
+}

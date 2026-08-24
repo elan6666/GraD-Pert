@@ -1,0 +1,15 @@
+# Frozen official GEARS requirements at f374e43e197b295016d80395d7a54ddb81cc6769.
+numpy==1.26.4
+pandas==2.2.2
+tqdm==4.66.5
+scikit-learn==1.5.1
+torch
+torch_geometric
+scanpy==1.10.2
+networkx==3.3
+dcor
+scipy==1.14.1
+
+# GraD-Pert runner-only contract dependencies; no learned model implementation.
+pydantic>=2.7
+PyYAML>=6.0

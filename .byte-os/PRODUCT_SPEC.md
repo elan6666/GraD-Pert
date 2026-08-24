@@ -58,8 +58,10 @@ protocol.
 2. Every dataset must pass source, preprocessing, gene, QC, split, control, and
    coverage gates before training.
 3. Each model/dataset config is self-contained, strict, and hashable.
-4. All learned models default to max 200 epochs and common validation-only
-   patience 10; test is evaluated once.
+4. Every learned model/dataset pair must first pass an exact one-epoch smoke
+   run. In the current phase, only GraD-Pert may continue to max 200 epochs
+   with validation-only early stopping patience 10; GEARS and TxPert stop after
+   the smoke checkpoint. Test is evaluated only after the selected checkpoint.
 5. Every runner emits prediction-only condition artifacts using exact shared
    300-control row IDs.
 6. The evaluator owns truth access and can independently recompute every
@@ -78,4 +80,3 @@ protocol.
   data/result.
 - A fresh review returns ship, followed by three evidence-led iterations and a
   final ship review.
-

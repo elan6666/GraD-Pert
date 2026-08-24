@@ -25,17 +25,17 @@ build/
 *.key
 
 # Datasets, graphs, caches, and large experiment artifacts
-data/
-datasets/
-graphs/
-cache/
-caches/
-artifacts/
-checkpoints/
-outputs/
-runs/
-wandb/
-mlruns/
+/data/
+/datasets/
+/graphs/
+/cache/
+/caches/
+/artifacts/
+/checkpoints/
+/outputs/
+/runs/
+/wandb/
+/mlruns/
 *.h5ad
 *.h5
 *.hdf5
@@ -53,5 +53,5 @@ mlruns/
 
 # Historical design notes and frozen upstream checkouts are local evidence.
 # The active, pruned specification is migrated into docs/design/.
-TxPert/
-tmp/
+/TxPert/
+/tmp/

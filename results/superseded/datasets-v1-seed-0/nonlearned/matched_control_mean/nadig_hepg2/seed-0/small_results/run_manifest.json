@@ -1,0 +1,19 @@
+{
+  "best_checkpoint_sha256": null,
+  "canonical_data_sha256": "e310a8ed4e81e96e8817217fe089b24327f48b4c4a4b2dfe9fb07afd873f9bda",
+  "config_sha256": "13440fce8167b19c1015fd27e14a51f12bfb820d124e879c26ff83f611247953",
+  "control_manifest_sha256": "13a4f951c3e4607dccc39b779af1358fcb0e71281496f5268ba9ac30efe20884",
+  "dataset_id": "nadig_hepg2",
+  "environment_sha256": "bb26727f12ea35040c23c424541805be8dc16cacd1fd9d9422fc71c776a9433c",
+  "formal_eligible": false,
+  "model_id": "matched_control_mean",
+  "protocol_id": "within_cell_unseen_single",
+  "run_id": "dev__matched_control_mean__nadig_hepg2__seed0",
+  "run_seed": 0,
+  "schema_version": "run-manifest-v1",
+  "source_commit": "a0c621a8f8040b91e4d794b643352bfe6e49cd95",
+  "source_dirty": true,
+  "split_content_sha256": "c28681abb62a1306fc89084cfdae1b6825ec0d593ec73bbb0ad74d906f1afe4a",
+  "status": "evaluated",
+  "test_evaluations": 1
+}

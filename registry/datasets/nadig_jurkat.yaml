@@ -1,0 +1,77 @@
+schema_version: dataset-registry-v2
+dataset_id: nadig_jurkat
+protocol_id: within_cell_unseen_single
+cell_context: Jurkat
+perturbation_modality: CRISPRi
+source:
+  url: "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE264nnn/GSE264667/suppl/GSE264667_jurkat_raw_singlecell_01.h5ad"
+  filename: "GSE264667_jurkat_raw_singlecell_01.h5ad"
+  size_bytes: 9366490264
+  checksum:
+    algorithm: sha256
+    value: "ffbe15f2c8f7ffcfd7b0ba9e6937d4ebc2d03b0179fa8234648a59bcb82c04a3"
+  license_id: "NCBI-GEO-public-record; no redistribution by project"
+  semantics: raw_single_cell
+  archive_h5ad_member: null
+  evidence_url: "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE264667"
+  immutable_source_id: "GEO:GSE264667:jurkat_raw_singlecell_01"
+  availability: ready_for_download
+  blocked_reason: null
+source_metadata:
+  audit_state: verified_from_frozen_reference
+  condition_column: gene
+  batch_column: gem_group
+  constant_batch_value: null
+  cell_type_column: null
+  observed_cell_type_values: null
+  control_identifier: non-targeting
+  gene_symbol_location: var_column
+  gene_symbol_column: gene_name
+  gene_symbol_duplicate_policy: suffix_later_with_var_index
+  canonical_cell_type_value: jurkat
+  condition_transform: append_ctrl_suffix_then_collapse_control
+canonical_metadata:
+  condition_column: condition
+  batch_column: batch
+  cell_type_column: cell_type
+  control_column: control
+  condition_name_column: condition_name
+  gene_symbol_column: gene_name
+preprocessing:
+  profile_id: txpert_within_cell_v1
+  signal_filter: "target-expression lower-tail filter from frozen preprocessing profile"
+  normalize_total: 4000
+  log1p: true
+  hvg_count: 5000
+  hvg_fit_scope: independent_cell_context
+  forced_non_hvg_policy: known_candidate_targets_only
+benchmark_condition_policy:
+  policy_id: gears_default_graph_intersection_v1
+  official_repository: "https://github.com/snap-stanford/GEARS.git"
+  official_commit: "f374e43e197b295016d80395d7a54ddb81cc6769"
+  gene2go_resource_sha256: "f145c5e84a53048d87942a417d870a4f2d8db50200b96e492b358c13aba8c771"
+  essential_gene_resource_sha256: "46c3dfe354d8ad5c0da22c69f3d0ca451987b1a61ed9d984279b22b9565ff8d7"
+  excluded_conditions:
+    - AC118549.1+ctrl
+    - ALG1L+ctrl
+    - C14orf178+ctrl
+    - C16orf86+ctrl
+    - C18orf21+ctrl
+    - C19orf53+ctrl
+    - C7orf26+ctrl
+    - CCDC144NL+ctrl
+    - FAM102B+ctrl
+    - FAM229A+ctrl
+    - FAU+ctrl
+    - GNB1L+ctrl
+    - GOLGA6L1+ctrl
+    - KRTAP4-7+ctrl
+    - MTRNR2L1+ctrl
+    - NEDD8-MDP1+ctrl
+    - OR4F4+ctrl
+    - RBM14-RBM4+ctrl
+    - RPS10-NUDT3+ctrl
+    - SEM1+ctrl
+control_condition_id: ctrl
+split_policy: grouped_0.5625_0.1875_0.25
+split_seed: 42

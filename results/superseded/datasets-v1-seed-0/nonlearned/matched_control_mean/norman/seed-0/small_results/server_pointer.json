@@ -1,0 +1,11 @@
+{
+  "evaluation_manifest_path": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/matched_control_mean/norman/seed-0/small_results/evaluation_manifest.json",
+  "evaluation_manifest_sha256": "c8b8a31c3f50ee80f3ed6068672c96ef34c4e9b375c3af36c2850ca95f41d30a",
+  "prediction_manifest_path": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/matched_control_mean/norman/seed-0/small_results/prediction_manifest.json",
+  "prediction_manifest_sha256": "872f4b07d51d27f0bd93a2f7becc5378e34b9cbe3c8f6c686c68751d12297776",
+  "run_id": "dev__matched_control_mean__norman__seed0",
+  "schema_version": "server-artifact-pointer-v1",
+  "server_root": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/matched_control_mean/norman/seed-0",
+  "source_commit": "a0c621a8f8040b91e4d794b643352bfe6e49cd95",
+  "synchronized_large_artifacts": false
+}

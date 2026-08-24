@@ -1,0 +1,90 @@
+{
+  "acceptance_threshold_bytes": 28168037990,
+  "batch_size": 64,
+  "candidates": [
+    {
+      "accepted": true,
+      "datasets": [
+        {
+          "accepted": true,
+          "dataset_id": "replogle_k562_essential",
+          "expression_gene_count": 5000,
+          "failure": null,
+          "graph_gene_count": 5657,
+          "peak_allocated_bytes": 20907706368,
+          "peak_reserved_bytes": 21617442816,
+          "protocol_id": "within_cell_unseen_single",
+          "steps_per_epoch": 1349,
+          "train_cell_count": 84123,
+          "unique_conditions_in_step": 8
+        },
+        {
+          "accepted": true,
+          "dataset_id": "replogle_rpe1_essential",
+          "expression_gene_count": 5000,
+          "failure": null,
+          "graph_gene_count": 6386,
+          "peak_allocated_bytes": 18997055488,
+          "peak_reserved_bytes": 19495124992,
+          "protocol_id": "within_cell_unseen_single",
+          "steps_per_epoch": 2061,
+          "train_cell_count": 127136,
+          "unique_conditions_in_step": 8
+        },
+        {
+          "accepted": true,
+          "dataset_id": "nadig_jurkat",
+          "expression_gene_count": 5000,
+          "failure": null,
+          "graph_gene_count": 6506,
+          "peak_allocated_bytes": 21549681152,
+          "peak_reserved_bytes": 22267559936,
+          "protocol_id": "within_cell_unseen_single",
+          "steps_per_epoch": 2096,
+          "train_cell_count": 129566,
+          "unique_conditions_in_step": 8
+        },
+        {
+          "accepted": true,
+          "dataset_id": "nadig_hepg2",
+          "expression_gene_count": 5000,
+          "failure": null,
+          "graph_gene_count": 6530,
+          "peak_allocated_bytes": 19191679488,
+          "peak_reserved_bytes": 19992150016,
+          "protocol_id": "within_cell_unseen_single",
+          "steps_per_epoch": 1172,
+          "train_cell_count": 70242,
+          "unique_conditions_in_step": 8
+        },
+        {
+          "accepted": true,
+          "dataset_id": "norman",
+          "expression_gene_count": 5045,
+          "failure": null,
+          "graph_gene_count": 5045,
+          "peak_allocated_bytes": 12659660288,
+          "peak_reserved_bytes": 13203668992,
+          "protocol_id": "norman_combo_seen2",
+          "steps_per_epoch": 1208,
+          "train_cell_count": 76500,
+          "unique_conditions_in_step": 8
+        }
+      ],
+      "prototype_count": 65536
+    }
+  ],
+  "device": "cuda:0",
+  "device_name": "NVIDIA GeForce RTX 5090",
+  "device_total_bytes": 33670758400,
+  "formal_eligibility_reason": "requires_identical_clean_local_github_server_commit",
+  "formal_eligible": false,
+  "initial_free_bytes": 33138868224,
+  "max_unique_conditions_per_batch": 8,
+  "run_seed": 1,
+  "schema_version": "prototype-head-capacity-v1",
+  "selected_prototype_count": 65536,
+  "status": "superseded_single_step_capacity_pass",
+  "superseded_by": "registry/capacity/prototype_head.65536-sustained-failure.json",
+  "usable_memory_fraction": 0.85
+}

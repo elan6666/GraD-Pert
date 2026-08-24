@@ -1,0 +1,13 @@
+{
+  "batch_order": "condition_limited_seeded_v1",
+  "canonical_data_sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5",
+  "dataset_id": "nadig_jurkat",
+  "drop_last": false,
+  "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+  "graph_gene_order_sha256": "c1d0c76822d5c7ac1f561457010065fa3a195d27954f3c959d6732d107124e10",
+  "protocol_id": "within_cell_unseen_single",
+  "schema_version": "native-training-data-v1",
+  "singleton_tail_policy": "drop_for_batchnorm",
+  "split_content_sha256": "9a1e4d9d3091a59557446bac54c6b573856734889c9e787b1407da30f233b746",
+  "train_perturbed_cell_count": 129566
+}

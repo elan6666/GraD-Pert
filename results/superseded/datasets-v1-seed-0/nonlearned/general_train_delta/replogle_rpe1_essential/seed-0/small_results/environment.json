@@ -1,0 +1,11 @@
+{
+  "cuda_runtime": null,
+  "cudnn_version": null,
+  "device_name": "x86_64",
+  "lock_file": "/data/yilangliu/GraD-Pert/dev-snapshots/current/uv.lock",
+  "lock_file_sha256": "1ce060099424d0bc07985b2340f4136f7ce23bbc567dbc37d36c4e8ae5f305f8",
+  "payload_sha256": "bb26727f12ea35040c23c424541805be8dc16cacd1fd9d9422fc71c776a9433c",
+  "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39",
+  "python_version": "3.12.3",
+  "torch_version": "2.13.0+cu130"
+}

@@ -1,0 +1,19 @@
+{
+  "best_checkpoint_sha256": null,
+  "canonical_data_sha256": "37d17eae90cbeb7eec258d7512a0eb4d549fee308aa4b31db2e1eafdaf8e6325",
+  "config_sha256": "7f009645cddf4fc6c0eb8be3fb53cd61173822528098552fd82894a25f78b8f3",
+  "control_manifest_sha256": "50a55ff8cd75b1a9d0b00225f1eec0934ad5b7088b2d48c28be0ccf8030fb994",
+  "dataset_id": "norman",
+  "environment_sha256": "bb26727f12ea35040c23c424541805be8dc16cacd1fd9d9422fc71c776a9433c",
+  "formal_eligible": false,
+  "model_id": "general_train_delta",
+  "protocol_id": "norman_combo_seen2",
+  "run_id": "dev__general_train_delta__norman__seed0",
+  "run_seed": 0,
+  "schema_version": "run-manifest-v1",
+  "source_commit": "a0c621a8f8040b91e4d794b643352bfe6e49cd95",
+  "source_dirty": true,
+  "split_content_sha256": "0c3038f129efff8eafae4f991298a0f53b0572677f165acef91eb05439eef689",
+  "status": "evaluated",
+  "test_evaluations": 1
+}

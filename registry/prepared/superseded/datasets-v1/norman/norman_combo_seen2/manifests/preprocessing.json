@@ -1,0 +1,29 @@
+{
+  "dataset_id": "norman",
+  "profile_id": "gears_norman_audited_v1",
+  "protocol_id": "norman_combo_seen2",
+  "report": {
+    "dataset_id": "norman",
+    "expression_scale_action": "expm1_then_normalize_total_4000_then_log1p",
+    "metadata": {
+      "canonical_cell_type_value": "K562",
+      "condition_transform": "normalize_perturbation_components",
+      "n_conditions": 237,
+      "n_controls": 7353,
+      "n_genes": 5045,
+      "n_observations": 91205,
+      "source_batch_column": "<constant:norman_upstream_single_batch>",
+      "source_condition_column": "condition",
+      "source_gene_symbol_column": "gene_name"
+    },
+    "missing_candidate_targets": [],
+    "n_canonical_conditions": 237,
+    "n_cells_input": 91205,
+    "n_cells_output": 91205,
+    "n_condition_aliases_collapsed": 47,
+    "n_expression_genes": 5045,
+    "n_graph_genes": 5045,
+    "n_source_conditions": 284
+  },
+  "schema_version": "preprocessing-manifest-v1"
+}

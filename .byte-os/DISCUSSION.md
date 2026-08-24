@@ -21,7 +21,10 @@
 ## 当前理解
 
 - `/Users/elan/code/grad-pert` 应成为新的、独立的 GraD-Pert Python 项目；当前目录为空且尚未初始化 Git。
-- 实现必须逐模块核对冻结的 TxPert、DINO/DINOv2 官方代码，再在 `gradpert` 命名空间独立重写；正式运行时不得导入、调用或要求 clone `gspp`、DINO、GEARS。
+- GraD-Pert 原生模型必须逐模块核对冻结的参考代码后在 `gradpert`
+  命名空间独立实现；`src/gradpert` 正式路径不得导入或调用上游模型。
+  GEARS 与 TxPert 是例外的隔离 benchmark：其 runner 必须直接调用冻结
+  官方 checkout/package 与官方配置，不得在本仓库重写它们的模型。
 - v1 的普通图上下文严格使用数据集预处理后的 HVG，唯一强制补入的是已知候选扰动靶基因：`V_master = H_data ∪ P_known`。
 - Teacher 看两个完整 global；Student 看相同拓扑的两个 global 和八个扰动中心 local。Student 的一个 global 做 node-iBOT mask，八个 local 中固定四个做 anchor mask。
 - 第一阶段只实现一个模型版本，暂定锁定 B2：从随机初始化直接联合训练表达预测与图自蒸馏；不同时实现 B3。

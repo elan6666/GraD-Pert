@@ -1,0 +1,78 @@
+{
+  "schema_version": "prototype-head-capacity-summary-v2",
+  "status": "development_capacity_passed",
+  "formal_eligible": false,
+  "formal_eligibility_reason": "requires_identical_clean_local_github_server_commit",
+  "full_server_receipt_sync_status": "pending_allowlisted_sync",
+  "device": "cuda:0",
+  "device_name": "NVIDIA GeForce RTX 5090",
+  "device_total_bytes": 33670758400,
+  "initial_free_bytes": 33138868224,
+  "usable_memory_fraction": 0.85,
+  "acceptance_threshold_bytes": 28168037990,
+  "batch_size": 64,
+  "max_unique_conditions_per_batch": 8,
+  "capacity_probe_steps": 128,
+  "run_seed": 1,
+  "selected_prototype_count": 16384,
+  "candidate_decisions": [
+    {
+      "prototype_count": 65536,
+      "accepted": false,
+      "first_failure_dataset_id": "replogle_k562_essential",
+      "observed_probe_steps": 34,
+      "peak_reserved_bytes": 30641487872,
+      "failure": "peak_reserved_exceeds_85_percent_of_initial_free_memory"
+    },
+    {
+      "prototype_count": 32768,
+      "accepted": false,
+      "first_failure_dataset_id": "nadig_jurkat",
+      "observed_probe_steps": 20,
+      "peak_reserved_bytes": 28651290624,
+      "failure": "peak_reserved_exceeds_85_percent_of_initial_free_memory"
+    },
+    {
+      "prototype_count": 16384,
+      "accepted": true,
+      "datasets": [
+        {
+          "dataset_id": "replogle_k562_essential",
+          "observed_probe_steps": 128,
+          "peak_allocated_bytes": 18672726016,
+          "peak_reserved_bytes": 20432551936,
+          "peak_reserved_step": 56
+        },
+        {
+          "dataset_id": "replogle_rpe1_essential",
+          "observed_probe_steps": 128,
+          "peak_allocated_bytes": 18674536960,
+          "peak_reserved_bytes": 20866662400,
+          "peak_reserved_step": 123
+        },
+        {
+          "dataset_id": "nadig_jurkat",
+          "observed_probe_steps": 128,
+          "peak_allocated_bytes": 18982576128,
+          "peak_reserved_bytes": 24226299904,
+          "peak_reserved_step": 25
+        },
+        {
+          "dataset_id": "nadig_hepg2",
+          "observed_probe_steps": 128,
+          "peak_allocated_bytes": 18961863168,
+          "peak_reserved_bytes": 20803747840,
+          "peak_reserved_step": 97
+        },
+        {
+          "dataset_id": "norman",
+          "observed_probe_steps": 128,
+          "peak_allocated_bytes": 11407287296,
+          "peak_reserved_bytes": 12970885120,
+          "peak_reserved_step": 61
+        }
+      ]
+    }
+  ],
+  "note": "Exact full per-step server receipt exists remotely; this local summary contains only values observed in the completed command output and does not synthesize omitted trajectories."
+}

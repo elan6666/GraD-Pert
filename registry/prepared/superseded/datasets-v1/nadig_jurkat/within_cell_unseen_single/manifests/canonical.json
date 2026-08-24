@@ -1,0 +1,22 @@
+{
+  "canonical_adata_path": "data/nadig_jurkat/within_cell_unseen_single/canonical/adata.h5ad",
+  "canonical_adata_sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5",
+  "dataset_id": "nadig_jurkat",
+  "evaluation_controls_sha256": "aceadd257fb0f3d67cdb89c3b85135650213a771eab22cece84420e7303b7fea",
+  "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+  "graph_gene_order_sha256": "c1d0c76822d5c7ac1f561457010065fa3a195d27954f3c959d6732d107124e10",
+  "n_cells": 238977,
+  "n_conditions": 2393,
+  "n_controls": 12013,
+  "n_expression_genes": 5000,
+  "n_graph_genes": 6506,
+  "observation_order_sha256": "cc8029dd8bc6274e28dc90c149be181ab7cd8a18f1008d1fefc9db42ca7f637e",
+  "preprocessing_manifest_sha256": "9fecbe60b225a587fce1fdc0818eadca28b425aae9a09931db343f9f7b481d5c",
+  "protocol_id": "within_cell_unseen_single",
+  "qc_manifest_sha256": "e5d94ab2143ceff7c4a0d5cdd534530527ffd3773a474182034b8645714d3cbd",
+  "schema_version": "canonical-data-v1",
+  "source_manifest_sha256": "1733e17a849dfcacdee52b6fdff6281f7bb16b63ec9d445688118403c03a0624",
+  "split_content_sha256": "9a1e4d9d3091a59557446bac54c6b573856734889c9e787b1407da30f233b746",
+  "split_manifest_sha256": "1c1b9bb934da6d485514ad2e56d8262b167c2b22d621d1358ef9c34e12d0b862",
+  "state": "canonical_ready"
+}

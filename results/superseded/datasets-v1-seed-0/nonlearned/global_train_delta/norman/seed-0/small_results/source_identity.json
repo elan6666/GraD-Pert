@@ -1,0 +1,11 @@
+{
+  "commit": "a0c621a8f8040b91e4d794b643352bfe6e49cd95",
+  "dirty": true,
+  "formal_eligibility_reason": "development_snapshot_not_verified_against_published_remote",
+  "formal_eligible": false,
+  "published_commit": null,
+  "remote_ref": null,
+  "remote_url": null,
+  "repository_root": "/data/yilangliu/GraD-Pert/dev-snapshots/current",
+  "tree_sha256": "b5f2e561abfff5a5c1c1956f74d4c7a9fe33c007f7a0c734da445e1bea9d46f3"
+}

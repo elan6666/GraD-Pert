@@ -7,7 +7,7 @@ updated_at: 2026-08-24T01:20:00Z
 owner_role: Benchmark Engineer
 depends_on: [002, 003]
 start_directory: benchmarks
-context_files: [AGENTS.md, docs/design/DATA_AND_EVALUATION.md, docs/provenance/REFERENCE_ALIGNMENT.md]
+context_files: [AGENTS.md, docs/design/DATA_AND_EVALUATION.md, docs/provenance/REFERENCE_ALIGNMENT.md, docs/provenance/TRISHIFT_ARCHITECTURE_ALIGNMENT.md]
 agents_context_stack: [AGENTS.md, benchmarks/AGENTS.md]
 subagent_policy: none
 ---
@@ -55,9 +55,11 @@ paper-best/private-graph claim.
 
 ## Step 3: Build GEARS runner
 
-- Purpose: train official architecture on exact data/splits and preserve 300 rows.
-- Actions: custom data, exact split injection, max 200/patience 10 common val
-  selection, per-control forward, condition/gene/hash verification.
+- Purpose: call the frozen official GEARS package on exact data/splits and
+  preserve 300 rows without reimplementing GEARS.
+- Actions: custom data, exact split injection, official configuration and
+  official training API with `epochs=1`, per-control official forward,
+  condition/gene/hash verification.
 - Files/modules: `benchmarks/gears`.
 - Expected output: five-dataset capable prediction artifacts.
 - Verification: tiny fixture, upstream-symbol golden behavior, no `.predict()` mean path.
@@ -66,9 +68,10 @@ paper-best/private-graph claim.
 ## Step 4: Build TxPert runner
 
 - Purpose: benchmark frozen public code without test leakage.
-- Actions: exact split PKLs, custom train entry/subclass disabling test-on-val,
-  official/preregistered hyperparameter receipts, public graph labels, shared
-  control inference, prediction adapter.
+- Actions: exact split PKLs, a thin lifecycle guard disabling test-on-val,
+  official package/model invocation with `max_epochs=1`, official/missing-
+  recipe receipts, public graph labels, shared-control inference, prediction
+  adapter. Do not reproduce the model or training loop.
 - Files/modules: `benchmarks/txpert`.
 - Expected output: five-dataset capable public-code benchmark artifacts.
 - Verification: validation cannot access test fixture; split/shape/gene hashes.
@@ -96,8 +99,9 @@ Canonical datasets/manifests and server CUDA environments.
 
 # Code Change Guardrails
 
-Do not reuse TriShift monkeypatches, call GEARS mean-only predict, or claim exact
-TxPert paper reproduction.
+Do not copy TriShift or upstream model implementations, call the GEARS
+mean-only predict path, replace official models with local equivalents, or
+claim exact TxPert paper reproduction.
 
 # Acceptance Criteria
 
@@ -119,4 +123,3 @@ Official TxPert training recipe gaps and dependency conflicts.
 # Notes
 
 External runner Python imports are permitted only inside their isolated envs.
-

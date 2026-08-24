@@ -1,0 +1,11 @@
+{
+  "evaluation_manifest_path": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/global_train_delta/replogle_rpe1_essential/seed-0/small_results/evaluation_manifest.json",
+  "evaluation_manifest_sha256": "5fc6de99e0a70224e89babc64abb669a1ab7b79bd309fabf6649fe25f78bd814",
+  "prediction_manifest_path": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/global_train_delta/replogle_rpe1_essential/seed-0/small_results/prediction_manifest.json",
+  "prediction_manifest_sha256": "dd663fb65149e9e259e6e1df562a0991a50375d554fd50e4ae69991b11ed5231",
+  "run_id": "dev__global_train_delta__replogle_rpe1_essential__seed0",
+  "schema_version": "server-artifact-pointer-v1",
+  "server_root": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/global_train_delta/replogle_rpe1_essential/seed-0",
+  "source_commit": "a0c621a8f8040b91e4d794b643352bfe6e49cd95",
+  "synchronized_large_artifacts": false
+}

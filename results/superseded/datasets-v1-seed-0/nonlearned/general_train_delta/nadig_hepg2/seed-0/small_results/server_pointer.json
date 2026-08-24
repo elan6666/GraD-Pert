@@ -1,0 +1,11 @@
+{
+  "evaluation_manifest_path": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/general_train_delta/nadig_hepg2/seed-0/small_results/evaluation_manifest.json",
+  "evaluation_manifest_sha256": "318ff5fe9f939584457100f7001b42b104ad25c32dfd168f27debdeed8b260be",
+  "prediction_manifest_path": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/general_train_delta/nadig_hepg2/seed-0/small_results/prediction_manifest.json",
+  "prediction_manifest_sha256": "3953450e45495ed0087375003aa0c52b66b25d1ca23a3794fac065f38bbfa249",
+  "run_id": "dev__general_train_delta__nadig_hepg2__seed0",
+  "schema_version": "server-artifact-pointer-v1",
+  "server_root": "/data/yilangliu/GraD-Pert/runs/development/nonlearned/general_train_delta/nadig_hepg2/seed-0",
+  "source_commit": "a0c621a8f8040b91e4d794b643352bfe6e49cd95",
+  "synchronized_large_artifacts": false
+}

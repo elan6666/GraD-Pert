@@ -1,0 +1,19 @@
+{
+  "best_checkpoint_sha256": null,
+  "canonical_data_sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5",
+  "config_sha256": "2eaceb9c368385c71b7dfab4d88a1cb3cb852ee0f2ba4f641c803c6226f44127",
+  "control_manifest_sha256": "d9a1b63fbd1e69cf396804eceeb3d8d0eab008674564322a6b736f36aa718cef",
+  "dataset_id": "nadig_jurkat",
+  "environment_sha256": "bb26727f12ea35040c23c424541805be8dc16cacd1fd9d9422fc71c776a9433c",
+  "formal_eligible": false,
+  "model_id": "general_train_delta",
+  "protocol_id": "within_cell_unseen_single",
+  "run_id": "dev__general_train_delta__nadig_jurkat__seed0",
+  "run_seed": 0,
+  "schema_version": "run-manifest-v1",
+  "source_commit": "a0c621a8f8040b91e4d794b643352bfe6e49cd95",
+  "source_dirty": true,
+  "split_content_sha256": "9a1e4d9d3091a59557446bac54c6b573856734889c9e787b1407da30f233b746",
+  "status": "evaluated",
+  "test_evaluations": 1
+}

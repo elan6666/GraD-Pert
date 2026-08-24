@@ -1,0 +1,28 @@
+{
+  "evaluation_bundle_sha256": "d454c23004163211138d3023098f850438206e385aef85b4438d39ff9a7ace3f",
+  "evaluator_state_manifest_file_sha256": "172042010eccbb364ba2b83047d5da1cecc6e5e79648d5e933bd908d1ef05ea5",
+  "metrics": [
+    {
+      "available": false,
+      "finite_condition_count": 0,
+      "metric_id": "txpert_macro_pearson_delta",
+      "reason": "constant_vector",
+      "total_condition_count": 598
+    },
+    {
+      "available": true,
+      "finite_condition_count": 596,
+      "metric_id": "trishift_pearson_delta",
+      "reason": null,
+      "total_condition_count": 598
+    },
+    {
+      "available": true,
+      "finite_condition_count": 596,
+      "metric_id": "systema_pearson",
+      "reason": null,
+      "total_condition_count": 598
+    }
+  ],
+  "schema_version": "metric-availability-v1"
+}

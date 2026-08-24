@@ -1,0 +1,19 @@
+{
+  "best_checkpoint_sha256": null,
+  "canonical_data_sha256": "24be9c93304b7e38f62acf9292d8fe00820c3e5e7b81e7eeb9fb2eee055589a7",
+  "config_sha256": "945daeaab29b17a8661b163922777fc2fb25ceac7df2992d69d599174322cb89",
+  "control_manifest_sha256": "44634b60755ada4e393f452b6600fbb727595db23751702798accb1beeb75787",
+  "dataset_id": "replogle_rpe1_essential",
+  "environment_sha256": "bb26727f12ea35040c23c424541805be8dc16cacd1fd9d9422fc71c776a9433c",
+  "formal_eligible": false,
+  "model_id": "matched_control_mean",
+  "protocol_id": "within_cell_unseen_single",
+  "run_id": "dev__matched_control_mean__replogle_rpe1_essential__seed0",
+  "run_seed": 0,
+  "schema_version": "run-manifest-v1",
+  "source_commit": "a0c621a8f8040b91e4d794b643352bfe6e49cd95",
+  "source_dirty": true,
+  "split_content_sha256": "7038cdebfccd2e2feef21f0de6b7b6668531a110b77b108e9e3a02187dded6cd",
+  "status": "evaluated",
+  "test_evaluations": 1
+}

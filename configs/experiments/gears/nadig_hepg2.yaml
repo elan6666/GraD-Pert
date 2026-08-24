@@ -1,0 +1,142 @@
+schema_version: 1
+experiment_id: gears__nadig_hepg2
+model_id: gears
+dataset_id: nadig_hepg2
+source_code:
+  repository: "https://github.com/snap-stanford/GEARS.git"
+  commit: "f374e43e197b295016d80395d7a54ddb81cc6769"
+  license_boundary: "isolated_upstream_environment_with_attribution"
+  execution: isolated
+data:
+  dataset_id: nadig_hepg2
+  protocol_id: within_cell_unseen_single
+  registry_version: "datasets-v2"
+  canonical_data_root: "data/nadig_hepg2/within_cell_unseen_single/canonical"
+  preprocessing_id: txpert_within_cell_v1
+  split_policy: grouped_0.5625_0.1875_0.25__gears_default_graph_intersection_v1
+  split_seed: 42
+  expected_split_hash: from_canonical_manifest
+  expected_expression_gene_order_hash: from_canonical_manifest
+  expected_graph_gene_order_hash: from_canonical_manifest
+  expected_control_manifest_hash: from_canonical_manifest
+model:
+  model_id: gears
+  family: external_learned
+  implementation: "benchmarks.gears.runner"
+  parameters:
+    hidden_size:
+      value: 64
+      source: official
+      reference: "ref_gears:gears/gears.py:GEARS.model_initialize"
+    num_go_gnn_layers:
+      value: 1
+      source: official
+      reference: "ref_gears:gears/gears.py:GEARS.model_initialize"
+    num_gene_gnn_layers:
+      value: 1
+      source: official
+      reference: "ref_gears:gears/gears.py:GEARS.model_initialize"
+    decoder_hidden_size:
+      value: 16
+      source: official
+      reference: "ref_gears:gears/gears.py:GEARS.model_initialize"
+    num_similar_genes_go_graph:
+      value: 20
+      source: official
+      reference: "ref_gears:gears/gears.py:GEARS.model_initialize"
+    num_similar_genes_co_express_graph:
+      value: 20
+      source: official
+      reference: "ref_gears:gears/gears.py:GEARS.model_initialize"
+    coexpress_threshold:
+      value: 0.4
+      source: official
+      reference: "ref_gears:gears/gears.py:GEARS.model_initialize"
+    uncertainty:
+      value: false
+      source: official
+      reference: "ref_gears:gears/gears.py:GEARS.model_initialize"
+    uncertainty_reg:
+      value: 1
+      source: official
+      reference: "ref_gears:gears/gears.py:GEARS.model_initialize"
+    direction_lambda:
+      value: 0.1
+      source: official
+      reference: "ref_gears:gears/gears.py:GEARS.model_initialize"
+    no_perturb:
+      value: false
+      source: official
+      reference: "ref_gears:gears/gears.py:GEARS.model_initialize"
+    custom_split_source:
+      value: "canonical_manifest"
+      source: user_locked
+      reference: "docs/design/DATA_AND_EVALUATION.md"
+    retain_per_control_predictions:
+      value: true
+      source: user_locked
+      reference: "docs/design/DATA_AND_EVALUATION.md"
+training:
+  learned: true
+  smoke_epochs:
+    value: 1
+    source: user_locked
+    reference: "user requirement: learned integration gate is exactly one epoch"
+  formal_run_policy: smoke_only
+  max_epochs:
+    value: 1
+    source: user_locked
+    reference: "user requirement: external learned models stop after the one-epoch integration gate"
+  early_stopping_patience:
+    value: 0
+    source: user_locked
+    reference: "one-epoch external smoke: no orchestrator early stopping"
+  train_batch_size:
+    value: 32
+    source: official
+    reference: "ref_gears:README train_batch_size example"
+  eval_batch_size:
+    value: 128
+    source: official
+    reference: "ref_gears:README test_batch_size example"
+  optimizer:
+    value: "Adam"
+    source: official
+    reference: "ref_gears:gears/gears.py:GEARS.train"
+  learning_rate:
+    value: 0.001
+    source: official
+    reference: "ref_gears:gears/gears.py:GEARS.train"
+  weight_decay:
+    value: 0.0005
+    source: official
+    reference: "ref_gears:gears/gears.py:GEARS.train"
+  scheduler:
+    value: "StepLR(step_size=1,gamma=0.5)"
+    source: official
+    reference: "ref_gears:gears/gears.py:GEARS.train"
+  early_stopping: false
+  monitor: "none"
+  monitor_mode: none
+  min_delta: 0.0
+  run_seeds: [1]
+evaluation:
+  evaluator_version: "gradpert-evaluator-v1"
+  prediction_schema_version: "prediction-artifact-v1"
+  bundle_schema_version: "evaluation-bundle-v1"
+  evaluation_seed: 20260824
+  n_controls_per_condition: 300
+  sample_controls_with_replacement: true
+  control_context_policy: truth_cell_context_resampling
+  truth_access: evaluator_only
+  headline_metrics:
+    - txpert_macro_pearson_delta
+    - trishift_pearson_delta
+    - systema_pearson
+artifacts:
+  root: "runs/gears/nadig_hepg2"
+  large_artifacts_server_only: true
+  prediction_format: pkl
+  evaluation_formats: [pkl, parquet, json, h5ad]
+  small_sync_extensions: [".txt", ".json", ".jsonl", ".csv", ".md"]
+  sync_requires_dry_run: true

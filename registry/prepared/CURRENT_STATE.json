@@ -1,0 +1,15 @@
+{
+  "schema_version": "prepared-receipt-sync-v1",
+  "status": "pending_server_sync",
+  "registry_version": "datasets-v2",
+  "server_verification": "passed",
+  "local_receipt_chain_available": false,
+  "split_content_sha256": {
+    "nadig_hepg2": "540b214bd879aa3cb445c762447046bb319b58d6230a6e660c0a798380331bc6",
+    "nadig_jurkat": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0",
+    "norman": "ebcdde39b87d9e98ef02b84db6677a5ae7404d5953bcbe6fd4ccbb61e8a13ed7",
+    "replogle_k562_essential": "4d8dffc4e8e217f6b5b5d794666af346169789c3c6761d61b493a94522da5d69",
+    "replogle_rpe1_essential": "19a1cc511fb98cc6063ef1b8bcfdc73db9ea0c674b86c3f4112f4388acd80204"
+  },
+  "note": "Do not infer missing receipt hashes; copy and verify the server files."
+}
