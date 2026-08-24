@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gc
 import os
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -26,6 +27,11 @@ class DatasetCapacityObservation:
     steps_per_epoch: int
     requested_probe_steps: int
     observed_probe_steps: int
+    observed_probe_cells: int
+    probe_wall_seconds: float | None
+    steps_per_second: float | None
+    cells_per_second: float | None
+    estimated_epoch_seconds: float | None
     maximum_unique_conditions: int
     peak_allocated_bytes: int | None
     peak_reserved_bytes: int | None
@@ -67,8 +73,8 @@ def fit_global_prototype_head(
 
     if not torch.cuda.is_available() or not device_name.startswith("cuda:"):
         raise RuntimeError("prototype-head fit requires an explicit CUDA device")
-    if (batch_size, max_unique_conditions) != (256, 8):
-        raise ValueError("v1 prototype fit requires batch 256 and condition cap 8")
+    if batch_size not in {64, 256} or max_unique_conditions != 8:
+        raise ValueError("v1 prototype fit compares batch 64/256 with condition cap 8")
     if usable_memory_fraction != 0.85:
         raise ValueError("v1 prototype fit threshold is frozen at 85% of usable memory")
     if probe_steps != CAPACITY_PROBE_STEPS:
@@ -126,6 +132,11 @@ def fit_global_prototype_head(
             train_cell_count = 0
             steps_per_epoch = 0
             observed_probe_steps = 0
+            observed_probe_cells = 0
+            probe_wall_seconds: float | None = None
+            steps_per_second: float | None = None
+            cells_per_second: float | None = None
+            estimated_epoch_seconds: float | None = None
             maximum_unique_conditions = 0
             peak_reserved_step: int | None = None
             reserved_bytes_by_step: list[int] = []
@@ -183,6 +194,8 @@ def fit_global_prototype_head(
                     heldout_target_ids=heldout_ids,
                 )
                 expected_probe_steps = min(probe_steps, steps_per_epoch)
+                torch.cuda.synchronize(device)
+                probe_started_at = time.perf_counter()
                 for step_index, batch in enumerate(
                     data.iter_train_epoch(
                         epoch=0,
@@ -200,6 +213,7 @@ def fit_global_prototype_head(
                     metrics = engine.train_step(batch, global_step=step_index)
                     torch.cuda.synchronize(device)
                     observed_probe_steps += 1
+                    observed_probe_cells += int(batch.control_expression.shape[0])
                     current_peak_reserved = int(torch.cuda.max_memory_reserved(device))
                     reserved_bytes_by_step.append(current_peak_reserved)
                     if peak_reserved_step is None or current_peak_reserved > max(
@@ -210,6 +224,11 @@ def fit_global_prototype_head(
                     if current_peak_reserved > threshold_bytes:
                         failure = "peak_reserved_exceeds_85_percent_of_initial_free_memory"
                         break
+                probe_wall_seconds = time.perf_counter() - probe_started_at
+                if probe_wall_seconds > 0 and observed_probe_steps > 0:
+                    steps_per_second = observed_probe_steps / probe_wall_seconds
+                    cells_per_second = observed_probe_cells / probe_wall_seconds
+                    estimated_epoch_seconds = steps_per_epoch / steps_per_second
                 peak_allocated = int(torch.cuda.max_memory_allocated(device))
                 peak_reserved = int(torch.cuda.max_memory_reserved(device))
                 accepted = (
@@ -238,6 +257,11 @@ def fit_global_prototype_head(
                     steps_per_epoch=steps_per_epoch,
                     requested_probe_steps=probe_steps,
                     observed_probe_steps=observed_probe_steps,
+                    observed_probe_cells=observed_probe_cells,
+                    probe_wall_seconds=probe_wall_seconds,
+                    steps_per_second=steps_per_second,
+                    cells_per_second=cells_per_second,
+                    estimated_epoch_seconds=estimated_epoch_seconds,
                     maximum_unique_conditions=maximum_unique_conditions,
                     peak_allocated_bytes=peak_allocated,
                     peak_reserved_bytes=peak_reserved,

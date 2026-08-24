@@ -8,6 +8,7 @@
 - 启动长时间训练后暂停持续目标执行，改由定时任务检查进程、receipt 与失败证据，不进行前台 busy polling。
 - batch-256 首轮证据显示 allocated 约 18--22GB、reserved 约 27--29GB，失败主因是 allocator 碎片/缓存而非真实张量 OOM；原生 CUDA 进程固定使用 `PYTORCH_ALLOC_CONF=expandable_segments:True` 并强校验。
 - 性能优先后 prototype 容量选择上限保持 16,384；即使 allocator 节省使 32K/65K 可装入，也不自动升级为更慢的 head。
+- 最终 batch size 不预设：在同一实现和 allocator 契约下分别对 64、256 执行 128 个真实 step，按容量、steps/s、cells/s 与估算 epoch 时间选择；256 不稳定或收益不足时正式回到 64。
 
 ## 2026-08-24
 

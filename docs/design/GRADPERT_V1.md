@@ -180,6 +180,10 @@ Gradient ownership:
   reservation fragmentation observed in the first batch-256 capacity gate.
   The maximum eligible prototype head remains 16,384 for the speed-first v1
   policy; allocator savings must not silently upgrade to a slower 32K/65K head.
+- Batch 64 and 256 are compared on the same server implementation using 128
+  sustained real steps. The final batch is selected before formal-v2 from
+  capacity, steps/second, cells/second, and estimated epoch time; no test metric
+  participates in this systems decision.
 - Native batches use a deterministic condition-limited order: at most eight
   unique perturbation conditions per 256-cell batch, with every condition's
   cells independently reshuffled each epoch. This keeps the graph objective at

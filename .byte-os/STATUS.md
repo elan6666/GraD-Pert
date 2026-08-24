@@ -31,6 +31,9 @@ updated_at: 2026-08-25T00:30:00+08:00
   at 8,192 prototypes K562 peaked at 18.17GB allocated but 27.39GB reserved,
   just above the 26.71GB threshold. The next evidence-led iteration freezes
   expandable segments and caps the speed-first candidate set at 16,384/8,192.
+- Per the user decision, batch 256 is provisional until a same-code 64-vs-256
+  capacity/throughput comparison finishes. The capacity receipt now records
+  measured steps/s, cells/s and estimated epoch seconds for this gate.
 
 - Goal mode: on; Codex goal created for the end-to-end GraD-Pert delivery.
 - Project state: root Git repository and standalone package shell exist; plans

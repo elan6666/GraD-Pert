@@ -27,6 +27,18 @@ def test_capacity_gate_persists_failure_evidence_before_raising() -> None:
     assert failed_write < terminal_raise
 
 
+def test_capacity_gate_records_throughput_for_batch_comparison() -> None:
+    source = (PROJECT_ROOT / "src/gradpert/training/capacity.py").read_text(encoding="utf-8")
+    for field in (
+        "observed_probe_cells",
+        "probe_wall_seconds",
+        "steps_per_second",
+        "cells_per_second",
+        "estimated_epoch_seconds",
+    ):
+        assert field in source
+
+
 def test_development_capacity_receipt_covers_all_five_datasets() -> None:
     receipt = json.loads(
         (PROJECT_ROOT / "registry/capacity/prototype_head.development.json").read_text(

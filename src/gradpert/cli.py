@@ -114,6 +114,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     fit_head.add_argument("--output", type=Path, required=True)
     fit_head.add_argument("--device", default="cuda:0")
+    fit_head.add_argument("--batch-size", type=int, choices=(64, 256), default=256)
     fit_head.add_argument("--json", action="store_true", dest="as_json")
     for command_name in ("smoke", "full"):
         run = model_subparsers.add_parser(
@@ -352,6 +353,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             dataset_registry_root=args.dataset_registry_root,
             output_path=args.output,
             device_name=args.device,
+            batch_size=args.batch_size,
         )
         if args.as_json:
             print(json.dumps(report, sort_keys=True, separators=(",", ":")))
