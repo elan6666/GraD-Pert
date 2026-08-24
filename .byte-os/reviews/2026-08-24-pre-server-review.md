@@ -39,7 +39,11 @@ formal result catalog, source parity and final post-result review.
 1. Resolved after review: the clean server checkout passed 153 tests, Ruff,
    full strict mypy, isolated build, config verification, and Git-clean gates.
 2. The 15 learned model/dataset one-epoch gates do not yet have current receipts.
-3. Seed-1 nonlearned formal results and GraD-Pert full seeds 1--4 are absent.
+   The first K562 run exposed a CUDA RNG checkpoint-load defect after training;
+   its queue stopped fail-closed and a bounded repair is pending server proof.
+3. All 15 seed-1 nonlearned tasks passed at `28e859a`, but a repaired final
+   source commit will require them to be superseded and rerun so the final
+   catalog has one commit. GraD-Pert full seeds 1--4 remain absent.
 4. datasets-v2 small receipt chains have not been allowlist-staged and verified
    after transfer.
 5. Resolved after review: local, GitHub, and the clean server checkout were

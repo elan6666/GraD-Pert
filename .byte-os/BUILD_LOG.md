@@ -319,3 +319,26 @@
   through it, the same server checkout observed GitHub `main=1412939` live.
   Hardened internal Git calls with `GIT_TERMINAL_PROMPT=0` and a 30-second
   timeout; 13 focused identity/matrix/launcher tests and Ruff pass locally.
+
+## 2026-08-24 — first formal matrix evidence and CUDA checkpoint repair
+
+- Froze local, public GitHub and server source at `28e859a`; the server passed
+  156 tests with three honest datasets-v2 receipt-sync skips, Ruff, format,
+  strict mypy on all 62 source files, and a clean worktree.
+- Completed all 15 nonlearned runs at that commit. Repository validators proved
+  five runs for each baseline, exactly one formal test evaluation per run, all
+  three metric rows with valid denominators, 15 successful task receipts, and
+  identical canonical/split/300-control identities within each dataset.
+- K562 completed all 1,346 one-epoch training steps and sealed `best.pt`,
+  `last.pt`, validation and training receipts, then failed before prediction at
+  `torch.set_rng_state`: loading the checkpoint with a CUDA map location had
+  also moved its saved CPU RNG ByteTensor to CUDA. The queue then rejected the
+  incomplete run root and stopped as designed.
+- Interrupted RPE1 before the same deterministic post-training failure and
+  archived both incomplete runs, logs and receipts without deletion under the
+  server's dated superseded root.
+- The repair keeps CUDA-mapped model/optimizer tensors intact while explicitly
+  validating and moving saved CPU/CUDA RNG tensors to CPU for PyTorch's RNG
+  restoration APIs. Added a CUDA checkpoint load regression; local Ruff,
+  format and diff checks pass, while the Torch-free local test is honestly
+  skipped pending the server regression.

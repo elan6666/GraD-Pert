@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-24T19:16:44+08:00
+updated_at: 2026-08-24T20:34:00+08:00
 ---
 
 # Status
@@ -119,3 +119,21 @@ updated_at: 2026-08-24T19:16:44+08:00
 - Next action: publish/synchronize the bounded Git identity fix, archive the
   failed empty attempt, repeat all gates at the final frozen commit, then rerun
   the first exact one-epoch GraD-Pert smoke through the verified SSH tunnel.
+- Commit `28e859a` passed the complete server regression and source-parity gate.
+  All 15 nonlearned runs completed and their run identities, formal lifecycle,
+  three-metric schemas/denominators, task receipts, and per-dataset fairness
+  hashes passed strict verification. These results remain evidence but must be
+  superseded and rerun if the final source commit changes.
+- The first real native K562 smoke completed all 1,346 training steps and wrote
+  both checkpoints, then failed before its single test evaluation while loading
+  `best.pt`: `torch.load(map_location=cuda)` had moved the saved CPU RNG tensor
+  to CUDA, while `torch.set_rng_state` requires a CPU ByteTensor. GPU0 stopped
+  fail-closed; RPE1 was deliberately interrupted before it could encounter the
+  same deterministic failure. Both incomplete runs, logs and receipts are
+  recoverably archived under
+  `/data/yilangliu/GraD-Pert/superseded/20260824-checkpoint-rng-device-failure`.
+- A bounded repair now validates RNG tensor types and moves CPU and CUDA RNG
+  states back to CPU before PyTorch restoration. A CUDA checkpoint regression
+  reproduces the server path. Local Ruff/format/diff checks pass; the local
+  environment has no Torch, so server CUDA regression and a fresh full gate are
+  required before the next frozen formal launch.

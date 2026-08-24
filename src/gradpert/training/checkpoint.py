@@ -55,12 +55,23 @@ def _rng_state() -> dict[str, Any]:
 def _restore_rng_state(state: Mapping[str, Any]) -> None:
     random.setstate(state["python"])
     np.random.set_state(state["numpy"])
-    torch.set_rng_state(state["torch_cpu"])
+    torch_cpu_state = state["torch_cpu"]
+    if not isinstance(torch_cpu_state, torch.Tensor) or torch_cpu_state.dtype != torch.uint8:
+        raise ValueError("checkpoint CPU RNG state must be a torch ByteTensor")
+    # ``torch.load(..., map_location=<cuda>)`` moves every tensor in the
+    # checkpoint, including RNG states, onto the target device.  PyTorch's RNG
+    # restoration APIs require CPU ByteTensors even when restoring CUDA RNGs.
+    torch.set_rng_state(torch_cpu_state.detach().cpu())
     cuda_states = state["torch_cuda"]
     if cuda_states:
         if not torch.cuda.is_available() or len(cuda_states) != torch.cuda.device_count():
             raise RuntimeError("checkpoint CUDA RNG topology differs from this host")
-        torch.cuda.set_rng_state_all(cuda_states)
+        if any(
+            not isinstance(cuda_state, torch.Tensor) or cuda_state.dtype != torch.uint8
+            for cuda_state in cuda_states
+        ):
+            raise ValueError("checkpoint CUDA RNG states must be torch ByteTensors")
+        torch.cuda.set_rng_state_all([cuda_state.detach().cpu() for cuda_state in cuda_states])
 
 
 def _sha256_file(path: Path) -> str:

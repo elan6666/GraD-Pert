@@ -58,14 +58,15 @@ def _batch() -> GraDPertTrainingBatch:
     )
 
 
-def _components():  # type: ignore[no-untyped-def]
+def _components(device: torch.device | None = None):  # type: ignore[no-untyped-def]
+    target_device = device or torch.device("cpu")
     model = GraDPertJointModel(
         graph_gene_count=7,
         expression_gene_count=5,
         prototype_count=8192,
-    )
+    ).to(target_device)
     optimizer = build_native_optimizer(model)
-    centers = CenterState.zeros(prototype_count=8192, device=torch.device("cpu"))
+    centers = CenterState.zeros(prototype_count=8192, device=target_device)
     engine = GraDPertStepEngine(
         model=model,
         topology=_topology(),
@@ -167,6 +168,34 @@ def test_checkpoint_resume_reproduces_the_next_step(tmp_path: Path) -> None:
     assert resumed.total_loss == pytest.approx(uninterrupted.total_loss, rel=0, abs=1e-7)
     for name, value in resumed_engine.model.state_dict().items():
         assert torch.equal(value, uninterrupted_state[name]), name
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA checkpoint path requires a GPU")
+def test_checkpoint_loaded_on_cuda_restores_cpu_and_cuda_rng_states(tmp_path: Path) -> None:
+    device = torch.device("cuda:0")
+    model, optimizer, centers, _ = _components(device)
+    checkpoint = tmp_path / "cuda.pt"
+    save_training_checkpoint(
+        checkpoint,
+        model=model,
+        optimizer=optimizer,
+        centers=centers,
+        progress={"completed_epochs": 1, "global_step": 1},
+        identity=_identity(),
+    )
+
+    resumed_model, resumed_optimizer, resumed_centers, _ = _components(device)
+    progress = load_training_checkpoint(
+        checkpoint,
+        model=resumed_model,
+        optimizer=resumed_optimizer,
+        centers=resumed_centers,
+        expected_identity=_identity(),
+    )
+
+    assert progress == {"completed_epochs": 1, "global_step": 1}
+    assert torch.get_rng_state().device.type == "cpu"
+    assert all(state.device.type == "cpu" for state in torch.cuda.get_rng_state_all())
 
 
 def test_training_receipts_reject_duplicate_steps_across_resume(tmp_path: Path) -> None:
