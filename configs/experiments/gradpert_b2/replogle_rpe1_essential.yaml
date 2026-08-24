@@ -104,6 +104,10 @@ model:
       value: 16384
       source: server_fit
       reference: "registry/capacity/prototype_head.development.json"
+    cuda_allocator_config:
+      value: "expandable_segments:True"
+      source: project_preregistered
+      reference: "batch-256 capacity evidence: reserved/allocated fragmentation"
     student_temperature:
       value: 0.1
       source: user_locked

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gc
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -10,8 +11,9 @@ from gradpert.data import load_dataset_registry
 from gradpert.data._io import atomic_json
 from gradpert.data.registry import DATASET_IDS
 
-PROTOTYPE_CANDIDATES = (65536, 32768, 16384, 8192)
+PROTOTYPE_CANDIDATES = (16384, 8192)
 CAPACITY_PROBE_STEPS = 128
+CUDA_ALLOCATOR_CONFIG = "expandable_segments:True"
 
 
 @dataclass(frozen=True)
@@ -54,6 +56,8 @@ def fit_global_prototype_head(
 ) -> dict[str, object]:
     """Choose the largest candidate passing sustained real steps on all datasets."""
 
+    if os.environ.get("PYTORCH_ALLOC_CONF") != CUDA_ALLOCATOR_CONFIG:
+        raise RuntimeError("capacity gate requires PYTORCH_ALLOC_CONF=" + CUDA_ALLOCATOR_CONFIG)
     import torch
 
     from gradpert.graphs import load_dataset_graph_topology
@@ -87,6 +91,7 @@ def fit_global_prototype_head(
             "device": device_name,
             "device_name": properties.name,
             "device_total_bytes": int(total_bytes),
+            "pytorch_alloc_conf": CUDA_ALLOCATOR_CONFIG,
             "initial_free_bytes": int(free_bytes),
             "usable_memory_fraction": usable_memory_fraction,
             "acceptance_threshold_bytes": threshold_bytes,

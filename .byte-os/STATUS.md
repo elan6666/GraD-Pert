@@ -27,6 +27,10 @@ updated_at: 2026-08-25T00:30:00+08:00
   candidates but emitted no structured failure receipt. The log is retained;
   the gate is being repaired to atomically persist every rejected candidate and
   terminal failure before any memory-policy change is considered.
+- The repaired receipt at `3e366fd` proved allocator reservation fragmentation:
+  at 8,192 prototypes K562 peaked at 18.17GB allocated but 27.39GB reserved,
+  just above the 26.71GB threshold. The next evidence-led iteration freezes
+  expandable segments and caps the speed-first candidate set at 16,384/8,192.
 
 - Goal mode: on; Codex goal created for the end-to-end GraD-Pert delivery.
 - Project state: root Git repository and standalone package shell exist; plans

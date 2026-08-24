@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import random
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,6 +39,8 @@ from gradpert.training.inference import predict_frozen_controls
 from gradpert.training.step import GraDPertStepEngine, build_native_optimizer
 from gradpert.training.trainer import GraDPertTrainer
 from gradpert.training.validation import evaluate_validation_macro_delta
+
+CUDA_ALLOCATOR_CONFIG = "expandable_segments:True"
 
 
 @dataclass(frozen=True)
@@ -109,6 +112,11 @@ def run_native_experiment(
 ) -> NativeRunResult:
     """Run one isolated smoke/full lifecycle with exactly one final test access."""
 
+    if (
+        device_name.startswith("cuda:")
+        and os.environ.get("PYTORCH_ALLOC_CONF") != CUDA_ALLOCATOR_CONFIG
+    ):
+        raise RuntimeError("native CUDA runs require PYTORCH_ALLOC_CONF=" + CUDA_ALLOCATOR_CONFIG)
     import torch
 
     config_file = Path(config_path).resolve(strict=True)

@@ -62,6 +62,9 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   stay on the server. Pull only dry-run-reviewed small result/receipt files.
 - After launching long-running training, stop continuous goal execution and use
   the scheduled monitor for periodic receipt/process checks. Do not busy-poll.
+- Every native CUDA capacity/smoke/full process must start with
+  `PYTORCH_ALLOC_CONF=expandable_segments:True`; the runner fails closed when
+  this allocator contract is missing or changed.
 
 ## Repository Map
 

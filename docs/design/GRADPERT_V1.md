@@ -175,6 +175,11 @@ Gradient ownership:
 
 - Default native optimizer: AdamW, LR 1e-3, weight decay 0. The user-locked
   native train/evaluation batch size is 256 in every dataset config.
+- Native CUDA processes require
+  `PYTORCH_ALLOC_CONF=expandable_segments:True` to prevent the allocator
+  reservation fragmentation observed in the first batch-256 capacity gate.
+  The maximum eligible prototype head remains 16,384 for the speed-first v1
+  policy; allocator savings must not silently upgrade to a slower 32K/65K head.
 - Native batches use a deterministic condition-limited order: at most eight
   unique perturbation conditions per 256-cell batch, with every condition's
   cells independently reshuffled each epoch. This keeps the graph objective at

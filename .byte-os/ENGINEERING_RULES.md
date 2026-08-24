@@ -76,6 +76,10 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
   when tests prove the same loss, gradient ownership, update order, and view IDs.
 - After long training is launched, stop the active execution loop and resume
   work through scheduled receipt/process checks; never busy-poll the server.
+- Native CUDA jobs fail closed unless launched with
+  `PYTORCH_ALLOC_CONF=expandable_segments:True`. Capacity selection is capped at
+  16,384 prototypes under the speed-first policy; do not trade recovered
+  allocator memory for a larger, slower head.
 
 ## Official learned benchmark boundary
 

@@ -3,14 +3,19 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from gradpert.training.capacity import CAPACITY_PROBE_STEPS, PROTOTYPE_CANDIDATES
+from gradpert.training.capacity import (
+    CAPACITY_PROBE_STEPS,
+    CUDA_ALLOCATOR_CONFIG,
+    PROTOTYPE_CANDIDATES,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_prototype_candidates_are_frozen_largest_first() -> None:
-    assert PROTOTYPE_CANDIDATES == (65536, 32768, 16384, 8192)
+    assert PROTOTYPE_CANDIDATES == (16384, 8192)
     assert CAPACITY_PROBE_STEPS == 128
+    assert CUDA_ALLOCATOR_CONFIG == "expandable_segments:True"
 
 
 def test_capacity_gate_persists_failure_evidence_before_raising() -> None:
