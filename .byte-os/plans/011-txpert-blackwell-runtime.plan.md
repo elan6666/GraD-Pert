@@ -1,6 +1,6 @@
 # Plan 011: TxPert Blackwell runtime compatibility
 
-- Status: local implementation verified; server CUDA build pending
+- Status: complete; CUDA build verified and execution proceeds under plan 012
 
 ## Evidence
 

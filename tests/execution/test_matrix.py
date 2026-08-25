@@ -111,6 +111,11 @@ def test_exact_phase_counts_seeds_and_official_isolation(tmp_path: Path) -> None
 
     gears = next(task for task in smoke if task.model_id == "gears")
     txpert = next(task for task in smoke if task.model_id == "txpert_public")
+    txpert_rpe1 = next(
+        task
+        for task in smoke
+        if task.model_id == "txpert_public" and task.dataset_id == "replogle_rpe1_essential"
+    )
     assert gears.command[:3] == (
         "/runtime/gears/python",
         "-m",
@@ -123,6 +128,30 @@ def test_exact_phase_counts_seeds_and_official_isolation(tmp_path: Path) -> None
     )
     assert dict(gears.environment)["PYTHONPATH"] == f"{ROOT / 'src'}:{ROOT}"
     assert "--formal" in gears.command and "--official-data-root" in gears.command
+    assert "CUDA_VISIBLE_DEVICES" not in dict(gears.environment)
+    assert txpert_rpe1.device == "cuda:1"
+    assert dict(txpert_rpe1.environment)["CUDA_VISIBLE_DEVICES"] == "1"
+    txpert_device_position = txpert_rpe1.command.index("--device") + 1
+    assert txpert_rpe1.command[txpert_device_position] == "cuda:0"
+    for task in (item for item in smoke if item.model_id == "txpert_public"):
+        physical_index = task.device.removeprefix("cuda:")
+        assert dict(task.environment)["CUDA_VISIBLE_DEVICES"] == physical_index
+        command_device_position = task.command.index("--device") + 1
+        assert task.command[command_device_position] == "cuda:0"
+
+
+def test_txpert_matrix_rejects_ambiguous_process_device(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path)
+    runtime = MatrixRuntime(**{**runtime.__dict__, "devices": ("cuda",)})
+
+    with pytest.raises(ValueError, match="explicit cuda:<index>"):
+        build_experiment_tasks(
+            phase="smoke",
+            runtime=runtime,
+            namespace="formal-v1",
+            expected_commit=COMMIT,
+            formal=True,
+        )
 
 
 def test_full_phase_is_formal_only_and_resume_is_explicit(tmp_path: Path) -> None:

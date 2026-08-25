@@ -204,6 +204,18 @@ def _official_command(
     return command
 
 
+def _txpert_process_device(device: str) -> tuple[str, tuple[tuple[str, str], ...]]:
+    """Isolate one physical GPU while preserving TxPert's local CUDA convention."""
+
+    prefix = "cuda:"
+    if not device.startswith(prefix):
+        raise ValueError("TxPert matrix devices must use an explicit cuda:<index> value")
+    physical_index = device.removeprefix(prefix)
+    if not physical_index.isdigit():
+        raise ValueError("TxPert matrix devices must use a non-negative CUDA index")
+    return "cuda:0", (("CUDA_VISIBLE_DEVICES", physical_index),)
+
+
 def build_experiment_tasks(
     *,
     phase: ExperimentPhase,
@@ -265,16 +277,20 @@ def build_experiment_tasks(
             )
             expected_epochs = 1 if phase == "smoke" else int(config.training.max_epochs.value)
         elif model_id in LEARNED_MODEL_IDS:
+            command_device = device
+            environment = (("PYTHONPATH", pythonpath),)
+            if model_id == "txpert_public":
+                command_device, device_environment = _txpert_process_device(device)
+                environment = (*environment, *device_environment)
             command = _official_command(
                 runtime=runtime,
                 model_id=model_id,
                 config_path=config_path,
                 run_root=task_root,
                 run_id=run_id,
-                device=device,
+                device=command_device,
                 identity_arguments=identity_arguments,
             )
-            environment = (("PYTHONPATH", pythonpath),)
             expected_epochs = 1
         else:
             command = _baseline_command(

@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T16:52:00+08:00
+updated_at: 2026-08-25T17:56:00+08:00
 ---
 
 # Status
@@ -78,6 +78,15 @@ updated_at: 2026-08-25T16:52:00+08:00
   failed 84 KiB environment is preserved under
   `/data/yilangliu/GraD-Pert/superseded/20260825-txpert-env-10a-sympy`; plan 011
   now overrides exactly that additional pin and nothing else.
+- The completed `d75d93a` TxPert-only CUDA 12.8 environment passed `sm_120`,
+  core CUDA, PyG scatter, and dependency gates. Its RPE1 hard gate then failed
+  before optimizer step 1 because frozen TxPert retained its construction
+  device `cuda:1` while Lightning's `devices=1` selected visible `cuda:0`.
+  The full stopped lineage is preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-formal-v2-d75-txpert-device-binding`.
+  Plan 012 isolates each assigned physical GPU at the subprocess boundary and
+  presents it to frozen TxPert as its official local `cuda:0`, with explicit
+  matrix/runtime receipts; GraD-Pert and GEARS behavior remains unchanged.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs

@@ -97,6 +97,14 @@ def test_runtime_gate_executes_core_and_pyg_cuda_kernels(monkeypatch) -> None:
         def get_device_name(_device: FakeDevice) -> str:
             return "NVIDIA GeForce RTX 5090"
 
+        @staticmethod
+        def device_count() -> int:
+            return 1
+
+        @staticmethod
+        def current_device() -> int:
+            return 0
+
     fake_torch = SimpleNamespace(
         __version__="2.7.0+cu128",
         cuda=FakeCuda(),
@@ -132,6 +140,7 @@ def test_runtime_gate_executes_core_and_pyg_cuda_kernels(monkeypatch) -> None:
         "benchmarks.txpert.runtime.importlib.import_module",
         lambda name: modules[name],
     )
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "1")
     contract = {
         "hardware_compatibility_override": {
             "python": "3.12",
@@ -147,3 +156,7 @@ def test_runtime_gate_executes_core_and_pyg_cuda_kernels(monkeypatch) -> None:
     assert receipt["core_cuda_kernel_passed"] is True
     assert receipt["pyg_cuda_extension_passed"] is True
     assert receipt["wheel_architectures"] == ["sm_90", "sm_120"]
+    assert receipt["requested_process_device"] == "cuda:0"
+    assert receipt["cuda_visible_devices"] == "1"
+    assert receipt["visible_cuda_device_count"] == 1
+    assert receipt["current_process_device_index"] == 0

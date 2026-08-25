@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import os
 import platform
 from pathlib import Path
 from typing import Any
@@ -93,6 +94,10 @@ def inspect_cuda_runtime(*, contract: dict[str, Any], device: str) -> dict[str, 
         "cuda_runtime": observed_cuda,
         "device_name": str(torch.cuda.get_device_name(cuda_device)),
         "device_capability": list(capability),
+        "requested_process_device": device,
+        "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
+        "visible_cuda_device_count": int(torch.cuda.device_count()),
+        "current_process_device_index": int(torch.cuda.current_device()),
         "required_architecture": architecture,
         "wheel_architectures": list(architectures),
         "core_cuda_kernel_passed": True,
