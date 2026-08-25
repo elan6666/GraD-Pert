@@ -15,6 +15,7 @@ import numpy as np
 class GearsOfficialModules:
     package: ModuleType
     utils: ModuleType
+    data_utils: ModuleType
     torch: ModuleType
     pyg_loader: ModuleType
 
@@ -23,6 +24,7 @@ class GearsOfficialModules:
         return cls(
             package=modules["gears"],
             utils=modules["gears.utils"],
+            data_utils=modules["gears.data_utils"],
             torch=modules["torch"],
             pyg_loader=modules["torch_geometric.loader"],
         )
@@ -69,6 +71,74 @@ class OfficialGearsAPI:
         for symbol in ("create_cell_graph_for_prediction",):
             if not hasattr(modules.utils, symbol):
                 raise ValueError(f"official gears.utils lacks {symbol}")
+        for symbol in ("rank_genes_groups_by_cov", "get_dropout_non_zero_genes"):
+            if not hasattr(modules.data_utils, symbol):
+                raise ValueError(f"official gears.data_utils lacks {symbol}")
+
+    def _materialize_training_de_metadata(self, pert_data: Any) -> dict[str, object]:
+        """Build official DE rankings without dropping singleton conditions."""
+
+        adata = pert_data.adata
+        condition_names = adata.obs["condition_name"].astype(str)
+        conditions = adata.obs["condition"].astype(str)
+        counts = condition_names.value_counts()
+        singleton_names = tuple(
+            sorted(str(name) for name, count in counts.items() if int(count) < 2)
+        )
+        control_names = tuple(sorted(set(condition_names[conditions == "ctrl"].tolist())))
+        if len(control_names) != 1:
+            raise ValueError(f"official GEARS control DE context is ambiguous: {control_names}")
+        if control_names[0] in singleton_names:
+            raise ValueError("official GEARS DE ranking requires at least two control cells")
+
+        rankable_mask = ~condition_names.isin(singleton_names)
+        rankable_adata = adata[np.asarray(rankable_mask, dtype=bool)].copy()
+        rankable_adata.obs["condition_name"] = (
+            rankable_adata.obs["condition_name"].astype(str).astype("category")
+        )
+        rankings_raw = self.modules.data_utils.rank_genes_groups_by_cov(
+            rankable_adata,
+            groupby="condition_name",
+            covariate="cell_type",
+            control_group="ctrl_1",
+            n_genes=int(adata.n_vars),
+            key_added="rank_genes_groups_cov_all",
+            return_dict=True,
+        )
+        if not isinstance(rankings_raw, Mapping):
+            raise TypeError("official GEARS DE ranking did not return a mapping")
+        rankings = {
+            str(name): [str(gene_id) for gene_id in values] for name, values in rankings_raw.items()
+        }
+
+        noncontrol_names = set(condition_names[conditions != "ctrl"].tolist())
+        fallback_names = tuple(sorted(set(singleton_names) & noncontrol_names))
+        expression_gene_ids = [str(gene_id) for gene_id in adata.var_names]
+        if len(expression_gene_ids) < 2:
+            raise ValueError("official GEARS DE fallback requires at least two genes")
+        for name in fallback_names:
+            # The common evaluator already marks singleton-condition DE metrics
+            # unavailable. This stable full-axis order is used only to keep the
+            # frozen official one-epoch train/validation bookkeeping defined.
+            rankings[name] = list(expression_gene_ids)
+
+        missing = sorted(noncontrol_names - set(rankings))
+        if missing:
+            raise ValueError(f"official GEARS DE rankings lack conditions: {missing}")
+        adata.uns["rank_genes_groups_cov_all"] = {
+            name: np.asarray(gene_ids, dtype=str) for name, gene_ids in rankings.items()
+        }
+        pert_data.adata = self.modules.data_utils.get_dropout_non_zero_genes(adata)
+        receipt = {
+            "schema_version": "official-gears-de-ranking-v1",
+            "truth_scope": "train_validation_only",
+            "official_ranked_condition_count": len(noncontrol_names) - len(fallback_names),
+            "singleton_fallback_condition_count": len(fallback_names),
+            "singleton_fallback_condition_names": list(fallback_names),
+            "singleton_fallback_policy": "stable_full_gene_axis_internal_metrics_only",
+        }
+        pert_data.gradpert_de_ranking_receipt = receipt
+        return receipt
 
     def prepare_training_data(
         self,
@@ -86,13 +156,12 @@ class OfficialGearsAPI:
         pert_data.new_data_process(
             dataset_id,
             adata=training_validation_adata,
-            # The official training loop always evaluates DE predictions.  Its
-            # no-ranking fallback contains one sentinel index, which cannot be
-            # passed to scipy.stats.pearsonr.  Build the official ranking from
-            # this truth-scoped train+validation AnnData; canonical test rows
-            # are absent before the official package is imported.
-            skip_calc_de=False,
+            # Condition names are materialized by the frozen package first.
+            # Ranking is orchestrated below so singleton conditions can remain
+            # in the shared split without entering Scanpy's t-test.
+            skip_calc_de=True,
         )
+        self._materialize_training_de_metadata(pert_data)
         non_zeros: dict[str, np.ndarray[Any, Any]] = {}
         for condition in pert_data.adata.obs["condition"].astype(str).unique():
             subset = pert_data.adata[pert_data.adata.obs["condition"].astype(str) == condition]

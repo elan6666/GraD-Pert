@@ -169,14 +169,14 @@ def run_one_epoch(
             "official_test_loader_policy": "empty_then_removed_before_fit",
             **storage_receipt,
             "split_pickle_sha256": split_sha256,
-            "de_ranking_scope": "official_formula_train_validation_only",
+            "de_ranking_scope": "official_formula_train_validation_with_singleton_fallback",
             "nonzero_metadata": "official_formula_with_DE_ranking",
         }
         write_adapter_receipt(small_root / "official_data_adapter.json", adapter_receipt)
         with official_module_session(
             checkout_root=checkout_root,
             expected_commit=config.source_code.commit,
-            module_names=("gears", "gears.utils"),
+            module_names=("gears", "gears.utils", "gears.data_utils"),
         ) as (modules, checkout_receipt):
             modules["torch"] = importlib.import_module("torch")
             modules["torch_geometric.loader"] = importlib.import_module("torch_geometric.loader")
@@ -188,6 +188,10 @@ def run_one_epoch(
                 split_pickle_path=split_path,
                 train_batch_size=_training(config, "train_batch_size", int),
                 eval_batch_size=_training(config, "eval_batch_size", int),
+            )
+            atomic_json(
+                small_root / "official_de_ranking.json",
+                pert_data.gradpert_de_ranking_receipt,
             )
             observed_graph_resources = {
                 "gene2go_all.pkl": sha256_file(official_data_root / "gene2go_all.pkl"),

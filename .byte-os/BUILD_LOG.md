@@ -364,3 +364,13 @@
   package-mirror retries; no dependency file changed. Full pytest, strict mypy,
   build, and the real GEARS integration remain pending in the existing server
   environments.
+- Commit `dc8e24a` subsequently passed the server gate with 165 tests, three
+  honest skips, Ruff lint/format, strict mypy over 73 files, isolated build and
+  a clean tree. GEARS K562 completed under the new ranking path. RPE1 and
+  Jurkat then failed before training because two and six retained conditions
+  respectively have one cell, and frozen Scanpy refuses a t-test for them.
+- The follow-up still calls the frozen official condition-name, rank-by-covariate
+  and dropout/nonzero functions. It excludes only singleton groups from the
+  undefined t-test, never from the shared data/split, and fills their official
+  internal metric indices with the stable full gene order. The common evaluator
+  remains authoritative and already labels singleton DE metrics unavailable.

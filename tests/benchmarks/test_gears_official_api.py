@@ -16,14 +16,36 @@ from benchmarks.gears.official_api import (
 
 
 class MiniAdata:
-    def __init__(self, expression: np.ndarray[Any, Any], obs: pd.DataFrame) -> None:
+    def __init__(
+        self,
+        expression: np.ndarray[Any, Any],
+        obs: pd.DataFrame,
+        *,
+        var_names: pd.Index | None = None,
+    ) -> None:
         self.X = expression
         self.obs = obs
+        self.var_names = var_names if var_names is not None else pd.Index(["g0", "g1"])
         self.uns: dict[str, object] = {}
+
+    @property
+    def n_vars(self) -> int:
+        return int(self.X.shape[1])
 
     def __getitem__(self, mask: object) -> MiniAdata:
         indices = np.asarray(mask, dtype=bool)
-        return MiniAdata(self.X[indices], self.obs.loc[indices].copy())
+        return MiniAdata(
+            self.X[indices],
+            self.obs.loc[indices].copy(),
+            var_names=self.var_names.copy(),
+        )
+
+    def copy(self) -> MiniAdata:
+        return MiniAdata(
+            self.X.copy(),
+            self.obs.copy(),
+            var_names=self.var_names.copy(),
+        )
 
     def write_h5ad(self, path: str | Path) -> None:
         Path(path).write_bytes(b"fixture")
@@ -146,9 +168,24 @@ def _modules() -> GearsOfficialModules:
     )
     torch = SimpleNamespace(no_grad=nullcontext)
     pyg_loader = SimpleNamespace(DataLoader=FakeLoader)
+
+    def rank_genes_groups_by_cov(adata: MiniAdata, **kwargs: object) -> dict[str, list[str]]:
+        assert kwargs["return_dict"] is True
+        names = set(adata.obs["condition_name"].astype(str).tolist())
+        return {
+            name: list(reversed(adata.var_names.astype(str).tolist()))
+            for name in names
+            if "_ctrl_" not in name
+        }
+
+    data_utils = SimpleNamespace(
+        rank_genes_groups_by_cov=rank_genes_groups_by_cov,
+        get_dropout_non_zero_genes=lambda adata: adata,
+    )
     return GearsOfficialModules(
         package=package,  # type: ignore[arg-type]
         utils=utils,  # type: ignore[arg-type]
+        data_utils=data_utils,  # type: ignore[arg-type]
         torch=torch,  # type: ignore[arg-type]
         pyg_loader=pyg_loader,  # type: ignore[arg-type]
     )
@@ -174,13 +211,20 @@ def test_adapter_calls_official_data_train_checkpoint_apis(tmp_path: Path) -> No
     FakeGears.instances.clear()
     api = OfficialGearsAPI(_modules())
     adata = MiniAdata(
-        np.asarray([[1.0, 0.0], [0.0, 2.0], [1.0, 1.0]]),
+        np.asarray([[1.0, 0.0], [0.5, 0.5], [0.0, 2.0], [1.0, 1.0], [2.0, 0.0]]),
         pd.DataFrame(
             {
-                "condition": ["ctrl", "A+ctrl", "A+ctrl"],
-                "condition_name": ["K562_ctrl_1", "K562_A+ctrl_1", "K562_A+ctrl_1"],
+                "condition": ["ctrl", "ctrl", "A+ctrl", "A+ctrl", "B+ctrl"],
+                "condition_name": [
+                    "K562_ctrl_1",
+                    "K562_ctrl_1",
+                    "K562_A+ctrl_1",
+                    "K562_A+ctrl_1",
+                    "K562_B+ctrl_1",
+                ],
+                "cell_type": ["K562", "K562", "K562", "K562", "K562"],
             },
-            index=["ctrl-0", "pert-0", "pert-1"],
+            index=["ctrl-0", "ctrl-1", "pert-a0", "pert-a1", "pert-b0"],
         ),
     )
     pert_data = api.prepare_training_data(
@@ -197,8 +241,19 @@ def test_adapter_calls_official_data_train_checkpoint_apis(tmp_path: Path) -> No
         "prepare_split",
         "get_dataloader",
     ]
-    assert pert_data.calls[0][1][2] is False
+    assert pert_data.calls[0][1][2] is True
     assert "test_loader" not in pert_data.dataloader
+    assert pert_data.gradpert_de_ranking_receipt == {
+        "schema_version": "official-gears-de-ranking-v1",
+        "truth_scope": "train_validation_only",
+        "official_ranked_condition_count": 1,
+        "singleton_fallback_condition_count": 1,
+        "singleton_fallback_condition_names": ["K562_B+ctrl_1"],
+        "singleton_fallback_policy": "stable_full_gene_axis_internal_metrics_only",
+    }
+    rankings = pert_data.adata.uns["rank_genes_groups_cov_all"]
+    assert rankings["K562_A+ctrl_1"].tolist() == ["g1", "g0"]
+    assert rankings["K562_B+ctrl_1"].tolist() == ["g0", "g1"]
 
     model = api.fit_one_epoch(
         pert_data=pert_data,

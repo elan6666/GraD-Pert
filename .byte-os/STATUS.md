@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T12:57:35+08:00
+updated_at: 2026-08-25T13:23:00+08:00
 ---
 
 # Status
@@ -29,6 +29,13 @@ updated_at: 2026-08-25T12:57:35+08:00
   evidence, and establish a fresh benchmark-runner lineage. The existing c240
   GraD-Pert Nadig Jurkat run remains the immutable optimization B0 and will not
   be rerun.
+- First repair commit `dc8e24a` passed all server quality gates and its GEARS
+  K562 run completed, but RPE1/Jurkat then exposed two/six singleton
+  train+validation conditions for which frozen Scanpy refuses a t-test. The
+  follow-up keeps every shared condition, uses the official ranking unchanged
+  for rankable groups, and supplies singleton groups a stable full-gene order
+  only for GEARS' internal one-epoch bookkeeping. Shared evaluation continues
+  to mark singleton DE metrics unavailable.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs
