@@ -305,3 +305,14 @@ updated_at: 2026-08-25T22:30:00+08:00
   reproduces the server path. Local Ruff/format/diff checks pass; the local
   environment has no Torch, so server CUDA regression and a fresh full gate are
   required before the next frozen formal launch.
+- Metrics-only persistence is now enforced across each whole successful run
+  root. GEARS hashes and removes its reconstructible `config.pkl` and
+  `custom_split.pkl`, retains `model.pt`, and writes a small checkpoint-retention
+  receipt. The first repaired hard-gate launch at `e68712e` stopped before model
+  construction because the formal `git ls-remote` publication check timed out;
+  its zero-PKL failure evidence is preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-e687-git-ls-remote-timeout`.
+  Renewing the loopback reverse SOCKS forward restored the exact public-main
+  identity check. The next action is a fresh, hash-pinned namespace whose launch
+  contract explicitly carries that verified proxy environment, followed by the
+  single GEARS K562 hard gate only.
