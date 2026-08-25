@@ -40,6 +40,12 @@ shared deduplicated control-expression pool.
 - [ ] Repeat the GEARS K562 hard gate in a fresh namespace with the verified
   loopback SOCKS variables inherited by the runner; the first `e68712e` launch
   stopped before model construction when `git ls-remote` timed out.
+- [x] The subsequent `e867c69` GEARS K562 hard gate passed one epoch, exact
+  fairness and metric checks, retained only `model.pt`, and left zero PKL.
+- [ ] Repair the observed TxPert split-cache boundary: after official fitting,
+  hash-check and remove only `splits/train_test_split.pkl` and
+  `splits/subgroup.pkl`, receipt the cleanup, then repeat the exact external
+  matrix in a fresh synchronized lineage.
 
 ## Execution boundary
 
@@ -61,3 +67,8 @@ are established. Historical outputs remain immutable.
 - The next formal namespace must encode the verified proxy environment in its
   immutable launch contract and child-process environment; it must not reuse
   the failed namespace or artifacts.
+- The `e867c69` external queue then proved TxPert's adapter cache also persisted
+  two reconstructible split PKLs. The whole-run postcondition rejected RPE1
+  after evaluation, the other queue was stopped, and the exact failed/interrupted
+  evidence was preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260826-e867-txpert-split-pkl`.

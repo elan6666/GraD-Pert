@@ -60,6 +60,9 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   commit before formal work. Abort on mismatch.
 - Datasets, H5AD, PKL predictions, checkpoints, weights, and per-cell matrices
   stay on the server. Pull only dry-run-reviewed small result/receipt files.
+- In `metrics_only`, official-runner PKL inputs are temporary: hash them before
+  use, remove only the exact reconstructible files after fitting, receipt the
+  cleanup, and require zero PKL across the entire successful run root.
 - Default runs do not persist PKL. They retain the best checkpoint, frozen
   inference recipe, exact ordered control/truth row IDs, hashes, and small
   metrics. Explicit full-result export writes exactly one deduplicated

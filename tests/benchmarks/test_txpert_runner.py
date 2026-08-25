@@ -8,7 +8,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from benchmarks.txpert.runner import _register_anndata_null_reader, _write_official_cache
+from benchmarks.txpert.runner import (
+    _register_anndata_null_reader,
+    _remove_official_split_pickles,
+    _write_official_cache,
+)
 from gradpert.hashing import sha256_json
 
 
@@ -88,6 +92,50 @@ def test_txpert_cache_preserves_non_null_log1p_base(tmp_path: Path) -> None:
 
     assert adata.uns["log1p"] == {"base": 2.0}
     assert receipt["removed_null_metadata_paths"] == []
+
+
+def test_txpert_split_pickles_are_removed_after_hash_validation(tmp_path: Path) -> None:
+    adapted = SimpleNamespace(
+        adata=FakeAdata(base=None),
+        train_conditions=("A+ctrl",),
+        val_conditions=("B+ctrl",),
+    )
+    cache_root = tmp_path / "cache"
+    cache_receipts = _write_official_cache(cache_root=cache_root, adapted=adapted)
+
+    receipt = _remove_official_split_pickles(
+        cache_root=cache_root,
+        cache_receipts=cache_receipts,
+    )
+
+    assert list(cache_root.rglob("*.pkl")) == []
+    assert receipt["persistent_pkl_count"] == 0
+    assert receipt["removed_framework_pickle_sha256"] == {
+        "splits/train_test_split.pkl": cache_receipts["split_pickle_sha256"],
+        "splits/subgroup.pkl": cache_receipts["subgroup_pickle_sha256"],
+    }
+    assert (cache_root / "de_adata_test.h5ad").is_file()
+
+
+def test_txpert_split_pickle_cleanup_fails_closed_before_deletion(tmp_path: Path) -> None:
+    adapted = SimpleNamespace(
+        adata=FakeAdata(base=None),
+        train_conditions=("A+ctrl",),
+        val_conditions=("B+ctrl",),
+    )
+    cache_root = tmp_path / "cache"
+    cache_receipts = _write_official_cache(cache_root=cache_root, adapted=adapted)
+    subgroup = cache_root / "splits/subgroup.pkl"
+    subgroup.write_bytes(b"tampered")
+
+    with pytest.raises(RuntimeError, match="split cache hash mismatch"):
+        _remove_official_split_pickles(
+            cache_root=cache_root,
+            cache_receipts=cache_receipts,
+        )
+
+    assert (cache_root / "splits/train_test_split.pkl").is_file()
+    assert subgroup.is_file()
 
 
 def test_txpert_cache_materializes_official_cell_context_column(tmp_path: Path) -> None:

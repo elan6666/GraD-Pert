@@ -203,6 +203,49 @@ def _write_official_cache(
     }
 
 
+def _remove_official_split_pickles(
+    *,
+    cache_root: Path,
+    cache_receipts: dict[str, object],
+) -> dict[str, object]:
+    """Remove reconstructible split inputs after official fitting is complete."""
+
+    expected = {
+        "splits/train_test_split.pkl": cache_receipts.get("split_pickle_sha256"),
+        "splits/subgroup.pkl": cache_receipts.get("subgroup_pickle_sha256"),
+    }
+    if not all(isinstance(value, str) for value in expected.values()):
+        raise RuntimeError("TxPert split cache receipts lack exact pickle hashes")
+    observed_paths = {
+        path.relative_to(cache_root).as_posix()
+        for path in cache_root.rglob("*.pkl")
+        if path.is_file()
+    }
+    if observed_paths != set(expected):
+        raise RuntimeError("TxPert split cache contains unexpected persistent PKL files")
+    for relative_path, expected_sha256 in expected.items():
+        path = cache_root / relative_path
+        if sha256_file(path) != expected_sha256:
+            raise RuntimeError(f"TxPert split cache hash mismatch: {relative_path}")
+    for relative_path in expected:
+        (cache_root / relative_path).unlink()
+    remaining = sorted(
+        path.relative_to(cache_root).as_posix()
+        for path in cache_root.rglob("*.pkl")
+        if path.is_file()
+    )
+    if remaining:
+        raise RuntimeError("TxPert split cache PKL cleanup postcondition failed")
+    return {
+        "schema_version": "adapter-cache-retention-v1",
+        "policy": "remove_reconstructible_split_pickles_after_official_fit",
+        "removed_framework_pickle_sha256": expected,
+        "persistent_pkl_count": 0,
+        "retained_h5ad_path": str(cache_root / "de_adata_test.h5ad"),
+        "retained_h5ad_sha256": cache_receipts["adapted_h5ad_sha256"],
+    }
+
+
 def run_one_epoch(
     *,
     config_path: Path,
@@ -361,6 +404,13 @@ def run_one_epoch(
                     "post_fit_device_restore": post_fit_device_restore,
                     "checkpoint_sha256": checkpoint_sha256,
                 },
+            )
+            atomic_json(
+                small_root / "adapter_cache_retention.json",
+                _remove_official_split_pickles(
+                    cache_root=cache_root,
+                    cache_receipts=cache_receipts,
+                ),
             )
             # Canonical test Truth is not opened until official fit and
             # checkpoint sealing have both completed.

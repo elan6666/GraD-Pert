@@ -316,3 +316,14 @@ updated_at: 2026-08-25T22:30:00+08:00
   identity check. The next action is a fresh, hash-pinned namespace whose launch
   contract explicitly carries that verified proxy environment, followed by the
   single GEARS K562 hard gate only.
+- The `e867c69` GEARS K562 zero-PKL hard gate passed strictly, and GEARS Jurkat
+  also passed before the next independent boundary was observed. TxPert RPE1
+  reached evaluated-output sealing but was correctly rejected because its
+  official adapter cache still contained `splits/train_test_split.pkl` and
+  `splits/subgroup.pkl`. Both queues were stopped; failed TxPert RPE1,
+  interrupted GEARS HepG2, exact queue logs and receipts are preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260826-e867-txpert-split-pkl`.
+  The bounded repair validates both recorded hashes before deleting either
+  split input after official fitting and emits `adapter_cache_retention.json`;
+  a fresh synchronized commit, full gates and new external namespace are now
+  required.
