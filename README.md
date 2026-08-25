@@ -20,9 +20,46 @@ The repository is under active implementation. Current authoritative material:
 - Models: GraD-Pert B2, isolated public GEARS and TxPert benchmarks, plus three
   nonlearned baselines.
 - Formal training and large artifacts are server-only. Runs default to
-  metrics-only receipts with no persistent PKL; an explicitly requested large
-  export is one deduplicated `result.pkl`. The Mac receives only small summaries
-  and artifact pointers.
+  metrics-only receipts with no persistent PKL for every model and nonlearned
+  baseline. An explicitly requested large export is one deduplicated
+  `result.pkl`. The Mac receives only small summaries and artifact pointers.
+
+## Checkpoints and reproducible inference
+
+Learned runs retain one selected model checkpoint on the server. GraD-Pert and
+GEARS use PyTorch `.pt` checkpoints; TxPert uses a Lightning `.ckpt` checkpoint.
+The checkpoint contains learned parameters and, where required by the runner,
+training state. It does **not** contain the canonical expression dataset, the
+exact 300-control draws, test Truth, or a complete prediction export.
+
+Reproducing a prediction therefore uses the checkpoint together with the
+run's small evidence bundle:
+
+- `config.resolved.yaml`, which freezes the self-contained model/dataset config;
+- `inference_recipe.json`, which identifies the checkpoint and reconstruction
+  inputs;
+- `prediction_manifest.json` and `evaluation_manifest.json`, which preserve the
+  exact ordered control and Truth row IDs for every condition;
+- canonical data, split, control-manifest, gene-order, and graph hashes; and
+- frozen official-checkout and runtime receipts for isolated external runners.
+
+The canonical H5AD remains on the server. Ordered row IDs recover the exact
+expression values from that file later, including repeated control draws and
+their order, so those arrays do not need to be duplicated in a persistent PKL.
+A checkpoint alone is not considered a reproducible result.
+
+All GraD-Pert, GEARS, TxPert, and nonlearned-baseline configs default to
+`metrics_only`. A successful metrics-only run retains its selected checkpoint
+when applicable, the evidence bundle above, and the three metric summaries, but
+leaves zero persistent `*.pkl` files anywhere in the run root. Nonlearned
+baselines have no checkpoint; their deterministic rule, config, canonical data,
+and ordered row IDs are sufficient to reconstruct them.
+
+`single_pkl` is an explicit opt-in for a downstream workflow that needs frozen
+per-cell matrices without rerunning inference. It writes exactly one
+`artifacts/result.pkl`, with a shared deduplicated control-expression pool plus
+ordered indices, predictions, Truth, metrics, and provenance. It is never the
+default.
 
 ## Development quick start
 

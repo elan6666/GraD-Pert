@@ -37,15 +37,22 @@ shared deduplicated control-expression pool.
 - [x] Local Ruff check/format, compileall, diff check, and package build passed.
 - [x] The synchronized server checkout reached the isolated wheel/sdist build
   through a `set -e` pytest/Ruff/format/strict-mypy gate at `e68712e`.
-- [ ] Repeat the GEARS K562 hard gate in a fresh namespace with the verified
+- [x] Repeat the GEARS K562 hard gate in a fresh namespace with the verified
   loopback SOCKS variables inherited by the runner; the first `e68712e` launch
   stopped before model construction when `git ls-remote` timed out.
 - [x] The subsequent `e867c69` GEARS K562 hard gate passed one epoch, exact
   fairness and metric checks, retained only `model.pt`, and left zero PKL.
-- [ ] Repair the observed TxPert split-cache boundary: after official fitting,
+- [x] Repair the observed TxPert split-cache boundary: after official fitting,
   hash-check and remove only `splits/train_test_split.pkl` and
   `splits/subgroup.pkl`, receipt the cleanup, then repeat the exact external
   matrix in a fresh synchronized lineage.
+- [x] The `2bf2771` external matrix completed all five GEARS and all five TxPert
+  one-epoch coordinates with both queues returning zero, exact fairness and
+  three-metric contracts, selected checkpoints, and zero persistent PKL across
+  the complete formal run root.
+- [x] The small-result allowlist includes resolved YAML configs; a real formal
+  staging dry run exposed and now regression-tests this previously missing
+  extension.
 
 ## Execution boundary
 
@@ -72,3 +79,14 @@ are established. Historical outputs remain immutable.
   after evaluation, the other queue was stopped, and the exact failed/interrupted
   evidence was preserved under
   `/data/yilangliu/GraD-Pert/superseded/20260826-e867-txpert-split-pkl`.
+- Commit `2bf2771` closed that boundary. Its TxPert RPE1 hard gate and remaining
+  nine-task queues completed exactly ten external one-epoch coordinates under
+  `/data/yilangliu/GraD-Pert/runs/formal-v3-zero-pkl-2bf2`; both queues returned
+  zero and the complete run root contained zero PKL after success.
+- The user-authorized historical cleanup removed 126 non-active experiment PKLs
+  (381,290,534,496 bytes; 355.10 GiB) from old run/superseded roots while
+  excluding the active formal root and all data/environment caches. The sealed
+  server receipt is
+  `/data/yilangliu/GraD-Pert/receipts/pkl-cleanup-20260826/cleanup-receipt.json`
+  with SHA-256
+  `321318f97be9088f9a2f001bf6208e75fe29c10be8f7cb656cc945b4a7252217`.

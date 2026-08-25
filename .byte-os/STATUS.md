@@ -327,3 +327,17 @@ updated_at: 2026-08-25T22:30:00+08:00
   split input after official fitting and emits `adapter_cache_retention.json`;
   a fresh synchronized commit, full gates and new external namespace are now
   required.
+- The fresh `2bf2771` formal external lineage completed all five GEARS and all
+  five TxPert coordinates at exactly one epoch. Both queues returned zero, all
+  ten evaluated run manifests are present, and the complete formal run root has
+  zero persistent PKL. The project-wide default is now explicitly documented:
+  GraD-Pert, GEARS, TxPert, and every nonlearned baseline use `metrics_only`;
+  only an explicit `single_pkl` request may retain one deduplicated result PKL.
+- User-authorized cleanup removed 126 non-active historical experiment PKLs,
+  reclaiming 355.10 GiB. Checkpoints, configs, manifests, logs and small results
+  were preserved; the current formal root plus all data/environment caches were
+  excluded. Historical c240 metrics can be audited from sealed small evidence
+  but cannot be recomputed from the intentionally deleted prediction matrices.
+- A post-run staging dry run found that `config.resolved.yaml` was missing from
+  the small-file extension allowlist. The bounded follow-up adds YAML/YML to the
+  existing size/symlink/hash gates and regression-tests resolved-config staging.

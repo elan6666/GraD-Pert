@@ -20,6 +20,7 @@ def _source(tmp_path: Path) -> Path:
     small.mkdir(parents=True)
     (small / "metrics.json").write_text('{"score": 1}\n', encoding="utf-8")
     (small / "metrics.csv").write_text("metric,value\nx,1\n", encoding="utf-8")
+    (small / "config.resolved.yaml").write_text("model_id: gradpert_b2\n", encoding="utf-8")
     (source / "artifacts").mkdir()
     (source / "artifacts" / "prediction.pkl").write_bytes(b"server-only")
     return source
@@ -29,10 +30,11 @@ def test_small_sync_dry_run_does_not_create_destination(tmp_path: Path) -> None:
     source = _source(tmp_path)
     destination = tmp_path / "stage"
     plan = small_sync_plan(source, destination)
-    assert plan["file_count"] == 2
+    assert plan["file_count"] == 3
     assert {item["relative_path"].split("/")[-1] for item in plan["files"]} == {
         "metrics.json",
         "metrics.csv",
+        "config.resolved.yaml",
     }
     assert not destination.exists()
 
