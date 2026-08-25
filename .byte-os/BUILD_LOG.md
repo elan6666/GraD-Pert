@@ -431,3 +431,10 @@
   server checkout. Formal execution correctly uses the separate frozen
   `/upstreams/txpert` path. The unit test now uses a temporary hash-bound lock
   fixture; production lock validation remains unchanged.
+- The first dry-run-approved environment build stopped during dependency
+  resolution before installation: Torch 2.7 requires `sympy>=1.13.3`, while
+  the official Torch 2.6 lock pins 1.13.1. Its partial 84 KiB environment and
+  full log are preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-txpert-env-10a-sympy`. The
+  hardware override now replaces that one transitive pin with exact
+  `sympy==1.13.3`; no unconstrained dependency is introduced.

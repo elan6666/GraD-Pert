@@ -32,7 +32,8 @@
 
 1. The official TxPert lock commit and SHA remain hash-bound and unchanged.
 2. A new isolated environment preserves every non-CUDA official requirement
-   while replacing only PyTorch/PyG CUDA distributions with 2.7/cu128 builds.
+   while replacing only PyTorch/PyG CUDA distributions with 2.7/cu128 builds
+   and the exact SymPy 1.13.3 version required by Torch 2.7.
 3. Preflight requires exact module versions, CUDA 12.8, active capability
    `sm_120`, wheel architecture `sm_120`, a core CUDA kernel, and a PyG CUDA
    extension kernel.

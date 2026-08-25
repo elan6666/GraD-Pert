@@ -52,6 +52,7 @@ numpy==1.26.4
 torch==2.6.0
 torch-geometric==2.6.1
 torch_scatter==2.1.2+pt26cu124
+sympy==1.13.1
 nvidia-cublas-cu12==12.4.5.8
 nvidia-ml-py==12.570.86
 """
@@ -112,6 +113,7 @@ def test_runtime_gate_executes_core_and_pyg_cuda_kernels(monkeypatch) -> None:
         "torch": "2.7.0+cu128",
         "torchvision": "0.22.0+cu128",
         "torchaudio": "2.7.0+cu128",
+        "sympy": "1.13.3",
         "torch_geometric": "2.6.1",
         "pyg_lib": "0.4.0+pt27cu128",
         "torch_scatter": "2.1.2+pt27cu128",

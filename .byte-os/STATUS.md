@@ -73,6 +73,11 @@ updated_at: 2026-08-25T16:52:00+08:00
   narrow committed CUDA override. The runner will reject the environment unless
   exact versions, CUDA 12.8, `sm_120`, a core CUDA kernel, and a PyG extension
   kernel all pass before data/model work.
+- The first new-environment resolution exposed one bounded transitive conflict:
+  Torch 2.7 requires SymPy 1.13.3 while the Torch 2.6 lock pins 1.13.1. The
+  failed 84 KiB environment is preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-txpert-env-10a-sympy`; plan 011
+  now overrides exactly that additional pin and nothing else.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs
