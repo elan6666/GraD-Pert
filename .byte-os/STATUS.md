@@ -412,3 +412,19 @@ updated_at: 2026-08-26T04:31:00+08:00
   IDs remain auditable, and the five learned checkpoints remain hash-valid, but
   they must not be described as having the newer complete recipe bundle. The
   ten new external coordinates all carry a valid `metrics_only` recipe.
+- Nadig Jurkat speed pilot B2 completed and passed 41 strict checks at clean
+  commit `2e30fb5`. It trained one epoch/582 steps on the full 6,506-node graph,
+  retained only checkpoint `best.pt` with SHA-256
+  `1229f46c44955f940e9a0972dc2d540af231cc16dea2a2fce52255bb000c8649`,
+  performed one test evaluation, and left zero PKL. Its 10-warmup/572-measured
+  timing was 718.681 s training wall, 0.6270 steps/s and 137.80 cells/s; the
+  three recorded metrics remain explicitly non-decisional. All seven systems
+  groups passed runtime and first-step equivalence checks. The merged-read
+  fallback was enabled but honestly recorded zero runtime batches because the
+  full control cache served all 582 batches. Strict validation receipt SHA-256
+  is `1f0c50357463d303e9be19d6a3845306c685b453f744d63dc5d1ffb3b2a70fa2`.
+- B3 implementation is now active: its new self-contained config combines the
+  B1 recomputed Top-500-HVG-plus-target graph axis with every B2 systems flag,
+  remains one epoch and `metrics_only`, and has an explicit combined-contract
+  regression test. Local full gates, publication/synchronization, server gates,
+  and the formal B3 run remain pending.
