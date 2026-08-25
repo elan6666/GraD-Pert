@@ -65,6 +65,32 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _materialize_official_cell_context(adata: Any) -> dict[str, object]:
+    """Expose the canonical context through frozen TxPert's exact column name."""
+
+    canonical_column = "cell_type"
+    official_column = "cell_line"
+    if canonical_column not in adata.obs:
+        raise ValueError("TxPert adapter requires canonical cell_type observations")
+    canonical_values = adata.obs[canonical_column].astype(str).tolist()
+    column_added = official_column not in adata.obs
+    if column_added:
+        adata.obs[official_column] = canonical_values
+    else:
+        official_values = adata.obs[official_column].astype(str).tolist()
+        if official_values != canonical_values:
+            raise ValueError("TxPert official cell_line differs from canonical cell_type")
+    return {
+        "cell_context_adapter_policy": (
+            "copy_canonical_cell_type_to_official_cell_line_when_absent"
+        ),
+        "canonical_cell_context_column": canonical_column,
+        "official_cell_context_column": official_column,
+        "official_cell_context_column_added": column_added,
+        "cell_context_values_sha256": sha256_json(canonical_values),
+    }
+
+
 def _official_config(
     config: ExperimentConfig,
     checkout_root: Path,
@@ -138,6 +164,7 @@ def _write_official_cache(
 ) -> dict[str, object]:
     cache_root.mkdir(parents=True, exist_ok=True)
     adata_path = cache_root / "de_adata_test.h5ad"
+    cell_context_receipt = _materialize_official_cell_context(adapted.adata)
     removed_null_metadata_paths: list[str] = []
     log1p_metadata = adapted.adata.uns.get("log1p")
     if (
@@ -167,6 +194,7 @@ def _write_official_cache(
         },
     )
     return {
+        **cell_context_receipt,
         "adapted_h5ad_sha256": sha256_file(adata_path),
         "split_pickle_sha256": split_sha256,
         "subgroup_pickle_sha256": subgroup_sha256,

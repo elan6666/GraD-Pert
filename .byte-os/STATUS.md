@@ -9,11 +9,20 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T19:05:00+08:00
+updated_at: 2026-08-25T20:36:00+08:00
 ---
 
 # Status
 
+- Commit `c6418df` passed the TxPert RPE1 hard gate and produced strictly
+  validated GEARS K562/RPE1/Jurkat/Norman results, but TxPert HepG2 then failed
+  before model construction because the isolated HepG2 adapter cache exposes
+  canonical `cell_type` while frozen TxPert requires its exact `cell_line`
+  observation column. Both queues were stopped; the failed HepG2 root,
+  interrupted GEARS HepG2 peer, logs, and matrix receipts are preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-c641-txpert-hepg2-missing-cell-line`.
+  Plan 016 is the bounded adapter-column repair; any source change creates a
+  fresh external-run namespace and c641 outputs will not be mixed with it.
 - Current execution policy supersedes the earlier full-run plan: all learned
   coordinates stop after exactly one epoch, and no 100-epoch/full task may be
   launched. Goal mode is paused while the server matrix is running; it resumes
@@ -119,6 +128,11 @@ updated_at: 2026-08-25T19:05:00+08:00
   fit/checkpoint, matching the frozen official inference entrypoint's explicit
   `.to(device)`, and receipts the observed parameter/buffer devices before any
   canonical test prediction.
+- Commit `c6418df` validated plan 015 end to end on TxPert RPE1: exactly one
+  epoch, 2,143 optimizer steps, post-fit parameter/buffer restore to local
+  `cuda:0`, one test evaluation, exact three-metric schema, and shared fairness
+  hashes all passed. Plan 015 is complete; the HepG2 column failure is a new
+  pre-model adapter boundary tracked separately by plan 016.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs

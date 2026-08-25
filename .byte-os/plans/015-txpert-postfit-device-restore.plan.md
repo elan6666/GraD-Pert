@@ -1,6 +1,6 @@
 # Plan 015: TxPert post-fit inference device restore
 
-- Status: implementation and verification in progress
+- Status: complete at commit `c6418df`
 
 ## Evidence
 
@@ -49,3 +49,11 @@ python -m ruff format --check .
 python -m mypy src benchmarks
 python -m build
 ```
+
+## Completion evidence
+
+- TxPert RPE1 completed exactly one epoch and 2,143 optimizer steps.
+- The post-fit receipt records all registered parameters and buffers restored to
+  local `cuda:0` before canonical test access.
+- Checkpoint hash, one test evaluation, exact three-metric schema, and shared
+  protocol/canonical/split/ordered-300-control hashes passed strict validation.
