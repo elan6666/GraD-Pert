@@ -1,0 +1,59 @@
+{
+  "schema_version": "txpert-cuda-runtime-v1",
+  "official_checkout": {
+    "commit": "08d82eea86746b044cf7531f4ec8c5f60e1cb73f",
+    "lock_file": "uv.lock",
+    "lock_sha256": "2e2682de3e5a9d09ea3fdb506498bbc6278712f6e30bac309876322051f941bb"
+  },
+  "hardware_compatibility_override": {
+    "reason": "RTX 5090 requires Blackwell sm_120 kernels unavailable in the official torch 2.6.0 cu124 wheel",
+    "python": "3.12",
+    "cuda_runtime": "12.8",
+    "required_cuda_arch": "sm_120",
+    "required_device_capability": [12, 0],
+    "pytorch_index": "https://download.pytorch.org/whl/cu128",
+    "pyg_find_links": "https://data.pyg.org/whl/torch-2.7.0+cu128.html",
+    "module_versions": {
+      "torch": "2.7.0+cu128",
+      "torchvision": "0.22.0+cu128",
+      "torchaudio": "2.7.0+cu128",
+      "torch_geometric": "2.6.1",
+      "pyg_lib": "0.4.0+pt27cu128",
+      "torch_scatter": "2.1.2+pt27cu128",
+      "torch_sparse": "0.6.18+pt27cu128",
+      "torch_spline_conv": "1.2.2+pt27cu128"
+    },
+    "install_requirements": [
+      "torch==2.7.0",
+      "torchvision==0.22.0",
+      "torchaudio==2.7.0",
+      "pyg-lib==0.4.0+pt27cu128",
+      "torch-scatter==2.1.2+pt27cu128",
+      "torch-sparse==0.6.18+pt27cu128",
+      "torch-spline-conv==1.2.2+pt27cu128"
+    ],
+    "replaced_distributions": [
+      "torch",
+      "torchvision",
+      "torchaudio",
+      "pyg-lib",
+      "torch-scatter",
+      "torch-sparse",
+      "torch-spline-conv",
+      "triton",
+      "nvidia-cublas-cu12",
+      "nvidia-cuda-cupti-cu12",
+      "nvidia-cuda-nvrtc-cu12",
+      "nvidia-cuda-runtime-cu12",
+      "nvidia-cudnn-cu12",
+      "nvidia-cufft-cu12",
+      "nvidia-curand-cu12",
+      "nvidia-cusolver-cu12",
+      "nvidia-cusparse-cu12",
+      "nvidia-cusparselt-cu12",
+      "nvidia-nccl-cu12",
+      "nvidia-nvjitlink-cu12",
+      "nvidia-nvtx-cu12"
+    ]
+  }
+}

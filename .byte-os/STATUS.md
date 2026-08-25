@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T16:16:00+08:00
+updated_at: 2026-08-25T16:52:00+08:00
 ---
 
 # Status
@@ -62,6 +62,17 @@ updated_at: 2026-08-25T16:16:00+08:00
   semantics (`return None`) in the frozen runner's in-memory registry before
   `CanonicalTrainingData`, then retains the adapter-copy write sanitation. It
   does not edit the canonical file or frozen environment.
+- Commit `9207e8c` passed that canonical-read boundary and reached the frozen
+  official TxPert data module, then failed on its first CUDA `torch.cat`. The
+  isolated official environment uses Torch 2.6/cu124, whose wheel supports only
+  through `sm_90`, while both server RTX 5090 GPUs require `sm_120`. The failed
+  root and log are preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-formal-v2-9207-txpert-sm120`.
+  Plan 011 keeps GraD-Pert and GEARS environments unchanged and builds a new
+  TxPert-only Torch 2.7/cu128 environment from the frozen official lock plus a
+  narrow committed CUDA override. The runner will reject the environment unless
+  exact versions, CUDA 12.8, `sm_120`, a core CUDA kernel, and a PyG extension
+  kernel all pass before data/model work.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs

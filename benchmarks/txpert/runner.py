@@ -21,6 +21,7 @@ from benchmarks.common import (
     write_pickle,
 )
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
+from benchmarks.txpert.runtime import inspect_cuda_runtime, load_runtime_contract
 from gradpert.artifacts import PredictionConditionArrays
 from gradpert.config import ExperimentConfig, load_experiment_config
 from gradpert.data._io import atomic_json, atomic_text
@@ -201,16 +202,24 @@ def run_one_epoch(
         expected_repository=PROJECT_REPOSITORY,
         development_commit=development_commit,
     )
+    runtime_contract_path, runtime_contract = load_runtime_contract(
+        repository_root=repository_root,
+        checkout_root=checkout_root,
+    )
     environment = inspect_environment(
         repository_root,
         device_name=device,
-        lock_file=checkout_root / "uv.lock",
+        lock_file=runtime_contract_path,
     )
+    runtime_compatibility = inspect_cuda_runtime(contract=runtime_contract, device=device)
     config_sha256 = sha256_file(config_file)
     small_root = destination / "small_results"
     atomic_text(small_root / "config.resolved.yaml", config_file.read_text(encoding="utf-8"))
     atomic_json(small_root / "source_identity.json", source.payload())
-    atomic_json(small_root / "environment.json", environment.payload())
+    atomic_json(
+        small_root / "environment.json",
+        {**environment.payload(), "runtime_compatibility": runtime_compatibility},
+    )
     random.seed(1)
     np.random.seed(1)
     canonical_reader_compatibility = _register_anndata_null_reader()

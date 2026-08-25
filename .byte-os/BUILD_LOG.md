@@ -405,3 +405,24 @@
   registers that same reader in the frozen process before canonical loading,
   records the action, and still strips the null from the later adapter copy.
   No H5AD source or environment package is changed; seven focused tests pass.
+
+## 2026-08-25 — TxPert RTX 5090 runtime repair
+
+- The `9207e8c` RPE1 hard gate successfully read the canonical H5AD using the
+  exact null reader, then stopped in the official data module at its first CUDA
+  `torch.cat`: Torch 2.6/cu124 advertises only `sm_50` through `sm_90`, while
+  the RTX 5090 reports capability `sm_120`.
+- Preserved that complete failed root and log under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-formal-v2-9207-txpert-sm120`.
+- Added a TxPert-only CUDA runtime contract that remains hash-bound to the
+  official commit and lock, replaces only Torch/PyG CUDA distributions with
+  matching 2.7/cu128 builds, and leaves the GraD-Pert and GEARS environments
+  unchanged.
+- Added a dry-run-first server environment builder and fail-closed runner gate
+  for exact module versions, CUDA 12.8, active/wheel `sm_120`, a core CUDA
+  kernel, and a PyG extension kernel. Focused contract/filter/runtime tests are
+  in place. Local verification passed 155 tests with nine honest missing
+  Torch/Anndata or pending-receipt skips, Ruff lint/format, isolated build, and
+  Git diff checks. Full mypy and CUDA execution remain assigned to the server
+  environment because the lightweight Mac environment intentionally lacks
+  Torch/PyG.

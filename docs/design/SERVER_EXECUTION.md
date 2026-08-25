@@ -60,6 +60,18 @@ comes from the frozen official checkout inside the guarded module session.
 prints the exact argv/PYTHONPATH as a dry run by default, and executes only when
 passed `--execute`.
 
+The two external models also use separate runtime environments. GEARS keeps
+`/data/yilangliu/GraD-Pert/envs/gears`; TxPert uses the independently built
+`/data/yilangliu/GraD-Pert/envs/txpert-cu128-2.7.0`. The TxPert environment is
+derived from the frozen official `uv.lock`, then replaces only the official
+PyTorch/PyG CUDA distributions with the committed
+`benchmarks/environments/txpert-cu128.json` hardware compatibility override.
+The original Torch 2.6/cu124 environment remains preserved. Before any formal
+TxPert run, the runner requires exact package versions, CUDA 12.8, `sm_120` in
+the wheel architecture list, the active RTX 5090 capability, and successful
+core Torch and PyG CUDA kernels. This hardware-only override does not change the
+official model, optimizer, data, split, control, or evaluation configuration.
+
 ## Frozen matrix orchestration
 
 `scripts/server/run_experiment_matrix.py` is the thin server entrypoint over
@@ -99,7 +111,7 @@ PYTHONPATH=src:. .venv/bin/python scripts/server/run_experiment_matrix.py \
   --gears-python /data/yilangliu/GraD-Pert/envs/gears/bin/python \
   --gears-checkout /data/yilangliu/GraD-Pert/upstreams/gears \
   --gears-data-root /data/yilangliu/GraD-Pert/data/gears-official \
-  --txpert-python /data/yilangliu/GraD-Pert/envs/txpert/bin/python \
+  --txpert-python /data/yilangliu/GraD-Pert/envs/txpert-cu128-2.7.0/bin/python \
   --txpert-checkout /data/yilangliu/GraD-Pert/upstreams/txpert \
   --device cuda:0 --device cuda:1 \
   --namespace formal-v2 \
