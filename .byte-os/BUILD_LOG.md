@@ -384,3 +384,17 @@
   for condition names, attaches rankings, and only then calls frozen
   `PertData.new_data_process` once. It gates every retained condition on 20 DE
   indices without a second expensive graph build or any local index mutation.
+
+## 2026-08-25 — TxPert frozen-Anndata null compatibility
+
+- Clean commit `dddc767` completed GEARS K562, RPE1, Jurkat, and Norman, proving
+  the ranking-before-graph repair. TxPert RPE1 then failed before model creation
+  because frozen Anndata 0.11.4 has no reader for Anndata 0.13.2's explicit
+  `null` encoding at `/uns/log1p/base`; the other queue was stopped and the
+  entire lineage preserved before any mixed-commit continuation.
+- A server synthetic cross-version check reproduced the failure with
+  `base=None`. Removing only that key made the frozen reader load the same
+  `[1.0, 2.0]` expression row and `(1, 2)` shape. The adapter now applies that
+  exact transformation only to its test-free cache copy, records the removed
+  path, and preserves non-null bases. Six focused TxPert/API/lifecycle tests,
+  Ruff, format, and diff checks pass locally.

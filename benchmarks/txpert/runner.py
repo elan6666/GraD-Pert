@@ -7,6 +7,7 @@ import hashlib
 import importlib
 import json
 import random
+from collections.abc import MutableMapping
 from pathlib import Path
 from typing import Any
 
@@ -110,9 +111,20 @@ def _write_official_cache(
     *,
     cache_root: Path,
     adapted: Any,
-) -> dict[str, str]:
+) -> dict[str, object]:
     cache_root.mkdir(parents=True, exist_ok=True)
     adata_path = cache_root / "de_adata_test.h5ad"
+    removed_null_metadata_paths: list[str] = []
+    log1p_metadata = adapted.adata.uns.get("log1p")
+    if (
+        isinstance(log1p_metadata, MutableMapping)
+        and "base" in log1p_metadata
+        and log1p_metadata["base"] is None
+    ):
+        # Frozen TxPert's older anndata cannot read the newer explicit null
+        # scalar encoding. An absent base has the same natural-log semantics.
+        del log1p_metadata["base"]
+        removed_null_metadata_paths.append("/uns/log1p/base")
     adapted.adata.write_h5ad(adata_path)
     split_root = cache_root / "splits"
     split_sha256 = write_pickle(
@@ -134,6 +146,8 @@ def _write_official_cache(
         "adapted_h5ad_sha256": sha256_file(adata_path),
         "split_pickle_sha256": split_sha256,
         "subgroup_pickle_sha256": subgroup_sha256,
+        "h5ad_compatibility_policy": "drop_uns_log1p_base_only_when_null",
+        "removed_null_metadata_paths": removed_null_metadata_paths,
     }
 
 

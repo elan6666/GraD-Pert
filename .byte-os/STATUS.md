@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T14:49:00+08:00
+updated_at: 2026-08-25T15:53:00+08:00
 ---
 
 # Status
@@ -46,6 +46,14 @@ updated_at: 2026-08-25T14:49:00+08:00
   `/data/yilangliu/GraD-Pert/superseded/20260825-formal-v2-5f82-pre-ranking-graphs`.
   Plan 009 now attaches rankings before the single frozen official graph build
   and verifies exactly 20 DE indices per retained condition before fit.
+- Commit `dddc767` validated that repair on GEARS K562, RPE1, Jurkat, and
+  Norman. The first TxPert task then exposed a separate storage compatibility
+  issue: frozen Anndata 0.11.4 cannot read Anndata 0.13.2's explicit null
+  encoding at `/uns/log1p/base`. The stopped lineage is preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-formal-v2-dddc-txpert-anndata-null`.
+  Plan 010 removes only that adapter-copy key when its value is null; a real
+  server cross-version fixture proves the sanitized file preserves expression
+  values and loads successfully in the frozen environment.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs
