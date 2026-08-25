@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import dataclass
+from typing import Any, cast
 
 import torch
 from torch import Tensor
@@ -157,11 +158,11 @@ class GraDPertStepEngine:
         )
         view_build_ms = (time.perf_counter() - view_started) * 1000.0
         use_cuda_events = self.model.student_encoder.gene_embeddings.is_cuda
-        events: dict[str, torch.cuda.Event] = {}
+        events: dict[str, Any] = {}
 
         def mark(name: str) -> None:
             if use_cuda_events:
-                event = torch.cuda.Event(enable_timing=True)
+                event = cast(Any, torch.cuda.Event)(enable_timing=True)
                 event.record()
                 events[name] = event
 
