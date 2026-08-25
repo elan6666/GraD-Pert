@@ -41,11 +41,20 @@ class FakePredictor:
         self.kwargs = kwargs
         self.eval_called = False
         self.device = "cuda"
+        self.parameter_device = "cpu"
         self.calls.append(kwargs)
 
     def to(self, device: str) -> FakePredictor:
         self.device = device
+        self.parameter_device = device
         return self
+
+    def parameters(self):
+        return iter((SimpleNamespace(device=self.parameter_device),))
+
+    @staticmethod
+    def buffers():
+        return iter(())
 
     def eval(self) -> None:
         self.eval_called = True
@@ -173,6 +182,20 @@ def test_exact_control_forward_retains_300_rows() -> None:
     np.testing.assert_allclose(prediction, controls + 2.0)
     assert prediction.shape == (300, 3)
     assert model.eval_called
+
+
+def test_post_fit_device_restore_moves_parameters_back_to_requested_device() -> None:
+    api = _api()
+    model = FakePredictor()
+    model.device = "cuda:0"
+    model.parameter_device = "cpu"
+
+    receipt = api.restore_post_fit_device(model, "cuda:0")
+
+    assert model.parameter_device == "cuda:0"
+    assert receipt["requested_device"] == "cuda:0"
+    assert receipt["parameter_devices"] == ["cuda:0"]
+    assert receipt["buffer_devices"] == []
 
 
 def test_training_control_rows_use_official_numeric_control_id() -> None:

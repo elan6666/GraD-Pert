@@ -261,6 +261,30 @@ class OfficialPublicAPI:
         trainer.save_checkpoint(str(Path(checkpoint_path)))
         return trainer
 
+    @staticmethod
+    def restore_post_fit_device(model: Any, device: str) -> dict[str, object]:
+        """Restore parameters moved to CPU by Lightning's fit teardown."""
+
+        model.to(device)
+        parameter_devices = sorted({str(parameter.device) for parameter in model.parameters()})
+        buffer_devices = sorted({str(buffer.device) for buffer in model.buffers()})
+        if parameter_devices != [device]:
+            raise RuntimeError(
+                "official model parameters did not return to the requested inference device"
+            )
+        if buffer_devices and buffer_devices != [device]:
+            raise RuntimeError(
+                "official model buffers did not return to the requested inference device"
+            )
+        return {
+            "schema_version": "txpert-post-fit-device-restore-v1",
+            "policy": "official_module_to_requested_device_after_lightning_fit_teardown",
+            "requested_device": device,
+            "parameter_devices": parameter_devices,
+            "buffer_devices": buffer_devices,
+            "official_reference": "main.py: load_from_checkpoint(...).to(device)",
+        }
+
     def predict_exact_controls(
         self,
         *,

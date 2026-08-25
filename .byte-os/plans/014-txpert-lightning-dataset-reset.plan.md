@@ -1,6 +1,6 @@
 # Plan 014: preserve the adapted TxPert training dataset through Lightning fit
 
-- Status: implementation and verification in progress
+- Status: training lifecycle verified; inference proceeds under plan 015
 
 ## Evidence
 
@@ -47,6 +47,15 @@
    real server preflight proves loader iteration retains numeric indices, then
    full server gates and a fresh RPE1-only hard gate must pass at one clean
    synchronized commit.
+
+## Follow-up evidence
+
+- Commit `a5f3473` completed exactly one RPE1 epoch and sealed a positive
+  training receipt, proving the adapted official loader survived fit.
+- Lightning then returned registered parameters to CPU during teardown while
+  frozen Exphormer's internal device convention remained local `cuda:0`.
+  Canonical test prediction failed before any result was sealed. Plan 015
+  restores the trained official module to its requested inference device.
 
 ## Verification
 

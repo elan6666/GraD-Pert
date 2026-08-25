@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T18:56:00+08:00
+updated_at: 2026-08-25T19:05:00+08:00
 ---
 
 # Status
@@ -109,6 +109,16 @@ updated_at: 2026-08-25T18:56:00+08:00
   `train_dataloader()` into Lightning, retaining the official dataset,
   collate/shuffle/batch, training step, optimizer, and one-epoch semantics while
   preventing the destructive second setup.
+- Commit `a5f3473` closed the second-setup boundary and completed the full RPE1
+  epoch with a positive training receipt. Prediction then exposed a distinct
+  Lightning teardown boundary: registered model parameters had been returned
+  to CPU while frozen Exphormer's device-owned index tensors remained on local
+  `cuda:0`. The full a5f3 lineage is preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-formal-v2-a5f3-txpert-postfit-device-teardown`.
+  Plan 015 restores the official module to the requested inference device after
+  fit/checkpoint, matching the frozen official inference entrypoint's explicit
+  `.to(device)`, and receipts the observed parameter/buffer devices before any
+  canonical test prediction.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs

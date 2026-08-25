@@ -300,6 +300,7 @@ def run_one_epoch(
                 checkpoint_path=checkpoint_path,
                 accelerator="gpu" if device.startswith("cuda") else "cpu",
             )
+            post_fit_device_restore = api.restore_post_fit_device(model, device)
             completed_epochs = int(trainer.current_epoch)
             optimizer_steps = int(trainer.global_step)
             if completed_epochs != 1 or optimizer_steps <= 0:
@@ -329,6 +330,7 @@ def run_one_epoch(
                     "scheduler": str(config.training.scheduler.value),
                     "validation_batches_during_fit": 0,
                     "canonical_test_truth_present_during_fit": False,
+                    "post_fit_device_restore": post_fit_device_restore,
                     "checkpoint_sha256": checkpoint_sha256,
                 },
             )
