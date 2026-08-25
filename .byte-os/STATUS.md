@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T17:56:00+08:00
+updated_at: 2026-08-25T18:45:13+08:00
 ---
 
 # Status
@@ -87,6 +87,17 @@ updated_at: 2026-08-25T17:56:00+08:00
   Plan 012 isolates each assigned physical GPU at the subprocess boundary and
   presents it to frozen TxPert as its official local `cuda:0`, with explicit
   matrix/runtime receipts; GraD-Pert and GEARS behavior remains unchanged.
+- Commit `b06f29f` passed the process-local GPU preflight and reached the first
+  official TxPert training batch. It then failed before optimizer step 1 at
+  frozen `z_p[p]`: the official dataset extension represents 11,485
+  control-only training rows as string lists `["ctrl"]`, while treatment rows
+  already use the official numeric control ID `-1` and the frozen model indexes
+  a tensor with every component. The entire b06f run/log lineage is preserved
+  under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-formal-v2-b06f-txpert-pert-index-shape`.
+  Plan 013 performs one bounded adapter translation from the official control
+  label to `data_module.pert2id["ctrl"]`, rejects every other nonnumeric or
+  unknown component, and records before/after hashes and counts before fit.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs

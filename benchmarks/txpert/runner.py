@@ -241,18 +241,6 @@ def run_one_epoch(
             raise ValueError("TxPert within-cell adapter requires exactly one cell type")
         cache_root = destination / "official_adapter" / "cache"
         cache_receipts = _write_official_cache(cache_root=cache_root, adapted=adapted)
-        write_adapter_receipt(
-            small_root / "official_data_adapter.json",
-            {
-                **adapted.receipt,
-                **cache_receipts,
-                "official_model": "txpert_public",
-                "official_test_partition": "canonical_val_duplicate",
-                "canonical_test_truth_present": False,
-                "cell_type": cell_types[0],
-                "canonical_reader_compatibility": canonical_reader_compatibility,
-            },
-        )
         with official_module_session(
             checkout_root=checkout_root,
             expected_commit=config.source_code.commit,
@@ -270,6 +258,7 @@ def run_one_epoch(
                 batch_size=int(config.training.train_batch_size.value),
                 cell_type=cell_types[0],
             )
+            training_index_adapter = api.normalize_training_perturbation_indices(data_module)
             covered_targets = api.require_perturbation_coverage(
                 data_module,
                 [
@@ -277,6 +266,19 @@ def run_one_epoch(
                     *training_data.split.val_conditions,
                     *training_data.split.test_conditions,
                 ],
+            )
+            write_adapter_receipt(
+                small_root / "official_data_adapter.json",
+                {
+                    **adapted.receipt,
+                    **cache_receipts,
+                    "official_model": "txpert_public",
+                    "official_test_partition": "canonical_val_duplicate",
+                    "canonical_test_truth_present": False,
+                    "cell_type": cell_types[0],
+                    "canonical_reader_compatibility": canonical_reader_compatibility,
+                    "training_index_adapter": training_index_adapter,
+                },
             )
             torch = modules["torch"]
             torch.manual_seed(1)

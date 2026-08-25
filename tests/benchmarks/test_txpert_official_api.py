@@ -6,6 +6,8 @@ from types import SimpleNamespace
 from typing import Any, ClassVar
 
 import numpy as np
+import pandas as pd
+import pytest
 
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
 
@@ -163,3 +165,94 @@ def test_exact_control_forward_retains_300_rows() -> None:
     np.testing.assert_allclose(prediction, controls + 2.0)
     assert prediction.shape == (300, 3)
     assert model.eval_called
+
+
+def test_training_control_rows_use_official_numeric_control_id() -> None:
+    api = _api()
+    original = pd.Series(
+        [[4, -1], ["ctrl"], [7, -1]],
+        index=["treated-a", "control", "treated-b"],
+        dtype=object,
+    )
+    data_module = SimpleNamespace(
+        pert2id={"A": 4, "B": 7, "ctrl": -1},
+        train_data=SimpleNamespace(pert_conditions=original.copy(deep=True)),
+    )
+
+    receipt = api.normalize_training_perturbation_indices(data_module)
+
+    assert data_module.train_data.pert_conditions.tolist() == [[4, -1], [-1], [7, -1]]
+    assert data_module.train_data.pert_conditions.index.tolist() == original.index.tolist()
+    assert receipt["policy"] == "map_official_control_label_to_official_numeric_id"
+    assert receipt["official_control_id"] == -1
+    assert receipt["converted_condition_count"] == 1
+    assert receipt["converted_component_count"] == 1
+    assert receipt["before_sha256"] != receipt["after_sha256"]
+    assert receipt["all_components_numeric_after"] is True
+    perturbation_tensor = np.arange(8, dtype=np.float32).reshape(8, 1)
+    for condition in data_module.train_data.pert_conditions:
+        for component in condition:
+            assert perturbation_tensor[component].shape == (1,)
+
+
+@pytest.mark.parametrize("invalid_component", ["A", 99, True, None])
+def test_training_index_adapter_rejects_noncontrol_or_unknown_components(
+    invalid_component: object,
+) -> None:
+    api = _api()
+    conditions = pd.Series([["ctrl"], [invalid_component]], dtype=object)
+    data_module = SimpleNamespace(
+        pert2id={"A": 4, "ctrl": -1},
+        train_data=SimpleNamespace(pert_conditions=conditions.copy(deep=True)),
+    )
+
+    with pytest.raises(ValueError, match=r"unsupported component|unknown numeric ID"):
+        api.normalize_training_perturbation_indices(data_module)
+
+    assert data_module.train_data.pert_conditions.tolist() == conditions.tolist()
+
+
+def test_training_index_adapter_requires_observed_control_rows() -> None:
+    api = _api()
+    conditions = pd.Series([[4, -1], [4, -1]], dtype=object)
+    data_module = SimpleNamespace(
+        pert2id={"A": 4, "ctrl": -1},
+        train_data=SimpleNamespace(pert_conditions=conditions.copy(deep=True)),
+    )
+
+    with pytest.raises(ValueError, match="no control-label rows"):
+        api.normalize_training_perturbation_indices(data_module)
+
+    assert data_module.train_data.pert_conditions.tolist() == conditions.tolist()
+
+
+@pytest.mark.parametrize("control_id", ["ctrl", True, None])
+def test_training_index_adapter_requires_numeric_official_control_id(
+    control_id: object,
+) -> None:
+    api = _api()
+    conditions = pd.Series([["ctrl"]], dtype=object)
+    data_module = SimpleNamespace(
+        pert2id={"A": 4, "ctrl": control_id},
+        train_data=SimpleNamespace(pert_conditions=conditions.copy(deep=True)),
+    )
+
+    with pytest.raises(ValueError, match="lacks a numeric control ID"):
+        api.normalize_training_perturbation_indices(data_module)
+
+    assert data_module.train_data.pert_conditions.tolist() == conditions.tolist()
+
+
+@pytest.mark.parametrize("condition", [[], "ctrl", None])
+def test_training_index_adapter_rejects_malformed_conditions(condition: object) -> None:
+    api = _api()
+    conditions = pd.Series([["ctrl"], condition], dtype=object)
+    data_module = SimpleNamespace(
+        pert2id={"A": 4, "ctrl": -1},
+        train_data=SimpleNamespace(pert_conditions=conditions.copy(deep=True)),
+    )
+
+    with pytest.raises(ValueError, match="must be a non-empty list or tuple"):
+        api.normalize_training_perturbation_indices(data_module)
+
+    assert data_module.train_data.pert_conditions.tolist() == conditions.tolist()

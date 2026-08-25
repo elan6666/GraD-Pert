@@ -11,6 +11,8 @@ from typing import Any
 
 import numpy as np
 
+from gradpert.hashing import sha256_json
+
 
 @dataclass(frozen=True)
 class OfficialPublicModules:
@@ -99,6 +101,103 @@ class OfficialPublicAPI:
         if observed != expected_fit:
             raise ValueError("official public data module filtered canonical train/val conditions")
         return targets
+
+    @staticmethod
+    def normalize_training_perturbation_indices(data_module: Any) -> dict[str, object]:
+        """Encode official control-only training rows with the official numeric ID.
+
+        The frozen data module emits numeric perturbation IDs for treatment rows,
+        including ``-1`` for the embedded control component, but extends the
+        training dataset with control-only rows represented as ``["ctrl"]``.
+        The frozen model indexes a tensor with every component and therefore
+        requires the same numeric control ID for those rows.  This adapter only
+        translates that one official label through ``data_module.pert2id``; it
+        rejects every other non-numeric or unknown component.
+        """
+
+        perturbation_to_id = data_module.pert2id
+        control_label = "ctrl"
+        control_id = perturbation_to_id.get(control_label)
+        if not isinstance(control_id, int) or isinstance(control_id, bool):
+            raise ValueError("official public data module lacks a numeric control ID")
+        valid_ids = {
+            int(value)
+            for value in perturbation_to_id.values()
+            if isinstance(value, (int, np.integer)) and not isinstance(value, (bool, np.bool_))
+        }
+        conditions = data_module.train_data.pert_conditions
+        if not callable(getattr(conditions, "tolist", None)) or not hasattr(conditions, "index"):
+            raise TypeError("official training perturbation conditions must be a pandas Series")
+
+        original_rows = conditions.tolist()
+        original_hash_rows: list[list[int | str]] = []
+        normalized_rows: list[list[int]] = []
+        converted_condition_count = 0
+        converted_component_count = 0
+        component_count = 0
+        for condition_index, row in enumerate(original_rows):
+            if not isinstance(row, (list, tuple)) or not row:
+                raise ValueError(
+                    "official training perturbation condition "
+                    f"{condition_index} must be a non-empty list or tuple"
+                )
+            normalized_row: list[int] = []
+            original_hash_row: list[int | str] = []
+            condition_converted = False
+            for component in row:
+                component_count += 1
+                if isinstance(component, str):
+                    original_hash_row.append(component)
+                    if component != control_label:
+                        raise ValueError(
+                            "official training perturbation condition "
+                            f"{condition_index} contains unsupported component {component!r}"
+                        )
+                    normalized_row.append(control_id)
+                    converted_component_count += 1
+                    condition_converted = True
+                    continue
+                if isinstance(component, (bool, np.bool_)) or not isinstance(
+                    component, (int, np.integer)
+                ):
+                    raise ValueError(
+                        "official training perturbation condition "
+                        f"{condition_index} contains unsupported component {component!r}"
+                    )
+                numeric_component = int(component)
+                if numeric_component not in valid_ids:
+                    raise ValueError(
+                        "official training perturbation condition "
+                        f"{condition_index} contains unknown numeric ID {numeric_component}"
+                    )
+                original_hash_row.append(numeric_component)
+                normalized_row.append(numeric_component)
+            original_hash_rows.append(original_hash_row)
+            normalized_rows.append(normalized_row)
+            converted_condition_count += int(condition_converted)
+
+        if converted_component_count == 0:
+            raise ValueError("official training data contains no control-label rows to normalize")
+        normalized = conditions.__class__(
+            normalized_rows,
+            index=conditions.index,
+            dtype=object,
+        )
+        data_module.train_data.pert_conditions = normalized
+        return {
+            "schema_version": "txpert-training-index-adapter-v1",
+            "policy": "map_official_control_label_to_official_numeric_id",
+            "official_control_label": control_label,
+            "official_control_id": control_id,
+            "condition_count": len(normalized_rows),
+            "component_count": component_count,
+            "converted_condition_count": converted_condition_count,
+            "converted_component_count": converted_component_count,
+            "valid_official_id_count": len(valid_ids),
+            "before_sha256": sha256_json(original_hash_rows),
+            "after_sha256": sha256_json(normalized_rows),
+            "all_components_numeric_after": True,
+        }
 
     def build_model(
         self,

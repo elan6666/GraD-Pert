@@ -1,6 +1,6 @@
 # Plan 012: TxPert process-local GPU binding
 
-- Status: local implementation verified; synchronized server verification pending
+- Status: complete; device preflight passed and execution proceeds under plan 013
 
 ## Evidence
 
