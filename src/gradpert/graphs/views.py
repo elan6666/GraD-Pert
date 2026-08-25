@@ -151,12 +151,14 @@ def _base_nonself_incident_nodes(topology: GraphTopology) -> set[int]:
     }
 
 
-def _incoming_neighbors(topology: GraphTopology) -> dict[int, set[int]]:
+def build_incoming_neighbor_index(topology: GraphTopology) -> dict[int, frozenset[int]]:
+    """Materialize the immutable incoming-neighbor index once when requested."""
+
     incoming: dict[int, set[int]] = {node_id: set() for node_id in range(topology.n_nodes)}
     for graph in topology.sources.values():
         for edge in graph.edges:
             incoming[edge.target].add(edge.source)
-    return incoming
+    return {node_id: frozenset(neighbors) for node_id, neighbors in incoming.items()}
 
 
 def build_ring_induced_view(
@@ -167,6 +169,7 @@ def build_ring_induced_view(
     seed: int,
     view_id: str,
     mask_anchors: bool,
+    incoming_neighbors: Mapping[int, frozenset[int]] | None = None,
 ) -> GraphView:
     anchor_ids = tuple(sorted(set(anchors)))
     if not anchor_ids:
@@ -176,7 +179,7 @@ def build_ring_induced_view(
     if node_budget < len(anchor_ids):
         raise ValueError("local node budget cannot retain all active anchors")
 
-    incoming = _incoming_neighbors(topology)
+    incoming = incoming_neighbors or build_incoming_neighbor_index(topology)
     selected = set(anchor_ids)
     frontier = set(anchor_ids)
     rng = np.random.Generator(np.random.PCG64(seed))
@@ -314,6 +317,7 @@ def _build_local_views(
     condition_id: str,
     local_count: int,
     local_node_budget: int,
+    incoming_neighbors: Mapping[int, frozenset[int]] | None,
 ) -> tuple[tuple[GraphView, ...], tuple[int, int, int, int]]:
     if local_count != 8:
         raise ValueError("v1 requires exactly eight local views")
@@ -346,6 +350,7 @@ def _build_local_views(
             ),
             view_id=f"local_{view_index}",
             mask_anchors=view_index in masked_local_indices,
+            incoming_neighbors=incoming_neighbors,
         )
         for view_index in range(local_count)
     )
@@ -362,11 +367,20 @@ def build_training_graph_views(
     drop_edge_probability: float = 0.1,
     local_count: int = 8,
     local_node_budget: int = 512,
+    prediction_view: GraphView | None = None,
+    incoming_neighbors: Mapping[int, frozenset[int]] | None = None,
 ) -> GraDPertTrainingViews:
     """Build one batch-level global pair and locals once per unique condition."""
 
     if not anchors_by_condition:
         raise ValueError("training views require at least one condition")
+    if prediction_view is not None and (
+        prediction_view.view_id != "prediction"
+        or prediction_view.node_ids != tuple(range(topology.n_nodes))
+        or prediction_view.masked_node_ids
+        or prediction_view.masked_anchor_ids
+    ):
+        raise ValueError("reused prediction view must be the clean full graph")
     normalized: dict[str, tuple[int, ...]] = {}
     for condition_id in sorted(anchors_by_condition):
         anchors = tuple(sorted(set(anchors_by_condition[condition_id])))
@@ -398,11 +412,12 @@ def build_training_graph_views(
             condition_id=condition_id,
             local_count=local_count,
             local_node_budget=local_node_budget,
+            incoming_neighbors=incoming_neighbors,
         )
         locals_by_condition[condition_id] = local_views
         masked_locals[condition_id] = masked_indices
     return GraDPertTrainingViews(
-        prediction=_prediction_view(topology),
+        prediction=prediction_view or _prediction_view(topology),
         globals=globals_,
         locals_by_condition=locals_by_condition,
         anchors_by_condition=normalized,

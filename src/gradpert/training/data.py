@@ -8,9 +8,10 @@ import json
 import time
 from collections import deque
 from collections.abc import Iterator, Mapping, Sequence
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -18,6 +19,7 @@ from gradpert.contracts import CanonicalDataManifest, SplitManifest
 from gradpert.data import DatasetLayout
 from gradpert.hashing import sha256_json
 from gradpert.training.controls import TrainingControlPairer
+from gradpert.training.systems import DISABLED_NATIVE_SYSTEM_OPTIONS, NativeSystemOptions
 
 if TYPE_CHECKING:
     import torch
@@ -36,6 +38,54 @@ class BaselineFitData:
     control_expression: np.ndarray[Any, Any]
     control_context_ids: tuple[str, ...]
     control_batch_ids: tuple[str, ...]
+
+
+@dataclass
+class TrainingPipelineStats:
+    """Small runtime evidence for the optimized data path."""
+
+    control_cache_requested: bool = False
+    control_cache_active: bool = False
+    control_cache_rows: int = 0
+    control_cache_fallback_reason: str | None = None
+    merged_read_batches: int = 0
+    cached_control_batches: int = 0
+    prefetch_requested: bool = False
+    prefetch_active: bool = False
+    prefetch_fallback_reason: str | None = None
+    pin_memory_requested: bool = False
+    pin_memory_active: bool = False
+    pin_memory_fallback_reason: str | None = None
+    nonblocking_transfer_requested: bool = False
+    nonblocking_transfer_active: bool = False
+    nonblocking_transfer_fallback_reason: str | None = None
+    epoch_batch_identity_sha256: str | None = None
+    first_perturbed_row_ids_sha256: str | None = None
+    first_control_row_ids_sha256: str | None = None
+    first_pretransfer_control_sha256: str | None = None
+    first_pretransfer_target_sha256: str | None = None
+    yielded_batches: int = 0
+
+    def payload(self) -> dict[str, object]:
+        return dict(self.__dict__)
+
+
+@dataclass(frozen=True)
+class _TrainingBatchSpec:
+    perturbed_indices: tuple[int, ...]
+    perturbed_row_ids: tuple[str, ...]
+    control_indices: tuple[int, ...]
+    control_row_ids: tuple[str, ...]
+    condition_ids: tuple[str, ...]
+    anchors_by_condition: Mapping[str, tuple[int, ...]]
+
+
+@dataclass(frozen=True)
+class _CpuTrainingBatch:
+    spec: _TrainingBatchSpec
+    control_expression: np.ndarray[Any, Any]
+    target_expression: np.ndarray[Any, Any]
+    data_read_ms: float
 
 
 def _stable_seed(*parts: object) -> int:
@@ -246,6 +296,10 @@ class CanonicalTrainingData:
             for index, is_control in enumerate(controls)
             if is_control and self.context_ids[index] in train_contexts
         )
+        self.system_options = DISABLED_NATIVE_SYSTEM_OPTIONS
+        self.pipeline_stats = TrainingPipelineStats()
+        self._control_expression_cache: np.ndarray[Any, Any] | None = None
+        self._control_cache_position: dict[int, int] = {}
 
         graph_index = {gene_id: index for index, gene_id in enumerate(self.graph_gene_ids)}
         all_conditions = (
@@ -310,7 +364,213 @@ class CanonicalTrainingData:
             raise ValueError("canonical expression slice has an unexpected shape")
         if not np.isfinite(restored).all():
             raise ValueError("canonical expression slice contains non-finite values")
-        return np.ascontiguousarray(restored)
+        return cast(np.ndarray[Any, Any], np.ascontiguousarray(restored))
+
+    def configure_system_optimizations(self, options: NativeSystemOptions) -> float:
+        """Build bounded caches and return their wall time in milliseconds."""
+
+        if self.pipeline_stats.yielded_batches:
+            raise RuntimeError("system optimizations must be configured before iteration")
+        self.system_options = options
+        self.pipeline_stats = TrainingPipelineStats(
+            control_cache_requested=options.control_expression_cache,
+            prefetch_requested=options.background_prefetch,
+            pin_memory_requested=options.pin_memory,
+            nonblocking_transfer_requested=options.nonblocking_transfer,
+        )
+        started = time.perf_counter()
+        if options.control_expression_cache:
+            try:
+                cache = self._read_expression_indices(self.control_row_indices)
+            except (MemoryError, OSError) as error:
+                self._control_expression_cache = None
+                self._control_cache_position = {}
+                self.pipeline_stats.control_cache_fallback_reason = type(error).__name__
+            else:
+                self._control_expression_cache = cache
+                self._control_cache_position = {
+                    row_index: position
+                    for position, row_index in enumerate(self.control_row_indices)
+                }
+                self.pipeline_stats.control_cache_active = True
+                self.pipeline_stats.control_cache_rows = len(self.control_row_indices)
+        return (time.perf_counter() - started) * 1000.0
+
+    @staticmethod
+    def _array_sha256(array: np.ndarray[Any, Any]) -> str:
+        contiguous = np.ascontiguousarray(array)
+        digest = hashlib.sha256()
+        digest.update(str(contiguous.dtype).encode("ascii"))
+        digest.update(json.dumps(list(contiguous.shape), separators=(",", ":")).encode("ascii"))
+        digest.update(contiguous.view(np.uint8))
+        return digest.hexdigest()
+
+    def _batch_specs(
+        self,
+        *,
+        epoch: int,
+        batch_size: int,
+        max_unique_conditions: int,
+    ) -> tuple[_TrainingBatchSpec, ...]:
+        train_conditions = tuple(self.condition_ids[index] for index in self.train_row_indices)
+        relative_batches = condition_limited_epoch_batches(
+            condition_ids=train_conditions,
+            run_seed=self.run_seed,
+            epoch=epoch,
+            batch_size=batch_size,
+            max_unique_conditions=max_unique_conditions,
+        )
+        pairer = TrainingControlPairer(run_seed=self.run_seed)
+        specs: list[_TrainingBatchSpec] = []
+        identity_rows: list[dict[str, object]] = []
+        for relative_indices in relative_batches:
+            perturbed_indices = tuple(self.train_row_indices[index] for index in relative_indices)
+            perturbed_row_ids = tuple(self.row_ids[index] for index in perturbed_indices)
+            contexts = tuple(self.context_ids[index] for index in perturbed_indices)
+            pairing = pairer.pair_epoch(
+                epoch=epoch,
+                perturbed_row_ids=perturbed_row_ids,
+                context_ids=contexts,
+                control_pools=self.control_pools,
+            )
+            control_indices = tuple(self._row_index[row_id] for row_id in pairing.control_row_ids)
+            condition_ids = tuple(self.condition_ids[index] for index in perturbed_indices)
+            unique_conditions = tuple(dict.fromkeys(condition_ids))
+            spec = _TrainingBatchSpec(
+                perturbed_indices=perturbed_indices,
+                perturbed_row_ids=perturbed_row_ids,
+                control_indices=control_indices,
+                control_row_ids=pairing.control_row_ids,
+                condition_ids=condition_ids,
+                anchors_by_condition={
+                    condition: self.anchors_by_condition[condition]
+                    for condition in unique_conditions
+                },
+            )
+            specs.append(spec)
+            identity_rows.append(
+                {
+                    "perturbed_row_ids_sha256": sha256_json(list(perturbed_row_ids)),
+                    "control_row_ids_sha256": sha256_json(list(pairing.control_row_ids)),
+                }
+            )
+        self.pipeline_stats.epoch_batch_identity_sha256 = sha256_json(identity_rows)
+        return tuple(specs)
+
+    def _materialize_cpu_batch(self, spec: _TrainingBatchSpec) -> _CpuTrainingBatch:
+        started = time.perf_counter()
+        if self._control_expression_cache is not None:
+            positions = [self._control_cache_position[index] for index in spec.control_indices]
+            control = np.ascontiguousarray(self._control_expression_cache[positions])
+            target = self._read_expression_indices(spec.perturbed_indices)
+            self.pipeline_stats.cached_control_batches += 1
+        elif self.system_options.merged_hdf5_reads:
+            merged = self._read_expression_indices((*spec.control_indices, *spec.perturbed_indices))
+            boundary = len(spec.control_indices)
+            control = np.ascontiguousarray(merged[:boundary])
+            target = np.ascontiguousarray(merged[boundary:])
+            self.pipeline_stats.merged_read_batches += 1
+        else:
+            control = self._read_expression_indices(spec.control_indices)
+            target = self._read_expression_indices(spec.perturbed_indices)
+        return _CpuTrainingBatch(
+            spec=spec,
+            control_expression=control,
+            target_expression=target,
+            data_read_ms=(time.perf_counter() - started) * 1000.0,
+        )
+
+    def _iter_cpu_batches(
+        self, specs: tuple[_TrainingBatchSpec, ...]
+    ) -> Iterator[_CpuTrainingBatch]:
+        if not self.system_options.background_prefetch:
+            yield from (self._materialize_cpu_batch(spec) for spec in specs)
+            return
+        try:
+            executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gradpert-prefetch")
+        except (OSError, RuntimeError) as error:
+            self.pipeline_stats.prefetch_fallback_reason = type(error).__name__
+            yield from (self._materialize_cpu_batch(spec) for spec in specs)
+            return
+        self.pipeline_stats.prefetch_active = True
+        futures: deque[Future[_CpuTrainingBatch]] = deque()
+        next_index = 0
+        try:
+            while next_index < min(self.system_options.prefetch_depth, len(specs)):
+                futures.append(executor.submit(self._materialize_cpu_batch, specs[next_index]))
+                next_index += 1
+            while futures:
+                future = futures.popleft()
+                if next_index < len(specs):
+                    futures.append(executor.submit(self._materialize_cpu_batch, specs[next_index]))
+                    next_index += 1
+                yield future.result()
+        finally:
+            executor.shutdown(wait=True, cancel_futures=True)
+
+    def _to_training_batch(
+        self,
+        cpu_batch: _CpuTrainingBatch,
+        *,
+        device: torch.device,
+    ) -> GraDPertTrainingBatch:
+        import torch
+
+        from gradpert.training.batch import GraDPertTrainingBatch
+
+        transfer_started = time.perf_counter()
+        control_cpu = torch.from_numpy(cpu_batch.control_expression)
+        target_cpu = torch.from_numpy(cpu_batch.target_expression)
+        pin_active = False
+        if self.system_options.pin_memory and device.type == "cuda":
+            try:
+                control_cpu = control_cpu.pin_memory()
+                target_cpu = target_cpu.pin_memory()
+            except RuntimeError as error:
+                self.pipeline_stats.pin_memory_fallback_reason = type(error).__name__
+                control_cpu = torch.from_numpy(cpu_batch.control_expression)
+                target_cpu = torch.from_numpy(cpu_batch.target_expression)
+            else:
+                pin_active = True
+                self.pipeline_stats.pin_memory_active = True
+        elif self.system_options.pin_memory:
+            self.pipeline_stats.pin_memory_fallback_reason = "non_cuda_device"
+        nonblocking = self.system_options.nonblocking_transfer and pin_active
+        if self.system_options.nonblocking_transfer and not nonblocking:
+            self.pipeline_stats.nonblocking_transfer_fallback_reason = (
+                self.pipeline_stats.pin_memory_fallback_reason or "pin_memory_inactive"
+            )
+        if nonblocking:
+            self.pipeline_stats.nonblocking_transfer_active = True
+        control_tensor = control_cpu.to(device=device, non_blocking=nonblocking)
+        target_tensor = target_cpu.to(device=device, non_blocking=nonblocking)
+        host_to_device_ms = (time.perf_counter() - transfer_started) * 1000.0
+
+        first = self.pipeline_stats.yielded_batches == 0
+        perturbed_hash = sha256_json(list(cpu_batch.spec.perturbed_row_ids)) if first else None
+        control_ids_hash = sha256_json(list(cpu_batch.spec.control_row_ids)) if first else None
+        control_hash = self._array_sha256(cpu_batch.control_expression) if first else None
+        target_hash = self._array_sha256(cpu_batch.target_expression) if first else None
+        if first:
+            self.pipeline_stats.first_perturbed_row_ids_sha256 = perturbed_hash
+            self.pipeline_stats.first_control_row_ids_sha256 = control_ids_hash
+            self.pipeline_stats.first_pretransfer_control_sha256 = control_hash
+            self.pipeline_stats.first_pretransfer_target_sha256 = target_hash
+        self.pipeline_stats.yielded_batches += 1
+        return GraDPertTrainingBatch(
+            control_expression=control_tensor,
+            target_expression=target_tensor,
+            condition_ids=cpu_batch.spec.condition_ids,
+            anchors_by_condition=cpu_batch.spec.anchors_by_condition,
+            perturbed_row_ids=cpu_batch.spec.perturbed_row_ids,
+            control_row_ids=cpu_batch.spec.control_row_ids,
+            perturbed_row_ids_sha256=perturbed_hash,
+            control_row_ids_sha256=control_ids_hash,
+            pretransfer_control_sha256=control_hash,
+            pretransfer_target_sha256=target_hash,
+            data_read_ms=cpu_batch.data_read_ms,
+            host_to_device_ms=host_to_device_ms,
+        )
 
     def load_control_rows(self, ordered_row_ids: Sequence[str]) -> np.ndarray[Any, Any]:
         try:
@@ -366,53 +626,13 @@ class CanonicalTrainingData:
         batch_size: int = 64,
         max_unique_conditions: int = 8,
     ) -> Iterator[GraDPertTrainingBatch]:
-        import torch
-
-        from gradpert.training.batch import GraDPertTrainingBatch
-
-        train_conditions = tuple(self.condition_ids[index] for index in self.train_row_indices)
-        relative_batches = condition_limited_epoch_batches(
-            condition_ids=train_conditions,
-            run_seed=self.run_seed,
+        specs = self._batch_specs(
             epoch=epoch,
             batch_size=batch_size,
             max_unique_conditions=max_unique_conditions,
         )
-        pairer = TrainingControlPairer(run_seed=self.run_seed)
-        for relative_indices in relative_batches:
-            read_started = time.perf_counter()
-            perturbed_indices = tuple(self.train_row_indices[index] for index in relative_indices)
-            perturbed_row_ids = tuple(self.row_ids[index] for index in perturbed_indices)
-            contexts = tuple(self.context_ids[index] for index in perturbed_indices)
-            pairing = pairer.pair_epoch(
-                epoch=epoch,
-                perturbed_row_ids=perturbed_row_ids,
-                context_ids=contexts,
-                control_pools=self.control_pools,
-            )
-            control_indices = tuple(self._row_index[row_id] for row_id in pairing.control_row_ids)
-            condition_ids = tuple(self.condition_ids[index] for index in perturbed_indices)
-            unique_conditions = tuple(dict.fromkeys(condition_ids))
-            control_expression = self._read_expression_indices(control_indices)
-            target_expression = self._read_expression_indices(perturbed_indices)
-            data_read_ms = (time.perf_counter() - read_started) * 1000.0
-            transfer_started = time.perf_counter()
-            control_tensor = torch.as_tensor(control_expression, device=device)
-            target_tensor = torch.as_tensor(target_expression, device=device)
-            host_to_device_ms = (time.perf_counter() - transfer_started) * 1000.0
-            yield GraDPertTrainingBatch(
-                control_expression=control_tensor,
-                target_expression=target_tensor,
-                condition_ids=condition_ids,
-                anchors_by_condition={
-                    condition: self.anchors_by_condition[condition]
-                    for condition in unique_conditions
-                },
-                perturbed_row_ids=perturbed_row_ids,
-                control_row_ids=pairing.control_row_ids,
-                data_read_ms=data_read_ms,
-                host_to_device_ms=host_to_device_ms,
-            )
+        for cpu_batch in self._iter_cpu_batches(specs):
+            yield self._to_training_batch(cpu_batch, device=device)
 
 
 def write_training_data_receipt(data: CanonicalTrainingData, path: str | Path) -> None:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import importlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import numpy as np
 
@@ -26,6 +26,18 @@ class LoadedTruthRows:
     condition_id: str
     ordered_row_ids: tuple[str, ...]
     expression: np.ndarray[Any, Any]
+
+
+@dataclass
+class EvaluationCacheStats:
+    requested: bool = False
+    active: bool = False
+    cached_rows: int = 0
+    cache_hits: int = 0
+    fallback_reason: str | None = None
+
+    def payload(self) -> dict[str, object]:
+        return dict(self.__dict__)
 
 
 class CanonicalEvaluationData:
@@ -130,6 +142,9 @@ class CanonicalEvaluationData:
         if any(not indices for indices in self._indices_by_condition.values()):
             self.close()
             raise ValueError("evaluator truth population is empty")
+        self.cache_stats = EvaluationCacheStats()
+        self._expression_cache: np.ndarray[Any, Any] | None = None
+        self._cache_position: dict[int, int] = {}
 
     def close(self) -> None:
         file_manager = getattr(getattr(self, "_adata", None), "file", None)
@@ -142,7 +157,7 @@ class CanonicalEvaluationData:
     def __exit__(self, *_: object) -> None:
         self.close()
 
-    def _read_expression_indices(self, indices: tuple[int, ...]) -> np.ndarray[Any, Any]:
+    def _read_expression_indices_uncached(self, indices: tuple[int, ...]) -> np.ndarray[Any, Any]:
         if not indices:
             raise ValueError("evaluator expression request must be non-empty")
         values = np.asarray(indices, dtype=np.int64)
@@ -154,7 +169,55 @@ class CanonicalEvaluationData:
             raise ValueError("evaluator expression slice has an unexpected shape")
         if not np.isfinite(restored).all():
             raise ValueError("evaluator expression contains non-finite values")
-        return np.ascontiguousarray(restored)
+        return cast(np.ndarray[Any, Any], np.ascontiguousarray(restored))
+
+    def configure_expression_cache(self, *, enabled: bool) -> float:
+        """Cache exactly validation truth and compatible controls, never test data."""
+
+        import time
+
+        self.cache_stats = EvaluationCacheStats(requested=enabled)
+        started = time.perf_counter()
+        if not enabled:
+            return 0.0
+        if self.split_name != "val":
+            raise ValueError("expression caching is restricted to validation data")
+        truth_indices = {
+            index for indices in self._indices_by_condition.values() for index in indices
+        }
+        truth_contexts = {self.context_ids[index] for index in truth_indices}
+        control_indices = {
+            index
+            for index, (is_control, context) in enumerate(
+                zip(self._control_mask, self.context_ids, strict=True)
+            )
+            if is_control and context in truth_contexts
+        }
+        requested = tuple(sorted(truth_indices | control_indices))
+        try:
+            cache = self._read_expression_indices_uncached(requested)
+        except (MemoryError, OSError) as error:
+            self.cache_stats.fallback_reason = type(error).__name__
+        else:
+            self._expression_cache = cache
+            self._cache_position = {index: position for position, index in enumerate(requested)}
+            self.cache_stats.active = True
+            self.cache_stats.cached_rows = len(requested)
+        return (time.perf_counter() - started) * 1000.0
+
+    def _read_expression_indices(self, indices: tuple[int, ...]) -> np.ndarray[Any, Any]:
+        if self._expression_cache is not None:
+            try:
+                positions = [self._cache_position[index] for index in indices]
+            except KeyError as error:
+                raise RuntimeError(
+                    f"validation cache lacks required canonical row {error.args[0]}"
+                ) from error
+            self.cache_stats.cache_hits += 1
+            return cast(
+                np.ndarray[Any, Any], np.ascontiguousarray(self._expression_cache[positions])
+            )
+        return self._read_expression_indices_uncached(indices)
 
     def load_control_rows(self, ordered_row_ids: tuple[str, ...]) -> LoadedControlRows:
         from gradpert.training.inference import LoadedControlRows
@@ -198,7 +261,10 @@ class CanonicalEvaluationData:
         )
         if not control_indices:
             raise ValueError(f"no compatible evaluator controls for {condition_id}")
-        return np.asarray(
-            self._read_expression_indices(control_indices).mean(axis=0),
-            dtype=np.float32,
+        return cast(
+            np.ndarray[Any, Any],
+            np.asarray(
+                self._read_expression_indices(control_indices).mean(axis=0),
+                dtype=np.float32,
+            ),
         )

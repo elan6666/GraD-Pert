@@ -81,8 +81,15 @@ GraD-Pert model route: the native model remains the product's B2 architecture.
 
 - [x] Implement and verify B1 locally (185 tests, 9 honest dependency/receipt
       skips; Ruff, format, isolated build, and diff check passed).
-- [ ] Commit, publicly push, synchronize, and pass server gates for B1.
-- [ ] Launch and validate B1; suspend goal execution while it runs.
+- [x] Commit, publicly push, synchronize, and pass server gates for B1 at
+      `0a4d339` (204 server tests, 3 honest skips, Ruff, format, strict mypy,
+      isolated build, clean exact local/GitHub/server identity).
+- [x] Launch and validate B1. It completed one epoch/582 steps with exact B0
+      split/canonical/ordered-control/truth identity, zero PKL, Top-5000
+      expression/output/evaluation, 2,798 graph nodes, 89,561 nonself edges,
+      and checkpoint SHA-256 `453642fc82609df65d78ab29afd2879878e25ea8361f66a583cfb858901235ec`.
+      The measured training wall was 844.180 s, with 0.6931 steps/s and 152.31
+      cells/s after 10 warmup steps. Recorded metrics are non-decisional.
 - [ ] Implement and verify all seven B2 optimizations together.
 - [ ] Commit, publicly push, synchronize, and pass server gates for B2.
 - [ ] Launch and validate B2; suspend goal execution while it runs.

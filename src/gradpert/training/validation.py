@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     import torch
 
     from gradpert.evaluation import CanonicalEvaluationData
+    from gradpert.graphs import GraphView
     from gradpert.modeling import GraDPertJointModel
 
 
@@ -33,6 +34,7 @@ def evaluate_validation_macro_delta(
     anchors_by_condition: dict[str, tuple[int, ...]],
     device: torch.device,
     decode_batch_size: int,
+    prediction_view: GraphView | None = None,
 ) -> ValidationMetricResult:
     """Stream validation conditions and never accept a test evaluator."""
 
@@ -47,7 +49,7 @@ def evaluate_validation_macro_delta(
     observed: list[str] = []
     for prediction in iter_frozen_control_predictions(
         model=model,
-        prediction_view=build_prediction_graph_view(topology),
+        prediction_view=prediction_view or build_prediction_graph_view(topology),
         control_manifest=data.control_manifest,
         anchors_by_condition=anchors_by_condition,
         load_control_rows=data.load_control_rows,

@@ -112,7 +112,56 @@ class AdaptiveGeneGraphEncoder(nn.Module):
                 "string": nn.Parameter(torch.empty(1, 64)),
             }
         )
+        self.register_buffer("_resident_full_node_ids", None, persistent=False)
+        self.register_buffer("_resident_prediction_go", None, persistent=False)
+        self.register_buffer("_resident_prediction_string", None, persistent=False)
+        self._resident_full_node_ids_tuple: tuple[int, ...] | None = None
+        self._resident_prediction_view: GraphView | None = None
         self.reset_parameters()
+
+    def configure_resident_graph_tensors(self, prediction_view: GraphView) -> None:
+        """Materialize only immutable full-node and prediction-edge tensors once."""
+
+        expected_nodes = tuple(range(self.n_genes))
+        if (
+            prediction_view.view_id != "prediction"
+            or prediction_view.node_ids != expected_nodes
+            or prediction_view.masked_node_ids
+            or prediction_view.masked_anchor_ids
+        ):
+            raise ValueError("resident graph tensors require the clean full prediction view")
+        device = self.gene_embeddings.device
+        self._resident_full_node_ids = torch.as_tensor(
+            expected_nodes, device=device, dtype=torch.long
+        )
+        self._resident_prediction_go = torch.as_tensor(
+            prediction_view.local_edge_index("go"), device=device, dtype=torch.long
+        )
+        self._resident_prediction_string = torch.as_tensor(
+            prediction_view.local_edge_index("string"), device=device, dtype=torch.long
+        )
+        self._resident_full_node_ids_tuple = expected_nodes
+        self._resident_prediction_view = prediction_view
+
+    def resident_graph_tensor_payload(self) -> dict[str, object]:
+        return {
+            "active": self._resident_prediction_view is not None,
+            "node_count": (
+                int(self._resident_full_node_ids.numel())
+                if self._resident_full_node_ids is not None
+                else 0
+            ),
+            "go_edge_count": (
+                int(self._resident_prediction_go.shape[1])
+                if self._resident_prediction_go is not None
+                else 0
+            ),
+            "string_edge_count": (
+                int(self._resident_prediction_string.shape[1])
+                if self._resident_prediction_string is not None
+                else 0
+            ),
+        }
 
     def reset_parameters(self) -> None:
         nn.init.trunc_normal_(self.gene_embeddings, std=0.02)
@@ -121,10 +170,15 @@ class AdaptiveGeneGraphEncoder(nn.Module):
             nn.init.trunc_normal_(query, std=0.02)
 
     def _node_inputs(self, view: GraphView) -> Tensor:
-        node_ids = torch.as_tensor(
-            view.node_ids,
-            device=self.gene_embeddings.device,
-            dtype=torch.long,
+        node_ids = (
+            self._resident_full_node_ids
+            if self._resident_full_node_ids is not None
+            and view.node_ids == self._resident_full_node_ids_tuple
+            else torch.as_tensor(
+                view.node_ids,
+                device=self.gene_embeddings.device,
+                dtype=torch.long,
+            )
         )
         inputs = self.gene_embeddings.index_select(0, node_ids)
         masked = set(view.masked_node_ids) | set(view.masked_anchor_ids)
@@ -164,10 +218,19 @@ class AdaptiveGeneGraphEncoder(nn.Module):
             edges = []
             node_offset = 0
             for view, node_count in zip(views, node_counts, strict=True):
-                local_edges = torch.as_tensor(
-                    view.local_edge_index(source_name),
-                    device=inputs.device,
-                    dtype=torch.long,
+                resident_edges = (
+                    self._resident_prediction_go
+                    if source_name == "go"
+                    else self._resident_prediction_string
+                )
+                local_edges = (
+                    resident_edges
+                    if resident_edges is not None and view is self._resident_prediction_view
+                    else torch.as_tensor(
+                        view.local_edge_index(source_name),
+                        device=inputs.device,
+                        dtype=torch.long,
+                    )
                 )
                 edges.append(local_edges + node_offset)
                 node_offset += node_count

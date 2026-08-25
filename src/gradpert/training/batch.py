@@ -16,6 +16,10 @@ class GraDPertTrainingBatch:
     anchors_by_condition: Mapping[str, tuple[int, ...]]
     perturbed_row_ids: tuple[str, ...]
     control_row_ids: tuple[str, ...]
+    perturbed_row_ids_sha256: str | None = None
+    control_row_ids_sha256: str | None = None
+    pretransfer_control_sha256: str | None = None
+    pretransfer_target_sha256: str | None = None
     data_read_ms: float = 0.0
     host_to_device_ms: float = 0.0
 
@@ -44,3 +48,13 @@ class GraDPertTrainingBatch:
                 raise ValueError("active anchor IDs must be nonnegative")
         if self.data_read_ms < 0 or self.host_to_device_ms < 0:
             raise ValueError("batch stage timings must be nonnegative")
+        for value, field in (
+            (self.perturbed_row_ids_sha256, "perturbed_row_ids_sha256"),
+            (self.control_row_ids_sha256, "control_row_ids_sha256"),
+            (self.pretransfer_control_sha256, "pretransfer_control_sha256"),
+            (self.pretransfer_target_sha256, "pretransfer_target_sha256"),
+        ):
+            if value is not None and (
+                len(value) != 64 or any(char not in "0123456789abcdef" for char in value)
+            ):
+                raise ValueError(f"{field} must be a lowercase SHA256 when present")

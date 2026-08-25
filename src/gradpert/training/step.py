@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
+import random
 import time
 from dataclasses import dataclass
 from typing import Any, cast
 
+import numpy as np
 import torch
 from torch import Tensor
 from torch.nn import functional as F
@@ -14,9 +17,12 @@ from torch.nn import functional as F
 from gradpert.graphs import (
     GraDPertTrainingViews,
     GraphTopology,
+    build_incoming_neighbor_index,
+    build_prediction_graph_view,
     build_training_graph_views,
     clean_graph_view,
 )
+from gradpert.hashing import sha256_json
 from gradpert.modeling import (
     CenterState,
     EncodedGraphView,
@@ -106,6 +112,72 @@ def _distribution_health(probabilities: Tensor) -> tuple[float, int]:
     return float(entropy.item()), prototypes_used
 
 
+def _model_state_sha256(model: GraDPertJointModel) -> str:
+    digest = hashlib.sha256()
+    for name, value in sorted(model.state_dict().items()):
+        tensor = value.detach().cpu().contiguous()
+        digest.update(name.encode("utf-8"))
+        digest.update(str(tensor.dtype).encode("ascii"))
+        digest.update(sha256_json(list(tensor.shape)).encode("ascii"))
+        digest.update(tensor.numpy().tobytes())
+    return digest.hexdigest()
+
+
+def _rng_state_sha256() -> str:
+    digest = hashlib.sha256()
+    digest.update(sha256_json(random.getstate()).encode("ascii"))
+    algorithm, keys, position, has_gauss, cached_gaussian = np.random.get_state()
+    digest.update(
+        sha256_json(
+            [
+                algorithm,
+                keys.tolist(),
+                position,
+                has_gauss,
+                cached_gaussian,
+            ]
+        ).encode("ascii")
+    )
+    digest.update(torch.get_rng_state().numpy().tobytes())
+    if torch.cuda.is_available():
+        for state in torch.cuda.get_rng_state_all():
+            digest.update(state.cpu().numpy().tobytes())
+    return digest.hexdigest()
+
+
+def _view_structure_sha256(views: GraDPertTrainingViews) -> str:
+    def view_payload(view: Any) -> dict[str, object]:
+        return {
+            "view_id": view.view_id,
+            "node_ids_sha256": sha256_json(list(view.node_ids)),
+            "edges_by_source_sha256": {
+                source: sha256_json([[edge.source, edge.target, edge.weight] for edge in edges])
+                for source, edges in sorted(view.edges_by_source.items())
+            },
+            "masked_node_ids": list(view.masked_node_ids),
+            "masked_anchor_ids": list(view.masked_anchor_ids),
+        }
+
+    return cast(
+        str,
+        sha256_json(
+            {
+                "prediction": view_payload(views.prediction),
+                "globals": [view_payload(view) for view in views.globals],
+                "locals_by_condition": {
+                    condition: [view_payload(view) for view in local_views]
+                    for condition, local_views in views.locals_by_condition.items()
+                },
+                "masked_global_index": views.masked_global_index,
+                "masked_local_indices_by_condition": {
+                    condition: list(indices)
+                    for condition, indices in views.masked_local_indices_by_condition.items()
+                },
+            }
+        ),
+    )
+
+
 class GraDPertStepEngine:
     """Own one full native B2 train step without hiding validation or test access."""
 
@@ -119,6 +191,8 @@ class GraDPertStepEngine:
         run_seed: int,
         total_schedule_steps: int,
         heldout_target_ids: tuple[int, ...],
+        resident_graph_tensors: bool = False,
+        capture_equivalence_health: bool = False,
     ) -> None:
         if topology.n_nodes != model.graph_gene_count:
             raise ValueError("topology and model graph-gene counts differ")
@@ -135,6 +209,16 @@ class GraDPertStepEngine:
         self.run_seed = run_seed
         self.total_schedule_steps = total_schedule_steps
         self.heldout_target_ids = heldout_target_ids
+        self.prediction_view = build_prediction_graph_view(topology)
+        self.incoming_neighbors = (
+            build_incoming_neighbor_index(topology) if resident_graph_tensors else None
+        )
+        self.resident_graph_tensors = resident_graph_tensors
+        self.capture_equivalence_health = capture_equivalence_health
+        self.first_step_health: dict[str, object] | None = None
+        if resident_graph_tensors:
+            self.model.student_encoder.configure_resident_graph_tensors(self.prediction_view)
+            self.model.teacher_encoder.configure_resident_graph_tensors(self.prediction_view)
 
     def train_step(
         self,
@@ -146,6 +230,10 @@ class GraDPertStepEngine:
             raise ValueError("global_step is outside the frozen maximum schedule")
         if batch.control_expression.shape[1] != self.model.expression_gene_count:
             raise ValueError("batch and model expression-gene counts differ")
+        capture_health = self.capture_equivalence_health and global_step == 0
+        parameter_state_before_sha256 = _model_state_sha256(self.model) if capture_health else None
+        rng_state_before_sha256 = _rng_state_sha256() if capture_health else None
+        update_order: list[str] = []
         step_started = time.perf_counter()
         self.model.train()
         view_started = time.perf_counter()
@@ -155,7 +243,10 @@ class GraDPertStepEngine:
             heldout_target_ids=self.heldout_target_ids,
             run_seed=self.run_seed,
             global_step=global_step,
+            prediction_view=self.prediction_view if self.resident_graph_tensors else None,
+            incoming_neighbors=self.incoming_neighbors,
         )
+        view_structure_sha256 = _view_structure_sha256(views) if capture_health else None
         view_build_ms = (time.perf_counter() - view_started) * 1000.0
         use_cuda_events = self.model.student_encoder.gene_embeddings.is_cuda
         events: dict[str, Any] = {}
@@ -305,6 +396,8 @@ class GraDPertStepEngine:
             else:
                 parameter.grad.add_(weighted_gradient)
         self.optimizer.step()
+        if capture_health:
+            update_order.append("optimizer_step")
         schedule_last_step = max(1, self.total_schedule_steps - 1)
         momentum = cosine_teacher_momentum(
             global_step=global_step,
@@ -320,12 +413,16 @@ class GraDPertStepEngine:
             self.model.teacher_projector,
             momentum=momentum,
         )
+        if capture_health:
+            update_order.append("teacher_ema")
         update_center(
             self.centers.condition,
             torch.cat(teacher_condition_logits),
         )
         if masked_node_ids:
             update_center(self.centers.masked_node, teacher_masked_logits)
+        if capture_health:
+            update_order.append("center_update")
         mark("backward_end")
 
         if use_cuda_events:
@@ -346,7 +443,7 @@ class GraDPertStepEngine:
             prediction_ms = 0.0
             backward_update_ms = 0.0
 
-        return GraDPertStepMetrics(
+        metrics = GraDPertStepMetrics(
             total_loss=float(total_loss.detach().item()),
             prediction_loss=float(prediction_loss.detach().item()),
             condition_consistency_loss=float(condition_loss.detach().item()),
@@ -379,3 +476,25 @@ class GraDPertStepEngine:
             backward_update_ms=backward_update_ms,
             step_wall_ms=(time.perf_counter() - step_started) * 1000.0,
         )
+        if capture_health:
+            self.first_step_health = {
+                "schema_version": "native-first-step-equivalence-v1",
+                "perturbed_row_ids_sha256": batch.perturbed_row_ids_sha256,
+                "control_row_ids_sha256": batch.control_row_ids_sha256,
+                "pretransfer_control_sha256": batch.pretransfer_control_sha256,
+                "pretransfer_target_sha256": batch.pretransfer_target_sha256,
+                "view_structure_sha256": view_structure_sha256,
+                "rng_state_before_sha256": rng_state_before_sha256,
+                "rng_state_after_sha256": _rng_state_sha256(),
+                "parameter_state_before_sha256": parameter_state_before_sha256,
+                "parameter_state_after_sha256": _model_state_sha256(self.model),
+                "losses": {
+                    "total_loss": metrics.total_loss,
+                    "prediction_loss": metrics.prediction_loss,
+                    "condition_consistency_loss": metrics.condition_consistency_loss,
+                    "masked_node_loss": metrics.masked_node_loss,
+                    "spread_loss": metrics.spread_loss,
+                },
+                "update_order": update_order,
+            }
+        return metrics

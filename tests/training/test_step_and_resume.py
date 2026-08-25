@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import random
 from pathlib import Path
 
+import numpy as np
 import pytest
 
 torch = pytest.importorskip("torch")
@@ -12,6 +14,7 @@ from gradpert.modeling import CenterState, GraDPertJointModel  # noqa: E402
 from gradpert.training.batch import GraDPertTrainingBatch  # noqa: E402
 from gradpert.training.checkpoint import (  # noqa: E402
     CheckpointIdentity,
+    clone_training_checkpoint,
     load_training_checkpoint,
     save_training_checkpoint,
 )
@@ -21,6 +24,7 @@ from gradpert.training.step import (  # noqa: E402
     GraDPertStepMetrics,
     build_native_optimizer,
 )
+from gradpert.training.trainer import GraDPertTrainer  # noqa: E402
 
 
 def _topology() -> GraphTopology:
@@ -77,6 +81,12 @@ def _components(device: torch.device | None = None):  # type: ignore[no-untyped-
         heldout_target_ids=(6,),
     )
     return model, optimizer, centers, engine
+
+
+def _seed_all(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
 
 def _identity() -> CheckpointIdentity:
@@ -216,6 +226,146 @@ def test_training_receipts_reject_duplicate_steps_across_resume(tmp_path: Path) 
     with pytest.raises(RuntimeError, match="expected 1"):
         resumed.write_step(epoch=0, global_step=0, metrics=_step_metrics())
     resumed.write_step(epoch=0, global_step=1, metrics=_step_metrics())
+
+
+def test_buffered_training_receipts_flush_exact_rows(tmp_path: Path) -> None:
+    writer = TrainingReceiptWriter(tmp_path, buffer_steps=3)
+    writer.write_step(epoch=0, global_step=0, metrics=_step_metrics())
+    writer.write_step(epoch=0, global_step=1, metrics=_step_metrics())
+    assert not (tmp_path / "train_steps.csv").exists()
+    writer.flush_steps()
+    resumed = TrainingReceiptWriter(tmp_path, buffer_steps=3)
+    with pytest.raises(RuntimeError, match="expected 2"):
+        resumed.write_step(epoch=0, global_step=1, metrics=_step_metrics())
+    resumed.write_step(epoch=0, global_step=2, metrics=_step_metrics())
+    resumed.flush_steps()
+    assert (tmp_path / "train_steps.csv").read_text().count("\n") == 4
+
+
+def test_checkpoint_peer_copy_fallback_is_byte_identical(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    source = tmp_path / "last.pt"
+    destination = tmp_path / "best.pt"
+    source.write_bytes(b"checkpoint-bytes" * 1024)
+
+    def no_reflink(*args, **kwargs):  # type: ignore[no-untyped-def]
+        raise OSError("reflink unavailable")
+
+    monkeypatch.setattr("gradpert.training.checkpoint.fcntl.ioctl", no_reflink)
+    method, digest = clone_training_checkpoint(source, destination)
+    assert method == "copy"
+    assert destination.read_bytes() == source.read_bytes()
+    assert len(digest) == 64
+
+
+def test_resident_graph_tensors_preserve_first_step_trajectory() -> None:
+    batch = GraDPertTrainingBatch(
+        control_expression=torch.arange(10, dtype=torch.float32).reshape(2, 5) / 10,
+        target_expression=torch.arange(10, 20, dtype=torch.float32).reshape(2, 5) / 10,
+        condition_ids=("A+ctrl", "B+ctrl"),
+        anchors_by_condition={"A+ctrl": (0,), "B+ctrl": (1,)},
+        perturbed_row_ids=("p1", "p2"),
+        control_row_ids=("c1", "c2"),
+        perturbed_row_ids_sha256="1" * 64,
+        control_row_ids_sha256="2" * 64,
+        pretransfer_control_sha256="3" * 64,
+        pretransfer_target_sha256="4" * 64,
+    )
+
+    _seed_all(91)
+    baseline_model, baseline_optimizer, baseline_centers, _ = _components()
+    baseline = GraDPertStepEngine(
+        model=baseline_model,
+        topology=_topology(),
+        optimizer=baseline_optimizer,
+        centers=baseline_centers,
+        run_seed=1,
+        total_schedule_steps=400,
+        heldout_target_ids=(6,),
+        capture_equivalence_health=True,
+    )
+    baseline_metrics = baseline.train_step(batch, global_step=0)
+
+    _seed_all(91)
+    resident_model, resident_optimizer, resident_centers, _ = _components()
+    resident = GraDPertStepEngine(
+        model=resident_model,
+        topology=_topology(),
+        optimizer=resident_optimizer,
+        centers=resident_centers,
+        run_seed=1,
+        total_schedule_steps=400,
+        heldout_target_ids=(6,),
+        resident_graph_tensors=True,
+        capture_equivalence_health=True,
+    )
+    resident_metrics = resident.train_step(batch, global_step=0)
+
+    assert resident_metrics.total_loss == pytest.approx(baseline_metrics.total_loss, abs=0, rel=0)
+    assert resident.first_step_health == baseline.first_step_health
+    assert resident.model.student_encoder.resident_graph_tensor_payload() == {
+        "active": True,
+        "node_count": 7,
+        "go_edge_count": 13,
+        "string_edge_count": 13,
+    }
+
+
+def test_trainer_serializes_once_then_materializes_best_peer(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    digest = "a" * 64
+    serialized: list[Path] = []
+    peers: list[tuple[Path, Path]] = []
+
+    def fake_save(path, **kwargs):  # type: ignore[no-untyped-def]
+        destination = Path(path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(b"one serialization")
+        serialized.append(destination)
+        return digest
+
+    def fake_peer(source, destination):  # type: ignore[no-untyped-def]
+        source_path, destination_path = Path(source), Path(destination)
+        destination_path.write_bytes(source_path.read_bytes())
+        peers.append((source_path, destination_path))
+        return "copy", digest
+
+    monkeypatch.setattr("gradpert.training.trainer.save_training_checkpoint", fake_save)
+    monkeypatch.setattr("gradpert.training.trainer.clone_training_checkpoint", fake_peer)
+
+    class FakeEngine:
+        total_schedule_steps = 100
+        model = object()
+        optimizer = object()
+        centers = object()
+
+        def train_step(self, batch, *, global_step):  # type: ignore[no-untyped-def]
+            assert batch == "batch"
+            assert global_step == 0
+            return _step_metrics()
+
+    trainer = GraDPertTrainer(
+        engine=FakeEngine(),  # type: ignore[arg-type]
+        checkpoint_identity=_identity(),
+        run_root=tmp_path,
+        steps_per_epoch=1,
+        max_epochs=100,
+        run_meta={"run_id": "systems"},
+        log_buffer_steps=64,
+        single_checkpoint_serialization=True,
+    )
+    progress = trainer.fit(
+        mode="smoke",
+        train_epoch_factory=lambda epoch: ("batch",),  # type: ignore[arg-type]
+        validate=lambda model, epoch: 1.0,  # type: ignore[arg-type]
+    )
+    assert progress.completed_epochs == 1
+    assert serialized == [tmp_path / "checkpoints" / "last.pt"]
+    assert peers == [
+        (
+            tmp_path / "checkpoints" / "last.pt",
+            tmp_path / "checkpoints" / "best.pt",
+        )
+    ]
+    assert trainer.checkpoint_peer_method == "copy"
 
 
 def test_training_receipts_require_identical_run_metadata_on_resume(tmp_path: Path) -> None:

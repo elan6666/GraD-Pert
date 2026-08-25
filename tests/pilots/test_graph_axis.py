@@ -87,3 +87,30 @@ def test_b1_config_is_explicit_graph_only_and_metrics_only() -> None:
     )
     assert config.model.parameters["systems_optimizations"].value == "disabled"
     assert config.artifacts.result_mode == "metrics_only"
+
+
+def test_b2_config_enables_exact_all_seven_systems_contract() -> None:
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "configs/pilots/perf_b2_systems_only/gradpert_b2/nadig_jurkat.yaml"
+    )
+    config = load_experiment_config(path)
+    parameters = config.model.parameters
+    assert parameters["performance_pilot_variant"].value == "perf_b2_systems_only"
+    assert parameters["graph_axis_policy"].value == "canonical_full"
+    assert parameters["systems_optimizations"].value == ("all_seven_semantics_preserving_v1")
+    seven = (
+        "systems_merged_hdf5_reads",
+        "systems_control_expression_cache",
+        "systems_background_prefetch",
+        "systems_resident_graph_tensors",
+        "systems_validation_expression_cache",
+        "systems_buffered_training_logs",
+        "systems_single_checkpoint_serialization",
+    )
+    assert all(parameters[name].value is True for name in seven)
+    assert parameters["systems_pin_memory"].value is True
+    assert parameters["systems_nonblocking_transfer"].value is True
+    assert parameters["systems_prefetch_depth"].value == 2
+    assert parameters["systems_log_buffer_steps"].value == 64
+    assert config.artifacts.result_mode == "metrics_only"

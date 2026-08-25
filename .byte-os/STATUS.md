@@ -4,12 +4,12 @@ mode: auto
 project_kind: existing_codebase
 stage: implementing
 current_workflow: byte-auto
-next_workflow: plan-018-b1-graph-only
+next_workflow: plan-018-b2-systems-only
 review_verdict: pending
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-26T02:25:00+08:00
+updated_at: 2026-08-26T02:45:00+08:00
 ---
 
 # Status
@@ -41,6 +41,16 @@ updated_at: 2026-08-26T02:25:00+08:00
   optimization is enabled in the B1 config. Local gates passed 185 tests with
   9 honest dependency/receipt skips, Ruff, format, build, and diff check;
   strict mypy remains a server gate because the local venv lacks Torch/PyG.
+- B1 server execution and strict validation are complete at synchronized clean
+  commit `0a4d339`. It completed exactly one epoch/582 optimizer steps, used no
+  test truth during fit, evaluated test once, retained only hash-pinned
+  `best.pt`, left zero PKL, and matched B0's canonical/split/ordered-300-control
+  and truth row IDs exactly. The runtime graph had 2,798 nodes and 89,561
+  nonself edges while all expression/output/evaluation axes remained 5,000.
+  After 10 warmup steps, 572 measured steps ran at 0.6931 steps/s and 152.31
+  cells/s; one-epoch training wall was 844.180 s. The three one-epoch metrics
+  are retained only as non-decisional evidence. B2 all-seven systems-only
+  implementation is now active on B0's full graph axis.
 
 - The first d6f9 GEARS/K562 hard gate completed one epoch successfully, but
   strict artifact validation found frozen GEARS had retained two framework

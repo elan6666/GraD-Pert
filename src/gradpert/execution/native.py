@@ -26,7 +26,7 @@ from gradpert.execution.identity import (
     inspect_environment,
     inspect_source_identity,
 )
-from gradpert.graphs import build_prediction_graph_view, load_dataset_graph_topology
+from gradpert.graphs import load_dataset_graph_topology
 from gradpert.hashing import sha256_file, sha256_json
 from gradpert.modeling import CenterState, GraDPertJointModel
 from gradpert.pilots import load_reduced_graph_topology
@@ -34,6 +34,7 @@ from gradpert.training.checkpoint import CheckpointIdentity
 from gradpert.training.data import CanonicalTrainingData, write_training_data_receipt
 from gradpert.training.inference import predict_frozen_controls
 from gradpert.training.step import GraDPertStepEngine, build_native_optimizer
+from gradpert.training.systems import NativeSystemOptions
 from gradpert.training.trainer import GraDPertTrainer
 from gradpert.training.validation import evaluate_validation_macro_delta
 
@@ -64,6 +65,61 @@ def _optional_string_parameter(config: ExperimentConfig, name: str) -> str | Non
     if not isinstance(parameter.value, str) or not parameter.value:
         raise ValueError(f"model parameter {name} must be a non-empty string")
     return parameter.value
+
+
+def _optional_boolean_parameter(
+    config: ExperimentConfig, name: str, *, default: bool = False
+) -> bool:
+    parameter = config.model.parameters.get(name)
+    if parameter is None:
+        return default
+    if not isinstance(parameter.value, bool):
+        raise ValueError(f"model parameter {name} must be a boolean")
+    return parameter.value
+
+
+def _optional_integer_parameter(config: ExperimentConfig, name: str, *, default: int) -> int:
+    parameter = config.model.parameters.get(name)
+    if parameter is None:
+        return default
+    if not isinstance(parameter.value, int) or isinstance(parameter.value, bool):
+        raise ValueError(f"model parameter {name} must be an integer")
+    return parameter.value
+
+
+def _native_system_options(config: ExperimentConfig) -> NativeSystemOptions:
+    label = _optional_string_parameter(config, "systems_optimizations") or "disabled"
+    options = NativeSystemOptions(
+        merged_hdf5_reads=_optional_boolean_parameter(config, "systems_merged_hdf5_reads"),
+        control_expression_cache=_optional_boolean_parameter(
+            config, "systems_control_expression_cache"
+        ),
+        background_prefetch=_optional_boolean_parameter(config, "systems_background_prefetch"),
+        resident_graph_tensors=_optional_boolean_parameter(
+            config, "systems_resident_graph_tensors"
+        ),
+        validation_expression_cache=_optional_boolean_parameter(
+            config, "systems_validation_expression_cache"
+        ),
+        buffered_training_logs=_optional_boolean_parameter(
+            config, "systems_buffered_training_logs"
+        ),
+        single_checkpoint_serialization=_optional_boolean_parameter(
+            config, "systems_single_checkpoint_serialization"
+        ),
+        pin_memory=_optional_boolean_parameter(config, "systems_pin_memory"),
+        nonblocking_transfer=_optional_boolean_parameter(config, "systems_nonblocking_transfer"),
+        prefetch_depth=_optional_integer_parameter(config, "systems_prefetch_depth", default=1),
+        log_buffer_steps=_optional_integer_parameter(
+            config, "systems_log_buffer_steps", default=64
+        ),
+    )
+    expected_label = "all_seven_semantics_preserving_v1" if options.enabled else "disabled"
+    if label != expected_label:
+        raise ValueError(
+            f"systems_optimizations={label!r} differs from explicit flags ({expected_label})"
+        )
+    return options
 
 
 def _training_integer(config: ExperimentConfig, name: str) -> int:
@@ -199,6 +255,7 @@ def run_native_experiment(
     max_unique_conditions = _integer_parameter(config, "max_unique_conditions_per_batch")
     prototype_count = _integer_parameter(config, "prototype_count")
     max_epochs = _training_integer(config, "max_epochs")
+    system_options = _native_system_options(config)
     cold_start_started = time.perf_counter()
     graph_axis_policy = _optional_string_parameter(config, "graph_axis_policy")
     reduced_manifest = None
@@ -258,6 +315,11 @@ def run_native_experiment(
             or reduced_manifest.split_content_sha256 != training_data.split.split_content_sha256
         ):
             raise ValueError("reduced graph canonical data or split identity differs")
+        training_cache_ms = training_data.configure_system_optimizations(system_options)
+        validation_cache_ms = validation_data.configure_expression_cache(
+            enabled=system_options.validation_expression_cache
+        )
+        cache_build_ms = training_cache_ms + validation_cache_ms
         steps_per_epoch = training_data.steps_per_epoch(
             batch_size=train_batch_size,
             max_unique_conditions=max_unique_conditions,
@@ -293,6 +355,8 @@ def run_native_experiment(
             run_seed=run_seed,
             total_schedule_steps=max_epochs * steps_per_epoch,
             heldout_target_ids=heldout_ids,
+            resident_graph_tensors=system_options.resident_graph_tensors,
+            capture_equivalence_health=system_options.enabled,
         )
         checkpoint_identity = CheckpointIdentity(
             source_commit=source.commit,
@@ -321,6 +385,7 @@ def run_native_experiment(
             "graph_axis_policy": graph_axis_policy or "canonical_full",
             "runtime_graph_gene_count": len(training_data.graph_gene_ids),
             "runtime_graph_gene_order_sha256": sha256_json(list(training_data.graph_gene_ids)),
+            "systems_optimizations": system_options.payload(),
         }
         write_training_data_receipt(training_data, small_root / "training_data.json")
         trainer = GraDPertTrainer(
@@ -330,6 +395,10 @@ def run_native_experiment(
             steps_per_epoch=steps_per_epoch,
             max_epochs=max_epochs,
             run_meta=run_meta,
+            log_buffer_steps=(
+                system_options.log_buffer_steps if system_options.buffered_training_logs else 1
+            ),
+            single_checkpoint_serialization=system_options.single_checkpoint_serialization,
         )
         if resume:
             trainer.resume()
@@ -346,6 +415,7 @@ def run_native_experiment(
                 anchors_by_condition=validation_anchors,
                 device=device,
                 decode_batch_size=eval_batch_size,
+                prediction_view=engine.prediction_view,
             )
             atomic_json(
                 small_root / f"validation.epoch-{epoch:03d}.json",
@@ -355,7 +425,7 @@ def run_native_experiment(
                     **result.__dict__,
                 },
             )
-            return result.txpert_macro_pearson_delta
+            return float(result.txpert_macro_pearson_delta)
 
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(device)
@@ -370,6 +440,13 @@ def run_native_experiment(
             ),
             validate=validate,
         )
+        if system_options.enabled:
+            if engine.first_step_health is None:
+                raise RuntimeError("enabled systems did not capture first-step equivalence health")
+            atomic_json(
+                small_root / "first_step_equivalence.json",
+                engine.first_step_health,
+            )
         best_checkpoint_sha256 = sha256_file(trainer.best_checkpoint)
         atomic_json(
             small_root / "training_receipt.json",
@@ -405,7 +482,7 @@ def run_native_experiment(
                 }
                 condition_predictions = predict_frozen_controls(
                     model=current_model,
-                    prediction_view=build_prediction_graph_view(topology),
+                    prediction_view=engine.prediction_view,
                     control_manifest=test_data.control_manifest,
                     anchors_by_condition=test_anchors,
                     load_control_rows=test_data.load_control_rows,
@@ -462,7 +539,7 @@ def run_native_experiment(
                     len(graph.edges) for graph in topology.sources.values()
                 ),
                 "cold_start_ms": cold_start_ms,
-                "cache_build_ms": 0.0,
+                "cache_build_ms": cache_build_ms,
                 "one_epoch_fit_wall_ms": trainer.fit_wall_ms,
                 "one_epoch_training_wall_ms": trainer.training_wall_ms,
                 "validation_ms": trainer.validation_wall_ms,
@@ -486,6 +563,30 @@ def run_native_experiment(
                 ),
                 "peak_cpu_ram_bytes": _peak_cpu_ram_bytes(),
                 "headline_metrics_non_decisional": metrics_summary["metrics"],
+                "systems_optimizations": system_options.payload(),
+                "checkpoint_peer_method": trainer.checkpoint_peer_method,
+            },
+        )
+        atomic_json(
+            small_root / "systems_runtime.json",
+            {
+                "schema_version": "native-systems-runtime-v1",
+                "requested": system_options.payload(),
+                "training_pipeline": training_data.pipeline_stats.payload(),
+                "validation_cache": validation_data.cache_stats.payload(),
+                "resident_graph_tensors": {
+                    "student": model.student_encoder.resident_graph_tensor_payload(),
+                    "teacher": model.teacher_encoder.resident_graph_tensor_payload(),
+                },
+                "checkpoint": {
+                    "single_serialization_per_epoch": (
+                        system_options.single_checkpoint_serialization
+                    ),
+                    "peer_method": trainer.checkpoint_peer_method,
+                },
+                "log_buffer_steps": (
+                    system_options.log_buffer_steps if system_options.buffered_training_logs else 1
+                ),
             },
         )
 

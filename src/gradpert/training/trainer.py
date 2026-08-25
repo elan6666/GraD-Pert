@@ -12,6 +12,7 @@ from gradpert.modeling import GraDPertJointModel
 from gradpert.training.batch import GraDPertTrainingBatch
 from gradpert.training.checkpoint import (
     CheckpointIdentity,
+    clone_training_checkpoint,
     load_training_checkpoint,
     save_training_checkpoint,
 )
@@ -71,6 +72,8 @@ class GraDPertTrainer:
         steps_per_epoch: int,
         max_epochs: int,
         run_meta: Mapping[str, Any],
+        log_buffer_steps: int = 1,
+        single_checkpoint_serialization: bool = False,
     ) -> None:
         if steps_per_epoch <= 0:
             raise ValueError("steps_per_epoch must be positive")
@@ -83,7 +86,9 @@ class GraDPertTrainer:
         self.run_root = Path(run_root)
         self.steps_per_epoch = steps_per_epoch
         self.max_epochs = max_epochs
-        self.receipts = TrainingReceiptWriter(self.run_root / "small_results")
+        self.receipts = TrainingReceiptWriter(
+            self.run_root / "small_results", buffer_steps=log_buffer_steps
+        )
         self.receipts.write_run_meta(run_meta)
         self.progress = GraDPertTrainingProgress()
         self.fit_wall_ms = 0.0
@@ -91,6 +96,8 @@ class GraDPertTrainer:
         self.validation_wall_ms = 0.0
         self.checkpoint_wall_ms = 0.0
         self.logging_wall_ms = 0.0
+        self.single_checkpoint_serialization = single_checkpoint_serialization
+        self.checkpoint_peer_method: str | None = None
 
     @property
     def last_checkpoint(self) -> Path:
@@ -114,6 +121,7 @@ class GraDPertTrainer:
         self.progress = progress
 
     def _save(self, path: Path) -> str:
+        self.receipts.flush_steps()
         started = time.perf_counter()
         result = save_training_checkpoint(
             path,
@@ -140,17 +148,24 @@ class GraDPertTrainer:
         for epoch in range(self.progress.completed_epochs, target_epochs):
             training_started = time.perf_counter()
             observed_steps = 0
-            for batch in train_epoch_factory(epoch):
-                metrics = self.engine.train_step(batch, global_step=self.progress.global_step)
-                logging_started = time.perf_counter()
-                self.receipts.write_step(
-                    epoch=epoch,
-                    global_step=self.progress.global_step,
-                    metrics=metrics,
-                )
-                self.logging_wall_ms += (time.perf_counter() - logging_started) * 1000.0
-                self.progress.global_step += 1
-                observed_steps += 1
+            try:
+                for batch in train_epoch_factory(epoch):
+                    metrics = self.engine.train_step(batch, global_step=self.progress.global_step)
+                    logging_started = time.perf_counter()
+                    self.receipts.write_step(
+                        epoch=epoch,
+                        global_step=self.progress.global_step,
+                        metrics=metrics,
+                    )
+                    self.logging_wall_ms += (time.perf_counter() - logging_started) * 1000.0
+                    self.progress.global_step += 1
+                    observed_steps += 1
+            except BaseException:
+                self.receipts.flush_steps()
+                raise
+            flush_started = time.perf_counter()
+            self.receipts.flush_steps()
+            self.logging_wall_ms += (time.perf_counter() - flush_started) * 1000.0
             if observed_steps != self.steps_per_epoch:
                 raise ValueError(
                     f"epoch {epoch} yielded {observed_steps} steps; expected {self.steps_per_epoch}"
@@ -174,9 +189,21 @@ class GraDPertTrainer:
                 improved=improved,
                 consecutive_non_improvements=early.consecutive_non_improvements,
             )
-            if improved:
-                self._save(self.best_checkpoint)
-            self._save(self.last_checkpoint)
+            if self.single_checkpoint_serialization:
+                last_sha256 = self._save(self.last_checkpoint)
+                if improved:
+                    clone_started = time.perf_counter()
+                    method, best_sha256 = clone_training_checkpoint(
+                        self.last_checkpoint, self.best_checkpoint
+                    )
+                    self.checkpoint_wall_ms += (time.perf_counter() - clone_started) * 1000.0
+                    if best_sha256 != last_sha256:
+                        raise RuntimeError("best checkpoint peer hash differs from last checkpoint")
+                    self.checkpoint_peer_method = method
+            else:
+                if improved:
+                    self._save(self.best_checkpoint)
+                self._save(self.last_checkpoint)
             if mode == "full" and should_stop:
                 break
         self.fit_wall_ms += (time.perf_counter() - fit_started) * 1000.0

@@ -29,7 +29,9 @@ def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
 
 
 class TrainingReceiptWriter:
-    def __init__(self, root: str | Path) -> None:
+    def __init__(self, root: str | Path, *, buffer_steps: int = 1) -> None:
+        if not 1 <= buffer_steps <= 1024:
+            raise ValueError("buffer_steps must be between 1 and 1024")
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.steps_path = self.root / "train_steps.csv"
@@ -37,6 +39,8 @@ class TrainingReceiptWriter:
         self.test_gate_path = self.root / "test_once.json"
         self._last_step = self._read_last_integer(self.steps_path, "global_step")
         self._last_validation_epoch = self._read_last_integer(self.validation_path, "epoch")
+        self._buffer_steps = buffer_steps
+        self._pending_steps: list[dict[str, Any]] = []
 
     @staticmethod
     def _read_last_integer(path: Path, field: str) -> int | None:
@@ -67,6 +71,26 @@ class TrainingReceiptWriter:
                 writer.writeheader()
             writer.writerow(row)
 
+    @staticmethod
+    def _append_many(path: Path, rows: list[dict[str, Any]]) -> None:
+        if not rows:
+            return
+        exists = path.exists()
+        fieldnames = list(rows[0])
+        if any(list(row) != fieldnames for row in rows):
+            raise ValueError("buffered receipt rows have inconsistent columns")
+        with path.open("a", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=fieldnames)
+            if not exists:
+                writer.writeheader()
+            writer.writerows(rows)
+
+    def flush_steps(self) -> None:
+        if not self._pending_steps:
+            return
+        self._append_many(self.steps_path, self._pending_steps)
+        self._pending_steps.clear()
+
     def write_run_meta(self, payload: Mapping[str, Any]) -> None:
         if self.root.joinpath("run_meta.json").is_file():
             existing = json.loads(self.root.joinpath("run_meta.json").read_text(encoding="utf-8"))
@@ -81,10 +105,9 @@ class TrainingReceiptWriter:
             raise RuntimeError(
                 f"refusing duplicate or discontinuous train step {global_step}; expected {expected}"
             )
-        self._append(
-            self.steps_path,
-            {"epoch": epoch, "global_step": global_step, **asdict(metrics)},
-        )
+        self._pending_steps.append({"epoch": epoch, "global_step": global_step, **asdict(metrics)})
+        if len(self._pending_steps) >= self._buffer_steps:
+            self.flush_steps()
         self._last_step = global_step
 
     def write_validation(
@@ -96,6 +119,7 @@ class TrainingReceiptWriter:
         improved: bool,
         consecutive_non_improvements: int,
     ) -> None:
+        self.flush_steps()
         expected_epoch = (
             0 if self._last_validation_epoch is None else self._last_validation_epoch + 1
         )
@@ -119,6 +143,7 @@ class TrainingReceiptWriter:
     def claim_test_once(self) -> None:
         """Persist an at-most-once gate before any sealed test truth is accessed."""
 
+        self.flush_steps()
         payload = {
             "schema_version": "gradpert-test-once-v1",
             "state": "started",

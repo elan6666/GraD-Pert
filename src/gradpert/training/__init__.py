@@ -13,6 +13,7 @@ from gradpert.training.data import (
     write_training_data_receipt,
 )
 from gradpert.training.selection import EarlyStoppingState
+from gradpert.training.systems import NativeSystemOptions
 
 __all__ = [
     "CanonicalTrainingData",
@@ -20,6 +21,7 @@ __all__ = [
     "GraDPertStepEngine",
     "GraDPertStepMetrics",
     "GraDPertTrainingBatch",
+    "NativeSystemOptions",
     "TrainingControlPairer",
     "TrainingControlPairing",
     "ValidationMetricResult",

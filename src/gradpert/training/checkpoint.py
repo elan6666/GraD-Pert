@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import os
 import random
+import shutil
 import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -118,6 +120,42 @@ def save_training_checkpoint(
     finally:
         temporary.unlink(missing_ok=True)
     return _sha256_file(destination)
+
+
+def clone_training_checkpoint(source: str | Path, destination: str | Path) -> tuple[str, str]:
+    """Atomically materialize an identical checkpoint by reflink or byte copy."""
+
+    source_path = Path(source)
+    destination_path = Path(destination)
+    if not source_path.is_file() or source_path.is_symlink():
+        raise ValueError("checkpoint clone source must be a regular non-symlink file")
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{destination_path.name}.", suffix=".tmp", dir=destination_path.parent
+    )
+    temporary = Path(temporary_name)
+    method = "reflink"
+    try:
+        with source_path.open("rb") as source_stream, os.fdopen(descriptor, "wb") as target_stream:
+            try:
+                fcntl.ioctl(target_stream.fileno(), 0x40049409, source_stream.fileno())
+            except OSError:
+                method = "copy"
+                target_stream.seek(0)
+                target_stream.truncate(0)
+                source_stream.seek(0)
+                shutil.copyfileobj(source_stream, target_stream, length=8 * 1024 * 1024)
+            target_stream.flush()
+            os.fsync(target_stream.fileno())
+        os.replace(temporary, destination_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    source_sha256 = _sha256_file(source_path)
+    destination_sha256 = _sha256_file(destination_path)
+    if destination_sha256 != source_sha256:
+        destination_path.unlink(missing_ok=True)
+        raise RuntimeError("checkpoint peer differs from serialized source")
+    return method, destination_sha256
 
 
 def load_training_checkpoint(
