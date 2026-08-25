@@ -13,6 +13,8 @@ shared deduplicated control-expression pool.
   `single_pkl`; all 30 configs default to `metrics_only`.
 - Prediction hashes and ordered control IDs are sealed before Truth access.
 - `metrics_only` leaves no persistent PKL.
+- The zero-PKL postcondition scans the entire successful run root, including
+  official-runner checkpoint and adapter directories.
 - `single_pkl` is the only persistent PKL and contains exact predictions,
   shared unique control rows, per-condition ordered 300 control indices/IDs,
   Truth, DE state, metrics, and provenance.
@@ -28,6 +30,9 @@ shared deduplicated control-expression pool.
   duplicate draws, content-hash validation, and legacy loading.
 - [x] Execution tests prove default runs retain recipes/small metrics but no PKL,
   while opt-in runs retain exactly `artifacts/result.pkl`.
+- [x] Execution tests reject framework-created PKL outside the result directory;
+  GEARS explicitly retains only `model.pt` after hashing and removing its
+  reproducible `config.pkl` and `custom_split.pkl` metadata.
 - [x] Local pytest: 177 passed, 9 honest environment/receipt skips.
 - [x] Local Ruff check/format, compileall, diff check, and package build passed.
 - [ ] Strict mypy/full dependency gates require the stopped server environment;

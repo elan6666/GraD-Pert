@@ -245,6 +245,23 @@ def run_one_epoch(
             )
             checkpoint_path = destination / "checkpoints" / "best" / "model.pt"
             checkpoint_sha256 = sha256_file(checkpoint_path)
+            framework_pickles = (
+                destination / "checkpoints" / "best" / "config.pkl",
+                split_path,
+            )
+            missing_framework_pickles = [
+                str(path) for path in framework_pickles if not path.is_file()
+            ]
+            if missing_framework_pickles:
+                raise FileNotFoundError(
+                    "frozen GEARS did not materialize expected temporary metadata: "
+                    + ", ".join(missing_framework_pickles)
+                )
+            removed_framework_pickle_sha256 = {
+                str(path.relative_to(destination)): sha256_file(path) for path in framework_pickles
+            }
+            for path in framework_pickles:
+                path.unlink()
             atomic_json(
                 small_root / "training_receipt.json",
                 {
@@ -262,6 +279,21 @@ def run_one_epoch(
                     "scheduler": _training(config, "scheduler", str),
                     "canonical_test_loader_present_during_fit": False,
                     "checkpoint_sha256": checkpoint_sha256,
+                    "checkpoint_format": "official_state_dict_pt",
+                    "checkpoint_configuration_reconstruction": (
+                        "self_contained_experiment_config_plus_frozen_official_graph_preparation"
+                    ),
+                },
+            )
+            atomic_json(
+                small_root / "checkpoint_retention.json",
+                {
+                    "schema_version": "checkpoint-retention-v1",
+                    "policy": "model_pt_only_after_official_fit",
+                    "checkpoint_path": str(checkpoint_path),
+                    "checkpoint_sha256": checkpoint_sha256,
+                    "removed_framework_pickle_sha256": removed_framework_pickle_sha256,
+                    "persistent_pkl_count": 0,
                 },
             )
             # Construct the canonical test reader only after fit and checkpoint

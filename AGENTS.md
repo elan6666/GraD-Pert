@@ -64,6 +64,8 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   inference recipe, exact ordered control/truth row IDs, hashes, and small
   metrics. Explicit full-result export writes exactly one deduplicated
   `result.pkl`, never separate prediction/evaluation PKLs.
+- The default zero-PKL postcondition applies to the whole successful run root,
+  including isolated official-runner adapter and checkpoint metadata.
 - After launching long-running training, stop continuous goal execution and use
   the scheduled monitor for periodic receipt/process checks. Do not busy-poll.
 - Every native CUDA capacity/smoke/full process must start with

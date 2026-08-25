@@ -14,6 +14,15 @@ updated_at: 2026-08-25T22:30:00+08:00
 
 # Status
 
+- The first d6f9 GEARS/K562 hard gate completed one epoch successfully, but
+  strict artifact validation found frozen GEARS had retained two framework
+  PKLs (`checkpoints/best/config.pkl`, 4.0 MiB, and
+  `official_adapter/custom_split.pkl`, 10.5 KiB). The entire run/contract/log
+  lineage is preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-d6f9-gears-framework-pkl`.
+  No remaining external queue was launched. The local repair now hashes and
+  removes those reproducible metadata files, retains only `model.pt`, and
+  enforces a whole-run zero-PKL postcondition before success.
 - User-locked artifact policy is now plan 017: all 30 self-contained configs
   explicitly default to `metrics_only`, retaining the best checkpoint, complete
   inference recipe, exact ordered control/truth row IDs, hashes, and small

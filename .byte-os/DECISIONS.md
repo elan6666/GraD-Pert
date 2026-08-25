@@ -7,6 +7,11 @@
   metrics, but produce no persistent PKL. When explicitly enabled, emit one
   `result.pkl` only, deduplicating selected control expression into a shared
   pool while preserving each condition's exact ordered 300 indices/IDs.
+- The zero-PKL rule covers runner/framework metadata as well as result arrays.
+  Successful GEARS runs retain only `model.pt`; the frozen official
+  `config.pkl` and adapter `custom_split.pkl` are hashed for receipts and
+  removed because their contents are reconstructable from the self-contained
+  config, canonical split, and frozen official graph preparation.
 - GraD-Pert full-run 上限由 200 改为 100 epochs，仍采用 validation-only early stopping `patience=10`。
 - GraD-Pert 五数据集的 train/evaluation batch size 统一由 64 改为用户锁定的 256；必须经过服务器真实显存 smoke，不能静默回退。
 - 训练性能优化必须保持 B2 损失、view、梯度归属、optimizer→Teacher EMA→center 顺序及公平评估协议不变。允许批处理互不相连的 graph views，并复用实际 prediction/SSL 反向梯度计算诊断指标。

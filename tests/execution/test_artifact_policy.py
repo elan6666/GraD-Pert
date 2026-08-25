@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from gradpert.config import load_experiment_config
 from gradpert.execution import artifact_run
 
@@ -95,3 +97,12 @@ def test_single_pkl_leaves_exactly_one_result(monkeypatch: object, tmp_path: Pat
 
     assert result_path == tmp_path / "run/artifacts/result.pkl"
     assert list((tmp_path / "run").rglob("*.pkl")) == [result_path]
+
+
+def test_metrics_only_rejects_runner_framework_pickle(monkeypatch: object, tmp_path: Path) -> None:
+    framework_pickle = tmp_path / "run/checkpoints/best/config.pkl"
+    framework_pickle.parent.mkdir(parents=True)
+    framework_pickle.write_bytes(b"unexpected retained framework metadata")
+
+    with pytest.raises(RuntimeError, match="persistent PKL policy violation"):
+        _exercise_policy(monkeypatch, tmp_path, mode="metrics_only")

@@ -177,6 +177,16 @@ def seal_evaluation_outputs(
                 },
             },
         )
+    persistent_pkls = sorted(destination.rglob("*.pkl"))
+    expected_pkls = (
+        [artifact_root / config.artifacts.result_pkl_name]
+        if config.artifacts.result_mode == "single_pkl"
+        else []
+    )
+    if persistent_pkls != expected_pkls:
+        raise RuntimeError(
+            "persistent PKL policy violation: " + ", ".join(str(path) for path in persistent_pkls)
+        )
     return SealedEvaluationOutputs(
         prediction_manifest_path=prediction_manifest_path,
         evaluation_manifest_path=evaluation_manifest_path,
