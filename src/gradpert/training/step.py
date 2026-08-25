@@ -158,23 +158,20 @@ def _view_structure_sha256(views: GraDPertTrainingViews) -> str:
             "masked_anchor_ids": list(view.masked_anchor_ids),
         }
 
-    return cast(
-        str,
-        sha256_json(
-            {
-                "prediction": view_payload(views.prediction),
-                "globals": [view_payload(view) for view in views.globals],
-                "locals_by_condition": {
-                    condition: [view_payload(view) for view in local_views]
-                    for condition, local_views in views.locals_by_condition.items()
-                },
-                "masked_global_index": views.masked_global_index,
-                "masked_local_indices_by_condition": {
-                    condition: list(indices)
-                    for condition, indices in views.masked_local_indices_by_condition.items()
-                },
-            }
-        ),
+    return sha256_json(
+        {
+            "prediction": view_payload(views.prediction),
+            "globals": [view_payload(view) for view in views.globals],
+            "locals_by_condition": {
+                condition: [view_payload(view) for view in local_views]
+                for condition, local_views in views.locals_by_condition.items()
+            },
+            "masked_global_index": views.masked_global_index,
+            "masked_local_indices_by_condition": {
+                condition: list(indices)
+                for condition, indices in views.masked_local_indices_by_condition.items()
+            },
+        }
     )
 
 

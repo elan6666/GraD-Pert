@@ -11,7 +11,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -364,7 +364,7 @@ class CanonicalTrainingData:
             raise ValueError("canonical expression slice has an unexpected shape")
         if not np.isfinite(restored).all():
             raise ValueError("canonical expression slice contains non-finite values")
-        return cast(np.ndarray[Any, Any], np.ascontiguousarray(restored))
+        return np.ascontiguousarray(restored)
 
     def configure_system_optimizations(self, options: NativeSystemOptions) -> float:
         """Build bounded caches and return their wall time in milliseconds."""

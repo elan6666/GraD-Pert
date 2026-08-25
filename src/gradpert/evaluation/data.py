@@ -169,7 +169,7 @@ class CanonicalEvaluationData:
             raise ValueError("evaluator expression slice has an unexpected shape")
         if not np.isfinite(restored).all():
             raise ValueError("evaluator expression contains non-finite values")
-        return cast(np.ndarray[Any, Any], np.ascontiguousarray(restored))
+        return np.ascontiguousarray(restored)
 
     def configure_expression_cache(self, *, enabled: bool) -> float:
         """Cache exactly validation truth and compatible controls, never test data."""
@@ -214,9 +214,7 @@ class CanonicalEvaluationData:
                     f"validation cache lacks required canonical row {error.args[0]}"
                 ) from error
             self.cache_stats.cache_hits += 1
-            return cast(
-                np.ndarray[Any, Any], np.ascontiguousarray(self._expression_cache[positions])
-            )
+            return np.ascontiguousarray(self._expression_cache[positions])
         return self._read_expression_indices_uncached(indices)
 
     def load_control_rows(self, ordered_row_ids: tuple[str, ...]) -> LoadedControlRows:
