@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from gradpert.execution.small_sync import (
+    DEFAULT_MAX_FILE_BYTES,
     MANIFEST_NAME,
     discover_small_result_files,
     small_sync_plan,
@@ -58,6 +59,24 @@ def test_forbidden_file_inside_small_results_fails_closed(tmp_path: Path) -> Non
     forbidden = next(source.rglob("small_results")) / "prediction.pkl"
     forbidden.write_bytes(b"large artifact")
     with pytest.raises(ValueError, match="extension is forbidden"):
+        discover_small_result_files(source)
+
+
+def test_default_file_limit_covers_ordered_id_manifest_and_still_fails_closed(
+    tmp_path: Path,
+) -> None:
+    source = _source(tmp_path)
+    manifest = next(source.rglob("small_results")) / "ordered_ids.json"
+    with manifest.open("wb") as handle:
+        handle.truncate(DEFAULT_MAX_FILE_BYTES)
+    assert any(
+        item.relative_path.endswith("ordered_ids.json")
+        for item in discover_small_result_files(source)
+    )
+
+    with manifest.open("wb") as handle:
+        handle.truncate(DEFAULT_MAX_FILE_BYTES + 1)
+    with pytest.raises(ValueError, match="exceeds size limit"):
         discover_small_result_files(source)
 
 

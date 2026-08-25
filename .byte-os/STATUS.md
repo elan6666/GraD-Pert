@@ -341,3 +341,7 @@ updated_at: 2026-08-25T22:30:00+08:00
 - A post-run staging dry run found that `config.resolved.yaml` was missing from
   the small-file extension allowlist. The bounded follow-up adds YAML/YML to the
   existing size/symlink/hash gates and regression-tests resolved-config staging.
+- The next dry run measured necessary ordered-ID evidence rather than guessing:
+  the largest file is 6.42 MiB, while the external and retained-c240 selections
+  total 100.26 and 118.10 MiB. Small-sync defaults are therefore bounded at
+  8 MiB per file and 128 MiB total; binary/scientific suffixes remain forbidden.

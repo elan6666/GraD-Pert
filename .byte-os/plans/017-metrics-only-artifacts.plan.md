@@ -53,6 +53,10 @@ shared deduplicated control-expression pool.
 - [x] The small-result allowlist includes resolved YAML configs; a real formal
   staging dry run exposed and now regression-tests this previously missing
   extension.
+- [x] Real ordered-ID manifests require at most 6.42 MiB per file and the two
+  sealed lineage selections require 100.26 and 118.10 MiB total. Defaults are
+  bounded at 8 MiB per file and 128 MiB total, with the per-file rejection
+  boundary regression-tested.
 
 ## Execution boundary
 
