@@ -13,10 +13,21 @@ from scripts.server.build_txpert_environment import filtered_requirements
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_runtime_contract_is_bound_to_frozen_official_lock() -> None:
+def test_runtime_contract_is_bound_to_frozen_official_lock(tmp_path: Path, monkeypatch) -> None:
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    lock_path = checkout / "uv.lock"
+    lock_path.write_text("official-lock-fixture", encoding="utf-8")
+    expected_lock_sha256 = json.loads(
+        (ROOT / "benchmarks" / "environments" / "txpert-cu128.json").read_text(encoding="utf-8")
+    )["official_checkout"]["lock_sha256"]
+    monkeypatch.setattr(
+        "benchmarks.txpert.runtime.sha256_file",
+        lambda path: expected_lock_sha256 if path == lock_path else "unexpected",
+    )
     contract_path, contract = load_runtime_contract(
         repository_root=ROOT,
-        checkout_root=ROOT / "TxPert" / "official-repo",
+        checkout_root=checkout,
     )
 
     assert contract_path == ROOT / "benchmarks" / "environments" / "txpert-cu128.json"

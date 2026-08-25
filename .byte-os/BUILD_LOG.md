@@ -426,3 +426,8 @@
   Git diff checks. Full mypy and CUDA execution remain assigned to the server
   environment because the lightweight Mac environment intentionally lacks
   Torch/PyG.
+- The first server regression ran 173 tests but one contract unit test assumed
+  the local historical `TxPert/official-repo` path existed inside the clean
+  server checkout. Formal execution correctly uses the separate frozen
+  `/upstreams/txpert` path. The unit test now uses a temporary hash-bound lock
+  fixture; production lock validation remains unchanged.
