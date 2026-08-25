@@ -90,7 +90,11 @@ GraD-Pert model route: the native model remains the product's B2 architecture.
       and checkpoint SHA-256 `453642fc82609df65d78ab29afd2879878e25ea8361f66a583cfb858901235ec`.
       The measured training wall was 844.180 s, with 0.6931 steps/s and 152.31
       cells/s after 10 warmup steps. Recorded metrics are non-decisional.
-- [ ] Implement and verify all seven B2 optimizations together.
+- [x] Implement and verify all seven B2 optimizations together at `a9f47ff`.
+      Local gates passed 190 tests with 9 honest dependency/receipt skips,
+      Ruff, format, isolated build, and diff check. The implementation adds
+      explicit equivalence, activation, fallback, timing, and memory receipts;
+      the formal run remains pending.
 - [ ] Commit, publicly push, synchronize, and pass server gates for B2.
 - [ ] Launch and validate B2; suspend goal execution while it runs.
 - [ ] Implement and verify B3.
