@@ -64,6 +64,7 @@ pythonpath = ["src", "."]
 target-version = "py310"
 line-length = 100
 extend-exclude = [
+  ".byte-os/evidence",
   "TxPert/official-repo",
   "TxPert/official-repo.incomplete-archive",
   "notebooks",

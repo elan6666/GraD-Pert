@@ -2,10 +2,10 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: implementing
-current_workflow: byte-auto
-next_workflow: plan-018-b2-systems-only
-review_verdict: pending
+stage: delivering
+current_workflow: byte-deliver
+next_workflow: none
+review_verdict: pilot_ship
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
@@ -26,12 +26,11 @@ updated_at: 2026-08-26T04:31:00+08:00
   defaults to zero persistent PKL, while explicit `single_pkl` is the only
   opt-in. The authorized cleanup removed 126 non-active experiment PKLs
   (355.10 GiB) with a sealed server receipt.
-- Goal mode is active for plan 018. Immutable B0 is the existing c240
-  GraD-Pert/Nadig-Jurkat/seed-1 coordinate and will not be rerun. B1 changes
-  only the graph axis; B2 enables all seven semantics-preserving systems
-  optimizations on the old graph; B3 combines them. Each pilot is exactly one
-  epoch and speed-only. Goal execution will pause whenever a long server pilot
-  is running.
+- Plan 018 is complete. Immutable B0 remains the existing c240
+  GraD-Pert/Nadig-Jurkat/seed-1 coordinate and was not rerun. B1 changed only
+  the graph axis; B2 enabled all seven semantics-preserving systems
+  optimizations on the old graph; B3 combined them. Each executed pilot was
+  exactly one epoch and the selection was speed-only.
 - B1 local implementation is complete: a separate pilot config keeps all 5,000
   expression/output/evaluation genes, directly recomputes raw-data Top-500
   HVGs, requires exact equality with the frozen normalized-dispersion ranking,
@@ -61,8 +60,33 @@ updated_at: 2026-08-26T04:31:00+08:00
   isolated build, and diff check. The synchronized server lineage through
   `a17b8e7` passed 213 tests with 3 honest prepared-receipt skips, Ruff,
   format, strict mypy on 66 source files, isolated build, and clean-tree
-  verification. Only the fresh one-epoch B2 run remains pending; B0 will not
-  be rerun.
+  verification. Its formal systems-only run later completed at `2e30fb5` and
+  passed all 41 strict checks; B0 was not rerun.
+- B3 completed at exact clean local/GitHub/server commit `44ae7ff`. Local gates
+  passed 191 tests with 9 honest dependency/receipt skips, Ruff, format, and
+  build; server gates passed 214 tests with 3 honest skips, Ruff, format,
+  strict mypy on 66 source files, isolated build, and clean-tree verification.
+  The formal run completed one epoch/582 optimizer steps, used no test truth
+  during fit, evaluated test once, retained only hash-pinned `best.pt`, and
+  left zero PKL. Its graph has 2,798 nodes/89,561 nonself edges while all
+  expression/output/evaluation axes remain 5,000. The strict validator passed
+  49/49 checks; validation receipt SHA-256 is
+  `65cf90788dc6a213148b35de0685cb1216d50d127a19d21b1cd175c6801c4274`.
+- The speed-only comparison selects B3. Actual one-epoch training walls were
+  B1 844.180 s, B2 718.681 s, and B3 507.718 s. Full-epoch wall throughput was
+  respectively 151.94, 178.47, and 252.63 cells/s. B1→B3 isolates the seven
+  systems groups on the same reduced graph and yields 1.663x speedup/39.86%
+  less time; B2→B3 isolates graph reduction with the systems groups active and
+  yields 1.416x/29.35% less time. B1→B2 is not a single-factor comparison.
+  Comparison receipt SHA-256 is
+  `72f4d1b8a3c6bffc246ea3d58bd92b4ad191e9a3b4fdb7f9306456cecfdf11cf`.
+- The original warmup-excluded receipt throughput is retained but not used as
+  actual wall throughput for prefetch-enabled B2/B3: its stage sum adds data
+  read time to GPU step time even when those stages overlap. Selection uses
+  monotonic `one_epoch_training_wall_ms` and throughput recomputed from the
+  same full-epoch wall. B0 lacks this instrumentation and was not retrained.
+  All three metrics remain explicitly non-decisional; no one-epoch
+  unchanged-effect claim is made.
 
 - The first d6f9 GEARS/K562 hard gate completed one epoch successfully, but
   strict artifact validation found frozen GEARS had retained two framework
@@ -423,8 +447,7 @@ updated_at: 2026-08-26T04:31:00+08:00
   fallback was enabled but honestly recorded zero runtime batches because the
   full control cache served all 582 batches. Strict validation receipt SHA-256
   is `1f0c50357463d303e9be19d6a3845306c685b453f744d63dc5d1ffb3b2a70fa2`.
-- B3 implementation is now active: its new self-contained config combines the
-  B1 recomputed Top-500-HVG-plus-target graph axis with every B2 systems flag,
-  remains one epoch and `metrics_only`, and has an explicit combined-contract
-  regression test. Local full gates, publication/synchronization, server gates,
-  and the formal B3 run remain pending.
+- B3 implementation, execution, strict validation, comparison, and reviewed
+  small-evidence transfer are complete. The server retains all checkpoints and
+  scientific data; the repository tracks only the 56 KiB contract/verifier/
+  comparison evidence bundle and the final pilot review.

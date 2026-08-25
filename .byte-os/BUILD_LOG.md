@@ -438,3 +438,36 @@
   `/data/yilangliu/GraD-Pert/superseded/20260825-txpert-env-10a-sympy`. The
   hardware override now replaces that one transitive pin with exact
   `sympy==1.13.3`; no unconstrained dependency is introduced.
+
+## 2026-08-26 — Nadig Jurkat B1/B2/B3 speed-pilot delivery
+
+- B1 graph-only executed at clean `0a4d339`: one epoch/582 steps, 2,798 graph
+  nodes, 89,561 nonself edges, 5,000 expression/output/evaluation genes, zero
+  PKL, one retained checkpoint, 844.180 s training wall.
+- B2 systems-only executed and strictly validated at clean `2e30fb5`: one
+  epoch/582 steps, full 6,506-node/222,654-edge graph, all seven systems groups
+  active, zero PKL, one retained checkpoint, 718.681 s training wall. Its
+  validation receipt passed 41 checks.
+- B3 combined implementation commit `44ae7ff` passed 191 local tests with 9
+  honest dependency/receipt skips, Ruff, format, and isolated build. The exact
+  synchronized clean server passed 214 tests with 3 honest skips, Ruff,
+  format, strict mypy on 66 source files, and isolated build.
+- B3 formal run completed one epoch/582 steps, matched B0/B1/B2 canonical,
+  split, ordered 300-control and truth identities, used no test truth during
+  fit, evaluated once, retained only `best.pt` SHA-256
+  `b4bf958f9197f999eae81cca0dfec101f618c56e902a01fb7d02a3ef8ac4cdcc`,
+  and left zero PKL. Strict validation passed 49/49 checks; receipt SHA-256
+  `65cf90788dc6a213148b35de0685cb1216d50d127a19d21b1cd175c6801c4274`.
+- Actual one-epoch walls were B1 844.180 s, B2 718.681 s, B3 507.718 s. B3
+  delivered 252.63 cells/s, a 1.663x speedup over B1 and 1.416x over B2.
+  Comparison receipt SHA-256
+  `72f4d1b8a3c6bffc246ea3d58bd92b4ad191e9a3b4fdb7f9306456cecfdf11cf`.
+- The reviewed local evidence allowlist contains five server-origin files,
+  totals 56 KiB, and includes no scientific arrays, checkpoint, log, H5AD, or
+  PKL. All three metrics are retained only as non-decisional one-epoch
+  evidence.
+- Final delivery gates passed 191 local tests with 9 honest missing-dependency/
+  prepared-receipt skips, Ruff check, Ruff format check, isolated wheel/sdist
+  build, and evidence-hash verification. Local strict mypy remains unavailable
+  because this lightweight venv lacks Torch/PyG; the exact B3 server execution
+  commit passed strict mypy on all 66 source files.

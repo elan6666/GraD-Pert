@@ -1,0 +1,308 @@
+{
+  "checks": {
+    "b1_manifest_exact": true,
+    "b2_validation_exact": true,
+    "batch_and_pretransfer_match_b2": true,
+    "buffered_logging_active": true,
+    "canonical_hash_matches_b0": true,
+    "checkpoint_hash_exact": true,
+    "checkpoint_retention_best_only": true,
+    "config_hash_exact": true,
+    "contract_sha256": true,
+    "control_cache_active": true,
+    "control_manifest_matches_b0": true,
+    "evaluation_conditions_exact": true,
+    "expression_output_evaluation_5000": true,
+    "first_step_hashes_complete": true,
+    "first_step_losses_finite": true,
+    "first_step_runtime_matches_pipeline": true,
+    "graph_content_exact": true,
+    "immutable_b0_manifest_exact": true,
+    "manifest_hash_chain_exact": true,
+    "merged_read_enabled_and_cache_subsumed": true,
+    "metrics_finite": true,
+    "metrics_only_recipe": true,
+    "model_dataset_seed_exact": true,
+    "no_test_truth_during_fit": true,
+    "one_epoch_exact": true,
+    "one_test_evaluation": true,
+    "optimizer_steps_exact": true,
+    "ordered_control_ids_match_b1_b2": true,
+    "ordered_truth_ids_match_b1_b2": true,
+    "prediction_truth_excluded": true,
+    "prefetch_pin_nonblock_active": true,
+    "public_main_exact": true,
+    "reduced_graph_axis_exact": true,
+    "resident_graph_active": true,
+    "resource_metrics_present": true,
+    "run_identity_exact": true,
+    "runtime_graph_order_exact": true,
+    "single_checkpoint_serialization": true,
+    "source_clean": true,
+    "source_commit_exact": true,
+    "speed_only_nondecisional": true,
+    "split_hash_matches_b0": true,
+    "stage_timings_complete": true,
+    "systems_requested_all": true,
+    "three_metric_schema_exact": true,
+    "timing_protocol_exact": true,
+    "update_order_exact": true,
+    "validation_cache_active": true,
+    "zero_pkl": true
+  },
+  "evidence": {
+    "axes": {
+      "evaluation": 5000,
+      "expression": 5000,
+      "graph_nodes": 2798,
+      "graph_nonself_edges": 89561,
+      "output": 5000
+    },
+    "checkpoint_files": [
+      "checkpoints/best.pt"
+    ],
+    "checkpoint_path": "/data/yilangliu/GraD-Pert/runs/pilot-b3-combined-44ae-r2/checkpoints/best.pt",
+    "checkpoint_sha256": "b4bf958f9197f999eae81cca0dfec101f618c56e902a01fb7d02a3ef8ac4cdcc",
+    "comparisons": {
+      "B1_to_B2": {
+        "speedup_x": 1.1746249408669729,
+        "wall_time_reduction_fraction": 0.14866442452523165
+      },
+      "B1_to_B3": {
+        "speedup_x": 1.6626959370293,
+        "wall_time_reduction_fraction": 0.39856712359165525
+      },
+      "B2_to_B3": {
+        "speedup_x": 1.4155122023903983,
+        "wall_time_reduction_fraction": 0.29354194311339465
+      },
+      "full_epoch_wall_throughput": {
+        "B1": {
+          "cells": 128266,
+          "cells_per_second": 151.94144776828873,
+          "steps": 582,
+          "steps_per_second": 0.6894260567971562,
+          "wall_seconds": 844.1804516408592
+        },
+        "B2": {
+          "cells": 128266,
+          "cells_per_second": 178.47421410006837,
+          "steps": 582,
+          "steps_per_second": 0.8098170411975099,
+          "wall_seconds": 718.6808506022207
+        },
+        "B3": {
+          "cells": 128266,
+          "cells_per_second": 252.63242787068327,
+          "steps": 582,
+          "steps_per_second": 1.146305903518763,
+          "wall_seconds": 507.71787723805755
+        }
+      },
+      "primary_metric": "one_epoch_training_wall_ms",
+      "primary_reason": "actual monotonic wall clock; prefetch overlaps data reads with GPU work",
+      "receipt_measured_throughput_limitation": {
+        "affected_variants": [
+          "B2",
+          "B3"
+        ],
+        "reason": "measured_end_to_end_wall_ms sums data_read_ms plus step_wall_ms even when background prefetch overlaps them; retain the receipt field but do not use it as actual wall throughput"
+      }
+    },
+    "config_sha256": "4c63dac6afd48d25680d8354e9d554b01c406e57e25790d023d93e4552b23a1c",
+    "contract_path": "/data/yilangliu/GraD-Pert/contracts/pilot-b3-44ae-r2/gradpert-b3-44ae-r2-contract.json",
+    "contract_sha256": "512f08c96ae0b4bac84afca96c88e89c05f0d802407e0831ad6b7d94cddbceb7",
+    "epochs": {
+      "completed": 1,
+      "requested": 1
+    },
+    "first_step_equivalence": {
+      "control_row_ids_sha256": "ab07ff0ecfdd4300c09923ffda4dae11c222188a390d0821a1ce70dc84696d95",
+      "losses": {
+        "condition_consistency_loss": 8.943859100341797,
+        "masked_node_loss": 8.94885540008545,
+        "prediction_loss": 0.4087652266025543,
+        "spread_loss": 1.6219907999038696,
+        "total_loss": 2.214256763458252
+      },
+      "parameter_state_after_sha256": "b8f1542208953c8a70e6b657f20636cc8100a578b4f752d08a0f1025247ed15a",
+      "parameter_state_before_sha256": "d9f5550a5b0f9905626ec50d9f3603828ab3051662474528cce6418ba3ab660d",
+      "perturbed_row_ids_sha256": "e57fe765a449f446ff82c317998ba172a9860576d04cb3d6c0cd0029cd676d61",
+      "pretransfer_control_sha256": "600f8fa4d4d3635b9effd71620ec91ae3397dad44761d739f506a75cdae8795f",
+      "pretransfer_target_sha256": "07e2ce6dbec5b981538e50524250d862d058834758bab659d9da03dc6c55d364",
+      "rng_state_after_sha256": "fc3c5a0becafb7e6afcae8785a64f1f2322589a221990692998e8df3f520e2f3",
+      "rng_state_before_sha256": "aa607572fdb51319b7f9159397933cf61c4a5d98c7264be2fab72926cc0cbdb2",
+      "schema_version": "native-first-step-equivalence-v1",
+      "update_order": [
+        "optimizer_step",
+        "teacher_ema",
+        "center_update"
+      ],
+      "view_structure_sha256": "2706066a4b896d86f970c1ca01c412a344409fb88976ccb19ba40ac2ce084aec"
+    },
+    "metric_ids": [
+      "systema_pearson",
+      "trishift_pearson_delta",
+      "txpert_macro_pearson_delta"
+    ],
+    "metrics_non_decisional": {
+      "systema_pearson": 0.008880069694841515,
+      "trishift_pearson_delta": 0.1313867251069979,
+      "txpert_macro_pearson_delta": 0.1526634338428194
+    },
+    "optimizer_steps": 582,
+    "ordered_control_ids_sha256": "82f5c560b2adff1038e520b7a357f462b635d4017758692b540b1beac1fcd088",
+    "ordered_truth_ids_sha256": "3aaff864519da2880d0c629d0fa2b8e2c19525c052c4751aaee2838870f39e98",
+    "performance_receipt": {
+      "cache_build_ms": 1446.169599890709,
+      "cells_per_second": 184.7679031780875,
+      "checkpoint_ms": 1590.572479646653,
+      "checkpoint_peer_method": "copy",
+      "cold_start_ms": 6423.054561018944,
+      "evaluation_gene_count": 5000,
+      "expression_gene_count": 5000,
+      "graph_axis_policy": "recomputed_top500_union_candidate_targets",
+      "graph_node_count": 2798,
+      "graph_nonself_edge_count": 89561,
+      "headline_metrics_non_decisional": [
+        {
+          "available": true,
+          "finite_condition_count": 592,
+          "macro_mean": 0.1526634338428194,
+          "metric_id": "txpert_macro_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.1313867251069979,
+          "metric_id": "trishift_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.008880069694841515,
+          "metric_id": "systema_pearson",
+          "reason": null,
+          "total_condition_count": 592
+        }
+      ],
+      "logging_ms": 27.009667363017797,
+      "mean_stage_ms": {
+        "backward_update_ms": 87.62965515776948,
+        "data_read_ms": 334.9866031317392,
+        "host_to_device_ms": 2.2477206287228246,
+        "prediction_ms": 5.530718713373571,
+        "step_wall_ms": 852.1807774863942,
+        "student_global_ms": 25.745549752162052,
+        "student_local_ms": 126.57671907064798,
+        "teacher_forward_ms": 25.88718723417162,
+        "view_build_ms": 577.4284844438162
+      },
+      "measured_cells": 125706,
+      "measured_end_to_end_wall_ms": 680345.4379132017,
+      "measured_steps": 572,
+      "one_epoch_fit_wall_ms": 511247.87948513404,
+      "one_epoch_training_wall_ms": 507717.87723805755,
+      "output_gene_count": 5000,
+      "peak_allocated_gpu_bytes": 15610674176,
+      "peak_cpu_ram_bytes": 28345745408,
+      "peak_reserved_gpu_bytes": 15774777344,
+      "schema_version": "native-performance-pilot-v1",
+      "selection_policy": "speed_only_one_epoch_metrics_non_decisional",
+      "steps_per_second": 0.8407493724871211,
+      "systems_optimizations": {
+        "background_prefetch": true,
+        "buffered_training_logs": true,
+        "control_expression_cache": true,
+        "log_buffer_steps": 64,
+        "merged_hdf5_reads": true,
+        "nonblocking_transfer": true,
+        "pin_memory": true,
+        "prefetch_depth": 2,
+        "resident_graph_tensors": true,
+        "single_checkpoint_serialization": true,
+        "validation_expression_cache": true
+      },
+      "validation_ms": 2447.841813787818,
+      "warmup_steps": 10
+    },
+    "pkl_files": [],
+    "run_manifest_sha256": "32abd32632f4fcb206098a51ad7664c75272216664f85e950cf14746f2fb2d11",
+    "run_root": "/data/yilangliu/GraD-Pert/runs/pilot-b3-combined-44ae-r2",
+    "source_commit": "44ae7ff7ec2df7a91af8294ff7207e9795437d48",
+    "systems_runtime": {
+      "checkpoint": {
+        "peer_method": "copy",
+        "single_serialization_per_epoch": true
+      },
+      "log_buffer_steps": 64,
+      "requested": {
+        "background_prefetch": true,
+        "buffered_training_logs": true,
+        "control_expression_cache": true,
+        "log_buffer_steps": 64,
+        "merged_hdf5_reads": true,
+        "nonblocking_transfer": true,
+        "pin_memory": true,
+        "prefetch_depth": 2,
+        "resident_graph_tensors": true,
+        "single_checkpoint_serialization": true,
+        "validation_expression_cache": true
+      },
+      "resident_graph_tensors": {
+        "student": {
+          "active": true,
+          "go_edge_count": 41007,
+          "node_count": 2798,
+          "string_edge_count": 54150
+        },
+        "teacher": {
+          "active": true,
+          "go_edge_count": 41007,
+          "node_count": 2798,
+          "string_edge_count": 54150
+        }
+      },
+      "schema_version": "native-systems-runtime-v1",
+      "training_pipeline": {
+        "cached_control_batches": 582,
+        "control_cache_active": true,
+        "control_cache_fallback_reason": null,
+        "control_cache_requested": true,
+        "control_cache_rows": 12013,
+        "epoch_batch_identity_sha256": "6cd2f103b79d24becd143471e77708dec7e04ebc23db25298de69f7a5c0e0d86",
+        "first_control_row_ids_sha256": "ab07ff0ecfdd4300c09923ffda4dae11c222188a390d0821a1ce70dc84696d95",
+        "first_perturbed_row_ids_sha256": "e57fe765a449f446ff82c317998ba172a9860576d04cb3d6c0cd0029cd676d61",
+        "first_pretransfer_control_sha256": "600f8fa4d4d3635b9effd71620ec91ae3397dad44761d739f506a75cdae8795f",
+        "first_pretransfer_target_sha256": "07e2ce6dbec5b981538e50524250d862d058834758bab659d9da03dc6c55d364",
+        "merged_read_batches": 0,
+        "nonblocking_transfer_active": true,
+        "nonblocking_transfer_fallback_reason": null,
+        "nonblocking_transfer_requested": true,
+        "pin_memory_active": true,
+        "pin_memory_fallback_reason": null,
+        "pin_memory_requested": true,
+        "prefetch_active": true,
+        "prefetch_fallback_reason": null,
+        "prefetch_requested": true,
+        "yielded_batches": 582
+      },
+      "validation_cache": {
+        "active": true,
+        "cache_hits": 890,
+        "cached_rows": 53248,
+        "fallback_reason": null,
+        "requested": true
+      }
+    },
+    "work_dirs": []
+  },
+  "failed_checks": [],
+  "pilot_id": "B3_combined",
+  "schema_version": "pilot-strict-validation-v2",
+  "status": "PASS"
+}

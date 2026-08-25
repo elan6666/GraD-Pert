@@ -1,0 +1,220 @@
+{
+  "b3_strict_validation_sha256": "65cf90788dc6a213148b35de0685cb1216d50d127a19d21b1cd175c6801c4274",
+  "context_only_comparison": {
+    "B1_to_B2_not_single_factor": {
+      "cells_per_second_gain_fraction": 0.17462494086697267,
+      "speedup_x": 1.1746249408669729,
+      "wall_time_reduction_fraction": 0.14866442452523165
+    }
+  },
+  "direct_factor_comparisons": {
+    "B1_to_B3_systems_on_reduced_graph": {
+      "cells_per_second_gain_fraction": 0.6626959370293,
+      "speedup_x": 1.6626959370293,
+      "wall_time_reduction_fraction": 0.39856712359165525
+    },
+    "B2_to_B3_graph_reduction_with_systems": {
+      "cells_per_second_gain_fraction": 0.4155122023903983,
+      "speedup_x": 1.4155122023903983,
+      "wall_time_reduction_fraction": 0.29354194311339465
+    }
+  },
+  "effect_interpretation": "The three metrics are recorded only as non-decisional evidence. One epoch cannot establish unchanged predictive effect, and no effect-equivalence claim is made.",
+  "immutable_b0": {
+    "rerun": false,
+    "run_manifest_sha256": "6e9c30d4c75bc31df470c47dfadd199cd944134beaf73c9f0d45dd398f7b0eea",
+    "timing_evidence": "unavailable; immutable B0 was not rerun to backfill instrumentation"
+  },
+  "schema_version": "nadig-jurkat-speed-comparison-v1",
+  "selected_reason": "lowest actual one-epoch training wall time under the frozen pilot contract",
+  "selected_variant": "B3",
+  "selection_policy": "speed_only_one_epoch_metrics_non_decisional",
+  "shared_contract": {
+    "batch_size": 256,
+    "dataset_id": "nadig_jurkat",
+    "epochs": 1,
+    "expression_output_evaluation_genes": 5000,
+    "persistent_pkl_count": 0,
+    "prototype_count": 16384,
+    "pytorch_alloc_conf": "expandable_segments:True",
+    "seed": 1
+  },
+  "status": "PASS",
+  "timing_interpretation": {
+    "primary": "one_epoch_training_wall_ms and throughput recomputed from the same monotonic full-epoch wall",
+    "receipt_field_limitation": "For prefetch-enabled B2/B3, measured_end_to_end_wall_ms is a serial sum of data_read_ms, host_to_device_ms, and step_wall_ms even though data preparation overlaps GPU computation. The original fields are retained but not used as actual wall throughput."
+  },
+  "variants": {
+    "B1": {
+      "actual_full_epoch_cells": 128266,
+      "actual_full_epoch_cells_per_second": 151.94144776828873,
+      "actual_full_epoch_steps": 582,
+      "actual_full_epoch_steps_per_second": 0.6894260567971562,
+      "cache_build_ms": 0.0,
+      "checkpoint_ms": 1406.69852681458,
+      "checkpoint_sha256": "453642fc82609df65d78ab29afd2879878e25ea8361f66a583cfb858901235ec",
+      "cold_start_ms": 6012.353520840406,
+      "evaluation_gene_count": 5000,
+      "expression_gene_count": 5000,
+      "graph_axis_policy": "recomputed_top500_union_candidate_targets",
+      "graph_node_count": 2798,
+      "graph_nonself_edge_count": 89561,
+      "label": "B1",
+      "logging_ms": 172.39085026085377,
+      "mean_stage_ms": {
+        "backward_update_ms": 89.8322392176915,
+        "data_read_ms": 22.677308064885437,
+        "host_to_device_ms": 0.7435094387680813,
+        "prediction_ms": 14.028964152702919,
+        "step_wall_ms": 1419.4614774485647,
+        "student_global_ms": 25.36826741612041,
+        "student_local_ms": 122.65794504605807,
+        "teacher_forward_ms": 25.40292060625303,
+        "view_build_ms": 1139.1378360543192
+      },
+      "metrics_non_decisional": {
+        "systema_pearson": 0.01639429151807066,
+        "trishift_pearson_delta": 0.1344122013069421,
+        "txpert_macro_pearson_delta": 0.15426906238748275
+      },
+      "one_epoch_fit_wall_ms": 853293.5092812404,
+      "one_epoch_training_wall_ms": 844180.4516408592,
+      "output_gene_count": 5000,
+      "peak_allocated_gpu_bytes": 15607650304,
+      "peak_cpu_ram_bytes": 26980638720,
+      "peak_reserved_gpu_bytes": 15770583040,
+      "performance_receipt_sha256": "2be5b2523110892596d014b9b6d460f9725b19e61925f9154a71545d4d44038e",
+      "receipt_measured_steps": 572,
+      "receipt_serial_stage_sum_cells_per_second": 152.31023004063678,
+      "receipt_serial_stage_sum_steps_per_second": 0.6930572254565751,
+      "receipt_warmup_steps": 10,
+      "run_id": "pilot-b1-graph-only__nadig_jurkat__seed-1__0a4d339",
+      "run_manifest_sha256": "31e3c314e8eac7c0523422a762b32ed2774e38e0e1ba44fb7d78c48aea92a5f9",
+      "source_commit": "0a4d339390490a7aa952d9286dc515df5029853b",
+      "systems_optimizations": {},
+      "validation_ms": 8211.87136368826
+    },
+    "B2": {
+      "actual_full_epoch_cells": 128266,
+      "actual_full_epoch_cells_per_second": 178.47421410006837,
+      "actual_full_epoch_steps": 582,
+      "actual_full_epoch_steps_per_second": 0.8098170411975099,
+      "cache_build_ms": 1457.790446933359,
+      "checkpoint_ms": 1704.623476602137,
+      "checkpoint_sha256": "1229f46c44955f940e9a0972dc2d540af231cc16dea2a2fce52255bb000c8649",
+      "cold_start_ms": 6516.634580679238,
+      "evaluation_gene_count": 5000,
+      "expression_gene_count": 5000,
+      "graph_axis_policy": "canonical_full",
+      "graph_node_count": 6506,
+      "graph_nonself_edge_count": 222654,
+      "label": "B2",
+      "logging_ms": 27.33248332515359,
+      "mean_stage_ms": {
+        "backward_update_ms": 109.10973606243,
+        "data_read_ms": 378.74792989870934,
+        "host_to_device_ms": 2.5140469376049883,
+        "prediction_ms": 12.945142839338397,
+        "step_wall_ms": 1213.5606376841743,
+        "student_global_ms": 57.175102714058404,
+        "student_local_ms": 113.02208773739689,
+        "teacher_forward_ms": 57.64230085252882,
+        "view_build_ms": 857.8538516108142
+      },
+      "metrics_non_decisional": {
+        "systema_pearson": 0.018789024478076295,
+        "trishift_pearson_delta": 0.11847099235514819,
+        "txpert_macro_pearson_delta": 0.14270157147719748
+      },
+      "one_epoch_fit_wall_ms": 721770.6032730639,
+      "one_epoch_training_wall_ms": 718680.8506022207,
+      "output_gene_count": 5000,
+      "peak_allocated_gpu_bytes": 19907415552,
+      "peak_cpu_ram_bytes": 28377595904,
+      "peak_reserved_gpu_bytes": 20180893696,
+      "performance_receipt_sha256": "0993f8ec973f60b4af1d98bded56719c35413c2f50790be530c772b44b016c33",
+      "receipt_measured_steps": 572,
+      "receipt_serial_stage_sum_cells_per_second": 137.79948457265306,
+      "receipt_serial_stage_sum_steps_per_second": 0.6270289817157298,
+      "receipt_warmup_steps": 10,
+      "run_id": "pilot-b2-systems-only__nadig_jurkat__seed-1__2e30fb5",
+      "run_manifest_sha256": "9ff957f83f9334bf48de5f1d798e6576797ba2e7c28aa2cdc3355faacc2816a6",
+      "source_commit": "2e30fb5af5ff0f0d0ee3160a6d385c8a79f6a0e3",
+      "systems_optimizations": {
+        "background_prefetch": true,
+        "buffered_training_logs": true,
+        "control_expression_cache": true,
+        "log_buffer_steps": 64,
+        "merged_hdf5_reads": true,
+        "nonblocking_transfer": true,
+        "pin_memory": true,
+        "prefetch_depth": 2,
+        "resident_graph_tensors": true,
+        "single_checkpoint_serialization": true,
+        "validation_expression_cache": true
+      },
+      "validation_ms": 1962.4023889191449
+    },
+    "B3": {
+      "actual_full_epoch_cells": 128266,
+      "actual_full_epoch_cells_per_second": 252.63242787068327,
+      "actual_full_epoch_steps": 582,
+      "actual_full_epoch_steps_per_second": 1.146305903518763,
+      "cache_build_ms": 1446.169599890709,
+      "checkpoint_ms": 1590.572479646653,
+      "checkpoint_sha256": "b4bf958f9197f999eae81cca0dfec101f618c56e902a01fb7d02a3ef8ac4cdcc",
+      "cold_start_ms": 6423.054561018944,
+      "evaluation_gene_count": 5000,
+      "expression_gene_count": 5000,
+      "graph_axis_policy": "recomputed_top500_union_candidate_targets",
+      "graph_node_count": 2798,
+      "graph_nonself_edge_count": 89561,
+      "label": "B3",
+      "logging_ms": 27.009667363017797,
+      "mean_stage_ms": {
+        "backward_update_ms": 87.62965515776948,
+        "data_read_ms": 334.9866031317392,
+        "host_to_device_ms": 2.2477206287228246,
+        "prediction_ms": 5.530718713373571,
+        "step_wall_ms": 852.1807774863942,
+        "student_global_ms": 25.745549752162052,
+        "student_local_ms": 126.57671907064798,
+        "teacher_forward_ms": 25.88718723417162,
+        "view_build_ms": 577.4284844438162
+      },
+      "metrics_non_decisional": {
+        "systema_pearson": 0.008880069694841515,
+        "trishift_pearson_delta": 0.1313867251069979,
+        "txpert_macro_pearson_delta": 0.1526634338428194
+      },
+      "one_epoch_fit_wall_ms": 511247.87948513404,
+      "one_epoch_training_wall_ms": 507717.87723805755,
+      "output_gene_count": 5000,
+      "peak_allocated_gpu_bytes": 15610674176,
+      "peak_cpu_ram_bytes": 28345745408,
+      "peak_reserved_gpu_bytes": 15774777344,
+      "performance_receipt_sha256": "7fb40feaf0b5d98b917b31983306c6b79e98a28ce1f5b87e546ac686029300de",
+      "receipt_measured_steps": 572,
+      "receipt_serial_stage_sum_cells_per_second": 184.7679031780875,
+      "receipt_serial_stage_sum_steps_per_second": 0.8407493724871211,
+      "receipt_warmup_steps": 10,
+      "run_id": "pilot-b3-combined__nadig_jurkat__seed-1__44ae7ff-r2",
+      "run_manifest_sha256": "32abd32632f4fcb206098a51ad7664c75272216664f85e950cf14746f2fb2d11",
+      "source_commit": "44ae7ff7ec2df7a91af8294ff7207e9795437d48",
+      "systems_optimizations": {
+        "background_prefetch": true,
+        "buffered_training_logs": true,
+        "control_expression_cache": true,
+        "log_buffer_steps": 64,
+        "merged_hdf5_reads": true,
+        "nonblocking_transfer": true,
+        "pin_memory": true,
+        "prefetch_depth": 2,
+        "resident_graph_tensors": true,
+        "single_checkpoint_serialization": true,
+        "validation_expression_cache": true
+      },
+      "validation_ms": 2447.841813787818
+    }
+  }
+}

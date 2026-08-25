@@ -1,5 +1,23 @@
 # Decision Log
 
+## 2026-08-26
+
+- Select B3 as the Nadig Jurkat performance-pilot winner on actual one-epoch
+  training wall time: 507.718 s versus B1 844.180 s and B2 718.681 s. Keep the
+  frozen Top-5000 expression/output/evaluation axes while using the directly
+  recomputed Top-500-HVG-plus-target graph and all seven systems groups.
+- Interpret B1→B3 as the direct systems comparison on the same reduced graph,
+  and B2→B3 as the direct graph-axis comparison with systems optimizations
+  held active. B1→B2 changes two factors and is contextual only.
+- Use monotonic full-epoch training wall as the primary speed evidence. The
+  original warmup-excluded receipt sum is retained, but for prefetch-enabled
+  runs it is not actual wall throughput because background data-read time can
+  overlap GPU step time and is then summed again.
+- Do not infer effect equivalence from the three one-epoch metrics. A longer
+  controlled run is required before claiming unchanged predictive effect.
+- Keep B0 immutable despite its missing detailed timing evidence. Do not rerun
+  it merely to backfill instrumentation.
+
 ## 2026-08-25
 
 - Large result output defaults to `metrics_only`: keep the best checkpoint,

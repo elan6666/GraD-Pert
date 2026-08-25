@@ -104,15 +104,29 @@ GraD-Pert model route: the native model remains the product's B2 architecture.
       truth row IDs, zero PKL, the full 6,506-node graph with 222,654 nonself
       edges, and checkpoint SHA-256
       `1229f46c44955f940e9a0972dc2d540af231cc16dea2a2fce52255bb000c8649`.
-      The measured training wall was 718.681 s, with 0.6270 steps/s and 137.80
-      cells/s after 10 warmup steps. All seven optimization groups passed their
+      The measured training wall was 718.681 s. Actual full-epoch wall
+      throughput was 0.8098 steps/s and 178.47 cells/s. The original
+      warmup-excluded serial stage sum reports 0.6270/137.80 but is not used as
+      actual throughput because prefetch overlaps data preparation and GPU
+      work. All seven optimization groups passed their
       runtime/equivalence checks; the enabled merged-read fallback was dormant
       because the complete control cache served all 582 batches. Validation
       receipt SHA-256 is
       `1f0c50357463d303e9be19d6a3845306c685b453f744d63dc5d1ffb3b2a70fa2`.
 - [x] Implement the explicit self-contained B3 config and its combined-contract
-      regression test. Full local and server verification remain pending.
-- [ ] Commit, publicly push, synchronize, and pass server gates for B3.
-- [ ] Launch and validate B3; suspend goal execution while it runs.
-- [ ] Compare speed receipts, record metrics without effect claims, review, and
-      deliver.
+      regression test.
+- [x] Commit, publicly push, synchronize, and pass server gates for B3 at
+      `44ae7ff` (191 local tests/9 honest skips; 214 server tests/3 honest
+      skips; Ruff, format, strict server mypy on 66 files, isolated builds, and
+      exact clean three-way identity).
+- [x] Launch and validate B3. It completed one epoch/582 steps with exact
+      B0/B1/B2 fairness identities, zero PKL, one retained `best.pt`, 5,000
+      expression/output/evaluation genes, and the exact B1 2,798-node/89,561-
+      edge graph. All seven systems groups were requested and active; the
+      merged-read fallback remained dormant because the complete control cache
+      served all 582 batches. The strict validator passed 49/49 checks.
+- [x] Compare speed receipts, record metrics without effect claims, review, and
+      deliver. B3 trained in 507.718 s at an actual full-epoch 252.63 cells/s:
+      1.663x faster than B1 on the same reduced graph and 1.416x faster than B2
+      under the same systems optimizations. B0 timing remains unavailable and
+      was not backfilled. The three metrics are non-decisional.

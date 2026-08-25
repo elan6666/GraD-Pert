@@ -61,6 +61,23 @@ per-cell matrices without rerunning inference. It writes exactly one
 ordered indices, predictions, Truth, metrics, and provenance. It is never the
 default.
 
+## Nadig Jurkat one-epoch speed pilot
+
+The completed speed-only pilot kept the frozen 5,000-gene
+expression/output/evaluation axes and selected the combined B3 performance
+variant: a directly recomputed Top-500-HVG-plus-target graph together with all
+seven semantics-preserving systems optimizations. On the same server GPU and
+one-epoch contract, training wall time was 844.180 seconds for graph-only B1,
+718.681 seconds for systems-only B2, and 507.718 seconds for combined B3. B3
+was therefore 1.663x faster than B1 and 1.416x faster than B2 by actual epoch
+wall time.
+
+The immutable B0 coordinate was not rerun and has no comparable detailed
+timing receipt. The three prediction metrics are recorded as non-decisional
+evidence only: one epoch does not establish unchanged predictive effect. See
+the [final pilot review](.byte-os/reviews/2026-08-26-nadig-jurkat-speed-pilots.md)
+and [sealed small evidence](.byte-os/evidence/nadig-jurkat-speed-pilots/).
+
 ## Development quick start
 
 ```bash

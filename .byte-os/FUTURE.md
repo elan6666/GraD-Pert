@@ -11,4 +11,8 @@ new user decision and normal discuss/research/shape promotion.
 - scGPT, Scouter, GenePert, biolord, CellOT, or additional learned baselines.
 - Adamson, Dixit, PBMC, or other datasets.
 - Performance claims beyond verified common-protocol five-dataset results.
-
+- A longer controlled Nadig Jurkat effect-equivalence run for the selected B3
+  performance variant; the completed one-epoch pilot supports speed only.
+- Record a monotonic warmup-excluded timing-window wall directly instead of
+  deriving prefetch-enabled throughput from a serial sum of overlapping stage
+  durations.
