@@ -171,8 +171,9 @@ class EvaluationConfig(StrictModel):
 class ArtifactConfig(StrictModel):
     root: str
     large_artifacts_server_only: bool
-    prediction_format: Literal["pkl"]
-    evaluation_formats: list[str]
+    result_mode: Literal["metrics_only", "single_pkl"]
+    result_pkl_name: Literal["result.pkl"]
+    inference_recipe_schema_version: Literal["inference-recipe-v1"]
     small_sync_extensions: list[str]
     sync_requires_dry_run: bool
 

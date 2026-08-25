@@ -21,6 +21,9 @@ def test_matrix_is_exact_and_valid() -> None:
 def test_each_config_carries_its_own_execution_policy() -> None:
     for path in sorted(CONFIG_ROOT.glob("*/*.yaml")):
         config = load_experiment_config(path)
+        assert config.artifacts.result_mode == "metrics_only"
+        assert config.artifacts.result_pkl_name == "result.pkl"
+        assert config.artifacts.inference_recipe_schema_version == "inference-recipe-v1"
         if config.model_id == "gradpert_b2":
             assert config.model.parameters["prototype_count"].value == 16384
             assert config.training.smoke_epochs.value == 1
@@ -130,3 +133,16 @@ def test_loader_rejects_identity_path_mismatch(tmp_path: Path) -> None:
     path.write_bytes(source.read_bytes())
     with pytest.raises(ValueError, match="identity/path mismatch"):
         load_experiment_config(path)
+
+
+def test_single_pkl_is_an_explicit_valid_opt_in(tmp_path: Path) -> None:
+    source = CONFIG_ROOT / "gradpert_b2" / "replogle_k562_essential.yaml"
+    path = tmp_path / "gradpert_b2" / "replogle_k562_essential.yaml"
+    path.parent.mkdir()
+    path.write_text(
+        source.read_text(encoding="utf-8").replace(
+            "result_mode: metrics_only", "result_mode: single_pkl"
+        ),
+        encoding="utf-8",
+    )
+    assert load_experiment_config(path).artifacts.result_mode == "single_pkl"

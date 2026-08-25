@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import numpy as np
 
@@ -28,8 +28,9 @@ from gradpert.evaluation.metrics import (
 from gradpert.evaluation.state import LoadedEvaluationState
 from gradpert.hashing import sha256_json
 
-EVALUATION_PKL_SCHEMA = "evaluation-pkl-v1"
-_CONDITION_KEYS = {
+LEGACY_EVALUATION_PKL_SCHEMA = "evaluation-pkl-v1"
+EVALUATION_PKL_SCHEMA = "result-pkl-v1"
+_LEGACY_CONDITION_KEYS = {
     "condition_id",
     "Pred",
     "InputCtrl",
@@ -43,6 +44,7 @@ _CONDITION_KEYS = {
     "gene_ids",
     "metrics",
 }
+_CONDITION_KEYS = (_LEGACY_CONDITION_KEYS - {"InputCtrl"}) | {"InputCtrlIndices"}
 
 
 @dataclass(frozen=True)
@@ -226,6 +228,46 @@ def _prepare_condition(
     return payload, contract, metrics
 
 
+def _deduplicate_input_controls(
+    payloads: Mapping[str, dict[str, object]],
+) -> tuple[dict[str, object], dict[str, dict[str, object]]]:
+    """Store each selected control row once while preserving every draw and its order."""
+
+    row_to_index: dict[str, int] = {}
+    pooled_ids: list[str] = []
+    pooled_rows: list[np.ndarray[Any, Any]] = []
+    compact: dict[str, dict[str, object]] = {}
+    for condition_id in sorted(payloads):
+        payload = dict(payloads[condition_id])
+        row_ids = tuple(str(value) for value in cast(Sequence[object], payload["InputCtrlRowIds"]))
+        values = np.asarray(payload.pop("InputCtrl"))
+        if values.ndim != 2 or values.shape[0] != len(row_ids):
+            raise ValueError(f"input controls and row IDs differ: {condition_id}")
+        indices: list[int] = []
+        for row_id, row in zip(row_ids, values, strict=True):
+            observed = np.ascontiguousarray(row)
+            existing = row_to_index.get(row_id)
+            if existing is None:
+                existing = len(pooled_ids)
+                row_to_index[row_id] = existing
+                pooled_ids.append(row_id)
+                pooled_rows.append(observed)
+            elif not np.array_equal(pooled_rows[existing], observed, equal_nan=True):
+                raise ValueError(f"control row ID maps to conflicting expression: {row_id}")
+            indices.append(existing)
+        payload["InputCtrlIndices"] = np.asarray(indices, dtype=np.int64)
+        compact[condition_id] = payload
+    if not pooled_rows:
+        raise ValueError("result bundle requires selected input controls")
+    return (
+        {
+            "row_ids": tuple(pooled_ids),
+            "expression": np.ascontiguousarray(np.stack(pooled_rows, axis=0)),
+        },
+        compact,
+    )
+
+
 def seal_evaluation_bundle(
     path: str | Path,
     *,
@@ -288,13 +330,15 @@ def seal_evaluation_bundle(
         metric_registry_version="gradpert-metrics-v1",
         metrics=_availability(metric_rows),
     )
+    shared_controls, compact_payloads = _deduplicate_input_controls(payloads)
     package = {
         "schema_version": EVALUATION_PKL_SCHEMA,
         "manifest": manifest.model_dump(mode="json"),
         "prediction_manifest": prediction.manifest.model_dump(mode="json"),
         "gene_ids": prediction.gene_ids,
         "systema_reference": reference,
-        "conditions": payloads,
+        "shared_controls": shared_controls,
+        "conditions": compact_payloads,
     }
     atomic_pickle(artifact_path, package)
     return load_evaluation_bundle(
@@ -404,17 +448,23 @@ def load_evaluation_bundle(
         expected_file_sha256=expected_file_sha256,
         trusted_root=trusted_root,
     )
-    if not isinstance(package, dict) or set(package) != {
+    if not isinstance(package, dict):
+        raise ValueError("evaluation PKL package shape is invalid")
+    schema_version = package.get("schema_version")
+    expected_keys = {
         "schema_version",
         "manifest",
         "prediction_manifest",
         "gene_ids",
         "systema_reference",
         "conditions",
-    }:
-        raise ValueError("evaluation PKL package shape is invalid")
-    if package["schema_version"] != EVALUATION_PKL_SCHEMA:
+    }
+    if schema_version == EVALUATION_PKL_SCHEMA:
+        expected_keys.add("shared_controls")
+    elif schema_version != LEGACY_EVALUATION_PKL_SCHEMA:
         raise ValueError("evaluation PKL schema version is unsupported")
+    if set(package) != expected_keys:
+        raise ValueError("evaluation PKL package shape is invalid")
     manifest = EvaluationBundleManifest.model_validate(package["manifest"])
     prediction_manifest = PredictionArtifactManifest.model_validate(package["prediction_manifest"])
     if sha256_json(prediction_manifest.model_dump(mode="json")) != (
@@ -447,9 +497,26 @@ def load_evaluation_bundle(
         raise ValueError("evaluation/prediction manifest condition IDs differ")
     loaded: dict[str, EvaluationConditionArrays] = {}
     metric_rows: list[ConditionMetrics] = []
+    shared_control_ids: tuple[str, ...] = ()
+    shared_control_expression: np.ndarray[Any, Any] | None = None
+    if schema_version == EVALUATION_PKL_SCHEMA:
+        shared = package["shared_controls"]
+        if not isinstance(shared, dict) or set(shared) != {"row_ids", "expression"}:
+            raise ValueError("shared control pool shape is invalid")
+        shared_control_ids = tuple(str(value) for value in shared["row_ids"])
+        if not shared_control_ids or len(shared_control_ids) != len(set(shared_control_ids)):
+            raise ValueError("shared control row IDs must be non-empty and unique")
+        shared_control_expression = _numeric_array(
+            shared["expression"], name="shared_controls/expression"
+        )
+        if shared_control_expression.shape != (len(shared_control_ids), len(gene_ids)):
+            raise ValueError("shared control expression shape is invalid")
     for condition_id in sorted(raw_conditions):
         payload = raw_conditions[condition_id]
-        if not isinstance(payload, dict) or set(payload) != _CONDITION_KEYS:
+        condition_keys = (
+            _CONDITION_KEYS if schema_version == EVALUATION_PKL_SCHEMA else _LEGACY_CONDITION_KEYS
+        )
+        if not isinstance(payload, dict) or set(payload) != condition_keys:
             raise ValueError(f"evaluation condition payload is invalid: {condition_id}")
         if payload["condition_id"] != condition_id or tuple(payload["gene_ids"]) != gene_ids:
             raise ValueError(f"evaluation condition identity/gene mismatch: {condition_id}")
@@ -458,11 +525,24 @@ def load_evaluation_bundle(
             name=f"Pred[{condition_id}]",
             shape=(300, len(gene_ids)),
         )
-        input_control = _numeric_array(
-            payload["InputCtrl"],
-            name=f"InputCtrl[{condition_id}]",
-            shape=(300, len(gene_ids)),
-        )
+        if schema_version == EVALUATION_PKL_SCHEMA:
+            indices = np.asarray(payload["InputCtrlIndices"])
+            if (
+                indices.shape != (300,)
+                or not np.issubdtype(indices.dtype, np.integer)
+                or int(indices.min()) < 0
+                or shared_control_expression is None
+                or int(indices.max()) >= shared_control_expression.shape[0]
+            ):
+                raise ValueError(f"input control indices are invalid: {condition_id}")
+            input_control = np.ascontiguousarray(shared_control_expression[indices])
+        else:
+            indices = None
+            input_control = _numeric_array(
+                payload["InputCtrl"],
+                name=f"InputCtrl[{condition_id}]",
+                shape=(300, len(gene_ids)),
+            )
         truth = _numeric_array(payload["Truth"], name=f"Truth[{condition_id}]")
         metric_control = _numeric_array(
             payload["MetricCtrlPoolMean"],
@@ -472,6 +552,10 @@ def load_evaluation_bundle(
         contract = contracts[condition_id]
         prediction_contract = prediction_contracts[condition_id]
         input_row_ids = tuple(str(value) for value in payload["InputCtrlRowIds"])
+        if indices is not None and input_row_ids != tuple(
+            shared_control_ids[int(index)] for index in indices
+        ):
+            raise ValueError(f"input control indices/row IDs differ: {condition_id}")
         truth_row_ids = tuple(str(value) for value in payload["TruthRowIds"])
         de = tuple(int(value) for value in payload["DE_idx"])
         top_de = tuple(int(value) for value in payload["TopDE_idx"])

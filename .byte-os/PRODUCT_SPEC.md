@@ -39,8 +39,8 @@ protocol.
 - Native B2 model, training/resume, fit-test, condition inference.
 - Three nonlearned models.
 - Isolated official-code GEARS and TxPert runners.
-- Frozen split/control manifests, two-stage artifacts, metric registry and three
-  headline Pearson families.
+- Frozen split/control manifests, metrics-only receipts with an optional single
+  result bundle, metric registry and three headline Pearson families.
 - Server commit preflight, formal launch, result allowlist sync, artifact
   pointers, read-only analysis notebook examples.
 
@@ -58,12 +58,11 @@ protocol.
 2. Every dataset must pass source, preprocessing, gene, QC, split, control, and
    coverage gates before training.
 3. Each model/dataset config is self-contained, strict, and hashable.
-4. Every learned model/dataset pair must first pass an exact one-epoch smoke
-   run. In the current phase, only GraD-Pert may continue to max 100 epochs
-   with validation-only early stopping patience 10; GEARS and TxPert stop after
-   the smoke checkpoint. Test is evaluated only after the selected checkpoint.
-5. Every runner emits prediction-only condition artifacts using exact shared
-   300-control row IDs.
+4. Every learned model/dataset pair runs exactly one epoch in the current
+   execution phase. Test is evaluated only after the selected checkpoint.
+5. Every runner always emits prediction-only content receipts using the exact
+   shared 300-control row IDs. The default mode persists no PKL; explicit
+   `single_pkl` mode emits exactly one deduplicated `result.pkl`.
 6. The evaluator owns truth access and can independently recompute every
    published metric.
 7. Formal compute is server-only and gated by exact three-way commit parity.

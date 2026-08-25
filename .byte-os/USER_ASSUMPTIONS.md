@@ -8,7 +8,8 @@
 - 输出必须方便复现、notebook 分析和下游实验。
 - 正式训练及其数据准备、推理、指标物化在服务器完成。
 - 代码仓库为 `elan6666/GraD-Pert`，本地、GitHub 与服务器代码必须同步到同一 commit。
-- 数据集和大产物留在服务器；prediction PKL 等不回传，本地只取小型结果文件。
+- 数据集和checkpoint留在服务器；默认不生成PKL，显式生成的单一
+  `result.pkl`也不回传，本地只取小型结果文件。
 - GraD-Pert full runs 默认训练上限为 100 epochs，并启用 early stopping。
 
 ## Inferred and to validate

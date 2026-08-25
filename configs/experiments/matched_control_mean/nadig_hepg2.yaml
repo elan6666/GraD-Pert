@@ -100,7 +100,8 @@ evaluation:
 artifacts:
   root: "runs/matched_control_mean/nadig_hepg2"
   large_artifacts_server_only: true
-  prediction_format: pkl
-  evaluation_formats: [pkl, parquet, json, h5ad]
+  result_mode: metrics_only
+  result_pkl_name: "result.pkl"
+  inference_recipe_schema_version: "inference-recipe-v1"
   small_sync_extensions: [".txt", ".json", ".jsonl", ".csv", ".md"]
   sync_requires_dry_run: true

@@ -19,8 +19,10 @@ The repository is under active implementation. Current authoritative material:
   Nadig HepG2, and Norman.
 - Models: GraD-Pert B2, isolated public GEARS and TxPert benchmarks, plus three
   nonlearned baselines.
-- Formal training and large artifacts are server-only. The Mac receives only
-  small summaries and artifact pointers.
+- Formal training and large artifacts are server-only. Runs default to
+  metrics-only receipts with no persistent PKL; an explicitly requested large
+  export is one deduplicated `result.pkl`. The Mac receives only small summaries
+  and artifact pointers.
 
 ## Development quick start
 

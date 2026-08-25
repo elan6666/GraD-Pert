@@ -88,7 +88,7 @@ condition-denominator drift before writing the catalog or trusted SHA sidecar.
 
 TriShift pairs PKL payloads with `metrics.csv`, mean text, training-loss CSV,
 and `run_meta.json`. GraD-Pert retains this two-tier output topology, adding
-schema versions and content hashes. Large PKL/H5AD/checkpoints remain on the
+schema versions and content hashes. Optional result PKL, H5AD, and checkpoints remain on the
 server; only allowlisted small receipts/results synchronize locally.
 
 ### Exact run snapshots and operational receipts

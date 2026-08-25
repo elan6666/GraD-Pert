@@ -2,18 +2,32 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: building
-current_workflow: byte-build
-next_workflow: byte-review
+stage: verifying
+current_workflow: byte-review
+next_workflow: server-static-gates
 review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T20:36:00+08:00
+updated_at: 2026-08-25T22:30:00+08:00
 ---
 
 # Status
 
+- User-locked artifact policy is now plan 017: all 30 self-contained configs
+  explicitly default to `metrics_only`, retaining the best checkpoint, complete
+  inference recipe, exact ordered control/truth row IDs, hashes, and small
+  metrics without a persistent PKL. Optional `single_pkl` emits only
+  `artifacts/result.pkl`, with selected control expression deduplicated into a
+  shared pool and exact per-condition 300 ordered indices/IDs. Server training
+  remains stopped; this source/config change requires a fresh synchronized
+  lineage before any future execution.
+- Plan 017 local implementation verification passed: 177 tests with 9 honest
+  dependency/server-receipt skips, Ruff check/format, compileall, diff check,
+  and package build. The local environment lacks Torch/PyG, so strict mypy's
+  remaining errors are dependency-derived; server static/full gates remain
+  pending while server work is stopped. No commit, push, server sync, training,
+  or historical-output rewrite has occurred for plan 017.
 - Commit `c6418df` passed the TxPert RPE1 hard gate and produced strictly
   validated GEARS K562/RPE1/Jurkat/Norman results, but TxPert HepG2 then failed
   before model construction because the isolated HepG2 adapter cache exposes

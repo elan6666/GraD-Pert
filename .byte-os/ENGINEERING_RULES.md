@@ -120,11 +120,15 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
 
 ## Prediction and evaluation boundary
 
-- A prediction runner does not receive truth. It emits condition-keyed
-  `PredictionArtifact` data: `Pred[300,G]`, exact input control row IDs, gene
-  order, capabilities, and complete provenance.
-- The common evaluator joins all real truth cells into an `EvaluationBundle`
-  only after prediction is sealed.
+- A prediction runner does not receive truth. It first seals a small receipt
+  containing `Pred[300,G]` hashes/shapes, exact ordered input-control row IDs,
+  gene order, capabilities, and complete provenance.
+- The common evaluator may access Truth only after that receipt is sealed.
+- Default artifact mode is `metrics_only`: retain checkpoint, inference recipe,
+  ordered control/truth IDs, hashes, and small metrics, with no large PKL.
+- Optional `single_pkl` emits exactly one `result.pkl`; selected control values
+  are deduplicated into one shared pool and each condition retains its exact
+  ordered 300 indices and row IDs.
 - For each condition, use the identical manifest-selected 300 eligible control
   cells sampled with replacement. All models see the same ordered row IDs.
 - Report TxPert macro Pearson delta, TriShift Pearson delta, and Systema Pearson
@@ -142,7 +146,7 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
   source development, documentation, static/unit tests, and synthetic smoke.
 - GitHub is the only source-code synchronization plane. Preflight requires the
   same clean commit locally, remotely, and on the server.
-- Server-only: raw/processed data, graphs, `.h5ad`, prediction/evaluation PKL,
+- Server-only: raw/processed data, graphs, `.h5ad`, optional `result.pkl`,
   checkpoints, weights, caches, and per-cell matrices.
 - Server-to-local allowlist: `.txt`, `.json`, `.jsonl`, `.csv`, small `.md`, and
   explicitly approved small plots. Dry-run and inspect every transfer list.

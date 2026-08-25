@@ -191,10 +191,18 @@ configs/
 
 - 训练、评价和 notebook 分层：可复现逻辑必须位于包内 CLI/模块；notebook 只读取冻结 artifact 做表格、统计和画图，不隐藏数据切分、训练或指标实现。
 - 每个 `dataset/protocol/split_hash/model_id/run_seed` 目录至少保存：原始与 resolved config、环境与代码 provenance、data/preprocessing/gene-order/split/control-access/evaluation hashes、checkpoint、逐 epoch train/validation history、最佳 checkpoint 选择记录、test prediction payload、逐 condition metrics、macro summary 和 metric availability。
-- 主 prediction payload 采用版本化、模型中立的 PKL schema，学习 TriShift 的 condition-keyed 结构。每个 condition 至少包含 `Pred[300,G_de]`、`InputCtrl[300,G_de]`、`Truth[N_p,G_de]`、相应 full-gene arrays、`MetricCtrlPoolMean[G]`、`DE_idx`、`DE_name`、`gene_name_full`、全部 sample/row IDs、`export_metadata` 和 `full_summary`；PKL 文件名不带上游模型类名。用 `InputCtrl` 与 `MetricCtrlPoolMean` 分名，禁止继续用含义不清的单一 `Ctrl` 字段。
+- 默认只保存模型中立的小型receipt，不保存PKL。显式开启完整结果导出时，
+  采用版本化、condition-keyed的单一`result.pkl`：包含`Pred`、`Truth`、
+  `MetricCtrlPoolMean`、基因/DE索引和全部row IDs；control表达在共享池中
+  去重，各condition用300个有序索引还原实际抽样（包括重复抽样）。
 - `Truth` 仅由锁定后的 evaluator 在 validation/test artifact 阶段合并，训练 runner 不能读取 test payload。下游 notebook 可以读取完整 payload，但必须显示 split、model、run seed 和 artifact hash。
-- 同时输出机器友好的 `metrics_by_condition.parquet`、`metrics_summary.json`、`metric_availability.json`、`run_manifest.json` 和必要的 H5AD。PKL 用于 NumPy/condition payload 兼容，Parquet/JSON 用于安全查询和跨语言消费；不得只保存一个不可审计的 pickle。
-- 必须提供从 prediction PKL 独立重算全部适用指标的命令，并用测试验证重算结果与已发布 metrics artifact 一致。notebook 统一通过 result adapter 按 dataset/model/split/seed 定位产物，不拼接硬编码绝对路径。
+- 始终输出机器友好的小型指标、availability、run manifest、推理配方和
+  provenance JSON/CSV；H5AD继续使用canonical数据源，不为每次实验复制。
+  单一PKL只用于显式请求的NumPy/condition payload兼容，不能替代receipt。
+- 必须提供从最佳checkpoint、冻结推理配方、canonical H5AD和精确有序
+  control/truth IDs重新推理并重算指标的命令。默认不保留PKL；显式导出时
+  只生成一个去重`result.pkl`。notebook统一通过result adapter按
+  dataset/model/split/seed定位产物，不拼接硬编码绝对路径。
 - 发布 notebook 时同时保存源 `.ipynb`、无输出或清理版、执行日志和依赖的 artifact manifest；图表必须能追溯到具体 prediction/metric hash。
 
 ### 12. Nonlearned baseline 精确定义

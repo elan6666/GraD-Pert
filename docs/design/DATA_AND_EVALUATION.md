@@ -128,22 +128,35 @@ hard failure.
 
 ## Artifact lifecycle
 
-### PredictionArtifact (runner output, server-only PKL plus manifest)
+### Prediction receipt (always materialized, small JSON)
 
 - schema/model/dataset/protocol/run IDs;
 - source and dirty-tree commits;
 - config/environment/data/gene/split/control/checkpoint hashes;
-- for each condition: `Pred[300,G]`, `InputCtrl[300,G]`, ordered control row
+- for each condition: `Pred[300,G]` content hash/shape, ordered control row
   IDs, gene IDs/order hash, capability flags;
 - no Truth and no test-derived DE values.
 
-### EvaluationBundle (evaluator output, server-only PKL/H5AD as needed)
+### Evaluation outputs
 
-- all PredictionArtifact fields;
-- `Truth[N_condition,G]` and truth row IDs;
+- the default `metrics_only` mode retains the checkpoint, full inference
+  recipe, ordered control/truth row IDs, array hashes, metrics, and receipts,
+  but leaves no persistent PKL in the run directory;
+- optional `single_pkl` writes one `result.pkl` only;
+- `result.pkl` stores each unique selected control expression once and each
+  condition stores its exact 300 ordered indices/row IDs, including repeats;
+- `Truth[N_condition,G]` and truth row IDs are stored only in optional result output;
 - `MetricCtrlPoolMean[G]` and control-pool manifest;
 - frozen DE/Top-DE indices with derivation and information-boundary provenance;
 - per-condition metric table and availability reasons.
+
+The prediction receipt is sealed before evaluator-only Truth access. In
+`metrics_only`, controls and Truth are reconstructed from the hash-pinned
+canonical H5AD and ordered row IDs; predictions are regenerated from the
+checkpoint and frozen inference recipe. No expression values are copied into
+the recipe. The current evaluator may use an atomic temporary PKL inside the
+run directory while sealing and verifying the receipts; its temporary directory
+is removed before the run completes and is not a retained artifact.
 
 ### Small synchronized results
 
@@ -153,7 +166,8 @@ hard failure.
 - `server_artifact_pointer.json`, small `.txt`/`.md` receipts
 - optionally user-approved small plots
 
-Do not synchronize PKL, H5AD, checkpoints, per-cell matrices, or weights.
+Do not synchronize optional result PKL, H5AD, checkpoints, per-cell matrices,
+or weights.
 
 ### Final ResultCatalog gate
 

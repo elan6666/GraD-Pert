@@ -11,19 +11,11 @@ from typing import Any, Literal
 
 import numpy as np
 
-from gradpert.artifacts import (
-    PredictionProvenance,
-    seal_frozen_evaluation_bundle,
-    seal_prediction_artifact,
-)
 from gradpert.config import ExperimentConfig, load_experiment_config
 from gradpert.contracts import RunManifest, ServerArtifactPointer
 from gradpert.data._io import atomic_json, atomic_text
-from gradpert.evaluation import (
-    CanonicalEvaluationData,
-    load_evaluation_state,
-    write_small_metric_exports,
-)
+from gradpert.evaluation import CanonicalEvaluationData
+from gradpert.execution.artifact_run import seal_evaluation_outputs
 from gradpert.execution.identity import (
     EnvironmentIdentity,
     SourceIdentity,
@@ -342,42 +334,19 @@ def run_native_experiment(
                     device=device,
                     decode_batch_size=eval_batch_size,
                 )
-                prediction = seal_prediction_artifact(
-                    destination / "artifacts" / "prediction.pkl",
-                    provenance=PredictionProvenance(
-                        model_id=config.model_id,
-                        dataset_id=config.dataset_id,
-                        protocol_id=config.data.protocol_id,
-                        run_id=run_id,
-                        run_seed=run_seed,
-                        source_commit=source.commit,
-                        source_dirty=source.dirty,
-                        formal_eligible=source.formal_eligible,
-                        config_sha256=config_sha256,
-                        environment_sha256=environment.payload_sha256,
-                        canonical_data_sha256=training_data.manifest.canonical_adata_sha256,
-                        gene_order_sha256=(training_data.manifest.expression_gene_order_sha256),
-                        split_content_sha256=training_data.split.split_content_sha256,
-                        control_manifest_sha256=test_data.control_manifest_file_sha256,
-                        checkpoint_sha256=best_checkpoint_sha256,
-                    ),
-                    gene_ids=training_data.expression_gene_ids,
-                    conditions=condition_predictions,
+                seal_evaluation_outputs(
+                    destination=destination,
+                    config=config,
+                    config_sha256=config_sha256,
+                    run_id=run_id,
+                    run_seed=run_seed,
+                    source=source,
+                    environment=environment,
+                    training_data=training_data,
+                    test_data=test_data,
+                    predictions=condition_predictions,
+                    checkpoint_sha256=best_checkpoint_sha256,
                 )
-                _write_contract(small_root / "prediction_manifest.json", prediction.manifest)
-                state = load_evaluation_state(
-                    dataset_id=config.dataset_id,
-                    protocol_id=config.data.protocol_id,
-                    data_root=data_root,
-                )
-                evaluation = seal_frozen_evaluation_bundle(
-                    destination / "artifacts" / "evaluation.pkl",
-                    prediction=prediction,
-                    data=test_data,
-                    state=state,
-                )
-                _write_contract(small_root / "evaluation_manifest.json", evaluation.manifest)
-                write_small_metric_exports(evaluation, small_root)
 
         trainer.test_best_once(evaluate_test_once)
 
@@ -425,6 +394,20 @@ def run_native_experiment(
             "run_manifest_sha256": sha256_json(run_manifest.model_dump(mode="json")),
             "source_tree_sha256": source.tree_sha256,
             "formal_eligible": source.formal_eligible,
+        },
+    )
+    # ``last.pt`` is a crash/resume checkpoint only. A completed evaluated run
+    # retains the hash-pinned best checkpoint used for inference and removes the
+    # redundant lifecycle copy after every durable receipt has been written.
+    trainer.last_checkpoint.unlink(missing_ok=True)
+    atomic_json(
+        small_root / "checkpoint_retention.json",
+        {
+            "schema_version": "checkpoint-retention-v1",
+            "policy": "best_only_after_successful_evaluation",
+            "best_checkpoint_path": str(trainer.best_checkpoint),
+            "best_checkpoint_sha256": best_checkpoint_sha256,
+            "last_checkpoint_removed": True,
         },
     )
     return NativeRunResult(

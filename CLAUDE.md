@@ -11,8 +11,8 @@ Hard boundaries:
 - v1 is B2 only on the five frozen datasets; no ablations or cross-cell work.
 - Configs are self-contained model-by-dataset YAML files, never one global file.
 - Formal compute is server-only and requires local/GitHub/server commit parity.
-- Data, PKL/H5AD predictions, and checkpoints stay on the server.
+- Data, canonical H5AD, checkpoints, and explicitly requested single
+  `result.pkl` exports stay on the server; runs default to no persistent PKL.
 - Never edit `TxPert/official-repo/**`; use it only as frozen evidence.
 
 Local verification commands are listed in `.byte-os/HARNESS.md`.
-

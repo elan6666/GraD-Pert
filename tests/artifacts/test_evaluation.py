@@ -126,6 +126,22 @@ def test_evaluation_bundle_joins_truth_and_recomputes_all_metrics(tmp_path: Path
     assert b"Truth" in path.read_bytes()
     assert b"Truth" not in (tmp_path / "prediction.pkl").read_bytes()
 
+    with path.open("rb") as handle:
+        package = pickle.load(handle)
+    assert package["schema_version"] == "result-pkl-v1"
+    assert package["shared_controls"]["expression"].shape == (13, 3)
+    condition = package["conditions"]["PERT_A"]
+    assert "InputCtrl" not in condition
+    assert condition["InputCtrlIndices"].shape == (300,)
+    restored = package["shared_controls"]["expression"][condition["InputCtrlIndices"]]
+    np.testing.assert_array_equal(restored, bundle.conditions["PERT_A"].input_control)
+    assert (
+        tuple(
+            package["shared_controls"]["row_ids"][index] for index in condition["InputCtrlIndices"]
+        )
+        == bundle.conditions["PERT_A"].input_control_row_ids
+    )
+
 
 def test_small_metric_exports_are_deterministic_and_array_free(tmp_path: Path) -> None:
     bundle = seal_evaluation_bundle(
@@ -183,6 +199,42 @@ def test_evaluation_loader_rejects_metric_tampering_even_with_matching_file_hash
             expected_file_sha256=matching_hash,
             trusted_root=tmp_path,
         )
+
+
+def test_loader_retains_legacy_two_bundle_compatibility(tmp_path: Path) -> None:
+    path = tmp_path / "result.pkl"
+    bundle = seal_evaluation_bundle(
+        path,
+        prediction=_prediction(tmp_path),
+        conditions=_evaluation_inputs(),
+        systema_reference=np.asarray([2.0, 2.0, 2.0], dtype=np.float32),
+        provenance=_evaluation_provenance(),
+    )
+    with path.open("rb") as handle:
+        package = pickle.load(handle)
+    shared = package.pop("shared_controls")
+    for payload in package["conditions"].values():
+        indices = payload.pop("InputCtrlIndices")
+        payload["InputCtrl"] = shared["expression"][indices]
+    package["schema_version"] = "evaluation-pkl-v1"
+    legacy = tmp_path / "legacy-evaluation.pkl"
+    package["manifest"]["systema_reference"]["artifact_path"] = str(legacy)
+    for condition in package["manifest"]["conditions"]:
+        condition["truth"]["artifact_path"] = str(legacy)
+        condition["metric_control_pool_mean"]["artifact_path"] = str(legacy)
+    with legacy.open("wb") as handle:
+        pickle.dump(package, handle)
+    loaded = load_evaluation_bundle(
+        legacy,
+        expected_file_sha256=hashlib.sha256(legacy.read_bytes()).hexdigest(),
+        trusted_root=tmp_path,
+    )
+    assert loaded.manifest.metrics == bundle.manifest.metrics
+    assert loaded.manifest.gene_order_sha256 == bundle.manifest.gene_order_sha256
+    np.testing.assert_array_equal(
+        loaded.conditions["PERT_A"].input_control,
+        bundle.conditions["PERT_A"].input_control,
+    )
 
 
 def test_evaluation_bundle_rejects_condition_or_truth_row_mismatch(tmp_path: Path) -> None:

@@ -60,6 +60,10 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   commit before formal work. Abort on mismatch.
 - Datasets, H5AD, PKL predictions, checkpoints, weights, and per-cell matrices
   stay on the server. Pull only dry-run-reviewed small result/receipt files.
+- Default runs do not persist PKL. They retain the best checkpoint, frozen
+  inference recipe, exact ordered control/truth row IDs, hashes, and small
+  metrics. Explicit full-result export writes exactly one deduplicated
+  `result.pkl`, never separate prediction/evaluation PKLs.
 - After launching long-running training, stop continuous goal execution and use
   the scheduled monitor for periodic receipt/process checks. Do not busy-poll.
 - Every native CUDA capacity/smoke/full process must start with

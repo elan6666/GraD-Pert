@@ -36,7 +36,7 @@ Server only:
 - CUDA/PyG environment installation and locks;
 - `K_head` 128-consecutive-step fit on every dataset;
 - all learned training, inference, evaluator materialization, checkpoints;
-- PKL/H5AD and per-cell outputs.
+- optional single `result.pkl`, H5AD, and per-cell outputs.
 
 Execution policy is encoded independently in every model/dataset config:
 

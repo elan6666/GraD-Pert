@@ -9,9 +9,10 @@ dataset registry -> canonical data -> split/control manifests
                                 |-> isolated GEARS runner
                                 |-> isolated TxPert runner
                                 |-> nonlearned runner
-runner -> PredictionArtifact (no truth)
-evaluator joins truth -> EvaluationBundle -> metric tables/summaries
-server-only large artifacts -> allowlisted small sync -> notebooks/reports
+runner -> truth-free prediction receipt + inference recipe
+evaluator joins truth -> metric tables/summaries
+optional single deduplicated result PKL -> server only
+allowlisted small sync -> notebooks/reports
 ```
 
 ## Package modules
@@ -35,8 +36,8 @@ server-only large artifacts -> allowlisted small sync -> notebooks/reports
 - `ConditionSplitManifest`, `EvaluationControlManifest`.
 - `ExperimentConfig` with complete nested `data`, `model`, `training`,
   `evaluation`, `artifacts`, and per-field provenance.
-- `PredictionArtifactManifest` and `EvaluationBundleManifest` with condition
-  records and array checksums.
+- `PredictionArtifactManifest`, `EvaluationBundleManifest`, and
+  `inference-recipe-v1` with condition records, ordered row IDs, and array checksums.
 - `RunManifest`, `MetricRecord`, `Availability`, `ServerArtifactPointer`.
 
 Canonical JSON hashing uses UTF-8, sorted object keys, compact separators, no
