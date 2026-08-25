@@ -95,7 +95,10 @@ GraD-Pert model route: the native model remains the product's B2 architecture.
       Ruff, format, isolated build, and diff check. The implementation adds
       explicit equivalence, activation, fallback, timing, and memory receipts;
       the formal run remains pending.
-- [ ] Commit, publicly push, synchronize, and pass server gates for B2.
+- [x] Commit, publicly push, synchronize, and pass server gates for B2. The
+      implementation/evidence lineage through `a17b8e7` passed 213 server
+      tests with 3 honest prepared-receipt skips, Ruff, format, strict mypy on
+      66 source files, isolated build, and clean-tree verification.
 - [ ] Launch and validate B2; suspend goal execution while it runs.
 - [ ] Implement and verify B3.
 - [ ] Commit, publicly push, synchronize, and pass server gates for B3.
