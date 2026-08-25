@@ -374,3 +374,13 @@
   undefined t-test, never from the shared data/split, and fills their official
   internal metric indices with the stable full gene order. The common evaluator
   remains authoritative and already labels singleton DE metrics unavailable.
+- Commit `5f82d73` then completed GEARS K562 but RPE1/Jurkat again failed in
+  frozen `compute_metrics` with length-one DE vectors. Direct inspection of the
+  sealed H5ADs found complete 6,386/6,506-gene singleton fallback rankings and
+  20/20 top-gene membership, ruling out ranking corruption. Frozen source
+  inspection showed `new_data_process(skip_calc_de=True)` creates and persists
+  PyG graphs before the adapter attaches rankings, leaving its one-index
+  missing-DE sentinel in the cache. The new repair calls frozen `get_DE_genes`
+  for condition names, attaches rankings, and only then calls frozen
+  `PertData.new_data_process` once. It gates every retained condition on 20 DE
+  indices without a second expensive graph build or any local index mutation.

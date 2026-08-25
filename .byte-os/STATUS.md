@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T13:23:00+08:00
+updated_at: 2026-08-25T14:49:00+08:00
 ---
 
 # Status
@@ -36,6 +36,16 @@ updated_at: 2026-08-25T13:23:00+08:00
   for rankable groups, and supplies singleton groups a stable full-gene order
   only for GEARS' internal one-epoch bookkeeping. Shared evaluation continues
   to mark singleton DE metrics unavailable.
+- Follow-up commit `5f82d73` proved the singleton ranking maps themselves are
+  complete, but also exposed ordering inside the frozen API: with
+  `skip_calc_de=True`, `new_data_process` builds its PyG cache before the
+  adapter attaches those maps. RPE1/Jurkat consequently retained one-index
+  pre-ranking graphs and failed after the epoch; K562 passed only via its older
+  correctly ranked cache. That lineage and all three involved cache directories
+  are preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-formal-v2-5f82-pre-ranking-graphs`.
+  Plan 009 now attaches rankings before the single frozen official graph build
+  and verifies exactly 20 DE indices per retained condition before fit.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs

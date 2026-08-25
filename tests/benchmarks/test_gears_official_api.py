@@ -7,6 +7,7 @@ from typing import Any, ClassVar
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from benchmarks.gears.official_api import (
     GearsModelParameters,
@@ -58,6 +59,7 @@ class FakePertData:
         self.dataloader: dict[str, object] = {}
         self.dataset_path = str(Path(data_root) / "fixture")
         Path(self.dataset_path).mkdir(parents=True, exist_ok=True)
+        self.dataset_processed: dict[str, list[SimpleNamespace]] = {}
 
     def new_data_process(
         self,
@@ -67,6 +69,11 @@ class FakePertData:
     ) -> None:
         self.calls.append(("new_data_process", (dataset_id, adata, skip_calc_de)))
         self.adata = adata
+        de_index_count = 20 if "rank_genes_groups_cov_all" in adata.uns else 1
+        self.dataset_processed = {
+            str(condition): [SimpleNamespace(de_idx=list(range(de_index_count)))]
+            for condition in adata.obs["condition"].astype(str).unique()
+        }
 
     def prepare_split(self, **kwargs: object) -> None:
         self.calls.append(("prepare_split", kwargs))
@@ -77,6 +84,20 @@ class FakePertData:
             "train_loader": object(),
             "val_loader": object(),
             "test_loader": object(),
+        }
+
+
+class InvalidGraphPertData(FakePertData):
+    def new_data_process(
+        self,
+        dataset_id: str,
+        adata: object,
+        skip_calc_de: bool,
+    ) -> None:
+        super().new_data_process(dataset_id, adata, skip_calc_de)
+        self.dataset_processed = {
+            str(condition): [SimpleNamespace(de_idx=[-1])]
+            for condition in self.adata.obs["condition"].astype(str).unique()
         }
 
 
@@ -179,6 +200,7 @@ def _modules() -> GearsOfficialModules:
         }
 
     data_utils = SimpleNamespace(
+        get_DE_genes=lambda adata, skip_calc_de: adata,
         rank_genes_groups_by_cov=rank_genes_groups_by_cov,
         get_dropout_non_zero_genes=lambda adata: adata,
     )
@@ -250,10 +272,17 @@ def test_adapter_calls_official_data_train_checkpoint_apis(tmp_path: Path) -> No
         "singleton_fallback_condition_count": 1,
         "singleton_fallback_condition_names": ["K562_B+ctrl_1"],
         "singleton_fallback_policy": "stable_full_gene_axis_internal_metrics_only",
+        "graph_cache_built_after_de_ranking": True,
+        "graph_de_index_count": 20,
+        "graph_condition_count": 3,
     }
     rankings = pert_data.adata.uns["rank_genes_groups_cov_all"]
     assert rankings["K562_A+ctrl_1"].tolist() == ["g1", "g0"]
     assert rankings["K562_B+ctrl_1"].tolist() == ["g0", "g1"]
+    assert {
+        len(np.asarray(graphs[0].de_idx).reshape(-1))
+        for graphs in pert_data.dataset_processed.values()
+    } == {20}
 
     model = api.fit_one_epoch(
         pert_data=pert_data,
@@ -286,3 +315,43 @@ def test_exact_control_forward_preserves_all_300_rows() -> None:
     np.testing.assert_allclose(prediction, controls + 1.0)
     assert prediction.shape == (300, 3)
     assert model.best_model.eval_called
+
+
+def test_adapter_rejects_pre_ranking_one_index_graphs(tmp_path: Path) -> None:
+    modules = _modules()
+    modules = GearsOfficialModules(
+        package=SimpleNamespace(PertData=InvalidGraphPertData, GEARS=FakeGears),  # type: ignore[arg-type]
+        utils=modules.utils,
+        data_utils=modules.data_utils,
+        torch=modules.torch,
+        pyg_loader=modules.pyg_loader,
+    )
+    api = OfficialGearsAPI(modules)
+    adata = MiniAdata(
+        np.asarray([[1.0, 0.0], [0.5, 0.5], [0.0, 2.0], [1.0, 1.0]]),
+        pd.DataFrame(
+            {
+                "condition": ["ctrl", "ctrl", "A+ctrl", "A+ctrl"],
+                "condition_name": [
+                    "K562_ctrl_1",
+                    "K562_ctrl_1",
+                    "K562_A+ctrl_1",
+                    "K562_A+ctrl_1",
+                ],
+                "cell_type": ["K562", "K562", "K562", "K562"],
+            }
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="official GEARS graph cache has invalid DE index count: ctrl=1",
+    ):
+        api.prepare_training_data(
+            data_root=tmp_path / "data",
+            dataset_id="fixture",
+            training_validation_adata=adata,
+            split_pickle_path=tmp_path / "split.pkl",
+            train_batch_size=32,
+            eval_batch_size=128,
+        )

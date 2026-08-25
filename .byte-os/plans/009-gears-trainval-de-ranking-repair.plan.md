@@ -1,6 +1,6 @@
 # Plan 009: GEARS train+validation DE ranking repair
 
-- Status: singleton-condition follow-up implementation in progress
+- Status: ranking-before-graph follow-up implementation in progress
 
 ## Evidence
 
@@ -15,6 +15,13 @@
 - At repair commit `dc8e24a`, K562 passed after official rematerialization, but
   RPE1 and Jurkat exposed two and six train+validation conditions respectively
   with only one cell. Frozen Scanpy correctly refuses a t-test for these groups.
+- At repair commit `5f82d73`, the singleton-safe ranking maps were correct, but
+  frozen `new_data_process(skip_calc_de=True)` had already built and cached PyG
+  graphs before those rankings were attached. RPE1/Jurkat therefore still
+  trained with the official one-index missing-DE sentinel and failed in the
+  same post-epoch Pearson calculation. K562 passed only because its cache had
+  been built by the earlier full-ranking attempt, confirming cache construction
+  order rather than ranking contents as the remaining defect.
 
 ## Write scope
 
@@ -43,6 +50,13 @@ official internal one-epoch metric path a stable full-gene-axis order. The
 common evaluator continues to mark singleton DE metrics unavailable; the
 fallback is not used by the shared three-metric evaluation.
 
+Call frozen official `get_DE_genes(..., skip_calc_de=True)` first to materialize
+condition names, attach safe ranking metadata, and only then call frozen
+`PertData.new_data_process` once. Its own official graph builder therefore sees
+the rankings on initial construction. Validate the official 20-index DE
+contract for one graph from every retained condition; do not synthesize or edit
+graph indices locally.
+
 ## Acceptance criteria
 
 1. Frozen official condition-name, rank-by-covariate, and dropout/nonzero
@@ -53,6 +67,8 @@ fallback is not used by the shared three-metric evaluation.
    GEARS smoke pass at one clean synchronized commit.
 5. Failed c240 outputs remain recoverable under a precise `superseded` path.
 6. The existing c240 GraD-Pert Nadig Jurkat B0 run is referenced, never rerun.
+7. Every official condition graph exposes exactly 20 DE indices before
+   split/dataloader construction, including singleton conditions.
 
 ## Verification
 

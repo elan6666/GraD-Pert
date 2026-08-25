@@ -4,10 +4,11 @@
 - Started at: 2026-08-23T16:57:56Z
 - Current loop number: 3
 - Completed stages: goal created; discussion preserved; research; three read-only audits; codebase harness; shaping; eight executable plans; public GitHub source publication and parity verification
-- Current stage: plan 009 follow-up after `dc8e24a` proved official DE ranking
-  works for K562 but frozen Scanpy rejects singleton RPE1/Jurkat conditions.
-  The bounded internal-metric fallback is being verified while goal mode
-  remains paused.
+- Current stage: plan 009 post-ranking graph-cache follow-up. Commit `5f82d73`
+  proved the singleton-safe ranking maps but showed that frozen
+  `new_data_process(skip_calc_de=True)` builds the PyG cache before those maps
+  are attached. Ranking now precedes the single official graph build, with an
+  exact 20-index per-condition gate, while goal mode remains paused.
 - Remaining plans: verify and publish plan 009; preserve c240 failures; complete
   the exact one-epoch learned matrix without rerunning the existing GraD-Pert
   Nadig Jurkat B0; validate/stage small receipts; then enable goal mode for the
@@ -19,8 +20,8 @@
 - Active subagent scopes: none; all exploration handoffs captured under `.byte-os/subagents/`
 - Hard blockers: none; the GEARS failure has an evidence-backed official-API
   repair and requires no user decision.
-- Exact resume action: pass local/server gates for the singleton-safe plan 009
-  follow-up, publish and synchronize one clean commit, supersede the dc8
+- Exact resume action: pass local/server gates for the ranking-before-graph
+  repair, publish and synchronize one clean commit, supersede the 5f82
   benchmark-fix lineage, then relaunch only GEARS/TxPert one-epoch queues and
   return to the scheduled monitor.
 - Parked future items: recorded in `.byte-os/FUTURE.md`, excluded from Auto

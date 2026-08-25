@@ -71,14 +71,17 @@ class OfficialGearsAPI:
         for symbol in ("create_cell_graph_for_prediction",):
             if not hasattr(modules.utils, symbol):
                 raise ValueError(f"official gears.utils lacks {symbol}")
-        for symbol in ("rank_genes_groups_by_cov", "get_dropout_non_zero_genes"):
+        for symbol in (
+            "get_DE_genes",
+            "rank_genes_groups_by_cov",
+            "get_dropout_non_zero_genes",
+        ):
             if not hasattr(modules.data_utils, symbol):
                 raise ValueError(f"official gears.data_utils lacks {symbol}")
 
-    def _materialize_training_de_metadata(self, pert_data: Any) -> dict[str, object]:
+    def _materialize_training_de_metadata(self, adata: Any) -> tuple[Any, dict[str, object]]:
         """Build official DE rankings without dropping singleton conditions."""
 
-        adata = pert_data.adata
         condition_names = adata.obs["condition_name"].astype(str)
         conditions = adata.obs["condition"].astype(str)
         counts = condition_names.value_counts()
@@ -128,7 +131,7 @@ class OfficialGearsAPI:
         adata.uns["rank_genes_groups_cov_all"] = {
             name: np.asarray(gene_ids, dtype=str) for name, gene_ids in rankings.items()
         }
-        pert_data.adata = self.modules.data_utils.get_dropout_non_zero_genes(adata)
+        adata = self.modules.data_utils.get_dropout_non_zero_genes(adata)
         receipt = {
             "schema_version": "official-gears-de-ranking-v1",
             "truth_scope": "train_validation_only",
@@ -137,8 +140,34 @@ class OfficialGearsAPI:
             "singleton_fallback_condition_names": list(fallback_names),
             "singleton_fallback_policy": "stable_full_gene_axis_internal_metrics_only",
         }
-        pert_data.gradpert_de_ranking_receipt = receipt
-        return receipt
+        return adata, receipt
+
+    @staticmethod
+    def _validate_training_graph_cache(pert_data: Any) -> dict[str, int | bool]:
+        """Validate official PyG graphs built after DE metadata was attached."""
+
+        dataset_processed = pert_data.dataset_processed
+        if not isinstance(dataset_processed, Mapping) or not dataset_processed:
+            raise ValueError("official GEARS graph cache contains no condition graphs")
+
+        expected_de_index_count = 20
+        verified_condition_count = 0
+        for condition, graphs in dataset_processed.items():
+            if not isinstance(graphs, Sequence) or not graphs:
+                raise ValueError(f"official GEARS graph cache is empty: {condition}")
+            de_idx = np.asarray(graphs[0].de_idx).reshape(-1)
+            if de_idx.size != expected_de_index_count:
+                raise ValueError(
+                    "official GEARS graph cache has invalid DE index count: "
+                    f"{condition}={de_idx.size}"
+                )
+            verified_condition_count += 1
+
+        return {
+            "graph_cache_built_after_de_ranking": True,
+            "graph_de_index_count": expected_de_index_count,
+            "graph_condition_count": verified_condition_count,
+        }
 
     def prepare_training_data(
         self,
@@ -153,15 +182,20 @@ class OfficialGearsAPI:
         """Call official data APIs on data containing no test perturbation rows."""
 
         pert_data = self.modules.package.PertData(str(Path(data_root)))
-        pert_data.new_data_process(
-            dataset_id,
-            adata=training_validation_adata,
-            # Condition names are materialized by the frozen package first.
-            # Ranking is orchestrated below so singleton conditions can remain
-            # in the shared split without entering Scanpy's t-test.
+        prepared_adata = self.modules.data_utils.get_DE_genes(
+            training_validation_adata,
             skip_calc_de=True,
         )
-        self._materialize_training_de_metadata(pert_data)
+        prepared_adata, receipt = self._materialize_training_de_metadata(prepared_adata)
+        pert_data.new_data_process(
+            dataset_id,
+            adata=prepared_adata,
+            # Official condition names and safe ranking metadata already exist,
+            # so the frozen graph builder sees them on its only construction.
+            skip_calc_de=True,
+        )
+        receipt.update(self._validate_training_graph_cache(pert_data))
+        pert_data.gradpert_de_ranking_receipt = receipt
         non_zeros: dict[str, np.ndarray[Any, Any]] = {}
         for condition in pert_data.adata.obs["condition"].astype(str).unique():
             subset = pert_data.adata[pert_data.adata.obs["condition"].astype(str) == condition]
