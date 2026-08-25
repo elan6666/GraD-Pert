@@ -9,11 +9,26 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T00:30:00+08:00
+updated_at: 2026-08-25T12:57:35+08:00
 ---
 
 # Status
 
+- Current execution policy supersedes the earlier full-run plan: all learned
+  coordinates stop after exactly one epoch, and no 100-epoch/full task may be
+  launched. Goal mode is paused while the server matrix is running; it resumes
+  only after all 30 one-epoch/nonlearned coordinates pass strict validation.
+- Formal-v2 at clean commit `c240157` has valid manifests for all five
+  GraD-Pert runs, all 15 nonlearned runs, and GEARS K562. GEARS RPE1 and Jurkat
+  completed their optimization epoch but failed inside the frozen official
+  `compute_metrics`: their source AnnData lacks DE rankings, the current
+  `skip_calc_de=True` path emits a one-index sentinel, and SciPy Pearson rejects
+  vectors shorter than two. Both queues stopped fail-closed with no full task.
+- Plan 009 is the bounded repair: run the frozen official GEARS DE-ranking path
+  on the already test-free train+validation AnnData, preserve the failed c240
+  evidence, and establish a fresh benchmark-runner lineage. The existing c240
+  GraD-Pert Nadig Jurkat run remains the immutable optimization B0 and will not
+  be rerun.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs
@@ -38,7 +53,7 @@ updated_at: 2026-08-25T00:30:00+08:00
   3.84--4.04×. The hash-pinned decision is tracked at
   `registry/capacity/batch_comparison.development.json` and uses no test metric.
 
-- Goal mode: on; Codex goal created for the end-to-end GraD-Pert delivery.
+- Goal mode: paused during current server training; no active Codex goal.
 - Project state: root Git repository and standalone package shell exist; plans
   002 and 003 are complete, and native model plan 004 is active.
 - Discussion source: Codex task `01a00ab3-9864-7032-98d9-45f6d0016838`, `TxPert/grad-pert`, and `.byte-os/DISCUSSION.md`.
@@ -48,7 +63,8 @@ updated_at: 2026-08-25T00:30:00+08:00
 - Fairness: one canonical condition split/evaluation manifest; paired run seeds and shared 300-control evaluation draws.
 - Metric contract: frozen union with three distinct Pearson headlines: TxPert macro delta, TriShift delta, Systema Pearson.
 - Artifact contract: versioned condition-level PKL plus Parquet/JSON/H5AD; notebooks consume artifacts only.
-- Execution policy: all 15 learned model/dataset integrations must pass exactly 1 epoch; only GraD-Pert continues to max 100 with validation-only patience 10. GEARS/TxPert are official-package `smoke_only` runners.
+- Execution policy: all 15 learned model/dataset integrations stop after exactly
+  one epoch under the current user amendment; no model continues to a full run.
 - Server topology: formal compute only on `/data/yilangliu`; local/GitHub/server must share one clean commit; large artifacts remain server-only.
 - Historical batch-64 hardware decision: two RTX 5090 with 32607 MiB each; the sustained global
   gate selected `K_head=16384`. Candidate 65,536 failed on K562 at step 34,

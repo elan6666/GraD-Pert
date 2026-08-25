@@ -169,7 +169,8 @@ def run_one_epoch(
             "official_test_loader_policy": "empty_then_removed_before_fit",
             **storage_receipt,
             "split_pickle_sha256": split_sha256,
-            "nonzero_metadata": "official_formula_without_DE_ranking",
+            "de_ranking_scope": "official_formula_train_validation_only",
+            "nonzero_metadata": "official_formula_with_DE_ranking",
         }
         write_adapter_receipt(small_root / "official_data_adapter.json", adapter_receipt)
         with official_module_session(

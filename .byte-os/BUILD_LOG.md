@@ -342,3 +342,25 @@
   restoration APIs. Added a CUDA checkpoint load regression; local Ruff,
   format and diff checks pass, while the Torch-free local test is honestly
   skipped pending the server regression.
+
+## 2026-08-25 — formal-v2 GEARS DE-ranking repair
+
+- At clean commit `c240157`, all five GraD-Pert runs, all 15 nonlearned runs,
+  and GEARS K562 had valid manifests. GEARS RPE1 and Jurkat completed one
+  optimization epoch and then failed in the frozen official
+  `gears.inference.compute_metrics` because their adapted H5AD files lacked
+  `rank_genes_groups_cov_all`; the upstream fallback emitted one sentinel DE
+  index and SciPy rejected length-one Pearson inputs.
+- Changed only the isolated GEARS adapter to call the frozen official
+  `PertData.new_data_process` DE-ranking path on the already test-free
+  train+validation AnnData. The official model, loss, optimizer, split, and
+  common 300-control evaluation remain unchanged. Adapter receipts now state
+  the DE-ranking truth scope.
+- Added a focused API regression asserting that official DE calculation is
+  enabled and the canonical test loader is still removed before fit. All ten
+  local benchmark tests pass; Ruff lint/format and diff checks pass.
+- The ordinary local Python environment lacks notebook, mypy, and build
+  dependencies. A frozen uv sync was attempted but stopped after prolonged
+  package-mirror retries; no dependency file changed. Full pytest, strict mypy,
+  build, and the real GEARS integration remain pending in the existing server
+  environments.

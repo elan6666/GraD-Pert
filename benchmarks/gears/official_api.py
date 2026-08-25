@@ -86,7 +86,12 @@ class OfficialGearsAPI:
         pert_data.new_data_process(
             dataset_id,
             adata=training_validation_adata,
-            skip_calc_de=True,
+            # The official training loop always evaluates DE predictions.  Its
+            # no-ranking fallback contains one sentinel index, which cannot be
+            # passed to scipy.stats.pearsonr.  Build the official ranking from
+            # this truth-scoped train+validation AnnData; canonical test rows
+            # are absent before the official package is imported.
+            skip_calc_de=False,
         )
         non_zeros: dict[str, np.ndarray[Any, Any]] = {}
         for condition in pert_data.adata.obs["condition"].astype(str).unique():

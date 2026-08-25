@@ -197,6 +197,7 @@ def test_adapter_calls_official_data_train_checkpoint_apis(tmp_path: Path) -> No
         "prepare_split",
         "get_dataloader",
     ]
+    assert pert_data.calls[0][1][2] is False
     assert "test_loader" not in pert_data.dataloader
 
     model = api.fit_one_epoch(
