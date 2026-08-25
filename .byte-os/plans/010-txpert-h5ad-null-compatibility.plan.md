@@ -1,6 +1,6 @@
 # Plan 010: TxPert frozen-Anndata H5AD null compatibility
 
-- Status: implementation verified locally; full server gate pending
+- Status: canonical-reader compatibility follow-up verified locally
 
 ## Evidence
 
@@ -12,6 +12,10 @@
 - A server synthetic cross-version check reproduced the failure with
   `base=None`. Removing only that null key produced a file the frozen reader
   loaded with the exact same expression values and shape.
+- Commit `c127380` applied that write-side sanitation, but the hard gate proved
+  the frozen runner first opens the immutable canonical H5AD directly inside
+  `CanonicalTrainingData`, before any adapter copy exists. The full stack ends
+  at that canonical read, so write-side sanitation alone cannot be reached.
 
 ## Write scope
 
@@ -34,6 +38,12 @@ mean natural-log base, while absence is readable by the frozen Anndata version.
 Preserve any non-null base and every other metadata/value. Record the policy and
 removed paths in `official_data_adapter.json`.
 
+Before opening the immutable canonical H5AD, register the exact Anndata 0.13.2
+`null` 0.1.0 HDF5 reader behavior in the frozen runner's in-memory Anndata
+registry: return Python `None`. Do not modify the frozen environment or source
+H5AD. The existing write-side sanitation then removes that value from the
+adapter copy so frozen Anndata does not need a corresponding null writer.
+
 ## Acceptance criteria
 
 1. The synthetic file with explicit null fails under frozen Anndata 0.11.4,
@@ -44,6 +54,9 @@ removed paths in `official_data_adapter.json`.
 5. Full test/lint/format/type/build gates and a real server TxPert smoke pass at
    one new clean synchronized commit.
 6. The dddc failure lineage remains recoverable under a precise superseded path.
+7. The canonical-reader compatibility is registered in memory only, recorded in
+   the adapter receipt, and reads `null` 0.1.0 exactly as the inspected newer
+   Anndata implementation does.
 
 ## Verification
 

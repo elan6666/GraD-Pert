@@ -33,6 +33,29 @@ from gradpert.training.data import CanonicalTrainingData, write_training_data_re
 PROJECT_REPOSITORY = "https://github.com/elan6666/GraD-Pert.git"
 
 
+def _register_anndata_null_reader() -> dict[str, object]:
+    """Teach frozen Anndata the newer null scalar's exact read semantics."""
+
+    h5py = importlib.import_module("h5py")
+    registry_module = importlib.import_module("anndata._io.specs.registry")
+    registry = registry_module._REGISTRY
+    spec = registry_module.IOSpec("null", "0.1.0")
+    registered_at_runtime = not registry.has_read(h5py.Dataset, spec)
+    if registered_at_runtime:
+
+        def read_null(_element: object, _reader: object) -> None:
+            return None
+
+        registry.register_read(h5py.Dataset, spec)(read_null)
+    return {
+        "schema_version": "anndata-null-reader-compatibility-v1",
+        "encoding_type": "null",
+        "encoding_version": "0.1.0",
+        "registered_at_runtime": registered_at_runtime,
+        "read_semantics": "return_none",
+    }
+
+
 def _sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -190,6 +213,7 @@ def run_one_epoch(
     atomic_json(small_root / "environment.json", environment.payload())
     random.seed(1)
     np.random.seed(1)
+    canonical_reader_compatibility = _register_anndata_null_reader()
 
     with CanonicalTrainingData(
         dataset_id=config.dataset_id,
@@ -217,6 +241,7 @@ def run_one_epoch(
                 "official_test_partition": "canonical_val_duplicate",
                 "canonical_test_truth_present": False,
                 "cell_type": cell_types[0],
+                "canonical_reader_compatibility": canonical_reader_compatibility,
             },
         )
         with official_module_session(

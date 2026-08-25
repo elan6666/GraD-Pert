@@ -4,10 +4,11 @@
 - Started at: 2026-08-23T16:57:56Z
 - Current loop number: 3
 - Completed stages: goal created; discussion preserved; research; three read-only audits; codebase harness; shaping; eight executable plans; public GitHub source publication and parity verification
-- Current stage: plan 010 TxPert H5AD compatibility repair. Commit `dddc767`
-  passed the repaired GEARS path, then frozen Anndata 0.11.4 rejected the newer
-  explicit-null encoding at `/uns/log1p/base`. The adapter-only copy now drops
-  only that key when null, while goal mode remains paused.
+- Current stage: plan 010 canonical-reader follow-up. The `c127380` gate proved
+  frozen Anndata fails while opening the immutable canonical H5AD, before the
+  sanitized adapter copy exists. The runner now registers the exact newer null
+  read semantics in memory before canonical loading, while goal mode remains
+  paused.
 - Remaining plans: verify and publish plan 010; preserve prior failures; complete
   the exact one-epoch learned matrix without rerunning the existing GraD-Pert
   Nadig Jurkat B0; validate/stage small receipts; then enable goal mode for the
@@ -19,9 +20,9 @@
 - Active subagent scopes: none; all exploration handoffs captured under `.byte-os/subagents/`
 - Hard blockers: none; the GEARS failure has an evidence-backed official-API
   repair and requires no user decision.
-- Exact resume action: pass local/server gates for the TxPert adapter-only null
-  metadata compatibility repair, publish and synchronize one clean commit,
-  retain the superseded dddc
+- Exact resume action: pass local/server gates for the TxPert in-memory null
+  reader plus adapter write sanitation, publish and synchronize one clean
+  commit, retain the superseded c127
   benchmark-fix lineage, then relaunch only GEARS/TxPert one-epoch queues and
   return to the scheduled monitor.
 - Parked future items: recorded in `.byte-os/FUTURE.md`, excluded from Auto

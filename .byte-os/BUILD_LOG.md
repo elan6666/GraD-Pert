@@ -398,3 +398,10 @@
   exact transformation only to its test-free cache copy, records the removed
   path, and preserves non-null bases. Six focused TxPert/API/lifecycle tests,
   Ruff, format, and diff checks pass locally.
+- The `c127380` hard gate failed before `_write_official_cache`: the full stack
+  showed `CanonicalTrainingData` opening the immutable canonical H5AD in frozen
+  Anndata first. Inspection of Anndata 0.13.2 identified its exact registered
+  reader for HDF5 `IOSpec("null", "0.1.0")`: return `None`. The follow-up
+  registers that same reader in the frozen process before canonical loading,
+  records the action, and still strips the null from the later adapter copy.
+  No H5AD source or environment package is changed; seven focused tests pass.

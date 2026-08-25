@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T15:53:00+08:00
+updated_at: 2026-08-25T16:16:00+08:00
 ---
 
 # Status
@@ -54,6 +54,14 @@ updated_at: 2026-08-25T15:53:00+08:00
   Plan 010 removes only that adapter-copy key when its value is null; a real
   server cross-version fixture proves the sanitized file preserves expression
   values and loads successfully in the frozen environment.
+- The `c127380` hard gate showed the exception actually occurs earlier, while
+  frozen Anndata opens the immutable canonical H5AD before an adapter copy is
+  built. That stopped lineage is preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-formal-v2-c127-canonical-null-reader`.
+  The follow-up registers the inspected Anndata 0.13.2 `null` 0.1.0 read
+  semantics (`return None`) in the frozen runner's in-memory registry before
+  `CanonicalTrainingData`, then retains the adapter-copy write sanitation. It
+  does not edit the canonical file or frozen environment.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs
