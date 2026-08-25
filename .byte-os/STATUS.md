@@ -345,3 +345,20 @@ updated_at: 2026-08-25T22:30:00+08:00
   the largest file is 6.42 MiB, while the external and retained-c240 selections
   total 100.26 and 118.10 MiB. Small-sync defaults are therefore bounded at
   8 MiB per file and 128 MiB total; binary/scientific suffixes remain forbidden.
+- Both small-result stages were executed, transferred, and reverified locally.
+  External: 195 files, 105,131,234 bytes, file-list SHA-256
+  `2dd0b89886e28c503369981585d4500e3dd62a87dd327ac20a831bd7ce1ec8a7`.
+  Retained c240: 325 files, 123,833,824 bytes, file-list SHA-256
+  `925009e128bec63e7c5bfb20ed6bb6c54054f655bd30e55f9329d2540b05bed0`.
+- The explicit two-lineage one-epoch audit passed exact 30 coordinates with
+  coordinate SHA-256
+  `a5fe297272cb3cf6f7c0b8d4587027538e725e183eefa4a257b90134aa818891`.
+  Each dataset has one shared protocol/canonical/split/ordered-300-control/Truth
+  identity across all six models; the three metric IDs and one-test lifecycle
+  also passed. All 15 learned checkpoint files exist on the server and match
+  their manifest hashes.
+- Historical limitation: all 20 retained c240 coordinates predate
+  `inference_recipe.json`. Their small metrics/manifests/configs and exact row
+  IDs remain auditable, and the five learned checkpoints remain hash-valid, but
+  they must not be described as having the newer complete recipe bundle. The
+  ten new external coordinates all carry a valid `metrics_only` recipe.

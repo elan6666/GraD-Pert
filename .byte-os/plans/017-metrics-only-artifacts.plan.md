@@ -94,3 +94,13 @@ are established. Historical outputs remain immutable.
   `/data/yilangliu/GraD-Pert/receipts/pkl-cleanup-20260826/cleanup-receipt.json`
   with SHA-256
   `321318f97be9088f9a2f001bf6208e75fe29c10be8f7cb656cc945b4a7252217`.
+- The repaired small-result stages were executed and verified on both server and
+  Mac: 195 external files and 325 retained-c240 files, with file-list SHA-256
+  `2dd0b89886e28c503369981585d4500e3dd62a87dd327ac20a831bd7ce1ec8a7`
+  and `925009e128bec63e7c5bfb20ed6bb6c54054f655bd30e55f9329d2540b05bed0`.
+  The combined audit passed exact 30 coordinates and all five cross-model
+  fairness identities; all 15 learned checkpoint hashes were revalidated.
+- The 20 retained c240 coordinates honestly lack the newer
+  `inference_recipe.json` because they predate this artifact policy. Their
+  remaining small evidence and five learned checkpoints are preserved, but the
+  missing recipe is a documented historical limitation rather than backfilled.
