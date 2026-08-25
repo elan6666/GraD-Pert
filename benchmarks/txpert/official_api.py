@@ -237,8 +237,16 @@ class OfficialPublicAPI:
         checkpoint_path: str | Path,
         accelerator: str,
     ) -> Any:
-        """Let Lightning run the official training_step/optimizer for exactly one epoch."""
+        """Fit one epoch from the already-adapted official training loader.
 
+        Passing the data module back to Lightning would call its ``setup`` a
+        second time and replace the validated training dataset.  Materialize
+        the frozen module's own loader after adaptation so the official
+        collate function, shuffle, batching, training step, and optimizer are
+        preserved without that destructive rebuild.
+        """
+
+        official_training_loader = training_only_data_module.train_dataloader()
         trainer = self.modules.lightning.Trainer(
             accelerator=accelerator,
             devices=1,
@@ -249,7 +257,7 @@ class OfficialPublicAPI:
             num_sanity_val_steps=0,
             limit_val_batches=0,
         )
-        trainer.fit(model, datamodule=training_only_data_module)
+        trainer.fit(model, train_dataloaders=official_training_loader)
         trainer.save_checkpoint(str(Path(checkpoint_path)))
         return trainer
 

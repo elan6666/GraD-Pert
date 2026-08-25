@@ -1,6 +1,6 @@
 # Plan 013: TxPert control-only training index compatibility
 
-- Status: implementation and verification in progress
+- Status: adapter translation verified; superseded at fit boundary by plan 014
 
 ## Evidence
 
@@ -51,6 +51,17 @@
    perturbation tensor.
 5. Local and server test/lint/format/type/build gates pass at one synchronized
    clean commit before a fresh RPE1-only one-epoch hard gate.
+
+## Follow-up evidence
+
+- Commit `687681f` passed all implementation, real-data index, GPU tensor, and
+  server quality gates. Its RPE1 hard gate nevertheless failed at the same
+  first-step expression because Lightning invoked `setup("fit")` again after
+  the adapter receipt had been sealed.
+- A read-only replay observed `train_data` object identity change across the
+  second setup and all 11,485 control-only rows revert from `[-1]` to
+  `["ctrl"]`. Plan 014 closes this lifecycle boundary without changing the
+  official loader or training algorithm.
 
 ## Verification
 

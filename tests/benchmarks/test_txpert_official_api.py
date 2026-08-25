@@ -70,8 +70,8 @@ class FakeTrainer:
         self.checkpoint_path: str | None = None
         self.instances.append(self)
 
-    def fit(self, model: object, datamodule: object) -> None:
-        self.fit_args = (model, datamodule)
+    def fit(self, model: object, train_dataloaders: object) -> None:
+        self.fit_args = (model, train_dataloaders)
 
     def save_checkpoint(self, path: str) -> None:
         self.checkpoint_path = path
@@ -134,7 +134,14 @@ def test_build_and_fit_delegate_to_official_graph_model_and_lightning(tmp_path: 
     assert graph_args == {"graph_cfg": {"graph0": {"graph_type": "string"}}}
     assert FakePredictor.calls[0]["model_args"] == model_args
 
-    training_data = object()
+    official_training_loader = object()
+    loader_calls: list[str] = []
+
+    def train_dataloader() -> object:
+        loader_calls.append("official_train_dataloader")
+        return official_training_loader
+
+    training_data = SimpleNamespace(train_dataloader=train_dataloader)
     checkpoint = tmp_path / "smoke.ckpt"
     trainer = api.fit_one_epoch(
         model=model,
@@ -145,7 +152,8 @@ def test_build_and_fit_delegate_to_official_graph_model_and_lightning(tmp_path: 
     assert trainer.kwargs["max_epochs"] == 1
     assert trainer.kwargs["limit_val_batches"] == 0
     assert trainer.kwargs["num_sanity_val_steps"] == 0
-    assert trainer.fit_args == (model, training_data)
+    assert trainer.fit_args == (model, official_training_loader)
+    assert loader_calls == ["official_train_dataloader"]
     assert trainer.checkpoint_path == str(checkpoint)
 
 

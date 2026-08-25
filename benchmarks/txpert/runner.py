@@ -317,7 +317,9 @@ def run_one_epoch(
                     "epochs_completed": completed_epochs,
                     "optimizer_steps": optimizer_steps,
                     "official_training_api": (
-                        "lightning.Trainer.fit(gspp.predictor.PertPredictor)"
+                        "lightning.Trainer.fit(gspp.predictor.PertPredictor, "
+                        "train_dataloaders=gspp.data.datamodule.PertDataModule."
+                        "train_dataloader())"
                     ),
                     "train_batch_size": int(config.training.train_batch_size.value),
                     "eval_batch_size": int(config.training.eval_batch_size.value),

@@ -9,7 +9,7 @@ review_verdict: block
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T18:45:13+08:00
+updated_at: 2026-08-25T18:56:00+08:00
 ---
 
 # Status
@@ -98,6 +98,17 @@ updated_at: 2026-08-25T18:45:13+08:00
   Plan 013 performs one bounded adapter translation from the official control
   label to `data_module.pert2id["ctrl"]`, rejects every other nonnumeric or
   unknown component, and records before/after hashes and counts before fit.
+- Commit `687681f` proved that translation and its real-data preflight, but the
+  subsequent hard gate reproduced the same first-step failure. Direct evidence
+  then showed why: Lightning calls the frozen data module's `setup("fit")`
+  again when it is passed as `datamodule=`, replaces `train_data` with a new
+  object, and restores all 11,485 string control rows after the adapter receipt
+  was sealed. The complete 6876 run/log lineage is preserved under
+  `/data/yilangliu/GraD-Pert/superseded/20260825-formal-v2-6876-txpert-lightning-reset`.
+  Plan 014 passes the already-adapted loader returned by the frozen official
+  `train_dataloader()` into Lightning, retaining the official dataset,
+  collate/shuffle/batch, training step, optimizer, and one-epoch semantics while
+  preventing the destructive second setup.
 - 2026-08-25 execution override: GraD-Pert full runs now use `max_epochs=100`
   and train/evaluation batch size 256. The ad6 full gate/final watcher were
   stopped before any full task launched. Completed ad6 smoke/nonlearned outputs
