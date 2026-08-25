@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
+import time
 from collections import deque
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
@@ -116,6 +117,8 @@ class CanonicalTrainingData:
         protocol_id: str,
         data_root: str | Path,
         run_seed: int,
+        graph_gene_ids_override: Sequence[str] | None = None,
+        graph_manifest_path_override: str | Path | None = None,
     ) -> None:
         if run_seed < 0:
             raise ValueError("run_seed must be nonnegative")
@@ -144,19 +147,32 @@ class CanonicalTrainingData:
             .read_text(encoding="utf-8")
             .splitlines()
         )
-        self.graph_gene_ids = tuple(
+        canonical_graph_gene_ids = tuple(
             (self.layout.canonical / "graph_gene_ids.txt").read_text(encoding="utf-8").splitlines()
         )
-        if self.graph_gene_ids[: len(self.expression_gene_ids)] != self.expression_gene_ids:
+        if canonical_graph_gene_ids[: len(self.expression_gene_ids)] != self.expression_gene_ids:
             raise ValueError("expression genes must be the leading graph-axis prefix")
         if (
             len(self.expression_gene_ids) != self.manifest.n_expression_genes
-            or len(self.graph_gene_ids) != self.manifest.n_graph_genes
+            or len(canonical_graph_gene_ids) != self.manifest.n_graph_genes
             or sha256_json(list(self.expression_gene_ids))
             != self.manifest.expression_gene_order_sha256
-            or sha256_json(list(self.graph_gene_ids)) != self.manifest.graph_gene_order_sha256
+            or sha256_json(list(canonical_graph_gene_ids)) != self.manifest.graph_gene_order_sha256
         ):
             raise ValueError("runtime gene axes differ from the canonical manifest")
+        self.canonical_graph_gene_ids = canonical_graph_gene_ids
+        self.graph_gene_ids = (
+            canonical_graph_gene_ids
+            if graph_gene_ids_override is None
+            else tuple(graph_gene_ids_override)
+        )
+        if not self.graph_gene_ids or len(self.graph_gene_ids) != len(set(self.graph_gene_ids)):
+            raise ValueError("runtime graph axis must contain unique gene IDs")
+        self.runtime_graph_manifest_path = (
+            self.layout.root / "graphs" / "manifest.json"
+            if graph_manifest_path_override is None
+            else Path(graph_manifest_path_override).resolve(strict=True)
+        )
 
         try:
             anndata = importlib.import_module("anndata")
@@ -172,7 +188,7 @@ class CanonicalTrainingData:
         observed_graph_genes = tuple(str(value) for value in self._adata.var["gene_name"])
         self.row_ids = tuple(str(value) for value in self._adata.obs_names)
         if (
-            observed_graph_genes != self.graph_gene_ids
+            observed_graph_genes != self.canonical_graph_gene_ids
             or sha256_json(list(self.row_ids)) != self.manifest.observation_order_sha256
         ):
             self.close()
@@ -364,6 +380,7 @@ class CanonicalTrainingData:
         )
         pairer = TrainingControlPairer(run_seed=self.run_seed)
         for relative_indices in relative_batches:
+            read_started = time.perf_counter()
             perturbed_indices = tuple(self.train_row_indices[index] for index in relative_indices)
             perturbed_row_ids = tuple(self.row_ids[index] for index in perturbed_indices)
             contexts = tuple(self.context_ids[index] for index in perturbed_indices)
@@ -376,15 +393,16 @@ class CanonicalTrainingData:
             control_indices = tuple(self._row_index[row_id] for row_id in pairing.control_row_ids)
             condition_ids = tuple(self.condition_ids[index] for index in perturbed_indices)
             unique_conditions = tuple(dict.fromkeys(condition_ids))
+            control_expression = self._read_expression_indices(control_indices)
+            target_expression = self._read_expression_indices(perturbed_indices)
+            data_read_ms = (time.perf_counter() - read_started) * 1000.0
+            transfer_started = time.perf_counter()
+            control_tensor = torch.as_tensor(control_expression, device=device)
+            target_tensor = torch.as_tensor(target_expression, device=device)
+            host_to_device_ms = (time.perf_counter() - transfer_started) * 1000.0
             yield GraDPertTrainingBatch(
-                control_expression=torch.as_tensor(
-                    self._read_expression_indices(control_indices),
-                    device=device,
-                ),
-                target_expression=torch.as_tensor(
-                    self._read_expression_indices(perturbed_indices),
-                    device=device,
-                ),
+                control_expression=control_tensor,
+                target_expression=target_tensor,
                 condition_ids=condition_ids,
                 anchors_by_condition={
                     condition: self.anchors_by_condition[condition]
@@ -392,6 +410,8 @@ class CanonicalTrainingData:
                 },
                 perturbed_row_ids=perturbed_row_ids,
                 control_row_ids=pairing.control_row_ids,
+                data_read_ms=data_read_ms,
+                host_to_device_ms=host_to_device_ms,
             )
 
 
@@ -406,6 +426,9 @@ def write_training_data_receipt(data: CanonicalTrainingData, path: str | Path) -
         "split_content_sha256": data.split.split_content_sha256,
         "expression_gene_order_sha256": data.manifest.expression_gene_order_sha256,
         "graph_gene_order_sha256": data.manifest.graph_gene_order_sha256,
+        "canonical_graph_gene_order_sha256": data.manifest.graph_gene_order_sha256,
+        "runtime_graph_gene_order_sha256": sha256_json(list(data.graph_gene_ids)),
+        "runtime_graph_gene_count": len(data.graph_gene_ids),
         "train_perturbed_cell_count": len(data.train_row_indices),
         "drop_last": False,
         "singleton_tail_policy": "drop_for_batchnorm",

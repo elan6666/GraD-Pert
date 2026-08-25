@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 import random
+import resource
+import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -25,6 +29,7 @@ from gradpert.execution.identity import (
 from gradpert.graphs import build_prediction_graph_view, load_dataset_graph_topology
 from gradpert.hashing import sha256_file, sha256_json
 from gradpert.modeling import CenterState, GraDPertJointModel
+from gradpert.pilots import load_reduced_graph_topology
 from gradpert.training.checkpoint import CheckpointIdentity
 from gradpert.training.data import CanonicalTrainingData, write_training_data_receipt
 from gradpert.training.inference import predict_frozen_controls
@@ -50,6 +55,15 @@ def _integer_parameter(config: ExperimentConfig, name: str) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError(f"model parameter {name} must be an integer")
     return value
+
+
+def _optional_string_parameter(config: ExperimentConfig, name: str) -> str | None:
+    parameter = config.model.parameters.get(name)
+    if parameter is None:
+        return None
+    if not isinstance(parameter.value, str) or not parameter.value:
+        raise ValueError(f"model parameter {name} must be a non-empty string")
+    return parameter.value
 
 
 def _training_integer(config: ExperimentConfig, name: str) -> int:
@@ -86,6 +100,31 @@ def _write_or_require_json(path: Path, value: dict[str, object], *, resume: bool
             raise ValueError(f"resumed run receipt differs: {path.name}")
         return
     atomic_json(path, value)
+
+
+def _read_step_timings(path: Path) -> list[dict[str, float]]:
+    fields = (
+        "batch_cell_count",
+        "data_read_ms",
+        "host_to_device_ms",
+        "view_build_ms",
+        "teacher_forward_ms",
+        "student_global_ms",
+        "student_local_ms",
+        "prediction_ms",
+        "backward_update_ms",
+        "step_wall_ms",
+    )
+    with path.open(encoding="utf-8", newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    if not rows:
+        raise ValueError("performance receipt requires at least one training step")
+    return [{field: float(row[field]) for field in fields} for row in rows]
+
+
+def _peak_cpu_ram_bytes() -> int:
+    observed = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+    return observed if sys.platform == "darwin" else observed * 1024
 
 
 def run_native_experiment(
@@ -160,6 +199,37 @@ def run_native_experiment(
     max_unique_conditions = _integer_parameter(config, "max_unique_conditions_per_batch")
     prototype_count = _integer_parameter(config, "prototype_count")
     max_epochs = _training_integer(config, "max_epochs")
+    cold_start_started = time.perf_counter()
+    graph_axis_policy = _optional_string_parameter(config, "graph_axis_policy")
+    reduced_manifest = None
+    if graph_axis_policy is None or graph_axis_policy == "canonical_full":
+        topology = load_dataset_graph_topology(
+            dataset_id=config.dataset_id,
+            protocol_id=config.data.protocol_id,
+            data_root=data_root,
+        )
+        graph_manifest_path = (
+            Path(data_root) / config.dataset_id / config.data.protocol_id / ("graphs/manifest.json")
+        )
+    elif graph_axis_policy == "recomputed_top500_union_candidate_targets":
+        relative_root = _optional_string_parameter(config, "runtime_graph_root")
+        if relative_root is None:
+            raise ValueError("reduced graph policy requires runtime_graph_root")
+        relative_path = Path(relative_root)
+        if relative_path.is_absolute() or any(
+            part in {"", ".", ".."} for part in relative_path.parts
+        ):
+            raise ValueError("runtime_graph_root must be a safe relative path")
+        graph_root = Path(data_root).joinpath(*relative_path.parts)
+        topology, reduced_manifest = load_reduced_graph_topology(graph_root)
+        if (
+            reduced_manifest.dataset_id != config.dataset_id
+            or reduced_manifest.protocol_id != config.data.protocol_id
+        ):
+            raise ValueError("reduced graph identity differs from the experiment config")
+        graph_manifest_path = graph_root / "manifest.json"
+    else:
+        raise ValueError(f"unsupported graph_axis_policy: {graph_axis_policy}")
 
     with (
         CanonicalTrainingData(
@@ -167,6 +237,8 @@ def run_native_experiment(
             protocol_id=config.data.protocol_id,
             data_root=data_root,
             run_seed=run_seed,
+            graph_gene_ids_override=topology.gene_ids,
+            graph_manifest_path_override=graph_manifest_path,
         ) as training_data,
         CanonicalEvaluationData(
             dataset_id=config.dataset_id,
@@ -179,19 +251,19 @@ def run_native_experiment(
             registry_version=config.data.registry_version,
             split_policy=config.data.split_policy,
         )
-        topology = load_dataset_graph_topology(
-            dataset_id=config.dataset_id,
-            protocol_id=config.data.protocol_id,
-            data_root=data_root,
-        )
         if topology.gene_ids != training_data.graph_gene_ids:
             raise ValueError("native topology and canonical graph axes differ")
+        if reduced_manifest is not None and (
+            reduced_manifest.canonical_data_sha256 != training_data.manifest.canonical_adata_sha256
+            or reduced_manifest.split_content_sha256 != training_data.split.split_content_sha256
+        ):
+            raise ValueError("reduced graph canonical data or split identity differs")
         steps_per_epoch = training_data.steps_per_epoch(
             batch_size=train_batch_size,
             max_unique_conditions=max_unique_conditions,
         )
         model = GraDPertJointModel(
-            graph_gene_count=training_data.manifest.n_graph_genes,
+            graph_gene_count=len(training_data.graph_gene_ids),
             expression_gene_count=training_data.manifest.n_expression_genes,
             prototype_count=prototype_count,
         ).to(device)
@@ -246,6 +318,9 @@ def run_native_experiment(
             "max_epochs": 1 if mode == "smoke" else max_epochs,
             "early_stopping_patience": int(config.training.early_stopping_patience.value),
             "validation_monitor": config.training.monitor,
+            "graph_axis_policy": graph_axis_policy or "canonical_full",
+            "runtime_graph_gene_count": len(training_data.graph_gene_ids),
+            "runtime_graph_gene_order_sha256": sha256_json(list(training_data.graph_gene_ids)),
         }
         write_training_data_receipt(training_data, small_root / "training_data.json")
         trainer = GraDPertTrainer(
@@ -282,6 +357,9 @@ def run_native_experiment(
             )
             return result.txpert_macro_pearson_delta
 
+        if device.type == "cuda":
+            torch.cuda.reset_peak_memory_stats(device)
+        cold_start_ms = (time.perf_counter() - cold_start_started) * 1000.0
         progress = trainer.fit(
             mode=mode,
             train_epoch_factory=lambda epoch: training_data.iter_train_epoch(
@@ -349,6 +427,67 @@ def run_native_experiment(
                 )
 
         trainer.test_best_once(evaluate_test_once)
+        timing_rows = _read_step_timings(small_root / "train_steps.csv")
+        warmup_steps = min(10, max(0, len(timing_rows) - 1))
+        measured = timing_rows[warmup_steps:]
+        measured_wall_ms = sum(
+            row["data_read_ms"] + row["host_to_device_ms"] + row["step_wall_ms"] for row in measured
+        )
+        measured_cells = int(sum(row["batch_cell_count"] for row in measured))
+        stage_fields = (
+            "data_read_ms",
+            "host_to_device_ms",
+            "view_build_ms",
+            "teacher_forward_ms",
+            "student_global_ms",
+            "student_local_ms",
+            "prediction_ms",
+            "backward_update_ms",
+            "step_wall_ms",
+        )
+        metrics_summary = json.loads(
+            (small_root / "metrics_summary.json").read_text(encoding="utf-8")
+        )
+        atomic_json(
+            small_root / "performance_receipt.json",
+            {
+                "schema_version": "native-performance-pilot-v1",
+                "selection_policy": "speed_only_one_epoch_metrics_non_decisional",
+                "graph_axis_policy": graph_axis_policy or "canonical_full",
+                "expression_gene_count": len(training_data.expression_gene_ids),
+                "output_gene_count": len(training_data.expression_gene_ids),
+                "evaluation_gene_count": len(training_data.expression_gene_ids),
+                "graph_node_count": topology.n_nodes,
+                "graph_nonself_edge_count": sum(
+                    len(graph.edges) for graph in topology.sources.values()
+                ),
+                "cold_start_ms": cold_start_ms,
+                "cache_build_ms": 0.0,
+                "one_epoch_fit_wall_ms": trainer.fit_wall_ms,
+                "one_epoch_training_wall_ms": trainer.training_wall_ms,
+                "validation_ms": trainer.validation_wall_ms,
+                "checkpoint_ms": trainer.checkpoint_wall_ms,
+                "logging_ms": trainer.logging_wall_ms,
+                "warmup_steps": warmup_steps,
+                "measured_steps": len(measured),
+                "measured_cells": measured_cells,
+                "measured_end_to_end_wall_ms": measured_wall_ms,
+                "steps_per_second": len(measured) / (measured_wall_ms / 1000.0),
+                "cells_per_second": measured_cells / (measured_wall_ms / 1000.0),
+                "mean_stage_ms": {
+                    field: sum(row[field] for row in measured) / len(measured)
+                    for field in stage_fields
+                },
+                "peak_allocated_gpu_bytes": (
+                    int(torch.cuda.max_memory_allocated(device)) if device.type == "cuda" else 0
+                ),
+                "peak_reserved_gpu_bytes": (
+                    int(torch.cuda.max_memory_reserved(device)) if device.type == "cuda" else 0
+                ),
+                "peak_cpu_ram_bytes": _peak_cpu_ram_bytes(),
+                "headline_metrics_non_decisional": metrics_summary["metrics"],
+            },
+        )
 
     if test_control_manifest_sha256 is None:
         raise RuntimeError("test callback did not record its control manifest hash")

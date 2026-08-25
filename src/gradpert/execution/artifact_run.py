@@ -65,7 +65,17 @@ def seal_evaluation_outputs(
     small_root = destination / "small_results"
     artifact_root = destination / "artifacts"
     artifact_root.mkdir(parents=True, exist_ok=True)
-    graph_manifest_path = training_data.layout.root / "graphs" / "manifest.json"
+    graph_manifest_path = getattr(
+        training_data,
+        "runtime_graph_manifest_path",
+        training_data.layout.root / "graphs" / "manifest.json",
+    )
+    runtime_graph_gene_ids = getattr(training_data, "graph_gene_ids", None)
+    runtime_graph_hash = (
+        sha256_json(list(runtime_graph_gene_ids))
+        if runtime_graph_gene_ids is not None
+        else training_data.manifest.graph_gene_order_sha256
+    )
     graph_manifest = (
         json.loads(graph_manifest_path.read_text(encoding="utf-8"))
         if graph_manifest_path.is_file()
@@ -147,7 +157,7 @@ def seal_evaluation_outputs(
                 "checkpoint_sha256": checkpoint_sha256,
                 "canonical_data_sha256": training_data.manifest.canonical_adata_sha256,
                 "gene_order_sha256": training_data.manifest.expression_gene_order_sha256,
-                "graph_gene_order_sha256": training_data.manifest.graph_gene_order_sha256,
+                "graph_gene_order_sha256": runtime_graph_hash,
                 "graph_manifest_path": str(graph_manifest_path) if graph_manifest else None,
                 "graph_manifest_sha256": (
                     sha256_file(graph_manifest_path) if graph_manifest else None

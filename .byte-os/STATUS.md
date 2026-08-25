@@ -2,17 +2,45 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: verifying
-current_workflow: byte-review
-next_workflow: server-static-gates
-review_verdict: block
+stage: implementing
+current_workflow: byte-auto
+next_workflow: plan-018-b1-graph-only
+review_verdict: pending
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-25T22:30:00+08:00
+updated_at: 2026-08-26T02:25:00+08:00
 ---
 
 # Status
+
+- The exact 30-coordinate one-epoch matrix is complete and sealed across two
+  explicit lineages: retained `c240157` GraD-Pert/nonlearned results and
+  `2bf2771` GEARS/TxPert results. The reviewed small stages contain 195 and 325
+  selected files; the combined audit passed all five cross-model fairness
+  identities and all 15 learned checkpoint hashes. Retained c240 coordinates
+  honestly predate `inference_recipe.json`; this limitation is recorded rather
+  than backfilled.
+- Project-wide artifact policy and README delivery are complete at clean,
+  public, synchronized commit `0b8d3c7`: every model and nonlearned baseline
+  defaults to zero persistent PKL, while explicit `single_pkl` is the only
+  opt-in. The authorized cleanup removed 126 non-active experiment PKLs
+  (355.10 GiB) with a sealed server receipt.
+- Goal mode is active for plan 018. Immutable B0 is the existing c240
+  GraD-Pert/Nadig-Jurkat/seed-1 coordinate and will not be rerun. B1 changes
+  only the graph axis; B2 enables all seven semantics-preserving systems
+  optimizations on the old graph; B3 combines them. Each pilot is exactly one
+  epoch and speed-only. Goal execution will pause whenever a long server pilot
+  is running.
+- B1 local implementation is complete: a separate pilot config keeps all 5,000
+  expression/output/evaluation genes, directly recomputes raw-data Top-500
+  HVGs, requires exact equality with the frozen normalized-dispersion ranking,
+  unions every candidate target, and re-prunes both public graph sources. The
+  native runtime now accepts an independently sealed graph axis smaller than
+  the expression axis and emits per-stage speed/memory receipts. No B2 systems
+  optimization is enabled in the B1 config. Local gates passed 185 tests with
+  9 honest dependency/receipt skips, Ruff, format, build, and diff check;
+  strict mypy remains a server gate because the local venv lacks Torch/PyG.
 
 - The first d6f9 GEARS/K562 hard gate completed one epoch successfully, but
   strict artifact validation found frozen GEARS had retained two framework

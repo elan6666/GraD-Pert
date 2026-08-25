@@ -169,6 +169,27 @@ def _parser() -> argparse.ArgumentParser:
             default=Path("registry/datasets"),
         )
         command.add_argument("--json", action="store_true", dest="as_json")
+
+    pilot = subparsers.add_parser("pilot", help="Prepare explicit performance-pilot inputs")
+    pilot_subparsers = pilot.add_subparsers(dest="pilot_command", required=True)
+    reduced_graph = pilot_subparsers.add_parser(
+        "prepare-top500-graph",
+        help="Directly recompute Nadig Jurkat Top-500 HVGs and build the reduced graph",
+    )
+    reduced_graph.add_argument("--data-root", type=Path, required=True)
+    reduced_graph.add_argument(
+        "--dataset-registry",
+        type=Path,
+        default=Path("registry/datasets/nadig_jurkat.yaml"),
+    )
+    reduced_graph.add_argument(
+        "--source-registry",
+        type=Path,
+        default=Path("registry/graphs/public_string_go.yaml"),
+    )
+    reduced_graph.add_argument("--official-checkout", type=Path, required=True)
+    reduced_graph.add_argument("--output", type=Path, required=True)
+    reduced_graph.add_argument("--json", action="store_true", dest="as_json")
     return parser
 
 
@@ -345,6 +366,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _data_operation(args)
     if args.command == "graph" and args.graph_command in {"status", "prepare", "verify"}:
         return _graph_operation(args)
+    if args.command == "pilot" and args.pilot_command == "prepare-top500-graph":
+        from gradpert.pilots import materialize_recomputed_top500_graph
+
+        manifest = materialize_recomputed_top500_graph(
+            entry=load_dataset_registry(args.dataset_registry),
+            data_root=args.data_root,
+            destination=args.output,
+            source_registry_path=args.source_registry,
+            source_registry=load_graph_source_registry(args.source_registry),
+            official_checkout=args.official_checkout,
+        )
+        payload = manifest.model_dump(mode="json")
+        if args.as_json:
+            print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+        else:
+            print(
+                f"{manifest.dataset_id} graph_gene_count={manifest.graph_gene_count} "
+                f"top500_sha256={manifest.direct_top500_gene_order_sha256}"
+            )
+        return 0
     if args.command == "model" and args.model_command == "fit-head":
         from gradpert.training.capacity import fit_global_prototype_head
 

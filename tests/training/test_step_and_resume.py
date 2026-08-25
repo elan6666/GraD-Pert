@@ -111,6 +111,16 @@ def _step_metrics() -> GraDPertStepMetrics:
         masked_node_center_norm=1.0,
         unique_condition_count=2,
         masked_node_count=1,
+        batch_cell_count=4,
+        data_read_ms=1.0,
+        host_to_device_ms=1.0,
+        view_build_ms=1.0,
+        teacher_forward_ms=1.0,
+        student_global_ms=1.0,
+        student_local_ms=1.0,
+        prediction_ms=1.0,
+        backward_update_ms=1.0,
+        step_wall_ms=5.0,
     )
 
 

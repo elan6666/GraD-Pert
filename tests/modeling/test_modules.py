@@ -90,6 +90,16 @@ def test_masked_view_routes_gradient_to_shared_mask_token() -> None:
     assert torch.isfinite(model.student_encoder.mask_token.grad).all()
 
 
+def test_joint_model_allows_graph_axis_smaller_than_expression_axis() -> None:
+    model = GraDPertJointModel(
+        graph_gene_count=3,
+        expression_gene_count=5,
+        prototype_count=8192,
+    )
+    assert model.graph_gene_count == 3
+    assert model.expression_gene_count == 5
+
+
 def test_disconnected_view_batch_matches_independent_encoding() -> None:
     model = GraDPertJointModel(
         graph_gene_count=7,

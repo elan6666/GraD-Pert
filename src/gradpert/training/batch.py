@@ -16,6 +16,8 @@ class GraDPertTrainingBatch:
     anchors_by_condition: Mapping[str, tuple[int, ...]]
     perturbed_row_ids: tuple[str, ...]
     control_row_ids: tuple[str, ...]
+    data_read_ms: float = 0.0
+    host_to_device_ms: float = 0.0
 
     def __post_init__(self) -> None:
         if self.control_expression.ndim != 2:
@@ -40,3 +42,5 @@ class GraDPertTrainingBatch:
                 raise ValueError("each condition requires unique active anchors")
             if any(anchor < 0 for anchor in anchors):
                 raise ValueError("active anchor IDs must be nonnegative")
+        if self.data_read_ms < 0 or self.host_to_device_ms < 0:
+            raise ValueError("batch stage timings must be nonnegative")

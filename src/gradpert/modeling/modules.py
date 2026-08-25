@@ -274,8 +274,8 @@ class GraDPertJointModel(nn.Module):
         prototype_count: int,
     ) -> None:
         super().__init__()
-        if expression_gene_count <= 0 or graph_gene_count < expression_gene_count:
-            raise ValueError("graph_gene_count must be at least the positive expression_gene_count")
+        if expression_gene_count <= 0 or graph_gene_count <= 0:
+            raise ValueError("graph and expression gene counts must both be positive")
         self.graph_gene_count = graph_gene_count
         self.expression_gene_count = expression_gene_count
         self.student_encoder = AdaptiveGeneGraphEncoder(graph_gene_count)

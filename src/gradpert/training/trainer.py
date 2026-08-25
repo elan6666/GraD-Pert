@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -85,6 +86,11 @@ class GraDPertTrainer:
         self.receipts = TrainingReceiptWriter(self.run_root / "small_results")
         self.receipts.write_run_meta(run_meta)
         self.progress = GraDPertTrainingProgress()
+        self.fit_wall_ms = 0.0
+        self.training_wall_ms = 0.0
+        self.validation_wall_ms = 0.0
+        self.checkpoint_wall_ms = 0.0
+        self.logging_wall_ms = 0.0
 
     @property
     def last_checkpoint(self) -> Path:
@@ -108,7 +114,8 @@ class GraDPertTrainer:
         self.progress = progress
 
     def _save(self, path: Path) -> str:
-        return save_training_checkpoint(
+        started = time.perf_counter()
+        result = save_training_checkpoint(
             path,
             model=self.engine.model,
             optimizer=self.engine.optimizer,
@@ -116,6 +123,8 @@ class GraDPertTrainer:
             progress=self.progress.to_payload(),
             identity=self.identity,
         )
+        self.checkpoint_wall_ms += (time.perf_counter() - started) * 1000.0
+        return result
 
     def fit(
         self,
@@ -124,26 +133,33 @@ class GraDPertTrainer:
         train_epoch_factory: TrainEpochFactory,
         validate: ValidationFunction,
     ) -> GraDPertTrainingProgress:
+        fit_started = time.perf_counter()
         target_epochs = 1 if mode == "smoke" else self.max_epochs
         if self.progress.completed_epochs > target_epochs:
             raise ValueError("checkpoint is beyond the requested run mode")
         for epoch in range(self.progress.completed_epochs, target_epochs):
+            training_started = time.perf_counter()
             observed_steps = 0
             for batch in train_epoch_factory(epoch):
                 metrics = self.engine.train_step(batch, global_step=self.progress.global_step)
+                logging_started = time.perf_counter()
                 self.receipts.write_step(
                     epoch=epoch,
                     global_step=self.progress.global_step,
                     metrics=metrics,
                 )
+                self.logging_wall_ms += (time.perf_counter() - logging_started) * 1000.0
                 self.progress.global_step += 1
                 observed_steps += 1
             if observed_steps != self.steps_per_epoch:
                 raise ValueError(
                     f"epoch {epoch} yielded {observed_steps} steps; expected {self.steps_per_epoch}"
                 )
+            self.training_wall_ms += (time.perf_counter() - training_started) * 1000.0
             self.progress.completed_epochs = epoch + 1
+            validation_started = time.perf_counter()
             validation_metric = float(validate(self.engine.model, epoch))
+            self.validation_wall_ms += (time.perf_counter() - validation_started) * 1000.0
             early = self.progress.early_stopping
             if early is None:  # pragma: no cover - closed by progress
                 raise AssertionError("early-stopping state is missing")
@@ -163,6 +179,7 @@ class GraDPertTrainer:
             self._save(self.last_checkpoint)
             if mode == "full" and should_stop:
                 break
+        self.fit_wall_ms += (time.perf_counter() - fit_started) * 1000.0
         return self.progress
 
     def test_best_once(self, test: TestFunction) -> None:

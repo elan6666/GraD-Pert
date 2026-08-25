@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import time
 from dataclasses import dataclass
 
 import torch
@@ -51,6 +52,16 @@ class GraDPertStepMetrics:
     masked_node_center_norm: float
     unique_condition_count: int
     masked_node_count: int
+    batch_cell_count: int
+    data_read_ms: float
+    host_to_device_ms: float
+    view_build_ms: float
+    teacher_forward_ms: float
+    student_global_ms: float
+    student_local_ms: float
+    prediction_ms: float
+    backward_update_ms: float
+    step_wall_ms: float
 
 
 def build_native_optimizer(
@@ -134,7 +145,9 @@ class GraDPertStepEngine:
             raise ValueError("global_step is outside the frozen maximum schedule")
         if batch.control_expression.shape[1] != self.model.expression_gene_count:
             raise ValueError("batch and model expression-gene counts differ")
+        step_started = time.perf_counter()
         self.model.train()
+        view_started = time.perf_counter()
         views = build_training_graph_views(
             self.topology,
             anchors_by_condition=batch.anchors_by_condition,
@@ -142,7 +155,17 @@ class GraDPertStepEngine:
             run_seed=self.run_seed,
             global_step=global_step,
         )
+        view_build_ms = (time.perf_counter() - view_started) * 1000.0
+        use_cuda_events = self.model.student_encoder.gene_embeddings.is_cuda
+        events: dict[str, torch.cuda.Event] = {}
 
+        def mark(name: str) -> None:
+            if use_cuda_events:
+                event = torch.cuda.Event(enable_timing=True)
+                event.record()
+                events[name] = event
+
+        mark("teacher_start")
         clean_globals = tuple(clean_graph_view(view) for view in views.globals)
         with torch.no_grad():
             teacher_encoded = self.model.teacher_encoder.forward_many(clean_globals)
@@ -152,7 +175,9 @@ class GraDPertStepEngine:
             teacher_condition_logits = tuple(
                 self.model.teacher_projector(states) for states in teacher_condition_states
             )
+        mark("teacher_end")
 
+        mark("student_global_start")
         student_encoded = self.model.student_encoder.forward_many(views.globals)
         student_global_states = tuple(
             _stack_condition_states(encoded, views) for encoded in student_encoded
@@ -160,6 +185,8 @@ class GraDPertStepEngine:
         student_view_logits: list[Tensor] = [
             self.model.student_projector(states) for states in student_global_states
         ]
+        mark("student_global_end")
+        mark("student_local_start")
         for local_index in range(8):
             condition_ids = tuple(views.anchors_by_condition)
             local_views = tuple(
@@ -172,6 +199,7 @@ class GraDPertStepEngine:
                 for condition_id, encoded in zip(condition_ids, local_encoded, strict=True)
             ]
             student_view_logits.append(self.model.student_projector(torch.stack(local_states)))
+        mark("student_local_end")
 
         condition_loss = condition_consistency_loss(
             student_view_logits=tuple(student_view_logits),
@@ -201,6 +229,7 @@ class GraDPertStepEngine:
         spread_loss = torch.stack([value for value, _ in spread_terms]).mean()
         ssl_loss = condition_loss + masked_loss + 0.1 * spread_loss
 
+        mark("prediction_start")
         prediction = self.model.predict_expression_batch(
             batch.control_expression,
             views.prediction,
@@ -209,6 +238,7 @@ class GraDPertStepEngine:
         )
         prediction_loss = F.mse_loss(prediction, batch.target_expression)
         total_loss = prediction_loss + 0.1 * ssl_loss
+        mark("prediction_end")
 
         condition_probabilities = torch.cat(
             [
@@ -226,6 +256,7 @@ class GraDPertStepEngine:
             )
             masked_entropy, masked_used = _distribution_health(masked_probabilities)
 
+        mark("backward_start")
         trainable_parameters = tuple(
             parameter for parameter in self.model.parameters() if parameter.requires_grad
         )
@@ -294,6 +325,25 @@ class GraDPertStepEngine:
         )
         if masked_node_ids:
             update_center(self.centers.masked_node, teacher_masked_logits)
+        mark("backward_end")
+
+        if use_cuda_events:
+            torch.cuda.synchronize(self.model.student_encoder.gene_embeddings.device)
+
+            def elapsed(start: str, end: str) -> float:
+                return float(events[start].elapsed_time(events[end]))
+
+            teacher_forward_ms = elapsed("teacher_start", "teacher_end")
+            student_global_ms = elapsed("student_global_start", "student_global_end")
+            student_local_ms = elapsed("student_local_start", "student_local_end")
+            prediction_ms = elapsed("prediction_start", "prediction_end")
+            backward_update_ms = elapsed("backward_start", "backward_end")
+        else:
+            teacher_forward_ms = 0.0
+            student_global_ms = 0.0
+            student_local_ms = 0.0
+            prediction_ms = 0.0
+            backward_update_ms = 0.0
 
         return GraDPertStepMetrics(
             total_loss=float(total_loss.detach().item()),
@@ -317,4 +367,14 @@ class GraDPertStepEngine:
             masked_node_center_norm=float(self.centers.masked_node.norm().item()),
             unique_condition_count=len(views.anchors_by_condition),
             masked_node_count=len(masked_node_ids),
+            batch_cell_count=len(batch.condition_ids),
+            data_read_ms=batch.data_read_ms,
+            host_to_device_ms=batch.host_to_device_ms,
+            view_build_ms=view_build_ms,
+            teacher_forward_ms=teacher_forward_ms,
+            student_global_ms=student_global_ms,
+            student_local_ms=student_local_ms,
+            prediction_ms=prediction_ms,
+            backward_update_ms=backward_update_ms,
+            step_wall_ms=(time.perf_counter() - step_started) * 1000.0,
         )
