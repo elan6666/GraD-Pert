@@ -137,6 +137,24 @@ def test_b2_config_enables_exact_all_seven_systems_contract() -> None:
     assert config.artifacts.result_mode == "metrics_only"
 
 
+def test_b2_ten_epoch_config_is_fixed_metrics_only_pilot() -> None:
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "configs/pilots/perf_b2_systems_only_10epoch/gradpert_b2/nadig_jurkat.yaml"
+    )
+    config = load_experiment_config(path)
+    parameters = config.model.parameters
+    assert parameters["performance_pilot_variant"].value == ("perf_b2_systems_only_10epoch")
+    assert parameters["graph_axis_policy"].value == "canonical_full"
+    assert parameters["systems_optimizations"].value == ("all_seven_semantics_preserving_v1")
+    assert config.training.formal_run_policy == "fixed_epoch_pilot"
+    assert config.training.max_epochs.value == 10
+    assert config.training.run_seeds == [1]
+    assert not config.training.early_stopping
+    assert config.artifacts.result_mode == "metrics_only"
+    assert config.artifacts.root == ("runs/pilots/perf_b2_systems_only_10epoch/nadig_jurkat")
+
+
 def test_b3_config_combines_reduced_graph_and_all_seven_systems_contract() -> None:
     path = (
         Path(__file__).resolve().parents[2]

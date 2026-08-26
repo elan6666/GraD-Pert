@@ -61,7 +61,7 @@ class GraDPertTrainingProgress:
 
 
 class GraDPertTrainer:
-    """Run exactly one smoke epoch or the locked full validation-selected budget."""
+    """Run a smoke, fixed-epoch pilot, or locked full validation-selected budget."""
 
     def __init__(
         self,
@@ -77,10 +77,10 @@ class GraDPertTrainer:
     ) -> None:
         if steps_per_epoch <= 0:
             raise ValueError("steps_per_epoch must be positive")
-        if max_epochs != 100:
-            raise ValueError("full native budget must be exactly 100 epochs")
+        if max_epochs not in {10, 100}:
+            raise ValueError("native budget must be an exact 10-epoch pilot or 100-epoch full run")
         if engine.total_schedule_steps != max_epochs * steps_per_epoch:
-            raise ValueError("Teacher schedule must span the configured full budget")
+            raise ValueError("Teacher schedule must span the configured native budget")
         self.engine = engine
         self.identity = checkpoint_identity
         self.run_root = Path(run_root)
@@ -137,7 +137,7 @@ class GraDPertTrainer:
     def fit(
         self,
         *,
-        mode: Literal["smoke", "full"],
+        mode: Literal["smoke", "pilot", "full"],
         train_epoch_factory: TrainEpochFactory,
         validate: ValidationFunction,
     ) -> GraDPertTrainingProgress:

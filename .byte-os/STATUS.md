@@ -2,18 +2,24 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: delivered
+stage: implementing
 current_workflow: byte-auto
-next_workflow: none
-review_verdict: pilot_ship
+next_workflow: plan-020-b2-ten-epoch
+review_verdict: pending
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-26T16:19:00+08:00
+updated_at: 2026-08-26T16:42:00+08:00
 ---
 
 # Status
 
+- Plan 020 is active by explicit user request: run Nadig Jurkat B2 for exactly
+  10 epochs in a fresh server namespace. The new bounded
+  `fixed_epoch_pilot` lifecycle preserves the existing one-epoch smoke and
+  100-epoch formal contracts, uses the full graph and all seven systems groups,
+  disables early termination, remains `metrics_only`, and must leave zero
+  persistent PKL. Goal mode will remain inactive during the long GPU run.
 - Plan 019 is delivered at clean public commit `167e31a`. Exact-commit server
   gates passed 215 tests with 3 honest prepared-receipt skips, Ruff, format,
   strict mypy on 66 source files, isolated wheel/sdist build, and clean-tree

@@ -190,14 +190,14 @@ def run_native_experiment(
     run_root: str | Path,
     run_id: str,
     run_seed: int,
-    mode: Literal["smoke", "full"],
+    mode: Literal["smoke", "pilot", "full"],
     device_name: str,
     repository_root: str | Path,
     formal: bool,
     development_commit: str | None = None,
     resume: bool = False,
 ) -> NativeRunResult:
-    """Run one isolated smoke/full lifecycle with exactly one final test access."""
+    """Run one isolated smoke/pilot/full lifecycle with exactly one final test access."""
 
     if (
         device_name.startswith("cuda:")
@@ -214,6 +214,10 @@ def run_native_experiment(
         raise ValueError("run seed is outside the experiment config")
     if mode == "smoke" and run_seed != config.training.run_seeds[0]:
         raise ValueError("the one-epoch integration gate uses the first configured seed")
+    if mode == "pilot" and config.training.formal_run_policy != "fixed_epoch_pilot":
+        raise ValueError("native pilot mode requires formal_run_policy=fixed_epoch_pilot")
+    if mode == "full" and config.training.formal_run_policy != "smoke_then_full":
+        raise ValueError("native full mode requires formal_run_policy=smoke_then_full")
     destination = Path(run_root).resolve()
     if resume:
         if not destination.is_dir():

@@ -368,6 +368,48 @@ def test_trainer_serializes_once_then_materializes_best_peer(tmp_path: Path, mon
     assert trainer.checkpoint_peer_method == "copy"
 
 
+def test_fixed_epoch_pilot_runs_exactly_ten_epochs_without_early_stop(
+    tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    digest = "b" * 64
+
+    def fake_save(path, **kwargs):  # type: ignore[no-untyped-def]
+        destination = Path(path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(b"pilot-checkpoint")
+        return digest
+
+    monkeypatch.setattr("gradpert.training.trainer.save_training_checkpoint", fake_save)
+
+    class FakeEngine:
+        total_schedule_steps = 10
+        model = object()
+        optimizer = object()
+        centers = object()
+
+        def train_step(self, batch, *, global_step):  # type: ignore[no-untyped-def]
+            assert batch == f"batch-{global_step}"
+            return _step_metrics()
+
+    trainer = GraDPertTrainer(
+        engine=FakeEngine(),  # type: ignore[arg-type]
+        checkpoint_identity=_identity(),
+        run_root=tmp_path,
+        steps_per_epoch=1,
+        max_epochs=10,
+        run_meta={"run_id": "fixed-ten-epoch-pilot"},
+    )
+    progress = trainer.fit(
+        mode="pilot",
+        train_epoch_factory=lambda epoch: (f"batch-{epoch}",),
+        validate=lambda model, epoch: 1.0,
+    )
+    assert progress.completed_epochs == 10
+    assert progress.global_step == 10
+    assert progress.early_stopping is not None
+    assert progress.early_stopping.consecutive_non_improvements == 9
+
+
 def test_training_receipts_require_identical_run_metadata_on_resume(tmp_path: Path) -> None:
     writer = TrainingReceiptWriter(tmp_path)
     writer.write_run_meta({"run_id": "same", "mode": "full"})

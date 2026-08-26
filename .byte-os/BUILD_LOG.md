@@ -527,3 +527,18 @@
   loopback SOCKS variables and failed because its temporary venv lacked SOCKS
   support; after the already-completed public identity check, rerunning only
   the isolated build without proxy variables succeeded.
+
+## 2026-08-26 — B2 exact 10-epoch pilot preparation
+
+- Added a separate self-contained Nadig Jurkat B2 10-epoch config using the
+  canonical full graph, all seven systems groups, seed 1, batch 256, 16,384
+  prototypes, `metrics_only`, and zero-persistent-PKL policy.
+- Added a bounded `fixed_epoch_pilot` config policy and `gradpert model pilot`
+  lifecycle. It requires exactly 10 configured epochs and seed 1, validates
+  every epoch, ignores early-stop termination, and does not relax existing
+  one-epoch smoke or 100-epoch formal constraints.
+- Targeted config tests passed 18 checks with one honest missing-Torch skip.
+  Full local pytest passed 193 tests with 9 honest dependency/receipt skips;
+  Ruff, format, isolated wheel/sdist build, and diff check passed. The exact
+  synchronized server commit still requires Torch-backed tests and strict mypy
+  before launch.

@@ -87,7 +87,9 @@ class ModelConfig(StrictModel):
 class TrainingConfig(StrictModel):
     learned: bool
     smoke_epochs: SourcedValue
-    formal_run_policy: Literal["smoke_then_full", "smoke_only", "inference_only"]
+    formal_run_policy: Literal[
+        "smoke_then_full", "smoke_only", "fixed_epoch_pilot", "inference_only"
+    ]
     max_epochs: SourcedValue
     early_stopping: bool
     early_stopping_patience: SourcedValue
@@ -127,6 +129,17 @@ class TrainingConfig(StrictModel):
                     raise ValueError("one-epoch external smoke uses monitor=none")
                 if self.run_seeds != [1]:
                     raise ValueError("external smoke-only runs use the shared seed 1")
+            elif self.formal_run_policy == "fixed_epoch_pilot":
+                if self.max_epochs.value != 10:
+                    raise ValueError("fixed-epoch native pilots require max_epochs=10")
+                if self.early_stopping or self.early_stopping_patience.value != 10:
+                    raise ValueError(
+                        "fixed-epoch native pilots disable stopping but retain patience=10 state"
+                    )
+                if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
+                    raise ValueError("fixed-epoch native pilots require the validation monitor")
+                if self.run_seeds != [1]:
+                    raise ValueError("fixed-epoch native pilots use only seed 1")
             else:
                 raise ValueError("learned models require a learned formal_run_policy")
             if self.min_delta != 0.0:
@@ -211,13 +224,14 @@ class ExperimentConfig(StrictModel):
         expected_learned = self.model.family != "nonlearned"
         if self.training.learned != expected_learned:
             raise ValueError("training.learned does not match model family")
-        expected_policy = {
-            "native_learned": "smoke_then_full",
-            "external_learned": "smoke_only",
-            "nonlearned": "inference_only",
+        allowed_policies = {
+            "native_learned": {"smoke_then_full", "fixed_epoch_pilot"},
+            "external_learned": {"smoke_only"},
+            "nonlearned": {"inference_only"},
         }[self.model.family]
-        if self.training.formal_run_policy != expected_policy:
-            raise ValueError(f"{self.model.family} requires formal_run_policy={expected_policy}")
+        if self.training.formal_run_policy not in allowed_policies:
+            expected = ",".join(sorted(allowed_policies))
+            raise ValueError(f"{self.model.family} requires formal_run_policy in {{{expected}}}")
         external_contracts = {
             "gears": (
                 "https://github.com/snap-stanford/GEARS.git",

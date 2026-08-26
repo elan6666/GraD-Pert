@@ -116,7 +116,7 @@ def _parser() -> argparse.ArgumentParser:
     fit_head.add_argument("--device", default="cuda:0")
     fit_head.add_argument("--batch-size", type=int, choices=(64, 256), default=256)
     fit_head.add_argument("--json", action="store_true", dest="as_json")
-    for command_name in ("smoke", "full"):
+    for command_name in ("smoke", "pilot", "full"):
         run = model_subparsers.add_parser(
             command_name,
             help=f"Run the native {command_name} lifecycle on a compute server",
@@ -401,7 +401,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(f"selected prototype_count={report['selected_prototype_count']}")
         return 0
-    if args.command == "model" and args.model_command in {"smoke", "full"}:
+    if args.command == "model" and args.model_command in {"smoke", "pilot", "full"}:
         from gradpert.execution.native import run_native_experiment
 
         if args.formal and args.development_commit is not None:
