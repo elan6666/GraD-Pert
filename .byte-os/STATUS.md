@@ -23,9 +23,9 @@ updated_at: 2026-08-26T21:01:14+08:00
   validations. Local focused gates passed 19 tests with one honest Torch/PyG
   skip plus Ruff/format; full local pytest/build remain dependency-limited and
   will run on the exact synchronized server commit before execution. The next
-  server coordinate is Nadig Jurkat seed 1 only, preceded by a fresh
-  exact-commit one-epoch B2 integration gate. Goal mode remains inactive for
-  long training.
+  server execution is Nadig Jurkat seeds 1--4 on the one frozen canonical
+  split, preceded by a fresh exact-commit seed-1 one-epoch B2 integration gate.
+  Goal mode remains inactive for long training.
 - Plan 020 execution and strict review are complete at clean synchronized
   commit `ddf40fd`. B2 systems-only and B3 combined each completed exactly 10
   epochs/5,820 ordered optimizer steps with 10 validations, no test truth

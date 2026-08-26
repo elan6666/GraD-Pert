@@ -2,7 +2,7 @@
 
 - Goal: Make full-graph systems-only B2 the default, restore the native full
   ceiling to 200 epochs with validation-only patience 10, and run Nadig Jurkat
-  seed 1 in a fresh metrics-only zero-PKL namespace.
+  seeds 1--4 on the frozen split in a fresh metrics-only zero-PKL namespace.
 - Started at: 2026-08-26T13:00:00Z
 - Current loop number: 1
 - Completed stages: plans 001--017; exact 30-coordinate one-epoch matrix;
@@ -22,5 +22,6 @@
 - Hard blockers: none.
 - Exact resume action: finish plan 021 regression gates, publish and synchronize
   the clean commit, pass server gates and a one-epoch Nadig Jurkat B2 gate, then
-  launch the fresh full run and leave goal mode inactive during training.
+  launch the four full runs in two GPU queues and leave goal mode inactive
+  during training.
 - Parked future items: recorded in `.byte-os/FUTURE.md`, excluded from Auto

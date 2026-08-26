@@ -10,8 +10,9 @@ updated_at: 2026-08-26T21:01:14+08:00
 
 Make full-graph, all-seven-systems B2 the default native GraD-Pert execution
 profile, restore the user-locked full-training ceiling to 200 epochs with
-validation-only early stopping patience 10, and launch one fresh formal Nadig
-Jurkat seed-1 run after an exact-commit one-epoch integration gate.
+validation-only early stopping patience 10, and launch four fresh formal Nadig
+Jurkat runs for registered seeds 1--4 after an exact-commit one-epoch
+integration gate.
 
 ## Write scope
 
@@ -26,8 +27,9 @@ Jurkat seed-1 run after an exact-commit one-epoch integration gate.
 
 - Do not run B3 or the reduced graph.
 - Do not rerun or overwrite any completed B0/B1/B2/B3 pilot.
-- Do not launch all five datasets or all four seeds; this execution is Nadig
-  Jurkat seed 1 only.
+- Do not launch the other four datasets. The user-requested "4 split" execution
+  means registered run seeds 1--4 on the one frozen canonical split; do not
+  invent four new data splits.
 - Do not change data, split, controls, optimizer, loss, RNG ownership, update
   order, evaluation, batch size, prototypes, allocator, or artifact policy.
 - Do not persist PKL output.
@@ -46,7 +48,7 @@ Jurkat seed-1 run after an exact-commit one-epoch integration gate.
   execution.
 - A fresh exact-commit one-epoch Nadig Jurkat B2 gate passes before the full
   task starts.
-- The full task runs with seed 1, batch 256, 16,384 prototypes, expandable
+- Four full tasks run with seeds 1--4, batch 256, 16,384 prototypes, expandable
   allocator, `metrics_only`, zero persistent PKL, maximum 200 epochs, and
   validation-only patience 10.
 - Goal mode remains inactive during long server training and monitoring runs
@@ -71,5 +73,5 @@ Jurkat seed-1 run after an exact-commit one-epoch integration gate.
 - [ ] Pass local and exact-commit server gates.
 - [ ] Commit, publicly push, and synchronize clean source.
 - [ ] Pass fresh one-epoch Nadig Jurkat B2 integration gate.
-- [ ] Launch the formal full run and install hourly monitoring.
-- [ ] Validate and deliver the completed run.
+- [ ] Launch the four formal full runs and install hourly monitoring.
+- [ ] Validate and deliver the completed runs.

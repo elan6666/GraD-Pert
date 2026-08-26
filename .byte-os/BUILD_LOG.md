@@ -561,3 +561,6 @@
   `nbformat` is absent, and local build is unavailable because the `build`
   module is not installed. Exact-commit server pytest/Ruff/format/strict
   mypy/build remains required before launch.
+- The user then requested formal "4 split" training. The execution scope is
+  therefore Nadig Jurkat run seeds 1--4 on the existing frozen canonical split,
+  distributed as two ordered GPU queues; no new split manifests are generated.

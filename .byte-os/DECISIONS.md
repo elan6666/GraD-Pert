@@ -5,8 +5,10 @@
 - The user superseded the earlier 100-epoch ceiling and B3 speed-only pilot
   selection for default execution: use full-graph systems-only B2 by default,
   with `max_epochs=200`, validation-only early stopping `patience=10`, and
-  `metrics_only` zero-PKL output. Launch only Nadig Jurkat seed 1 now; preserve
-  every completed B0/B1/B2/B3 coordinate.
+  `metrics_only` zero-PKL output. The subsequent "4 split" request is executed
+  as the already registered run seeds 1--4 on the single frozen canonical
+  Nadig Jurkat split, not four newly generated data splits. Preserve every
+  completed B0/B1/B2/B3 coordinate.
 - The user explicitly superseded the earlier no-rerun limitation for timing:
   execute one fresh B0 performance coordinate with `metrics_only` and zero
   persistent PKL so artifact persistence cannot contaminate its timing. Keep

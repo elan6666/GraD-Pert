@@ -26,8 +26,9 @@ iterate
 
 - Product Director: B2 is now the explicit user-selected default; the earlier
   B3 decision remains speed-pilot history and no longer controls execution.
-- Product Manager: scope is bounded to Nadig Jurkat seed 1; the five formal
-  configs are updated only so future native runs share one explicit default.
+- Product Manager: scope is bounded to Nadig Jurkat seeds 1--4 on the frozen
+  canonical split; the five formal configs are updated only so future native
+  runs share one explicit default.
 - QA Engineer: schema rejects budget drift and partial systems activation; the
   synthetic trainer regression proves patience 10 stops after 10 consecutive
   non-improvements.
@@ -42,7 +43,8 @@ iterate
 2. Synchronize the exact clean server commit and pass all server gates.
 3. Run and strictly validate a fresh one-epoch Nadig Jurkat B2 integration
    coordinate at that commit.
-4. Launch only the requested seed-1 full coordinate in a new namespace.
+4. Launch only the requested Nadig Jurkat seed-1 through seed-4 coordinates in
+   a new namespace, two ordered GPU queues, and no other dataset.
 
 # Suggested Changes
 
@@ -59,9 +61,10 @@ iterate
 # Engineering Rule Findings
 
 - The change is surgical and directly traceable to the user request.
-- The one material assumption is explicit: launch Nadig Jurkat seed 1 only,
-  matching the immediately preceding B2/B3 comparison, rather than spending
-  compute on all five datasets or all four registered seeds.
+- The one material interpretation is explicit: "4 split" maps to the four
+  preregistered run seeds on the existing frozen split. Generating four new
+  split manifests would be a separate fairness-contract change and is not
+  performed implicitly.
 - No unrelated refactor or generated artifact was introduced.
 
 # Harness Findings
