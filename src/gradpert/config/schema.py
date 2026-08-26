@@ -110,8 +110,8 @@ class TrainingConfig(StrictModel):
             if self.smoke_epochs.value != 1:
                 raise ValueError("learned models require a one-epoch integration smoke")
             if self.formal_run_policy == "smoke_then_full":
-                if self.max_epochs.value != 100:
-                    raise ValueError("full native runs require max_epochs=100")
+                if self.max_epochs.value != 200:
+                    raise ValueError("full native runs require max_epochs=200")
                 if not self.early_stopping or self.early_stopping_patience.value != 10:
                     raise ValueError("full native runs require early-stopping patience=10")
                 if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
@@ -232,6 +232,32 @@ class ExperimentConfig(StrictModel):
         if self.training.formal_run_policy not in allowed_policies:
             expected = ",".join(sorted(allowed_policies))
             raise ValueError(f"{self.model.family} requires formal_run_policy in {{{expected}}}")
+        if self.model_id == "gradpert_b2" and self.training.formal_run_policy == "smoke_then_full":
+            required_b2_parameters: dict[str, Scalar] = {
+                "graph_axis_policy": "canonical_full",
+                "systems_optimizations": "all_seven_semantics_preserving_v1",
+                "systems_merged_hdf5_reads": True,
+                "systems_control_expression_cache": True,
+                "systems_background_prefetch": True,
+                "systems_pin_memory": True,
+                "systems_nonblocking_transfer": True,
+                "systems_prefetch_depth": 2,
+                "systems_resident_graph_tensors": True,
+                "systems_validation_expression_cache": True,
+                "systems_buffered_training_logs": True,
+                "systems_log_buffer_steps": 64,
+                "systems_single_checkpoint_serialization": True,
+            }
+            observed = {
+                name: self.model.parameters[name].value
+                for name in required_b2_parameters
+                if name in self.model.parameters
+            }
+            if observed != required_b2_parameters:
+                raise ValueError(
+                    "formal gradpert_b2 requires the canonical full graph and all seven "
+                    "semantics-preserving systems optimizations"
+                )
         external_contracts = {
             "gears": (
                 "https://github.com/snap-stanford/GEARS.git",

@@ -542,3 +542,22 @@
   Ruff, format, isolated wheel/sdist build, and diff check passed. The exact
   synchronized server commit still requires Torch-backed tests and strict mypy
   before launch.
+# 2026-08-26 — Plan 021 B2 default and 200-epoch full budget
+
+- Changed all five formal `gradpert_b2` configs to the canonical full graph,
+  all seven semantics-preserving systems groups, `max_epochs=200`,
+  validation-only `patience=10`, batch 256, 16,384 prototypes, expandable
+  allocator, and `metrics_only` zero-PKL output.
+- Updated config/trainer guards and matrix tests from the superseded 100-epoch
+  ceiling to 200 while preserving exact fixed-10-epoch pilot support.
+- Added a synthetic full-run regression proving an initially improved metric
+  followed by 10 equal validations stops after epoch 11 rather than consuming
+  the 200-epoch ceiling.
+- Added generic full-run timing fields and a formal validation-selection label
+  to the native performance receipt while retaining legacy fields for sealed
+  pilot compatibility.
+- Focused local verification: 19 passed, one honest Torch/PyG dependency skip;
+  Ruff and format passed. Full local pytest stopped during collection because
+  `nbformat` is absent, and local build is unavailable because the `build`
+  module is not installed. Exact-commit server pytest/Ruff/format/strict
+  mypy/build remains required before launch.

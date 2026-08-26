@@ -332,7 +332,7 @@ def test_trainer_serializes_once_then_materializes_best_peer(tmp_path: Path, mon
     monkeypatch.setattr("gradpert.training.trainer.clone_training_checkpoint", fake_peer)
 
     class FakeEngine:
-        total_schedule_steps = 100
+        total_schedule_steps = 200
         model = object()
         optimizer = object()
         centers = object()
@@ -347,7 +347,7 @@ def test_trainer_serializes_once_then_materializes_best_peer(tmp_path: Path, mon
         checkpoint_identity=_identity(),
         run_root=tmp_path,
         steps_per_epoch=1,
-        max_epochs=100,
+        max_epochs=200,
         run_meta={"run_id": "systems"},
         log_buffer_steps=64,
         single_checkpoint_serialization=True,
@@ -408,6 +408,48 @@ def test_fixed_epoch_pilot_runs_exactly_ten_epochs_without_early_stop(
     assert progress.global_step == 10
     assert progress.early_stopping is not None
     assert progress.early_stopping.consecutive_non_improvements == 9
+
+
+def test_full_200_epoch_budget_stops_after_ten_non_improving_validations(
+    tmp_path: Path, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    digest = "c" * 64
+
+    def fake_save(path, **kwargs):  # type: ignore[no-untyped-def]
+        destination = Path(path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(b"full-checkpoint")
+        return digest
+
+    monkeypatch.setattr("gradpert.training.trainer.save_training_checkpoint", fake_save)
+
+    class FakeEngine:
+        total_schedule_steps = 200
+        model = object()
+        optimizer = object()
+        centers = object()
+
+        def train_step(self, batch, *, global_step):  # type: ignore[no-untyped-def]
+            assert batch == f"batch-{global_step}"
+            return _step_metrics()
+
+    trainer = GraDPertTrainer(
+        engine=FakeEngine(),  # type: ignore[arg-type]
+        checkpoint_identity=_identity(),
+        run_root=tmp_path,
+        steps_per_epoch=1,
+        max_epochs=200,
+        run_meta={"run_id": "full-200-epoch-budget"},
+    )
+    progress = trainer.fit(
+        mode="full",
+        train_epoch_factory=lambda epoch: (f"batch-{epoch}",),
+        validate=lambda model, epoch: 1.0,
+    )
+    assert progress.completed_epochs == 11
+    assert progress.global_step == 11
+    assert progress.early_stopping is not None
+    assert progress.early_stopping.consecutive_non_improvements == 10
 
 
 def test_training_receipts_require_identical_run_metadata_on_resume(tmp_path: Path) -> None:

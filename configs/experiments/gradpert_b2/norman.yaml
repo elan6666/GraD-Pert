@@ -28,6 +28,58 @@ model:
       value: "joint_prediction_graph_self_distillation"
       source: user_locked
       reference: "docs/design/GRADPERT_V1.md"
+    graph_axis_policy:
+      value: "canonical_full"
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 full graph"
+    systems_optimizations:
+      value: "all_seven_semantics_preserving_v1"
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
+    systems_merged_hdf5_reads:
+      value: true
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
+    systems_control_expression_cache:
+      value: true
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
+    systems_background_prefetch:
+      value: true
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
+    systems_pin_memory:
+      value: true
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
+    systems_nonblocking_transfer:
+      value: true
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
+    systems_prefetch_depth:
+      value: 2
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
+    systems_resident_graph_tensors:
+      value: true
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
+    systems_validation_expression_cache:
+      value: true
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
+    systems_buffered_training_logs:
+      value: true
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
+    systems_log_buffer_steps:
+      value: 64
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
+    systems_single_checkpoint_serialization:
+      value: true
+      source: user_locked
+      reference: "user requirement 2026-08-26: default formal B2 systems profile"
     gene_embedding_dim:
       value: 128
       source: user_locked
@@ -152,9 +204,9 @@ training:
     reference: "user requirement: learned integration gate is exactly one epoch"
   formal_run_policy: smoke_then_full
   max_epochs:
-    value: 100
+    value: 200
     source: user_locked
-    reference: "user requirement 2026-08-25: maximum 100 epochs"
+    reference: "user requirement 2026-08-26: maximum 200 epochs"
   early_stopping_patience:
     value: 10
     source: user_locked

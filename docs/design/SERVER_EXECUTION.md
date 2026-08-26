@@ -40,8 +40,9 @@ Server only:
 
 Execution policy is encoded independently in every model/dataset config:
 
-- `gradpert_b2`: one-epoch integration gate, then full training up to 100
-  epochs with validation-only patience 10;
+- `gradpert_b2`: one-epoch integration gate, then full training up to 200
+  epochs with validation-only patience 10; the default native runtime uses the
+  canonical full graph and all seven semantics-preserving systems groups;
 - `gears` and `txpert_public`: exactly one training epoch on each dataset, using
   isolated frozen official packages/configuration; no full run in this phase;
 - nonlearned models: inference/evaluation only.

@@ -19,6 +19,9 @@ The repository is under active implementation. Current authoritative material:
   Nadig HepG2, and Norman.
 - Models: GraD-Pert B2, isolated public GEARS and TxPert benchmarks, plus three
   nonlearned baselines.
+- Default native training: full-graph B2 with all seven semantics-preserving
+  systems optimizations, at most 200 epochs, and validation-only early stopping
+  after 10 consecutive non-improvements.
 - Formal training and large artifacts are server-only. Runs default to
   metrics-only receipts with no persistent PKL for every model and nonlearned
   baseline. An explicitly requested large export is one deduplicated

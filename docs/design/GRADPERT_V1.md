@@ -162,7 +162,7 @@ Each step uses this order:
    gradient norms/ratios.
 
 Teacher momentum follows a step-level cosine from 0.996 to 1 over the maximum
-100-epoch schedule; resumed runs restore global step and all state exactly.
+200-epoch schedule; resumed runs restore global step and all state exactly.
 
 Gradient ownership:
 
@@ -194,7 +194,7 @@ Gradient ownership:
   dropped because both prediction MLPs contain BatchNorm. The cap, ordering and
   singleton policy are explicit `project_preregistered` values in every
   GraD-Pert dataset config; they are not tuned by dataset or test results.
-- Maximum 100 epochs. Validate every epoch using the fixed validation
+- Maximum 200 epochs. Validate every epoch using the fixed validation
   300-control manifest and `txpert_macro_pearson_delta`.
 - Stop after 10 consecutive validations without a strict improvement. Save best
   and last. Test the sealed best checkpoint once.

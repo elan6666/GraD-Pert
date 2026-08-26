@@ -28,7 +28,12 @@ def test_each_config_carries_its_own_execution_policy() -> None:
             assert config.model.parameters["prototype_count"].value == 16384
             assert config.training.smoke_epochs.value == 1
             assert config.training.formal_run_policy == "smoke_then_full"
-            assert config.training.max_epochs.value == 100
+            assert config.training.max_epochs.value == 200
+            assert config.model.parameters["graph_axis_policy"].value == "canonical_full"
+            assert (
+                config.model.parameters["systems_optimizations"].value
+                == "all_seven_semantics_preserving_v1"
+            )
             assert config.training.train_batch_size.value == 256
             assert config.training.eval_batch_size.value == 256
             assert (
@@ -102,11 +107,16 @@ def test_loader_rejects_hidden_composition(tmp_path: Path, text: str, message: s
 @pytest.mark.parametrize(
     ("needle", "replacement", "message"),
     [
-        ("max_epochs:\n    value: 100", "max_epochs:\n    value: 101", "max_epochs=100"),
+        ("max_epochs:\n    value: 200", "max_epochs:\n    value: 201", "max_epochs=200"),
         (
             "n_controls_per_condition: 300",
             "n_controls_per_condition: 299",
             "300 controls",
+        ),
+        (
+            "systems_control_expression_cache:\n      value: true",
+            "systems_control_expression_cache:\n      value: false",
+            "all seven semantics-preserving systems optimizations",
         ),
         ("  min_delta: 0.0\n", "  min_delta: 0.0\n  unknown_option: true\n", "extra"),
     ],

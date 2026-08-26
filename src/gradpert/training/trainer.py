@@ -77,8 +77,8 @@ class GraDPertTrainer:
     ) -> None:
         if steps_per_epoch <= 0:
             raise ValueError("steps_per_epoch must be positive")
-        if max_epochs not in {10, 100}:
-            raise ValueError("native budget must be an exact 10-epoch pilot or 100-epoch full run")
+        if max_epochs not in {10, 200}:
+            raise ValueError("native budget must be an exact 10-epoch pilot or 200-epoch full run")
         if engine.total_schedule_steps != max_epochs * steps_per_epoch:
             raise ValueError("Teacher schedule must span the configured native budget")
         self.engine = engine

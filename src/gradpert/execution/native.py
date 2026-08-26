@@ -532,8 +532,14 @@ def run_native_experiment(
         atomic_json(
             small_root / "performance_receipt.json",
             {
-                "schema_version": "native-performance-pilot-v1",
-                "selection_policy": "speed_only_one_epoch_metrics_non_decisional",
+                "schema_version": "native-performance-v2",
+                "run_mode": mode,
+                "epochs_completed": progress.completed_epochs,
+                "selection_policy": (
+                    "validation_selected_best_checkpoint_test_once"
+                    if mode == "full"
+                    else "speed_only_one_epoch_metrics_non_decisional"
+                ),
                 "graph_axis_policy": graph_axis_policy or "canonical_full",
                 "expression_gene_count": len(training_data.expression_gene_ids),
                 "output_gene_count": len(training_data.expression_gene_ids),
@@ -546,6 +552,8 @@ def run_native_experiment(
                 "cache_build_ms": cache_build_ms,
                 "one_epoch_fit_wall_ms": trainer.fit_wall_ms,
                 "one_epoch_training_wall_ms": trainer.training_wall_ms,
+                "fit_wall_ms": trainer.fit_wall_ms,
+                "training_wall_ms": trainer.training_wall_ms,
                 "validation_ms": trainer.validation_wall_ms,
                 "checkpoint_ms": trainer.checkpoint_wall_ms,
                 "logging_ms": trainer.logging_wall_ms,
@@ -566,7 +574,10 @@ def run_native_experiment(
                     int(torch.cuda.max_memory_reserved(device)) if device.type == "cuda" else 0
                 ),
                 "peak_cpu_ram_bytes": _peak_cpu_ram_bytes(),
-                "headline_metrics_non_decisional": metrics_summary["metrics"],
+                "headline_metrics": metrics_summary["metrics"],
+                "headline_metrics_non_decisional": (
+                    None if mode == "full" else metrics_summary["metrics"]
+                ),
                 "systems_optimizations": system_options.payload(),
                 "checkpoint_peer_method": trainer.checkpoint_peer_method,
             },

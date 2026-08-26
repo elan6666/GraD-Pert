@@ -2,18 +2,30 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: delivered
-current_workflow: byte-auto
-next_workflow: none
-review_verdict: pass_with_limits
+stage: reviewed
+current_workflow: byte-review
+next_workflow: byte-iterate
+review_verdict: iterate
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-26T19:55:44+08:00
+updated_at: 2026-08-26T21:01:14+08:00
 ---
 
 # Status
 
+- Plan 021 is in implementation at the local successor of `b6e3854`. The user
+  selected full-graph, all-seven-systems B2 as the default native profile and
+  restored the full ceiling to 200 epochs with validation-only early stopping
+  `patience=10`. All five formal native configs now encode that profile and
+  remain `metrics_only`; schema/trainer/matrix tests enforce the new budget and
+  a synthetic full run stops after exactly 10 consecutive non-improving
+  validations. Local focused gates passed 19 tests with one honest Torch/PyG
+  skip plus Ruff/format; full local pytest/build remain dependency-limited and
+  will run on the exact synchronized server commit before execution. The next
+  server coordinate is Nadig Jurkat seed 1 only, preceded by a fresh
+  exact-commit one-epoch B2 integration gate. Goal mode remains inactive for
+  long training.
 - Plan 020 execution and strict review are complete at clean synchronized
   commit `ddf40fd`. B2 systems-only and B3 combined each completed exactly 10
   epochs/5,820 ordered optimizer steps with 10 validations, no test truth
@@ -145,10 +157,10 @@ updated_at: 2026-08-26T19:55:44+08:00
   `/data/yilangliu/GraD-Pert/superseded/20260825-c641-txpert-hepg2-missing-cell-line`.
   Plan 016 is the bounded adapter-column repair; any source change creates a
   fresh external-run namespace and c641 outputs will not be mixed with it.
-- Current execution policy supersedes the earlier full-run plan: all learned
-  coordinates stop after exactly one epoch, and no 100-epoch/full task may be
-  launched. Goal mode is paused while the server matrix is running; it resumes
-  only after all 30 one-epoch/nonlearned coordinates pass strict validation.
+- The earlier all-learned one-epoch-only execution policy is complete and is
+  superseded for native GraD-Pert only by Plan 021. GEARS and TxPert remain
+  one-epoch-only. Nadig Jurkat B2 seed 1 may now enter a maximum 200-epoch full
+  run with validation-only patience 10 after its exact-commit smoke gate.
 - Formal-v2 at clean commit `c240157` has valid manifests for all five
   GraD-Pert runs, all 15 nonlearned runs, and GEARS K562. GEARS RPE1 and Jurkat
   completed their optimization epoch but failed inside the frozen official

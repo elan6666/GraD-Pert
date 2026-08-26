@@ -56,7 +56,7 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
 - After all one-epoch gates pass, only GraD-Pert may enter full training.
   GEARS and TxPert have `formal_run_policy=smoke_only`; nonlearned models use
   `inference_only`.
-- `max_epochs=100`; validate each epoch; stop after 10 validation checks with
+- `max_epochs=200`; validate each epoch; stop after 10 validation checks with
   no strict improvement in `val/txpert_macro_pearson_delta`; `min_delta=0`.
 - Save best and last resumable checkpoints. Test only the sealed best checkpoint
   after training/selection is finished.

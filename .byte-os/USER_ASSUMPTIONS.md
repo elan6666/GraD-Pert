@@ -10,7 +10,8 @@
 - 代码仓库为 `elan6666/GraD-Pert`，本地、GitHub 与服务器代码必须同步到同一 commit。
 - 数据集和checkpoint留在服务器；默认不生成PKL，显式生成的单一
   `result.pkl`也不回传，本地只取小型结果文件。
-- GraD-Pert full runs 默认训练上限为 100 epochs，并启用 early stopping。
+- GraD-Pert full runs 默认使用完整图和七项系统优化的 B2，训练上限为
+  200 epochs，并启用 validation-only early stopping `patience=10`。
 
 ## Inferred and to validate
 

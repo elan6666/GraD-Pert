@@ -183,5 +183,5 @@
 4. Add server preflight/sync, then resolve/download and QC five datasets.
 5. Fit projection capacity and run one epoch for every learned model/dataset
    pair. Seal prediction-only artifacts and evaluate the smoke outputs once.
-6. Continue only GraD-Pert to max 100 epochs with validation-only patience 10,
+6. Continue only GraD-Pert to max 200 epochs with validation-only patience 10,
    then evaluate the selected checkpoints and sync only small summaries.
