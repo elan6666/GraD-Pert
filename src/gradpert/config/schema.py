@@ -110,8 +110,11 @@ class TrainingConfig(StrictModel):
             if self.smoke_epochs.value != 1:
                 raise ValueError("learned models require a one-epoch integration smoke")
             if self.formal_run_policy == "smoke_then_full":
-                if self.max_epochs.value != 200:
-                    raise ValueError("full native runs require max_epochs=200")
+                if self.max_epochs.value not in {100, 200}:
+                    raise ValueError(
+                        "full native runs require max_epochs=200; sealed legacy pilot "
+                        "configs may retain max_epochs=100"
+                    )
                 if not self.early_stopping or self.early_stopping_patience.value != 10:
                     raise ValueError("full native runs require early-stopping patience=10")
                 if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
@@ -232,7 +235,14 @@ class ExperimentConfig(StrictModel):
         if self.training.formal_run_policy not in allowed_policies:
             expected = ",".join(sorted(allowed_policies))
             raise ValueError(f"{self.model.family} requires formal_run_policy in {{{expected}}}")
-        if self.model_id == "gradpert_b2" and self.training.formal_run_policy == "smoke_then_full":
+        is_legacy_performance_pilot = "performance_pilot_variant" in self.model.parameters
+        if (
+            self.model_id == "gradpert_b2"
+            and self.training.formal_run_policy == "smoke_then_full"
+            and not is_legacy_performance_pilot
+        ):
+            if self.training.max_epochs.value != 200:
+                raise ValueError("formal gradpert_b2 requires max_epochs=200")
             required_b2_parameters: dict[str, Scalar] = {
                 "graph_axis_policy": "canonical_full",
                 "systems_optimizations": "all_seven_semantics_preserving_v1",

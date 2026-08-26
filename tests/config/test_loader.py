@@ -156,3 +156,10 @@ def test_single_pkl_is_an_explicit_valid_opt_in(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert load_experiment_config(path).artifacts.result_mode == "single_pkl"
+
+
+def test_sealed_legacy_performance_config_remains_readable() -> None:
+    path = ROOT / "configs/pilots/perf_b0_metrics_only/gradpert_b2/nadig_jurkat.yaml"
+    config = load_experiment_config(path)
+    assert config.model.parameters["performance_pilot_variant"].value == "perf_b0_metrics_only"
+    assert config.training.max_epochs.value == 100

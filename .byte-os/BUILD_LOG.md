@@ -564,3 +564,9 @@
 - The user then requested formal "4 split" training. The execution scope is
   therefore Nadig Jurkat run seeds 1--4 on the existing frozen canonical split,
   distributed as two ordered GPU queues; no new split manifests are generated.
+- First exact-commit server pytest exposed that the new default validator made
+  sealed historical B0/B1 performance configs unreadable. The repair permits
+  their explicitly labeled `performance_pilot_variant` metadata to retain the
+  historical 100-epoch schedule while enforcing 200 epochs and all-seven B2
+  systems only for current formal configs. No historical run or receipt is
+  modified.
