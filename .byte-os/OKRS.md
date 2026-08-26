@@ -24,9 +24,10 @@
   identity 全部一致。
 - 所有模型和 nonlearned 默认 `metrics_only`，成功 run root 持久化 PKL
   数量为零；只有显式 `single_pkl` 才生成一个去重 `result.pkl`。
-- 当前工作为 Nadig Jurkat 三轮速度 pilot：B1 只缩图轴，B2 只启用七项
-  语义保持系统优化，B3 合并两者。三轮均只跑 1 epoch，只比较速度并
-  记录三指标，不据此声称效果不变。
+- B1/B2/B3 Nadig Jurkat 速度 pilot 已完成。当前按用户明确授权，在新
+  命名空间重跑一次 B0：完整图、关闭七项系统优化、1 epoch、
+  `metrics_only` 且零持久化 PKL，用同一 wall-time 口径补全 B0--B3
+  比较；三指标仍不用于声称效果不变。
 
 ## Evidence required
 

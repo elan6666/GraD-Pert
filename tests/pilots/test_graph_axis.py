@@ -75,6 +75,27 @@ def test_reduced_graph_manifest_seals_direct_and_frozen_top500_identity() -> Non
         _manifest(frozen_hash="d" * 64)
 
 
+def test_b0_rerun_config_is_explicit_full_graph_metrics_only_without_systems() -> None:
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "configs/pilots/perf_b0_metrics_only/gradpert_b2/nadig_jurkat.yaml"
+    )
+    config = load_experiment_config(path)
+    parameters = config.model.parameters
+    assert parameters["performance_pilot_variant"].value == "perf_b0_metrics_only"
+    assert parameters["graph_axis_policy"].value == "canonical_full"
+    assert parameters["systems_optimizations"].value == "disabled"
+    assert "runtime_graph_root" not in parameters
+    assert not any(
+        name.startswith("systems_") for name in parameters if name != "systems_optimizations"
+    )
+    assert parameters["prototype_count"].value == 16384
+    assert config.training.smoke_epochs.value == 1
+    assert config.training.train_batch_size.value == 256
+    assert config.artifacts.root == "runs/pilots/perf_b0_metrics_only/nadig_jurkat"
+    assert config.artifacts.result_mode == "metrics_only"
+
+
 def test_b1_config_is_explicit_graph_only_and_metrics_only() -> None:
     path = (
         Path(__file__).resolve().parents[2]

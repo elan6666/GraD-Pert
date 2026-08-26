@@ -471,3 +471,16 @@
   build, and evidence-hash verification. Local strict mypy remains unavailable
   because this lightweight venv lacks Torch/PyG; the exact B3 server execution
   commit passed strict mypy on all 66 source files.
+
+## 2026-08-26 — B0 metrics-only timing rerun preflight
+
+- The user explicitly authorized one new B0 performance coordinate to remove
+  persistent-PKL output from its timing. Historical c240 B0 remains untouched.
+- Added a self-contained pilot config with canonical full graph,
+  `systems_optimizations: disabled`, no systems helper flags, batch 256,
+  16,384 prototypes, one-epoch smoke policy, and `result_mode: metrics_only`.
+- Targeted config/artifact tests passed 20 checks. Full local gates passed 192
+  tests with 9 honest missing-dependency/prepared-receipt skips, Ruff check,
+  Ruff format check, and isolated wheel/sdist build. Local strict mypy remains
+  unavailable because the lightweight Mac venv lacks Torch/PyG; it remains a
+  required exact-commit server gate before launch.

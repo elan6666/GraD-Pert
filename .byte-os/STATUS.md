@@ -2,18 +2,24 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: delivering
-current_workflow: byte-deliver
-next_workflow: none
-review_verdict: pilot_ship
+stage: implementing
+current_workflow: byte-auto
+next_workflow: plan-019-b0-metrics-only-rerun
+review_verdict: pending
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-26T04:31:00+08:00
+updated_at: 2026-08-26T14:56:55+08:00
 ---
 
 # Status
 
+- Plan 019 is active by explicit user authorization. It will rerun B0 exactly
+  once in a fresh namespace with the canonical full graph, all seven systems
+  optimizations disabled, one epoch, and `metrics_only`/zero persistent PKL.
+  The historical c240 B0 remains untouched. The new wall-time receipt will
+  replace only the previously unavailable B0 timing entry in the speed
+  comparison; metrics remain non-decisional.
 - The exact 30-coordinate one-epoch matrix is complete and sealed across two
   explicit lineages: retained `c240157` GraD-Pert/nonlearned results and
   `2bf2771` GEARS/TxPert results. The reviewed small stages contain 195 and 325

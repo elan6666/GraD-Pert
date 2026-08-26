@@ -2,6 +2,11 @@
 
 ## 2026-08-26
 
+- The user explicitly superseded the earlier no-rerun limitation for timing:
+  execute one fresh B0 performance coordinate with `metrics_only` and zero
+  persistent PKL so artifact persistence cannot contaminate its timing. Keep
+  the historical c240 B0 immutable and separate; do not overwrite or relabel
+  it.
 - Select B3 as the Nadig Jurkat performance-pilot winner on actual one-epoch
   training wall time: 507.718 s versus B1 844.180 s and B2 718.681 s. Keep the
   frozen Top-5000 expression/output/evaluation axes while using the directly
