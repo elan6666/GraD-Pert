@@ -520,3 +520,10 @@
   wheel/sdist build, evidence-bundle policy audit, and diff check. Local strict
   mypy remains dependency-limited because the Mac venv lacks Torch/PyG; the
   exact public delivery commit therefore requires the full server mypy gate.
+- Public delivery commit `167e31a` synchronized exactly to the clean server.
+  Server gates passed 215 tests with 3 honest prepared-receipt skips, Ruff,
+  format, strict mypy on 66 source files, isolated wheel/sdist build, and
+  clean-tree verification. The initial isolated-build attempt inherited the
+  loopback SOCKS variables and failed because its temporary venv lacked SOCKS
+  support; after the already-completed public identity check, rerunning only
+  the isolated build without proxy variables succeeded.

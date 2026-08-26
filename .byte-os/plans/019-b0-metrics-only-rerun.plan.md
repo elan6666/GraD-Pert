@@ -53,7 +53,7 @@ or reuse the historical run.
 - [x] The completed run root contains zero persistent PKL files.
 - [x] A strict verifier seals the B0 rerun and a rebuilt B0--B3 comparison uses
       actual full-epoch wall time.
-- [ ] README, Byte OS state, review, and reviewed small evidence are updated,
+- [x] README, Byte OS state, review, and reviewed small evidence are updated,
       committed, publicly pushed, and synchronized cleanly.
 
 ## Verification order
