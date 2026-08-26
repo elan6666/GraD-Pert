@@ -44,5 +44,5 @@ plan was created.
       selected `best.pt` remains.
 - [x] A 71-check strict verifier passes and reviewed small evidence records
       B3's 1.383x speedup and the non-decisional metric deltas.
-- [ ] README/Byte OS status, final
+- [x] README/Byte OS status, final
       gates, public push, and clean synchronization are complete.

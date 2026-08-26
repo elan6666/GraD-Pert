@@ -2,14 +2,14 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: delivering
+stage: delivered
 current_workflow: byte-auto
-next_workflow: plan-020-final-gates
+next_workflow: none
 review_verdict: pass_with_limits
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-26T20:05:00+08:00
+updated_at: 2026-08-26T19:55:44+08:00
 ---
 
 # Status
@@ -23,8 +23,10 @@ updated_at: 2026-08-26T20:05:00+08:00
   -0.007801, -0.002219, and -0.019724 for TxPert, TriShift, and Systema;
   these are descriptive and do not establish effect equivalence. The runs used
   separate GPUs but shared host CPU, RAM, and storage, so their absolute timing
-  is not mixed with the earlier sequential one-epoch pilot. Final documentation
-  gates, public push, and synchronization remain.
+  is not mixed with the earlier sequential one-epoch pilot. The evidence and
+  documentation commit `8aa7a90` passed 217 server tests with 3 honest skips,
+  Ruff, format, strict mypy on 66 source files, isolated build, public push,
+  and clean server synchronization.
 - Plan 019 is delivered at clean public commit `167e31a`. Exact-commit server
   gates passed 215 tests with 3 honest prepared-receipt skips, Ruff, format,
   strict mypy on 66 source files, isolated wheel/sdist build, and clean-tree
