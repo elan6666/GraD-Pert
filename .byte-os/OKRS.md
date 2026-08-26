@@ -24,10 +24,11 @@
   identity 全部一致。
 - 所有模型和 nonlearned 默认 `metrics_only`，成功 run root 持久化 PKL
   数量为零；只有显式 `single_pkl` 才生成一个去重 `result.pkl`。
-- B1/B2/B3 Nadig Jurkat 速度 pilot 已完成。当前按用户明确授权，在新
-  命名空间重跑一次 B0：完整图、关闭七项系统优化、1 epoch、
-  `metrics_only` 且零持久化 PKL，用同一 wall-time 口径补全 B0--B3
-  比较；三指标仍不用于声称效果不变。
+- B0/B1/B2/B3 Nadig Jurkat 速度 pilot 已完成。独立 B0 timing coordinate
+  使用完整图、关闭七项系统优化、1 epoch、`metrics_only` 和零持久化
+  PKL，历史 c240 B0 保持不变；四个单因素对比与组合对比均使用同一
+  wall-time 口径，B3 以 5.813x 相对 B0 加速获选。三指标仍不用于声称
+  效果不变。
 
 ## Evidence required
 

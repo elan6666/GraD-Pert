@@ -1,13 +1,24 @@
 {
+  "b0_strict_validation_sha256": "acc60de269b85e16b6164a1bd4035acc869ca2a62b183d32f09d457d18e63920",
   "b3_strict_validation_sha256": "65cf90788dc6a213148b35de0685cb1216d50d127a19d21b1cd175c6801c4274",
   "context_only_comparison": {
-    "B1_to_B2_not_single_factor": {
-      "cells_per_second_gain_fraction": 0.17462494086697267,
-      "speedup_x": 1.1746249408669729,
-      "wall_time_reduction_fraction": 0.14866442452523165
+    "B0_to_B3_combined": {
+      "cells_per_second_gain_fraction": 4.813242818799408,
+      "speedup_x": 5.8132428187994085,
+      "wall_time_reduction_fraction": 0.8279789729811206
     }
   },
   "direct_factor_comparisons": {
+    "B0_to_B1_graph_reduction_without_systems": {
+      "cells_per_second_gain_fraction": 2.496275349770682,
+      "speedup_x": 3.496275349770682,
+      "wall_time_reduction_fraction": 0.7139813372921017
+    },
+    "B0_to_B2_systems_on_full_graph": {
+      "cells_per_second_gain_fraction": 3.1068122259790414,
+      "speedup_x": 4.106812225979042,
+      "wall_time_reduction_fraction": 0.7565021371870477
+    },
     "B1_to_B3_systems_on_reduced_graph": {
       "cells_per_second_gain_fraction": 0.6626959370293,
       "speedup_x": 1.6626959370293,
@@ -20,12 +31,17 @@
     }
   },
   "effect_interpretation": "The three metrics are recorded only as non-decisional evidence. One epoch cannot establish unchanged predictive effect, and no effect-equivalence claim is made.",
-  "immutable_b0": {
+  "historical_b0": {
     "rerun": false,
-    "run_manifest_sha256": "6e9c30d4c75bc31df470c47dfadd199cd944134beaf73c9f0d45dd398f7b0eea",
-    "timing_evidence": "unavailable; immutable B0 was not rerun to backfill instrumentation"
+    "role": "immutable historical result; not used as the performance timing baseline",
+    "run_manifest_sha256": "6e9c30d4c75bc31df470c47dfadd199cd944134beaf73c9f0d45dd398f7b0eea"
   },
-  "schema_version": "nadig-jurkat-speed-comparison-v1",
+  "metrics_only_b0_rerun": {
+    "rerun": true,
+    "role": "timing baseline with the same metrics-only artifact and timing protocol as B1-B3",
+    "strict_validation_sha256": "acc60de269b85e16b6164a1bd4035acc869ca2a62b183d32f09d457d18e63920"
+  },
+  "schema_version": "nadig-jurkat-speed-comparison-v2",
   "selected_reason": "lowest actual one-epoch training wall time under the frozen pilot contract",
   "selected_variant": "B3",
   "selection_policy": "speed_only_one_epoch_metrics_non_decisional",
@@ -45,6 +61,67 @@
     "receipt_field_limitation": "For prefetch-enabled B2/B3, measured_end_to_end_wall_ms is a serial sum of data_read_ms, host_to_device_ms, and step_wall_ms even though data preparation overlaps GPU computation. The original fields are retained but not used as actual wall throughput."
   },
   "variants": {
+    "B0": {
+      "actual_full_epoch_cells": 128266,
+      "actual_full_epoch_cells_per_second": 43.45808970058793,
+      "actual_full_epoch_steps": 582,
+      "actual_full_epoch_steps_per_second": 0.19718871880110217,
+      "cache_build_ms": 0.0010780058801174164,
+      "checkpoint_ms": 1523.8940422423184,
+      "checkpoint_sha256": "ad77678e62da0c73faef0c9beee08d1e6deb33f26a9ab4862423c7f43fb7e5a1",
+      "cold_start_ms": 5829.5397367328405,
+      "evaluation_gene_count": 5000,
+      "expression_gene_count": 5000,
+      "graph_axis_policy": "canonical_full",
+      "graph_node_count": 6506,
+      "graph_nonself_edge_count": 222654,
+      "label": "B0",
+      "logging_ms": 286.68622812256217,
+      "mean_stage_ms": {
+        "backward_update_ms": 112.63259942381532,
+        "data_read_ms": 25.432967166481475,
+        "host_to_device_ms": 0.9316006533710377,
+        "prediction_ms": 39.43792612569315,
+        "step_wall_ms": 5045.6352926460195,
+        "student_global_ms": 69.58396752897676,
+        "student_local_ms": 140.51444209705699,
+        "teacher_forward_ms": 69.54184442800242,
+        "view_build_ms": 4607.477620307525
+      },
+      "metrics_non_decisional": {
+        "systema_pearson": 0.01519558980649026,
+        "trishift_pearson_delta": 0.11441311320938205,
+        "txpert_macro_pearson_delta": 0.13940074613998493
+      },
+      "one_epoch_fit_wall_ms": 2960755.138597917,
+      "one_epoch_training_wall_ms": 2951487.3038302176,
+      "output_gene_count": 5000,
+      "peak_allocated_gpu_bytes": 19899926016,
+      "peak_cpu_ram_bytes": 26975866880,
+      "peak_reserved_gpu_bytes": 20178796544,
+      "performance_receipt_sha256": "f13137056f10fb87f7184d01a66736e67099186e64d102345016cc8d1cd44e6a",
+      "receipt_measured_steps": 572,
+      "receipt_serial_stage_sum_cells_per_second": 43.32920747469193,
+      "receipt_serial_stage_sum_steps_per_second": 0.19716088870478563,
+      "receipt_warmup_steps": 10,
+      "run_id": "pilot-b0-metrics-only__nadig_jurkat__seed-1__7bed1f0",
+      "run_manifest_sha256": "a6bf1365ccc8309c18527e49f1f9120934de209d6591f326f6d53ad4e32d1727",
+      "source_commit": "7bed1f0cfbfa0be17c16ac0000d738510b87e96f",
+      "systems_optimizations": {
+        "background_prefetch": false,
+        "buffered_training_logs": false,
+        "control_expression_cache": false,
+        "log_buffer_steps": 64,
+        "merged_hdf5_reads": false,
+        "nonblocking_transfer": false,
+        "pin_memory": false,
+        "prefetch_depth": 1,
+        "resident_graph_tensors": false,
+        "single_checkpoint_serialization": false,
+        "validation_expression_cache": false
+      },
+      "validation_ms": 8245.684929192066
+    },
     "B1": {
       "actual_full_epoch_cells": 128266,
       "actual_full_epoch_cells_per_second": 151.94144776828873,

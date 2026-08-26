@@ -482,5 +482,41 @@
 - Targeted config/artifact tests passed 20 checks. Full local gates passed 192
   tests with 9 honest missing-dependency/prepared-receipt skips, Ruff check,
   Ruff format check, and isolated wheel/sdist build. Local strict mypy remains
-  unavailable because the lightweight Mac venv lacks Torch/PyG; it remains a
-  required exact-commit server gate before launch.
+  unavailable because the lightweight Mac venv lacks Torch/PyG. Exact clean
+  server commit `7bed1f0` passed 215 tests with 3 honest skips, Ruff, format,
+  strict mypy on 66 source files, isolated build, and clean-tree verification
+  before launch.
+
+## 2026-08-26 — B0 metrics-only timing rerun execution and comparison
+
+- The fresh namespace `/data/yilangliu/GraD-Pert/runs/pilot-b0-metrics-only-7bed`
+  executed exactly once on GPU0 at source commit `7bed1f0`. It completed one
+  epoch/582 optimizer steps over 128,266 cells, used no canonical test truth
+  during fit, performed one test evaluation, retained only `best.pt` SHA-256
+  `ad77678e62da0c73faef0c9beee08d1e6deb33f26a9ab4862423c7f43fb7e5a1`,
+  and left zero persistent PKL/work directories.
+- Runtime evidence recorded the canonical full 6,506-node/222,654-edge graph,
+  5,000 expression/output/evaluation genes, all seven systems groups disabled,
+  2,951.487 s actual training wall, 0.1972 steps/s, 43.46 cells/s, 18.53 GiB
+  peak allocated GPU memory, and 25.12 GiB peak CPU RAM. The historical c240
+  B0 manifest remained byte-identical.
+- The independent strict validator passed 44/44 checks. Contract SHA-256 is
+  `61efdb8fd51769914f60dbbe3883860282934027fd0d2037fd7cf86951df3244`;
+  validator SHA-256 is
+  `d3143fd7cda3b854064565549d9b969adfa473aa6d215cd4c14612d82361800a`;
+  PASS receipt SHA-256 is
+  `acc60de269b85e16b6164a1bd4035acc869ca2a62b183d32f09d457d18e63920`.
+- The rebuilt four-variant comparison selects B3. Direct factor speedups are
+  B0→B1 graph-only 3.496x, B0→B2 systems-only 4.107x, B1→B3 systems on the
+  reduced graph 1.663x, and B2→B3 graph reduction with systems 1.416x.
+  Combined B0→B3 speedup is 5.813x. Comparison receipt SHA-256 is
+  `d4da6aac3a71cf3fcf2aba645d1c423fe1a4f52ae593a49e0f0361b0a20defe1`.
+- Only reviewed small JSON/Python evidence was transferred locally; checkpoint,
+  scientific matrices, H5AD, launch log, and all PKL remain server-side or
+  absent. Metrics are non-decisional and no one-epoch effect-equivalence claim
+  is made.
+- Final local delivery gates passed 192 tests with 9 honest
+  dependency/prepared-receipt skips, Ruff check, Ruff format check, isolated
+  wheel/sdist build, evidence-bundle policy audit, and diff check. Local strict
+  mypy remains dependency-limited because the Mac venv lacks Torch/PyG; the
+  exact public delivery commit therefore requires the full server mypy gate.

@@ -9,15 +9,18 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-
 ROOT = Path("/data/yilangliu/GraD-Pert")
 RUNS = {
+    "B0": ROOT / "runs/pilot-b0-metrics-only-7bed/small_results",
     "B1": ROOT / "runs/pilot-b1-graph-only-0a4d/small_results",
     "B2": ROOT / "runs/pilot-b2-systems-only-2e30/small_results",
     "B3": ROOT / "runs/pilot-b3-combined-44ae-r2/small_results",
 }
-OUT = ROOT / "contracts/pilot-b3-44ae-r2/nadig-jurkat-speed-comparison.json"
-B0_MANIFEST = ROOT / "runs/formal-v2/smoke/gradpert_b2/nadig_jurkat/seed-1/small_results/run_manifest.json"
+OUT = ROOT / "contracts/pilot-b0-7bed/nadig-jurkat-speed-comparison.json"
+HISTORICAL_B0_MANIFEST = (
+    ROOT / "runs/formal-v2/smoke/gradpert_b2/nadig_jurkat/seed-1/small_results/run_manifest.json"
+)
+B0_VALIDATION = ROOT / "contracts/pilot-b0-7bed/b0-metrics-only-strict-validation.json"
 B3_VALIDATION = ROOT / "contracts/pilot-b3-44ae-r2/b3-strict-validation.json"
 
 
@@ -91,16 +94,33 @@ def comparison(base: dict[str, Any], candidate: dict[str, Any]) -> dict[str, flo
 
 def main() -> None:
     variants = {label: variant(label, root) for label, root in RUNS.items()}
+    b0_validation = load(B0_VALIDATION)
+    b3_validation = load(B3_VALIDATION)
+    if b0_validation["status"] != "PASS" or b3_validation["status"] != "PASS":
+        raise RuntimeError("strict validation receipt is not PASS")
+    selected_variant = min(
+        variants,
+        key=lambda label: float(variants[label]["one_epoch_training_wall_ms"]),
+    )
     payload = {
-        "schema_version": "nadig-jurkat-speed-comparison-v1",
+        "schema_version": "nadig-jurkat-speed-comparison-v2",
         "status": "PASS",
         "selection_policy": "speed_only_one_epoch_metrics_non_decisional",
-        "selected_variant": "B3",
-        "selected_reason": "lowest actual one-epoch training wall time under the frozen pilot contract",
-        "immutable_b0": {
+        "selected_variant": selected_variant,
+        "selected_reason": (
+            "lowest actual one-epoch training wall time under the frozen pilot contract"
+        ),
+        "historical_b0": {
             "rerun": False,
-            "run_manifest_sha256": sha256(B0_MANIFEST),
-            "timing_evidence": "unavailable; immutable B0 was not rerun to backfill instrumentation",
+            "role": "immutable historical result; not used as the performance timing baseline",
+            "run_manifest_sha256": sha256(HISTORICAL_B0_MANIFEST),
+        },
+        "metrics_only_b0_rerun": {
+            "rerun": True,
+            "role": (
+                "timing baseline with the same metrics-only artifact and timing protocol as B1-B3"
+            ),
+            "strict_validation_sha256": sha256(B0_VALIDATION),
         },
         "shared_contract": {
             "dataset_id": "nadig_jurkat",
@@ -114,17 +134,31 @@ def main() -> None:
         },
         "variants": variants,
         "direct_factor_comparisons": {
+            "B0_to_B1_graph_reduction_without_systems": comparison(variants["B0"], variants["B1"]),
+            "B0_to_B2_systems_on_full_graph": comparison(variants["B0"], variants["B2"]),
             "B1_to_B3_systems_on_reduced_graph": comparison(variants["B1"], variants["B3"]),
             "B2_to_B3_graph_reduction_with_systems": comparison(variants["B2"], variants["B3"]),
         },
         "context_only_comparison": {
-            "B1_to_B2_not_single_factor": comparison(variants["B1"], variants["B2"]),
+            "B0_to_B3_combined": comparison(variants["B0"], variants["B3"]),
         },
         "timing_interpretation": {
-            "primary": "one_epoch_training_wall_ms and throughput recomputed from the same monotonic full-epoch wall",
-            "receipt_field_limitation": "For prefetch-enabled B2/B3, measured_end_to_end_wall_ms is a serial sum of data_read_ms, host_to_device_ms, and step_wall_ms even though data preparation overlaps GPU computation. The original fields are retained but not used as actual wall throughput.",
+            "primary": (
+                "one_epoch_training_wall_ms and throughput recomputed from the same monotonic "
+                "full-epoch wall"
+            ),
+            "receipt_field_limitation": (
+                "For prefetch-enabled B2/B3, measured_end_to_end_wall_ms is a serial sum of "
+                "data_read_ms, host_to_device_ms, and step_wall_ms even though data preparation "
+                "overlaps GPU computation. The original fields are retained but not used as "
+                "actual wall throughput."
+            ),
         },
-        "effect_interpretation": "The three metrics are recorded only as non-decisional evidence. One epoch cannot establish unchanged predictive effect, and no effect-equivalence claim is made.",
+        "effect_interpretation": (
+            "The three metrics are recorded only as non-decisional evidence. One epoch cannot "
+            "establish unchanged predictive effect, and no effect-equivalence claim is made."
+        ),
+        "b0_strict_validation_sha256": sha256(B0_VALIDATION),
         "b3_strict_validation_sha256": sha256(B3_VALIDATION),
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
@@ -133,7 +167,19 @@ def main() -> None:
         handle.write("\n")
         temp_name = handle.name
     os.replace(temp_name, OUT)
-    print(json.dumps({"output": str(OUT), "sha256": sha256(OUT), "selected_variant": "B3", "direct_factor_comparisons": payload["direct_factor_comparisons"]}, indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            {
+                "output": str(OUT),
+                "sha256": sha256(OUT),
+                "selected_variant": selected_variant,
+                "direct_factor_comparisons": payload["direct_factor_comparisons"],
+                "context_only_comparison": payload["context_only_comparison"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":

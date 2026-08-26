@@ -2,24 +2,25 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: implementing
+stage: reviewing
 current_workflow: byte-auto
-next_workflow: plan-019-b0-metrics-only-rerun
-review_verdict: pending
+next_workflow: delivery
+review_verdict: pilot_ship
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-26T14:56:55+08:00
+updated_at: 2026-08-26T16:03:51+08:00
 ---
 
 # Status
 
-- Plan 019 is active by explicit user authorization. It will rerun B0 exactly
-  once in a fresh namespace with the canonical full graph, all seven systems
-  optimizations disabled, one epoch, and `metrics_only`/zero persistent PKL.
-  The historical c240 B0 remains untouched. The new wall-time receipt will
-  replace only the previously unavailable B0 timing entry in the speed
-  comparison; metrics remain non-decisional.
+- Plan 019 execution and strict validation are complete. The fresh B0 timing
+  coordinate ran exactly once at clean commit `7bed1f0`, used the canonical
+  6,506-node/222,654-edge graph, disabled all seven systems groups, completed
+  one epoch/582 steps, evaluated once, retained only hash-pinned `best.pt`, and
+  left zero PKL. Its 44-check strict verifier passed; receipt SHA-256 is
+  `acc60de269b85e16b6164a1bd4035acc869ca2a62b183d32f09d457d18e63920`.
+  Historical c240 B0 remains untouched with the same manifest SHA-256.
 - The exact 30-coordinate one-epoch matrix is complete and sealed across two
   explicit lineages: retained `c240157` GraD-Pert/nonlearned results and
   `2bf2771` GEARS/TxPert results. The reviewed small stages contain 195 and 325
@@ -32,11 +33,11 @@ updated_at: 2026-08-26T14:56:55+08:00
   defaults to zero persistent PKL, while explicit `single_pkl` is the only
   opt-in. The authorized cleanup removed 126 non-active experiment PKLs
   (355.10 GiB) with a sealed server receipt.
-- Plan 018 is complete. Immutable B0 remains the existing c240
-  GraD-Pert/Nadig-Jurkat/seed-1 coordinate and was not rerun. B1 changed only
-  the graph axis; B2 enabled all seven semantics-preserving systems
-  optimizations on the old graph; B3 combined them. Each executed pilot was
-  exactly one epoch and the selection was speed-only.
+- Plan 018 is complete. Its historical c240 B0 remains immutable; plan 019
+  added a separate metrics-only timing coordinate rather than overwriting it.
+  B1 changed only the graph axis; B2 enabled all seven semantics-preserving
+  systems optimizations on the full graph; B3 combined them. Every timing
+  coordinate was exactly one epoch and selection was speed-only.
 - B1 local implementation is complete: a separate pilot config keeps all 5,000
   expression/output/evaluation genes, directly recomputes raw-data Top-500
   HVGs, requires exact equality with the frozen normalized-dispersion ranking,
@@ -67,7 +68,7 @@ updated_at: 2026-08-26T14:56:55+08:00
   `a17b8e7` passed 213 tests with 3 honest prepared-receipt skips, Ruff,
   format, strict mypy on 66 source files, isolated build, and clean-tree
   verification. Its formal systems-only run later completed at `2e30fb5` and
-  passed all 41 strict checks; B0 was not rerun.
+  passed all 41 strict checks; the historical c240 B0 remained untouched.
 - B3 completed at exact clean local/GitHub/server commit `44ae7ff`. Local gates
   passed 191 tests with 9 honest dependency/receipt skips, Ruff, format, and
   build; server gates passed 214 tests with 3 honest skips, Ruff, format,
@@ -78,20 +79,21 @@ updated_at: 2026-08-26T14:56:55+08:00
   expression/output/evaluation axes remain 5,000. The strict validator passed
   49/49 checks; validation receipt SHA-256 is
   `65cf90788dc6a213148b35de0685cb1216d50d127a19d21b1cd175c6801c4274`.
-- The speed-only comparison selects B3. Actual one-epoch training walls were
-  B1 844.180 s, B2 718.681 s, and B3 507.718 s. Full-epoch wall throughput was
-  respectively 151.94, 178.47, and 252.63 cells/s. B1→B3 isolates the seven
-  systems groups on the same reduced graph and yields 1.663x speedup/39.86%
-  less time; B2→B3 isolates graph reduction with the systems groups active and
-  yields 1.416x/29.35% less time. B1→B2 is not a single-factor comparison.
-  Comparison receipt SHA-256 is
-  `72f4d1b8a3c6bffc246ea3d58bd92b4ad191e9a3b4fdb7f9306456cecfdf11cf`.
+- The rebuilt speed-only comparison selects B3. Actual one-epoch training
+  walls were B0 2,951.487 s, B1 844.180 s, B2 718.681 s, and B3 507.718 s;
+  full-epoch wall throughput was 43.46, 151.94, 178.47, and 252.63 cells/s.
+  B0→B1 isolates graph reduction without systems (3.496x/71.40% less time),
+  B0→B2 isolates all seven systems groups on the full graph (4.107x/75.65%),
+  B1→B3 isolates systems on the reduced graph (1.663x/39.86%), and B2→B3
+  isolates graph reduction with systems active (1.416x/29.35%). Combined B3
+  is 5.813x faster than the new B0 timing baseline. Comparison receipt SHA-256
+  is `d4da6aac3a71cf3fcf2aba645d1c423fe1a4f52ae593a49e0f0361b0a20defe1`.
 - The original warmup-excluded receipt throughput is retained but not used as
   actual wall throughput for prefetch-enabled B2/B3: its stage sum adds data
   read time to GPU step time even when those stages overlap. Selection uses
   monotonic `one_epoch_training_wall_ms` and throughput recomputed from the
-  same full-epoch wall. B0 lacks this instrumentation and was not retrained.
-  All three metrics remain explicitly non-decisional; no one-epoch
+  same full-epoch wall. The new B0 timing coordinate uses that same monotonic
+  protocol. All three metrics remain explicitly non-decisional; no one-epoch
   unchanged-effect claim is made.
 
 - The first d6f9 GEARS/K562 hard gate completed one epoch successfully, but

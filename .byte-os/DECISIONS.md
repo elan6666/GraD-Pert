@@ -7,21 +7,27 @@
   persistent PKL so artifact persistence cannot contaminate its timing. Keep
   the historical c240 B0 immutable and separate; do not overwrite or relabel
   it.
+- The fresh B0 timing coordinate is now the performance baseline: 2,951.487 s
+  and 43.46 cells/s on the full graph with all seven systems groups disabled.
+  It passed 44 strict checks and did not change the historical B0 manifest.
 - Select B3 as the Nadig Jurkat performance-pilot winner on actual one-epoch
-  training wall time: 507.718 s versus B1 844.180 s and B2 718.681 s. Keep the
-  frozen Top-5000 expression/output/evaluation axes while using the directly
-  recomputed Top-500-HVG-plus-target graph and all seven systems groups.
-- Interpret B1→B3 as the direct systems comparison on the same reduced graph,
-  and B2→B3 as the direct graph-axis comparison with systems optimizations
-  held active. B1→B2 changes two factors and is contextual only.
+  training wall time: 507.718 s versus B0 2,951.487 s, B1 844.180 s, and B2
+  718.681 s. Keep the frozen Top-5000 expression/output/evaluation axes while
+  using the directly recomputed Top-500-HVG-plus-target graph and all seven
+  systems groups.
+- Interpret B0→B1 and B2→B3 as direct graph-axis comparisons without and with
+  systems, respectively. Interpret B0→B2 and B1→B3 as direct systems
+  comparisons on the full and reduced graph, respectively. B0→B3 is the
+  combined context comparison.
 - Use monotonic full-epoch training wall as the primary speed evidence. The
   original warmup-excluded receipt sum is retained, but for prefetch-enabled
   runs it is not actual wall throughput because background data-read time can
   overlap GPU step time and is then summed again.
 - Do not infer effect equivalence from the three one-epoch metrics. A longer
   controlled run is required before claiming unchanged predictive effect.
-- Keep B0 immutable despite its missing detailed timing evidence. Do not rerun
-  it merely to backfill instrumentation.
+- Keep the historical c240 B0 immutable. The separate, user-authorized
+  metrics-only B0 timing coordinate must not be relabeled as that historical
+  result.
 
 ## 2026-08-25
 

@@ -43,15 +43,15 @@ or reuse the historical run.
 - [x] Explicit self-contained B0 rerun config passes a regression test proving
       full graph, disabled systems, one epoch, batch 256, 16,384 prototypes,
       and `metrics_only`.
-- [ ] Local and exact synchronized server pytest/Ruff/format/mypy/build gates
+- [x] Local and exact synchronized server pytest/Ruff/format/mypy/build gates
       pass before execution.
-- [ ] The fresh run completes exactly 582 optimizer steps, uses no canonical
+- [x] The fresh run completes exactly 582 optimizer steps, uses no canonical
       test truth during fit, evaluates test exactly once, and retains a
       hash-pinned selected checkpoint.
-- [ ] Exact canonical, split, ordered control/truth, expression-axis, and graph
+- [x] Exact canonical, split, ordered control/truth, expression-axis, and graph
       identities match the comparison contract.
-- [ ] The completed run root contains zero persistent PKL files.
-- [ ] A strict verifier seals the B0 rerun and a rebuilt B0--B3 comparison uses
+- [x] The completed run root contains zero persistent PKL files.
+- [x] A strict verifier seals the B0 rerun and a rebuilt B0--B3 comparison uses
       actual full-epoch wall time.
 - [ ] README, Byte OS state, review, and reviewed small evidence are updated,
       committed, publicly pushed, and synchronized cleanly.

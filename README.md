@@ -66,15 +66,20 @@ default.
 The completed speed-only pilot kept the frozen 5,000-gene
 expression/output/evaluation axes and selected the combined B3 performance
 variant: a directly recomputed Top-500-HVG-plus-target graph together with all
-seven semantics-preserving systems optimizations. On the same server GPU and
-one-epoch contract, training wall time was 844.180 seconds for graph-only B1,
-718.681 seconds for systems-only B2, and 507.718 seconds for combined B3. B3
-was therefore 1.663x faster than B1 and 1.416x faster than B2 by actual epoch
-wall time.
+seven semantics-preserving systems optimizations. A separate metrics-only B0
+timing coordinate preserved the full graph, disabled all seven systems groups,
+and left the historical B0 untouched. On the same server GPU and one-epoch
+contract, actual training wall time was 2,951.487 seconds for B0, 844.180
+seconds for graph-only B1, 718.681 seconds for systems-only B2, and 507.718
+seconds for combined B3.
 
-The immutable B0 coordinate was not rerun and has no comparable detailed
-timing receipt. The three prediction metrics are recorded as non-decisional
-evidence only: one epoch does not establish unchanged predictive effect. See
+Reducing only the graph made B1 3.496x faster than B0; enabling only the seven
+systems groups made B2 4.107x faster. On the reduced graph, the systems groups
+made B3 1.663x faster than B1, while reducing the graph with the systems groups
+active made B3 1.416x faster than B2. Combined B3 was 5.813x faster than the
+metrics-only B0 timing baseline. The three prediction metrics are recorded as
+non-decisional evidence only: one epoch does not establish unchanged
+predictive effect. See
 the [final pilot review](.byte-os/reviews/2026-08-26-nadig-jurkat-speed-pilots.md)
 and [sealed small evidence](.byte-os/evidence/nadig-jurkat-speed-pilots/).
 
