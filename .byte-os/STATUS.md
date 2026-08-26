@@ -2,24 +2,29 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: implementing
+stage: delivering
 current_workflow: byte-auto
-next_workflow: plan-020-b2-ten-epoch
-review_verdict: pending
+next_workflow: plan-020-final-gates
+review_verdict: pass_with_limits
 iteration_count: 3
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-26T16:42:00+08:00
+updated_at: 2026-08-26T20:05:00+08:00
 ---
 
 # Status
 
-- Plan 020 is active by explicit user request: run Nadig Jurkat B2 for exactly
-  10 epochs in a fresh server namespace. The new bounded
-  `fixed_epoch_pilot` lifecycle preserves the existing one-epoch smoke and
-  100-epoch formal contracts, uses the full graph and all seven systems groups,
-  disables early termination, remains `metrics_only`, and must leave zero
-  persistent PKL. Goal mode will remain inactive during the long GPU run.
+- Plan 020 execution and strict review are complete at clean synchronized
+  commit `ddf40fd`. B2 systems-only and B3 combined each completed exactly 10
+  epochs/5,820 ordered optimizer steps with 10 validations, no test truth
+  during fit, one final test evaluation, one retained `best.pt`, and zero PKL.
+  The 71-check verifier passed. B3 trained in 5,223.127 s versus B2's 7,221.773
+  s: 1.383x faster and 27.68% less wall time. B3-minus-B2 metric deltas were
+  -0.007801, -0.002219, and -0.019724 for TxPert, TriShift, and Systema;
+  these are descriptive and do not establish effect equivalence. The runs used
+  separate GPUs but shared host CPU, RAM, and storage, so their absolute timing
+  is not mixed with the earlier sequential one-epoch pilot. Final documentation
+  gates, public push, and synchronization remain.
 - Plan 019 is delivered at clean public commit `167e31a`. Exact-commit server
   gates passed 215 tests with 3 honest prepared-receipt skips, Ruff, format,
   strict mypy on 66 source files, isolated wheel/sdist build, and clean-tree

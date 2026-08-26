@@ -83,6 +83,33 @@ predictive effect. See
 the [final pilot review](.byte-os/reviews/2026-08-26-nadig-jurkat-speed-pilots.md)
 and [sealed small evidence](.byte-os/evidence/nadig-jurkat-speed-pilots/).
 
+## Nadig Jurkat 10-epoch comparison
+
+A separate fixed-duration follow-up trained systems-only B2 and combined B3
+for exactly 10 epochs (5,820 optimizer steps) on separate GPUs. Both runs used
+the same seed, batch size, 16,384 prototypes, canonical split, ordered
+300-control draws, validation schedule, allocator, and `metrics_only` artifact
+policy. Each produced 10 validation receipts, performed one final test
+evaluation from its selected checkpoint, retained only `best.pt`, and left zero
+persistent PKL.
+
+| Variant | Graph nodes | Training wall | Actual cells/s | TxPert delta | TriShift delta | Systema |
+|---|---:|---:|---:|---:|---:|---:|
+| B2 systems-only | 6,506 | 7,221.773 s | 177.61 | 0.251625 | 0.253596 | 0.031636 |
+| B3 combined | 2,798 | 5,223.127 s | 245.57 | 0.243824 | 0.251376 | 0.011911 |
+
+B3 reduced training wall by 27.68% relative to B2, a 1.383x speedup. Its three
+recorded metrics were lower by 0.007801, 0.002219, and 0.019724 respectively.
+These metrics are reported as observations, not as proof of unchanged effect or
+statistical equivalence. The runs were concurrent on separate GPUs but shared
+host CPU, RAM, and storage, so their absolute timing should not be mixed with
+the earlier sequential one-epoch pilot. Legacy receipt fields named
+`one_epoch_training_wall_ms` and `one_epoch_fit_wall_ms` cover the complete
+10-epoch interval in these fixed-duration runs.
+
+See the [10-epoch review](.byte-os/reviews/2026-08-26-nadig-jurkat-ten-epoch.md)
+and [sealed small evidence](.byte-os/evidence/nadig-jurkat-ten-epoch/).
+
 ## Development quick start
 
 ```bash
