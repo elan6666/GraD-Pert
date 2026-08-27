@@ -10,8 +10,8 @@ from typing import Any, Literal, cast
 from gradpert.data._io import atomic_json
 from gradpert.hashing import sha256_file, sha256_json
 
-ALLOWED_SUFFIXES = frozenset({".txt", ".json", ".jsonl", ".csv", ".md", ".yaml", ".yml"})
-DEFAULT_MAX_FILE_BYTES = 8 * 1024 * 1024
+ALLOWED_SUFFIXES = frozenset({".txt", ".json", ".jsonl", ".csv", ".md", ".yaml", ".yml", ".sha256"})
+DEFAULT_MAX_FILE_BYTES = 16 * 1024 * 1024
 DEFAULT_MAX_TOTAL_BYTES = 128 * 1024 * 1024
 MANIFEST_NAME = "small-sync-manifest.json"
 SelectionScope = Literal["run-small-results", "explicit-root"]

@@ -1,9 +1,9 @@
 ---
 id: 024
-status: in_progress
+status: completed
 wave: 3
 depends_on: [023]
-updated_at: 2026-08-28T03:15:00+08:00
+updated_at: 2026-08-28T05:34:27+08:00
 ---
 
 # Plan 024 — B2-vNext native encoder, decoder, and GenePT variants
@@ -42,4 +42,5 @@ the existing model/trainer/CLI lifecycle.
 - [x] All trainable D2/GenePT routes pass server gradient, EMA, checkpoint and
   resume tests; resident sparse prediction unions are cached and numerically
   equivalent to rebuilds.
-- [ ] Commit/push/synchronize the exact reviewed source before formal CUDA use.
+- [x] Commit/push/synchronize the exact reviewed source before formal CUDA use
+  at `a9421142c086c4fe6b88cd48343a2cc03b1e408a`.

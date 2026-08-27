@@ -1,9 +1,9 @@
 ---
 id: 025
-status: pending
+status: in_progress
 wave: 4
 depends_on: [024]
-updated_at: 2026-08-28T03:15:00+08:00
+updated_at: 2026-08-28T05:34:27+08:00
 ---
 
 # Plan 025 — Freeze, synchronize, and launch Nadig Jurkat ablations
@@ -43,5 +43,10 @@ GenePT coverage and one-epoch integration gates, then launch the eligible fixed
   to the shared native `gradpert model pilot` entrypoint.
 - [x] Fail closed before any process on source/config/matrix/GenePT receipt
   mismatch; missing GenePT targets create only a skip receipt.
-- [ ] Publish/synchronize, run formal receipt preflights and the A0 one-epoch
-  CUDA gate, then launch only eligible fixed 10-epoch rows.
+- [x] Publish and synchronize reviewed implementation commit `a942114`.
+- [x] Materialize and strictly verify the five data/graph/evaluation receipt
+  chains and the full-cell-line Jurkat HVG512-plus-target graph.
+- [x] Run exact GenePT `emb_b` coverage. Seventeen modeled perturbation targets
+  are missing, so E1/E2/E3/ES are unavailable before model construction.
+- [ ] Commit/push/synchronize the reviewed small-receipt mirror, pass the A0
+  one-epoch CUDA gate, then launch only the 18 eligible fixed 10-epoch rows.

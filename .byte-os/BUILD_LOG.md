@@ -601,3 +601,31 @@
 - Two read-only reviews reported no remaining model-side P0/P1 blocker. Formal
   readiness still requires one clean public commit, corrected exact-commit
   dataset/HVG/GenePT receipts and the one-epoch A0 CUDA hard gate.
+
+## 2026-08-28 — B2-vNext formal data and graph receipts
+
+- Published and synchronized clean implementation commit `a942114`; exact
+  server gates passed 314 tests with four honest dependency/evidence skips,
+  Ruff, format, strict mypy on 72 source files and isolated build.
+- Materialized a fresh non-destructive five-dataset root at
+  `/data/yilangliu/GraD-Pert/data-vnext-a942114`. Individual full-hash reloads
+  passed and all five split hashes equal the frozen datasets-v2 contract.
+- Verified source-aware preprocessing: K562 and Norman preserve their official
+  processed expression axes; RPE1, Jurkat and HepG2 use raw integer counts,
+  weak-signal filtering, normalize-total 4,000, log1p and Seurat Top-5000.
+- Built and re-verified all five STRING/GO graph receipts and evaluator states.
+  An initial graph command named the wrong clean checkout and failed before
+  creating any graph directory; its exact log is preserved under
+  `superseded/20260828-vnext-a942-graph-wrong-checkout`, and the corrected
+  TxPert-checkout run passed.
+- The formal Jurkat vNext graph has 512 direct HVGs, 2,372 modeled targets,
+  2,809 union genes, 51,495 STRING and 38,287 GO nonself edges. Its topology
+  SHA-256 is `ba22af6e9e9a558533aaae850f619840ea2d717310eb3362a52476c3c1ea9128`.
+- Exact GenePT `emb_b` verification passed 93,800 entries x 1,536 dimensions,
+  but 17 modeled perturbation targets are absent. The preflight wrote an
+  unavailable receipt and created no GenePT graph/model/training root.
+- Mirrored 79 reviewed small receipts (about 62 MB) with inventory SHA-256
+  `228b8d9c124b8a8324bc475f0d62b2435918c10e30f275702c9f350fb930bd80`.
+  No H5AD, NPZ, PKL, checkpoint or evaluator array was transferred. The real
+  ordered-control receipts reach 9.64 MB, so the bounded small-sync per-file
+  limit is raised from 8 to 16 MiB while the total limit remains 128 MiB.

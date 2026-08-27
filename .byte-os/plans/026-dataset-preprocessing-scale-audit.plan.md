@@ -1,9 +1,9 @@
 ---
 id: 026
-status: in_progress
+status: completed
 wave: 2
 depends_on: []
-updated_at: 2026-08-28T12:20:00+08:00
+updated_at: 2026-08-28T05:34:27+08:00
 ---
 
 # Plan 026 — Dataset preprocessing scale audit
@@ -38,3 +38,16 @@ only to audited raw-count inputs.
 
 - `registry/datasets/`, `src/gradpert/data/`, `tests/data/`
 - data/design documentation and Byte OS evidence
+
+## Status
+
+- [x] Formal server materialization at `a942114` preserved K562's 5,000-gene
+  processed matrix and Norman's 5,045-gene GEARS matrix without a second
+  normalize/log/HVG pass.
+- [x] RPE1, Jurkat and HepG2 passed raw-integer fail-closed preparation using
+  weak-signal filtering, normalize-total 4,000, log1p and Seurat Top-5000.
+- [x] All five canonical split hashes, graph receipts and evaluation states
+  were independently reloaded and verified.
+- [x] Jurkat full-cell-line pre-split HVG512 produced a 2,809-gene exact union
+  with topology SHA-256
+  `ba22af6e9e9a558533aaae850f619840ea2d717310eb3362a52476c3c1ea9128`.

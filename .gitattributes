@@ -2,4 +2,5 @@
 # by adjacent manifests. Treat them as opaque in diffs rather than normalizing
 # historical CRLF records during checkout or publication.
 registry/prepared/superseded/**/*.csv -text -diff
+registry/prepared/**/graphs/graph_coverage/*.csv -text -diff
 results/superseded/**/*.csv -text -diff

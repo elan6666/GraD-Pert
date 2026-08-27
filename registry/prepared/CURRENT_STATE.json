@@ -1,9 +1,15 @@
 {
   "schema_version": "prepared-receipt-sync-v1",
-  "status": "pending_server_sync",
+  "status": "synchronized_verified",
   "registry_version": "datasets-v2",
   "server_verification": "passed",
-  "local_receipt_chain_available": false,
+  "local_receipt_chain_available": true,
+  "source_commit": "a9421142c086c4fe6b88cd48343a2cc03b1e408a",
+  "server_data_root": "/data/yilangliu/GraD-Pert/data-vnext-a942114",
+  "small_receipt_file_count": 79,
+  "small_receipt_inventory_sha256": "228b8d9c124b8a8324bc475f0d62b2435918c10e30f275702c9f350fb930bd80",
+  "nadig_jurkat_vnext_topology_sha256": "ba22af6e9e9a558533aaae850f619840ea2d717310eb3362a52476c3c1ea9128",
+  "genept_emb_b_status": "unavailable_missing_perturbation_targets",
   "split_content_sha256": {
     "nadig_hepg2": "540b214bd879aa3cb445c762447046bb319b58d6230a6e660c0a798380331bc6",
     "nadig_jurkat": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0",
@@ -11,5 +17,5 @@
     "replogle_k562_essential": "4d8dffc4e8e217f6b5b5d794666af346169789c3c6761d61b493a94522da5d69",
     "replogle_rpe1_essential": "19a1cc511fb98cc6063ef1b8bcfdc73db9ea0c674b86c3f4112f4388acd80204"
   },
-  "note": "Do not infer missing receipt hashes; copy and verify the server files."
+  "note": "Only reviewed small receipts are mirrored locally; H5AD, NPZ graphs, evaluator arrays, PKL and checkpoints remain server-only."
 }

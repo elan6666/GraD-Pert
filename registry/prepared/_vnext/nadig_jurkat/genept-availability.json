@@ -1,0 +1,32 @@
+{
+  "candidate_target_order_sha256": "e56276a7690774c5a980d719f79a3fbc45aca685b279ab65baea9bd9ca31be2a",
+  "dataset_id": "nadig_jurkat",
+  "genept_source_sha256": "fd297510ddd3040744033fde0b0f2cf15a40ac8b2fd2fb02f10667295e55c862",
+  "identifier_matching": "exact_case_sensitive",
+  "missing_non_target_policy": "remove_preserving_canonical_order",
+  "missing_perturbation_target_gene_ids": [
+    "C12orf45",
+    "C1orf109",
+    "C9orf16",
+    "CCDC130",
+    "DDN",
+    "FAM207A",
+    "FRG2",
+    "INTS2",
+    "MBTPS1",
+    "PHB",
+    "POLR2B",
+    "SPATA5",
+    "SPATA5L1",
+    "TDGF1",
+    "WDR61",
+    "WDR92",
+    "ZNF720"
+  ],
+  "missing_perturbation_target_gene_ids_sha256": "c63e7a369b12e4483bd96f6ce286cd7b867c306c76dae3a0586ebc8abbda9910",
+  "missing_perturbation_target_policy": "skip_variant_before_model_construction",
+  "parent_topology_content_sha256": "ba22af6e9e9a558533aaae850f619840ea2d717310eb3362a52476c3c1ea9128",
+  "result_topology_content_sha256": null,
+  "schema_version": "genept-vnext-availability-v1",
+  "status": "unavailable_missing_perturbation_targets"
+}

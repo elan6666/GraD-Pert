@@ -1,0 +1,22 @@
+{
+  "canonical_adata_path": "data/replogle_k562_essential/within_cell_unseen_single/canonical/adata.h5ad",
+  "canonical_adata_sha256": "98ed2c315c752655e5157060e1b0c6d25cdbfb3cd5866cb6f630cc918140ad23",
+  "dataset_id": "replogle_k562_essential",
+  "evaluation_controls_sha256": "451938792b960a63c069d83093dd9d3c389ead3d9478352636464eb2e3227e86",
+  "expression_gene_order_sha256": "1d5a91eb73733f7ac0bbe58544f074c6b9958efc31fc55b6e0d077945eafd9e8",
+  "graph_gene_order_sha256": "3e80137a2026b4cb8b283337d58c6d1c6ce8e381d050378dcfb90a696b81bf9e",
+  "n_cells": 161662,
+  "n_conditions": 1093,
+  "n_controls": 10691,
+  "n_expression_genes": 5000,
+  "n_graph_genes": 5657,
+  "observation_order_sha256": "a8705baf087a60aeec5f97801fa913666f07e5585b1e63ac912461cd01cda03f",
+  "preprocessing_manifest_sha256": "9760ccfb4134da02ebe518a9c9a5468897187304693ed2e5decd3078ed9879b9",
+  "protocol_id": "within_cell_unseen_single",
+  "qc_manifest_sha256": "0dbf82b8cc70ef90e4b8e3ea3c62e7d0dd0f9ff95c1d426c11bed84c3c2587dc",
+  "schema_version": "canonical-data-v1",
+  "source_manifest_sha256": "4410b870f36f220fec5118dcdf050606c3e62abfd64c5d70a6ad02df6622d8d7",
+  "split_content_sha256": "4d8dffc4e8e217f6b5b5d794666af346169789c3c6761d61b493a94522da5d69",
+  "split_manifest_sha256": "e0386e64c97b55877baf4819ab16cdbd174033e4db98b0a224fcc8dfb45e5ec0",
+  "state": "canonical_ready"
+}

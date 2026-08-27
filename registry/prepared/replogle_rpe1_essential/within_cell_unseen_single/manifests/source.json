@@ -1,0 +1,12 @@
+{
+  "dataset_id": "replogle_rpe1_essential",
+  "filename": "ReplogleWeissman2022_rpe1.h5ad",
+  "license_id": "original Replogle data CC-BY-4.0; scPerturb Zenodo record license field unstated; no project redistribution",
+  "protocol_id": "within_cell_unseen_single",
+  "registry_version": "datasets-v2",
+  "schema_version": "dataset-source-v1",
+  "size_bytes": 1236886900,
+  "source_semantics": "raw",
+  "source_sha256": "12d6a0cf9378c4f09411e27f0ce07b59f1d97731bd576d6fadf112f6f088d1a4",
+  "source_url": "https://zenodo.org/records/13350497/files/ReplogleWeissman2022_rpe1.h5ad?download=1"
+}

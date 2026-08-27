@@ -1,0 +1,47 @@
+{
+  "both_sources_missing_target_count": 0,
+  "candidate_target_count": 2373,
+  "canonical_data_sha256": "337ee4152df4a25ec33082fe3c87ac906be2cb277714a98938749804f687b7ea",
+  "coverage_report_path": "data/nadig_hepg2/within_cell_unseen_single/graphs/graph_coverage/graph_coverage.json",
+  "coverage_report_sha256": "cbaa49f953fca502b9ae92e7e4ae4d3e029d7f69e324ee27d7b32614561c9525",
+  "dataset_id": "nadig_hepg2",
+  "graph_gene_count": 6530,
+  "graph_gene_order_sha256": "4d85413892a9ada59224a260599197bcf5f1afc135d98ebed29da58dcbc610c4",
+  "isolated_genes_path": "data/nadig_hepg2/within_cell_unseen_single/graphs/graph_coverage/isolated_genes.csv",
+  "isolated_genes_sha256": "2e933fb2bc821af55aa2292bac490f115461cef128e3a843a8202e21f259ec0f",
+  "missing_genes_path": "data/nadig_hepg2/within_cell_unseen_single/graphs/graph_coverage/missing_genes.csv",
+  "missing_genes_sha256": "5d6a9b949d0ba69455676953211e7345bf931e2903a030898306195928708f9c",
+  "protocol_id": "within_cell_unseen_single",
+  "schema_version": "dataset-graph-v1",
+  "source_commit": "08d82eea86746b044cf7531f4ec8c5f60e1cb73f",
+  "source_registry_sha256": "d120094a74363e0ff0858d755f4d51bb930334c2d6380fc0332d1ea609462667",
+  "source_repository": "https://github.com/valence-labs/TxPert.git",
+  "sources": [
+    {
+      "artifact_path": "data/nadig_hepg2/within_cell_unseen_single/graphs/go.npz",
+      "artifact_sha256": "b325b025401bdb517e3af95e9de467fdfaacfbdba3b10a1f8311d08706c0aa6d",
+      "covered_gene_count": 5166,
+      "dropped_empty_endpoint_row_count": 0,
+      "filtered_nonself_edge_count": 138782,
+      "pruned_nonself_edge_count": 96151,
+      "source_name": "go",
+      "upstream_file_sha256": "ad469c852ba9b8b5489749c7987467687aa566598fc0706fd7232aa27edce27b",
+      "upstream_relative_path": "data/graphs/go/go_top_50.csv",
+      "upstream_size_bytes": 12814602
+    },
+    {
+      "artifact_path": "data/nadig_hepg2/within_cell_unseen_single/graphs/string.npz",
+      "artifact_sha256": "343a5db7bebab50fde54809d3034131b4b2d45aae671289263c9b691e0a78e98",
+      "covered_gene_count": 6065,
+      "dropped_empty_endpoint_row_count": 142820,
+      "filtered_nonself_edge_count": 2307060,
+      "pruned_nonself_edge_count": 121075,
+      "source_name": "string",
+      "upstream_file_sha256": "55d312f8d6186078eb00a7caf108ef731cd27aa08a5b48de59cd0333f0206404",
+      "upstream_relative_path": "data/graphs/string/v11.5.parquet",
+      "upstream_size_bytes": 38828749
+    }
+  ],
+  "state": "graph_ready",
+  "topology_content_sha256": "17596ff6465300549dfa2d40c91d59d08c017f11ed9ca4ce71f99db628a58833"
+}

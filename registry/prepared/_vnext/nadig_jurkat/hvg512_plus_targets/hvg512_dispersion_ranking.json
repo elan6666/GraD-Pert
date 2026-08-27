@@ -1,0 +1,4452 @@
+{
+  "fit_cell_count": 238977,
+  "fit_condition_ids": [
+    "AAAS+ctrl",
+    "AAMP+ctrl",
+    "AAR2+ctrl",
+    "AARS+ctrl",
+    "AARS2+ctrl",
+    "AASDHPPT+ctrl",
+    "AATF+ctrl",
+    "ABCB10+ctrl",
+    "ABCB7+ctrl",
+    "ABCE1+ctrl",
+    "ABCF1+ctrl",
+    "ABCG1+ctrl",
+    "ABHD11+ctrl",
+    "ABHD17A+ctrl",
+    "ABT1+ctrl",
+    "AC118549.1+ctrl",
+    "ACD+ctrl",
+    "ACIN1+ctrl",
+    "ACOT12+ctrl",
+    "ACSS2+ctrl",
+    "ACTB+ctrl",
+    "ACTL6A+ctrl",
+    "ACTR10+ctrl",
+    "ACTR1A+ctrl",
+    "ACTR1B+ctrl",
+    "ACTR2+ctrl",
+    "ACTR3+ctrl",
+    "ACTR5+ctrl",
+    "ACTR6+ctrl",
+    "ACTR8+ctrl",
+    "ADAM10+ctrl",
+    "ADAT2+ctrl",
+    "ADAT3+ctrl",
+    "ADNP2+ctrl",
+    "ADRM1+ctrl",
+    "ADSL+ctrl",
+    "AFG3L2+ctrl",
+    "AGBL5+ctrl",
+    "AHCTF1+ctrl",
+    "AHCY+ctrl",
+    "AIFM1+ctrl",
+    "AKIRIN2+ctrl",
+    "ALDOA+ctrl",
+    "ALG1+ctrl",
+    "ALG11+ctrl",
+    "ALG13+ctrl",
+    "ALG14+ctrl",
+    "ALG1L+ctrl",
+    "ALG2+ctrl",
+    "ALYREF+ctrl",
+    "ANAPC1+ctrl",
+    "ANAPC10+ctrl",
+    "ANAPC11+ctrl",
+    "ANAPC13+ctrl",
+    "ANAPC15+ctrl",
+    "ANAPC2+ctrl",
+    "ANAPC4+ctrl",
+    "ANAPC5+ctrl",
+    "ANKLE2+ctrl",
+    "ANKRD11+ctrl",
+    "ANKRD17+ctrl",
+    "ANKRD39+ctrl",
+    "ANKRD49+ctrl",
+    "ANKS6+ctrl",
+    "ANLN+ctrl",
+    "AP2A1+ctrl",
+    "AP2M1+ctrl",
+    "AP2S1+ctrl",
+    "AQP7+ctrl",
+    "AQR+ctrl",
+    "ARCN1+ctrl",
+    "ARF4+ctrl",
+    "ARFRP1+ctrl",
+    "ARGFX+ctrl",
+    "ARGLU1+ctrl",
+    "ARHGAP11B+ctrl",
+    "ARHGAP6+ctrl",
+    "ARID3A+ctrl",
+    "ARID5B+ctrl",
+    "ARIH1+ctrl",
+    "ARL2+ctrl",
+    "ARL4D+ctrl",
+    "ARL6IP6+ctrl",
+    "ARMC6+ctrl",
+    "ARMC7+ctrl",
+    "ARPC1B+ctrl",
+    "ARPC2+ctrl",
+    "ARPC3+ctrl",
+    "ARPC4+ctrl",
+    "ARRB2+ctrl",
+    "ASCC3+ctrl",
+    "ASF1B+ctrl",
+    "ATF4+ctrl",
+    "ATF5+ctrl",
+    "ATIC+ctrl",
+    "ATL2+ctrl",
+    "ATP11B+ctrl",
+    "ATP1A1+ctrl",
+    "ATP2A2+ctrl",
+    "ATP5F1A+ctrl",
+    "ATP5F1B+ctrl",
+    "ATP5F1C+ctrl",
+    "ATP5MD+ctrl",
+    "ATP5ME+ctrl",
+    "ATP5MF+ctrl",
+    "ATP5PD+ctrl",
+    "ATP5PO+ctrl",
+    "ATP6AP1+ctrl",
+    "ATP6AP2+ctrl",
+    "ATP6V0B+ctrl",
+    "ATP6V0C+ctrl",
+    "ATP6V0D1+ctrl",
+    "ATP6V1A+ctrl",
+    "ATP6V1B2+ctrl",
+    "ATP6V1C1+ctrl",
+    "ATP6V1D+ctrl",
+    "ATP6V1E1+ctrl",
+    "ATP6V1F+ctrl",
+    "ATP6V1G1+ctrl",
+    "ATP6V1H+ctrl",
+    "ATR+ctrl",
+    "ATRIP+ctrl",
+    "ATXN10+ctrl",
+    "AURKA+ctrl",
+    "AURKAIP1+ctrl",
+    "AURKB+ctrl",
+    "BAG6+ctrl",
+    "BANF1+ctrl",
+    "BANP+ctrl",
+    "BAP1+ctrl",
+    "BARD1+ctrl",
+    "BCAR1+ctrl",
+    "BCAS2+ctrl",
+    "BCL2L1+ctrl",
+    "BCLAF1+ctrl",
+    "BCR+ctrl",
+    "BCS1L+ctrl",
+    "BDP1+ctrl",
+    "BET1+ctrl",
+    "BGLAP+ctrl",
+    "BIRC5+ctrl",
+    "BMP2K+ctrl",
+    "BMS1+ctrl",
+    "BNIP1+ctrl",
+    "BOD1L1+ctrl",
+    "BOP1+ctrl",
+    "BORA+ctrl",
+    "BPTF+ctrl",
+    "BRCA1+ctrl",
+    "BRCA2+ctrl",
+    "BRD2+ctrl",
+    "BRD4+ctrl",
+    "BRD8+ctrl",
+    "BRF1+ctrl",
+    "BRF2+ctrl",
+    "BRIP1+ctrl",
+    "BRIX1+ctrl",
+    "BRK1+ctrl",
+    "BTAF1+ctrl",
+    "BTF3+ctrl",
+    "BTF3L4+ctrl",
+    "BUB1+ctrl",
+    "BUB1B+ctrl",
+    "BUB3+ctrl",
+    "BUD13+ctrl",
+    "BUD23+ctrl",
+    "BUD31+ctrl",
+    "BYSL+ctrl",
+    "C12orf45+ctrl",
+    "C12orf60+ctrl",
+    "C14orf178+ctrl",
+    "C16orf86+ctrl",
+    "C17orf58+ctrl",
+    "C18orf21+ctrl",
+    "C19orf25+ctrl",
+    "C19orf53+ctrl",
+    "C1D+ctrl",
+    "C1QBP+ctrl",
+    "C1QTNF4+ctrl",
+    "C1orf109+ctrl",
+    "C1orf131+ctrl",
+    "C5orf30+ctrl",
+    "C6orf15+ctrl",
+    "C7orf26+ctrl",
+    "C7orf50+ctrl",
+    "C9orf16+ctrl",
+    "C9orf78+ctrl",
+    "CA5A+ctrl",
+    "CABIN1+ctrl",
+    "CACNB3+ctrl",
+    "CACTIN+ctrl",
+    "CAD+ctrl",
+    "CADM4+ctrl",
+    "CALR+ctrl",
+    "CAMLG+ctrl",
+    "CAP1+ctrl",
+    "CAPZB+ctrl",
+    "CARF+ctrl",
+    "CARS+ctrl",
+    "CASC3+ctrl",
+    "CASP8AP2+ctrl",
+    "CAST+ctrl",
+    "CBFA2T3+ctrl",
+    "CBLL1+ctrl",
+    "CBLN1+ctrl",
+    "CBX1+ctrl",
+    "CCAR1+ctrl",
+    "CCDC115+ctrl",
+    "CCDC130+ctrl",
+    "CCDC137+ctrl",
+    "CCDC144A+ctrl",
+    "CCDC144NL+ctrl",
+    "CCDC174+ctrl",
+    "CCDC59+ctrl",
+    "CCDC6+ctrl",
+    "CCDC78+ctrl",
+    "CCDC84+ctrl",
+    "CCDC86+ctrl",
+    "CCNA2+ctrl",
+    "CCNB1+ctrl",
+    "CCNC+ctrl",
+    "CCND1+ctrl",
+    "CCND3+ctrl",
+    "CCNH+ctrl",
+    "CCNK+ctrl",
+    "CCNL1+ctrl",
+    "CCNQ+ctrl",
+    "CCP110+ctrl",
+    "CCT2+ctrl",
+    "CCT3+ctrl",
+    "CCT4+ctrl",
+    "CCT5+ctrl",
+    "CCT6A+ctrl",
+    "CCT7+ctrl",
+    "CCT8+ctrl",
+    "CD2BP2+ctrl",
+    "CD3EAP+ctrl",
+    "CD8B+ctrl",
+    "CDAN1+ctrl",
+    "CDC123+ctrl",
+    "CDC16+ctrl",
+    "CDC20+ctrl",
+    "CDC23+ctrl",
+    "CDC26+ctrl",
+    "CDC27+ctrl",
+    "CDC37+ctrl",
+    "CDC40+ctrl",
+    "CDC42+ctrl",
+    "CDC45+ctrl",
+    "CDC5L+ctrl",
+    "CDC6+ctrl",
+    "CDC7+ctrl",
+    "CDC73+ctrl",
+    "CDCA5+ctrl",
+    "CDIPT+ctrl",
+    "CDK1+ctrl",
+    "CDK11A+ctrl",
+    "CDK12+ctrl",
+    "CDK2+ctrl",
+    "CDK6+ctrl",
+    "CDK7+ctrl",
+    "CDK9+ctrl",
+    "CDT1+ctrl",
+    "CEBPG+ctrl",
+    "CEBPZ+ctrl",
+    "CENPA+ctrl",
+    "CENPC+ctrl",
+    "CENPE+ctrl",
+    "CENPH+ctrl",
+    "CENPI+ctrl",
+    "CENPJ+ctrl",
+    "CENPK+ctrl",
+    "CENPN+ctrl",
+    "CENPP+ctrl",
+    "CENPT+ctrl",
+    "CENPW+ctrl",
+    "CEP152+ctrl",
+    "CEP192+ctrl",
+    "CEP68+ctrl",
+    "CEP85+ctrl",
+    "CEP97+ctrl",
+    "CFDP1+ctrl",
+    "CFL1+ctrl",
+    "CHAF1A+ctrl",
+    "CHAF1B+ctrl",
+    "CHCHD1+ctrl",
+    "CHCHD2+ctrl",
+    "CHCHD3+ctrl",
+    "CHCHD4+ctrl",
+    "CHD4+ctrl",
+    "CHEK1+ctrl",
+    "CHERP+ctrl",
+    "CHMP1A+ctrl",
+    "CHMP2A+ctrl",
+    "CHMP3+ctrl",
+    "CHMP4B+ctrl",
+    "CHMP5+ctrl",
+    "CHMP6+ctrl",
+    "CHMP7+ctrl",
+    "CHORDC1+ctrl",
+    "CHTF18+ctrl",
+    "CHTF8+ctrl",
+    "CHTOP+ctrl",
+    "CIAO1+ctrl",
+    "CIAPIN1+ctrl",
+    "CINP+ctrl",
+    "CKAP5+ctrl",
+    "CLASRP+ctrl",
+    "CLCC1+ctrl",
+    "CLK2+ctrl",
+    "CLNS1A+ctrl",
+    "CLOCK+ctrl",
+    "CLP1+ctrl",
+    "CLPB+ctrl",
+    "CLSPN+ctrl",
+    "CLTC+ctrl",
+    "CMC4+ctrl",
+    "CMPK1+ctrl",
+    "CMTR1+ctrl",
+    "CMTR2+ctrl",
+    "CNIH4+ctrl",
+    "CNN2+ctrl",
+    "CNOT1+ctrl",
+    "CNOT10+ctrl",
+    "CNOT11+ctrl",
+    "CNOT2+ctrl",
+    "CNOT3+ctrl",
+    "CNOT9+ctrl",
+    "COA5+ctrl",
+    "COASY+ctrl",
+    "COG1+ctrl",
+    "COG2+ctrl",
+    "COG3+ctrl",
+    "COG4+ctrl",
+    "COG6+ctrl",
+    "COG8+ctrl",
+    "COMTD1+ctrl",
+    "COPA+ctrl",
+    "COPB1+ctrl",
+    "COPB2+ctrl",
+    "COPE+ctrl",
+    "COPG1+ctrl",
+    "COPS2+ctrl",
+    "COPS3+ctrl",
+    "COPS4+ctrl",
+    "COPS5+ctrl",
+    "COPS6+ctrl",
+    "COPS8+ctrl",
+    "COPZ1+ctrl",
+    "COQ2+ctrl",
+    "COQ4+ctrl",
+    "COQ5+ctrl",
+    "COTL1+ctrl",
+    "COX10+ctrl",
+    "COX11+ctrl",
+    "COX15+ctrl",
+    "COX17+ctrl",
+    "COX5A+ctrl",
+    "COX5B+ctrl",
+    "COX6C+ctrl",
+    "COX7B+ctrl",
+    "COX7C+ctrl",
+    "CPAMD8+ctrl",
+    "CPEB1+ctrl",
+    "CPNE1+ctrl",
+    "CPNE7+ctrl",
+    "CPOX+ctrl",
+    "CPSF1+ctrl",
+    "CPSF2+ctrl",
+    "CPSF3+ctrl",
+    "CPSF4+ctrl",
+    "CPSF6+ctrl",
+    "CRCP+ctrl",
+    "CRKL+ctrl",
+    "CRLS1+ctrl",
+    "CRNKL1+ctrl",
+    "CS+ctrl",
+    "CSDE1+ctrl",
+    "CSE1L+ctrl",
+    "CSH2+ctrl",
+    "CSNK1A1+ctrl",
+    "CSNK2B+ctrl",
+    "CSTF1+ctrl",
+    "CSTF3+ctrl",
+    "CT45A5+ctrl",
+    "CTBP2+ctrl",
+    "CTCF+ctrl",
+    "CTDP1+ctrl",
+    "CTNNBL1+ctrl",
+    "CTPS1+ctrl",
+    "CTR9+ctrl",
+    "CTU2+ctrl",
+    "CUL1+ctrl",
+    "CUL2+ctrl",
+    "CUL3+ctrl",
+    "CUL7+ctrl",
+    "CWC15+ctrl",
+    "CWC22+ctrl",
+    "CWC25+ctrl",
+    "CWF19L2+ctrl",
+    "CXXC1+ctrl",
+    "CYC1+ctrl",
+    "CYCS+ctrl",
+    "CYFIP1+ctrl",
+    "CYP2A13+ctrl",
+    "CYP4F11+ctrl",
+    "CYREN+ctrl",
+    "CYS1+ctrl",
+    "DAD1+ctrl",
+    "DAP3+ctrl",
+    "DARS+ctrl",
+    "DAXX+ctrl",
+    "DBF4+ctrl",
+    "DBR1+ctrl",
+    "DCAF6+ctrl",
+    "DCLRE1B+ctrl",
+    "DCTN1+ctrl",
+    "DCTN2+ctrl",
+    "DCTN3+ctrl",
+    "DCTN4+ctrl",
+    "DCTN5+ctrl",
+    "DCTN6+ctrl",
+    "DCUN1D5+ctrl",
+    "DDB1+ctrl",
+    "DDN+ctrl",
+    "DDOST+ctrl",
+    "DDX1+ctrl",
+    "DDX10+ctrl",
+    "DDX11+ctrl",
+    "DDX17+ctrl",
+    "DDX18+ctrl",
+    "DDX19A+ctrl",
+    "DDX19B+ctrl",
+    "DDX20+ctrl",
+    "DDX21+ctrl",
+    "DDX23+ctrl",
+    "DDX24+ctrl",
+    "DDX27+ctrl",
+    "DDX3X+ctrl",
+    "DDX41+ctrl",
+    "DDX42+ctrl",
+    "DDX46+ctrl",
+    "DDX47+ctrl",
+    "DDX49+ctrl",
+    "DDX5+ctrl",
+    "DDX51+ctrl",
+    "DDX52+ctrl",
+    "DDX54+ctrl",
+    "DDX55+ctrl",
+    "DDX56+ctrl",
+    "DDX59+ctrl",
+    "DDX6+ctrl",
+    "DENR+ctrl",
+    "DEPDC5+ctrl",
+    "DERL2+ctrl",
+    "DESI1+ctrl",
+    "DGCR8+ctrl",
+    "DHDDS+ctrl",
+    "DHFR+ctrl",
+    "DHODH+ctrl",
+    "DHPS+ctrl",
+    "DHX15+ctrl",
+    "DHX16+ctrl",
+    "DHX29+ctrl",
+    "DHX30+ctrl",
+    "DHX33+ctrl",
+    "DHX36+ctrl",
+    "DHX37+ctrl",
+    "DHX8+ctrl",
+    "DHX9+ctrl",
+    "DICER1+ctrl",
+    "DIMT1+ctrl",
+    "DIS3+ctrl",
+    "DKC1+ctrl",
+    "DLD+ctrl",
+    "DMAP1+ctrl",
+    "DMRTA2+ctrl",
+    "DNAAF3+ctrl",
+    "DNAJA1+ctrl",
+    "DNAJA3+ctrl",
+    "DNAJC11+ctrl",
+    "DNAJC17+ctrl",
+    "DNAJC19+ctrl",
+    "DNAJC8+ctrl",
+    "DNAJC9+ctrl",
+    "DNLZ+ctrl",
+    "DNM1+ctrl",
+    "DNM1L+ctrl",
+    "DNM2+ctrl",
+    "DNMT1+ctrl",
+    "DNTTIP2+ctrl",
+    "DOHH+ctrl",
+    "DOLK+ctrl",
+    "DONSON+ctrl",
+    "DPAGT1+ctrl",
+    "DPH1+ctrl",
+    "DPH2+ctrl",
+    "DPH3+ctrl",
+    "DPH6+ctrl",
+    "DPM2+ctrl",
+    "DPPA2+ctrl",
+    "DPY19L2+ctrl",
+    "DPY19L4+ctrl",
+    "DR1+ctrl",
+    "DRAP1+ctrl",
+    "DRG1+ctrl",
+    "DROSHA+ctrl",
+    "DSN1+ctrl",
+    "DSTYK+ctrl",
+    "DTL+ctrl",
+    "DTYMK+ctrl",
+    "DUT+ctrl",
+    "DYNC1H1+ctrl",
+    "DYNC1I2+ctrl",
+    "DYNLL1+ctrl",
+    "DYNLL2+ctrl",
+    "DYNLRB1+ctrl",
+    "E2F6+ctrl",
+    "E4F1+ctrl",
+    "EARS2+ctrl",
+    "EBNA1BP2+ctrl",
+    "ECD+ctrl",
+    "ECT2+ctrl",
+    "EDC4+ctrl",
+    "EEF1A1+ctrl",
+    "EEF1B2+ctrl",
+    "EEF1G+ctrl",
+    "EEF2+ctrl",
+    "EEFSEC+ctrl",
+    "EFR3A+ctrl",
+    "EFTUD2+ctrl",
+    "EGLN2+ctrl",
+    "EHMT2+ctrl",
+    "EIF1+ctrl",
+    "EIF1AD+ctrl",
+    "EIF1AX+ctrl",
+    "EIF2B1+ctrl",
+    "EIF2B2+ctrl",
+    "EIF2B3+ctrl",
+    "EIF2B4+ctrl",
+    "EIF2B5+ctrl",
+    "EIF2S1+ctrl",
+    "EIF2S2+ctrl",
+    "EIF2S3+ctrl",
+    "EIF3A+ctrl",
+    "EIF3B+ctrl",
+    "EIF3CL+ctrl",
+    "EIF3D+ctrl",
+    "EIF3E+ctrl",
+    "EIF3F+ctrl",
+    "EIF3G+ctrl",
+    "EIF3H+ctrl",
+    "EIF3I+ctrl",
+    "EIF3J+ctrl",
+    "EIF3L+ctrl",
+    "EIF3M+ctrl",
+    "EIF4A1+ctrl",
+    "EIF4A3+ctrl",
+    "EIF4B+ctrl",
+    "EIF4E+ctrl",
+    "EIF4G1+ctrl",
+    "EIF4G2+ctrl",
+    "EIF4H+ctrl",
+    "EIF5+ctrl",
+    "EIF5A+ctrl",
+    "EIF6+ctrl",
+    "ELAC2+ctrl",
+    "ELL+ctrl",
+    "ELOB+ctrl",
+    "ELOF1+ctrl",
+    "ELOVL1+ctrl",
+    "ELP2+ctrl",
+    "ELP3+ctrl",
+    "ELP4+ctrl",
+    "ELP5+ctrl",
+    "ELP6+ctrl",
+    "EMC1+ctrl",
+    "EMC3+ctrl",
+    "EMC4+ctrl",
+    "EMC7+ctrl",
+    "EMG1+ctrl",
+    "ENO1+ctrl",
+    "ENY2+ctrl",
+    "EP400+ctrl",
+    "EPB41L2+ctrl",
+    "EPRS+ctrl",
+    "EPS8L1+ctrl",
+    "ERAL1+ctrl",
+    "ERCC2+ctrl",
+    "ERCC3+ctrl",
+    "ERH+ctrl",
+    "ERVW-1+ctrl",
+    "ESF1+ctrl",
+    "ESPL1+ctrl",
+    "ESPN+ctrl",
+    "ESYT1+ctrl",
+    "ESYT2+ctrl",
+    "ETF1+ctrl",
+    "ETV4+ctrl",
+    "EWSR1+ctrl",
+    "EXOC1+ctrl",
+    "EXOC2+ctrl",
+    "EXOC3+ctrl",
+    "EXOC4+ctrl",
+    "EXOC5+ctrl",
+    "EXOC7+ctrl",
+    "EXOC8+ctrl",
+    "EXOSC1+ctrl",
+    "EXOSC10+ctrl",
+    "EXOSC2+ctrl",
+    "EXOSC3+ctrl",
+    "EXOSC4+ctrl",
+    "EXOSC5+ctrl",
+    "EXOSC6+ctrl",
+    "EXOSC7+ctrl",
+    "EXOSC8+ctrl",
+    "EXOSC9+ctrl",
+    "F8A1+ctrl",
+    "FAF2+ctrl",
+    "FAM102B+ctrl",
+    "FAM133B+ctrl",
+    "FAM136A+ctrl",
+    "FAM207A+ctrl",
+    "FAM229A+ctrl",
+    "FAM32A+ctrl",
+    "FAM50A+ctrl",
+    "FAM72D+ctrl",
+    "FARS2+ctrl",
+    "FARSA+ctrl",
+    "FARSB+ctrl",
+    "FASN+ctrl",
+    "FASTKD5+ctrl",
+    "FAU+ctrl",
+    "FBL+ctrl",
+    "FBLIM1+ctrl",
+    "FBRSL1+ctrl",
+    "FBXL14+ctrl",
+    "FBXO42+ctrl",
+    "FBXO5+ctrl",
+    "FBXW7+ctrl",
+    "FCF1+ctrl",
+    "FDPS+ctrl",
+    "FDXR+ctrl",
+    "FEN1+ctrl",
+    "FGFR1OP+ctrl",
+    "FIP1L1+ctrl",
+    "FKBP9+ctrl",
+    "FNBP4+ctrl",
+    "FNTA+ctrl",
+    "FNTB+ctrl",
+    "FOLR3+ctrl",
+    "FOXD4+ctrl",
+    "FOXL2+ctrl",
+    "FOXO1+ctrl",
+    "FOXS1+ctrl",
+    "FRG2+ctrl",
+    "FTSJ3+ctrl",
+    "FUNDC2+ctrl",
+    "FXN+ctrl",
+    "FYN+ctrl",
+    "GAB2+ctrl",
+    "GABPA+ctrl",
+    "GABPB1+ctrl",
+    "GAK+ctrl",
+    "GAPDH+ctrl",
+    "GAR1+ctrl",
+    "GARS+ctrl",
+    "GART+ctrl",
+    "GATA1+ctrl",
+    "GBF1+ctrl",
+    "GCLC+ctrl",
+    "GCOM1+ctrl",
+    "GEMIN4+ctrl",
+    "GEMIN5+ctrl",
+    "GEMIN6+ctrl",
+    "GEMIN7+ctrl",
+    "GEMIN8+ctrl",
+    "GET1+ctrl",
+    "GET3+ctrl",
+    "GFER+ctrl",
+    "GFM1+ctrl",
+    "GFOD2+ctrl",
+    "GGPS1+ctrl",
+    "GINS1+ctrl",
+    "GINS2+ctrl",
+    "GINS3+ctrl",
+    "GINS4+ctrl",
+    "GIT2+ctrl",
+    "GJA3+ctrl",
+    "GLB1+ctrl",
+    "GLE1+ctrl",
+    "GLI4+ctrl",
+    "GLMN+ctrl",
+    "GLRX3+ctrl",
+    "GLRX5+ctrl",
+    "GMIP+ctrl",
+    "GMPPB+ctrl",
+    "GMPS+ctrl",
+    "GNB1L+ctrl",
+    "GNL2+ctrl",
+    "GNL3+ctrl",
+    "GNL3L+ctrl",
+    "GNPAT+ctrl",
+    "GNPNAT1+ctrl",
+    "GOLGA6L1+ctrl",
+    "GOLT1B+ctrl",
+    "GON4L+ctrl",
+    "GOSR2+ctrl",
+    "GPKOW+ctrl",
+    "GPN1+ctrl",
+    "GPN2+ctrl",
+    "GPN3+ctrl",
+    "GPR61+ctrl",
+    "GPS1+ctrl",
+    "GPS2+ctrl",
+    "GRB2+ctrl",
+    "GRPEL1+ctrl",
+    "GRSF1+ctrl",
+    "GRWD1+ctrl",
+    "GSDMA+ctrl",
+    "GSK3B+ctrl",
+    "GSPT1+ctrl",
+    "GTF2A1+ctrl",
+    "GTF2A2+ctrl",
+    "GTF2B+ctrl",
+    "GTF2E1+ctrl",
+    "GTF2E2+ctrl",
+    "GTF2F1+ctrl",
+    "GTF2F2+ctrl",
+    "GTF2H1+ctrl",
+    "GTF2H2+ctrl",
+    "GTF2H2C+ctrl",
+    "GTF2H3+ctrl",
+    "GTF2H4+ctrl",
+    "GTF3A+ctrl",
+    "GTF3C1+ctrl",
+    "GTF3C2+ctrl",
+    "GTF3C3+ctrl",
+    "GTF3C4+ctrl",
+    "GTF3C5+ctrl",
+    "GTF3C6+ctrl",
+    "GTPBP4+ctrl",
+    "GUCD1+ctrl",
+    "GUK1+ctrl",
+    "GYG1+ctrl",
+    "H2AFX+ctrl",
+    "H2AFZ+ctrl",
+    "H3F3A+ctrl",
+    "HAMP+ctrl",
+    "HAPLN2+ctrl",
+    "HARS+ctrl",
+    "HARS2+ctrl",
+    "HAUS1+ctrl",
+    "HAUS3+ctrl",
+    "HAUS4+ctrl",
+    "HAUS5+ctrl",
+    "HAUS6+ctrl",
+    "HAUS7+ctrl",
+    "HAUS8+ctrl",
+    "HBS1L+ctrl",
+    "HCFC1+ctrl",
+    "HCRTR1+ctrl",
+    "HDAC3+ctrl",
+    "HDAC7+ctrl",
+    "HEATR1+ctrl",
+    "HECTD1+ctrl",
+    "HERC1+ctrl",
+    "HEXIM1+ctrl",
+    "HGS+ctrl",
+    "HHEX+ctrl",
+    "HINFP+ctrl",
+    "HIPK1+ctrl",
+    "HIRA+ctrl",
+    "HIST1H2AB+ctrl",
+    "HIST1H2AE+ctrl",
+    "HIST1H2AI+ctrl",
+    "HIST1H2BB+ctrl",
+    "HIST1H2BC+ctrl",
+    "HIST1H2BE+ctrl",
+    "HIST1H2BJ+ctrl",
+    "HIST1H2BL+ctrl",
+    "HIST1H2BM+ctrl",
+    "HIST1H2BN+ctrl",
+    "HIST2H2AA3+ctrl",
+    "HIST2H2AC+ctrl",
+    "HIST2H2BE+ctrl",
+    "HIST2H2BF+ctrl",
+    "HIST2H3A+ctrl",
+    "HIST2H3D+ctrl",
+    "HJURP+ctrl",
+    "HLA-C+ctrl",
+    "HMBOX1+ctrl",
+    "HMGA1+ctrl",
+    "HMGB1+ctrl",
+    "HMGB3+ctrl",
+    "HMGCR+ctrl",
+    "HMGCS1+ctrl",
+    "HMGN2+ctrl",
+    "HMX3+ctrl",
+    "HNRNPA1+ctrl",
+    "HNRNPC+ctrl",
+    "HNRNPDL+ctrl",
+    "HNRNPH1+ctrl",
+    "HNRNPK+ctrl",
+    "HNRNPL+ctrl",
+    "HNRNPM+ctrl",
+    "HNRNPR+ctrl",
+    "HNRNPU+ctrl",
+    "HOXA3+ctrl",
+    "HOXC10+ctrl",
+    "HPS5+ctrl",
+    "HS6ST1+ctrl",
+    "HSCB+ctrl",
+    "HSD17B10+ctrl",
+    "HSD17B12+ctrl",
+    "HSF1+ctrl",
+    "HSP90B1+ctrl",
+    "HSPA14+ctrl",
+    "HSPA5+ctrl",
+    "HSPA8+ctrl",
+    "HSPA9+ctrl",
+    "HSPD1+ctrl",
+    "HSPE1+ctrl",
+    "HSPH1+ctrl",
+    "HTATSF1+ctrl",
+    "HUS1+ctrl",
+    "HUWE1+ctrl",
+    "HYOU1+ctrl",
+    "HYPK+ctrl",
+    "IARS+ctrl",
+    "IARS2+ctrl",
+    "ICE1+ctrl",
+    "IFITM2+ctrl",
+    "IFITM3+ctrl",
+    "IGBP1+ctrl",
+    "IK+ctrl",
+    "ILF2+ctrl",
+    "ILF3+ctrl",
+    "IMP3+ctrl",
+    "IMP4+ctrl",
+    "IMPA2+ctrl",
+    "IMPDH2+ctrl",
+    "INCENP+ctrl",
+    "INF2+ctrl",
+    "ING3+ctrl",
+    "INO80+ctrl",
+    "INO80B+ctrl",
+    "INO80C+ctrl",
+    "INO80D+ctrl",
+    "INO80E+ctrl",
+    "INPPL1+ctrl",
+    "INTS1+ctrl",
+    "INTS10+ctrl",
+    "INTS11+ctrl",
+    "INTS12+ctrl",
+    "INTS13+ctrl",
+    "INTS14+ctrl",
+    "INTS2+ctrl",
+    "INTS3+ctrl",
+    "INTS4+ctrl",
+    "INTS5+ctrl",
+    "INTS6+ctrl",
+    "INTS7+ctrl",
+    "INTS8+ctrl",
+    "INTS9+ctrl",
+    "IPO11+ctrl",
+    "IPO13+ctrl",
+    "IPO7+ctrl",
+    "IPO9+ctrl",
+    "IRF2BP2+ctrl",
+    "ISCA2+ctrl",
+    "ISCU+ctrl",
+    "ISG20L2+ctrl",
+    "IST1+ctrl",
+    "ISY1+ctrl",
+    "ITGB1BP1+ctrl",
+    "IWS1+ctrl",
+    "JAZF1+ctrl",
+    "JMJD6+ctrl",
+    "KANSL1+ctrl",
+    "KANSL2+ctrl",
+    "KANSL3+ctrl",
+    "KARS+ctrl",
+    "KAT5+ctrl",
+    "KAT7+ctrl",
+    "KAT8+ctrl",
+    "KATNB1+ctrl",
+    "KCMF1+ctrl",
+    "KCNA10+ctrl",
+    "KCTD10+ctrl",
+    "KDM1A+ctrl",
+    "KDM2A+ctrl",
+    "KDM5C+ctrl",
+    "KDM6A+ctrl",
+    "KDM8+ctrl",
+    "KEAP1+ctrl",
+    "KIAA0586+ctrl",
+    "KIAA1143+ctrl",
+    "KIF11+ctrl",
+    "KIF14+ctrl",
+    "KIF18A+ctrl",
+    "KIF18B+ctrl",
+    "KIF20A+ctrl",
+    "KIF23+ctrl",
+    "KIF4A+ctrl",
+    "KIN+ctrl",
+    "KLC2+ctrl",
+    "KLF7+ctrl",
+    "KLHL11+ctrl",
+    "KLHL17+ctrl",
+    "KPNA6+ctrl",
+    "KPNB1+ctrl",
+    "KRI1+ctrl",
+    "KRR1+ctrl",
+    "KRT10+ctrl",
+    "KRT17+ctrl",
+    "KRT8+ctrl",
+    "KRTAP4-2+ctrl",
+    "KRTAP4-7+ctrl",
+    "KTI12+ctrl",
+    "KXD1+ctrl",
+    "LAMB1+ctrl",
+    "LAMTOR1+ctrl",
+    "LAMTOR2+ctrl",
+    "LAMTOR3+ctrl",
+    "LAMTOR4+ctrl",
+    "LARS+ctrl",
+    "LARS2+ctrl",
+    "LAS1L+ctrl",
+    "LCE1C+ctrl",
+    "LCE1E+ctrl",
+    "LCN10+ctrl",
+    "LDB1+ctrl",
+    "LENG8+ctrl",
+    "LEO1+ctrl",
+    "LETM1+ctrl",
+    "LIMS1+ctrl",
+    "LIN52+ctrl",
+    "LIN54+ctrl",
+    "LMO2+ctrl",
+    "LONP1+ctrl",
+    "LPA+ctrl",
+    "LPIN1+ctrl",
+    "LRP5+ctrl",
+    "LRPPRC+ctrl",
+    "LRR1+ctrl",
+    "LRRC37A3+ctrl",
+    "LRRC37B+ctrl",
+    "LSG1+ctrl",
+    "LSM10+ctrl",
+    "LSM11+ctrl",
+    "LSM12+ctrl",
+    "LSM2+ctrl",
+    "LSM3+ctrl",
+    "LSM4+ctrl",
+    "LSM5+ctrl",
+    "LSM6+ctrl",
+    "LSM7+ctrl",
+    "LST1+ctrl",
+    "LTB4R2+ctrl",
+    "LTBP3+ctrl",
+    "LTBP4+ctrl",
+    "LTV1+ctrl",
+    "LUC7L3+ctrl",
+    "LURAP1+ctrl",
+    "LYRM4+ctrl",
+    "LZTR1+ctrl",
+    "MAD2L1+ctrl",
+    "MAD2L2+ctrl",
+    "MAGOH+ctrl",
+    "MAK16+ctrl",
+    "MALSU1+ctrl",
+    "MANF+ctrl",
+    "MAP2K7+ctrl",
+    "MARS+ctrl",
+    "MARS2+ctrl",
+    "MASTL+ctrl",
+    "MAT2A+ctrl",
+    "MAU2+ctrl",
+    "MAX+ctrl",
+    "MBD3+ctrl",
+    "MBIP+ctrl",
+    "MBNL1+ctrl",
+    "MBTPS1+ctrl",
+    "MBTPS2+ctrl",
+    "MCEE+ctrl",
+    "MCL1+ctrl",
+    "MCM10+ctrl",
+    "MCM2+ctrl",
+    "MCM3+ctrl",
+    "MCM3AP+ctrl",
+    "MCM4+ctrl",
+    "MCM5+ctrl",
+    "MCM6+ctrl",
+    "MCM7+ctrl",
+    "MCMBP+ctrl",
+    "MCRS1+ctrl",
+    "MDN1+ctrl",
+    "MED1+ctrl",
+    "MED10+ctrl",
+    "MED11+ctrl",
+    "MED12+ctrl",
+    "MED14+ctrl",
+    "MED16+ctrl",
+    "MED17+ctrl",
+    "MED18+ctrl",
+    "MED19+ctrl",
+    "MED20+ctrl",
+    "MED21+ctrl",
+    "MED22+ctrl",
+    "MED24+ctrl",
+    "MED26+ctrl",
+    "MED27+ctrl",
+    "MED28+ctrl",
+    "MED29+ctrl",
+    "MED30+ctrl",
+    "MED31+ctrl",
+    "MED4+ctrl",
+    "MED6+ctrl",
+    "MED7+ctrl",
+    "MED8+ctrl",
+    "MED9+ctrl",
+    "MEF2A+ctrl",
+    "MEIS3+ctrl",
+    "MEMO1+ctrl",
+    "MEN1+ctrl",
+    "MEPCE+ctrl",
+    "METAP1+ctrl",
+    "METAP2+ctrl",
+    "METTL1+ctrl",
+    "METTL14+ctrl",
+    "METTL16+ctrl",
+    "METTL17+ctrl",
+    "METTL21A+ctrl",
+    "METTL23+ctrl",
+    "METTL3+ctrl",
+    "MEX3A+ctrl",
+    "MFAP1+ctrl",
+    "MFN2+ctrl",
+    "MICOS10+ctrl",
+    "MIER1+ctrl",
+    "MIOS+ctrl",
+    "MIPEP+ctrl",
+    "MIS12+ctrl",
+    "MIS18A+ctrl",
+    "MIS18BP1+ctrl",
+    "MKRN1+ctrl",
+    "MLLT6+ctrl",
+    "MLST8+ctrl",
+    "MMGT1+ctrl",
+    "MMP17+ctrl",
+    "MMS19+ctrl",
+    "MMS22L+ctrl",
+    "MNAT1+ctrl",
+    "MOB4+ctrl",
+    "MOCS3+ctrl",
+    "MOG+ctrl",
+    "MOK+ctrl",
+    "MON1A+ctrl",
+    "MPG+ctrl",
+    "MPHOSPH10+ctrl",
+    "MPHOSPH6+ctrl",
+    "MRGBP+ctrl",
+    "MRM1+ctrl",
+    "MRPL1+ctrl",
+    "MRPL10+ctrl",
+    "MRPL11+ctrl",
+    "MRPL13+ctrl",
+    "MRPL14+ctrl",
+    "MRPL15+ctrl",
+    "MRPL16+ctrl",
+    "MRPL17+ctrl",
+    "MRPL18+ctrl",
+    "MRPL19+ctrl",
+    "MRPL2+ctrl",
+    "MRPL20+ctrl",
+    "MRPL21+ctrl",
+    "MRPL22+ctrl",
+    "MRPL23+ctrl",
+    "MRPL24+ctrl",
+    "MRPL27+ctrl",
+    "MRPL28+ctrl",
+    "MRPL3+ctrl",
+    "MRPL32+ctrl",
+    "MRPL33+ctrl",
+    "MRPL34+ctrl",
+    "MRPL35+ctrl",
+    "MRPL36+ctrl",
+    "MRPL37+ctrl",
+    "MRPL38+ctrl",
+    "MRPL39+ctrl",
+    "MRPL4+ctrl",
+    "MRPL41+ctrl",
+    "MRPL42+ctrl",
+    "MRPL43+ctrl",
+    "MRPL44+ctrl",
+    "MRPL45+ctrl",
+    "MRPL46+ctrl",
+    "MRPL49+ctrl",
+    "MRPL50+ctrl",
+    "MRPL51+ctrl",
+    "MRPL53+ctrl",
+    "MRPL54+ctrl",
+    "MRPL55+ctrl",
+    "MRPL9+ctrl",
+    "MRPS10+ctrl",
+    "MRPS11+ctrl",
+    "MRPS12+ctrl",
+    "MRPS14+ctrl",
+    "MRPS16+ctrl",
+    "MRPS17+ctrl",
+    "MRPS18A+ctrl",
+    "MRPS18B+ctrl",
+    "MRPS18C+ctrl",
+    "MRPS2+ctrl",
+    "MRPS21+ctrl",
+    "MRPS22+ctrl",
+    "MRPS23+ctrl",
+    "MRPS24+ctrl",
+    "MRPS25+ctrl",
+    "MRPS26+ctrl",
+    "MRPS27+ctrl",
+    "MRPS28+ctrl",
+    "MRPS30+ctrl",
+    "MRPS31+ctrl",
+    "MRPS33+ctrl",
+    "MRPS34+ctrl",
+    "MRPS35+ctrl",
+    "MRPS5+ctrl",
+    "MRPS6+ctrl",
+    "MRPS7+ctrl",
+    "MRPS9+ctrl",
+    "MRTO4+ctrl",
+    "MSL1+ctrl",
+    "MSRB1+ctrl",
+    "MST1+ctrl",
+    "MSTO1+ctrl",
+    "MT2A+ctrl",
+    "MTBP+ctrl",
+    "MTCP1+ctrl",
+    "MTG2+ctrl",
+    "MTHFD1+ctrl",
+    "MTOR+ctrl",
+    "MTPAP+ctrl",
+    "MTREX+ctrl",
+    "MTRNR2L1+ctrl",
+    "MVD+ctrl",
+    "MVK+ctrl",
+    "MYB+ctrl",
+    "MYBBP1A+ctrl",
+    "MYBL2+ctrl",
+    "MYC+ctrl",
+    "MYCBP+ctrl",
+    "MYO1H+ctrl",
+    "MYSM1+ctrl",
+    "MZF1+ctrl",
+    "MZT1+ctrl",
+    "N6AMT1+ctrl",
+    "NAA10+ctrl",
+    "NAA15+ctrl",
+    "NAA20+ctrl",
+    "NAA25+ctrl",
+    "NAA30+ctrl",
+    "NAA35+ctrl",
+    "NAA38+ctrl",
+    "NAA50+ctrl",
+    "NACA+ctrl",
+    "NAE1+ctrl",
+    "NAF1+ctrl",
+    "NAGLU+ctrl",
+    "NANOG+ctrl",
+    "NAPA+ctrl",
+    "NAPG+ctrl",
+    "NARS+ctrl",
+    "NARS2+ctrl",
+    "NASP+ctrl",
+    "NAT10+ctrl",
+    "NBAS+ctrl",
+    "NBEAL1+ctrl",
+    "NBPF12+ctrl",
+    "NBPF15+ctrl",
+    "NBPF3+ctrl",
+    "NCAPD2+ctrl",
+    "NCAPD3+ctrl",
+    "NCAPG+ctrl",
+    "NCAPG2+ctrl",
+    "NCAPH+ctrl",
+    "NCAPH2+ctrl",
+    "NCBP1+ctrl",
+    "NCBP2+ctrl",
+    "NCKAP1+ctrl",
+    "NCL+ctrl",
+    "NCOA4+ctrl",
+    "NDC1+ctrl",
+    "NDC80+ctrl",
+    "NDOR1+ctrl",
+    "NDUFA11+ctrl",
+    "NDUFA2+ctrl",
+    "NDUFA3+ctrl",
+    "NDUFA4+ctrl",
+    "NDUFA6+ctrl",
+    "NDUFA8+ctrl",
+    "NDUFAB1+ctrl",
+    "NDUFAF3+ctrl",
+    "NDUFAF5+ctrl",
+    "NDUFAF7+ctrl",
+    "NDUFB10+ctrl",
+    "NDUFB3+ctrl",
+    "NDUFB4+ctrl",
+    "NDUFB6+ctrl",
+    "NDUFB7+ctrl",
+    "NDUFB8+ctrl",
+    "NDUFS3+ctrl",
+    "NDUFS5+ctrl",
+    "NDUFV2+ctrl",
+    "NEDD1+ctrl",
+    "NEDD8+ctrl",
+    "NEDD8-MDP1+ctrl",
+    "NELFA+ctrl",
+    "NELFB+ctrl",
+    "NELFCD+ctrl",
+    "NELFE+ctrl",
+    "NEMF+ctrl",
+    "NEPRO+ctrl",
+    "NF1+ctrl",
+    "NFATC2IP+ctrl",
+    "NFKBIE+ctrl",
+    "NFRKB+ctrl",
+    "NFS1+ctrl",
+    "NFYB+ctrl",
+    "NFYC+ctrl",
+    "NHLRC2+ctrl",
+    "NHP2+ctrl",
+    "NIFK+ctrl",
+    "NIP7+ctrl",
+    "NISCH+ctrl",
+    "NKAP+ctrl",
+    "NKAPD1+ctrl",
+    "NKX6-1+ctrl",
+    "NLE1+ctrl",
+    "NMD3+ctrl",
+    "NMT1+ctrl",
+    "NOB1+ctrl",
+    "NOC2L+ctrl",
+    "NOC3L+ctrl",
+    "NOC4L+ctrl",
+    "NOL10+ctrl",
+    "NOL11+ctrl",
+    "NOL12+ctrl",
+    "NOL6+ctrl",
+    "NOL7+ctrl",
+    "NOL8+ctrl",
+    "NOL9+ctrl",
+    "NOLC1+ctrl",
+    "NOM1+ctrl",
+    "NOMO1+ctrl",
+    "NOMO3+ctrl",
+    "NOP10+ctrl",
+    "NOP14+ctrl",
+    "NOP16+ctrl",
+    "NOP2+ctrl",
+    "NOP56+ctrl",
+    "NOP58+ctrl",
+    "NOP9+ctrl",
+    "NOS1AP+ctrl",
+    "NPAT+ctrl",
+    "NPB+ctrl",
+    "NPEPPS+ctrl",
+    "NPLOC4+ctrl",
+    "NPM1+ctrl",
+    "NPM3+ctrl",
+    "NR2C2AP+ctrl",
+    "NRBP1+ctrl",
+    "NRDE2+ctrl",
+    "NRF1+ctrl",
+    "NSA2+ctrl",
+    "NSF+ctrl",
+    "NSL1+ctrl",
+    "NSMCE1+ctrl",
+    "NSMCE2+ctrl",
+    "NSRP1+ctrl",
+    "NSUN4+ctrl",
+    "NUB1+ctrl",
+    "NUBP1+ctrl",
+    "NUBP2+ctrl",
+    "NUDC+ctrl",
+    "NUDCD3+ctrl",
+    "NUDT15+ctrl",
+    "NUDT21+ctrl",
+    "NUF2+ctrl",
+    "NUFIP1+ctrl",
+    "NUMA1+ctrl",
+    "NUP107+ctrl",
+    "NUP133+ctrl",
+    "NUP153+ctrl",
+    "NUP160+ctrl",
+    "NUP205+ctrl",
+    "NUP214+ctrl",
+    "NUP35+ctrl",
+    "NUP43+ctrl",
+    "NUP54+ctrl",
+    "NUP62+ctrl",
+    "NUP85+ctrl",
+    "NUP88+ctrl",
+    "NUP93+ctrl",
+    "NUP98+ctrl",
+    "NUS1+ctrl",
+    "NUTF2+ctrl",
+    "NVL+ctrl",
+    "NXF1+ctrl",
+    "OGFOD1+ctrl",
+    "OGT+ctrl",
+    "OIP5+ctrl",
+    "OLFML3+ctrl",
+    "OPA1+ctrl",
+    "OR1D2+ctrl",
+    "OR1E2+ctrl",
+    "OR2A1+ctrl",
+    "OR2T29+ctrl",
+    "OR2T5+ctrl",
+    "OR4F4+ctrl",
+    "OR4K1+ctrl",
+    "OR4N2+ctrl",
+    "OR7A10+ctrl",
+    "OR7A17+ctrl",
+    "ORC1+ctrl",
+    "ORC3+ctrl",
+    "ORC4+ctrl",
+    "ORC5+ctrl",
+    "ORC6+ctrl",
+    "OSBP+ctrl",
+    "OSGEP+ctrl",
+    "OSTC+ctrl",
+    "OTOP1+ctrl",
+    "OTX1+ctrl",
+    "OVCA2+ctrl",
+    "OXA1L+ctrl",
+    "PABPC1+ctrl",
+    "PABPC4+ctrl",
+    "PABPN1+ctrl",
+    "PAF1+ctrl",
+    "PAFAH1B1+ctrl",
+    "PAK1IP1+ctrl",
+    "PALB2+ctrl",
+    "PAM16+ctrl",
+    "PARN+ctrl",
+    "PARS2+ctrl",
+    "PAXBP1+ctrl",
+    "PC+ctrl",
+    "PCBP1+ctrl",
+    "PCBP2+ctrl",
+    "PCF11+ctrl",
+    "PCID2+ctrl",
+    "PCM1+ctrl",
+    "PCNA+ctrl",
+    "PCNX3+ctrl",
+    "PDAP1+ctrl",
+    "PDCD11+ctrl",
+    "PDCD2+ctrl",
+    "PDCD5+ctrl",
+    "PDCD6+ctrl",
+    "PDCD6IP+ctrl",
+    "PDCD7+ctrl",
+    "PDHA1+ctrl",
+    "PDPK1+ctrl",
+    "PDRG1+ctrl",
+    "PEF1+ctrl",
+    "PELO+ctrl",
+    "PELP1+ctrl",
+    "PES1+ctrl",
+    "PET117+ctrl",
+    "PEX1+ctrl",
+    "PEX19+ctrl",
+    "PFDN1+ctrl",
+    "PFDN2+ctrl",
+    "PFDN4+ctrl",
+    "PFDN5+ctrl",
+    "PFDN6+ctrl",
+    "PFN1+ctrl",
+    "PGAM1+ctrl",
+    "PGAM5+ctrl",
+    "PGD+ctrl",
+    "PGK1+ctrl",
+    "PGPEP1+ctrl",
+    "PGS1+ctrl",
+    "PHAX+ctrl",
+    "PHB+ctrl",
+    "PHB2+ctrl",
+    "PHF10+ctrl",
+    "PHF12+ctrl",
+    "PHF5A+ctrl",
+    "PI4KA+ctrl",
+    "PIAS1+ctrl",
+    "PIAS4+ctrl",
+    "PIGH+ctrl",
+    "PIK3C3+ctrl",
+    "PIK3R4+ctrl",
+    "PIP4K2C+ctrl",
+    "PITRM1+ctrl",
+    "PKM+ctrl",
+    "PKMYT1+ctrl",
+    "PLA2G10+ctrl",
+    "PLEKHN1+ctrl",
+    "PLK1+ctrl",
+    "PLK4+ctrl",
+    "PLRG1+ctrl",
+    "PMF1+ctrl",
+    "PMPCA+ctrl",
+    "PMPCB+ctrl",
+    "PNISR+ctrl",
+    "PNKP+ctrl",
+    "PNN+ctrl",
+    "PNO1+ctrl",
+    "PNPT1+ctrl",
+    "POGLUT3+ctrl",
+    "POGZ+ctrl",
+    "POLA1+ctrl",
+    "POLA2+ctrl",
+    "POLD1+ctrl",
+    "POLD2+ctrl",
+    "POLD3+ctrl",
+    "POLE+ctrl",
+    "POLE2+ctrl",
+    "POLG+ctrl",
+    "POLG2+ctrl",
+    "POLL+ctrl",
+    "POLR1A+ctrl",
+    "POLR1B+ctrl",
+    "POLR1C+ctrl",
+    "POLR1D+ctrl",
+    "POLR1E+ctrl",
+    "POLR2A+ctrl",
+    "POLR2B+ctrl",
+    "POLR2C+ctrl",
+    "POLR2D+ctrl",
+    "POLR2E+ctrl",
+    "POLR2F+ctrl",
+    "POLR2G+ctrl",
+    "POLR2H+ctrl",
+    "POLR2I+ctrl",
+    "POLR2K+ctrl",
+    "POLR2L+ctrl",
+    "POLR2M+ctrl",
+    "POLR3A+ctrl",
+    "POLR3B+ctrl",
+    "POLR3C+ctrl",
+    "POLR3D+ctrl",
+    "POLR3E+ctrl",
+    "POLR3F+ctrl",
+    "POLR3H+ctrl",
+    "POLR3K+ctrl",
+    "POLRMT+ctrl",
+    "POP1+ctrl",
+    "POP4+ctrl",
+    "POP5+ctrl",
+    "POP7+ctrl",
+    "POT1+ctrl",
+    "POTEI+ctrl",
+    "POU3F1+ctrl",
+    "POU5F1B+ctrl",
+    "PPA1+ctrl",
+    "PPA2+ctrl",
+    "PPAN+ctrl",
+    "PPARGC1B+ctrl",
+    "PPIA+ctrl",
+    "PPIE+ctrl",
+    "PPIH+ctrl",
+    "PPIL1+ctrl",
+    "PPIL2+ctrl",
+    "PPIL4+ctrl",
+    "PPME1+ctrl",
+    "PPP1CA+ctrl",
+    "PPP1CB+ctrl",
+    "PPP1R10+ctrl",
+    "PPP1R11+ctrl",
+    "PPP1R12A+ctrl",
+    "PPP1R15B+ctrl",
+    "PPP1R2+ctrl",
+    "PPP1R37+ctrl",
+    "PPP1R7+ctrl",
+    "PPP1R8+ctrl",
+    "PPP2CA+ctrl",
+    "PPP2CB+ctrl",
+    "PPP2R1A+ctrl",
+    "PPP2R3C+ctrl",
+    "PPP4C+ctrl",
+    "PPP4R2+ctrl",
+    "PPP6C+ctrl",
+    "PPRC1+ctrl",
+    "PPWD1+ctrl",
+    "PPY+ctrl",
+    "PRC1+ctrl",
+    "PRDM10+ctrl",
+    "PRDM4+ctrl",
+    "PRDM8+ctrl",
+    "PREB+ctrl",
+    "PRELID1+ctrl",
+    "PRELID3B+ctrl",
+    "PRIM1+ctrl",
+    "PRIM2+ctrl",
+    "PRKCA+ctrl",
+    "PRKRA+ctrl",
+    "PRKRIP1+ctrl",
+    "PRMT1+ctrl",
+    "PRMT5+ctrl",
+    "PRODH+ctrl",
+    "PRORP+ctrl",
+    "PRPF18+ctrl",
+    "PRPF19+ctrl",
+    "PRPF3+ctrl",
+    "PRPF31+ctrl",
+    "PRPF38A+ctrl",
+    "PRPF38B+ctrl",
+    "PRPF39+ctrl",
+    "PRPF4+ctrl",
+    "PRPF40A+ctrl",
+    "PRPF4B+ctrl",
+    "PRPF6+ctrl",
+    "PRPF8+ctrl",
+    "PRRC2A+ctrl",
+    "PRSS50+ctrl",
+    "PRXL2A+ctrl",
+    "PSAT1+ctrl",
+    "PSMA1+ctrl",
+    "PSMA2+ctrl",
+    "PSMA3+ctrl",
+    "PSMA4+ctrl",
+    "PSMA5+ctrl",
+    "PSMA6+ctrl",
+    "PSMA7+ctrl",
+    "PSMB1+ctrl",
+    "PSMB2+ctrl",
+    "PSMB3+ctrl",
+    "PSMB4+ctrl",
+    "PSMB5+ctrl",
+    "PSMB6+ctrl",
+    "PSMB7+ctrl",
+    "PSMC1+ctrl",
+    "PSMC2+ctrl",
+    "PSMC3+ctrl",
+    "PSMC4+ctrl",
+    "PSMC5+ctrl",
+    "PSMC6+ctrl",
+    "PSMD1+ctrl",
+    "PSMD11+ctrl",
+    "PSMD12+ctrl",
+    "PSMD13+ctrl",
+    "PSMD14+ctrl",
+    "PSMD2+ctrl",
+    "PSMD3+ctrl",
+    "PSMD4+ctrl",
+    "PSMD6+ctrl",
+    "PSMD7+ctrl",
+    "PSMD8+ctrl",
+    "PSMD9+ctrl",
+    "PSME1+ctrl",
+    "PSME2+ctrl",
+    "PSMG1+ctrl",
+    "PSMG2+ctrl",
+    "PSMG3+ctrl",
+    "PSMG4+ctrl",
+    "PSTK+ctrl",
+    "PTBP1+ctrl",
+    "PTCD1+ctrl",
+    "PTCD3+ctrl",
+    "PTEN+ctrl",
+    "PTGR2+ctrl",
+    "PTK2+ctrl",
+    "PTMA+ctrl",
+    "PTPMT1+ctrl",
+    "PTPN1+ctrl",
+    "PTPN11+ctrl",
+    "PTPN23+ctrl",
+    "PUF60+ctrl",
+    "PUM1+ctrl",
+    "PWP1+ctrl",
+    "PWP2+ctrl",
+    "PXN+ctrl",
+    "PYROXD1+ctrl",
+    "PYURF+ctrl",
+    "QARS+ctrl",
+    "QRSL1+ctrl",
+    "RAB18+ctrl",
+    "RAB4A+ctrl",
+    "RAB4B+ctrl",
+    "RAB6A+ctrl",
+    "RABGGTA+ctrl",
+    "RABGGTB+ctrl",
+    "RAC1+ctrl",
+    "RAC3+ctrl",
+    "RACGAP1+ctrl",
+    "RACK1+ctrl",
+    "RAD17+ctrl",
+    "RAD21+ctrl",
+    "RAD51+ctrl",
+    "RAD51C+ctrl",
+    "RAD51D+ctrl",
+    "RAD9A+ctrl",
+    "RAE1+ctrl",
+    "RAMAC+ctrl",
+    "RAN+ctrl",
+    "RANBP2+ctrl",
+    "RANGAP1+ctrl",
+    "RARS+ctrl",
+    "RARS2+ctrl",
+    "RBBP4+ctrl",
+    "RBBP5+ctrl",
+    "RBBP6+ctrl",
+    "RBBP8+ctrl",
+    "RBM10+ctrl",
+    "RBM12+ctrl",
+    "RBM14-RBM4+ctrl",
+    "RBM15+ctrl",
+    "RBM17+ctrl",
+    "RBM19+ctrl",
+    "RBM22+ctrl",
+    "RBM25+ctrl",
+    "RBM28+ctrl",
+    "RBM33+ctrl",
+    "RBM39+ctrl",
+    "RBM4+ctrl",
+    "RBM42+ctrl",
+    "RBM48+ctrl",
+    "RBM8A+ctrl",
+    "RBMX+ctrl",
+    "RBMX2+ctrl",
+    "RBMXL1+ctrl",
+    "RBX1+ctrl",
+    "RCC1+ctrl",
+    "RCCD1+ctrl",
+    "RCL1+ctrl",
+    "RCOR1+ctrl",
+    "RELL2+ctrl",
+    "REV3L+ctrl",
+    "REXO2+ctrl",
+    "RFC1+ctrl",
+    "RFC2+ctrl",
+    "RFC3+ctrl",
+    "RFC4+ctrl",
+    "RFC5+ctrl",
+    "RFFL+ctrl",
+    "RFT1+ctrl",
+    "RGP1+ctrl",
+    "RGPD6+ctrl",
+    "RHOQ+ctrl",
+    "RHPN1+ctrl",
+    "RINT1+ctrl",
+    "RIOK1+ctrl",
+    "RIOK2+ctrl",
+    "RMI1+ctrl",
+    "RNASEH2C+ctrl",
+    "RNF103+ctrl",
+    "RNF113A+ctrl",
+    "RNF123+ctrl",
+    "RNF14+ctrl",
+    "RNF168+ctrl",
+    "RNF20+ctrl",
+    "RNF31+ctrl",
+    "RNF4+ctrl",
+    "RNF40+ctrl",
+    "RNF8+ctrl",
+    "RNGTT+ctrl",
+    "RNMT+ctrl",
+    "RNPC3+ctrl",
+    "RNPS1+ctrl",
+    "ROMO1+ctrl",
+    "RPA1+ctrl",
+    "RPA2+ctrl",
+    "RPA3+ctrl",
+    "RPAIN+ctrl",
+    "RPAP1+ctrl",
+    "RPAP2+ctrl",
+    "RPAP3+ctrl",
+    "RPE+ctrl",
+    "RPF1+ctrl",
+    "RPF2+ctrl",
+    "RPIA+ctrl",
+    "RPL10+ctrl",
+    "RPL10A+ctrl",
+    "RPL11+ctrl",
+    "RPL12+ctrl",
+    "RPL13+ctrl",
+    "RPL13A+ctrl",
+    "RPL14+ctrl",
+    "RPL15+ctrl",
+    "RPL17+ctrl",
+    "RPL18+ctrl",
+    "RPL18A+ctrl",
+    "RPL19+ctrl",
+    "RPL21+ctrl",
+    "RPL23+ctrl",
+    "RPL23A+ctrl",
+    "RPL24+ctrl",
+    "RPL26+ctrl",
+    "RPL26L1+ctrl",
+    "RPL27+ctrl",
+    "RPL27A+ctrl",
+    "RPL28+ctrl",
+    "RPL29+ctrl",
+    "RPL3+ctrl",
+    "RPL30+ctrl",
+    "RPL31+ctrl",
+    "RPL32+ctrl",
+    "RPL34+ctrl",
+    "RPL35+ctrl",
+    "RPL35A+ctrl",
+    "RPL36+ctrl",
+    "RPL36A+ctrl",
+    "RPL36AL+ctrl",
+    "RPL37+ctrl",
+    "RPL37A+ctrl",
+    "RPL38+ctrl",
+    "RPL39+ctrl",
+    "RPL4+ctrl",
+    "RPL41+ctrl",
+    "RPL5+ctrl",
+    "RPL6+ctrl",
+    "RPL7+ctrl",
+    "RPL7A+ctrl",
+    "RPL7L1+ctrl",
+    "RPL8+ctrl",
+    "RPL9+ctrl",
+    "RPLP0+ctrl",
+    "RPLP1+ctrl",
+    "RPLP2+ctrl",
+    "RPN1+ctrl",
+    "RPN2+ctrl",
+    "RPP14+ctrl",
+    "RPP21+ctrl",
+    "RPP30+ctrl",
+    "RPP38+ctrl",
+    "RPP40+ctrl",
+    "RPRD1B+ctrl",
+    "RPS10+ctrl",
+    "RPS10-NUDT3+ctrl",
+    "RPS11+ctrl",
+    "RPS12+ctrl",
+    "RPS13+ctrl",
+    "RPS14+ctrl",
+    "RPS15+ctrl",
+    "RPS15A+ctrl",
+    "RPS16+ctrl",
+    "RPS17+ctrl",
+    "RPS18+ctrl",
+    "RPS19+ctrl",
+    "RPS19BP1+ctrl",
+    "RPS2+ctrl",
+    "RPS20+ctrl",
+    "RPS21+ctrl",
+    "RPS23+ctrl",
+    "RPS24+ctrl",
+    "RPS25+ctrl",
+    "RPS26+ctrl",
+    "RPS27+ctrl",
+    "RPS27A+ctrl",
+    "RPS28+ctrl",
+    "RPS29+ctrl",
+    "RPS3+ctrl",
+    "RPS3A+ctrl",
+    "RPS4X+ctrl",
+    "RPS5+ctrl",
+    "RPS6+ctrl",
+    "RPS7+ctrl",
+    "RPS8+ctrl",
+    "RPS9+ctrl",
+    "RPSA+ctrl",
+    "RPTOR+ctrl",
+    "RPUSD3+ctrl",
+    "RPUSD4+ctrl",
+    "RRM1+ctrl",
+    "RRM2+ctrl",
+    "RRN3+ctrl",
+    "RRP1+ctrl",
+    "RRP12+ctrl",
+    "RRP15+ctrl",
+    "RRP7A+ctrl",
+    "RRP9+ctrl",
+    "RRS1+ctrl",
+    "RSL1D1+ctrl",
+    "RSL24D1+ctrl",
+    "RSRC2+ctrl",
+    "RTCB+ctrl",
+    "RTEL1+ctrl",
+    "RTF1+ctrl",
+    "RTRAF+ctrl",
+    "RTTN+ctrl",
+    "RUVBL1+ctrl",
+    "RUVBL2+ctrl",
+    "S100A1+ctrl",
+    "SACM1L+ctrl",
+    "SAE1+ctrl",
+    "SAMD4B+ctrl",
+    "SAMM50+ctrl",
+    "SAP130+ctrl",
+    "SAP18+ctrl",
+    "SAP30BP+ctrl",
+    "SARNP+ctrl",
+    "SARS+ctrl",
+    "SARS2+ctrl",
+    "SART1+ctrl",
+    "SART3+ctrl",
+    "SASS6+ctrl",
+    "SBDS+ctrl",
+    "SBNO1+ctrl",
+    "SCAF1+ctrl",
+    "SCAP+ctrl",
+    "SCD+ctrl",
+    "SCFD1+ctrl",
+    "SCNM1+ctrl",
+    "SDAD1+ctrl",
+    "SDC1+ctrl",
+    "SDE2+ctrl",
+    "SDHA+ctrl",
+    "SDHAF2+ctrl",
+    "SDHC+ctrl",
+    "SDHD+ctrl",
+    "SDR39U1+ctrl",
+    "SEC13+ctrl",
+    "SEC16A+ctrl",
+    "SEC61A1+ctrl",
+    "SEC61B+ctrl",
+    "SEC61G+ctrl",
+    "SEC62+ctrl",
+    "SEC63+ctrl",
+    "SEH1L+ctrl",
+    "SEM1+ctrl",
+    "SENP6+ctrl",
+    "SEPHS2+ctrl",
+    "SEPSECS+ctrl",
+    "SERBP1+ctrl",
+    "SERF2+ctrl",
+    "SERPINB1+ctrl",
+    "SET+ctrl",
+    "SETD1A+ctrl",
+    "SETD2+ctrl",
+    "SETD5+ctrl",
+    "SETDB1+ctrl",
+    "SETX+ctrl",
+    "SF1+ctrl",
+    "SF3A1+ctrl",
+    "SF3A2+ctrl",
+    "SF3A3+ctrl",
+    "SF3B1+ctrl",
+    "SF3B2+ctrl",
+    "SF3B3+ctrl",
+    "SF3B4+ctrl",
+    "SF3B5+ctrl",
+    "SFPQ+ctrl",
+    "SFSWAP+ctrl",
+    "SGPP1+ctrl",
+    "SH3KBP1+ctrl",
+    "SHC1+ctrl",
+    "SHOC2+ctrl",
+    "SHQ1+ctrl",
+    "SIGLEC14+ctrl",
+    "SIN3A+ctrl",
+    "SIRT7+ctrl",
+    "SKA1+ctrl",
+    "SKA3+ctrl",
+    "SKP1+ctrl",
+    "SKP2+ctrl",
+    "SLBP+ctrl",
+    "SLC16A5+ctrl",
+    "SLC1A5+ctrl",
+    "SLC25A10+ctrl",
+    "SLC25A26+ctrl",
+    "SLC25A3+ctrl",
+    "SLC25A42+ctrl",
+    "SLC2A8+ctrl",
+    "SLC35A4+ctrl",
+    "SLC35B1+ctrl",
+    "SLC35G2+ctrl",
+    "SLC35G6+ctrl",
+    "SLC39A10+ctrl",
+    "SLC39A7+ctrl",
+    "SLC39A9+ctrl",
+    "SLC4A5+ctrl",
+    "SLC7A5+ctrl",
+    "SLC7A6OS+ctrl",
+    "SLC9B1+ctrl",
+    "SLU7+ctrl",
+    "SMAGP+ctrl",
+    "SMARCB1+ctrl",
+    "SMARCC1+ctrl",
+    "SMARCE1+ctrl",
+    "SMC1A+ctrl",
+    "SMC2+ctrl",
+    "SMC3+ctrl",
+    "SMC4+ctrl",
+    "SMC5+ctrl",
+    "SMC6+ctrl",
+    "SMG1+ctrl",
+    "SMG5+ctrl",
+    "SMG6+ctrl",
+    "SMG7+ctrl",
+    "SMG8+ctrl",
+    "SMG9+ctrl",
+    "SMN2+ctrl",
+    "SMNDC1+ctrl",
+    "SMU1+ctrl",
+    "SMUG1+ctrl",
+    "SNAPC1+ctrl",
+    "SNAPC2+ctrl",
+    "SNAPC3+ctrl",
+    "SNAPC4+ctrl",
+    "SNAPC5+ctrl",
+    "SNF8+ctrl",
+    "SNIP1+ctrl",
+    "SNRNP200+ctrl",
+    "SNRNP25+ctrl",
+    "SNRNP27+ctrl",
+    "SNRNP35+ctrl",
+    "SNRNP40+ctrl",
+    "SNRNP48+ctrl",
+    "SNRNP70+ctrl",
+    "SNRPA+ctrl",
+    "SNRPA1+ctrl",
+    "SNRPB+ctrl",
+    "SNRPC+ctrl",
+    "SNRPD1+ctrl",
+    "SNRPD2+ctrl",
+    "SNRPD3+ctrl",
+    "SNRPE+ctrl",
+    "SNRPF+ctrl",
+    "SNRPG+ctrl",
+    "SNTB2+ctrl",
+    "SNUPN+ctrl",
+    "SNW1+ctrl",
+    "SNX15+ctrl",
+    "SOD1+ctrl",
+    "SOD2+ctrl",
+    "SON+ctrl",
+    "SP1+ctrl",
+    "SP2+ctrl",
+    "SPAG7+ctrl",
+    "SPATA5+ctrl",
+    "SPATA5L1+ctrl",
+    "SPC24+ctrl",
+    "SPC25+ctrl",
+    "SPCS2+ctrl",
+    "SPCS3+ctrl",
+    "SPDL1+ctrl",
+    "SPDYE2+ctrl",
+    "SPEN+ctrl",
+    "SPG7+ctrl",
+    "SPOUT1+ctrl",
+    "SPRTN+ctrl",
+    "SPTLC1+ctrl",
+    "SPTSSA+ctrl",
+    "SRA1+ctrl",
+    "SRBD1+ctrl",
+    "SRCAP+ctrl",
+    "SRF+ctrl",
+    "SRFBP1+ctrl",
+    "SRP14+ctrl",
+    "SRP19+ctrl",
+    "SRP54+ctrl",
+    "SRP68+ctrl",
+    "SRP72+ctrl",
+    "SRP9+ctrl",
+    "SRPRB+ctrl",
+    "SRRM1+ctrl",
+    "SRRM2+ctrl",
+    "SRRT+ctrl",
+    "SRSF1+ctrl",
+    "SRSF10+ctrl",
+    "SRSF11+ctrl",
+    "SRSF2+ctrl",
+    "SRSF3+ctrl",
+    "SRSF6+ctrl",
+    "SRSF7+ctrl",
+    "SS18L2+ctrl",
+    "SSBP1+ctrl",
+    "SSBP3+ctrl",
+    "SSRP1+ctrl",
+    "SSU72+ctrl",
+    "SSX4+ctrl",
+    "STAG2+ctrl",
+    "STARD7+ctrl",
+    "STAT5A+ctrl",
+    "STAT5B+ctrl",
+    "STIL+ctrl",
+    "STRAP+ctrl",
+    "STRIP1+ctrl",
+    "STT3B+ctrl",
+    "STX18+ctrl",
+    "STX5+ctrl",
+    "STXBP4+ctrl",
+    "SUDS3+ctrl",
+    "SUGP1+ctrl",
+    "SUGT1+ctrl",
+    "SUMO2+ctrl",
+    "SUPT16H+ctrl",
+    "SUPT20H+ctrl",
+    "SUPT4H1+ctrl",
+    "SUPT5H+ctrl",
+    "SUPT6H+ctrl",
+    "SUPV3L1+ctrl",
+    "SURF6+ctrl",
+    "SYF2+ctrl",
+    "SYMPK+ctrl",
+    "SYNGR3+ctrl",
+    "SYS1+ctrl",
+    "TACC3+ctrl",
+    "TADA1+ctrl",
+    "TADA2A+ctrl",
+    "TADA2B+ctrl",
+    "TADA3+ctrl",
+    "TAF1+ctrl",
+    "TAF10+ctrl",
+    "TAF11+ctrl",
+    "TAF12+ctrl",
+    "TAF13+ctrl",
+    "TAF1A+ctrl",
+    "TAF1B+ctrl",
+    "TAF1C+ctrl",
+    "TAF1D+ctrl",
+    "TAF2+ctrl",
+    "TAF3+ctrl",
+    "TAF5+ctrl",
+    "TAF6+ctrl",
+    "TAF6L+ctrl",
+    "TAF7+ctrl",
+    "TAF8+ctrl",
+    "TAMM41+ctrl",
+    "TANGO6+ctrl",
+    "TARDBP+ctrl",
+    "TARS+ctrl",
+    "TARS2+ctrl",
+    "TAZ+ctrl",
+    "TBC1D1+ctrl",
+    "TBC1D28+ctrl",
+    "TBC1D3+ctrl",
+    "TBCA+ctrl",
+    "TBCB+ctrl",
+    "TBCC+ctrl",
+    "TBCD+ctrl",
+    "TBCE+ctrl",
+    "TBL3+ctrl",
+    "TBP+ctrl",
+    "TBPL1+ctrl",
+    "TBRG4+ctrl",
+    "TBX1+ctrl",
+    "TCERG1+ctrl",
+    "TCOF1+ctrl",
+    "TCP1+ctrl",
+    "TDGF1+ctrl",
+    "TEAD3+ctrl",
+    "TEFM+ctrl",
+    "TELO2+ctrl",
+    "TEN1+ctrl",
+    "TERF1+ctrl",
+    "TERF2+ctrl",
+    "TEX10+ctrl",
+    "TFAM+ctrl",
+    "TFAP4+ctrl",
+    "TFB1M+ctrl",
+    "TFB2M+ctrl",
+    "TFDP1+ctrl",
+    "TFIP11+ctrl",
+    "TFPT+ctrl",
+    "TFRC+ctrl",
+    "TGS1+ctrl",
+    "THAP1+ctrl",
+    "THAP11+ctrl",
+    "THG1L+ctrl",
+    "THOC1+ctrl",
+    "THOC2+ctrl",
+    "THOC3+ctrl",
+    "THOC5+ctrl",
+    "THOC6+ctrl",
+    "THOC7+ctrl",
+    "THRAP3+ctrl",
+    "THUMPD1+ctrl",
+    "TICRR+ctrl",
+    "TIGD1+ctrl",
+    "TIMELESS+ctrl",
+    "TIMM10+ctrl",
+    "TIMM13+ctrl",
+    "TIMM22+ctrl",
+    "TIMM23B+ctrl",
+    "TIMM44+ctrl",
+    "TIMM8A+ctrl",
+    "TIMM9+ctrl",
+    "TINF2+ctrl",
+    "TIPIN+ctrl",
+    "TKT+ctrl",
+    "TLCD1+ctrl",
+    "TLN1+ctrl",
+    "TM7SF2+ctrl",
+    "TMA16+ctrl",
+    "TMED10+ctrl",
+    "TMED2+ctrl",
+    "TMEM127+ctrl",
+    "TMEM161B+ctrl",
+    "TMEM199+ctrl",
+    "TMEM214+ctrl",
+    "TMEM240+ctrl",
+    "TMEM242+ctrl",
+    "TMEM258+ctrl",
+    "TMSB10+ctrl",
+    "TMX2+ctrl",
+    "TNFSF10+ctrl",
+    "TNNT2+ctrl",
+    "TNPO3+ctrl",
+    "TNRC6A+ctrl",
+    "TOE1+ctrl",
+    "TOMM20+ctrl",
+    "TOMM22+ctrl",
+    "TOMM40+ctrl",
+    "TONSL+ctrl",
+    "TOP1+ctrl",
+    "TOP2A+ctrl",
+    "TOP3A+ctrl",
+    "TOPBP1+ctrl",
+    "TOR2A+ctrl",
+    "TOX4+ctrl",
+    "TP53I13+ctrl",
+    "TP53RK+ctrl",
+    "TPI1+ctrl",
+    "TPP2+ctrl",
+    "TPR+ctrl",
+    "TPRKB+ctrl",
+    "TPT1+ctrl",
+    "TPX2+ctrl",
+    "TRA2B+ctrl",
+    "TRAIP+ctrl",
+    "TRAPPC1+ctrl",
+    "TRAPPC11+ctrl",
+    "TRAPPC3+ctrl",
+    "TRAPPC4+ctrl",
+    "TRAPPC5+ctrl",
+    "TRAPPC8+ctrl",
+    "TREML2+ctrl",
+    "TREX2+ctrl",
+    "TRIAP1+ctrl",
+    "TRIM49C+ctrl",
+    "TRMT10C+ctrl",
+    "TRMT112+ctrl",
+    "TRMT5+ctrl",
+    "TRMT6+ctrl",
+    "TRNP1+ctrl",
+    "TRNT1+ctrl",
+    "TRPM7+ctrl",
+    "TRRAP+ctrl",
+    "TSEN2+ctrl",
+    "TSEN34+ctrl",
+    "TSEN54+ctrl",
+    "TSFM+ctrl",
+    "TSG101+ctrl",
+    "TSPYL5+ctrl",
+    "TSR1+ctrl",
+    "TSR2+ctrl",
+    "TSSK3+ctrl",
+    "TTC1+ctrl",
+    "TTC27+ctrl",
+    "TTC4+ctrl",
+    "TTF2+ctrl",
+    "TTI1+ctrl",
+    "TTI2+ctrl",
+    "TTK+ctrl",
+    "TUBA1B+ctrl",
+    "TUBA1C+ctrl",
+    "TUBA3D+ctrl",
+    "TUBB+ctrl",
+    "TUBB2A+ctrl",
+    "TUBD1+ctrl",
+    "TUBE1+ctrl",
+    "TUBG1+ctrl",
+    "TUBGCP2+ctrl",
+    "TUBGCP3+ctrl",
+    "TUBGCP4+ctrl",
+    "TUBGCP5+ctrl",
+    "TUBGCP6+ctrl",
+    "TUFM+ctrl",
+    "TULP1+ctrl",
+    "TUT1+ctrl",
+    "TVP23C+ctrl",
+    "TWF1+ctrl",
+    "TWISTNB+ctrl",
+    "TWNK+ctrl",
+    "TWSG1+ctrl",
+    "TXN+ctrl",
+    "TXNL4A+ctrl",
+    "TXNL4B+ctrl",
+    "TYK2+ctrl",
+    "U2AF1+ctrl",
+    "U2AF2+ctrl",
+    "U2SURP+ctrl",
+    "UBA1+ctrl",
+    "UBA2+ctrl",
+    "UBA3+ctrl",
+    "UBA5+ctrl",
+    "UBA52+ctrl",
+    "UBAP1+ctrl",
+    "UBC+ctrl",
+    "UBE2D3+ctrl",
+    "UBE2H+ctrl",
+    "UBE2I+ctrl",
+    "UBE2L3+ctrl",
+    "UBE2M+ctrl",
+    "UBE2N+ctrl",
+    "UBE2Z+ctrl",
+    "UBE3C+ctrl",
+    "UBE3D+ctrl",
+    "UBL5+ctrl",
+    "UBQLN4+ctrl",
+    "UBR4+ctrl",
+    "UBR5+ctrl",
+    "UBTF+ctrl",
+    "UCHL5+ctrl",
+    "UFL1+ctrl",
+    "UFM1+ctrl",
+    "UHRF1+ctrl",
+    "UMPS+ctrl",
+    "UNC45A+ctrl",
+    "UNC50+ctrl",
+    "UNCX+ctrl",
+    "UPF1+ctrl",
+    "UPF2+ctrl",
+    "UPF3A+ctrl",
+    "UQCC2+ctrl",
+    "UQCRB+ctrl",
+    "UQCRC1+ctrl",
+    "UQCRC2+ctrl",
+    "UQCRFS1+ctrl",
+    "UQCRH+ctrl",
+    "UQCRQ+ctrl",
+    "URB1+ctrl",
+    "URB2+ctrl",
+    "URI1+ctrl",
+    "URM1+ctrl",
+    "UROD+ctrl",
+    "USF2+ctrl",
+    "USP10+ctrl",
+    "USP14+ctrl",
+    "USP19+ctrl",
+    "USP36+ctrl",
+    "USP37+ctrl",
+    "USP39+ctrl",
+    "USP5+ctrl",
+    "USP7+ctrl",
+    "USP8+ctrl",
+    "USP9X+ctrl",
+    "USPL1+ctrl",
+    "UTP11+ctrl",
+    "UTP15+ctrl",
+    "UTP18+ctrl",
+    "UTP20+ctrl",
+    "UTP23+ctrl",
+    "UTP25+ctrl",
+    "UTP3+ctrl",
+    "UTP6+ctrl",
+    "UXS1+ctrl",
+    "UXT+ctrl",
+    "VARS+ctrl",
+    "VARS2+ctrl",
+    "VBP1+ctrl",
+    "VCP+ctrl",
+    "VEZT+ctrl",
+    "VHL+ctrl",
+    "VMP1+ctrl",
+    "VPS13D+ctrl",
+    "VPS18+ctrl",
+    "VPS25+ctrl",
+    "VPS28+ctrl",
+    "VPS29+ctrl",
+    "VPS33A+ctrl",
+    "VPS35+ctrl",
+    "VPS37A+ctrl",
+    "VPS37C+ctrl",
+    "VPS41+ctrl",
+    "VPS51+ctrl",
+    "VPS54+ctrl",
+    "VPS72+ctrl",
+    "WAC+ctrl",
+    "WARS+ctrl",
+    "WBP1+ctrl",
+    "WBP11+ctrl",
+    "WBP1L+ctrl",
+    "WDFY3+ctrl",
+    "WDHD1+ctrl",
+    "WDR1+ctrl",
+    "WDR12+ctrl",
+    "WDR18+ctrl",
+    "WDR24+ctrl",
+    "WDR25+ctrl",
+    "WDR26+ctrl",
+    "WDR3+ctrl",
+    "WDR33+ctrl",
+    "WDR36+ctrl",
+    "WDR4+ctrl",
+    "WDR43+ctrl",
+    "WDR44+ctrl",
+    "WDR46+ctrl",
+    "WDR5+ctrl",
+    "WDR54+ctrl",
+    "WDR55+ctrl",
+    "WDR61+ctrl",
+    "WDR7+ctrl",
+    "WDR70+ctrl",
+    "WDR74+ctrl",
+    "WDR75+ctrl",
+    "WDR77+ctrl",
+    "WDR82+ctrl",
+    "WDR83OS+ctrl",
+    "WDR92+ctrl",
+    "WDTC1+ctrl",
+    "WEE1+ctrl",
+    "WNK1+ctrl",
+    "WTAP+ctrl",
+    "XAB2+ctrl",
+    "XPO1+ctrl",
+    "XPO5+ctrl",
+    "XRCC1+ctrl",
+    "XRCC2+ctrl",
+    "XRCC3+ctrl",
+    "XRCC5+ctrl",
+    "XRCC6+ctrl",
+    "XRN1+ctrl",
+    "XRN2+ctrl",
+    "YAE1+ctrl",
+    "YARS+ctrl",
+    "YARS2+ctrl",
+    "YBX1+ctrl",
+    "YBX3+ctrl",
+    "YEATS2+ctrl",
+    "YEATS4+ctrl",
+    "YJEFN3+ctrl",
+    "YKT6+ctrl",
+    "YPEL1+ctrl",
+    "YPEL5+ctrl",
+    "YRDC+ctrl",
+    "YTHDC1+ctrl",
+    "YY1+ctrl",
+    "ZBTB11+ctrl",
+    "ZBTB14+ctrl",
+    "ZBTB17+ctrl",
+    "ZBTB4+ctrl",
+    "ZBTB44+ctrl",
+    "ZC3H13+ctrl",
+    "ZC3H18+ctrl",
+    "ZC3H3+ctrl",
+    "ZC3H4+ctrl",
+    "ZC3H8+ctrl",
+    "ZCCHC9+ctrl",
+    "ZCRB1+ctrl",
+    "ZDHHC7+ctrl",
+    "ZFC3H1+ctrl",
+    "ZFP69B+ctrl",
+    "ZFR+ctrl",
+    "ZMAT2+ctrl",
+    "ZMAT5+ctrl",
+    "ZMYM4+ctrl",
+    "ZNF100+ctrl",
+    "ZNF131+ctrl",
+    "ZNF133+ctrl",
+    "ZNF143+ctrl",
+    "ZNF207+ctrl",
+    "ZNF236+ctrl",
+    "ZNF24+ctrl",
+    "ZNF253+ctrl",
+    "ZNF284+ctrl",
+    "ZNF292+ctrl",
+    "ZNF317+ctrl",
+    "ZNF335+ctrl",
+    "ZNF407+ctrl",
+    "ZNF468+ctrl",
+    "ZNF492+ctrl",
+    "ZNF506+ctrl",
+    "ZNF559+ctrl",
+    "ZNF574+ctrl",
+    "ZNF658+ctrl",
+    "ZNF674+ctrl",
+    "ZNF676+ctrl",
+    "ZNF687+ctrl",
+    "ZNF706+ctrl",
+    "ZNF718+ctrl",
+    "ZNF720+ctrl",
+    "ZNF763+ctrl",
+    "ZNF787+ctrl",
+    "ZNF830+ctrl",
+    "ZNF84+ctrl",
+    "ZNHIT1+ctrl",
+    "ZNHIT2+ctrl",
+    "ZNHIT3+ctrl",
+    "ZNHIT6+ctrl",
+    "ZNRD1+ctrl",
+    "ZRANB2+ctrl",
+    "ZRSR2+ctrl",
+    "ZW10+ctrl",
+    "ZWINT+ctrl",
+    "ctrl"
+  ],
+  "fit_condition_ids_sha256": "c0a6437a5babee06b5a924de80c1138d55bcfb6b83494cdea4f1da3f9a614331",
+  "fit_scope": "full_filtered_cell_line_pre_split",
+  "ordered_entries": [
+    {
+      "dispersions_norm_hex": "0x1.a343340000000p+4",
+      "gene_id": "JUN"
+    },
+    {
+      "dispersions_norm_hex": "0x1.570a580000000p+4",
+      "gene_id": "GZMA"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c868700000000p+3",
+      "gene_id": "RORB"
+    },
+    {
+      "dispersions_norm_hex": "0x1.84fb280000000p+3",
+      "gene_id": "LGALS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.69517c0000000p+3",
+      "gene_id": "PLCG2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6458360000000p+3",
+      "gene_id": "KRT1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3ca59e0000000p+3",
+      "gene_id": "DDIT3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.37631e0000000p+3",
+      "gene_id": "AC016074.2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.28d0e00000000p+3",
+      "gene_id": "TRIB3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.24ce020000000p+3",
+      "gene_id": "SLFN5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1ec96e0000000p+3",
+      "gene_id": "SH3BP5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1bea5c0000000p+3",
+      "gene_id": "HMGCS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.12566c0000000p+3",
+      "gene_id": "KLF2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.106d7a0000000p+3",
+      "gene_id": "MIR181A1HG"
+    },
+    {
+      "dispersions_norm_hex": "0x1.06697c0000000p+3",
+      "gene_id": "CD40LG"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0618fc0000000p+3",
+      "gene_id": "CD69"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f89f7e0000000p+2",
+      "gene_id": "TRAC"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f4208c0000000p+2",
+      "gene_id": "IGLL1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ee87820000000p+2",
+      "gene_id": "NKG7"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e6e38a0000000p+2",
+      "gene_id": "GIMAP4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e6dfe40000000p+2",
+      "gene_id": "H1F0"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d867fc0000000p+2",
+      "gene_id": "CABCOCO1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d77a140000000p+2",
+      "gene_id": "IER3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d4e49e0000000p+2",
+      "gene_id": "PI16"
+    },
+    {
+      "dispersions_norm_hex": "0x1.cdc8960000000p+2",
+      "gene_id": "HIST3H2A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.cd56f20000000p+2",
+      "gene_id": "ID1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c1c5540000000p+2",
+      "gene_id": "AC132192.2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.be8faa0000000p+2",
+      "gene_id": "HPGD"
+    },
+    {
+      "dispersions_norm_hex": "0x1.bdc1480000000p+2",
+      "gene_id": "HMMR"
+    },
+    {
+      "dispersions_norm_hex": "0x1.bc1b840000000p+2",
+      "gene_id": "ID2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.baa14e0000000p+2",
+      "gene_id": "SOX11"
+    },
+    {
+      "dispersions_norm_hex": "0x1.b1caca0000000p+2",
+      "gene_id": "HIST1H2AC"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a8d35a0000000p+2",
+      "gene_id": "HIST1H1C"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a4b45a0000000p+2",
+      "gene_id": "AC006449.6"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a446500000000p+2",
+      "gene_id": "AC004687.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a3d0ca0000000p+2",
+      "gene_id": "ADD3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a370c40000000p+2",
+      "gene_id": "HIST2H2AC"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8baacc0000000p+2",
+      "gene_id": "DNTT"
+    },
+    {
+      "dispersions_norm_hex": "0x1.88e5400000000p+2",
+      "gene_id": "KCNQ1OT1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.83caa40000000p+2",
+      "gene_id": "NFKBIA"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7ebe4a0000000p+2",
+      "gene_id": "PPP1R15A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.71981a0000000p+2",
+      "gene_id": "HIST1H1B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6f6e0a0000000p+2",
+      "gene_id": "CD52"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6a27320000000p+2",
+      "gene_id": "CENPE"
+    },
+    {
+      "dispersions_norm_hex": "0x1.61759c0000000p+2",
+      "gene_id": "PLK1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5d94080000000p+2",
+      "gene_id": "UBE2C"
+    },
+    {
+      "dispersions_norm_hex": "0x1.56351e0000000p+2",
+      "gene_id": "HIST1H1E"
+    },
+    {
+      "dispersions_norm_hex": "0x1.54fa6a0000000p+2",
+      "gene_id": "ATF5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5189ee0000000p+2",
+      "gene_id": "DLGAP5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4fb9b20000000p+2",
+      "gene_id": "DDIT4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4b53820000000p+2",
+      "gene_id": "CD79A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.48fb1e0000000p+2",
+      "gene_id": "CDC20"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4873b60000000p+2",
+      "gene_id": "HIST1H3G"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4860cc0000000p+2",
+      "gene_id": "ARL4C"
+    },
+    {
+      "dispersions_norm_hex": "0x1.44a6bc0000000p+2",
+      "gene_id": "TUBB3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.449c780000000p+2",
+      "gene_id": "DUSP2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.42f0560000000p+2",
+      "gene_id": "SHISA2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.40c57c0000000p+2",
+      "gene_id": "ANXA1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3e163c0000000p+2",
+      "gene_id": "ASPM"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3bdd460000000p+2",
+      "gene_id": "HLA-B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3510c60000000p+2",
+      "gene_id": "MSMO1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3452ec0000000p+2",
+      "gene_id": "CTSG"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3285340000000p+2",
+      "gene_id": "RPL22L1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3206ae0000000p+2",
+      "gene_id": "CCNB1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.319d000000000p+2",
+      "gene_id": "AL034397.3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.314c500000000p+2",
+      "gene_id": "AL365440.2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.30a4060000000p+2",
+      "gene_id": "PIF1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2cbfec0000000p+2",
+      "gene_id": "BTG1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2961120000000p+2",
+      "gene_id": "FAM111B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.25a2140000000p+2",
+      "gene_id": "SNHG3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.23ba540000000p+2",
+      "gene_id": "RBM48"
+    },
+    {
+      "dispersions_norm_hex": "0x1.20216c0000000p+2",
+      "gene_id": "RCBTB2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1dd9a80000000p+2",
+      "gene_id": "CCNB2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.15016a0000000p+2",
+      "gene_id": "HIST1H1D"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1430a00000000p+2",
+      "gene_id": "HSPA5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1379100000000p+2",
+      "gene_id": "FXYD2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.134f640000000p+2",
+      "gene_id": "TOP2A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1286660000000p+2",
+      "gene_id": "AL118516.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0ef5ac0000000p+2",
+      "gene_id": "ID3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0ef1740000000p+2",
+      "gene_id": "MYC"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0ea6bc0000000p+2",
+      "gene_id": "GIMAP7"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0c67320000000p+2",
+      "gene_id": "NEAT1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0b3eba0000000p+2",
+      "gene_id": "CASC15"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0ae1c40000000p+2",
+      "gene_id": "CD1B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0a5de60000000p+2",
+      "gene_id": "CDKN2D"
+    },
+    {
+      "dispersions_norm_hex": "0x1.05e46a0000000p+2",
+      "gene_id": "CD1E"
+    },
+    {
+      "dispersions_norm_hex": "0x1.054dcc0000000p+2",
+      "gene_id": "SNHG12"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0530c40000000p+2",
+      "gene_id": "RIPOR2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.04247e0000000p+2",
+      "gene_id": "ALDH1A2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0191ea0000000p+2",
+      "gene_id": "KPNA2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0029ca0000000p+2",
+      "gene_id": "AURKA"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f902060000000p+1",
+      "gene_id": "GAS5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f509300000000p+1",
+      "gene_id": "AC016773.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f307780000000p+1",
+      "gene_id": "CHI3L2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f2fecc0000000p+1",
+      "gene_id": "CENPA"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f033e00000000p+1",
+      "gene_id": "S100A4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.eeafd60000000p+1",
+      "gene_id": "AL138899.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ecca0e0000000p+1",
+      "gene_id": "LINC01089"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e8a5220000000p+1",
+      "gene_id": "STK17B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e78f480000000p+1",
+      "gene_id": "CREBRF"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e6d0460000000p+1",
+      "gene_id": "COTL1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e42f2e0000000p+1",
+      "gene_id": "TRBC1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e2fbc40000000p+1",
+      "gene_id": "TRG-AS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e2dc740000000p+1",
+      "gene_id": "IER2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.dfd1f00000000p+1",
+      "gene_id": "ARL6IP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.dc933e0000000p+1",
+      "gene_id": "ZFP36L1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.dad37e0000000p+1",
+      "gene_id": "CENPF"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d6d5920000000p+1",
+      "gene_id": "PNRC1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.cf5e780000000p+1",
+      "gene_id": "SCN3A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c80f0e0000000p+1",
+      "gene_id": "PSAT1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c7f9340000000p+1",
+      "gene_id": "KIF14"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c345300000000p+1",
+      "gene_id": "SNHG32"
+    },
+    {
+      "dispersions_norm_hex": "0x1.be67620000000p+1",
+      "gene_id": "AL592494.2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.bd4f960000000p+1",
+      "gene_id": "DNAJB1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.b302b00000000p+1",
+      "gene_id": "TPX2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ae50dc0000000p+1",
+      "gene_id": "RAG2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ade8940000000p+1",
+      "gene_id": "KDM5B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.addc560000000p+1",
+      "gene_id": "HCST"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a429ca0000000p+1",
+      "gene_id": "KMT2E-AS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9df1b60000000p+1",
+      "gene_id": "PREX2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9de9b00000000p+1",
+      "gene_id": "RHOU"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9bd8580000000p+1",
+      "gene_id": "NUSAP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9a911e0000000p+1",
+      "gene_id": "PMEPA1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.99934e0000000p+1",
+      "gene_id": "LIMD2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.98c99c0000000p+1",
+      "gene_id": "AL139246.5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9659260000000p+1",
+      "gene_id": "IKZF2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9608f40000000p+1",
+      "gene_id": "KLHL24"
+    },
+    {
+      "dispersions_norm_hex": "0x1.933c5e0000000p+1",
+      "gene_id": "ITM2C"
+    },
+    {
+      "dispersions_norm_hex": "0x1.916e160000000p+1",
+      "gene_id": "CCNA2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9027080000000p+1",
+      "gene_id": "RRM2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8aeb3a0000000p+1",
+      "gene_id": "GADD45A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8925ca0000000p+1",
+      "gene_id": "GTSE1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.85f9480000000p+1",
+      "gene_id": "SRGN"
+    },
+    {
+      "dispersions_norm_hex": "0x1.84bce20000000p+1",
+      "gene_id": "CD226"
+    },
+    {
+      "dispersions_norm_hex": "0x1.844ab80000000p+1",
+      "gene_id": "DPF3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8408320000000p+1",
+      "gene_id": "MACF1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.82b9b20000000p+1",
+      "gene_id": "AC027601.6"
+    },
+    {
+      "dispersions_norm_hex": "0x1.825b0e0000000p+1",
+      "gene_id": "CAPN10-DT"
+    },
+    {
+      "dispersions_norm_hex": "0x1.81867a0000000p+1",
+      "gene_id": "ILF3-DT"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7ef3420000000p+1",
+      "gene_id": "SNHG14"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7daa460000000p+1",
+      "gene_id": "HIST1H4C"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7a89fc0000000p+1",
+      "gene_id": "THEMIS"
+    },
+    {
+      "dispersions_norm_hex": "0x1.79bd7a0000000p+1",
+      "gene_id": "S1PR3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.78ae900000000p+1",
+      "gene_id": "HES4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.78a6600000000p+1",
+      "gene_id": "INSIG1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7861ac0000000p+1",
+      "gene_id": "CDCA2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7652780000000p+1",
+      "gene_id": "FTH1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.735d900000000p+1",
+      "gene_id": "EMP3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.72342c0000000p+1",
+      "gene_id": "CCDC26"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7098280000000p+1",
+      "gene_id": "MKI67"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7021160000000p+1",
+      "gene_id": "CEBPE"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6ff6a20000000p+1",
+      "gene_id": "RETN"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6f71320000000p+1",
+      "gene_id": "SCD"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6e210a0000000p+1",
+      "gene_id": "WAKMAR2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6b3c020000000p+1",
+      "gene_id": "XBP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.69a3980000000p+1",
+      "gene_id": "KDM6B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6988de0000000p+1",
+      "gene_id": "SNHG19"
+    },
+    {
+      "dispersions_norm_hex": "0x1.67ed3a0000000p+1",
+      "gene_id": "ZIM3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.67105c0000000p+1",
+      "gene_id": "EIF1AY"
+    },
+    {
+      "dispersions_norm_hex": "0x1.66b70a0000000p+1",
+      "gene_id": "CDK1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6536a40000000p+1",
+      "gene_id": "S1PR1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.646c880000000p+1",
+      "gene_id": "SELL"
+    },
+    {
+      "dispersions_norm_hex": "0x1.645c300000000p+1",
+      "gene_id": "SNHG1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6451560000000p+1",
+      "gene_id": "HELLPAR"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6269b80000000p+1",
+      "gene_id": "CD38"
+    },
+    {
+      "dispersions_norm_hex": "0x1.61075e0000000p+1",
+      "gene_id": "UBE2H"
+    },
+    {
+      "dispersions_norm_hex": "0x1.60f9320000000p+1",
+      "gene_id": "CTSW"
+    },
+    {
+      "dispersions_norm_hex": "0x1.60d1da0000000p+1",
+      "gene_id": "IL7R"
+    },
+    {
+      "dispersions_norm_hex": "0x1.60a09e0000000p+1",
+      "gene_id": "AFF2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6072360000000p+1",
+      "gene_id": "IER5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.604a0c0000000p+1",
+      "gene_id": "KIF11"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5efd0a0000000p+1",
+      "gene_id": "SLA"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5c051c0000000p+1",
+      "gene_id": "EPB41L4A-AS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5b28a40000000p+1",
+      "gene_id": "HES1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.54c41e0000000p+1",
+      "gene_id": "SKIL"
+    },
+    {
+      "dispersions_norm_hex": "0x1.547aa40000000p+1",
+      "gene_id": "TMEM161B-AS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.53a38a0000000p+1",
+      "gene_id": "PTTG1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5235980000000p+1",
+      "gene_id": "JUND"
+    },
+    {
+      "dispersions_norm_hex": "0x1.516f400000000p+1",
+      "gene_id": "SGO2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5125a00000000p+1",
+      "gene_id": "HSP90B1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.50d6800000000p+1",
+      "gene_id": "NUF2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4d3ca00000000p+1",
+      "gene_id": "RFLNB"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4ce5b40000000p+1",
+      "gene_id": "MYO7B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.496be40000000p+1",
+      "gene_id": "KIF23"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4857c40000000p+1",
+      "gene_id": "UCP2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.477d1e0000000p+1",
+      "gene_id": "MXD4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.44c3900000000p+1",
+      "gene_id": "FAM111A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4470200000000p+1",
+      "gene_id": "HMGCR"
+    },
+    {
+      "dispersions_norm_hex": "0x1.44111a0000000p+1",
+      "gene_id": "PCDH9"
+    },
+    {
+      "dispersions_norm_hex": "0x1.43a4900000000p+1",
+      "gene_id": "DDAH2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4283f60000000p+1",
+      "gene_id": "SAT2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.423c440000000p+1",
+      "gene_id": "ITGA4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4038a20000000p+1",
+      "gene_id": "LINC01226"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3eca960000000p+1",
+      "gene_id": "SIX6"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3ec6400000000p+1",
+      "gene_id": "HIST1H2AH"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3e6f320000000p+1",
+      "gene_id": "SYNE2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3c92780000000p+1",
+      "gene_id": "KIF2C"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3b16a40000000p+1",
+      "gene_id": "HHIP-AS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3a65b60000000p+1",
+      "gene_id": "TRAT1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3a52b00000000p+1",
+      "gene_id": "NKX3-1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3973e40000000p+1",
+      "gene_id": "GIMAP5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3879560000000p+1",
+      "gene_id": "LSAMP"
+    },
+    {
+      "dispersions_norm_hex": "0x1.3561160000000p+1",
+      "gene_id": "CCNE2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.32cd940000000p+1",
+      "gene_id": "CDCA8"
+    },
+    {
+      "dispersions_norm_hex": "0x1.31c4940000000p+1",
+      "gene_id": "CST7"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2f89aa0000000p+1",
+      "gene_id": "SNHG8"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2eb8fa0000000p+1",
+      "gene_id": "MAL"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2e22180000000p+1",
+      "gene_id": "THY1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2e18760000000p+1",
+      "gene_id": "DDB2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2dcb7e0000000p+1",
+      "gene_id": "ZFAS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2b46e60000000p+1",
+      "gene_id": "ITGA6"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2ac79c0000000p+1",
+      "gene_id": "RPS4Y1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2a995c0000000p+1",
+      "gene_id": "TRIB2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.29b1820000000p+1",
+      "gene_id": "GPR174"
+    },
+    {
+      "dispersions_norm_hex": "0x1.27fabe0000000p+1",
+      "gene_id": "ARPP21"
+    },
+    {
+      "dispersions_norm_hex": "0x1.279be40000000p+1",
+      "gene_id": "BIRC5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2615dc0000000p+1",
+      "gene_id": "GBP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.24f74c0000000p+1",
+      "gene_id": "FDPS"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2478aa0000000p+1",
+      "gene_id": "RHOH"
+    },
+    {
+      "dispersions_norm_hex": "0x1.2265c80000000p+1",
+      "gene_id": "LINC00662"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1f3b520000000p+1",
+      "gene_id": "POU2F2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1f14140000000p+1",
+      "gene_id": "ZKSCAN2-DT"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1e134e0000000p+1",
+      "gene_id": "CD96"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1dfc8a0000000p+1",
+      "gene_id": "RASGRP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.194c440000000p+1",
+      "gene_id": "H1FX"
+    },
+    {
+      "dispersions_norm_hex": "0x1.18d07e0000000p+1",
+      "gene_id": "RSRP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.187dd80000000p+1",
+      "gene_id": "MVD"
+    },
+    {
+      "dispersions_norm_hex": "0x1.164d7e0000000p+1",
+      "gene_id": "DST"
+    },
+    {
+      "dispersions_norm_hex": "0x1.15a2020000000p+1",
+      "gene_id": "PTMS"
+    },
+    {
+      "dispersions_norm_hex": "0x1.153d780000000p+1",
+      "gene_id": "IL32"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1524440000000p+1",
+      "gene_id": "DOK2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.14622c0000000p+1",
+      "gene_id": "LZTFL1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.13f4420000000p+1",
+      "gene_id": "PPP1R18"
+    },
+    {
+      "dispersions_norm_hex": "0x1.13bc4c0000000p+1",
+      "gene_id": "TPO"
+    },
+    {
+      "dispersions_norm_hex": "0x1.137acc0000000p+1",
+      "gene_id": "TAF7"
+    },
+    {
+      "dispersions_norm_hex": "0x1.1373580000000p+1",
+      "gene_id": "LEF1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.11208e0000000p+1",
+      "gene_id": "CHD2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0fcfd00000000p+1",
+      "gene_id": "LUCAT1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0e9ca20000000p+1",
+      "gene_id": "MYO1G"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0e80fe0000000p+1",
+      "gene_id": "RASAL3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0e63060000000p+1",
+      "gene_id": "B2M"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0e43500000000p+1",
+      "gene_id": "RNF168"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0dcb920000000p+1",
+      "gene_id": "IRF1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0daaf60000000p+1",
+      "gene_id": "PMAIP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0d562c0000000p+1",
+      "gene_id": "USP9Y"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0d29f80000000p+1",
+      "gene_id": "KNL1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0c06d80000000p+1",
+      "gene_id": "PTPRC"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0bf5be0000000p+1",
+      "gene_id": "RORA"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0b60020000000p+1",
+      "gene_id": "TUBB4B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0b5de80000000p+1",
+      "gene_id": "AC002454.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0b588c0000000p+1",
+      "gene_id": "AL365295.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0a8b600000000p+1",
+      "gene_id": "LINC02273"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0a3d720000000p+1",
+      "gene_id": "CD84"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0a19d40000000p+1",
+      "gene_id": "GABPB1-AS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.08a0a40000000p+1",
+      "gene_id": "HSP90AA1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.084da80000000p+1",
+      "gene_id": "LINC00528"
+    },
+    {
+      "dispersions_norm_hex": "0x1.07f6540000000p+1",
+      "gene_id": "LINC01222"
+    },
+    {
+      "dispersions_norm_hex": "0x1.07dbe40000000p+1",
+      "gene_id": "CDKN1B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.06beae0000000p+1",
+      "gene_id": "PRC1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.05eb5a0000000p+1",
+      "gene_id": "TSC22D1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0580cc0000000p+1",
+      "gene_id": "CD1A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.04f43c0000000p+1",
+      "gene_id": "CEP128"
+    },
+    {
+      "dispersions_norm_hex": "0x1.043d320000000p+1",
+      "gene_id": "H2AFX"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0403ea0000000p+1",
+      "gene_id": "NDC80"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0265820000000p+1",
+      "gene_id": "OGN"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0163680000000p+1",
+      "gene_id": "SPINK2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.015ffa0000000p+1",
+      "gene_id": "TUBB"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0141a80000000p+1",
+      "gene_id": "MT-ND1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0076f00000000p+1",
+      "gene_id": "MLLT11"
+    },
+    {
+      "dispersions_norm_hex": "0x1.004ec80000000p+1",
+      "gene_id": "LINC00891"
+    },
+    {
+      "dispersions_norm_hex": "0x1.00389e0000000p+1",
+      "gene_id": "ZNF91"
+    },
+    {
+      "dispersions_norm_hex": "0x1.001d360000000p+1",
+      "gene_id": "ANXA2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.0018e80000000p+1",
+      "gene_id": "STT3B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ffdc520000000p+0",
+      "gene_id": "KIF4A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ffc3c20000000p+0",
+      "gene_id": "PCNA"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ff404a0000000p+0",
+      "gene_id": "TUBA1C"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ff37c60000000p+0",
+      "gene_id": "HMGB1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.fe5a0c0000000p+0",
+      "gene_id": "HMGB2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.fc31420000000p+0",
+      "gene_id": "SBK1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.fba6f20000000p+0",
+      "gene_id": "ACAT2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f8f7920000000p+0",
+      "gene_id": "RTCA-AS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f84de80000000p+0",
+      "gene_id": "CD28"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f7f2540000000p+0",
+      "gene_id": "ADCYAP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f758fa0000000p+0",
+      "gene_id": "DTX1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f686480000000p+0",
+      "gene_id": "CORO1B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f49e7c0000000p+0",
+      "gene_id": "MHENCR"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f2f4980000000p+0",
+      "gene_id": "AC123912.4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f262300000000p+0",
+      "gene_id": "FBXO5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f104220000000p+0",
+      "gene_id": "HLA-E"
+    },
+    {
+      "dispersions_norm_hex": "0x1.f0541e0000000p+0",
+      "gene_id": "SLC7A11"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ee726e0000000p+0",
+      "gene_id": "PGM2L1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ee5e140000000p+0",
+      "gene_id": "ZNF721"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ee19a00000000p+0",
+      "gene_id": "ANTKMT"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ecd4240000000p+0",
+      "gene_id": "AC144652.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.eb780c0000000p+0",
+      "gene_id": "SNHG10"
+    },
+    {
+      "dispersions_norm_hex": "0x1.eb304e0000000p+0",
+      "gene_id": "FYB1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e9a89c0000000p+0",
+      "gene_id": "TRIM8"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e7308c0000000p+0",
+      "gene_id": "ITM2A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e6311a0000000p+0",
+      "gene_id": "PLAAT4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e600200000000p+0",
+      "gene_id": "CD48"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e581480000000p+0",
+      "gene_id": "Z95331.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e3db600000000p+0",
+      "gene_id": "AC025159.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e3c9160000000p+0",
+      "gene_id": "IFITM2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e25e440000000p+0",
+      "gene_id": "PRDX1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e03eee0000000p+0",
+      "gene_id": "TMSB4X"
+    },
+    {
+      "dispersions_norm_hex": "0x1.e004780000000p+0",
+      "gene_id": "RESF1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.df39d00000000p+0",
+      "gene_id": "LINC01003"
+    },
+    {
+      "dispersions_norm_hex": "0x1.dd41600000000p+0",
+      "gene_id": "CLSPN"
+    },
+    {
+      "dispersions_norm_hex": "0x1.db6d060000000p+0",
+      "gene_id": "HJURP"
+    },
+    {
+      "dispersions_norm_hex": "0x1.db43520000000p+0",
+      "gene_id": "PBXIP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d9fa360000000p+0",
+      "gene_id": "AL683813.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d9d1860000000p+0",
+      "gene_id": "KIF20B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d9ab7a0000000p+0",
+      "gene_id": "TNFAIP3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d90a3a0000000p+0",
+      "gene_id": "CDK6"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d849080000000p+0",
+      "gene_id": "AC139530.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d6c91e0000000p+0",
+      "gene_id": "TSHR"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d460640000000p+0",
+      "gene_id": "LY9"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d3755a0000000p+0",
+      "gene_id": "NCAPG"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d325280000000p+0",
+      "gene_id": "ZFP36L2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d22b4a0000000p+0",
+      "gene_id": "ACTG1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.d0c6520000000p+0",
+      "gene_id": "PRR11"
+    },
+    {
+      "dispersions_norm_hex": "0x1.cfe0040000000p+0",
+      "gene_id": "RNF125"
+    },
+    {
+      "dispersions_norm_hex": "0x1.cfb8600000000p+0",
+      "gene_id": "CAMK4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.cf6a740000000p+0",
+      "gene_id": "AURKB"
+    },
+    {
+      "dispersions_norm_hex": "0x1.cd58640000000p+0",
+      "gene_id": "RCSD1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.cc96ae0000000p+0",
+      "gene_id": "TUBA4A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.cc55400000000p+0",
+      "gene_id": "JUNB"
+    },
+    {
+      "dispersions_norm_hex": "0x1.cc49f20000000p+0",
+      "gene_id": "SH3TC1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c93b460000000p+0",
+      "gene_id": "NORAD"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c895f80000000p+0",
+      "gene_id": "MAP1A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c77f400000000p+0",
+      "gene_id": "ACTB"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c6c7420000000p+0",
+      "gene_id": "CKAP2L"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c656b00000000p+0",
+      "gene_id": "FGFR1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c5a6f80000000p+0",
+      "gene_id": "EPM2AIP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c29e7a0000000p+0",
+      "gene_id": "JARID2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.c0c25c0000000p+0",
+      "gene_id": "GLG1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.bf3c200000000p+0",
+      "gene_id": "TMEM173"
+    },
+    {
+      "dispersions_norm_hex": "0x1.bd25840000000p+0",
+      "gene_id": "CLEC11A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.bd22a00000000p+0",
+      "gene_id": "HEXIM1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.bab2000000000p+0",
+      "gene_id": "RAP1GAP"
+    },
+    {
+      "dispersions_norm_hex": "0x1.b8cb420000000p+0",
+      "gene_id": "MIR29B2CHG"
+    },
+    {
+      "dispersions_norm_hex": "0x1.b851860000000p+0",
+      "gene_id": "SNHG4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.b75f820000000p+0",
+      "gene_id": "PTPN6"
+    },
+    {
+      "dispersions_norm_hex": "0x1.b73bec0000000p+0",
+      "gene_id": "MIR646HG"
+    },
+    {
+      "dispersions_norm_hex": "0x1.b624a00000000p+0",
+      "gene_id": "LCP2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.b5db880000000p+0",
+      "gene_id": "MCM4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.b3eb3e0000000p+0",
+      "gene_id": "LIME1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.b2fce60000000p+0",
+      "gene_id": "BIRC3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.af69720000000p+0",
+      "gene_id": "HERPUD1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.af32000000000p+0",
+      "gene_id": "MXD3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.aed02a0000000p+0",
+      "gene_id": "MT-ND3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ae7ffc0000000p+0",
+      "gene_id": "CYB5D2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ae12a20000000p+0",
+      "gene_id": "UTRN"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ae08000000000p+0",
+      "gene_id": "MCM5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.ab471c0000000p+0",
+      "gene_id": "SERINC5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a9e97c0000000p+0",
+      "gene_id": "BICD1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a9e9160000000p+0",
+      "gene_id": "CCNG2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a978a20000000p+0",
+      "gene_id": "BACH2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a710240000000p+0",
+      "gene_id": "CD2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a708a80000000p+0",
+      "gene_id": "ADAM10"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a674ce0000000p+0",
+      "gene_id": "GATA3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a5f14a0000000p+0",
+      "gene_id": "SQLE"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a4227c0000000p+0",
+      "gene_id": "NCL"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a25b480000000p+0",
+      "gene_id": "SIT1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a24d400000000p+0",
+      "gene_id": "ZMAT3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.a0b8980000000p+0",
+      "gene_id": "UNG"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9ffdf20000000p+0",
+      "gene_id": "LDLR"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9ff7180000000p+0",
+      "gene_id": "ZNF26"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9ff04c0000000p+0",
+      "gene_id": "ATAD2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9fb5740000000p+0",
+      "gene_id": "LEF1-AS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9f50940000000p+0",
+      "gene_id": "LIG4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9eb0c00000000p+0",
+      "gene_id": "AC008105.3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9e67880000000p+0",
+      "gene_id": "SAT1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9dd9ba0000000p+0",
+      "gene_id": "SEC31B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9d8ab80000000p+0",
+      "gene_id": "CELF2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9cfdcc0000000p+0",
+      "gene_id": "HLA-C"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9c51900000000p+0",
+      "gene_id": "KIF15"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9c17dc0000000p+0",
+      "gene_id": "SH3KBP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9be4260000000p+0",
+      "gene_id": "ZNF280D"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9aa8e00000000p+0",
+      "gene_id": "HELLS"
+    },
+    {
+      "dispersions_norm_hex": "0x1.98f5140000000p+0",
+      "gene_id": "TMSB10"
+    },
+    {
+      "dispersions_norm_hex": "0x1.987ef40000000p+0",
+      "gene_id": "CXCR4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9834460000000p+0",
+      "gene_id": "HSPD1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.975c700000000p+0",
+      "gene_id": "SLC3A2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.96765c0000000p+0",
+      "gene_id": "AC231981.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.953a920000000p+0",
+      "gene_id": "ARID5B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9474fe0000000p+0",
+      "gene_id": "CDKN3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9407160000000p+0",
+      "gene_id": "PIK3R3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.9386e60000000p+0",
+      "gene_id": "MINDY2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.92f7360000000p+0",
+      "gene_id": "GIMAP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.92d8b40000000p+0",
+      "gene_id": "MID1IP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.91f6e00000000p+0",
+      "gene_id": "AC008124.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.91d0c60000000p+0",
+      "gene_id": "ETS2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.909d4c0000000p+0",
+      "gene_id": "KLF6"
+    },
+    {
+      "dispersions_norm_hex": "0x1.903afe0000000p+0",
+      "gene_id": "CAPG"
+    },
+    {
+      "dispersions_norm_hex": "0x1.902ffa0000000p+0",
+      "gene_id": "INTS6"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8f9a0c0000000p+0",
+      "gene_id": "ARHGAP11A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8f420a0000000p+0",
+      "gene_id": "CYLD"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8dc2460000000p+0",
+      "gene_id": "TM7SF2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8da9860000000p+0",
+      "gene_id": "SNHG15"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8cadac0000000p+0",
+      "gene_id": "E2F8"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8b4f2a0000000p+0",
+      "gene_id": "RGCC"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8a10ec0000000p+0",
+      "gene_id": "LINC00426"
+    },
+    {
+      "dispersions_norm_hex": "0x1.89db660000000p+0",
+      "gene_id": "TRBC2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8962bc0000000p+0",
+      "gene_id": "IDI1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.88025e0000000p+0",
+      "gene_id": "CNN2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.86c09a0000000p+0",
+      "gene_id": "GINS2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8690f20000000p+0",
+      "gene_id": "TNFRSF4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8624dc0000000p+0",
+      "gene_id": "PCAT18"
+    },
+    {
+      "dispersions_norm_hex": "0x1.8553a20000000p+0",
+      "gene_id": "C9"
+    },
+    {
+      "dispersions_norm_hex": "0x1.84c3780000000p+0",
+      "gene_id": "PPP1R10"
+    },
+    {
+      "dispersions_norm_hex": "0x1.83c96e0000000p+0",
+      "gene_id": "TCF7"
+    },
+    {
+      "dispersions_norm_hex": "0x1.832a8a0000000p+0",
+      "gene_id": "MANF"
+    },
+    {
+      "dispersions_norm_hex": "0x1.824b500000000p+0",
+      "gene_id": "H2AFZ"
+    },
+    {
+      "dispersions_norm_hex": "0x1.808dd40000000p+0",
+      "gene_id": "TAL1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7fc23c0000000p+0",
+      "gene_id": "ATF7IP"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7f5a2a0000000p+0",
+      "gene_id": "SH2D1A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7f38dc0000000p+0",
+      "gene_id": "CEBPB"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7ef6880000000p+0",
+      "gene_id": "LINC01578"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7e214c0000000p+0",
+      "gene_id": "ARHGEF12"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7d63dc0000000p+0",
+      "gene_id": "TP53"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7d3f9e0000000p+0",
+      "gene_id": "ALOX5AP"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7cf1140000000p+0",
+      "gene_id": "AP000873.2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7bc8340000000p+0",
+      "gene_id": "PLAC8"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7bb8840000000p+0",
+      "gene_id": "ANKRD44"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7ad9240000000p+0",
+      "gene_id": "AP002387.2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.79d1740000000p+0",
+      "gene_id": "PAG1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.79b05c0000000p+0",
+      "gene_id": "TRAF3IP3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7952540000000p+0",
+      "gene_id": "IQGAP2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.78d9060000000p+0",
+      "gene_id": "E2F2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7847dc0000000p+0",
+      "gene_id": "TUBA1A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.782d5e0000000p+0",
+      "gene_id": "SNHG7"
+    },
+    {
+      "dispersions_norm_hex": "0x1.77a5820000000p+0",
+      "gene_id": "STAT5A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7726240000000p+0",
+      "gene_id": "ESCO2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.75ff6a0000000p+0",
+      "gene_id": "SKAP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.75c4540000000p+0",
+      "gene_id": "THUMPD3-AS1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.75c3700000000p+0",
+      "gene_id": "CASP8AP2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.75c12a0000000p+0",
+      "gene_id": "AC110769.2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.74ec160000000p+0",
+      "gene_id": "ZNF217"
+    },
+    {
+      "dispersions_norm_hex": "0x1.738e6a0000000p+0",
+      "gene_id": "MT-ND2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.734f740000000p+0",
+      "gene_id": "STK17A"
+    },
+    {
+      "dispersions_norm_hex": "0x1.734bbc0000000p+0",
+      "gene_id": "ZNF117"
+    },
+    {
+      "dispersions_norm_hex": "0x1.72b30a0000000p+0",
+      "gene_id": "ST8SIA4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.72ad9e0000000p+0",
+      "gene_id": "RB1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7261720000000p+0",
+      "gene_id": "SYCP2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.710b7a0000000p+0",
+      "gene_id": "CD7"
+    },
+    {
+      "dispersions_norm_hex": "0x1.7017080000000p+0",
+      "gene_id": "TFDP2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6e5cba0000000p+0",
+      "gene_id": "UBASH3B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6e59da0000000p+0",
+      "gene_id": "GIHCG"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6dbc6c0000000p+0",
+      "gene_id": "DTL"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6da43a0000000p+0",
+      "gene_id": "AL450998.2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6d22420000000p+0",
+      "gene_id": "FTX"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6c0b0a0000000p+0",
+      "gene_id": "ITPR2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6ba0700000000p+0",
+      "gene_id": "TRIM38"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6a5f4c0000000p+0",
+      "gene_id": "BUB1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6979e00000000p+0",
+      "gene_id": "MIR4453HG"
+    },
+    {
+      "dispersions_norm_hex": "0x1.690f780000000p+0",
+      "gene_id": "LDLRAD4"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6849520000000p+0",
+      "gene_id": "HHIP"
+    },
+    {
+      "dispersions_norm_hex": "0x1.67dff60000000p+0",
+      "gene_id": "HIST1H3D"
+    },
+    {
+      "dispersions_norm_hex": "0x1.666a680000000p+0",
+      "gene_id": "TNRC6B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.63b52a0000000p+0",
+      "gene_id": "CKAP2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.6392580000000p+0",
+      "gene_id": "AC245060.5"
+    },
+    {
+      "dispersions_norm_hex": "0x1.610ef20000000p+0",
+      "gene_id": "LPP"
+    },
+    {
+      "dispersions_norm_hex": "0x1.60ec1e0000000p+0",
+      "gene_id": "MZB1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5e08480000000p+0",
+      "gene_id": "EDEM1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5d159a0000000p+0",
+      "gene_id": "CLEC2B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5be6c40000000p+0",
+      "gene_id": "SERINC1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5aa5e80000000p+0",
+      "gene_id": "SIPA1L2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5a8d2a0000000p+0",
+      "gene_id": "CRIP1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5a31fc0000000p+0",
+      "gene_id": "AC010618.3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.59440c0000000p+0",
+      "gene_id": "CDC6"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5837b60000000p+0",
+      "gene_id": "PCSK7"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5828600000000p+0",
+      "gene_id": "GLUL"
+    },
+    {
+      "dispersions_norm_hex": "0x1.580c120000000p+0",
+      "gene_id": "SBF2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.580c060000000p+0",
+      "gene_id": "KNSTRN"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5754140000000p+0",
+      "gene_id": "LAT"
+    },
+    {
+      "dispersions_norm_hex": "0x1.56bb1c0000000p+0",
+      "gene_id": "FLT1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5691780000000p+0",
+      "gene_id": "IRX3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.54f1200000000p+0",
+      "gene_id": "NDST3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.548c700000000p+0",
+      "gene_id": "CDCA3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5486ba0000000p+0",
+      "gene_id": "AKNA"
+    },
+    {
+      "dispersions_norm_hex": "0x1.53ddb40000000p+0",
+      "gene_id": "AL359504.2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.52cd500000000p+0",
+      "gene_id": "CCND3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5291fe0000000p+0",
+      "gene_id": "ARAP2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.527fa60000000p+0",
+      "gene_id": "DOCK10"
+    },
+    {
+      "dispersions_norm_hex": "0x1.522c020000000p+0",
+      "gene_id": "PTEN"
+    },
+    {
+      "dispersions_norm_hex": "0x1.50835c0000000p+0",
+      "gene_id": "ATP6V0A1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.5059520000000p+0",
+      "gene_id": "AAK1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.503b1e0000000p+0",
+      "gene_id": "MAP1LC3B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.50110e0000000p+0",
+      "gene_id": "SLC4A7"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4feb640000000p+0",
+      "gene_id": "MT-ND6"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4eae380000000p+0",
+      "gene_id": "SLC20A1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4e3d480000000p+0",
+      "gene_id": "AP005482.1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4dc68a0000000p+0",
+      "gene_id": "GFRA1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4d0da80000000p+0",
+      "gene_id": "CDC25B"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4c5aae0000000p+0",
+      "gene_id": "CEP55"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4bc6b40000000p+0",
+      "gene_id": "HTATSF1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4b4c840000000p+0",
+      "gene_id": "CENPU"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4b0a1e0000000p+0",
+      "gene_id": "FLNA"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4af9660000000p+0",
+      "gene_id": "CKS2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4855ec0000000p+0",
+      "gene_id": "DLEU2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4707ea0000000p+0",
+      "gene_id": "CHD3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.46ffda0000000p+0",
+      "gene_id": "TSPAN14"
+    },
+    {
+      "dispersions_norm_hex": "0x1.46e3560000000p+0",
+      "gene_id": "DANCR"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4672300000000p+0",
+      "gene_id": "AC090114.2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.464aae0000000p+0",
+      "gene_id": "CCDC15-DT"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4625700000000p+0",
+      "gene_id": "RSAD2"
+    },
+    {
+      "dispersions_norm_hex": "0x1.44ff7e0000000p+0",
+      "gene_id": "MAFG"
+    },
+    {
+      "dispersions_norm_hex": "0x1.44c5e60000000p+0",
+      "gene_id": "IGF2R"
+    },
+    {
+      "dispersions_norm_hex": "0x1.44b7c40000000p+0",
+      "gene_id": "RUFY3"
+    },
+    {
+      "dispersions_norm_hex": "0x1.44b4e80000000p+0",
+      "gene_id": "NPM1"
+    },
+    {
+      "dispersions_norm_hex": "0x1.4494b00000000p+0",
+      "gene_id": "CBR4"
+    }
+  ],
+  "ordered_entries_sha256": "540dfe61fe367cc74ff27830441a8f3161fc31f36e9ccbe2febe86b8aaab2919",
+  "schema_version": "txpert-full-cell-line-hvg-dispersions-norm-v2"
+}

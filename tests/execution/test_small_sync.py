@@ -110,8 +110,13 @@ def test_explicit_receipt_root_is_allowlisted_without_small_results_name(tmp_pat
     source.mkdir(parents=True)
     (source / "CURRENT_STATE.json").write_text("{}\n", encoding="utf-8")
     (source / "README.md").write_text("# Receipts\n", encoding="utf-8")
+    (source / "checksums.sha256").write_text("0" * 64 + "  canonical/adata.h5ad\n")
     files = discover_small_result_files(source, selection_scope="explicit-root")
-    assert {item.relative_path for item in files} == {"CURRENT_STATE.json", "README.md"}
+    assert {item.relative_path for item in files} == {
+        "CURRENT_STATE.json",
+        "README.md",
+        "checksums.sha256",
+    }
 
     (source / "canonical.h5ad").write_bytes(b"forbidden")
     with pytest.raises(ValueError, match="extension is forbidden"):

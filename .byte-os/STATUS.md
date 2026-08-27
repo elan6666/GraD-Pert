@@ -9,20 +9,26 @@ review_verdict: ship_to_formal_preflight
 iteration_count: 2
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-28T15:20:00+08:00
+updated_at: 2026-08-28T05:34:27+08:00
 ---
 
 # Status
 
-- B2-vNext implementation and development review are complete enough to create
-  one clean public commit. The server development snapshot passed 315 tests
-  with only three intentionally pending formal-receipt skips, Ruff, format,
-  strict mypy on 72 source files, and isolated build. Two read-only reviews
-  found no remaining model-side P0/P1 blocker.
-- Remaining formal gates are deliberately not backfilled: synchronize the
-  exact public commit, materialize corrected five-dataset receipt chains,
-  materialize exact-commit Jurkat HVG512 and GenePT receipts, and pass one A0
-  CUDA epoch before any fixed 10-epoch queue starts.
+- B2-vNext implementation is published and synchronized at clean commit
+  `a9421142c086c4fe6b88cd48343a2cc03b1e408a`. Exact-commit server gates passed
+  314 tests with four honest evidence/dependency skips, Ruff, format, strict
+  mypy on 72 source files and isolated build. Two read-only reviews found no
+  remaining model-side P0/P1 blocker.
+- The corrected five-dataset data, graph and evaluator receipt chains are now
+  materialized, independently verified and mirrored locally. K562 and Norman
+  preserve their upstream processed expression matrices; RPE1/Jurkat/HepG2
+  take the audited raw-count TxPert path. All five frozen split hashes match.
+- Jurkat full-cell-line pre-split HVG512 completed on 238,977 cells and 2,393
+  conditions. The 512 HVGs union 2,372 modeled targets produces 2,809 graph
+  genes and topology SHA `ba22af6e...`. Exact GenePT `emb_b` lacks 17 modeled
+  targets, so E1/E2/E3/ES are unavailable and no GenePT graph/model/run root
+  was created. The remaining formal gate is one A0 CUDA epoch before the 18
+  eligible fixed 10-epoch rows may launch.
 - The config matrix contains exactly 22 hash-pinned Nadig Jurkat rows. A strict
   orchestrator validates all rows and source identity before delegating each
   executable variant to the same `gradpert model pilot` path. Missing GenePT

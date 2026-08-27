@@ -1,0 +1,12 @@
+{
+  "dataset_id": "replogle_k562_essential",
+  "filename": "K562_single_cell_line.zip",
+  "license_id": "original Replogle data CC-BY-4.0; Zenodo record license field unstated",
+  "protocol_id": "within_cell_unseen_single",
+  "registry_version": "datasets-v2",
+  "schema_version": "dataset-source-v1",
+  "size_bytes": 678058077,
+  "source_semantics": "upstream_processed",
+  "source_sha256": "1145286bf8c0fb45bf3e77c0eca3448250652a29aff540b03e8c915933d0ee43",
+  "source_url": "https://zenodo.org/api/records/15420279/files/K562_single_cell_line.zip/content"
+}
