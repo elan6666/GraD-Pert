@@ -9,6 +9,8 @@ import pytest
 torch = pytest.importorskip("torch")
 pytest.importorskip("torch_geometric")
 
+from gradpert.config.native import NativeArchitectureOptions  # noqa: E402
+from gradpert.features import GENEPT_EMB_B_SHA256  # noqa: E402
 from gradpert.graphs import GraphTopology, prune_incoming_edges  # noqa: E402
 from gradpert.modeling import CenterState, GraDPertJointModel  # noqa: E402
 from gradpert.training.batch import GraDPertTrainingBatch  # noqa: E402
@@ -22,6 +24,7 @@ from gradpert.training.logging import TrainingReceiptWriter  # noqa: E402
 from gradpert.training.step import (  # noqa: E402
     GraDPertStepEngine,
     GraDPertStepMetrics,
+    LossWeights,
     build_native_optimizer,
 )
 from gradpert.training.trainer import GraDPertTrainer  # noqa: E402
@@ -83,6 +86,63 @@ def _components(device: torch.device | None = None):  # type: ignore[no-untyped-
     return model, optimizer, centers, engine
 
 
+def _vnext_architecture(
+    *,
+    gene_feature_mode: str = "learned_id",
+    decoder_mode: str = "additive",
+) -> NativeArchitectureOptions:
+    parameters: dict[str, object] = {
+        "graph_axis_policy": "canonical_full",
+        "graph_hvg_count": 5000,
+        "graph_sources": "string_go",
+        "graph_encoder_family": "multi_source_sparse_transformer",
+        "graph_encoder_dropout": 0.1,
+        "local_view_builder": "fanout",
+        "local_view_node_budget": 256,
+        "local_anchor_mask_count": 0,
+        "gene_feature_mode": gene_feature_mode,
+        "decoder_mode": decoder_mode,
+    }
+    if gene_feature_mode != "learned_id":
+        parameters["genept_expected_sha256"] = GENEPT_EMB_B_SHA256
+    return NativeArchitectureOptions.from_parameters(parameters)
+
+
+def _vnext_components(
+    *,
+    gene_feature_mode: str = "learned_id",
+    decoder_mode: str = "additive",
+):  # type: ignore[no-untyped-def]
+    architecture = _vnext_architecture(
+        gene_feature_mode=gene_feature_mode,
+        decoder_mode=decoder_mode,
+    )
+    genept = (
+        None
+        if gene_feature_mode == "learned_id"
+        else torch.arange(7 * 1536, dtype=torch.float32).reshape(7, 1536) / 1536
+    )
+    model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=architecture,
+        genept_matrix=genept,
+    )
+    optimizer = build_native_optimizer(model)
+    centers = CenterState.zeros(prototype_count=8192, device=torch.device("cpu"))
+    engine = GraDPertStepEngine(
+        model=model,
+        topology=_topology(),
+        optimizer=optimizer,
+        centers=centers,
+        run_seed=1,
+        total_schedule_steps=400,
+        heldout_target_ids=(6,),
+    )
+    return model, optimizer, centers, engine
+
+
 def _seed_all(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -110,9 +170,8 @@ def _step_metrics() -> GraDPertStepMetrics:
         spread_available=False,
         teacher_momentum=0.996,
         prediction_graph_gradient_norm=1.0,
-        ssl_graph_gradient_norm=1.0,
-        weighted_ssl_graph_gradient_norm=0.1,
-        prediction_to_weighted_ssl_gradient_ratio=10.0,
+        auxiliary_graph_gradient_norm=0.1,
+        prediction_to_auxiliary_gradient_ratio=10.0,
         condition_target_entropy=1.0,
         masked_node_target_entropy=1.0,
         condition_prototypes_used=1,
@@ -156,6 +215,41 @@ def test_native_step_obeys_gradient_and_update_boundaries() -> None:
     assert model.student_encoder.mask_token.grad is not None
 
 
+def test_native_step_applies_explicit_loss_weights() -> None:
+    torch.manual_seed(10)
+    model, optimizer, centers, _ = _components()
+    engine = GraDPertStepEngine(
+        model=model,
+        topology=_topology(),
+        optimizer=optimizer,
+        centers=centers,
+        run_seed=1,
+        total_schedule_steps=400,
+        heldout_target_ids=(6,),
+        loss_weights=LossWeights(
+            prediction=1.0,
+            condition_consistency=0.8,
+            masked_node=0.4,
+            spread=0.1,
+        ),
+    )
+    metrics = engine.train_step(_batch(), global_step=0)
+    expected = (
+        metrics.prediction_loss
+        + 0.8 * metrics.condition_consistency_loss
+        + 0.4 * metrics.masked_node_loss
+        + 0.1 * metrics.spread_loss
+    )
+    assert metrics.total_loss == pytest.approx(expected, rel=1e-6)
+
+
+def test_loss_weights_reject_invalid_values() -> None:
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        LossWeights(spread=-0.1)
+    with pytest.raises(ValueError, match="prediction loss weight must be positive"):
+        LossWeights(prediction=0.0)
+
+
 def test_checkpoint_resume_reproduces_the_next_step(tmp_path: Path) -> None:
     torch.manual_seed(123)
     batch = _batch()
@@ -188,6 +282,80 @@ def test_checkpoint_resume_reproduces_the_next_step(tmp_path: Path) -> None:
     assert resumed.total_loss == pytest.approx(uninterrupted.total_loss, rel=0, abs=1e-7)
     for name, value in resumed_engine.model.state_dict().items():
         assert torch.equal(value, uninterrupted_state[name]), name
+
+
+@pytest.mark.parametrize(
+    ("gene_feature_mode", "decoder_mode"),
+    [
+        ("learned_id", "control_condition_transformer"),
+        ("frozen_genept_projection", "additive"),
+        ("genept_id_residual", "additive"),
+        ("genept_initialized", "additive"),
+        ("genept_shuffled", "additive"),
+    ],
+)
+def test_vnext_trainable_routes_update_ema_and_restore_checkpoint(
+    tmp_path: Path,
+    gene_feature_mode: str,
+    decoder_mode: str,
+) -> None:
+    _seed_all(37)
+    model, optimizer, centers, engine = _vnext_components(
+        gene_feature_mode=gene_feature_mode,
+        decoder_mode=decoder_mode,
+    )
+    before_student = {
+        name: parameter.detach().clone()
+        for name, parameter in model.named_parameters()
+        if parameter.requires_grad
+        and (name.startswith("student_encoder") or name.startswith("control_condition_fusion"))
+    }
+    before_teacher = {
+        name: parameter.detach().clone()
+        for name, parameter in model.teacher_encoder.named_parameters()
+    }
+    metrics = engine.train_step(_batch(), global_step=0)
+    assert metrics.total_loss > 0
+    assert any(
+        parameter.grad is not None and torch.count_nonzero(parameter.grad).item() > 0
+        for name, parameter in model.named_parameters()
+        if name in before_student
+    )
+    assert any(
+        not torch.equal(before_student[name], parameter)
+        for name, parameter in model.named_parameters()
+        if name in before_student
+    )
+    assert any(
+        not torch.equal(before_teacher[name], parameter)
+        for name, parameter in model.teacher_encoder.named_parameters()
+    )
+    assert not any(parameter.grad is not None for parameter in model.teacher_encoder.parameters())
+
+    checkpoint = tmp_path / f"{gene_feature_mode}-{decoder_mode}.pt"
+    save_training_checkpoint(
+        checkpoint,
+        model=model,
+        optimizer=optimizer,
+        centers=centers,
+        progress={"completed_epochs": 1, "global_step": 1},
+        identity=_identity(),
+    )
+    expected_state = {name: value.detach().clone() for name, value in model.state_dict().items()}
+    resumed_model, resumed_optimizer, resumed_centers, _ = _vnext_components(
+        gene_feature_mode=gene_feature_mode,
+        decoder_mode=decoder_mode,
+    )
+    progress = load_training_checkpoint(
+        checkpoint,
+        model=resumed_model,
+        optimizer=resumed_optimizer,
+        centers=resumed_centers,
+        expected_identity=_identity(),
+    )
+    assert progress == {"completed_epochs": 1, "global_step": 1}
+    for name, value in resumed_model.state_dict().items():
+        assert torch.equal(value, expected_state[name]), name
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA checkpoint path requires a GPU")

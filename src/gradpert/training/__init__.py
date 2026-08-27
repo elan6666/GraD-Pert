@@ -21,6 +21,7 @@ __all__ = [
     "GraDPertStepEngine",
     "GraDPertStepMetrics",
     "GraDPertTrainingBatch",
+    "LossWeights",
     "NativeSystemOptions",
     "TrainingControlPairer",
     "TrainingControlPairing",
@@ -37,16 +38,23 @@ def __getattr__(name: str) -> Any:
         from gradpert.training.batch import GraDPertTrainingBatch
 
         return GraDPertTrainingBatch
-    if name in {"GraDPertStepEngine", "GraDPertStepMetrics", "build_native_optimizer"}:
+    if name in {
+        "GraDPertStepEngine",
+        "GraDPertStepMetrics",
+        "LossWeights",
+        "build_native_optimizer",
+    }:
         from gradpert.training.step import (
             GraDPertStepEngine,
             GraDPertStepMetrics,
+            LossWeights,
             build_native_optimizer,
         )
 
         return {
             "GraDPertStepEngine": GraDPertStepEngine,
             "GraDPertStepMetrics": GraDPertStepMetrics,
+            "LossWeights": LossWeights,
             "build_native_optimizer": build_native_optimizer,
         }[name]
     if name in {"ValidationMetricResult", "evaluate_validation_macro_delta"}:

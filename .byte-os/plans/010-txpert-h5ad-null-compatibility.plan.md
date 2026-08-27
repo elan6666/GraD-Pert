@@ -1,3 +1,11 @@
+---
+id: 010
+status: complete
+wave: 1
+depends_on: []
+updated_at: 2026-08-28T03:15:00+08:00
+---
+
 # Plan 010: TxPert frozen-Anndata H5AD null compatibility
 
 - Status: canonical-reader compatibility follow-up verified locally

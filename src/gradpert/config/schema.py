@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from gradpert.config.native import NativeArchitectureOptions
+
 DatasetId = Literal[
     "replogle_k562_essential",
     "replogle_rpe1_essential",
@@ -236,6 +238,8 @@ class ExperimentConfig(StrictModel):
             expected = ",".join(sorted(allowed_policies))
             raise ValueError(f"{self.model.family} requires formal_run_policy in {{{expected}}}")
         is_legacy_performance_pilot = "performance_pilot_variant" in self.model.parameters
+        if self.model_id == "gradpert_b2":
+            NativeArchitectureOptions.from_parameters(self.model.parameters)
         if (
             self.model_id == "gradpert_b2"
             and self.training.formal_run_policy == "smoke_then_full"
@@ -257,6 +261,10 @@ class ExperimentConfig(StrictModel):
                 "systems_buffered_training_logs": True,
                 "systems_log_buffer_steps": 64,
                 "systems_single_checkpoint_serialization": True,
+                "prediction_loss_weight": 1.0,
+                "condition_consistency_loss_weight": 0.8,
+                "masked_node_loss_weight": 0.4,
+                "spread_loss_weight": 0.1,
             }
             observed = {
                 name: self.model.parameters[name].value

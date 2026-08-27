@@ -176,14 +176,22 @@ model:
       value: 0.9
       source: user_locked
       reference: "docs/design/GRADPERT_V1.md"
-    ssl_weight:
+    prediction_loss_weight:
+      value: 1.0
+      source: user_locked
+      reference: "user requirement 2026-08-28: explicit four-term loss weights"
+    condition_consistency_loss_weight:
+      value: 0.8
+      source: user_locked
+      reference: "user requirement 2026-08-28: explicit four-term loss weights"
+    masked_node_loss_weight:
+      value: 0.4
+      source: user_locked
+      reference: "user requirement 2026-08-28: explicit four-term loss weights"
+    spread_loss_weight:
       value: 0.1
       source: user_locked
-      reference: "docs/design/GRADPERT_V1.md"
-    spread_weight:
-      value: 0.1
-      source: user_locked
-      reference: "docs/design/GRADPERT_V1.md"
+      reference: "user requirement 2026-08-28: explicit four-term loss weights"
     training_batch_order:
       value: "condition_limited_seeded_v1"
       source: project_preregistered

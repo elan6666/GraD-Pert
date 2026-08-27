@@ -27,8 +27,11 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   DINO, or an upstream checkout. No native upstream-named model classes.
 - Inspect frozen official commit/file/function/tensor/update behavior before
   alignment. Never guess or copy-paste/rebrand upstream code.
-- v1 is B2 only: from-scratch joint prediction plus graph self-distillation.
-  No B3, ablations, cross-cell task, extra learned model, or test-set tuning.
+- Historical v1 remains B2 only: from-scratch joint prediction plus graph
+  self-distillation. The separately versioned B2-vNext program may add only
+  config-selected native graph/view/feature/decoder ablations defined in
+  `docs/design/GRADPERT_VNEXT_ABLATIONS.md`; it does not authorize B3,
+  cross-cell work, an extra training entrypoint, or test-set tuning.
 - Five datasets only: Replogle K562/RPE1 essential, Nadig Jurkat/HepG2, Norman.
 - Keep observed upstream metadata columns separate from canonical columns. A
   blocked or unaudited source cannot be relabeled ready, and no cross-cell cache

@@ -124,8 +124,8 @@ prediction = ExpressionDecoder(BasalStateEncoder(control) + z_pert)
 ## 7. Losses
 
 ```text
-L_ssl = L_condition_consistency + L_masked_node + 0.1 * L_spread
-L_total = L_prediction + 0.1 * L_ssl
+L_total = L_prediction + 0.8 * L_condition_consistency
+          + 0.4 * L_masked_node + 0.1 * L_spread
 ```
 
 - `L_prediction`: mean squared error over cells and output genes.

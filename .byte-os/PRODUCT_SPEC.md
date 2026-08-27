@@ -44,10 +44,26 @@ protocol.
 - Server commit preflight, formal launch, result allowlist sync, artifact
   pointers, read-only analysis notebook examples.
 
+## Active B2-vNext extension
+
+The active extension keeps the standalone B2 training/evaluation product and
+adds a single config-driven architecture surface for a preregistered one-
+dataset ablation program. Its default is TxPert-style full-cell-line,
+pre-split HVG512 plus all perturbation targets,
+STRING+GO native multi-source sparse graph Transformer, eight Local-Fanout-256
+views with no local anchor masking, and direct losses `1.0/0.8/0.4/0.1`.
+
+The same main path must also select source-audited single/multi graph encoders,
+STRING weight policies, decoder strategies, and GenePT feature modes. No
+variant may bypass canonical data, split, control, evaluation, artifact, or
+source-identity contracts.
+
 ## Non-goals
 
-- Any ablation, B3, cross-cell/target-inductive protocol, extra dataset/model,
-  paper-best private-graph reproduction, or performance claim before evidence.
+- Cross-cell/target-inductive protocol, an extra dataset, paper-best private-
+  graph reproduction, an upstream runtime dependency, or any performance claim
+  before evidence. B2-vNext ablations are limited to the frozen Nadig Jurkat
+  program in `docs/design/GRADPERT_VNEXT_ABLATIONS.md`.
 - Embedding raw data, model weights, PKL/H5AD, or credentials in Git/local sync.
 - Hiding related-work citations or rebranding copied upstream code.
 

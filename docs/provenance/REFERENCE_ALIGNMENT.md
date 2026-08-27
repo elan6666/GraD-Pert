@@ -25,6 +25,10 @@ runtime mutation of official learned models are rejected.
 | Local behavior | Frozen source file/symbol | Verified contract | Intentional GraD-Pert difference | Planned verification |
 |---|---|---|---|---|
 | Basal encoder and additive decoder | `ref_txpert_public:gspp/models/basal_state_models/mlp.py:MLP`, `gspp/models/txpert.py:TxPert.forward` | `G→512→64` basal MLP; perturbation latents sum; decoder `64→512→G` | Native names; graph embedding comes from active B2 graph student; no upstream import | shape, additivity, gradient-route tests |
+| Exphormer-MG sparse graph Transformer | `ref_txpert_public:configs/config-exphormer-mg.yaml`, `gspp/models/pert_models/exphormer.py:ExphormerModel,ExphormerLayer,generate_random_graph_with_hamiltonian_cycles` (file SHA-256 `bbf96278e6d727abe29fc4a4d2c213ff41bad595269387ad4ff9f819952e9560`) | ordered STRING+GO graph inputs; separately added reverse/self/degree-3 expander channels; multi-hot sparse union; four 128-wide, two-head layers; linear edge map; first-source local GAT branch; dropout 0.1 | Native `gradpert` implementation, deterministic canonical union ordering, shared Student/Teacher contract, no upstream import; alignment is limited to this public graph-encoder surface and is not a paper-best/private-four-KG parity claim | frozen union-membership golden, exact source/config hash gate, deterministic/gradient/server CUDA tests |
+| Single STRING GAT and native adaptive-source fusion | `ref_txpert_public:gspp/models/pert_models/multi_graph.py:MGAT,GatedCombiner` (file SHA-256 `d69a86890bf463d11670a36299662695e0670497d2cb5349c324358a8322da07`) | GATv2 stack behavior is the public single-graph reference; gated fusion is inspected evidence only | GraD-Pert W0/W1/W2/W3/WS routes and node-adaptive source fusion are explicitly project-preregistered; no claim that they reproduce a named private TxPert model | source hash, shape, prior-route, shuffle-negative-control, gradient tests |
+| Control-conditioned Transformer shift block | `ref_trishift_local:src/trishift/_model.py:ShiftNet` at commit `87ac2c51c3c266391093f71a8bce2e6beaa81518` (file SHA-256 `f4fa26acce2c47002cf00aece8468d042006a96a8af04c43be1c9c7ad6105b4e`) | ordered control/condition tokens, pre-norm Transformer, GELU FFN, concat readout | one 64-wide native GraD-Pert decoder ablation; not a complete TriShift generator reproduction | token-order, parameter-budget, shape, gradient tests |
+| GenePT `emb_b` node features | `ref_trishift_local:src/data/Data_GeneEmbd/GenePT_gene_embedding_ada_text.pickle` | exact SHA-256 `fd297510ddd3040744033fde0b0f2cf15a40ac8b2fd2fb02f10667295e55c862`; 93,800 exact-case keys; width 1,536 | four explicit native feature routes; missing non-target graph genes are removed, while any missing perturbation target makes those configs unavailable before training | schema/hash/coverage/order/matrix tests plus authoritative server preflight receipt |
 | Per-graph Top-K | `ref_txpert_public:gspp/data/graphmodule.py` | Top incoming edges selected separately per source graph | Node universe is HVG plus known candidate targets | deterministic graph golden test |
 | Condition split | `ref_txpert_public:data/preprocessing_utils.py:define_splits_singles` plus paper Methods | condition grouping; paper target 0.5625/0.1875/0.25 | control excluded before split; one materialized manifest shared by all models | exact set/hash tests |
 | Macro Pearson delta | `ref_txpert_public:gspp/metrics.py:compute_pert_metrics` | mean prediction/control/truth deltas per condition, then arithmetic macro | common 300-control input; undefined correlation remains unavailable instead of forced zero | numeric golden vectors |
@@ -44,9 +48,10 @@ runtime mutation of official learned models are rejected.
   exist in the frozen repository. Every filled value must be marked
   `project_preregistered`.
 - Independent within-cell source URLs, expected sizes, and checksums are frozen
-  for RPE1, Jurkat, and HepG2. Their configs remain non-ready until downloads,
-  checksums, canonical preprocessing, and QC receipts all pass. Norman still
-  requires accepted official-source lineage rather than an unlabeled cache.
+  for RPE1, Jurkat, and HepG2. Norman uses the checksum-pinned GEARS-referenced
+  Dataverse `perturb_processed.h5ad`, never an unlabeled cache. Canonical
+  readiness still requires the server-side source, preprocessing, and QC
+  receipts for the exact source/config lineage.
 - Active GAT-Hybrid fusion is a GraD-Pert design choice, not a claim that the
   same class exists upstream. Its numerical contract belongs in the active
   design and tests.

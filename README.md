@@ -1,13 +1,16 @@
 # GraD-Pert
 
 GraD-Pert is a standalone research package for graph-conditioned prediction of
-single-cell perturbation responses. The active v1 model jointly optimizes
-expression prediction and graph-view self-distillation, then compares all
-models under one condition split and population evaluation contract.
+single-cell perturbation responses. The stable v1 model jointly optimizes
+expression prediction and graph-view self-distillation. The active B2-vNext
+ablation surface keeps that same trainer and evaluation lifecycle while making
+graph axes, local views, graph encoders, node features, decoders, and objective
+weights explicit self-contained config choices.
 
 The repository is under active implementation. Current authoritative material:
 
 - [active model design](docs/design/GRADPERT_V1.md)
+- [B2-vNext ablation design](docs/design/GRADPERT_VNEXT_ABLATIONS.md)
 - [data and evaluation contract](docs/design/DATA_AND_EVALUATION.md)
 - [server execution contract](docs/design/SERVER_EXECUTION.md)
 - [reference alignment and licenses](docs/provenance/REFERENCE_ALIGNMENT.md)
@@ -19,9 +22,11 @@ The repository is under active implementation. Current authoritative material:
   Nadig HepG2, and Norman.
 - Models: GraD-Pert B2, isolated public GEARS and TxPert benchmarks, plus three
   nonlearned baselines.
-- Default native training: full-graph B2 with all seven semantics-preserving
-  systems optimizations, at most 200 epochs, and validation-only early stopping
-  after 10 consecutive non-improvements.
+- Current default native architecture: the B2-vNext A0 graph/view/model contract
+  described below. Historical full-graph B2 formal runs remain sealed evidence
+  and are not silently reinterpreted as vNext.
+- B2-vNext ablations: Nadig Jurkat only, one frozen canonical split, run seed 1,
+  exactly 10 epochs, and one config per variant through the same native CLI.
 - Formal training and large artifacts are server-only. Runs default to
   metrics-only receipts with no persistent PKL for every model and nonlearned
   baseline. An explicitly requested large export is one deduplicated
@@ -63,6 +68,51 @@ per-cell matrices without rerunning inference. It writes exactly one
 `artifacts/result.pkl`, with a shared deduplicated control-expression pool plus
 ordered indices, predictions, Truth, metrics, and provenance. It is never the
 default.
+
+## B2-vNext default and config-driven ablations
+
+The preregistered vNext reference is `A0`. It preserves the frozen Top-5000
+expression/input/output/evaluation axis. Its graph axis mirrors TxPert's
+within-cell preprocessing before condition splitting: weak-signal filtering,
+the complete cell line normalized to 4,000 counts per cell, `log1p`, and Scanpy
+Seurat Top-512 HVGs with `subset=True`, followed by the union with every
+representable perturbation target. The selected order and normalized-dispersion
+ranking are retained as hash-bound receipts.
+
+Dataset scale handling is fail-closed rather than inferred from a filename.
+The three raw-count sources (RPE1, Jurkat, and HepG2) must pass a full-matrix
+finite, nonnegative integer-count audit before the TxPert transform is applied.
+The official processed K562 and GEARS Norman archives preserve their verified
+`X` values and gene axes; in particular Norman is not sent through a second
+`expm1`, normalization, or `log1p`. The vNext Nadig Jurkat HVG512 ranking uses
+the full weak-signal-filtered cell line before the frozen condition split,
+including future train, validation, and test conditions.
+
+A0 uses ordered STRING+GO Top-20 graphs and a native sparse multi-source graph
+Transformer aligned to the public TxPert Exphormer-MG graph-encoder surface.
+It uses two global views, eight four-hop Local-Fanout views with schedule
+`[20, 10, 5, 5]` and total node budget 256, no local-anchor masking (`0/8`),
+the existing global node mask, the additive decoder, all seven systems groups,
+and direct loss weights `1.0/0.8/0.4/0.1` for prediction, condition
+consistency, masked-node consistency, and embedding spread.
+
+The frozen matrix is generated under
+`configs/ablations/nadig_jurkat/<variant>/gradpert_b2/nadig_jurkat.yaml`.
+Each YAML is complete and is read by the same `gradpert model` entrypoint; there
+is no ablation-specific main function. The matrix covers Local-Fanout/Ring and
+256/512 budgets, single STRING GATv2, single/multi sparse graph Transformers,
+native adaptive source fusion, five STRING weight routes, additive/MLP/
+control-conditioned-Transformer decoders, four GenePT feature routes, three
+loss removals, and the canonical full-graph control.
+
+GenePT uses only the frozen TriShift `emb_b` artifact with exact SHA-256
+`fd297510ddd3040744033fde0b0f2cf15a40ac8b2fd2fb02f10667295e55c862`.
+Matching is exact and case-sensitive. A graph gene missing from GenePT is
+removed only when it is not a perturbation target, with STRING/GO re-pruned in
+the retained canonical order. If any train/validation/test perturbation target
+is missing, all GenePT rows are marked unavailable before model construction
+and no GenePT training is launched; aliases and silent zero/random filling are
+forbidden.
 
 ## Nadig Jurkat one-epoch speed pilot
 

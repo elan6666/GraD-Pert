@@ -3,14 +3,19 @@ from __future__ import annotations
 import pytest
 
 torch = pytest.importorskip("torch")
-pytest.importorskip("torch_geometric")
 
+from gradpert.config import NativeArchitectureOptions  # noqa: E402
 from gradpert.graphs import (  # noqa: E402
     GraphTopology,
+    GraphView,
     build_graph_view_batch,
     prune_incoming_edges,
 )
 from gradpert.modeling import GraDPertJointModel  # noqa: E402
+from gradpert.modeling.modules import (  # noqa: E402
+    ControlConditionMLP,
+    ControlConditionTransformer,
+)
 
 
 def _views():  # type: ignore[no-untyped-def]
@@ -116,3 +121,217 @@ def test_disconnected_view_batch_matches_independent_encoding() -> None:
     assert tuple(item.node_ids for item in batched) == tuple(item.node_ids for item in independent)
     for expected, observed in zip(independent, batched, strict=True):
         torch.testing.assert_close(observed.node_states, expected.node_states)
+
+
+def _vnext_options(**changes: object) -> NativeArchitectureOptions:
+    parameters = {
+        "graph_axis_policy": "recomputed_hvg_union_candidate_targets",
+        "graph_hvg_count": 512,
+        "graph_sources": "string_go",
+        "graph_encoder_family": "multi_source_sparse_transformer",
+        "string_weight_mode": "selection_only",
+        "local_view_builder": "fanout",
+        "local_view_count": 8,
+        "local_view_node_budget": 256,
+        "local_anchor_mask_count": 0,
+        "gene_feature_mode": "learned_id",
+        "decoder_mode": "additive",
+    }
+    for key, value in changes.items():
+        parameters[key] = value
+    return NativeArchitectureOptions.from_parameters(parameters)
+
+
+def test_vnext_default_joint_model_uses_one_shared_native_architecture() -> None:
+    options = _vnext_options()
+    model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+    )
+    assert model.architecture.payload_sha256 == options.payload_sha256
+    assert model.student_encoder.options == model.teacher_encoder.options
+    assert model.control_condition_fusion is None
+    student = model.student_encoder.state_dict()
+    teacher = model.teacher_encoder.state_dict()
+    assert student.keys() == teacher.keys()
+    assert all(torch.equal(student[key], teacher[key]) for key in student)
+
+
+def test_vnext_resident_graph_contract_caches_sparse_prediction_union() -> None:
+    options = _vnext_options()
+    model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+    )
+    prediction = _views().prediction
+    model.eval()
+    before = model.student_encoder(prediction).node_states.detach().clone()
+    model.student_encoder.configure_string_weight_contract(prediction)
+    model.student_encoder.configure_resident_graph_tensors(prediction)
+    after = model.student_encoder(prediction).node_states.detach().clone()
+
+    payload = model.student_encoder.resident_graph_tensor_payload()
+    assert payload["active"] is True
+    assert payload["sparse_union_active"] is True
+    assert payload["sparse_union_edge_count"] > 0
+    assert payload["sparse_union_channel_names"] == [
+        "string",
+        "string:reverse",
+        "go",
+        "go:reverse",
+        "self",
+        "expander",
+    ]
+    assert (
+        model.student_encoder._batched_sparse_union(
+            (prediction,),
+            (7,),
+            model.student_encoder.backend,
+        )
+        is model.student_encoder._resident_sparse_union
+    )
+    torch.testing.assert_close(after, before, rtol=0, atol=0)
+
+
+def test_vnext_transformer_training_view_is_independent_of_companion_views() -> None:
+    options = _vnext_options()
+    independent_model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+    )
+    paired_model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+    )
+    paired_model.load_state_dict(independent_model.state_dict())
+    independent_model.train()
+    paired_model.train()
+    views = _views()
+    primary = views.globals[0]
+    companion = views.locals[0]
+
+    torch.manual_seed(20260828)
+    independent = independent_model.student_encoder.forward_many((primary,))[0]
+    torch.manual_seed(20260828)
+    paired = paired_model.student_encoder.forward_many((primary, companion))[0]
+
+    assert paired.node_ids == independent.node_ids
+    torch.testing.assert_close(paired.node_states, independent.node_states, rtol=0, atol=0)
+
+
+@pytest.mark.parametrize(
+    "weight_mode",
+    ["edge_feature", "fixed_prior", "prior_residual", "shuffled_edge_feature"],
+)
+def test_string_weight_contract_is_frozen_on_full_topology_across_views(
+    weight_mode: str,
+) -> None:
+    options = _vnext_options(
+        graph_sources="string",
+        graph_encoder_family="single_source_gat",
+        graph_encoder_dropout=0.2,
+        string_weight_mode=weight_mode,
+    )
+    model = GraDPertJointModel(
+        graph_gene_count=3,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+    )
+    edge_type = type(_views().prediction.edges_by_source["string"][0])
+    full = GraphView(
+        view_id="prediction",
+        node_ids=(0, 1, 2),
+        edges_by_source={
+            "string": (
+                edge_type(0, 0, 1.0),
+                edge_type(0, 1, 200.0),
+                edge_type(1, 1, 1.0),
+                edge_type(2, 1, 800.0),
+                edge_type(2, 2, 1.0),
+            )
+        },
+        masked_node_ids=(),
+        masked_anchor_ids=(),
+        warnings=(),
+    )
+    crop = GraphView(
+        view_id="local-0",
+        node_ids=(0, 1),
+        edges_by_source={
+            "string": (
+                edge_type(0, 0, 1.0),
+                edge_type(0, 1, 200.0),
+                edge_type(1, 1, 1.0),
+            )
+        },
+        masked_node_ids=(),
+        masked_anchor_ids=(),
+        warnings=(),
+    )
+    encoder = model.student_encoder
+    encoder.configure_string_weight_contract(full)
+    full_source = encoder._source_tensors(full)[0]
+    crop_source = encoder._source_tensors(crop)[0]
+    assert full_source.edge_weight is not None
+    assert crop_source.edge_weight is not None
+    full_edge_weights = {
+        (edge.source, edge.target): float(weight)
+        for edge, weight in zip(
+            full.edges_by_source["string"], full_source.edge_weight.tolist(), strict=True
+        )
+    }
+    crop_edge_weights = {
+        (edge.source, edge.target): float(weight)
+        for edge, weight in zip(
+            crop.edges_by_source["string"], crop_source.edge_weight.tolist(), strict=True
+        )
+    }
+    assert crop_edge_weights[(0, 1)] == full_edge_weights[(0, 1)]
+    if weight_mode != "shuffled_edge_feature":
+        assert crop_edge_weights[(0, 1)] == pytest.approx(0.25)
+
+
+@pytest.mark.parametrize(
+    "feature_mode",
+    [
+        "frozen_genept_projection",
+        "genept_id_residual",
+        "genept_initialized",
+        "genept_shuffled",
+    ],
+)
+def test_vnext_genept_modes_are_explicit_shape_safe_routes(feature_mode: str) -> None:
+    options = _vnext_options(
+        gene_feature_mode=feature_mode,
+        genept_expected_sha256=("fd297510ddd3040744033fde0b0f2cf15a40ac8b2fd2fb02f10667295e55c862"),
+    )
+    model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+        genept_matrix=torch.randn(7, 1536),
+    )
+    assert model.student_encoder._full_node_inputs().shape == (7, 128)
+    assert model.teacher_encoder._full_node_inputs().shape == (7, 128)
+
+
+def test_control_condition_mlp_is_parameter_matched_within_one_percent() -> None:
+    transformer = ControlConditionTransformer()
+    mlp = ControlConditionMLP()
+    transformer_count = sum(parameter.numel() for parameter in transformer.parameters())
+    mlp_count = sum(parameter.numel() for parameter in mlp.parameters())
+    assert abs(transformer_count - mlp_count) / transformer_count < 0.01
+    basal = torch.randn(4, 64)
+    condition = torch.randn(4, 64)
+    assert transformer(basal, condition).shape == (4, 64)
+    assert mlp(basal, condition).shape == (4, 64)

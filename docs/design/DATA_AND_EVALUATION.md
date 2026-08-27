@@ -4,11 +4,11 @@
 
 | Dataset ID | Cell context | Task | Canonical preprocessing |
 |---|---|---|---|
-| `replogle_k562_essential` | K562 | within-cell unseen singles | signal filter, normalize 4000, log1p, independent Top-5000 HVG |
-| `replogle_rpe1_essential` | RPE1 | within-cell unseen singles | same, independently fit |
-| `nadig_jurkat` | Jurkat | within-cell unseen singles | same, independently fit |
-| `nadig_hepg2` | HepG2 | within-cell unseen singles | same, independently fit |
-| `norman` | K562 | predefined unseen doubles (`combo_seen2`) | verified GEARS-targeted processed artifact and frozen split |
+| `replogle_k562_essential` | K562 | within-cell unseen singles | preserve the verified TxPert processed Top-5000 artifact |
+| `replogle_rpe1_essential` | RPE1 | within-cell unseen singles | verified raw counts; filter, normalize 4000, log1p, independent Top-5000 HVG |
+| `nadig_jurkat` | Jurkat | within-cell unseen singles | verified raw counts; same transform, independently fit |
+| `nadig_hepg2` | HepG2 | within-cell unseen singles | verified raw counts; same transform, independently fit |
+| `norman` | K562 | predefined unseen doubles (`combo_seen2`) | preserve the verified GEARS processed 5,045-gene artifact and frozen split |
 
 No cross-cell protocol is active.
 
@@ -16,8 +16,17 @@ No cross-cell protocol is active.
 
 - Each dataset has one registry file under `registry/datasets/`; source size,
   checksum, license, availability, observed raw columns, canonical columns, and
-  condition transform are explicit. A source mapping in `requires_source_audit`
-  state cannot enter canonicalization.
+  condition transform are explicit. The registry also declares whether `X` is
+  raw integer counts or a verified upstream log-expression matrix and whether
+  its scale is transformed or preserved. A source mapping in
+  `requires_source_audit` state cannot enter canonicalization.
+- Raw and processed inputs never share an implicit preprocessing branch. The
+  RPE1/Jurkat/HepG2 path scans the full nonzero matrix and rejects negative,
+  non-finite, or non-integer values before any normalization. K562 and Norman
+  are checksum-pinned processed archives; their `X` matrices are audited as
+  finite/nonnegative and preserved without another `expm1`, normalization, or
+  `log1p`. K562 additionally requires exactly 5,000 frozen genes and Norman
+  exactly 5,045.
 - Nadig raw files use `gene` as the perturbation column, `gem_group` as batch,
   `non-targeting` as control, and `adata.var.gene_name` as the gene-symbol
   axis. Canonicalization then emits `condition`, `batch`, `cell_type`,
@@ -44,6 +53,12 @@ No cross-cell protocol is active.
   column with explicit `forced_candidate_target=true` and
   `expression_output_gene=false`; the graph can still learn its identity and
   incident public relations, while no expression label is fabricated.
+- Norman follows the same expression boundary as TriShift's GEARS/PertData
+  ingestion: use the pinned `perturb_processed.h5ad`, canonicalize metadata and
+  condition aliases, clear stale response-derived DE caches, but do not alter
+  `X` or reselect its 5,045-gene axis. Historical canonical artifacts remain
+  bound to their old manifests; the corrected contract creates a new canonical
+  lineage rather than silently rewriting them.
 - The original K562 artifact has unique `var_names`, while display column
   `var.gene_name` aliases `TBCE-1 -> TBCE` and `HSPA14-1 -> HSPA14`. The
   canonical model axis therefore follows the official code-facing unique

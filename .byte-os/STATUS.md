@@ -2,18 +2,77 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: reviewed
+stage: reviewing
 current_workflow: byte-review
-next_workflow: byte-iterate
-review_verdict: iterate
-iteration_count: 3
+next_workflow: byte-deliver
+review_verdict: ship_to_formal_preflight
+iteration_count: 2
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-26T21:01:14+08:00
+updated_at: 2026-08-28T15:20:00+08:00
 ---
 
 # Status
 
+- B2-vNext implementation and development review are complete enough to create
+  one clean public commit. The server development snapshot passed 315 tests
+  with only three intentionally pending formal-receipt skips, Ruff, format,
+  strict mypy on 72 source files, and isolated build. Two read-only reviews
+  found no remaining model-side P0/P1 blocker.
+- Remaining formal gates are deliberately not backfilled: synchronize the
+  exact public commit, materialize corrected five-dataset receipt chains,
+  materialize exact-commit Jurkat HVG512 and GenePT receipts, and pass one A0
+  CUDA epoch before any fixed 10-epoch queue starts.
+- The config matrix contains exactly 22 hash-pinned Nadig Jurkat rows. A strict
+  orchestrator validates all rows and source identity before delegating each
+  executable variant to the same `gradpert model pilot` path. Missing GenePT
+  perturbation targets produce only a skip receipt before model construction.
+
+- Byte Auto is active for the separately versioned B2-vNext ablation program.
+  The confirmed default is TxPert-style full-cell-line pre-split HVG512 plus
+  all perturbation targets, STRING+GO
+  native multi-source sparse graph Transformer, eight inbound Fanout-256
+  locals, no local anchor masking, existing global node masking, direct loss
+  weights `1.0/0.8/0.4/0.1`, all seven systems groups, and `metrics_only`.
+- The HVG512 scope was corrected before publication or training. It now mirrors
+  frozen official TxPert within-cell preprocessing at commit `08d82eea`: after
+  weak-signal filtering, use the complete cell line before the condition split,
+  normalize every cell to 4,000, apply `log1p`, then Scanpy Seurat
+  `highly_variable_genes(n_top_genes=512, subset=True)`. The runtime graph uses
+  those selected genes union all perturbation targets; Top-5000 expression,
+  prediction, and evaluation remain unchanged. The obsolete train-only vNext
+  receipt schema is rejected and no vNext training has been launched.
+- Plan 026 corrects the five-dataset expression-scale boundary before any new
+  canonical materialization. RPE1/Jurkat/HepG2 are declared raw integer-count
+  inputs and fail before normalization if any transformed value is observed.
+  K562 and Norman are declared verified processed archives and preserve `X`;
+  Norman no longer performs the redundant historical
+  `expm1 -> normalize_total(4000) -> log1p` cycle. The frozen official archive
+  and 5,045-gene axis are required, metadata aliases are still canonicalized,
+  and stale DE caches are removed without changing expression values.
+- The experiment boundary is Nadig Jurkat, the existing canonical split, seed
+  1, fixed 10 epochs, one frozen matrix, validation-only selection and one test
+  access per preregistered run. No new main function is allowed.
+- GenePT uses exact `emb_b`. Missing non-target graph genes may be removed before
+  graph rebuild; any missing perturbation target makes those variants
+  unavailable without training. The local older axis suggests 22 missing
+  targets, so the authoritative server preflight is mandatory.
+- Three read-only exploration subagents completed and changed no files. The
+  active contract is `docs/design/GRADPERT_VNEXT_ABLATIONS.md`; plans 023--025
+  govern implementation, validation, synchronization, and launch.
+
+- Plan 022 is in local implementation. The user replaced the historical
+  effective four-term B2 loss weights `1.0/0.1/0.1/0.01` with explicit formal
+  weights `1.0/0.8/0.4/0.1` for prediction, condition consistency, masked-node
+  consistency, and spread. All five formal configs and the fail-closed schema
+  encode the new values; the runtime composes gradients from the directly
+  weighted terms and records the effective mapping. Historical pilot configs
+  and completed results retain their old identity. No new training has been
+  launched, and any future run requires a new synchronized commit/namespace.
+  Local gates passed 195 tests with 9 honest dependency/receipt skips, Ruff,
+  format, all 30 config verifications, and isolated build. Strict mypy and the
+  Torch-backed objective test remain exact-environment server gates because the
+  local environment has no Torch/PyG.
 - Plan 021 is in implementation at the local successor of `b6e3854`. The user
   selected full-graph, all-seven-systems B2 as the default native profile and
   restored the full ceiling to 200 epochs with validation-only early stopping

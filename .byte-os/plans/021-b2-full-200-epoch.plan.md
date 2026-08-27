@@ -1,7 +1,10 @@
 ---
-status: in_progress
+id: 021
+status: complete
+wave: 1
+depends_on: []
 created_at: 2026-08-26T21:01:14+08:00
-updated_at: 2026-08-26T21:01:14+08:00
+updated_at: 2026-08-28T03:15:00+08:00
 ---
 
 # Plan 021 — default B2 full run at 200 epochs with patience 10
@@ -13,6 +16,10 @@ profile, restore the user-locked full-training ceiling to 200 epochs with
 validation-only early stopping patience 10, and launch four fresh formal Nadig
 Jurkat runs for registered seeds 1--4 after an exact-commit one-epoch
 integration gate.
+
+Execution note: the user later narrowed the formal run to seeds 1 and 2 on the
+same frozen split. Both completed; seeds 3 and 4 were not launched. This closes
+the historical plan without relabeling two seeds as four data splits.
 
 ## Write scope
 
@@ -70,8 +77,8 @@ integration gate.
 
 - [x] User selected B2 as the default and requested 200 epochs/patience 10.
 - [x] Implement policy, configs, tests, and documentation.
-- [ ] Pass local and exact-commit server gates.
-- [ ] Commit, publicly push, and synchronize clean source.
-- [ ] Pass fresh one-epoch Nadig Jurkat B2 integration gate.
-- [ ] Launch the four formal full runs and install hourly monitoring.
-- [ ] Validate and deliver the completed runs.
+- [x] Pass local and exact-commit server gates.
+- [x] Commit, publicly push, and synchronize clean source.
+- [x] Pass fresh one-epoch Nadig Jurkat B2 integration gate.
+- [x] Launch only the user-confirmed seed-1 and seed-2 formal runs.
+- [x] Validate and deliver the completed two-seed evidence.

@@ -1,3 +1,11 @@
+---
+id: 014
+status: complete
+wave: 1
+depends_on: []
+updated_at: 2026-08-28T03:15:00+08:00
+---
+
 # Plan 014: preserve the adapted TxPert training dataset through Lightning fit
 
 - Status: training lifecycle verified; inference proceeds under plan 015

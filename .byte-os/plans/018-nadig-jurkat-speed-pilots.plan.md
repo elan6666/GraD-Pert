@@ -1,3 +1,11 @@
+---
+id: 018
+status: complete
+wave: 1
+depends_on: []
+updated_at: 2026-08-28T03:15:00+08:00
+---
+
 # Plan 018 — Nadig Jurkat one-epoch speed pilots
 
 ## Objective

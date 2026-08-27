@@ -15,6 +15,22 @@ optional single deduplicated result PKL -> server only
 allowlisted small sync -> notebooks/reports
 ```
 
+The native B2-vNext route resolves one strict architecture object from each
+self-contained config and passes it through graph-axis materialization, views,
+Student/Teacher encoder construction, capacity checks, training, prediction,
+checkpoint identity, and receipts. The CLI and lifecycle remain shared.
+
+The encoder interface supports ordered active graph sources and one common
+`N x 64` output. A shared sparse graph-Transformer kernel backs both the single
+STRING and STRING+GO multi-source variants. The native GATv2 backend remains a
+source-audited comparison. Upstream checkouts are used only to produce frozen
+synthetic oracle receipts in isolated environments.
+
+GenePT is a verified node-feature provider, not a new runner. Graph filtering
+and target-coverage checks occur before topology construction; missing targets
+fail closed. The control-conditioned Transformer is a decoder strategy in the
+same joint model, not a second training path.
+
 ## Package modules
 
 - `gradpert.config`: strict YAML loading, completeness/provenance/hash checks.
@@ -75,6 +91,12 @@ keys, and missing provenance.
 - Loader-side condition drops and label/gene conversions.
 - Training recipe gaps for public TxPert.
 - Metric semantic drift and unsafe truth access.
+- Sparse multi-source attention parity across edge ordering, scatter kernels,
+  precision, and PyTorch/PyG versions.
+- GenePT exact-case coverage: authoritative Nadig target coverage may make all
+  GenePT variants unavailable by contract.
+- A reduced graph changes old capacity evidence; the exact new default needs a
+  fresh one-epoch CUDA gate before the 10-epoch matrix.
 
 All risks become failing preflight/readiness/contract tests, not warnings that
 formal runs can ignore.

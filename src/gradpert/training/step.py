@@ -14,6 +14,7 @@ import torch
 from torch import Tensor
 from torch.nn import functional as F
 
+from gradpert.config.native import NativeArchitectureOptions
 from gradpert.graphs import (
     GraDPertTrainingViews,
     GraphTopology,
@@ -48,9 +49,8 @@ class GraDPertStepMetrics:
     spread_available: bool
     teacher_momentum: float
     prediction_graph_gradient_norm: float
-    ssl_graph_gradient_norm: float
-    weighted_ssl_graph_gradient_norm: float
-    prediction_to_weighted_ssl_gradient_ratio: float | None
+    auxiliary_graph_gradient_norm: float
+    prediction_to_auxiliary_gradient_ratio: float | None
     condition_target_entropy: float
     masked_node_target_entropy: float | None
     condition_prototypes_used: int
@@ -69,6 +69,28 @@ class GraDPertStepMetrics:
     prediction_ms: float
     backward_update_ms: float
     step_wall_ms: float
+
+
+@dataclass(frozen=True)
+class LossWeights:
+    """Direct objective weights; defaults preserve historical pilot behavior."""
+
+    prediction: float = 1.0
+    condition_consistency: float = 0.1
+    masked_node: float = 0.1
+    spread: float = 0.01
+
+    def __post_init__(self) -> None:
+        values = (
+            self.prediction,
+            self.condition_consistency,
+            self.masked_node,
+            self.spread,
+        )
+        if any(not math.isfinite(value) or value < 0 for value in values):
+            raise ValueError("loss weights must be finite and non-negative")
+        if self.prediction == 0:
+            raise ValueError("prediction loss weight must be positive")
 
 
 def build_native_optimizer(
@@ -131,7 +153,7 @@ def _rng_state_sha256() -> str:
         sha256_json(
             [
                 algorithm,
-                keys.tolist(),
+                cast(np.ndarray[Any, Any], keys).tolist(),
                 position,
                 has_gauss,
                 cached_gaussian,
@@ -188,6 +210,8 @@ class GraDPertStepEngine:
         run_seed: int,
         total_schedule_steps: int,
         heldout_target_ids: tuple[int, ...],
+        architecture: NativeArchitectureOptions | None = None,
+        loss_weights: LossWeights | None = None,
         resident_graph_tensors: bool = False,
         capture_equivalence_health: bool = False,
     ) -> None:
@@ -206,6 +230,8 @@ class GraDPertStepEngine:
         self.run_seed = run_seed
         self.total_schedule_steps = total_schedule_steps
         self.heldout_target_ids = heldout_target_ids
+        self.architecture = architecture or NativeArchitectureOptions.from_parameters({})
+        self.loss_weights = loss_weights or LossWeights()
         self.prediction_view = build_prediction_graph_view(topology)
         self.incoming_neighbors = (
             build_incoming_neighbor_index(topology) if resident_graph_tensors else None
@@ -213,6 +239,8 @@ class GraDPertStepEngine:
         self.resident_graph_tensors = resident_graph_tensors
         self.capture_equivalence_health = capture_equivalence_health
         self.first_step_health: dict[str, object] | None = None
+        self.model.student_encoder.configure_string_weight_contract(self.prediction_view)
+        self.model.teacher_encoder.configure_string_weight_contract(self.prediction_view)
         if resident_graph_tensors:
             self.model.student_encoder.configure_resident_graph_tensors(self.prediction_view)
             self.model.teacher_encoder.configure_resident_graph_tensors(self.prediction_view)
@@ -242,6 +270,11 @@ class GraDPertStepEngine:
             global_step=global_step,
             prediction_view=self.prediction_view if self.resident_graph_tensors else None,
             incoming_neighbors=self.incoming_neighbors,
+            local_count=self.architecture.local_view_count,
+            local_node_budget=self.architecture.local_view_node_budget,
+            local_builder=self.architecture.local_view_builder,
+            local_fanouts=self.architecture.local_view_fanout,
+            local_anchor_mask_count=self.architecture.local_anchor_mask_count,
         )
         view_structure_sha256 = _view_structure_sha256(views) if capture_health else None
         view_build_ms = (time.perf_counter() - view_started) * 1000.0
@@ -276,7 +309,7 @@ class GraDPertStepEngine:
         ]
         mark("student_global_end")
         mark("student_local_start")
-        for local_index in range(8):
+        for local_index in range(self.architecture.local_view_count):
             condition_ids = tuple(views.anchors_by_condition)
             local_views = tuple(
                 views.locals_by_condition[condition_id][local_index]
@@ -316,7 +349,11 @@ class GraDPertStepEngine:
         spread_terms = [embedding_spread_loss(states) for states in student_global_states]
         spread_available = all(available for _, available in spread_terms)
         spread_loss = torch.stack([value for value, _ in spread_terms]).mean()
-        ssl_loss = condition_loss + masked_loss + 0.1 * spread_loss
+        auxiliary_loss = (
+            self.loss_weights.condition_consistency * condition_loss
+            + self.loss_weights.masked_node * masked_loss
+            + self.loss_weights.spread * spread_loss
+        )
 
         mark("prediction_start")
         prediction = self.model.predict_expression_batch(
@@ -326,7 +363,8 @@ class GraDPertStepEngine:
             views.anchors_by_condition,
         )
         prediction_loss = F.mse_loss(prediction, batch.target_expression)
-        total_loss = prediction_loss + 0.1 * ssl_loss
+        weighted_prediction_loss = self.loss_weights.prediction * prediction_loss
+        total_loss = weighted_prediction_loss + auxiliary_loss
         mark("prediction_end")
 
         condition_probabilities = torch.cat(
@@ -349,13 +387,13 @@ class GraDPertStepEngine:
         trainable_parameters = tuple(
             parameter for parameter in self.model.parameters() if parameter.requires_grad
         )
-        ssl_gradients = torch.autograd.grad(
-            ssl_loss,
+        auxiliary_gradients = torch.autograd.grad(
+            auxiliary_loss,
             trainable_parameters,
             allow_unused=True,
         )
         self.optimizer.zero_grad(set_to_none=True)
-        prediction_loss.backward()  # type: ignore[no-untyped-call]
+        weighted_prediction_loss.backward()  # type: ignore[no-untyped-call]
 
         graph_parameter_ids = {
             id(parameter)
@@ -367,31 +405,34 @@ class GraDPertStepEngine:
             for parameter in trainable_parameters
             if id(parameter) in graph_parameter_ids
         )
-        ssl_graph_gradients = tuple(
+        auxiliary_graph_gradients = tuple(
             gradient
-            for parameter, gradient in zip(trainable_parameters, ssl_gradients, strict=True)
+            for parameter, gradient in zip(trainable_parameters, auxiliary_gradients, strict=True)
             if id(parameter) in graph_parameter_ids
         )
         prediction_gradient_norm = _gradient_norm(
             prediction_graph_gradients,
-            prediction_loss,
+            weighted_prediction_loss,
         )
-        ssl_gradient_norm = _gradient_norm(ssl_graph_gradients, ssl_loss)
-        weighted_ssl_gradient_norm = 0.1 * ssl_gradient_norm
+        auxiliary_gradient_norm = _gradient_norm(
+            auxiliary_graph_gradients,
+            auxiliary_loss,
+        )
         gradient_ratio = (
-            prediction_gradient_norm / weighted_ssl_gradient_norm
-            if weighted_ssl_gradient_norm > 0
+            prediction_gradient_norm / auxiliary_gradient_norm
+            if auxiliary_gradient_norm > 0
             else None
         )
 
-        for parameter, ssl_gradient in zip(trainable_parameters, ssl_gradients, strict=True):
-            if ssl_gradient is None:
+        for parameter, auxiliary_gradient in zip(
+            trainable_parameters, auxiliary_gradients, strict=True
+        ):
+            if auxiliary_gradient is None:
                 continue
-            weighted_gradient = ssl_gradient.detach().mul(0.1)
             if parameter.grad is None:
-                parameter.grad = weighted_gradient
+                parameter.grad = auxiliary_gradient.detach()
             else:
-                parameter.grad.add_(weighted_gradient)
+                parameter.grad.add_(auxiliary_gradient.detach())
         self.optimizer.step()
         if capture_health:
             update_order.append("optimizer_step")
@@ -449,9 +490,8 @@ class GraDPertStepEngine:
             spread_available=spread_available,
             teacher_momentum=momentum,
             prediction_graph_gradient_norm=prediction_gradient_norm,
-            ssl_graph_gradient_norm=ssl_gradient_norm,
-            weighted_ssl_graph_gradient_norm=weighted_ssl_gradient_norm,
-            prediction_to_weighted_ssl_gradient_ratio=(
+            auxiliary_graph_gradient_norm=auxiliary_gradient_norm,
+            prediction_to_auxiliary_gradient_ratio=(
                 gradient_ratio if gradient_ratio is None or math.isfinite(gradient_ratio) else None
             ),
             condition_target_entropy=condition_entropy,
@@ -492,6 +532,13 @@ class GraDPertStepEngine:
                     "masked_node_loss": metrics.masked_node_loss,
                     "spread_loss": metrics.spread_loss,
                 },
+                "loss_weights": {
+                    "prediction": self.loss_weights.prediction,
+                    "condition_consistency": self.loss_weights.condition_consistency,
+                    "masked_node": self.loss_weights.masked_node,
+                    "spread": self.loss_weights.spread,
+                },
+                "native_architecture": self.architecture.payload(),
                 "update_order": update_order,
             }
         return metrics

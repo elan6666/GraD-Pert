@@ -6,7 +6,7 @@ import hashlib
 import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Literal
 
 import numpy as np
 
@@ -17,10 +17,20 @@ from gradpert.graphs.pruning import DirectedEdge, PrunedSourceGraph
 class GraphTopology:
     gene_ids: tuple[str, ...]
     sources: Mapping[str, PrunedSourceGraph]
+    active_sources: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        if tuple(sorted(self.sources)) != ("go", "string"):
-            raise ValueError("v1 topology requires exactly separate go and string sources")
+        available = set(self.sources)
+        if not available or not available <= {"go", "string"} or "string" not in available:
+            raise ValueError("topology requires string and permits optional go source data")
+        active_sources = self.active_sources or (
+            ("string", "go") if "go" in available else ("string",)
+        )
+        if active_sources not in {("string",), ("string", "go")}:
+            raise ValueError("active graph sources must be ordered as string or string,go")
+        if not set(active_sources) <= available:
+            raise ValueError("active graph source is absent from topology source data")
+        object.__setattr__(self, "active_sources", active_sources)
         for name, graph in self.sources.items():
             if graph.source_name != name or graph.gene_ids != self.gene_ids:
                 raise ValueError("source graph identity/gene order mismatch")
@@ -59,7 +69,7 @@ class GraphViewBatch:
     globals: tuple[GraphView, GraphView]
     locals: tuple[GraphView, ...]
     masked_global_index: int
-    masked_local_indices: tuple[int, int, int, int]
+    masked_local_indices: tuple[int, ...]
     global_mask_ratio: float
 
 
@@ -72,7 +82,7 @@ class GraDPertTrainingViews:
     locals_by_condition: Mapping[str, tuple[GraphView, ...]]
     anchors_by_condition: Mapping[str, tuple[int, ...]]
     masked_global_index: int
-    masked_local_indices_by_condition: Mapping[str, tuple[int, int, int, int]]
+    masked_local_indices_by_condition: Mapping[str, tuple[int, ...]]
     global_mask_ratio: float
 
 
@@ -144,7 +154,8 @@ def _nonself_incident_nodes(edges_by_source: Mapping[str, tuple[DirectedEdge, ..
 def _base_nonself_incident_nodes(topology: GraphTopology) -> set[int]:
     return {
         node_id
-        for graph in topology.sources.values()
+        for source_name in topology.active_sources
+        for graph in (topology.sources[source_name],)
         for edge in graph.edges
         for node_id in (edge.source, edge.target)
         if edge.source != edge.target
@@ -155,7 +166,8 @@ def build_incoming_neighbor_index(topology: GraphTopology) -> dict[int, frozense
     """Materialize the immutable incoming-neighbor index once when requested."""
 
     incoming: dict[int, set[int]] = {node_id: set() for node_id in range(topology.n_nodes)}
-    for graph in topology.sources.values():
+    for source_name in topology.active_sources:
+        graph = topology.sources[source_name]
         for edge in graph.edges:
             incoming[edge.target].add(edge.source)
     return {node_id: frozenset(neighbors) for node_id, neighbors in incoming.items()}
@@ -198,9 +210,110 @@ def build_ring_induced_view(
         break
 
     edges_by_source = {
-        name: _base_edges_with_self_loops(graph, node_ids=selected)
-        for name, graph in topology.sources.items()
+        name: _base_edges_with_self_loops(topology.sources[name], node_ids=selected)
+        for name in topology.active_sources
     }
+    incident_nodes = _nonself_incident_nodes(edges_by_source)
+    eligible_anchors = tuple(anchor for anchor in anchor_ids if anchor in incident_nodes)
+    isolated_anchors = tuple(anchor for anchor in anchor_ids if anchor not in incident_nodes)
+    warnings = tuple(
+        f"self_loop_only_anchor:{topology.gene_ids[anchor]}" for anchor in isolated_anchors
+    )
+    return GraphView(
+        view_id=view_id,
+        node_ids=tuple(sorted(selected)),
+        edges_by_source=edges_by_source,
+        masked_node_ids=(),
+        masked_anchor_ids=eligible_anchors if mask_anchors else (),
+        warnings=warnings,
+    )
+
+
+def _incoming_edges_by_target(
+    topology: GraphTopology,
+) -> dict[int, tuple[tuple[str, DirectedEdge], ...]]:
+    source_order = {name: index for index, name in enumerate(topology.active_sources)}
+    incoming: dict[int, list[tuple[str, DirectedEdge]]] = {
+        node_id: [] for node_id in range(topology.n_nodes)
+    }
+    for source_name in topology.active_sources:
+        for edge in topology.sources[source_name].edges:
+            if edge.source != edge.target:
+                incoming[edge.target].append((source_name, edge))
+    return {
+        target: tuple(
+            sorted(
+                edges,
+                key=lambda item: (
+                    source_order[item[0]],
+                    item[1].source,
+                    item[1].target,
+                ),
+            )
+        )
+        for target, edges in incoming.items()
+    }
+
+
+def build_fanout_view(
+    topology: GraphTopology,
+    *,
+    anchors: Iterable[int],
+    node_budget: int,
+    seed: int,
+    view_id: str,
+    mask_anchors: bool,
+    fanouts: tuple[int, int, int, int] = (20, 10, 5, 5),
+) -> GraphView:
+    """Sample four incoming hops while retaining only the sampled base edges."""
+
+    anchor_ids = tuple(sorted(set(anchors)))
+    if not anchor_ids:
+        raise ValueError("local view requires at least one active anchor")
+    if any(anchor < 0 or anchor >= topology.n_nodes for anchor in anchor_ids):
+        raise ValueError("anchor is outside the graph universe")
+    if node_budget not in {256, 512}:
+        raise ValueError("fanout local node budget must be 256 or 512")
+    if node_budget < len(anchor_ids):
+        raise ValueError("local node budget cannot retain all active anchors")
+    if len(fanouts) != 4 or any(value <= 0 for value in fanouts):
+        raise ValueError("all four fanout values must be positive")
+
+    incoming = _incoming_edges_by_target(topology)
+    selected = set(anchor_ids)
+    frontier = set(anchor_ids)
+    sampled_by_source: dict[str, set[DirectedEdge]] = {
+        source_name: set() for source_name in topology.active_sources
+    }
+    rng = np.random.Generator(np.random.PCG64(seed))
+    for fanout in fanouts:
+        if not frontier:
+            break
+        next_frontier: set[int] = set()
+        for target in sorted(frontier):
+            candidates = incoming[target]
+            if len(candidates) <= fanout:
+                chosen = candidates
+            else:
+                positions = np.sort(rng.choice(len(candidates), size=fanout, replace=False))
+                chosen = tuple(candidates[int(position)] for position in positions)
+            for source_name, edge in chosen:
+                source_was_selected = edge.source in selected
+                if not source_was_selected and len(selected) >= node_budget:
+                    continue
+                sampled_by_source[source_name].add(edge)
+                if not source_was_selected:
+                    selected.add(edge.source)
+                    next_frontier.add(edge.source)
+        frontier = next_frontier
+
+    edges_by_source: dict[str, tuple[DirectedEdge, ...]] = {}
+    for source_name in topology.active_sources:
+        edges = list(sampled_by_source[source_name])
+        edges.extend(_self_loops(selected))
+        edges_by_source[source_name] = tuple(
+            sorted(edges, key=lambda edge: (edge.target, edge.source))
+        )
     incident_nodes = _nonself_incident_nodes(edges_by_source)
     eligible_anchors = tuple(anchor for anchor in anchor_ids if anchor in incident_nodes)
     isolated_anchors = tuple(anchor for anchor in anchor_ids if anchor not in incident_nodes)
@@ -222,7 +335,8 @@ def _prediction_view(topology: GraphTopology) -> GraphView:
         view_id="prediction",
         node_ids=tuple(range(topology.n_nodes)),
         edges_by_source={
-            name: _base_edges_with_self_loops(graph) for name, graph in topology.sources.items()
+            name: _base_edges_with_self_loops(topology.sources[name])
+            for name in topology.active_sources
         },
         masked_node_ids=(),
         masked_anchor_ids=(),
@@ -251,7 +365,9 @@ def _build_global_views(
     global_views: list[GraphView] = []
     for view_index in range(2):
         edges_by_source = {}
-        for source_index, (name, graph) in enumerate(sorted(topology.sources.items())):
+        for name in topology.active_sources:
+            graph = topology.sources[name]
+            source_index = {"go": 0, "string": 1}[name]
             seed = stable_view_seed(
                 run_seed=run_seed,
                 global_step=global_step,
@@ -318,43 +434,76 @@ def _build_local_views(
     local_count: int,
     local_node_budget: int,
     incoming_neighbors: Mapping[int, frozenset[int]] | None,
-) -> tuple[tuple[GraphView, ...], tuple[int, int, int, int]]:
+    local_builder: Literal["ring_induced", "fanout"],
+    local_fanouts: tuple[int, int, int, int],
+    local_anchor_mask_count: int,
+) -> tuple[tuple[GraphView, ...], tuple[int, ...]]:
     if local_count != 8:
         raise ValueError("v1 requires exactly eight local views")
+    if not 0 <= local_anchor_mask_count <= local_count:
+        raise ValueError("local anchor mask count must be between zero and local count")
+    if local_builder not in {"ring_induced", "fanout"}:
+        raise ValueError(f"unsupported local view builder: {local_builder}")
 
-    local_mask_rng = np.random.Generator(
-        np.random.PCG64(
-            stable_view_seed(
-                run_seed=run_seed,
-                global_step=global_step,
-                condition_id=condition_id,
-                namespace="local_anchor_mask_assignment",
-                view_index=0,
+    if local_anchor_mask_count:
+        local_mask_rng = np.random.Generator(
+            np.random.PCG64(
+                stable_view_seed(
+                    run_seed=run_seed,
+                    global_step=global_step,
+                    condition_id=condition_id,
+                    namespace="local_anchor_mask_assignment",
+                    view_index=0,
+                )
             )
         )
-    )
-    masked_local_indices = tuple(
-        sorted(int(index) for index in local_mask_rng.choice(local_count, 4, replace=False))
-    )
-    locals_ = tuple(
-        build_ring_induced_view(
-            topology,
-            anchors=anchor_ids,
-            node_budget=local_node_budget,
-            seed=stable_view_seed(
-                run_seed=run_seed,
-                global_step=global_step,
-                condition_id=condition_id,
-                namespace="local_boundary",
-                view_index=view_index,
-            ),
-            view_id=f"local_{view_index}",
-            mask_anchors=view_index in masked_local_indices,
-            incoming_neighbors=incoming_neighbors,
+        masked_local_indices = tuple(
+            sorted(
+                int(index)
+                for index in local_mask_rng.choice(
+                    local_count,
+                    local_anchor_mask_count,
+                    replace=False,
+                )
+            )
         )
-        for view_index in range(local_count)
-    )
-    return locals_, cast(tuple[int, int, int, int], masked_local_indices)
+    else:
+        masked_local_indices = ()
+
+    locals_: list[GraphView] = []
+    for view_index in range(local_count):
+        view_seed = stable_view_seed(
+            run_seed=run_seed,
+            global_step=global_step,
+            condition_id=condition_id,
+            namespace="local_boundary" if local_builder == "ring_induced" else "local_fanout",
+            view_index=view_index,
+        )
+        if local_builder == "ring_induced":
+            locals_.append(
+                build_ring_induced_view(
+                    topology,
+                    anchors=anchor_ids,
+                    node_budget=local_node_budget,
+                    seed=view_seed,
+                    view_id=f"local_{view_index}",
+                    mask_anchors=view_index in masked_local_indices,
+                    incoming_neighbors=incoming_neighbors,
+                )
+            )
+        else:
+            locals_.append(
+                build_fanout_view(
+                    topology,
+                    anchors=anchor_ids,
+                    node_budget=local_node_budget,
+                    seed=view_seed,
+                    view_id=f"local_{view_index}",
+                    mask_anchors=view_index in masked_local_indices,
+                    fanouts=local_fanouts,
+                )
+            )
+    return tuple(locals_), masked_local_indices
 
 
 def build_training_graph_views(
@@ -367,6 +516,9 @@ def build_training_graph_views(
     drop_edge_probability: float = 0.1,
     local_count: int = 8,
     local_node_budget: int = 512,
+    local_builder: Literal["ring_induced", "fanout"] = "ring_induced",
+    local_fanouts: tuple[int, int, int, int] = (20, 10, 5, 5),
+    local_anchor_mask_count: int = 4,
     prediction_view: GraphView | None = None,
     incoming_neighbors: Mapping[int, frozenset[int]] | None = None,
 ) -> GraDPertTrainingViews:
@@ -402,7 +554,7 @@ def build_training_graph_views(
         drop_edge_probability=drop_edge_probability,
     )
     locals_by_condition: dict[str, tuple[GraphView, ...]] = {}
-    masked_locals: dict[str, tuple[int, int, int, int]] = {}
+    masked_locals: dict[str, tuple[int, ...]] = {}
     for condition_id, anchors in normalized.items():
         local_views, masked_indices = _build_local_views(
             topology,
@@ -413,6 +565,9 @@ def build_training_graph_views(
             local_count=local_count,
             local_node_budget=local_node_budget,
             incoming_neighbors=incoming_neighbors,
+            local_builder=local_builder,
+            local_fanouts=local_fanouts,
+            local_anchor_mask_count=local_anchor_mask_count,
         )
         locals_by_condition[condition_id] = local_views
         masked_locals[condition_id] = masked_indices
@@ -438,6 +593,9 @@ def build_graph_view_batch(
     drop_edge_probability: float = 0.1,
     local_count: int = 8,
     local_node_budget: int = 512,
+    local_builder: Literal["ring_induced", "fanout"] = "ring_induced",
+    local_fanouts: tuple[int, int, int, int] = (20, 10, 5, 5),
+    local_anchor_mask_count: int = 4,
 ) -> GraphViewBatch:
     """Compatibility wrapper for a one-condition training-view batch."""
 
@@ -450,6 +608,9 @@ def build_graph_view_batch(
         drop_edge_probability=drop_edge_probability,
         local_count=local_count,
         local_node_budget=local_node_budget,
+        local_builder=local_builder,
+        local_fanouts=local_fanouts,
+        local_anchor_mask_count=local_anchor_mask_count,
     )
     return GraphViewBatch(
         prediction=training.prediction,

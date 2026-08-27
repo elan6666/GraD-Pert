@@ -1,3 +1,11 @@
+---
+id: 009
+status: complete
+wave: 1
+depends_on: []
+updated_at: 2026-08-28T03:15:00+08:00
+---
+
 # Plan 009: GEARS train+validation DE ranking repair
 
 - Status: ranking-before-graph follow-up implementation in progress

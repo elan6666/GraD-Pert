@@ -7,11 +7,16 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import pytest
+from scipy import sparse
 
+from gradpert.data import preprocessing as preprocessing_module
 from gradpert.data.preprocessing import (
     _append_graph_only_targets,
+    _require_raw_integer_counts,
     canonicalize_metadata,
     filter_cells_by_perturbation_effect,
+    preprocess_norman,
+    preprocess_raw_within_cell,
     preprocess_upstream_within_cell,
 )
 from gradpert.data.registry import load_dataset_registry
@@ -155,12 +160,92 @@ def test_norman_rejects_unexpected_upstream_cell_type_value() -> None:
         canonicalize_metadata(MiniAnnData(np.ones((2, 1)), obs, var), entry)
 
 
+def test_norman_preserves_verified_gears_expression_without_reprocessing() -> None:
+    entry = load_dataset_registry(REGISTRY_ROOT / "norman.yaml")
+    genes = ["CEBPE", "KLF1", "MAP2K6", *[f"G{index}" for index in range(5042)]]
+    obs = pd.DataFrame(
+        {
+            "condition": ["ctrl", "ctrl+CEBPE", "KLF1+MAP2K6"],
+            "cell_type": ["A549"] * 3,
+        },
+        index=["ctrl-0", "cebpe-0", "combo-0"],
+    )
+    var = pd.DataFrame({"gene_name": genes}, index=[f"v{index}" for index in range(5045)])
+    x = np.zeros((3, 5045), dtype=np.float32)
+    x[:, :4] = np.asarray(
+        [
+            [0.0, 0.125, 1.75, 0.5],
+            [0.25, 0.0, 2.125, 0.75],
+            [1.5, 0.625, 0.0, 0.875],
+        ],
+        dtype=np.float32,
+    )
+    source = MiniAnnData(x, obs, var)
+    source.uns["top_non_zero_de_20"] = {"stale": ["G0"]}
+
+    result, report = preprocess_norman(source, entry)
+
+    assert np.array_equal(result.X, x)
+    assert result.var["gene_name"].tolist() == genes
+    assert result.var["expression_output_gene"].tolist() == [True] * 5045
+    assert "top_non_zero_de_20" not in result.uns
+    assert report.input_expression_state == "verified_upstream_log1p"
+    assert report.expression_scale_action == ("preserved_verified_gears_processed_log_expression")
+    assert result.uns["gradpert_preprocessing"]["expression_scale_action"] == (
+        "preserved_verified_gears_processed_log_expression"
+    )
+
+
+def test_raw_count_audit_rejects_previously_transformed_expression() -> None:
+    _require_raw_integer_counts(
+        np.asarray([[0.0, 1.0], [2.0, 3.0]], dtype=np.float32),
+        label="fixture",
+    )
+    with pytest.raises(ValueError, match="raw integer counts"):
+        _require_raw_integer_counts(
+            np.asarray([[0.0, np.log1p(2.0)]], dtype=np.float32),
+            label="fixture",
+        )
+
+
+@pytest.mark.parametrize(
+    ("dataset_id", "invalid_expression", "message"),
+    [
+        ("replogle_rpe1_essential", np.asarray([[0.0, -1.0]]), "nonnegative"),
+        ("nadig_jurkat", np.asarray([[0.0, np.nan]]), "finite"),
+        ("nadig_hepg2", sparse.csr_matrix([[0.0, np.log1p(2.0)]]), "raw integer counts"),
+    ],
+)
+def test_raw_dataset_entrypoints_fail_before_filter_or_scanpy(
+    monkeypatch,
+    dataset_id: str,
+    invalid_expression: Any,
+    message: str,
+) -> None:
+    entry = load_dataset_registry(REGISTRY_ROOT / f"{dataset_id}.yaml")
+    source = MiniAnnData(
+        invalid_expression,
+        pd.DataFrame({"unused": ["row"]}),
+        pd.DataFrame({"gene_name": ["G0", "G1"]}),
+    )
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("raw audit must fail before preprocessing transforms")
+
+    monkeypatch.setattr(preprocessing_module, "filter_cells_by_perturbation_effect", forbidden)
+    monkeypatch.setattr(preprocessing_module, "_require_scanpy", forbidden)
+
+    with pytest.raises(ValueError, match=message):
+        preprocess_raw_within_cell(source, entry, known_candidate_targets=set())
+
+
 def test_upstream_k562_appends_missing_targets_only_to_graph_axis() -> None:
     ad = pytest.importorskip("anndata")
     entry = load_dataset_registry(REGISTRY_ROOT / "replogle_k562_essential.yaml")
     gene_ids = [f"G{index}" for index in range(5000)]
+    expression = np.arange(10_000, dtype=np.float32).reshape(2, 5000) / 10_000
     source = ad.AnnData(
-        X=np.ones((2, 5000), dtype=np.float32),
+        X=expression.copy(),
         obs=pd.DataFrame(
             {
                 "condition": ["ctrl", "TARGET+ctrl"],
@@ -177,6 +262,8 @@ def test_upstream_k562_appends_missing_targets_only_to_graph_axis() -> None:
     assert result.var["gene_name"].tolist()[-1] == "TARGET"
     assert result.var["expression_output_gene"].tolist() == [True] * 5000 + [False]
     assert result.var["forced_candidate_target"].tolist() == [False] * 5000 + [True]
+    assert result.X[:, :5000].dtype == expression.dtype
+    assert np.array_equal(np.asarray(result.X[:, :5000]), expression)
     appended = result.X[:, -1]
     if hasattr(appended, "toarray"):
         appended = appended.toarray()
@@ -185,6 +272,35 @@ def test_upstream_k562_appends_missing_targets_only_to_graph_axis() -> None:
     assert report.n_graph_genes == 5001
     assert report.forced_candidate_targets == ("TARGET",)
     assert report.missing_candidate_targets == ()
+
+
+def test_upstream_k562_preserves_sparse_expression_values_dtype_and_order() -> None:
+    ad = pytest.importorskip("anndata")
+    entry = load_dataset_registry(REGISTRY_ROOT / "replogle_k562_essential.yaml")
+    gene_ids = [f"G{index}" for index in range(5000)]
+    dense = np.zeros((2, 5000), dtype=np.float32)
+    dense[0, [0, 123, 4999]] = [0.125, 1.75, 3.5]
+    dense[1, [2, 321, 4000]] = [0.25, 2.125, 4.5]
+    source = ad.AnnData(
+        X=sparse.csr_matrix(dense),
+        obs=pd.DataFrame(
+            {
+                "condition": ["ctrl", "TARGET+ctrl"],
+                "batch": ["1", "1"],
+                "cell_line": ["K562", "K562"],
+            },
+            index=["ctrl-0", "target-0"],
+        ),
+        var=pd.DataFrame(index=gene_ids),
+    )
+
+    result, _ = preprocess_upstream_within_cell(source, entry)
+
+    preserved = result.X[:, :5000]
+    assert sparse.issparse(preserved)
+    assert preserved.dtype == np.float32
+    assert np.array_equal(preserved.toarray(), dense)
+    assert result.var["gene_name"].tolist()[:5000] == gene_ids
 
 
 def test_graph_only_append_preserves_existing_expression_and_forced_flags() -> None:

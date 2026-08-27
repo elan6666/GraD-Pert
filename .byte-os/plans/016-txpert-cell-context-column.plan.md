@@ -1,3 +1,11 @@
+---
+id: 016
+status: complete
+wave: 1
+depends_on: []
+updated_at: 2026-08-28T03:15:00+08:00
+---
+
 # Plan 016: TxPert official cell-context column adapter
 
 - Status: implementation and verification in progress

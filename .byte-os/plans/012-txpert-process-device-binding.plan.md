@@ -1,3 +1,11 @@
+---
+id: 012
+status: complete
+wave: 1
+depends_on: []
+updated_at: 2026-08-28T03:15:00+08:00
+---
+
 # Plan 012: TxPert process-local GPU binding
 
 - Status: complete; device preflight passed and execution proceeds under plan 013

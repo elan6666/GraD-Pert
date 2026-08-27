@@ -190,6 +190,39 @@ def _parser() -> argparse.ArgumentParser:
     reduced_graph.add_argument("--official-checkout", type=Path, required=True)
     reduced_graph.add_argument("--output", type=Path, required=True)
     reduced_graph.add_argument("--json", action="store_true", dest="as_json")
+    vnext_graph = pilot_subparsers.add_parser(
+        "prepare-hvg512-graph",
+        help="Build the TxPert-style pre-split Nadig Jurkat HVG512-plus-target graph",
+    )
+    vnext_graph.add_argument("--data-root", type=Path, required=True)
+    vnext_graph.add_argument(
+        "--dataset-registry",
+        type=Path,
+        default=Path("registry/datasets/nadig_jurkat.yaml"),
+    )
+    vnext_graph.add_argument(
+        "--source-registry",
+        type=Path,
+        default=Path("registry/graphs/public_string_go.yaml"),
+    )
+    vnext_graph.add_argument("--official-checkout", type=Path, required=True)
+    vnext_graph.add_argument("--output", type=Path, required=True)
+    vnext_graph.add_argument("--json", action="store_true", dest="as_json")
+    genept_graph = pilot_subparsers.add_parser(
+        "prepare-genept-graph",
+        help="Verify GenePT coverage and re-prune an HVG512 runtime graph",
+    )
+    genept_graph.add_argument("--parent", type=Path, required=True)
+    genept_graph.add_argument("--genept-artifact", type=Path, required=True)
+    genept_graph.add_argument("--availability-receipt", type=Path, required=True)
+    genept_graph.add_argument(
+        "--source-registry",
+        type=Path,
+        default=Path("registry/graphs/public_string_go.yaml"),
+    )
+    genept_graph.add_argument("--official-checkout", type=Path, required=True)
+    genept_graph.add_argument("--output", type=Path, required=True)
+    genept_graph.add_argument("--json", action="store_true", dest="as_json")
     return parser
 
 
@@ -369,7 +402,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "pilot" and args.pilot_command == "prepare-top500-graph":
         from gradpert.pilots import materialize_recomputed_top500_graph
 
-        manifest = materialize_recomputed_top500_graph(
+        reduced_manifest = materialize_recomputed_top500_graph(
             entry=load_dataset_registry(args.dataset_registry),
             data_root=args.data_root,
             destination=args.output,
@@ -377,13 +410,57 @@ def main(argv: Sequence[str] | None = None) -> int:
             source_registry=load_graph_source_registry(args.source_registry),
             official_checkout=args.official_checkout,
         )
-        payload = manifest.model_dump(mode="json")
+        payload = reduced_manifest.model_dump(mode="json")
         if args.as_json:
             print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
         else:
             print(
-                f"{manifest.dataset_id} graph_gene_count={manifest.graph_gene_count} "
-                f"top500_sha256={manifest.direct_top500_gene_order_sha256}"
+                f"{reduced_manifest.dataset_id} "
+                f"graph_gene_count={reduced_manifest.graph_gene_count} "
+                f"top500_sha256={reduced_manifest.direct_top500_gene_order_sha256}"
+            )
+        return 0
+    if args.command == "pilot" and args.pilot_command == "prepare-hvg512-graph":
+        from gradpert.pilots import materialize_vnext_hvg512_graph
+
+        vnext_manifest = materialize_vnext_hvg512_graph(
+            entry=load_dataset_registry(args.dataset_registry),
+            data_root=args.data_root,
+            destination=args.output,
+            source_registry_path=args.source_registry,
+            source_registry=load_graph_source_registry(args.source_registry),
+            official_checkout=args.official_checkout,
+        )
+        payload = vnext_manifest.model_dump(mode="json")
+        if args.as_json:
+            print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+        else:
+            print(
+                f"{vnext_manifest.dataset_id} "
+                f"graph_gene_count={vnext_manifest.graph_gene_count} "
+                f"hvg_count={vnext_manifest.requested_hvg_count}"
+            )
+        return 0
+    if args.command == "pilot" and args.pilot_command == "prepare-genept-graph":
+        from gradpert.pilots import materialize_genept_vnext_graph
+
+        genept_manifest = materialize_genept_vnext_graph(
+            parent_root=args.parent,
+            destination=args.output,
+            genept_artifact_path=args.genept_artifact,
+            availability_receipt_path=args.availability_receipt,
+            source_registry=load_graph_source_registry(args.source_registry),
+            official_checkout=args.official_checkout,
+        )
+        payload = genept_manifest.model_dump(mode="json")
+        if args.as_json:
+            print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+        else:
+            print(
+                f"{genept_manifest.dataset_id} "
+                f"genept_graph_gene_count={genept_manifest.graph_gene_count} "
+                "removed_non_targets="
+                f"{len(genept_manifest.genept_removed_non_target_gene_ids)}"
             )
         return 0
     if args.command == "model" and args.model_command == "fit-head":

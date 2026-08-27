@@ -27,7 +27,7 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
 - If behavior is unresolved after inspecting official code, record the gap and
   block only that component. Do not fill it from memory or a third-party port.
 
-## Single-v1 model freeze
+## Historical v1 freeze and B2-vNext boundary
 
 - Implement B2 only: a randomly initialized student prediction stack and an
   isomorphic graph teacher updated by EMA, optimized jointly from step zero.
@@ -43,6 +43,10 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
 - Projection capacity is selected once by a one-GPU, 128-consecutive-step fit
   on every dataset at no more than 85% initially usable memory. It is then
   frozen across datasets and seeds.
+- Historical v1 behavior and receipts are immutable. B2-vNext is a separately
+  versioned, config-driven native extension governed by
+  `docs/design/GRADPERT_VNEXT_ABLATIONS.md`: no new main function, no upstream
+  runtime import, and no post-test matrix changes.
 
 ## Training and hyperparameters
 
@@ -117,6 +121,12 @@ This document expands the hard constraints summarized in root `AGENTS.md`.
 - The same data/split/gene/control/evaluation hashes apply across compared
   models; model-native training-control aggregation may differ when it is part
   of the frozen method and is declared.
+- Registry-declared raw inputs must pass a full finite, nonnegative,
+  integer-count audit before normalization. Registry-declared processed
+  archives preserve their verified expression matrix and must never be passed
+  through a second `expm1`, normalization, `log1p`, or HVG selection. Norman
+  preserves the frozen GEARS 5,045-gene artifact; K562 preserves the frozen
+  TxPert Top-5,000 artifact.
 
 ## Prediction and evaluation boundary
 

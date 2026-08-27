@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import pytest
+
 from gradpert.graphs import (
     GraphTopology,
     build_graph_view_batch,
+    build_prediction_graph_view,
     build_ring_induced_view,
     build_training_graph_views,
     clean_graph_view,
     prune_incoming_edges,
 )
+from gradpert.graphs.views import build_fanout_view
 
 
 def _topology() -> GraphTopology:
@@ -129,3 +133,142 @@ def test_training_views_share_globals_and_build_locals_per_unique_condition() ->
     assert not ({0, 1, 3} & set(masked_global.masked_node_ids))
     assert clean_graph_view(masked_global).masked_node_ids == ()
     assert clean_graph_view(masked_global).edges_by_source == masked_global.edges_by_source
+
+
+def test_topology_preserves_ordered_active_sources_and_allows_string_only() -> None:
+    topology = _topology()
+    assert topology.active_sources == ("string", "go")
+    assert tuple(build_prediction_graph_view(topology).edges_by_source) == ("string", "go")
+
+    string_only = GraphTopology(
+        gene_ids=topology.gene_ids,
+        sources=topology.sources,
+        active_sources=("string",),
+    )
+    prediction = build_prediction_graph_view(string_only)
+    assert tuple(prediction.edges_by_source) == ("string",)
+    with pytest.raises(ValueError, match="ordered as string"):
+        GraphTopology(
+            gene_ids=topology.gene_ids,
+            sources=topology.sources,
+            active_sources=("go", "string"),
+        )
+
+
+def _fanout_chain_topology() -> GraphTopology:
+    genes = tuple(f"G{index}" for index in range(6))
+    string = prune_incoming_edges(
+        source_name="string",
+        gene_ids=genes,
+        weighted_edges=tuple(
+            (genes[index + 1], genes[index], 1.0) for index in range(len(genes) - 1)
+        ),
+        top_k=20,
+    )
+    return GraphTopology(gene_ids=genes, sources={"string": string})
+
+
+def test_fanout_view_has_exactly_four_incoming_hops() -> None:
+    view = build_fanout_view(
+        _fanout_chain_topology(),
+        anchors=(0,),
+        node_budget=256,
+        seed=3,
+        view_id="fanout",
+        mask_anchors=False,
+        fanouts=(1, 1, 1, 1),
+    )
+    assert view.node_ids == (0, 1, 2, 3, 4)
+    assert 5 not in view.node_ids
+
+
+def _dense_fanout_topology() -> GraphTopology:
+    node_count = 300
+    genes = tuple(f"G{index:03d}" for index in range(node_count))
+    weighted_edges = []
+    for target in range(node_count):
+        for offset in range(1, 21):
+            source = (target * 20 + offset) % node_count
+            if source == target:
+                source = (source + 1) % node_count
+            weighted_edges.append((genes[source], genes[target], float(21 - offset)))
+    string = prune_incoming_edges(
+        source_name="string",
+        gene_ids=genes,
+        weighted_edges=weighted_edges,
+        top_k=20,
+    )
+    return GraphTopology(gene_ids=genes, sources={"string": string})
+
+
+def test_fanout_view_is_deterministic_budgeted_and_keeps_only_sampled_edges() -> None:
+    topology = _dense_fanout_topology()
+    first = build_fanout_view(
+        topology,
+        anchors=(0,),
+        node_budget=256,
+        seed=17,
+        view_id="fanout",
+        mask_anchors=True,
+    )
+    second = build_fanout_view(
+        topology,
+        anchors=(0,),
+        node_budget=256,
+        seed=17,
+        view_id="fanout",
+        mask_anchors=True,
+    )
+    other = build_fanout_view(
+        topology,
+        anchors=(0,),
+        node_budget=256,
+        seed=18,
+        view_id="fanout",
+        mask_anchors=True,
+    )
+    assert first == second
+    assert first != other
+    assert 0 in first.node_ids
+    assert len(first.node_ids) <= 256
+    assert first.masked_anchor_ids == (0,)
+
+    selected = set(first.node_ids)
+    base_nonself = {
+        edge
+        for edge in topology.sources["string"].edges
+        if edge.source in selected and edge.target in selected
+    }
+    observed_nonself = {
+        edge for edge in first.edges_by_source["string"] if edge.source != edge.target
+    }
+    assert observed_nonself < base_nonself
+    assert observed_nonself <= set(topology.sources["string"].edges)
+    loops = [edge.source for edge in first.edges_by_source["string"] if edge.source == edge.target]
+    assert loops == list(first.node_ids)
+
+
+def test_local_anchor_mask_count_accepts_zero_and_other_counts() -> None:
+    unmasked = build_training_graph_views(
+        _topology(),
+        anchors_by_condition={"A+ctrl": (0,)},
+        heldout_target_ids=(),
+        run_seed=1,
+        global_step=2,
+        local_node_budget=4,
+        local_anchor_mask_count=0,
+    )
+    assert unmasked.masked_local_indices_by_condition["A+ctrl"] == ()
+    assert all(view.masked_anchor_ids == () for view in unmasked.locals_by_condition["A+ctrl"])
+
+    masked = build_training_graph_views(
+        _topology(),
+        anchors_by_condition={"A+ctrl": (0,)},
+        heldout_target_ids=(),
+        run_seed=1,
+        global_step=2,
+        local_node_budget=4,
+        local_anchor_mask_count=2,
+    )
+    assert len(masked.masked_local_indices_by_condition["A+ctrl"]) == 2
+    assert sum(bool(view.masked_anchor_ids) for view in masked.locals_by_condition["A+ctrl"]) == 2

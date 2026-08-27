@@ -1,5 +1,47 @@
 # GraD-Pert 项目讨论
 
+## 2026-08-28 — B2-vNext config-driven ablation confirmation
+
+The user superseded the historical v1 no-ablation product boundary for a new,
+separately versioned B2-vNext program. Historical v1 code/results remain
+truthful evidence and are not relabeled.
+
+Confirmed decisions:
+
+- Dataset preprocessing is selected by an audited registry state, not by an
+  unchecked heuristic. RPE1/Jurkat/HepG2 must be raw integer counts before the
+  TxPert filter/4000/log1p/HVG pipeline. Frozen processed K562 and Norman
+  preserve their upstream `X`; Norman follows TriShift's GEARS artifact path
+  and is not normalized or logged a second time.
+
+- Default runtime graph is TxPert-style pre-split full-cell-line HVG512 union
+  all perturbation targets while
+  expression/input/output/evaluation stay on the frozen Top-5000 axis.
+- Two global views and eight local views remain. Local default becomes inbound
+  four-layer Fanout `[20,10,5,5]`, total budget 256, with local anchor masking
+  disabled. Global eligible-node masking remains enabled.
+- The native default graph encoder becomes a STRING+GO multi-source sparse
+  graph Transformer aligned to the frozen public Exphormer-MG graph encoder.
+  Native code never imports or copies TxPert at runtime.
+- Single-graph configs use only STRING. Public-code-backed first-wave models
+  are single GATv2, single sparse graph Transformer, and multi-source sparse
+  graph Transformer. Unsupported paper models remain blocked rather than
+  guessed.
+- Direct loss defaults are `1.0/0.8/0.4/0.1` for prediction, condition
+  consistency, masked node, and spread.
+- All variants use the same native main path and differ only through a
+  self-contained config.
+- Ablations use only Nadig Jurkat, the existing frozen canonical split, seed 1,
+  exactly 10 epochs, batch 256, 16,384 prototypes, validation-only selection,
+  one frozen matrix, and `metrics_only` zero-PKL output.
+- GenePT uses exact `emb_b`. Missing non-target graph genes are removed before
+  graph re-pruning; any missing perturbation target makes that GenePT variant
+  unavailable before training. No alias, case-folding, zero-fill, condition
+  drop, or target removal is allowed.
+
+The active detailed contract is
+`docs/design/GRADPERT_VNEXT_ABLATIONS.md`.
+
 日期：2026-08-24
 
 ## 用户请求

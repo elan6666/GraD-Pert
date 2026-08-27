@@ -4,6 +4,10 @@
 
 交付一个不依赖上游模型运行时、实验边界明确且可从原始数据追溯到论文级结果的 GraD-Pert 五数据集基准工程。
 
+当前扩展目标：在不破坏历史 v1 证据的前提下，交付同一主入口、完全由
+自包含配置驱动的 B2-vNext 单图/多图消融系统，并完成 Nadig Jurkat
+固定 split、seed 1、10 epoch 的预注册服务器实验。
+
 ## Key Results
 
 1. 干净环境安装、静态检查、单元测试和合成端到端 smoke 全部通过，并记录命令与环境 hash。
@@ -13,6 +17,13 @@
 5. 每次正式运行在服务器保存完整 manifest、最佳 checkpoint、history、推理配方、精确 control/truth IDs 与 notebook provenance；默认不保存 PKL，需要逐细胞下游时才显式生成一个去重 `result.pkl`。本地仅同步小型指标、日志、receipt 和 server-artifact pointer。
 6. 每个正式服务器任务的 preflight receipt 证明本地 HEAD、GitHub commit 与服务器 HEAD 完全一致，且服务器 worktree 干净；任何不一致均中止任务。
 7. GraD-Pert、GEARS、TxPert 与每个 nonlearned baseline 的五数据集配置均为独立、自包含文件，配置矩阵完整性和禁止隐藏全局默认由测试验证。
+8. B2-vNext 默认配置、HVG512+targets、Fanout-256、0/8 local anchor mask、
+   native multi-source sparse graph Transformer、四项损失权重、decoder 和
+   GenePT coverage contracts 均通过合成黄金测试、服务器 CUDA gate 与
+   config/receipt identity 验证。
+9. 完整 Nadig 10-epoch 消融矩阵在运行前冻结；每个可用坐标只训练一次，
+   test 只访问一次，零持久化 PKL；不可用 GenePT 坐标保存权威缺失-target
+   receipt 而不启动训练。
 
 ## Current baseline
 

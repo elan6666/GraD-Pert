@@ -1,3 +1,11 @@
+---
+id: 013
+status: complete
+wave: 1
+depends_on: []
+updated_at: 2026-08-28T03:15:00+08:00
+---
+
 # Plan 013: TxPert control-only training index compatibility
 
 - Status: adapter translation verified; superseded at fit boundary by plan 014

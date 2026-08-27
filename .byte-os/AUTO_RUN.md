@@ -1,27 +1,30 @@
 # Byte Auto Run
 
-- Goal: Make full-graph systems-only B2 the default, restore the native full
-  ceiling to 200 epochs with validation-only patience 10, and run Nadig Jurkat
-  seeds 1--4 on the frozen split in a fresh metrics-only zero-PKL namespace.
-- Started at: 2026-08-26T13:00:00Z
+- Goal: Deliver the confirmed GraD-Pert B2-vNext config-driven single/multi-
+  graph ablation system, verify it locally and on the server, synchronize a
+  clean public commit, and launch the frozen Nadig Jurkat canonical-split seed-1
+  10-epoch matrix.
+- Started at: 2026-08-27T18:54:33Z
 - Current loop number: 1
-- Completed stages: plans 001--017; exact 30-coordinate one-epoch matrix;
-  project-wide zero-PKL default; historical PKL cleanup; README checkpoint
-  reconstruction documentation; sealed small-evidence staging and combined
-  fairness audit; plan 018 B1/B2/B3 speed pilots; final strict comparison and
-  reviewed evidence delivery.
-- Current stage: plan 021 implementation and preflight.
-- Remaining plans: implement and verify 200-epoch/default-B2 policy;
-  commit/push/synchronize; server gates; one-epoch exact-commit gate; launch and
-  hourly monitor; strict validation; reviewed small-evidence delivery.
-- Review verdict: pending
-- Iteration count: 0 of 3
-- Subagent mode: off
-- Active subagent scopes: none; this is one sequential formal coordinate with
-  shared config, execution, validation, and delivery evidence.
-- Hard blockers: none.
-- Exact resume action: finish plan 021 regression gates, publish and synchronize
-  the clean commit, pass server gates and a one-epoch Nadig Jurkat B2 gate, then
-  launch the four full runs in two GPU queues and leave goal mode inactive
-  during training.
-- Parked future items: recorded in `.byte-os/FUTURE.md`, excluded from Auto
+- Completed stages: prior v1 benchmark and speed-pilot delivery; requirement
+  discussion; source-derived graph/GenePT exploration; B2-vNext product and
+  technical shaping; config-driven implementation; local gates; Torch/PyG/
+  anndata server development gates; two read-only repair reviews.
+- Current stage: clean-public-commit preparation and formal data preflight.
+- Remaining plans: update final build/review evidence; commit/push/synchronize;
+  materialize and review corrected five-dataset receipts plus exact Jurkat
+  HVG512/GenePT receipts; one-epoch A0 CUDA gate; immutable eligible 10-epoch
+  launch; result validation and delivery.
+- Review verdict: ship to clean-commit/formal-preflight; long training is not
+  yet authorized by evidence until the formal receipts and A0 gate pass.
+- Iteration count: 2 of 3.
+- Subagent mode: on.
+- Active subagent scopes: three completed read-only explorations covering
+  official graph models, native architecture gaps, and GenePT/shift block.
+- Hard blockers: none. GenePT training availability is conditional on the
+  authoritative server target-coverage preflight and is not a blocker for the
+  rest of the matrix.
+- Exact resume action: commit/push/synchronize the reviewed implementation,
+  generate corrected formal receipt chains at that exact commit, then run the
+  one-epoch A0 gate before the fixed 10-epoch matrix queue.
+- Parked future items: recorded in `.byte-os/FUTURE.md`, excluded from Auto.

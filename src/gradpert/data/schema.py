@@ -143,6 +143,11 @@ class CanonicalMetadataSchema(StrictRegistryModel):
 class PreprocessingSpec(StrictRegistryModel):
     profile_id: Literal["txpert_within_cell_v1", "gears_norman_audited_v1"]
     signal_filter: str
+    input_expression_state: Literal["raw_integer_counts", "verified_upstream_log1p"]
+    expression_scale_action: Literal[
+        "normalize_total_4000_then_log1p",
+        "preserve_verified_upstream",
+    ]
     normalize_total: int | None
     log1p: bool
     hvg_count: int | None
@@ -211,4 +216,41 @@ class DatasetRegistryEntry(StrictRegistryModel):
             self.cell_context.casefold()
         ):
             raise ValueError("canonical cell type must match registry context ignoring case")
+        preprocessing = self.preprocessing
+        if self.source.semantics == "raw_single_cell":
+            if (
+                preprocessing.profile_id != "txpert_within_cell_v1"
+                or preprocessing.input_expression_state != "raw_integer_counts"
+                or preprocessing.expression_scale_action != "normalize_total_4000_then_log1p"
+                or preprocessing.normalize_total != 4000
+                or not preprocessing.log1p
+                or preprocessing.hvg_count != 5000
+                or preprocessing.hvg_fit_scope != "independent_cell_context"
+            ):
+                raise ValueError(
+                    "raw source requires audited integer counts and the frozen TxPert "
+                    "normalize-4000/log1p/Top-5000 profile"
+                )
+        else:
+            if (
+                preprocessing.input_expression_state != "verified_upstream_log1p"
+                or preprocessing.expression_scale_action != "preserve_verified_upstream"
+                or preprocessing.normalize_total is not None
+                or preprocessing.log1p
+                or preprocessing.hvg_fit_scope != "upstream_frozen_and_audited"
+            ):
+                raise ValueError(
+                    "processed archive must preserve its verified upstream expression scale"
+                )
+            if is_norman:
+                if (
+                    preprocessing.profile_id != "gears_norman_audited_v1"
+                    or preprocessing.hvg_count is not None
+                ):
+                    raise ValueError("Norman must preserve the audited GEARS gene axis")
+            elif (
+                preprocessing.profile_id != "txpert_within_cell_v1"
+                or preprocessing.hvg_count != 5000
+            ):
+                raise ValueError("processed K562 must preserve the frozen TxPert Top-5000 axis")
         return self

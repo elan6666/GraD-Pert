@@ -48,6 +48,24 @@ def test_rpe1_registry_uses_the_independently_audited_scperturb_source() -> None
     assert entry.source_metadata.gene_symbol_column is None
 
 
+def test_registry_separates_raw_transforms_from_preserved_processed_sources() -> None:
+    for dataset_id in ("replogle_rpe1_essential", "nadig_jurkat", "nadig_hepg2"):
+        entry = load_dataset_registry(REGISTRY_ROOT / f"{dataset_id}.yaml")
+        assert entry.source.semantics == "raw_single_cell"
+        assert entry.preprocessing.input_expression_state == "raw_integer_counts"
+        assert entry.preprocessing.expression_scale_action == ("normalize_total_4000_then_log1p")
+        assert entry.preprocessing.normalize_total == 4000
+        assert entry.preprocessing.log1p
+
+    for dataset_id in ("replogle_k562_essential", "norman"):
+        entry = load_dataset_registry(REGISTRY_ROOT / f"{dataset_id}.yaml")
+        assert entry.source.semantics == "upstream_processed_archive"
+        assert entry.preprocessing.input_expression_state == "verified_upstream_log1p"
+        assert entry.preprocessing.expression_scale_action == "preserve_verified_upstream"
+        assert entry.preprocessing.normalize_total is None
+        assert not entry.preprocessing.log1p
+
+
 def test_registry_rejects_identity_mismatch(tmp_path: Path) -> None:
     source = REGISTRY_ROOT / "nadig_hepg2.yaml"
     target = tmp_path / "nadig_jurkat.yaml"

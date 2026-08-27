@@ -39,6 +39,10 @@ def test_each_config_carries_its_own_execution_policy() -> None:
             assert (
                 config.model.parameters["cuda_allocator_config"].value == "expandable_segments:True"
             )
+            assert config.model.parameters["prediction_loss_weight"].value == 1.0
+            assert config.model.parameters["condition_consistency_loss_weight"].value == 0.8
+            assert config.model.parameters["masked_node_loss_weight"].value == 0.4
+            assert config.model.parameters["spread_loss_weight"].value == 0.1
         elif config.model_id in {"gears", "txpert_public"}:
             assert config.training.smoke_epochs.value == 1
             assert config.training.formal_run_policy == "smoke_only"

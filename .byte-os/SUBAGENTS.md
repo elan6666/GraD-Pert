@@ -9,6 +9,9 @@ Subagent mode: on
 | `design_audit` | All GraD-Pert design and study Markdown under `TxPert/` | none | completed |
 | `txpert_audit` | Frozen TxPert official code and local paper | none | completed |
 | `gears_data_audit` | GEARS adapters and five-dataset integration/readiness | none | completed |
+| `official_graph_models` | Frozen public graph encoders/configs/provenance | none | completed |
+| `native_architecture_gap` | Native graph/view/config/execution extension points | none | completed |
+| `genept_shiftblock` | TriShift emb_b schema/coverage and shift-block behavior | none | completed |
 
 Completed handoffs:
 

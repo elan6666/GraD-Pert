@@ -45,6 +45,8 @@ class PerturbationFilterReport:
 @dataclass(frozen=True)
 class WithinCellPreprocessingReport:
     dataset_id: str
+    input_expression_state: str
+    expression_scale_action: str
     n_cells_input: int
     n_cells_filtered: int
     n_genes_input: int
@@ -60,6 +62,7 @@ class WithinCellPreprocessingReport:
 @dataclass(frozen=True)
 class UpstreamProcessedPreprocessingReport:
     dataset_id: str
+    input_expression_state: str
     n_cells_input: int
     n_cells_output: int
     n_expression_genes: int
@@ -256,6 +259,21 @@ def _require_finite_nonnegative(matrix: Any, *, label: str) -> None:
         raise ValueError(f"{label} must contain only finite nonnegative values")
 
 
+def _require_raw_integer_counts(matrix: Any, *, label: str) -> None:
+    """Fail closed before applying the raw-count-only TxPert preprocessing path."""
+
+    _require_finite_nonnegative(matrix, label=label)
+    values = _matrix_values(matrix).reshape(-1)
+    chunk_size = 1_000_000
+    for start in range(0, int(values.size), chunk_size):
+        chunk = np.asarray(values[start : start + chunk_size], dtype=np.float64)
+        if not bool(np.all(np.abs(chunk - np.rint(chunk)) <= 1e-6)):
+            raise ValueError(
+                f"{label} must be raw integer counts; refusing to normalize/log1p "
+                "a previously transformed matrix"
+            )
+
+
 def _require_scanpy() -> Any:
     try:
         sc = importlib.import_module("scanpy")
@@ -351,6 +369,13 @@ def preprocess_upstream_within_cell(
         raise ValueError("upstream within-cell preprocessing is frozen to Replogle K562")
     if entry.source.semantics != "upstream_processed_archive":
         raise ValueError("upstream within-cell input must come from the frozen archive")
+    if (
+        entry.preprocessing.input_expression_state != "verified_upstream_log1p"
+        or entry.preprocessing.expression_scale_action != "preserve_verified_upstream"
+        or entry.preprocessing.normalize_total is not None
+        or entry.preprocessing.log1p
+    ):
+        raise ValueError("upstream K562 must preserve its frozen processed expression scale")
     if int(adata.n_vars) != 5000:
         raise ValueError("frozen upstream within-cell artifact must contain exactly 5,000 genes")
     _require_finite_nonnegative(adata.X, label="upstream within-cell expression")
@@ -359,6 +384,7 @@ def preprocess_upstream_within_cell(
     canonical, forced_targets = _mark_full_upstream_axes(canonical, entry)
     canonical.uns["gradpert_preprocessing"] = {
         "profile_id": entry.preprocessing.profile_id,
+        "input_expression_state": entry.preprocessing.input_expression_state,
         "expression_scale_action": "preserved_verified_upstream_log1p_hvg5000",
         "expression_axis": "all_frozen_upstream_hvg5000",
         "graph_axis": "expression_hvg5000_then_forced_candidate_targets",
@@ -367,6 +393,7 @@ def preprocess_upstream_within_cell(
     }
     report = UpstreamProcessedPreprocessingReport(
         dataset_id=entry.dataset_id,
+        input_expression_state=entry.preprocessing.input_expression_state,
         n_cells_input=int(adata.n_obs),
         n_cells_output=int(canonical.n_obs),
         n_expression_genes=5000,
@@ -386,25 +413,26 @@ def preprocess_norman(
     adata: Any,
     entry: DatasetRegistryEntry,
 ) -> tuple[Any, UpstreamProcessedPreprocessingReport]:
-    """Canonicalize aliases and place the audited Norman matrix on target-sum 4,000."""
+    """Canonicalize metadata while preserving the frozen GEARS-processed matrix."""
 
     if entry.dataset_id != "norman" or entry.preprocessing.profile_id != (
         "gears_norman_audited_v1"
     ):
         raise ValueError("Norman preprocessing requires the frozen Norman registry entry")
-    if entry.preprocessing.normalize_total != 4000 or not entry.preprocessing.log1p:
-        raise ValueError("Norman canonical expression scale is frozen to 4,000 plus log1p")
+    if entry.source.semantics != "upstream_processed_archive":
+        raise ValueError("Norman input must come from the frozen processed archive")
+    if (
+        entry.preprocessing.input_expression_state != "verified_upstream_log1p"
+        or entry.preprocessing.expression_scale_action != "preserve_verified_upstream"
+        or entry.preprocessing.normalize_total is not None
+        or entry.preprocessing.log1p
+    ):
+        raise ValueError("Norman must preserve its verified upstream expression scale")
+    if int(adata.n_vars) != 5045:
+        raise ValueError("frozen upstream Norman artifact must contain exactly 5,045 genes")
     _require_finite_nonnegative(adata.X, label="upstream Norman log expression")
     source_condition_count = int(adata.obs[entry.source_metadata.condition_column].nunique())
     canonical, metadata = canonicalize_metadata(adata, entry)
-    sc = _require_scanpy()
-
-    if hasattr(canonical.X, "data"):
-        canonical.X.data = np.expm1(canonical.X.data)
-    else:
-        canonical.X = np.expm1(np.asarray(canonical.X))
-    sc.pp.normalize_total(canonical, target_sum=4000)
-    sc.pp.log1p(canonical)
     _require_finite_nonnegative(canonical.X, label="canonical Norman expression")
     expression_gene_count = int(canonical.n_vars)
     canonical, forced_targets = _mark_full_upstream_axes(canonical, entry)
@@ -418,7 +446,8 @@ def preprocess_norman(
         canonical.uns.pop(stale_key, None)
     canonical.uns["gradpert_preprocessing"] = {
         "profile_id": entry.preprocessing.profile_id,
-        "expression_scale_action": "expm1_then_normalize_total_4000_then_log1p",
+        "input_expression_state": entry.preprocessing.input_expression_state,
+        "expression_scale_action": "preserved_verified_gears_processed_log_expression",
         "condition_alias_policy": "sort_active_components_and_place_ctrl_last",
         "upstream_cell_type_audit": entry.source_metadata.observed_cell_type_values,
         "canonical_cell_type": entry.source_metadata.canonical_cell_type_value,
@@ -427,6 +456,7 @@ def preprocess_norman(
     }
     report = UpstreamProcessedPreprocessingReport(
         dataset_id=entry.dataset_id,
+        input_expression_state=entry.preprocessing.input_expression_state,
         n_cells_input=int(adata.n_obs),
         n_cells_output=int(canonical.n_obs),
         n_expression_genes=expression_gene_count,
@@ -434,7 +464,7 @@ def preprocess_norman(
         n_source_conditions=source_condition_count,
         n_canonical_conditions=metadata.n_conditions,
         n_condition_aliases_collapsed=source_condition_count - metadata.n_conditions,
-        expression_scale_action="expm1_then_normalize_total_4000_then_log1p",
+        expression_scale_action="preserved_verified_gears_processed_log_expression",
         forced_candidate_targets=forced_targets,
         missing_candidate_targets=(),
         metadata=metadata,
@@ -513,6 +543,13 @@ def preprocess_raw_within_cell(
         raise ValueError("frozen within-cell normalization must be normalize_total(4000)+log1p")
     if entry.preprocessing.hvg_count != 5000:
         raise ValueError("frozen within-cell HVG count must be 5000")
+    if (
+        entry.preprocessing.input_expression_state != "raw_integer_counts"
+        or entry.preprocessing.expression_scale_action != "normalize_total_4000_then_log1p"
+    ):
+        raise ValueError("raw within-cell registry must declare the raw-count transform")
+
+    _require_raw_integer_counts(adata.X, label="raw within-cell expression")
 
     filtered, filter_report = filter_cells_by_perturbation_effect(adata, entry)
     canonical, metadata_report = canonicalize_metadata(filtered, entry)
@@ -539,6 +576,9 @@ def preprocess_raw_within_cell(
     )
     prepared.uns["gradpert_preprocessing"] = {
         "profile_id": entry.preprocessing.profile_id,
+        "input_expression_state": entry.preprocessing.input_expression_state,
+        "input_expression_audit": "finite_nonnegative_integer_counts_full_matrix",
+        "expression_scale_action": entry.preprocessing.expression_scale_action,
         "filter_before_condition_encoding": True,
         "normalize_total": 4000,
         "log1p": True,
@@ -552,6 +592,8 @@ def preprocess_raw_within_cell(
 
     report = WithinCellPreprocessingReport(
         dataset_id=entry.dataset_id,
+        input_expression_state=entry.preprocessing.input_expression_state,
+        expression_scale_action=entry.preprocessing.expression_scale_action,
         n_cells_input=int(adata.n_obs),
         n_cells_filtered=int(prepared.n_obs),
         n_genes_input=int(adata.n_vars),

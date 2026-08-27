@@ -1,0 +1,58 @@
+{
+  "config": {
+    "edge_feat_map_type": "linear",
+    "expander_degree": 3,
+    "graph_sources": [
+      "string",
+      "go"
+    ],
+    "graph_top_k": 20,
+    "layer_type": "exphormer_w_mpnn",
+    "num_heads": 2,
+    "num_layers": 4,
+    "hidden_dim": 128,
+    "dropout": 0.1,
+    "add_reverse_edges": true,
+    "add_self_loops": true,
+    "union_edge_type": "multihot",
+    "use_edge_weight": false
+  },
+  "official_commit": "08d82eea86746b044cf7531f4ec8c5f60e1cb73f",
+  "official_config_path": "configs/config-exphormer-mg.yaml",
+  "official_exphormer_path": "gspp/models/pert_models/exphormer.py",
+  "official_exphormer_sha256": "bbf96278e6d727abe29fc4a4d2c213ff41bad595269387ad4ff9f819952e9560",
+  "official_multi_graph_path": "gspp/models/pert_models/multi_graph.py",
+  "official_multi_graph_sha256": "d69a86890bf463d11670a36299662695e0670497d2cb5349c324358a8322da07",
+  "schema_version": "txpert-exphormer-mg-alignment-v2",
+  "synthetic_union_golden": {
+    "channel_order": [
+      "string",
+      "string:reverse",
+      "go",
+      "go:reverse",
+      "self"
+    ],
+    "generation": {
+      "device": "cpu",
+      "expander_degree": 0,
+      "official_class": "gspp.models.pert_models.exphormer.ExphormerModel",
+      "official_commit": "08d82eea86746b044cf7531f4ec8c5f60e1cb73f",
+      "union_edge_type": "multihot"
+    },
+    "ordered_by_edge": [
+      {"edge": [0, 0], "membership": [0, 0, 0, 0, 1]},
+      {"edge": [0, 1], "membership": [1, 0, 0, 1, 0]},
+      {"edge": [1, 0], "membership": [0, 1, 1, 0, 0]},
+      {"edge": [1, 1], "membership": [0, 0, 0, 0, 1]},
+      {"edge": [1, 2], "membership": [0, 1, 1, 0, 0]},
+      {"edge": [1, 3], "membership": [1, 0, 0, 0, 0]},
+      {"edge": [2, 1], "membership": [1, 0, 0, 1, 0]},
+      {"edge": [2, 2], "membership": [0, 0, 0, 0, 1]},
+      {"edge": [3, 1], "membership": [0, 1, 0, 0, 0]},
+      {"edge": [3, 3], "membership": [0, 0, 0, 0, 1]},
+      {"edge": [3, 4], "membership": [1, 0, 0, 1, 0]},
+      {"edge": [4, 3], "membership": [0, 1, 1, 0, 0]},
+      {"edge": [4, 4], "membership": [0, 0, 0, 0, 1]}
+    ]
+  }
+}

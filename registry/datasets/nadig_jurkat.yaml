@@ -40,6 +40,8 @@ canonical_metadata:
 preprocessing:
   profile_id: txpert_within_cell_v1
   signal_filter: "target-expression lower-tail filter from frozen preprocessing profile"
+  input_expression_state: raw_integer_counts
+  expression_scale_action: normalize_total_4000_then_log1p
   normalize_total: 4000
   log1p: true
   hvg_count: 5000

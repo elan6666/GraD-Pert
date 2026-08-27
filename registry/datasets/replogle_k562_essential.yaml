@@ -40,10 +40,12 @@ canonical_metadata:
 preprocessing:
   profile_id: txpert_within_cell_v1
   signal_filter: "audit frozen upstream strong-perturbation filter"
-  normalize_total: 4000
-  log1p: true
+  input_expression_state: verified_upstream_log1p
+  expression_scale_action: preserve_verified_upstream
+  normalize_total: null
+  log1p: false
   hvg_count: 5000
-  hvg_fit_scope: independent_cell_context
+  hvg_fit_scope: upstream_frozen_and_audited
   forced_non_hvg_policy: known_candidate_targets_only
 benchmark_condition_policy:
   policy_id: gears_default_graph_intersection_v1

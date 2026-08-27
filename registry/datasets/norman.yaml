@@ -40,8 +40,10 @@ canonical_metadata:
 preprocessing:
   profile_id: gears_norman_audited_v1
   signal_filter: "audit upstream GEARS-targeted processed artifact"
-  normalize_total: 4000
-  log1p: true
+  input_expression_state: verified_upstream_log1p
+  expression_scale_action: preserve_verified_upstream
+  normalize_total: null
+  log1p: false
   hvg_count: null
   hvg_fit_scope: upstream_frozen_and_audited
   forced_non_hvg_policy: known_candidate_targets_only

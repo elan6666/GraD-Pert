@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 import numpy as np
 
-from gradpert.config import ExperimentConfig, load_experiment_config
+from gradpert.config import ExperimentConfig, NativeArchitectureOptions, load_experiment_config
 from gradpert.contracts import RunManifest, ServerArtifactPointer
 from gradpert.data._io import atomic_json, atomic_text
 from gradpert.evaluation import CanonicalEvaluationData
@@ -26,14 +26,24 @@ from gradpert.execution.identity import (
     inspect_environment,
     inspect_source_identity,
 )
-from gradpert.graphs import load_dataset_graph_topology
+from gradpert.features import (
+    build_genept_coverage_plan,
+    build_ordered_genept_matrix,
+    verify_genept_emb_b,
+)
+from gradpert.graphs import GraphTopology, load_dataset_graph_topology
 from gradpert.hashing import sha256_file, sha256_json
 from gradpert.modeling import CenterState, GraDPertJointModel
-from gradpert.pilots import load_reduced_graph_topology
+from gradpert.pilots import (
+    ReducedGraphManifest,
+    VNextGraphManifest,
+    load_reduced_graph_topology,
+    load_vnext_graph_topology,
+)
 from gradpert.training.checkpoint import CheckpointIdentity
 from gradpert.training.data import CanonicalTrainingData, write_training_data_receipt
 from gradpert.training.inference import predict_frozen_controls
-from gradpert.training.step import GraDPertStepEngine, build_native_optimizer
+from gradpert.training.step import GraDPertStepEngine, LossWeights, build_native_optimizer
 from gradpert.training.systems import NativeSystemOptions
 from gradpert.training.trainer import GraDPertTrainer
 from gradpert.training.validation import evaluate_validation_macro_delta
@@ -85,6 +95,46 @@ def _optional_integer_parameter(config: ExperimentConfig, name: str, *, default:
     if not isinstance(parameter.value, int) or isinstance(parameter.value, bool):
         raise ValueError(f"model parameter {name} must be an integer")
     return parameter.value
+
+
+def _optional_float_parameter(config: ExperimentConfig, name: str, *, default: float) -> float:
+    parameter = config.model.parameters.get(name)
+    if parameter is None:
+        return default
+    value = parameter.value
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        raise ValueError(f"model parameter {name} must be numeric")
+    return float(value)
+
+
+def _native_loss_weights(config: ExperimentConfig) -> LossWeights:
+    explicit_names = (
+        "prediction_loss_weight",
+        "condition_consistency_loss_weight",
+        "masked_node_loss_weight",
+        "spread_loss_weight",
+    )
+    explicit = [name in config.model.parameters for name in explicit_names]
+    if any(explicit):
+        if not all(explicit):
+            raise ValueError("explicit native loss weights must declare all four terms")
+        return LossWeights(
+            prediction=_optional_float_parameter(config, "prediction_loss_weight", default=1.0),
+            condition_consistency=_optional_float_parameter(
+                config, "condition_consistency_loss_weight", default=0.8
+            ),
+            masked_node=_optional_float_parameter(config, "masked_node_loss_weight", default=0.4),
+            spread=_optional_float_parameter(config, "spread_loss_weight", default=0.1),
+        )
+
+    legacy_ssl = _optional_float_parameter(config, "ssl_weight", default=0.1)
+    legacy_spread = _optional_float_parameter(config, "spread_weight", default=0.1)
+    return LossWeights(
+        prediction=1.0,
+        condition_consistency=legacy_ssl,
+        masked_node=legacy_ssl,
+        spread=legacy_ssl * legacy_spread,
+    )
 
 
 def _native_system_options(config: ExperimentConfig) -> NativeSystemOptions:
@@ -260,10 +310,11 @@ def run_native_experiment(
     prototype_count = _integer_parameter(config, "prototype_count")
     max_epochs = _training_integer(config, "max_epochs")
     system_options = _native_system_options(config)
+    architecture = NativeArchitectureOptions.from_parameters(config.model.parameters)
     cold_start_started = time.perf_counter()
-    graph_axis_policy = _optional_string_parameter(config, "graph_axis_policy")
-    reduced_manifest = None
-    if graph_axis_policy is None or graph_axis_policy == "canonical_full":
+    graph_axis_policy = architecture.graph_axis_policy
+    reduced_manifest: ReducedGraphManifest | VNextGraphManifest | None = None
+    if graph_axis_policy == "canonical_full":
         topology = load_dataset_graph_topology(
             dataset_id=config.dataset_id,
             protocol_id=config.data.protocol_id,
@@ -272,7 +323,10 @@ def run_native_experiment(
         graph_manifest_path = (
             Path(data_root) / config.dataset_id / config.data.protocol_id / ("graphs/manifest.json")
         )
-    elif graph_axis_policy == "recomputed_top500_union_candidate_targets":
+    elif graph_axis_policy in {
+        "recomputed_top500_union_candidate_targets",
+        "recomputed_hvg_union_candidate_targets",
+    }:
         relative_root = _optional_string_parameter(config, "runtime_graph_root")
         if relative_root is None:
             raise ValueError("reduced graph policy requires runtime_graph_root")
@@ -282,7 +336,18 @@ def run_native_experiment(
         ):
             raise ValueError("runtime_graph_root must be a safe relative path")
         graph_root = Path(data_root).joinpath(*relative_path.parts)
-        topology, reduced_manifest = load_reduced_graph_topology(graph_root)
+        if graph_axis_policy == "recomputed_top500_union_candidate_targets":
+            topology, reduced_manifest = load_reduced_graph_topology(graph_root)
+        else:
+            topology, reduced_manifest = load_vnext_graph_topology(graph_root)
+            if architecture.gene_feature_mode == "learned_id":
+                if reduced_manifest.gene_feature_policy != "learned_id":
+                    raise ValueError("learned-ID run requires the unfiltered vNext graph")
+            elif (
+                reduced_manifest.gene_feature_policy != "genept_emb_b_exact"
+                or reduced_manifest.genept_source_sha256 != architecture.genept_expected_sha256
+            ):
+                raise ValueError("GenePT run requires the exact filtered vNext graph lineage")
         if (
             reduced_manifest.dataset_id != config.dataset_id
             or reduced_manifest.protocol_id != config.data.protocol_id
@@ -291,6 +356,11 @@ def run_native_experiment(
         graph_manifest_path = graph_root / "manifest.json"
     else:
         raise ValueError(f"unsupported graph_axis_policy: {graph_axis_policy}")
+    topology = GraphTopology(
+        gene_ids=topology.gene_ids,
+        sources=topology.sources,
+        active_sources=architecture.graph_sources,
+    )
 
     with (
         CanonicalTrainingData(
@@ -328,10 +398,61 @@ def run_native_experiment(
             batch_size=train_batch_size,
             max_unique_conditions=max_unique_conditions,
         )
+        genept_tensor = None
+        genept_receipt: dict[str, object] | None = None
+        if architecture.gene_feature_mode != "learned_id":
+            artifact_label = _optional_string_parameter(config, "genept_artifact_path")
+            if artifact_label is None:
+                raise ValueError("GenePT feature mode requires genept_artifact_path")
+            artifact_path = Path(artifact_label)
+            if not artifact_path.is_absolute() or not artifact_path.is_relative_to(
+                Path("/data/yilangliu")
+            ):
+                raise ValueError("GenePT artifact must be an absolute /data/yilangliu path")
+            artifact = verify_genept_emb_b(artifact_path)
+            targets = tuple(
+                sorted(
+                    {
+                        component
+                        for condition in (
+                            *training_data.split.train_conditions,
+                            *training_data.split.val_conditions,
+                            *training_data.split.test_conditions,
+                        )
+                        for component in condition.split("+")
+                        if component != training_data.split.control_condition_id
+                    }
+                )
+            )
+            coverage = build_genept_coverage_plan(
+                artifact,
+                ordered_graph_gene_ids=training_data.graph_gene_ids,
+                perturbation_target_gene_ids=targets,
+            )
+            if coverage.retained_graph_gene_ids != training_data.graph_gene_ids:
+                raise ValueError(
+                    "GenePT run requires its prefiltered, re-pruned runtime graph artifact"
+                )
+            ordered = build_ordered_genept_matrix(artifact, coverage)
+            genept_tensor = torch.from_numpy(ordered.values.copy())
+            genept_receipt = {
+                **coverage.to_receipt(),
+                "artifact_path": str(artifact.source_path),
+                "artifact_size_bytes": artifact.source_size_bytes,
+                "embedding_width": artifact.embedding_width,
+                "ordered_matrix_sha256": ordered.matrix_sha256,
+            }
+            _write_or_require_json(
+                small_root / "genept_feature.json",
+                genept_receipt,
+                resume=resume,
+            )
         model = GraDPertJointModel(
             graph_gene_count=len(training_data.graph_gene_ids),
             expression_gene_count=training_data.manifest.n_expression_genes,
             prototype_count=prototype_count,
+            architecture=architecture,
+            genept_matrix=genept_tensor,
         ).to(device)
         optimizer = build_native_optimizer(
             model,
@@ -359,6 +480,8 @@ def run_native_experiment(
             run_seed=run_seed,
             total_schedule_steps=max_epochs * steps_per_epoch,
             heldout_target_ids=heldout_ids,
+            architecture=architecture,
+            loss_weights=_native_loss_weights(config),
             resident_graph_tensors=system_options.resident_graph_tensors,
             capture_equivalence_health=system_options.enabled,
         )
@@ -386,7 +509,10 @@ def run_native_experiment(
             "max_epochs": 1 if mode == "smoke" else max_epochs,
             "early_stopping_patience": int(config.training.early_stopping_patience.value),
             "validation_monitor": config.training.monitor,
-            "graph_axis_policy": graph_axis_policy or "canonical_full",
+            "graph_axis_policy": graph_axis_policy,
+            "native_architecture": architecture.payload(),
+            "native_architecture_sha256": architecture.payload_sha256,
+            "genept_feature": genept_receipt,
             "runtime_graph_gene_count": len(training_data.graph_gene_ids),
             "runtime_graph_gene_order_sha256": sha256_json(list(training_data.graph_gene_ids)),
             "systems_optimizations": system_options.payload(),
@@ -540,7 +666,9 @@ def run_native_experiment(
                     if mode == "full"
                     else "speed_only_one_epoch_metrics_non_decisional"
                 ),
-                "graph_axis_policy": graph_axis_policy or "canonical_full",
+                "graph_axis_policy": graph_axis_policy,
+                "native_architecture": architecture.payload(),
+                "native_architecture_sha256": architecture.payload_sha256,
                 "expression_gene_count": len(training_data.expression_gene_ids),
                 "output_gene_count": len(training_data.expression_gene_ids),
                 "evaluation_gene_count": len(training_data.expression_gene_ids),

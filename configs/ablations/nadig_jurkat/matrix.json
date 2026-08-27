@@ -1,0 +1,255 @@
+{
+  "canonical_split_count": 1,
+  "dataset_id": "nadig_jurkat",
+  "design_reference": "docs/design/GRADPERT_VNEXT_ABLATIONS.md",
+  "max_epochs": 10,
+  "row_count": 22,
+  "rows": [
+    {
+      "config_path": "configs/ablations/nadig_jurkat/a0_default/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "6fea049bc856760ad1b0aa01cbc3b03f36d41c3b4400a6148d82c4115bf8e582",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "a0_default"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/l1_ring_256/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "754fc0088575961a2a716676a60b5d65efa3f705585e14c028f907c5bce3451d",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "l1_ring_256"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/l2_fanout_512/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "ad880e314ecb61f535810995fc547b8f82408de2456e5819dbf8a9f09d1a5816",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "l2_fanout_512"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/l3_ring_512/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "fb88eda0ee9a212317a9a491f6f72d326937a38e5765e29e4575cadef6ac72f6",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "l3_ring_512"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/l4_anchor_mask_4/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "6e2a64089d31cf1c6e3c78246616f901c0c8fcd6908aed6bad7262167ac99750",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "l4_anchor_mask_4"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/m1_single_string_gat/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "d458e4a2d9aef1c2a03c44c6e38ee081c136a908a97d31acfefcf2d95f3a971f",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "m1_single_string_gat"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/m2_single_string_transformer/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "2c50adc91b8ec462e6df6832cecd304b2edbe668a9b339d8459745d73735b13a",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "m2_single_string_transformer"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/m4_adaptive_source_gat/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "ccafb4abb1d55b81b1c3bf607585ee19611fc412347749704f586798e387dfd3",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "m4_adaptive_source_gat"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/w1_string_edge_feature/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "0cbf9d3a0613804134591bc4b2b2cac6d10d3c4e2c1b60a1a9d78320315de907",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "w1_string_edge_feature"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/w2_string_fixed_prior/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "a66a2b6748e6e42341070a5db8d8d9c0a78bafe4d30d0a71724a394658aa0f8a",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "w2_string_fixed_prior"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/w3_string_prior_residual/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "2a004fcccff119ce6ea92f130ec0616e7e77c595af8b1503137169c05b25f8cc",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "w3_string_prior_residual"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/ws_string_weight_shuffle/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "9491c82fd62852fef6c609d18da2aedf8644cfd5942bd85b41e562ed92693a18",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "ws_string_weight_shuffle"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/d1_control_mlp/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "cfdff3c9dcc80461b2cb85cdcb199ced7fb74f41ad445fd55deb1cdc0dc330f8",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "d1_control_mlp"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/d2_control_transformer/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "7de3304726fdd2ce0f71062a74e27fc6d8f8db6b9524f936db5804d3accd247d",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "d2_control_transformer"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/e1_frozen_genept/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "413643873ea82a920821a612b465e27271132ab5fa826845a33d514c90da798b",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": true,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "e1_frozen_genept"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/e2_genept_id_residual/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "8777c43be4fef1c221a1aaae45f358ff68da43a1938ef8880e24d0ee03ba1feb",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": true,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "e2_genept_id_residual"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/e3_genept_initialized/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "87200cea80606c2ea3da025b59ad23147c5e8eb6c8b537e5a02ebf91db96f7f2",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": true,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "e3_genept_initialized"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/es_genept_shuffle/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "468dd7e2eb92d45e6461cc60ee4400c6335a2cf9dc3540f7e833bd0ed4150702",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": true,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "es_genept_shuffle"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/o1_no_condition/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "af459c20d699ab7f9a493de2075578bfd6035d0e47935d32958d733caea41475",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "o1_no_condition"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/o2_no_masked_node/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "bdeaede4e010cf3ba083b10e9ed9040c5b256507c5135235f385e7fc1a9023da",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "o2_no_masked_node"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/o3_no_spread/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "e0b10be234a35ae494b494149739570c0f3cc288de482f691a6bf20174cc6a87",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "o3_no_spread"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/g1_canonical_full/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "226f2635a6fc8cb2934ee263284c7a8d2014e1d77d182e891656a7c1c280843e",
+      "dataset_id": "nadig_jurkat",
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "split_policy": "frozen_canonical",
+      "variant_id": "g1_canonical_full"
+    }
+  ],
+  "run_seeds": [
+    1
+  ],
+  "schema_version": "1"
+}

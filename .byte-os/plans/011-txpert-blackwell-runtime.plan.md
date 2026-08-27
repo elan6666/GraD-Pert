@@ -1,3 +1,11 @@
+---
+id: 011
+status: complete
+wave: 1
+depends_on: []
+updated_at: 2026-08-28T03:15:00+08:00
+---
+
 # Plan 011: TxPert Blackwell runtime compatibility
 
 - Status: complete; CUDA build verified and execution proceeds under plan 012

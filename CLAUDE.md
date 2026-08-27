@@ -8,7 +8,9 @@ Hard boundaries:
 
 - Native package is standalone `gradpert`; do not import/call upstream model
   repositories or introduce upstream-named native classes.
-- v1 is B2 only on the five frozen datasets; no ablations or cross-cell work.
+- Historical v1 is B2 only on the five frozen datasets. The separately
+  versioned B2-vNext contract permits only its preregistered config-driven
+  Nadig Jurkat ablations; cross-cell work and extra entrypoints remain blocked.
 - Configs are self-contained model-by-dataset YAML files, never one global file.
 - Formal compute is server-only and requires local/GitHub/server commit parity.
 - Data, canonical H5AD, checkpoints, and explicitly requested single

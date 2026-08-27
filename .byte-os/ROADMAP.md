@@ -16,11 +16,11 @@
 
 ## v1 improvements
 
-- Only items discovered through v0 failures that improve reliability,
-  observability, throughput, or artifact usability without changing the model
-  or experiment question.
+- Active B2-vNext extension: strict native architecture options, HVG512 runtime
+  graph, Fanout locals, single/multi graph encoders, STRING-weight variants,
+  decoder variants, GenePT preflight/features, golden parity tests, and the
+  frozen Nadig Jurkat 10-epoch matrix.
 
 ## Later opportunities
 
 - All ideas in `.byte-os/FUTURE.md`; none are active or dependencies of v0.
-

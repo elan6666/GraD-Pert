@@ -570,3 +570,34 @@
   historical 100-epoch schedule while enforcing 200 epochs and all-seven B2
   systems only for current formal configs. No historical run or receipt is
   modified.
+
+## 2026-08-28 — B2-vNext integrated build and development gates
+
+- Implemented the A0 default and all 22 preregistered Nadig Jurkat ablation
+  configs through one strict native architecture object and the existing
+  `gradpert model pilot` lifecycle. No ablation-specific trainer/model main was
+  introduced.
+- Added TxPert-aligned full-cell-line pre-split HVG512 materialization after
+  weak-signal filtering, exact target union/order receipts, deterministic
+  Fanout views, native single/multi graph encoders, D1/D2 decoders and four
+  exact GenePT emb_b routes.
+- Expression-scale handling is explicit: RPE1/Jurkat/HepG2 require audited raw
+  integer counts before normalize-4000/log1p/Top5000; pinned K562 and Norman
+  processed matrices preserve their original X values and axes. A real Norman
+  server audit observed exact before/after sparse matrix equality.
+- Closed review findings: independent Transformer views no longer share
+  training BatchNorm statistics; W1/W2/W3/WS freeze one full-topology STRING
+  mapping; resident sparse prediction unions are cached; D2/GenePT routes have
+  gradient/EMA/checkpoint/resume tests; manifests reject duplicate/shuffled/
+  extra axes; the launcher validates every row before creating a process.
+- Real development Jurkat materialization completed on 238,977 filtered cells
+  and 2,393 conditions: 512 direct HVGs, 2,372 candidate targets, exact union of
+  2,809 graph genes, 51,495 STRING and 38,287 GO nonself edges.
+- Local gates: 253 passed with 11 honest missing-dependency/pending-receipt
+  skips, Ruff, format, diff check, focused mypy and isolated build passed.
+- Server development gates with Torch/PyG/anndata: targeted 82 passed; full
+  315 passed with only three intentionally pending formal-receipt skips; Ruff,
+  format, strict mypy on 72 source files and isolated wheel/sdist build passed.
+- Two read-only reviews reported no remaining model-side P0/P1 blocker. Formal
+  readiness still requires one clean public commit, corrected exact-commit
+  dataset/HVG/GenePT receipts and the one-epoch A0 CUDA hard gate.
