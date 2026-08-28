@@ -341,9 +341,13 @@ def run_native_experiment(
             topology, reduced_manifest = load_reduced_graph_topology(graph_root)
         else:
             topology, reduced_manifest = load_vnext_graph_topology(graph_root)
-            if architecture.gene_feature_mode == "learned_id":
+            prior_label = _optional_string_parameter(config, "genept_artifact_path")
+            uses_exact_axis_npz = prior_label is not None and Path(prior_label).suffix == ".npz"
+            if architecture.gene_feature_mode == "learned_id" or uses_exact_axis_npz:
                 if reduced_manifest.gene_feature_policy != "learned_id":
-                    raise ValueError("learned-ID run requires the unfiltered vNext graph")
+                    raise ValueError(
+                        "learned-ID and exact-axis NPZ runs require the unfiltered vNext graph"
+                    )
             elif (
                 reduced_manifest.gene_feature_policy != "genept_emb_b_exact"
                 or reduced_manifest.genept_source_sha256 != architecture.genept_expected_sha256
