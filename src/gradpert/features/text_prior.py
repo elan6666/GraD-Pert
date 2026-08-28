@@ -21,6 +21,7 @@ class TextPriorArtifact:
     model: str
     embedding_width: int
     gene_order_sha256: str
+    zero_vector_gene_ids: tuple[str, ...]
 
 
 def verify_text_prior_npz(
@@ -51,6 +52,9 @@ def verify_text_prior_npz(
     if not np.isfinite(values).all():
         raise ValueError("text-prior matrix contains non-finite values")
     values = np.ascontiguousarray(values, dtype=np.float32)
+    zero_vector_gene_ids = tuple(
+        gene_id for gene_id, row in zip(gene_ids, values, strict=True) if not np.any(row)
+    )
     values.setflags(write=False)
     return TextPriorArtifact(
         source_path=source.resolve(),
@@ -61,4 +65,5 @@ def verify_text_prior_npz(
         model=model,
         embedding_width=int(values.shape[1]),
         gene_order_sha256=sha256_json(list(gene_ids)),
+        zero_vector_gene_ids=zero_vector_gene_ids,
     )

@@ -22,6 +22,7 @@ def test_verify_text_prior_npz_requires_exact_axis_and_hash(tmp_path):
     )
     assert artifact.embedding_width == 2
     assert artifact.model == "test-prior"
+    assert artifact.zero_vector_gene_ids == ("C12orf45",)
     with pytest.raises(ValueError, match="gene axis"):
         verify_text_prior_npz(
             path,

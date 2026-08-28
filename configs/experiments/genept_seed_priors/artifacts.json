@@ -1,0 +1,32 @@
+{
+  "schema_version": "genept-seed-prior-artifacts-v1",
+  "conditions": [
+    {
+      "condition_id": "latest_genept_model3",
+      "artifact_path": "/data/yilangliu/GenePT-Seed/data/gradpert-jurkat/e14dc759fa37/genept_latest_model3_Jurkat_axis.npz",
+      "artifact_sha256": "79a7033a3d5954a2450935b84e9661500e24fe2ab7e1ec5c4ce6c463b80d02e7",
+      "model": "GenePT-latest-model3-protein-aware",
+      "gene_count": 2809,
+      "embedding_width": 3072,
+      "zero_vector_gene_count": 60
+    },
+    {
+      "condition_id": "genept_seed",
+      "artifact_path": "/data/yilangliu/GenePT-Seed/data/gradpert-jurkat/e14dc759fa37/genept_seed_Jurkat_axis_doubao.npz",
+      "artifact_sha256": "7740c0b8089ffb0d3271e04312c01ea2918b6f4ee0053206df6f03f1c2baa3a4",
+      "model": "doubao-embedding-vision",
+      "gene_count": 2809,
+      "embedding_width": 2048,
+      "zero_vector_gene_count": 0
+    },
+    {
+      "condition_id": "genept_seed_goexp",
+      "artifact_path": "/data/yilangliu/GenePT-Seed/data/gradpert-jurkat/e14dc759fa37/genept_seed_goexp_Jurkat_axis_doubao.npz",
+      "artifact_sha256": "be5de8e6f1db405a7e891558bbf9032558ae86a4e5c2c45bbd9f8b18cd2ffff1",
+      "model": "doubao-embedding-vision",
+      "gene_count": 2809,
+      "embedding_width": 2048,
+      "zero_vector_gene_count": 0
+    }
+  ]
+}

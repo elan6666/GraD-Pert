@@ -429,6 +429,9 @@ def run_native_experiment(
                     "gene_count": len(prior.gene_ids),
                     "gene_order_sha256": prior.gene_order_sha256,
                     "embedding_width": prior.embedding_width,
+                    "zero_vector_gene_count": len(prior.zero_vector_gene_ids),
+                    "zero_vector_gene_ids": list(prior.zero_vector_gene_ids),
+                    "zero_vector_policy": "learned_id_residual",
                     "feature_mode": architecture.gene_feature_mode,
                 }
             else:
