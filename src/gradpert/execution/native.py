@@ -246,6 +246,8 @@ def run_native_experiment(
     repository_root: str | Path,
     formal: bool,
     development_commit: str | None = None,
+    source_publication_receipt: str | Path | None = None,
+    source_publication_receipt_sha256: str | None = None,
     resume: bool = False,
 ) -> NativeRunResult:
     """Run one isolated smoke/pilot/full lifecycle with exactly one final test access."""
@@ -283,6 +285,8 @@ def run_native_experiment(
         formal=formal,
         expected_repository=config.source_code.repository,
         development_commit=development_commit,
+        publication_receipt=source_publication_receipt,
+        expected_publication_receipt_sha256=source_publication_receipt_sha256,
     )
     environment = inspect_environment(repository_root, device_name=device_name)
     config_sha256 = sha256_file(config_file)

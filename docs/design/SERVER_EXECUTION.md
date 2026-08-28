@@ -27,6 +27,17 @@ SSH remote dynamic forward bound only to server loopback; the formal check must
 still execute `git ls-remote` against the configured GitHub `origin` and match
 the exact public ref. A local tracking ref or copied bundle alone is not enough.
 
+For a multi-coordinate queue, that live check may be sealed exactly once after
+the final clean commit is synchronized and immediately before the queue starts.
+`gradpert source publication-receipt` writes a new immutable receipt containing
+the repository, configured remote URL/ref, published commit, source-tree hash,
+verification method and time. The launch contract pins its SHA-256. Every row
+still recomputes local HEAD, clean-tree, origin URL and source-tree identity,
+then accepts the receipt only when all fields and the exact file hash match.
+This removes redundant network access between long-running coordinates without
+allowing a tracking ref, copied bundle, stale commit, changed tree or unpinned
+receipt to substitute for the live public verification.
+
 ## Formal compute boundary
 
 Server only:

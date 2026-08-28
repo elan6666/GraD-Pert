@@ -1,6 +1,6 @@
 ---
 id: 026
-status: completed
+status: complete
 wave: 2
 depends_on: []
 updated_at: 2026-08-28T05:34:27+08:00

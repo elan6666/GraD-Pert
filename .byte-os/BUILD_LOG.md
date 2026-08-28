@@ -629,3 +629,21 @@
   No H5AD, NPZ, PKL, checkpoint or evaluator array was transferred. The real
   ordered-control receipts reach 9.64 MB, so the bounded small-sync per-file
   limit is raised from 8 to 16 MiB while the total limit remains 128 MiB.
+
+## 2026-08-29 — Queue-scoped publication receipt repair
+
+- The 8221 Local Graph GPU1 queue completed L3 exactly, then L4 failed before
+  model construction when its second live `git ls-remote` could no longer
+  reach GitHub through the expired loopback proxy. The frozen failure receipt
+  returned 1. GPU0 was stopped per contract with A0 at 3,422/5,820 steps; L2
+  had not started. The whole lineage remained zero-PKL and source-clean.
+- Plan 027 adds one live queue-preflight publication receipt rather than
+  weakening publication identity. The receipt is immutable and externally
+  hash-pinned. Every row rechecks local HEAD, clean tree, origin and source-tree
+  hash, and rejects a missing pair, changed receipt, stale commit or stale tree
+  before model construction.
+- Local verification passed 262 tests with eight honest missing-dependency
+  skips, full Ruff and format, isolated wheel/sdist build, focused strict mypy,
+  diff check, and a real temporary Git/CLI receipt creation-and-consumption
+  workflow. Exact-environment full mypy and Torch-backed tests remain server
+  gates.

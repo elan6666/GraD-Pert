@@ -20,6 +20,7 @@ from typing import Any, Literal
 
 from gradpert.config import load_experiment_config
 from gradpert.data._io import atomic_json
+from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file
 from gradpert.pilots import GenePTAvailabilityReceipt
 
@@ -214,8 +215,10 @@ def _command(
     python_executable: str,
     data_root: Path,
     repository_root: Path,
+    source_publication_receipt: Path | None,
+    source_publication_receipt_sha256: str | None,
 ) -> list[str]:
-    return [
+    command = [
         python_executable,
         "-m",
         "gradpert",
@@ -238,6 +241,17 @@ def _command(
         "--formal",
         "--json",
     ]
+    if source_publication_receipt is not None:
+        assert source_publication_receipt_sha256 is not None
+        command.extend(
+            [
+                "--source-publication-receipt",
+                str(source_publication_receipt),
+                "--source-publication-receipt-sha256",
+                source_publication_receipt_sha256,
+            ]
+        )
+    return command
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -252,6 +266,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--variant", action="append", default=[])
     parser.add_argument("--genept-availability-receipt", type=Path)
     parser.add_argument("--python-executable", default=sys.executable)
+    parser.add_argument("--source-publication-receipt", type=Path)
+    parser.add_argument("--source-publication-receipt-sha256")
     parser.add_argument("--dry-run", action="store_true")
     return parser
 
@@ -259,6 +275,15 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     repository_root = args.repository_root.resolve(strict=True)
+    if (args.source_publication_receipt is None) != (
+        args.source_publication_receipt_sha256 is None
+    ):
+        raise ValueError("publication receipt path and hash must be provided together")
+    publication_receipt = (
+        None
+        if args.source_publication_receipt is None
+        else args.source_publication_receipt.resolve(strict=True)
+    )
     rows = load_ablation_matrix(args.matrix, repository_root=repository_root)
     plan = build_ablation_launch_plan(
         rows,
@@ -272,6 +297,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         "matrix_path": str(args.matrix.resolve(strict=True)),
         "matrix_sha256": sha256_file(args.matrix.resolve(strict=True)),
         "expected_source_commit": args.expected_source_commit,
+        "source_publication_receipt": (
+            None if publication_receipt is None else str(publication_receipt)
+        ),
+        "source_publication_receipt_sha256": args.source_publication_receipt_sha256,
         "row_count": len(plan),
         "rows": [asdict(row) for row in plan],
     }
@@ -280,6 +309,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     _require_git_source(repository_root, args.expected_source_commit)
+    if publication_receipt is not None:
+        expected_repository = load_experiment_config(plan[0].config_path).source_code.repository
+        inspect_source_identity(
+            repository_root,
+            formal=True,
+            expected_repository=expected_repository,
+            publication_receipt=publication_receipt,
+            expected_publication_receipt_sha256=args.source_publication_receipt_sha256,
+        )
     receipt_root = args.receipt_root.resolve()
     receipt_root.mkdir(parents=True, exist_ok=True)
     atomic_json(receipt_root / "launch-plan.json", plan_payload)
@@ -305,6 +343,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             python_executable=args.python_executable,
             data_root=args.data_root.resolve(strict=True),
             repository_root=repository_root,
+            source_publication_receipt=publication_receipt,
+            source_publication_receipt_sha256=args.source_publication_receipt_sha256,
         )
         result = subprocess.run(command, env=environment, check=False)
         atomic_json(

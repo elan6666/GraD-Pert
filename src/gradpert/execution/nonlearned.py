@@ -45,6 +45,8 @@ def run_nonlearned_experiment(
     repository_root: str | Path,
     formal: bool,
     development_commit: str | None = None,
+    source_publication_receipt: str | Path | None = None,
+    source_publication_receipt_sha256: str | None = None,
 ) -> NonlearnedRunResult:
     """Fit from canonical train rows and evaluate once on frozen test controls."""
 
@@ -64,6 +66,8 @@ def run_nonlearned_experiment(
         formal=formal,
         expected_repository=config.source_code.repository,
         development_commit=development_commit,
+        publication_receipt=source_publication_receipt,
+        expected_publication_receipt_sha256=source_publication_receipt_sha256,
     )
     environment = inspect_environment(
         repository_root,

@@ -2,17 +2,29 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: reviewing
+stage: reviewed
 current_workflow: byte-review
-next_workflow: byte-deliver
-review_verdict: ship_to_formal_preflight
-iteration_count: 2
+next_workflow: byte-build
+review_verdict: ship
+iteration_count: 3
 harness_status: ready
 hard_blocked: false
 updated_at: 2026-08-28T05:34:27+08:00
 ---
 
 # Status
+
+- Local Graph continuation repair is active under plan 027. In the clean 8221
+  lineage, L3 completed 10 epochs/5,820 steps/10 validations with zero PKL;
+  L4 then failed before model construction because the previously working
+  GitHub proxy disappeared before its redundant per-row `git ls-remote` call.
+  Per the frozen queue contract, A0 was interrupted at 3,422/5,820 steps and
+  L2 never started. All evidence is preserved and no coordinate was overwritten.
+- The bounded repair preserves the public-source gate while moving it to one
+  live, immutable, hash-pinned queue receipt. Each row must still match the
+  receipt SHA, repository, origin URL/ref, exact commit and source-tree hash,
+  plus its own clean worktree. Only A0/L2/L4 may run in the successor lineage;
+  completed L1 and L3 remain immutable cross-commit evidence.
 
 - B2-vNext implementation is published and synchronized at clean commit
   `a9421142c086c4fe6b88cd48343a2cc03b1e408a`. Exact-commit server gates passed

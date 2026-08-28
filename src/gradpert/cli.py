@@ -37,6 +37,18 @@ def _parser() -> argparse.ArgumentParser:
     doctor = subparsers.add_parser("doctor", help="Report the local runtime without changing it")
     doctor.add_argument("--json", action="store_true", dest="as_json")
 
+    source = subparsers.add_parser("source", help="Seal formal source publication identity")
+    source_subparsers = source.add_subparsers(dest="source_command", required=True)
+    publication = source_subparsers.add_parser(
+        "publication-receipt",
+        help="Verify the live public ref once and seal a queue-scoped receipt",
+    )
+    publication.add_argument("--repository-root", type=Path, required=True)
+    publication.add_argument("--expected-repository", required=True)
+    publication.add_argument("--remote-ref", default="refs/heads/main")
+    publication.add_argument("--output", type=Path, required=True)
+    publication.add_argument("--json", action="store_true", dest="as_json")
+
     config = subparsers.add_parser("config", help="Validate resolved experiment configs")
     config_subparsers = config.add_subparsers(dest="config_command", required=True)
     verify = config_subparsers.add_parser("verify", help="Verify the exact config matrix")
@@ -130,6 +142,8 @@ def _parser() -> argparse.ArgumentParser:
         run.add_argument("--repository-root", type=Path, required=True)
         run.add_argument("--formal", action="store_true")
         run.add_argument("--development-commit")
+        run.add_argument("--source-publication-receipt", type=Path)
+        run.add_argument("--source-publication-receipt-sha256")
         run.add_argument("--resume", action="store_true")
         run.add_argument("--json", action="store_true", dest="as_json")
 
@@ -144,6 +158,8 @@ def _parser() -> argparse.ArgumentParser:
     baseline.add_argument("--repository-root", type=Path, required=True)
     baseline.add_argument("--formal", action="store_true")
     baseline.add_argument("--development-commit")
+    baseline.add_argument("--source-publication-receipt", type=Path)
+    baseline.add_argument("--source-publication-receipt-sha256")
     baseline.add_argument("--json", action="store_true", dest="as_json")
 
     evaluation = subparsers.add_parser(
@@ -369,6 +385,30 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "doctor":
         return _doctor(args.as_json)
+    if args.command == "source" and args.source_command == "publication-receipt":
+        from gradpert.execution import create_source_publication_receipt
+        from gradpert.hashing import sha256_file
+
+        receipt = create_source_publication_receipt(
+            args.repository_root,
+            expected_repository=args.expected_repository,
+            output_path=args.output,
+            remote_ref=args.remote_ref,
+        )
+        publication_payload = {
+            "receipt": receipt.payload(),
+            "receipt_path": str(args.output.resolve(strict=True)),
+            "receipt_sha256": sha256_file(args.output.resolve(strict=True)),
+        }
+        if args.as_json:
+            print(json.dumps(publication_payload, sort_keys=True, separators=(",", ":")))
+        else:
+            print(
+                "published "
+                f"{receipt.published_commit} "
+                f"receipt_sha256={publication_payload['receipt_sha256']}"
+            )
+        return 0
     if args.command == "config" and args.config_command == "verify":
         report = verify_config_matrix(args.root)
         if args.as_json:
@@ -485,6 +525,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error("--development-commit is forbidden with --formal")
         if not args.formal and args.development_commit is None:
             parser.error("development execution requires --development-commit")
+        if (args.source_publication_receipt is None) != (
+            args.source_publication_receipt_sha256 is None
+        ):
+            parser.error("publication receipt path and hash must be provided together")
         result = run_native_experiment(
             config_path=args.config,
             data_root=args.data_root,
@@ -496,6 +540,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             repository_root=args.repository_root,
             formal=args.formal,
             development_commit=args.development_commit,
+            source_publication_receipt=args.source_publication_receipt,
+            source_publication_receipt_sha256=args.source_publication_receipt_sha256,
             resume=args.resume,
         )
         payload = {
@@ -524,6 +570,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error("--development-commit is forbidden with --formal")
         if not args.formal and args.development_commit is None:
             parser.error("development execution requires --development-commit")
+        if (args.source_publication_receipt is None) != (
+            args.source_publication_receipt_sha256 is None
+        ):
+            parser.error("publication receipt path and hash must be provided together")
         baseline_result = run_nonlearned_experiment(
             config_path=args.config,
             data_root=args.data_root,
@@ -532,6 +582,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             repository_root=args.repository_root,
             formal=args.formal,
             development_commit=args.development_commit,
+            source_publication_receipt=args.source_publication_receipt,
+            source_publication_receipt_sha256=args.source_publication_receipt_sha256,
         )
         payload = {
             "run_id": baseline_result.run_id,

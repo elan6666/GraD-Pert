@@ -6,7 +6,11 @@ from pathlib import Path
 import pytest
 
 import gradpert.execution.identity as identity_module
-from gradpert.execution.identity import inspect_source_identity
+from gradpert.execution.identity import (
+    create_source_publication_receipt,
+    inspect_source_identity,
+)
+from gradpert.hashing import sha256_file
 
 COMMIT = "a" * 40
 
@@ -119,3 +123,112 @@ def test_git_identity_timeout_fails_closed(tmp_path: Path, monkeypatch: pytest.M
 
     with pytest.raises(RuntimeError, match="Git ls-remote timed out after 30 seconds"):
         identity_module._git(tmp_path, "ls-remote", "origin")
+
+
+def test_hash_pinned_publication_receipt_replaces_only_redundant_remote_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    checkout = tmp_path / "checkout"
+    remote = tmp_path / "remote.git"
+    checkout.mkdir()
+    _write_source_tree(checkout)
+    _git(checkout, "init", "-b", "main")
+    _git(checkout, "config", "user.name", "Fixture")
+    _git(checkout, "config", "user.email", "fixture@example.com")
+    _git(checkout, "add", ".")
+    _git(checkout, "commit", "-m", "fixture")
+    subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+    _git(checkout, "remote", "add", "origin", str(remote))
+    _git(checkout, "push", "-u", "origin", "main")
+    receipt_path = tmp_path / "publication.json"
+
+    receipt = create_source_publication_receipt(
+        checkout,
+        expected_repository=str(remote),
+        output_path=receipt_path,
+    )
+    receipt_sha256 = sha256_file(receipt_path)
+    assert receipt.published_commit == _git(checkout, "rev-parse", "HEAD")
+
+    original_run = subprocess.run
+
+    def reject_live_remote(
+        command: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        if "ls-remote" in command:
+            raise AssertionError("a sealed queue row must not repeat the live remote check")
+        return original_run(command, **kwargs)
+
+    monkeypatch.setattr(identity_module.subprocess, "run", reject_live_remote)
+    identity = inspect_source_identity(
+        checkout,
+        formal=True,
+        expected_repository=str(remote),
+        publication_receipt=receipt_path,
+        expected_publication_receipt_sha256=receipt_sha256,
+    )
+    assert identity.formal_eligible is True
+    assert identity.publication_receipt_sha256 == receipt_sha256
+
+
+def test_publication_receipt_fails_closed_on_pairing_hash_and_source_drift(
+    tmp_path: Path,
+) -> None:
+    checkout = tmp_path / "checkout"
+    remote = tmp_path / "remote.git"
+    checkout.mkdir()
+    _write_source_tree(checkout)
+    _git(checkout, "init", "-b", "main")
+    _git(checkout, "config", "user.name", "Fixture")
+    _git(checkout, "config", "user.email", "fixture@example.com")
+    _git(checkout, "add", ".")
+    _git(checkout, "commit", "-m", "fixture")
+    subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+    _git(checkout, "remote", "add", "origin", str(remote))
+    _git(checkout, "push", "-u", "origin", "main")
+    receipt_path = tmp_path / "publication.json"
+    create_source_publication_receipt(
+        checkout,
+        expected_repository=str(remote),
+        output_path=receipt_path,
+    )
+    receipt_sha256 = sha256_file(receipt_path)
+
+    with pytest.raises(ValueError, match="path and hash"):
+        inspect_source_identity(
+            checkout,
+            formal=True,
+            expected_repository=str(remote),
+            publication_receipt=receipt_path,
+        )
+    with pytest.raises(ValueError, match="hash differs"):
+        inspect_source_identity(
+            checkout,
+            formal=True,
+            expected_repository=str(remote),
+            publication_receipt=receipt_path,
+            expected_publication_receipt_sha256="0" * 64,
+        )
+
+    (checkout / "src" / "module.py").write_text("VALUE = 2\n", encoding="utf-8")
+    _git(checkout, "add", ".")
+    _git(checkout, "commit", "-m", "successor")
+    with pytest.raises(ValueError, match="differs from the current formal source"):
+        inspect_source_identity(
+            checkout,
+            formal=True,
+            expected_repository=str(remote),
+            publication_receipt=receipt_path,
+            expected_publication_receipt_sha256=receipt_sha256,
+        )
+
+
+def test_publication_receipt_destination_is_immutable(tmp_path: Path) -> None:
+    destination = tmp_path / "publication.json"
+    destination.write_text("{}\n", encoding="utf-8")
+    with pytest.raises(FileExistsError, match="must be new"):
+        create_source_publication_receipt(
+            tmp_path,
+            expected_repository="https://github.com/elan6666/GraD-Pert.git",
+            output_path=destination,
+        )

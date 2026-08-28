@@ -8,6 +8,7 @@ import pytest
 from gradpert.execution.ablation_matrix import (
     build_ablation_launch_plan,
     load_ablation_matrix,
+    main,
 )
 from gradpert.hashing import sha256_json
 from gradpert.pilots import GenePTAvailabilityReceipt
@@ -84,3 +85,43 @@ def test_genept_variant_requires_preflight_receipt(tmp_path: Path) -> None:
             device="cuda:0",
             genept_availability_receipt=None,
         )
+
+
+def test_dry_plan_binds_queue_publication_receipt(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    publication = tmp_path / "publication.json"
+    publication.write_text("{}\n", encoding="utf-8")
+    receipt_sha256 = "a" * 64
+
+    assert (
+        main(
+            [
+                "--matrix",
+                str(MATRIX),
+                "--repository-root",
+                str(ROOT),
+                "--data-root",
+                str(tmp_path),
+                "--runs-root",
+                str(tmp_path / "runs"),
+                "--receipt-root",
+                str(tmp_path / "receipts"),
+                "--expected-source-commit",
+                "b" * 40,
+                "--device",
+                "cuda:0",
+                "--variant",
+                "a0_default",
+                "--source-publication-receipt",
+                str(publication),
+                "--source-publication-receipt-sha256",
+                receipt_sha256,
+                "--dry-run",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["source_publication_receipt"] == str(publication)
+    assert payload["source_publication_receipt_sha256"] == receipt_sha256

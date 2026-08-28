@@ -5,6 +5,8 @@ from typing import Any
 from gradpert.execution.identity import (
     EnvironmentIdentity,
     SourceIdentity,
+    SourcePublicationReceipt,
+    create_source_publication_receipt,
     inspect_environment,
     inspect_source_identity,
 )
@@ -14,6 +16,8 @@ __all__ = [
     "NativeRunResult",
     "NonlearnedRunResult",
     "SourceIdentity",
+    "SourcePublicationReceipt",
+    "create_source_publication_receipt",
     "inspect_environment",
     "inspect_source_identity",
     "run_native_experiment",
