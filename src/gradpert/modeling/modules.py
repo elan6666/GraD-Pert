@@ -357,8 +357,13 @@ class ConfigurableGeneGraphEncoder(nn.Module):
         self.genept_projection: nn.Linear | None = None
         self.register_buffer("_genept_matrix", None, persistent=False)
         if options.gene_feature_mode != "learned_id":
-            if genept_matrix is None or genept_matrix.shape != (n_genes, 1536):
-                raise ValueError("GenePT feature modes require an ordered [N,1536] matrix")
+            if (
+                genept_matrix is None
+                or genept_matrix.ndim != 2
+                or genept_matrix.shape[0] != n_genes
+                or genept_matrix.shape[1] < 1
+            ):
+                raise ValueError("GenePT feature modes require an ordered finite [N,D] matrix")
             matrix = genept_matrix.detach().to(dtype=torch.float32).contiguous()
             if not bool(torch.isfinite(matrix).all().item()):
                 raise ValueError("GenePT matrix must be finite")
@@ -373,7 +378,9 @@ class ConfigurableGeneGraphEncoder(nn.Module):
                 "genept_id_residual",
                 "genept_shuffled",
             }:
-                self.genept_projection = nn.Linear(1536, options.graph_input_dim, bias=True)
+                self.genept_projection = nn.Linear(
+                    int(matrix.shape[1]), options.graph_input_dim, bias=True
+                )
             if options.gene_feature_mode in {
                 "frozen_genept_projection",
                 "genept_shuffled",
@@ -395,11 +402,11 @@ class ConfigurableGeneGraphEncoder(nn.Module):
             generator = torch.Generator(device="cpu")
             generator.manual_seed(20260828)
             projection = torch.randn(
-                1536,
+                int(self._genept_matrix.shape[1]),
                 self.options.graph_input_dim,
                 generator=generator,
                 dtype=torch.float32,
-            ) / (1536.0**0.5)
+            ) / (float(self._genept_matrix.shape[1]) ** 0.5)
             initialized = self._genept_matrix.cpu().matmul(projection)
             with torch.no_grad():
                 self.gene_embeddings.copy_(initialized.to(self.gene_embeddings.device))

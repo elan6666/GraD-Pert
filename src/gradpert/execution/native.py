@@ -30,6 +30,7 @@ from gradpert.features import (
     build_genept_coverage_plan,
     build_ordered_genept_matrix,
     verify_genept_emb_b,
+    verify_text_prior_npz,
 )
 from gradpert.graphs import GraphTopology, load_dataset_graph_topology
 from gradpert.hashing import sha256_file, sha256_json
@@ -409,39 +410,61 @@ def run_native_experiment(
                 Path("/data/yilangliu")
             ):
                 raise ValueError("GenePT artifact must be an absolute /data/yilangliu path")
-            artifact = verify_genept_emb_b(artifact_path)
-            targets = tuple(
-                sorted(
-                    {
-                        component
-                        for condition in (
-                            *training_data.split.train_conditions,
-                            *training_data.split.val_conditions,
-                            *training_data.split.test_conditions,
-                        )
-                        for component in condition.split("+")
-                        if component != training_data.split.control_condition_id
-                    }
+            expected_sha = architecture.genept_expected_sha256
+            if expected_sha is None:
+                raise ValueError("GenePT feature mode requires genept_expected_sha256")
+            if artifact_path.suffix == ".npz":
+                prior = verify_text_prior_npz(
+                    artifact_path,
+                    expected_sha256=expected_sha,
+                    expected_gene_ids=training_data.graph_gene_ids,
                 )
-            )
-            coverage = build_genept_coverage_plan(
-                artifact,
-                ordered_graph_gene_ids=training_data.graph_gene_ids,
-                perturbation_target_gene_ids=targets,
-            )
-            if coverage.retained_graph_gene_ids != training_data.graph_gene_ids:
-                raise ValueError(
-                    "GenePT run requires its prefiltered, re-pruned runtime graph artifact"
+                genept_tensor = torch.from_numpy(prior.values.copy())
+                genept_receipt = {
+                    "schema_version": "exact-axis-text-prior-v1",
+                    "artifact_path": str(prior.source_path),
+                    "artifact_size_bytes": prior.source_size_bytes,
+                    "artifact_sha256": prior.source_sha256,
+                    "model": prior.model,
+                    "gene_count": len(prior.gene_ids),
+                    "gene_order_sha256": prior.gene_order_sha256,
+                    "embedding_width": prior.embedding_width,
+                    "feature_mode": architecture.gene_feature_mode,
+                }
+            else:
+                artifact = verify_genept_emb_b(artifact_path)
+                targets = tuple(
+                    sorted(
+                        {
+                            component
+                            for condition in (
+                                *training_data.split.train_conditions,
+                                *training_data.split.val_conditions,
+                                *training_data.split.test_conditions,
+                            )
+                            for component in condition.split("+")
+                            if component != training_data.split.control_condition_id
+                        }
+                    )
                 )
-            ordered = build_ordered_genept_matrix(artifact, coverage)
-            genept_tensor = torch.from_numpy(ordered.values.copy())
-            genept_receipt = {
-                **coverage.to_receipt(),
-                "artifact_path": str(artifact.source_path),
-                "artifact_size_bytes": artifact.source_size_bytes,
-                "embedding_width": artifact.embedding_width,
-                "ordered_matrix_sha256": ordered.matrix_sha256,
-            }
+                coverage = build_genept_coverage_plan(
+                    artifact,
+                    ordered_graph_gene_ids=training_data.graph_gene_ids,
+                    perturbation_target_gene_ids=targets,
+                )
+                if coverage.retained_graph_gene_ids != training_data.graph_gene_ids:
+                    raise ValueError(
+                        "GenePT run requires its prefiltered, re-pruned runtime graph artifact"
+                    )
+                ordered = build_ordered_genept_matrix(artifact, coverage)
+                genept_tensor = torch.from_numpy(ordered.values.copy())
+                genept_receipt = {
+                    **coverage.to_receipt(),
+                    "artifact_path": str(artifact.source_path),
+                    "artifact_size_bytes": artifact.source_size_bytes,
+                    "embedding_width": artifact.embedding_width,
+                    "ordered_matrix_sha256": ordered.matrix_sha256,
+                }
             _write_or_require_json(
                 small_root / "genept_feature.json",
                 genept_receipt,
