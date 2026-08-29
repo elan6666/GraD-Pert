@@ -17,13 +17,16 @@
 5. 每次正式运行在服务器保存完整 manifest、最佳 checkpoint、history、推理配方、精确 control/truth IDs 与 notebook provenance；默认不保存 PKL，需要逐细胞下游时才显式生成一个去重 `result.pkl`。本地仅同步小型指标、日志、receipt 和 server-artifact pointer。
 6. 每个正式服务器任务的 preflight receipt 证明本地 HEAD、GitHub commit 与服务器 HEAD 完全一致，且服务器 worktree 干净；任何不一致均中止任务。
 7. GraD-Pert、GEARS、TxPert 与每个 nonlearned baseline 的五数据集配置均为独立、自包含文件，配置矩阵完整性和禁止隐藏全局默认由测试验证。
-8. B2-vNext 默认配置、HVG512+targets、Fanout-256、0/8 local anchor mask、
-   native multi-source sparse graph Transformer、四项损失权重、decoder 和
-   GenePT coverage contracts 均通过合成黄金测试、服务器 CUDA gate 与
-   config/receipt identity 验证。
-9. 完整 Nadig 10-epoch 消融矩阵在运行前冻结；每个可用坐标只训练一次，
+8. B2-vNext 默认配置、HVG512+targets、RingInduced、运行时图节点覆盖比例
+   `1/2`、8 个 local、mask-view 比例 `0/1`、native multi-source sparse
+   graph Transformer、四项损失权重、decoder 和 GenePT coverage contracts
+   均通过合成黄金测试、服务器 CUDA gate 与 config/receipt identity 验证。
+9. H 图规模与 L 局部图两个 Nadig 10-epoch 模块在运行前冻结；每个可用坐标只训练一次，
    test 只访问一次，零持久化 PKL；不可用 GenePT 坐标保存权威缺失-target
    receipt 而不启动训练。
+10. 新 A0 先完成真实无 test-truth profiling；只有实测达到门槛的实现瓶颈
+    才允许优化，并通过逐 view/union/RNG/梯度/状态精确等价与单 GPU ABBA
+    计时后，才成为 H/L 正式实验的源代码谱系。
 
 ## Current baseline
 

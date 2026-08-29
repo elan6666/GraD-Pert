@@ -11,7 +11,11 @@ pytest.importorskip("torch_geometric")
 
 from gradpert.config.native import NativeArchitectureOptions  # noqa: E402
 from gradpert.features import GENEPT_EMB_B_SHA256  # noqa: E402
-from gradpert.graphs import GraphTopology, prune_incoming_edges  # noqa: E402
+from gradpert.graphs import (  # noqa: E402
+    GraphTopology,
+    prune_incoming_edges,
+    resolve_local_view_contract,
+)
 from gradpert.modeling import CenterState, GraDPertJointModel  # noqa: E402
 from gradpert.training.batch import GraDPertTrainingBatch  # noqa: E402
 from gradpert.training.checkpoint import (  # noqa: E402
@@ -26,6 +30,7 @@ from gradpert.training.step import (  # noqa: E402
     GraDPertStepMetrics,
     LossWeights,
     build_native_optimizer,
+    require_local_view_anchor_capacity,
 )
 from gradpert.training.trainer import GraDPertTrainer  # noqa: E402
 
@@ -98,8 +103,8 @@ def _vnext_architecture(
         "graph_encoder_family": "multi_source_sparse_transformer",
         "graph_encoder_dropout": 0.1,
         "local_view_builder": "fanout",
-        "local_view_node_budget": 256,
-        "local_anchor_mask_count": 0,
+        "local_view_node_budget_ratio": "1/2",
+        "local_anchor_mask_view_ratio": "0/1",
         "gene_feature_mode": gene_feature_mode,
         "decoder_mode": decoder_mode,
     }
@@ -139,6 +144,7 @@ def _vnext_components(
         run_seed=1,
         total_schedule_steps=400,
         heldout_target_ids=(6,),
+        architecture=architecture,
     )
     return model, optimizer, centers, engine
 
@@ -190,7 +196,86 @@ def _step_metrics() -> GraDPertStepMetrics:
         prediction_ms=1.0,
         backward_update_ms=1.0,
         step_wall_ms=5.0,
+        local_view_realization_count=16,
+        local_node_count_sum=112,
+        local_node_count_min=7,
+        local_node_count_max=7,
+        local_budget_hit_count=16,
+        local_node_counts_sha256="a" * 64,
+        masked_local_assignment_count=8,
+        masked_local_index_counts_json="[1,1,1,1,1,1,1,1]",
+        masked_local_assignments_sha256="b" * 64,
     )
+
+
+def test_default_engine_preserves_v1_fixed_local_view_semantics() -> None:
+    _, _, _, engine = _components()
+    assert engine.local_view_contract.derivation_mode == "legacy_fixed"
+    assert engine.local_view_contract.effective_node_budget == 7
+    assert engine.local_view_contract.effective_mask_view_count == 4
+
+
+def test_explicit_model_architecture_requires_matching_engine_architecture() -> None:
+    architecture = _vnext_architecture()
+    model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=architecture,
+    )
+    optimizer = build_native_optimizer(model)
+    centers = CenterState.zeros(prototype_count=8192, device=torch.device("cpu"))
+    with pytest.raises(ValueError, match="explicit model architecture"):
+        GraDPertStepEngine(
+            model=model,
+            topology=_topology(),
+            optimizer=optimizer,
+            centers=centers,
+            run_seed=1,
+            total_schedule_steps=400,
+            heldout_target_ids=(6,),
+        )
+
+
+def test_engine_rejects_mismatched_pre_resolved_local_view_contract() -> None:
+    architecture = _vnext_architecture()
+    model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=architecture,
+    )
+    optimizer = build_native_optimizer(model)
+    centers = CenterState.zeros(prototype_count=8192, device=torch.device("cpu"))
+    mismatched = resolve_local_view_contract(
+        graph_node_count=7,
+        local_view_count=8,
+        node_budget_ratio=(1, 1),
+        mask_view_ratio=(0, 1),
+    )
+    with pytest.raises(ValueError, match="pre-resolved and engine"):
+        GraDPertStepEngine(
+            model=model,
+            topology=_topology(),
+            optimizer=optimizer,
+            centers=centers,
+            run_seed=1,
+            total_schedule_steps=400,
+            heldout_target_ids=(6,),
+            architecture=architecture,
+            local_view_contract=mismatched,
+        )
+
+
+def test_anchor_capacity_preflight_reports_condition_before_model_construction() -> None:
+    contract = resolve_local_view_contract(
+        graph_node_count=7,
+        local_view_count=8,
+        node_budget_ratio=(1, 7),
+        mask_view_ratio=(0, 1),
+    )
+    with pytest.raises(ValueError, match="condition='A\\+B', anchors=2, budget=1"):
+        require_local_view_anchor_capacity(contract, {"A+B": (0, 1)})
 
 
 def test_native_step_obeys_gradient_and_update_boundaries() -> None:

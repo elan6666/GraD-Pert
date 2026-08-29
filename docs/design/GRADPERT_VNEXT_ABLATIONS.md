@@ -25,9 +25,10 @@ source-derived native behavior and frozen synthetic golden tests.
   the public TxPert STRING+GO Exphormer-MG graph-encoder behavior.
 - Global views: two complete runtime-graph views; source-specific DropEdge 0.1;
   exactly one Student global receives the existing eligible-node mask.
-- Local views: eight inbound four-layer Local-Fanout views with fanout
-  `[20, 10, 5, 5]`, total node budget 256, all active anchors retained, sampled
-  message-passing edges only.
+- Local views: eight inbound four-layer RingInduced views. Their node cap is
+  the exact integer floor of one half of the actual runtime graph size after
+  target union; all active anchors are retained. The sealed 2,809-node H=512
+  graph therefore resolves to a cap of 1,404 nodes.
 - Local anchor masking: disabled (`0/8`). This does not disable the global
   masked-node objective.
 - Prediction view: deterministic complete runtime graph, without DropEdge,
@@ -49,11 +50,11 @@ graph_mode: multi
 graph_sources: string_go
 graph_encoder_family: multi_source_sparse_transformer
 string_weight_mode: selection_only
-local_view_builder: fanout
+local_view_builder: ring_induced
 local_view_count: 8
-local_view_node_budget: 256
+local_view_node_budget_ratio: 1/2
 local_view_fanout: 20_10_5_5
-local_anchor_mask_count: 0
+local_anchor_mask_view_ratio: 0/1
 gene_feature_mode: learned_id
 decoder_mode: additive
 ```
@@ -68,11 +69,12 @@ the registered weak-perturbation-signal filter, the complete cell-line data are
 used before condition splitting, including conditions that will later belong to
 train, validation, and test. Every cell is normalized with
 `normalize_total(target_sum=4000)`, followed by `log1p` and Scanpy's Seurat
-`highly_variable_genes(n_top_genes=512, subset=True)`. The exact selected gene
-order and normalized-dispersion ranking are frozen in a hash-bound receipt and
-verified on every graph load. Only the runtime graph uses Top-512 union all
-perturbation targets; expression inputs, outputs, and evaluation remain on the
-frozen Top-5000 axis.
+`highly_variable_genes(n_top_genes=H, subset=True)` for registered
+`H in {512, 1024, 2048, 5000}`. The exact selected gene order and
+normalized-dispersion ranking are frozen in a hash-bound receipt and verified
+on every graph load. Every H row uses the same recomputed-HVG-plus-target
+policy; H=5000 is not a shortcut to `canonical_full`. Expression inputs,
+outputs, and evaluation remain on the frozen Top-5000 axis.
 
 The GenePT `emb_b` artifact contract is:
 
@@ -142,13 +144,20 @@ reproduction.
 
 Every row differs from A0 in only the named factor unless labeled interaction.
 
-### Local construction and budget
+### Local construction, coverage, count, and masking
 
-- A0: Fanout-256.
-- L1: RingInduced-256 (construction only).
-- L2: Fanout-512 (budget only).
-- L3: RingInduced-512 (declared construction-by-budget interaction).
-- L4: A0 plus local anchor masking `4/8`.
+- A0: RingInduced, node ratio `1/2`, eight locals, mask-view ratio `0/1`.
+- L1: Fanout with all other A0 factors unchanged.
+- L2: four local views with all other A0 factors unchanged.
+- L3: local node ratio `1/4` with all other A0 factors unchanged.
+- L4: local anchor mask-view ratio `1/2` (`4/8`).
+- L5: local anchor mask-view ratio `1/4` (`2/8`).
+
+Every L row is constructed directly from A0. The node cap is
+`floor(actual_graph_nodes * ratio)` and the mask count is
+`local_view_count * ratio`; the latter must be integral or config resolution
+fails. Fixed node budgets and fixed mask counts are not successor matrix
+factors.
 
 ### Encoder and source
 
@@ -190,10 +199,17 @@ preflight finds any missing perturbation target.
 - O2: masked-node weight 0.
 - O3: spread weight 0.
 
-### Graph context
+### Shared global graph scale
 
-- G0: HVG512 plus targets (A0).
-- G1: canonical full graph, with every other A0 setting unchanged.
+- H0/A0: HVG512 plus all representable targets.
+- H1: HVG1024 plus the same target universe.
+- H2: HVG2048 plus the same target universe.
+- H3: HVG5000 plus the same target universe.
+
+Teacher and Student global views share the same ordered axis at each H. The
+local node ratio remains `1/2`, so its effective integer cap changes only as a
+declared derived consequence of H. H rows are not described as fixed node
+counts because target union enlarges the runtime graph.
 
 ## 9. Required receipts
 

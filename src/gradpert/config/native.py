@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
+from fractions import Fraction
+from math import gcd
 from typing import Literal, cast
 
 from gradpert.features import GENEPT_EMB_B_SHA256
@@ -75,6 +77,47 @@ def _float(parameters: Mapping[str, object], name: str, default: float) -> float
     return float(value)
 
 
+def _ratio(
+    parameters: Mapping[str, object],
+    name: str,
+    default: str,
+) -> tuple[int, int]:
+    """Parse a ratio without using binary floating-point arithmetic."""
+
+    value = _value(parameters, name, default)
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise ValueError(f"native architecture parameter {name} must be a rational number")
+    try:
+        ratio = Fraction(str(value))
+    except (ValueError, ZeroDivisionError) as error:
+        raise ValueError(
+            f"native architecture parameter {name} must be a finite rational number"
+        ) from error
+    return ratio.numerator, ratio.denominator
+
+
+def _validate_ratio(
+    *,
+    name: str,
+    numerator: int,
+    denominator: int,
+    allow_zero: bool,
+) -> None:
+    if (
+        not isinstance(numerator, int)
+        or isinstance(numerator, bool)
+        or not isinstance(denominator, int)
+        or isinstance(denominator, bool)
+    ):
+        raise ValueError(f"{name} numerator and denominator must be integers")
+    minimum = 0 if allow_zero else 1
+    if denominator <= 0 or not minimum <= numerator <= denominator:
+        interval = "[0, 1]" if allow_zero else "(0, 1]"
+        raise ValueError(f"{name} must be a rational number in {interval}")
+    if gcd(numerator, denominator) != 1:
+        raise ValueError(f"{name} numerator and denominator must be reduced")
+
+
 def _graph_sources(label: str) -> tuple[str, ...]:
     labels = {
         "string": ("string",),
@@ -118,31 +161,54 @@ class NativeArchitectureOptions:
     global_view_count: int
     local_view_builder: LocalViewBuilder
     local_view_count: int
-    local_view_node_budget: int
+    local_view_node_budget_ratio_numerator: int
+    local_view_node_budget_ratio_denominator: int
     local_view_fanout: tuple[int, int, int, int]
-    local_anchor_mask_count: int
+    local_anchor_mask_view_ratio_numerator: int
+    local_anchor_mask_view_ratio_denominator: int
+    legacy_local_view_node_budget: int | None
+    legacy_local_anchor_mask_count: int | None
     gene_feature_mode: GeneFeatureMode
     decoder_mode: DecoderMode
     genept_expected_sha256: str | None
 
     def __post_init__(self) -> None:
         if self.graph_axis_policy == "recomputed_hvg_union_candidate_targets":
-            if self.graph_hvg_count != 512:
-                raise ValueError("B2-vNext reduced graph requires exactly 512 HVGs")
+            if self.graph_hvg_count not in {512, 1024, 2048, 5000}:
+                raise ValueError("B2-vNext graph_hvg_count must be 512, 1024, 2048, or 5000")
         elif self.graph_axis_policy == "recomputed_top500_union_candidate_targets":
             if self.graph_hvg_count != 500:
                 raise ValueError("sealed Top500 pilot requires exactly 500 HVGs")
         elif self.graph_hvg_count != 5000:
             raise ValueError("canonical_full requires graph_hvg_count=5000")
 
-        if self.global_view_count != 2 or self.local_view_count != 8:
-            raise ValueError("GraD-Pert requires two global and eight local views")
-        if self.local_view_node_budget not in {256, 512}:
-            raise ValueError("local view node budget must be 256 or 512")
-        if self.local_anchor_mask_count not in {0, 4}:
-            raise ValueError("local anchor mask count must be 0 or 4")
-        if self.local_anchor_mask_count > self.local_view_count:
-            raise ValueError("local anchor mask count exceeds local view count")
+        if self.global_view_count != 2 or self.local_view_count not in {4, 8}:
+            raise ValueError("GraD-Pert requires two global and four or eight local views")
+        if self.legacy_local_view_node_budget is not None:
+            if self.legacy_local_view_node_budget not in {256, 512}:
+                raise ValueError("legacy local view node budget must be 256 or 512")
+            if self.legacy_local_anchor_mask_count not in {0, 4}:
+                raise ValueError("legacy local anchor mask count must be 0 or 4")
+            if self.local_view_count != 8:
+                raise ValueError("legacy local view coordinates require eight local views")
+        else:
+            if self.legacy_local_anchor_mask_count is not None:
+                raise ValueError("legacy local mask count requires a fixed node budget")
+            _validate_ratio(
+                name="local_view_node_budget_ratio",
+                numerator=self.local_view_node_budget_ratio_numerator,
+                denominator=self.local_view_node_budget_ratio_denominator,
+                allow_zero=False,
+            )
+            _validate_ratio(
+                name="local_anchor_mask_view_ratio",
+                numerator=self.local_anchor_mask_view_ratio_numerator,
+                denominator=self.local_anchor_mask_view_ratio_denominator,
+                allow_zero=True,
+            )
+            mask_product = self.local_view_count * self.local_anchor_mask_view_ratio_numerator
+            if mask_product % self.local_anchor_mask_view_ratio_denominator:
+                raise ValueError("local_count * local_anchor_mask_view_ratio must be an integer")
         if self.local_view_builder == "fanout" and self.local_view_fanout != (20, 10, 5, 5):
             raise ValueError("B2-vNext Fanout requires the frozen 20_10_5_5 schedule")
 
@@ -221,9 +287,26 @@ class NativeArchitectureOptions:
 
     @classmethod
     def from_parameters(cls, parameters: Mapping[str, object]) -> NativeArchitectureOptions:
-        """Resolve v1-compatible defaults or an explicit vNext architecture."""
+        """Resolve the ratio-based defaults or an explicit vNext architecture."""
 
+        legacy_ratio_factors = {
+            "local_view_node_budget",
+            "local_anchor_mask_count",
+        }.intersection(parameters)
         graph_axis_policy = _string(parameters, "graph_axis_policy", "canonical_full")
+        is_sealed_legacy = graph_axis_policy == "canonical_full" or (
+            "performance_pilot_variant" in parameters
+        )
+        if legacy_ratio_factors and not is_sealed_legacy:
+            names = ", ".join(sorted(legacy_ratio_factors))
+            raise ValueError(
+                f"fixed local-view factors are unsupported ({names}); use exact ratio factors"
+            )
+        if legacy_ratio_factors and (
+            "local_view_node_budget_ratio" in parameters
+            or "local_anchor_mask_view_ratio" in parameters
+        ):
+            raise ValueError("legacy fixed and ratio local-view factors cannot be mixed")
         default_hvg_count = {
             "canonical_full": 5000,
             "recomputed_top500_union_candidate_targets": 500,
@@ -272,6 +355,14 @@ class NativeArchitectureOptions:
         genept_sha = _value(parameters, "genept_expected_sha256", None)
         if genept_sha is not None and not isinstance(genept_sha, str):
             raise ValueError("genept_expected_sha256 must be a string when declared")
+        node_budget_ratio = _ratio(parameters, "local_view_node_budget_ratio", "1/2")
+        anchor_mask_ratio = _ratio(parameters, "local_anchor_mask_view_ratio", "0/1")
+        legacy_node_budget = (
+            _integer(parameters, "local_view_node_budget", 512) if legacy_ratio_factors else None
+        )
+        legacy_mask_count = (
+            _integer(parameters, "local_anchor_mask_count", 4) if legacy_ratio_factors else None
+        )
 
         return cls(
             graph_axis_policy=cast(GraphAxisPolicy, graph_axis_policy),
@@ -294,9 +385,13 @@ class NativeArchitectureOptions:
             global_view_count=_integer(parameters, "global_view_count", 2),
             local_view_builder=cast(LocalViewBuilder, local_builder),
             local_view_count=_integer(parameters, "local_view_count", 8),
-            local_view_node_budget=_integer(parameters, "local_view_node_budget", 512),
+            local_view_node_budget_ratio_numerator=node_budget_ratio[0],
+            local_view_node_budget_ratio_denominator=node_budget_ratio[1],
             local_view_fanout=_fanout(_string(parameters, "local_view_fanout", "20_10_5_5")),
-            local_anchor_mask_count=_integer(parameters, "local_anchor_mask_count", 4),
+            local_anchor_mask_view_ratio_numerator=anchor_mask_ratio[0],
+            local_anchor_mask_view_ratio_denominator=anchor_mask_ratio[1],
+            legacy_local_view_node_budget=legacy_node_budget,
+            legacy_local_anchor_mask_count=legacy_mask_count,
             gene_feature_mode=cast(GeneFeatureMode, gene_feature_mode),
             decoder_mode=cast(DecoderMode, decoder_mode),
             genept_expected_sha256=genept_sha,
@@ -304,7 +399,7 @@ class NativeArchitectureOptions:
 
     def payload(self) -> dict[str, object]:
         payload = asdict(self)
-        payload["schema_version"] = "native-architecture-vnext-1"
+        payload["schema_version"] = "native-architecture-vnext-2"
         payload["graph_sources"] = list(self.graph_sources)
         payload["local_view_fanout"] = list(self.local_view_fanout)
         return payload

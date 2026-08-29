@@ -1,5 +1,24 @@
 # Decision Log
 
+## 2026-08-29
+
+- Performance optimization compares reference and optimized implementations of
+  the same frozen A0 scientific coordinate. GAT versus Exphormer-MG,
+  RingInduced versus Fanout, different budgets, fewer views, AMP/TF32 or
+  changed validation schedules are scientific changes and cannot support an
+  unchanged-effect claim.
+- The first implementation target is the measured Fanout candidate-index
+  rebuild: precompute the exact immutable source-ordered mapping once per
+  engine and preserve every candidate order, PCG64 draw, view edge/order/mask
+  and warning byte exactly.
+- Do not concatenate or reorder training graph forwards. Exphormer-MG
+  BatchNorm running statistics and dropout RNG are per-view scientific state.
+  Sparse-union optimization may share only immutable topology tensors after
+  exact union/output/gradient/state gates pass.
+- Use real monotonic timing windows and serial single-physical-GPU ABBA
+  replicates. Concurrent two-GPU runs sharing host resources and the existing
+  overlapping serial stage sum are not primary speed evidence.
+
 ## 2026-08-26
 
 - The user superseded the earlier 100-epoch ceiling and B3 speed-only pilot

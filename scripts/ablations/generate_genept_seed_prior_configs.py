@@ -11,7 +11,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE = ROOT / "configs/ablations/nadig_jurkat/a0_default/gradpert_b2/nadig_jurkat.yaml"
+BASE = ROOT / "configs/ablations/nadig_jurkat/a0_ratio_ring_half/gradpert_b2/nadig_jurkat.yaml"
 LOCK = ROOT / "configs/experiments/genept_seed_priors/artifacts.json"
 OUTPUT = ROOT / "configs/experiments/genept_seed_priors"
 REFERENCE = "docs/experiments/GENEPT_SEED_PRIOR_COMPARISON.md"

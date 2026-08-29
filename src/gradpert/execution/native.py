@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import os
 import random
 import resource
 import sys
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -32,7 +34,7 @@ from gradpert.features import (
     verify_genept_emb_b,
     verify_text_prior_npz,
 )
-from gradpert.graphs import GraphTopology, load_dataset_graph_topology
+from gradpert.graphs import GraphTopology, ResolvedLocalViewContract, load_dataset_graph_topology
 from gradpert.hashing import sha256_file, sha256_json
 from gradpert.modeling import CenterState, GraDPertJointModel
 from gradpert.pilots import (
@@ -44,7 +46,13 @@ from gradpert.pilots import (
 from gradpert.training.checkpoint import CheckpointIdentity
 from gradpert.training.data import CanonicalTrainingData, write_training_data_receipt
 from gradpert.training.inference import predict_frozen_controls
-from gradpert.training.step import GraDPertStepEngine, LossWeights, build_native_optimizer
+from gradpert.training.step import (
+    GraDPertStepEngine,
+    LossWeights,
+    build_native_optimizer,
+    require_local_view_anchor_capacity,
+    resolve_architecture_local_view_contract,
+)
 from gradpert.training.systems import NativeSystemOptions
 from gradpert.training.trainer import GraDPertTrainer
 from gradpert.training.validation import evaluate_validation_macro_delta
@@ -201,10 +209,18 @@ def _write_or_require_text(path: Path, value: str, *, resume: bool) -> None:
     atomic_text(path, value)
 
 
-def _write_or_require_json(path: Path, value: dict[str, object], *, resume: bool) -> None:
+def _write_or_require_json(path: Path, value: Mapping[str, object], *, resume: bool) -> None:
     if resume:
         if not path.is_file() or json.loads(path.read_text(encoding="utf-8")) != value:
             raise ValueError(f"resumed run receipt differs: {path.name}")
+        return
+    atomic_json(path, value)
+
+
+def _write_if_absent_or_equal_json(path: Path, value: Mapping[str, object]) -> None:
+    if path.exists():
+        if not path.is_file() or json.loads(path.read_text(encoding="utf-8")) != value:
+            raise ValueError(f"existing run receipt differs: {path.name}")
         return
     atomic_json(path, value)
 
@@ -227,6 +243,125 @@ def _read_step_timings(path: Path) -> list[dict[str, float]]:
     if not rows:
         raise ValueError("performance receipt requires at least one training step")
     return [{field: float(row[field]) for field in fields} for row in rows]
+
+
+def _read_local_view_realization_receipt(
+    path: Path,
+    *,
+    contract: ResolvedLocalViewContract,
+) -> dict[str, object]:
+    """Validate compact per-step evidence and reduce it to a small final receipt."""
+
+    with path.open(encoding="utf-8", newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    if not rows:
+        raise ValueError("local-view receipt requires at least one training step")
+
+    node_count_sum = 0
+    realization_count = 0
+    budget_hit_count = 0
+    node_count_min: int | None = None
+    node_count_max: int | None = None
+    masked_assignment_count = 0
+    masked_index_counts = [0] * contract.local_view_count
+    step_evidence_digest = hashlib.sha256()
+
+    for expected_step, row in enumerate(rows):
+        try:
+            global_step = int(row["global_step"])
+            unique_condition_count = int(row["unique_condition_count"])
+            step_count = int(row["local_view_realization_count"])
+            step_sum = int(row["local_node_count_sum"])
+            step_min = int(row["local_node_count_min"])
+            step_max = int(row["local_node_count_max"])
+            step_budget_hits = int(row["local_budget_hit_count"])
+            step_mask_assignments = int(row["masked_local_assignment_count"])
+            raw_index_counts = json.loads(row["masked_local_index_counts_json"])
+            node_counts_sha256 = row["local_node_counts_sha256"]
+            mask_assignments_sha256 = row["masked_local_assignments_sha256"]
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            raise ValueError("invalid local-view columns in train_steps.csv") from error
+        if global_step != expected_step:
+            raise ValueError("local-view receipt global steps must be contiguous from zero")
+        if (
+            step_count <= 0
+            or unique_condition_count <= 0
+            or step_count != unique_condition_count * contract.local_view_count
+            or step_min <= 0
+            or step_max > contract.effective_node_budget
+            or step_min > step_max
+            or not step_min * step_count <= step_sum <= step_max * step_count
+            or not 0 <= step_budget_hits <= step_count
+            or step_mask_assignments != unique_condition_count * contract.effective_mask_view_count
+        ):
+            raise ValueError("invalid realized local-view count or budget evidence")
+        if (
+            not isinstance(raw_index_counts, list)
+            or len(raw_index_counts) != contract.local_view_count
+            or any(
+                not isinstance(count, int) or isinstance(count, bool) or count < 0
+                for count in raw_index_counts
+            )
+            or sum(raw_index_counts) != step_mask_assignments
+        ):
+            raise ValueError("invalid realized local mask-assignment evidence")
+        for digest in (node_counts_sha256, mask_assignments_sha256):
+            if (
+                not isinstance(digest, str)
+                or len(digest) != 64
+                or any(character not in "0123456789abcdef" for character in digest)
+            ):
+                raise ValueError("invalid realized local-view evidence SHA-256")
+
+        realization_count += step_count
+        node_count_sum += step_sum
+        budget_hit_count += step_budget_hits
+        masked_assignment_count += step_mask_assignments
+        node_count_min = step_min if node_count_min is None else min(node_count_min, step_min)
+        node_count_max = step_max if node_count_max is None else max(node_count_max, step_max)
+        for index, count in enumerate(raw_index_counts):
+            masked_index_counts[index] += count
+        step_record = {
+            "global_step": global_step,
+            "unique_condition_count": unique_condition_count,
+            "realization_count": step_count,
+            "node_count_sum": step_sum,
+            "node_count_min": step_min,
+            "node_count_max": step_max,
+            "budget_hit_count": step_budget_hits,
+            "node_counts_sha256": node_counts_sha256,
+            "masked_assignment_count": step_mask_assignments,
+            "masked_index_counts": raw_index_counts,
+            "masked_assignments_sha256": mask_assignments_sha256,
+        }
+        step_evidence_digest.update(sha256_json(step_record).encode("ascii"))
+        step_evidence_digest.update(b"\n")
+
+    if node_count_min is None or node_count_max is None:
+        raise RuntimeError("local-view aggregate did not observe realized node counts")
+    mean_node_count = node_count_sum / realization_count
+    return {
+        "schema_version": "native-local-view-realization-v1",
+        "resolved_contract": contract.payload(),
+        "training_step_count": len(rows),
+        "realized_local_view_count": realization_count,
+        "node_count": {
+            "min": node_count_min,
+            "mean": mean_node_count,
+            "max": node_count_max,
+            "sum": node_count_sum,
+        },
+        "graph_coverage": {
+            "min": node_count_min / contract.graph_node_count,
+            "mean": mean_node_count / contract.graph_node_count,
+            "max": node_count_max / contract.graph_node_count,
+        },
+        "budget_hit_count": budget_hit_count,
+        "budget_hit_rate": budget_hit_count / realization_count,
+        "masked_local_assignment_count": masked_assignment_count,
+        "masked_local_assignment_counts_by_index": masked_index_counts,
+        "ordered_step_evidence_sha256": step_evidence_digest.hexdigest(),
+    }
 
 
 def _peak_cpu_ram_bytes() -> int:
@@ -398,6 +533,19 @@ def run_native_experiment(
             or reduced_manifest.split_content_sha256 != training_data.split.split_content_sha256
         ):
             raise ValueError("reduced graph canonical data or split identity differs")
+        local_view_contract = resolve_architecture_local_view_contract(
+            architecture,
+            graph_node_count=topology.n_nodes,
+        )
+        require_local_view_anchor_capacity(
+            local_view_contract,
+            training_data.anchors_by_condition,
+        )
+        _write_or_require_json(
+            small_root / "resolved_local_view_contract.json",
+            local_view_contract.payload(),
+            resume=resume,
+        )
         training_cache_ms = training_data.configure_system_optimizations(system_options)
         validation_cache_ms = validation_data.configure_expression_cache(
             enabled=system_options.validation_expression_cache
@@ -515,6 +663,7 @@ def run_native_experiment(
             total_schedule_steps=max_epochs * steps_per_epoch,
             heldout_target_ids=heldout_ids,
             architecture=architecture,
+            local_view_contract=local_view_contract,
             loss_weights=_native_loss_weights(config),
             resident_graph_tensors=system_options.resident_graph_tensors,
             capture_equivalence_health=system_options.enabled,
@@ -546,6 +695,7 @@ def run_native_experiment(
             "graph_axis_policy": graph_axis_policy,
             "native_architecture": architecture.payload(),
             "native_architecture_sha256": architecture.payload_sha256,
+            "resolved_local_view_contract": local_view_contract.payload(),
             "genept_feature": genept_receipt,
             "runtime_graph_gene_count": len(training_data.graph_gene_ids),
             "runtime_graph_gene_order_sha256": sha256_json(list(training_data.graph_gene_ids)),
@@ -611,6 +761,14 @@ def run_native_experiment(
                 small_root / "first_step_equivalence.json",
                 engine.first_step_health,
             )
+        local_view_realization = _read_local_view_realization_receipt(
+            small_root / "train_steps.csv",
+            contract=local_view_contract,
+        )
+        _write_if_absent_or_equal_json(
+            small_root / "local_view_realization.json",
+            local_view_realization,
+        )
         best_checkpoint_sha256 = sha256_file(trainer.best_checkpoint)
         atomic_json(
             small_root / "training_receipt.json",
@@ -626,6 +784,8 @@ def run_native_experiment(
                 "validation_monitor": config.training.monitor,
                 "canonical_test_truth_present_during_fit": False,
                 "checkpoint_sha256": best_checkpoint_sha256,
+                "resolved_local_view_contract": local_view_contract.payload(),
+                "local_view_realization_sha256": sha256_json(local_view_realization),
             },
         )
 
@@ -703,6 +863,8 @@ def run_native_experiment(
                 "graph_axis_policy": graph_axis_policy,
                 "native_architecture": architecture.payload(),
                 "native_architecture_sha256": architecture.payload_sha256,
+                "resolved_local_view_contract": local_view_contract.payload(),
+                "local_view_realization": local_view_realization,
                 "expression_gene_count": len(training_data.expression_gene_ids),
                 "output_gene_count": len(training_data.expression_gene_ids),
                 "evaluation_gene_count": len(training_data.expression_gene_ids),

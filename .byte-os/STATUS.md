@@ -2,82 +2,41 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: reviewed
-current_workflow: byte-review
-next_workflow: byte-build
-review_verdict: ship
-iteration_count: 3
+stage: building
+current_workflow: byte-build
+next_workflow: byte-review
+review_verdict: none
+iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-28T05:34:27+08:00
+updated_at: 2026-08-29T18:35:00+08:00
 ---
 
 # Status
 
-- Local Graph continuation repair is active under plan 027. In the clean 8221
-  lineage, L3 completed 10 epochs/5,820 steps/10 validations with zero PKL;
-  L4 then failed before model construction because the previously working
-  GitHub proxy disappeared before its redundant per-row `git ls-remote` call.
-  Per the frozen queue contract, A0 was interrupted at 3,422/5,820 steps and
-  L2 never started. All evidence is preserved and no coordinate was overwritten.
-- The bounded repair preserves the public-source gate while moving it to one
-  live, immutable, hash-pinned queue receipt. Each row must still match the
-  receipt SHA, repository, origin URL/ref, exact commit and source-tree hash,
-  plus its own clean worktree. Only A0/L2/L4 may run in the successor lineage;
-  completed L1 and L3 remain immutable cross-commit evidence.
-
-- B2-vNext implementation is published and synchronized at clean commit
-  `a9421142c086c4fe6b88cd48343a2cc03b1e408a`. Exact-commit server gates passed
-  314 tests with four honest evidence/dependency skips, Ruff, format, strict
-  mypy on 72 source files and isolated build. Two read-only reviews found no
-  remaining model-side P0/P1 blocker.
-- The corrected five-dataset data, graph and evaluator receipt chains are now
-  materialized, independently verified and mirrored locally. K562 and Norman
-  preserve their upstream processed expression matrices; RPE1/Jurkat/HepG2
-  take the audited raw-count TxPert path. All five frozen split hashes match.
-- Jurkat full-cell-line pre-split HVG512 completed on 238,977 cells and 2,393
-  conditions. The 512 HVGs union 2,372 modeled targets produces 2,809 graph
-  genes and topology SHA `ba22af6e...`. Exact GenePT `emb_b` lacks 17 modeled
-  targets, so E1/E2/E3/ES are unavailable and no GenePT graph/model/run root
-  was created. The remaining formal gate is one A0 CUDA epoch before the 18
-  eligible fixed 10-epoch rows may launch.
-- The config matrix contains exactly 22 hash-pinned Nadig Jurkat rows. A strict
-  orchestrator validates all rows and source identity before delegating each
-  executable variant to the same `gradpert model pilot` path. Missing GenePT
-  perturbation targets produce only a skip receipt before model construction.
-
-- Byte Auto is active for the separately versioned B2-vNext ablation program.
-  The confirmed default is TxPert-style full-cell-line pre-split HVG512 plus
-  all perturbation targets, STRING+GO
-  native multi-source sparse graph Transformer, eight inbound Fanout-256
-  locals, no local anchor masking, existing global node masking, direct loss
-  weights `1.0/0.8/0.4/0.1`, all seven systems groups, and `metrics_only`.
-- The HVG512 scope was corrected before publication or training. It now mirrors
-  frozen official TxPert within-cell preprocessing at commit `08d82eea`: after
-  weak-signal filtering, use the complete cell line before the condition split,
-  normalize every cell to 4,000, apply `log1p`, then Scanpy Seurat
-  `highly_variable_genes(n_top_genes=512, subset=True)`. The runtime graph uses
-  those selected genes union all perturbation targets; Top-5000 expression,
-  prediction, and evaluation remain unchanged. The obsolete train-only vNext
-  receipt schema is rejected and no vNext training has been launched.
-- Plan 026 corrects the five-dataset expression-scale boundary before any new
-  canonical materialization. RPE1/Jurkat/HepG2 are declared raw integer-count
-  inputs and fail before normalization if any transformed value is observed.
-  K562 and Norman are declared verified processed archives and preserve `X`;
-  Norman no longer performs the redundant historical
-  `expm1 -> normalize_total(4000) -> log1p` cycle. The frozen official archive
-  and 5,045-gene axis are required, metadata aliases are still canonicalized,
-  and stale DE caches are removed without changing expression values.
-- The experiment boundary is Nadig Jurkat, the existing canonical split, seed
-  1, fixed 10 epochs, one frozen matrix, validation-only selection and one test
-  access per preregistered run. No new main function is allowed.
-- GenePT uses exact `emb_b`. Missing non-target graph genes may be removed before
-  graph rebuild; any missing perturbation target makes those variants
-  unavailable without training. The local older axis suggests 22 missing
-  targets, so the authoritative server preflight is mandatory.
-- Three read-only exploration subagents completed and changed no files. The
-  active contract is `docs/design/GRADPERT_VNEXT_ABLATIONS.md`; plans 023--025
-  govern implementation, validation, synchronization, and launch.
+- Plans 029, 028 and 030 now govern the active successor program. The
+  preregistered A0 is HVG512+targets on the sealed 2,809-node graph,
+  RingInduced locals at exact ratio `1/2` (floor cap 1,404), eight locals and
+  mask-view ratio `0/1`. H varies only requested HVG count
+  512/1024/2048/5000; L rows each change exactly builder, count, node ratio or
+  mask-view ratio relative to A0.
+- Plan 029 implementation is integrated in isolated branch
+  `codex/vnext-performance`: exact rational config fields, runtime B/M
+  resolution and receipts, generalized L=4/8 consistency loss, generic H graph
+  materialization, new 25-row matrix, legacy v1/pilot compatibility, a
+  training-only bounded A0 profiler, runtime schema-v2 semantic enforcement,
+  pre-model anchor-capacity validation and persisted realized-view evidence.
+  Primary-agent local gates pass 324 tests with 10 honest dependency/evidence
+  skips when notebook tests are excluded; Ruff, format on 151 files,
+  compileall and diff checks pass. Full server Torch/anndata/nbformat/strict
+  mypy/build gates remain required before publication is accepted.
+- Performance selection remains deliberately open. The old Fanout preindex
+  benchmark is retained only for L1. The first server artifact will be the
+  unoptimized RingInduced A0 capacity/profile receipt; no sparse-union or Ring
+  optimization is authorized until a measured stage contributes at least 10%
+  and 100 ms per step (or causes the capacity/memory gate).
+- Superseded 42e/8221/276d run evidence remains immutable and cannot satisfy
+  the new coordinates. No successor 10-epoch queue has launched.
 
 - Plan 022 is in local implementation. The user replaced the historical
   effective four-term B2 loss weights `1.0/0.1/0.1/0.01` with explicit formal

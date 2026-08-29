@@ -6,6 +6,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
@@ -16,24 +17,72 @@ ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "configs/experiments/gradpert_b2/nadig_jurkat.yaml"
 OUTPUT = ROOT / "configs/ablations/nadig_jurkat"
 REFERENCE = "docs/design/GRADPERT_VNEXT_ABLATIONS.md"
+SUCCESSOR_REFERENCE = "docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md"
 GENEPT_PATH = (
     "/data/yilangliu/trishift/src/data/Data_GeneEmbd/GenePT_gene_embedding_ada_text.pickle"
 )
 
+SUCCESSOR_A0 = "a0_ratio_ring_half"
+LEGACY_FIXED_BUDGET_VARIANTS = frozenset(
+    {
+        "a0_default",
+        "l1_ring_256",
+        "l2_fanout_512",
+        "l3_ring_512",
+        "l4_anchor_mask_4",
+        "g1_canonical_full",
+    }
+)
 
-def sourced(value: object, *, source: str = "user_locked") -> dict[str, object]:
-    return {"value": value, "source": source, "reference": REFERENCE}
+
+@dataclass(frozen=True)
+class VariantSpec:
+    semantic_factor: str
+    changes: dict[str, object]
+    declared_parameter_diffs: frozenset[str]
+
+
+def variant(
+    semantic_factor: str,
+    changes: dict[str, object] | None = None,
+    *,
+    derived_diffs: frozenset[str] = frozenset(),
+) -> VariantSpec:
+    direct = {} if changes is None else changes
+    return VariantSpec(
+        semantic_factor=semantic_factor,
+        changes=direct,
+        declared_parameter_diffs=frozenset(direct) | derived_diffs,
+    )
+
+
+def sourced(
+    value: object,
+    *,
+    source: str = "user_locked",
+    reference: str = REFERENCE,
+) -> dict[str, object]:
+    return {"value": value, "source": source, "reference": reference}
 
 
 def base_config() -> dict[str, object]:
     payload = yaml.safe_load(BASE.read_text(encoding="utf-8"))
     parameters = payload["model"]["parameters"]
+    parameters.pop("local_view_node_budget", None)
+    parameters.pop("local_anchor_mask_count", None)
     parameters.update(
         {
-            "performance_pilot_variant": sourced("vnext_a0"),
-            "graph_axis_policy": sourced("recomputed_hvg_union_candidate_targets"),
-            "graph_hvg_count": sourced(512),
-            "runtime_graph_root": sourced("vnext/graph_axes/nadig_jurkat/hvg512_plus_targets"),
+            "performance_pilot_variant": sourced(
+                f"vnext_{SUCCESSOR_A0}", reference=SUCCESSOR_REFERENCE
+            ),
+            "graph_axis_policy": sourced(
+                "recomputed_hvg_union_candidate_targets", reference=SUCCESSOR_REFERENCE
+            ),
+            "graph_hvg_count": sourced(512, reference=SUCCESSOR_REFERENCE),
+            "runtime_graph_root": sourced(
+                "vnext/graph_axes/nadig_jurkat/hvg512_plus_targets",
+                reference=SUCCESSOR_REFERENCE,
+            ),
             "graph_sources": sourced("string_go"),
             "graph_encoder_family": sourced("multi_source_sparse_transformer"),
             "string_weight_mode": sourced("selection_only"),
@@ -42,11 +91,11 @@ def base_config() -> dict[str, object]:
             "graph_add_reverse_edges": sourced(True),
             "graph_add_self_loops": sourced(True),
             "graph_first_source_local_branch": sourced(True),
-            "local_view_builder": sourced("fanout"),
-            "local_view_count": sourced(8),
-            "local_view_node_budget": sourced(256),
+            "local_view_builder": sourced("ring_induced", reference=SUCCESSOR_REFERENCE),
+            "local_view_count": sourced(8, reference=SUCCESSOR_REFERENCE),
+            "local_view_node_budget_ratio": sourced("1/2", reference=SUCCESSOR_REFERENCE),
             "local_view_fanout": sourced("20_10_5_5"),
-            "local_anchor_mask_count": sourced(0),
+            "local_anchor_mask_view_ratio": sourced("0/1", reference=SUCCESSOR_REFERENCE),
             "gene_feature_mode": sourced("learned_id"),
             "decoder_mode": sourced("additive"),
         }
@@ -64,92 +113,200 @@ def base_config() -> dict[str, object]:
             "run_seeds": [1],
         }
     )
-    payload["artifacts"]["root"] = "runs/ablations/nadig_jurkat/vnext_a0"
+    payload["artifacts"]["root"] = f"runs/ablations/nadig_jurkat/{SUCCESSOR_A0}"
     payload["artifacts"]["result_mode"] = "metrics_only"
     return payload
 
 
-def variants() -> dict[str, dict[str, object]]:
+def variants() -> dict[str, VariantSpec]:
     return {
-        "a0_default": {},
-        "l1_ring_256": {"local_view_builder": "ring_induced"},
-        "l2_fanout_512": {"local_view_node_budget": 512},
-        "l3_ring_512": {
-            "local_view_builder": "ring_induced",
-            "local_view_node_budget": 512,
-        },
-        "l4_anchor_mask_4": {"local_anchor_mask_count": 4},
-        "m1_single_string_gat": {
-            "graph_sources": "string",
-            "graph_encoder_family": "single_source_gat",
-            "graph_encoder_dropout": 0.2,
-        },
-        "m2_single_string_transformer": {
-            "graph_sources": "string",
-            "graph_encoder_family": "single_source_sparse_transformer",
-        },
-        "m4_adaptive_source_gat": {
-            "graph_encoder_family": "adaptive_source_gat_fusion",
-            "graph_encoder_dropout": 0.2,
-        },
-        "w1_string_edge_feature": {
-            "graph_sources": "string",
-            "graph_encoder_family": "single_source_gat",
-            "graph_encoder_dropout": 0.2,
-            "string_weight_mode": "edge_feature",
-        },
-        "w2_string_fixed_prior": {
-            "graph_sources": "string",
-            "graph_encoder_family": "single_source_gat",
-            "graph_encoder_dropout": 0.2,
-            "string_weight_mode": "fixed_prior",
-        },
-        "w3_string_prior_residual": {
-            "graph_sources": "string",
-            "graph_encoder_family": "single_source_gat",
-            "graph_encoder_dropout": 0.2,
-            "string_weight_mode": "prior_residual",
-        },
-        "ws_string_weight_shuffle": {
-            "graph_sources": "string",
-            "graph_encoder_family": "single_source_gat",
-            "graph_encoder_dropout": 0.2,
-            "string_weight_mode": "shuffled_edge_feature",
-        },
-        "d1_control_mlp": {"decoder_mode": "parameter_matched_mlp"},
-        "d2_control_transformer": {"decoder_mode": "control_condition_transformer"},
-        "e1_frozen_genept": {"gene_feature_mode": "frozen_genept_projection"},
-        "e2_genept_id_residual": {"gene_feature_mode": "genept_id_residual"},
-        "e3_genept_initialized": {"gene_feature_mode": "genept_initialized"},
-        "es_genept_shuffle": {"gene_feature_mode": "genept_shuffled"},
-        "o1_no_condition": {"condition_consistency_loss_weight": 0.0},
-        "o2_no_masked_node": {"masked_node_loss_weight": 0.0},
-        "o3_no_spread": {"spread_loss_weight": 0.0},
-        "g1_canonical_full": {
-            "graph_axis_policy": "canonical_full",
-            "graph_hvg_count": 5000,
-        },
+        SUCCESSOR_A0: variant("reference"),
+        "h1_hvg1024_ratio_half": variant(
+            "graph_hvg_count",
+            {
+                "graph_hvg_count": 1024,
+                "runtime_graph_root": "vnext/graph_axes/nadig_jurkat/hvg1024_plus_targets",
+            },
+        ),
+        "h2_hvg2048_ratio_half": variant(
+            "graph_hvg_count",
+            {
+                "graph_hvg_count": 2048,
+                "runtime_graph_root": "vnext/graph_axes/nadig_jurkat/hvg2048_plus_targets",
+            },
+        ),
+        "h3_hvg5000_ratio_half": variant(
+            "graph_hvg_count",
+            {
+                "graph_hvg_count": 5000,
+                "runtime_graph_root": "vnext/graph_axes/nadig_jurkat/hvg5000_plus_targets",
+            },
+        ),
+        "l1_fanout_ratio_half": variant("local_view_builder", {"local_view_builder": "fanout"}),
+        "l2_ring_half_count4": variant("local_view_count", {"local_view_count": 4}),
+        "l3_ring_quarter": variant(
+            "local_view_node_budget_ratio",
+            {"local_view_node_budget_ratio": "1/4"},
+        ),
+        "l4_ring_half_mask_half": variant(
+            "local_anchor_mask_view_ratio",
+            {"local_anchor_mask_view_ratio": "1/2"},
+        ),
+        "l5_ring_half_mask_quarter": variant(
+            "local_anchor_mask_view_ratio",
+            {"local_anchor_mask_view_ratio": "1/4"},
+        ),
+        "m1_single_string_gat": variant(
+            "graph_encoder_family",
+            {
+                "graph_sources": "string",
+                "graph_encoder_family": "single_source_gat",
+                "graph_encoder_dropout": 0.2,
+            },
+        ),
+        "m2_single_string_transformer": variant(
+            "graph_encoder_family",
+            {
+                "graph_sources": "string",
+                "graph_encoder_family": "single_source_sparse_transformer",
+            },
+        ),
+        "m4_adaptive_source_gat": variant(
+            "graph_encoder_family",
+            {
+                "graph_encoder_family": "adaptive_source_gat_fusion",
+                "graph_encoder_dropout": 0.2,
+            },
+        ),
+        "w1_string_edge_feature": variant(
+            "string_weight_mode",
+            {
+                "graph_sources": "string",
+                "graph_encoder_family": "single_source_gat",
+                "graph_encoder_dropout": 0.2,
+                "string_weight_mode": "edge_feature",
+            },
+        ),
+        "w2_string_fixed_prior": variant(
+            "string_weight_mode",
+            {
+                "graph_sources": "string",
+                "graph_encoder_family": "single_source_gat",
+                "graph_encoder_dropout": 0.2,
+                "string_weight_mode": "fixed_prior",
+            },
+        ),
+        "w3_string_prior_residual": variant(
+            "string_weight_mode",
+            {
+                "graph_sources": "string",
+                "graph_encoder_family": "single_source_gat",
+                "graph_encoder_dropout": 0.2,
+                "string_weight_mode": "prior_residual",
+            },
+        ),
+        "ws_string_weight_shuffle": variant(
+            "string_weight_mode",
+            {
+                "graph_sources": "string",
+                "graph_encoder_family": "single_source_gat",
+                "graph_encoder_dropout": 0.2,
+                "string_weight_mode": "shuffled_edge_feature",
+            },
+        ),
+        "d1_control_mlp": variant("decoder_mode", {"decoder_mode": "parameter_matched_mlp"}),
+        "d2_control_transformer": variant(
+            "decoder_mode", {"decoder_mode": "control_condition_transformer"}
+        ),
+        "e1_frozen_genept": variant(
+            "gene_feature_mode",
+            {"gene_feature_mode": "frozen_genept_projection"},
+            derived_diffs=frozenset(
+                {"genept_artifact_path", "genept_expected_sha256", "runtime_graph_root"}
+            ),
+        ),
+        "e2_genept_id_residual": variant(
+            "gene_feature_mode",
+            {"gene_feature_mode": "genept_id_residual"},
+            derived_diffs=frozenset(
+                {"genept_artifact_path", "genept_expected_sha256", "runtime_graph_root"}
+            ),
+        ),
+        "e3_genept_initialized": variant(
+            "gene_feature_mode",
+            {"gene_feature_mode": "genept_initialized"},
+            derived_diffs=frozenset(
+                {"genept_artifact_path", "genept_expected_sha256", "runtime_graph_root"}
+            ),
+        ),
+        "es_genept_shuffle": variant(
+            "gene_feature_mode",
+            {"gene_feature_mode": "genept_shuffled"},
+            derived_diffs=frozenset(
+                {"genept_artifact_path", "genept_expected_sha256", "runtime_graph_root"}
+            ),
+        ),
+        "o1_no_condition": variant(
+            "condition_consistency_loss_weight", {"condition_consistency_loss_weight": 0.0}
+        ),
+        "o2_no_masked_node": variant("masked_node_loss_weight", {"masked_node_loss_weight": 0.0}),
+        "o3_no_spread": variant("spread_loss_weight", {"spread_loss_weight": 0.0}),
     }
+
+
+def parameter_values(payload: dict[str, object]) -> dict[str, object]:
+    parameters = payload["model"]["parameters"]
+    return {name: value["value"] for name, value in parameters.items()}
+
+
+def require_declared_parameter_diff(
+    *,
+    variant_id: str,
+    payload: dict[str, object],
+    spec: VariantSpec,
+) -> None:
+    baseline = parameter_values(base_config())
+    observed = parameter_values(payload)
+    changed = {
+        name
+        for name in set(baseline) | set(observed)
+        if baseline.get(name, "<missing>") != observed.get(name, "<missing>")
+    }
+    changed.discard("performance_pilot_variant")
+    if changed != spec.declared_parameter_diffs:
+        raise RuntimeError(
+            f"{variant_id} scientific diff differs: "
+            f"expected {sorted(spec.declared_parameter_diffs)}, observed {sorted(changed)}"
+        )
 
 
 def render() -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
+    specs = variants()
+    collisions = set(specs) & LEGACY_FIXED_BUDGET_VARIANTS
+    if collisions:
+        raise RuntimeError(
+            f"successor IDs collide with fixed-budget lineages: {sorted(collisions)}"
+        )
     expected: set[Path] = set()
     rows: list[dict[str, object]] = []
-    for name, changes in variants().items():
+    for name, spec in specs.items():
         payload = copy.deepcopy(base_config())
         parameters = payload["model"]["parameters"]
-        parameters["performance_pilot_variant"] = sourced(f"vnext_{name}")
-        for key, value in changes.items():
-            parameters[key] = sourced(value)
+        successor_row = name == SUCCESSOR_A0 or name.startswith(("h", "l"))
+        change_reference = SUCCESSOR_REFERENCE if successor_row else REFERENCE
+        parameters["performance_pilot_variant"] = sourced(
+            f"vnext_{name}", reference=change_reference
+        )
+        for key, value in spec.changes.items():
+            parameters[key] = sourced(value, reference=change_reference)
         if name.startswith(("e1_", "e2_", "e3_", "es_")):
             parameters["runtime_graph_root"] = sourced(
                 "vnext/graph_axes/nadig_jurkat/hvg512_genept_exact"
             )
             parameters["genept_expected_sha256"] = sourced(GENEPT_EMB_B_SHA256)
             parameters["genept_artifact_path"] = sourced(GENEPT_PATH)
-        if name == "g1_canonical_full":
-            parameters.pop("runtime_graph_root")
+        require_declared_parameter_diff(variant_id=name, payload=payload, spec=spec)
         payload["artifacts"]["root"] = f"runs/ablations/nadig_jurkat/{name}"
         destination = OUTPUT / name / "gradpert_b2" / "nadig_jurkat.yaml"
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -169,6 +326,8 @@ def render() -> None:
                 "run_seed": 1,
                 "max_epochs": 10,
                 "result_mode": "metrics_only",
+                "semantic_factor": spec.semantic_factor,
+                "declared_parameter_diffs": sorted(spec.declared_parameter_diffs),
                 "genept_preflight_required": name.startswith(("e1_", "e2_", "e3_", "es_")),
             }
         )
@@ -179,8 +338,10 @@ def render() -> None:
             f"{sorted(str(path.relative_to(ROOT)) for path in stale)}"
         )
     matrix = {
-        "schema_version": "1",
-        "design_reference": REFERENCE,
+        "schema_version": "2",
+        "matrix_id": "nadig_jurkat_vnext_ratio_graph_v2",
+        "design_reference": SUCCESSOR_REFERENCE,
+        "architecture_reference": REFERENCE,
         "dataset_id": "nadig_jurkat",
         "canonical_split_count": 1,
         "run_seeds": [1],

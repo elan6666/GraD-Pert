@@ -14,9 +14,9 @@ def _vnext(**overrides: object) -> dict[str, object]:
         "string_weight_mode": "selection_only",
         "local_view_builder": "fanout",
         "local_view_count": 8,
-        "local_view_node_budget": 256,
+        "local_view_node_budget_ratio": "1/2",
         "local_view_fanout": "20_10_5_5",
-        "local_anchor_mask_count": 0,
+        "local_anchor_mask_view_ratio": "0/1",
         "gene_feature_mode": "learned_id",
         "decoder_mode": "additive",
     }
@@ -28,27 +28,77 @@ def test_vnext_default_resolves_one_hashable_architecture() -> None:
     options = NativeArchitectureOptions.from_parameters(_vnext())
     assert options.graph_sources == ("string", "go")
     assert options.local_view_fanout == (20, 10, 5, 5)
-    assert options.local_anchor_mask_count == 0
+    assert options.local_view_node_budget_ratio_numerator == 1
+    assert options.local_view_node_budget_ratio_denominator == 2
+    assert options.local_anchor_mask_view_ratio_numerator == 0
+    assert options.local_anchor_mask_view_ratio_denominator == 1
     assert len(options.payload_sha256) == 64
-    assert options.payload()["schema_version"] == "native-architecture-vnext-1"
+    assert options.payload()["schema_version"] == "native-architecture-vnext-2"
 
 
-def test_historical_parameters_keep_v1_behavior() -> None:
+def test_minimal_parameters_resolve_ratio_based_defaults() -> None:
     options = NativeArchitectureOptions.from_parameters(
         {"graph_axis_policy": "canonical_full", "graph_sources": "string_go"}
     )
     assert options.graph_encoder_family == "adaptive_relation_gat"
     assert options.local_view_builder == "ring_induced"
-    assert options.local_view_node_budget == 512
-    assert options.local_anchor_mask_count == 4
+    assert options.local_view_node_budget_ratio_numerator == 1
+    assert options.local_view_node_budget_ratio_denominator == 2
+    assert options.local_anchor_mask_view_ratio_numerator == 0
+    assert options.local_anchor_mask_view_ratio_denominator == 1
+
+
+@pytest.mark.parametrize("graph_hvg_count", [512, 1024, 2048, 5000])
+def test_hvg_graph_scales_are_explicitly_supported(graph_hvg_count: int) -> None:
+    options = NativeArchitectureOptions.from_parameters(_vnext(graph_hvg_count=graph_hvg_count))
+    assert options.graph_hvg_count == graph_hvg_count
+
+
+@pytest.mark.parametrize(
+    ("local_count", "mask_ratio", "expected_mask_ratio"),
+    [
+        (4, "0", (0, 1)),
+        (4, "1/4", (1, 4)),
+        (4, "1/2", (1, 2)),
+        (8, 0.25, (1, 4)),
+        (8, 0.5, (1, 2)),
+    ],
+)
+def test_local_count_and_exact_mask_ratios_are_supported(
+    local_count: int,
+    mask_ratio: object,
+    expected_mask_ratio: tuple[int, int],
+) -> None:
+    options = NativeArchitectureOptions.from_parameters(
+        _vnext(
+            local_view_count=local_count,
+            local_anchor_mask_view_ratio=mask_ratio,
+        )
+    )
+    assert (
+        options.local_anchor_mask_view_ratio_numerator,
+        options.local_anchor_mask_view_ratio_denominator,
+    ) == expected_mask_ratio
+
+
+def test_ratio_inputs_are_canonicalized_without_float_arithmetic() -> None:
+    options = NativeArchitectureOptions.from_parameters(_vnext(local_view_node_budget_ratio=0.5))
+    assert (
+        options.local_view_node_budget_ratio_numerator,
+        options.local_view_node_budget_ratio_denominator,
+    ) == (1, 2)
 
 
 @pytest.mark.parametrize(
     ("override", "message"),
     [
-        ({"graph_hvg_count": 511}, "exactly 512"),
+        ({"graph_hvg_count": 511}, "512, 1024, 2048, or 5000"),
         ({"local_view_fanout": "20_10_5"}, "four positive"),
-        ({"local_anchor_mask_count": 2}, "must be 0 or 4"),
+        (
+            {"local_anchor_mask_view_ratio": "1/3"},
+            "local_count.*ratio must be an integer",
+        ),
+        ({"local_view_node_budget_ratio": "0/1"}, r"\(0, 1\]"),
         ({"string_weight_mode": "edge_feature"}, "only by single GAT"),
         ({"graph_sources": "string"}, "multi-source encoders"),
     ],
@@ -56,6 +106,12 @@ def test_historical_parameters_keep_v1_behavior() -> None:
 def test_invalid_vnext_combinations_fail_closed(override: dict[str, object], message: str) -> None:
     with pytest.raises(ValueError, match=message):
         NativeArchitectureOptions.from_parameters(_vnext(**override))
+
+
+@pytest.mark.parametrize("legacy_name", ["local_view_node_budget", "local_anchor_mask_count"])
+def test_fixed_local_view_factors_fail_closed(legacy_name: str) -> None:
+    with pytest.raises(ValueError, match="fixed local-view factors are unsupported"):
+        NativeArchitectureOptions.from_parameters(_vnext(**{legacy_name: 4}))
 
 
 def test_genept_requires_exact_artifact_identity() -> None:

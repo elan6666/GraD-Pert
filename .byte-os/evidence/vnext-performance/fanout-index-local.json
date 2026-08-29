@@ -1,0 +1,93 @@
+{
+  "environment": {
+    "cpu": "Apple M5",
+    "logical_cpu_count": 10,
+    "memory_bytes": 17179869184,
+    "os": "Darwin 25.6.0 arm64",
+    "python": "3.13.13"
+  },
+  "repeats_after_warmup": 5,
+  "rows": [
+    {
+      "condition_count": 1,
+      "exact_local_view_sha256_equal": true,
+      "local_view_count": 8,
+      "local_view_sha256": "49eebd3e9665af79f6e74eafa8cf432708851ee171fa3dc3286db0814e4824de",
+      "median_reduction_pct": 67.38848691896764,
+      "median_speedup": 3.066401726026089,
+      "node_budget": 256,
+      "optimized_median_ms": 54.99479197897017,
+      "optimized_ms": [54.7737090382725, 54.99479197897017, 63.9009999576956, 55.47824990935624, 54.53645810484886],
+      "reference_median_ms": 168.63612504675984,
+      "reference_ms": [170.77837511897087, 163.24137500487268, 168.63612504675984, 172.65754216350615, 163.36624999530613]
+    },
+    {
+      "condition_count": 1,
+      "exact_local_view_sha256_equal": true,
+      "local_view_count": 8,
+      "local_view_sha256": "49eebd3e9665af79f6e74eafa8cf432708851ee171fa3dc3286db0814e4824de",
+      "median_reduction_pct": 67.88940121404366,
+      "median_speedup": 3.1142365381157346,
+      "node_budget": 512,
+      "optimized_median_ms": 55.245749885216355,
+      "optimized_ms": [54.902832955121994, 55.07716606371105, 55.82187487743795, 64.66291705146432, 55.245749885216355],
+      "reference_median_ms": 172.04833286814392,
+      "reference_ms": [162.97191614285111, 169.80458283796906, 172.04833286814392, 176.2286250013858, 174.80541695840657]
+    },
+    {
+      "condition_count": 5,
+      "exact_local_view_sha256_equal": true,
+      "local_view_count": 40,
+      "local_view_sha256": "559c2ba3b88f30e92b3dd0bf39a9323d30b2152f4892e9dd33326f3f6ca2a695",
+      "median_reduction_pct": 89.34581938322053,
+      "median_speedup": 9.38598692822122,
+      "node_budget": 256,
+      "optimized_median_ms": 64.81308303773403,
+      "optimized_ms": [64.81308303773403, 74.58708295598626, 63.96479206159711, 64.77783317677677, 75.78258286230266],
+      "reference_median_ms": 608.3347501698881,
+      "reference_ms": [600.2488750964403, 608.3347501698881, 610.8552920632064, 609.189375070855, 604.5554589945823]
+    },
+    {
+      "condition_count": 5,
+      "exact_local_view_sha256_equal": true,
+      "local_view_count": 40,
+      "local_view_sha256": "559c2ba3b88f30e92b3dd0bf39a9323d30b2152f4892e9dd33326f3f6ca2a695",
+      "median_reduction_pct": 89.26900314240666,
+      "median_speedup": 9.318798740420762,
+      "node_budget": 512,
+      "optimized_median_ms": 65.10337512008846,
+      "optimized_ms": [65.07820799015462, 75.28841611929238, 63.85954190045595, 65.10337512008846, 75.96708298660815],
+      "reference_median_ms": 606.6852500662208,
+      "reference_ms": [606.6852500662208, 606.1733749229461, 608.7566670030355, 596.8692081514746, 610.1867079269141]
+    },
+    {
+      "condition_count": 8,
+      "exact_local_view_sha256_equal": true,
+      "local_view_count": 64,
+      "local_view_sha256": "b4cfd806e9b20cda4f3064f3325f52f6ecc43f67d94369c4ac789a60b74eb0e6",
+      "median_reduction_pct": 92.37599068684513,
+      "median_speedup": 13.11645826920156,
+      "node_budget": 256,
+      "optimized_median_ms": 71.80758309550583,
+      "optimized_ms": [71.80758309550583, 81.82200021110475, 70.79120795242488, 71.19824993424118, 82.77154108509421],
+      "reference_median_ms": 941.8611670844257,
+      "reference_ms": [935.0300410296768, 937.1685418300331, 945.6761658657342, 941.8611670844257, 947.1906248945743]
+    },
+    {
+      "condition_count": 8,
+      "exact_local_view_sha256_equal": true,
+      "local_view_count": 64,
+      "local_view_sha256": "b4cfd806e9b20cda4f3064f3325f52f6ecc43f67d94369c4ac789a60b74eb0e6",
+      "median_reduction_pct": 92.31681022470904,
+      "median_speedup": 13.015427566503538,
+      "node_budget": 512,
+      "optimized_median_ms": 72.88887514732778,
+      "optimized_ms": [72.88887514732778, 83.85341707617044, 72.15887517668307, 72.77379115112126, 83.72220885939896],
+      "reference_median_ms": 948.6798748839647,
+      "reference_ms": [946.2805411312729, 953.6534158978611, 951.1808748356998, 948.6798748839647, 947.3967920057476]
+    }
+  ],
+  "schema_version": "fanout-index-microbenchmark-v1",
+  "topology_node_count": 2809,
+  "topology_nonself_edge_count": 89888
+}

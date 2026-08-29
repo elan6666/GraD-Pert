@@ -5,11 +5,13 @@ import pytest
 from gradpert.graphs import (
     GraphTopology,
     build_graph_view_batch,
+    build_incoming_edge_index,
     build_prediction_graph_view,
     build_ring_induced_view,
     build_training_graph_views,
     clean_graph_view,
     prune_incoming_edges,
+    resolve_local_view_contract,
 )
 from gradpert.graphs.views import build_fanout_view
 
@@ -135,6 +137,65 @@ def test_training_views_share_globals_and_build_locals_per_unique_condition() ->
     assert clean_graph_view(masked_global).edges_by_source == masked_global.edges_by_source
 
 
+def test_training_views_support_four_local_views_without_changing_view_semantics() -> None:
+    views = build_training_graph_views(
+        _topology(),
+        anchors_by_condition={"A+ctrl": (0,)},
+        heldout_target_ids=(),
+        run_seed=7,
+        global_step=11,
+        local_count=4,
+        local_node_budget=3,
+        local_anchor_mask_count=0,
+    )
+
+    locals_ = views.locals_by_condition["A+ctrl"]
+    assert len(locals_) == 4
+    assert tuple(view.view_id for view in locals_) == (
+        "local_0",
+        "local_1",
+        "local_2",
+        "local_3",
+    )
+    assert views.masked_local_indices_by_condition["A+ctrl"] == ()
+
+
+@pytest.mark.parametrize(
+    ("graph_nodes", "ratio", "expected_budget", "expected_remainder"),
+    [
+        (2809, (1, 2), 1404, 1),
+        (2809, (1, 4), 702, 1),
+        (2808, (1, 2), 1404, 0),
+    ],
+)
+def test_ratio_contract_uses_exact_floor_without_float_rounding(
+    graph_nodes: int,
+    ratio: tuple[int, int],
+    expected_budget: int,
+    expected_remainder: int,
+) -> None:
+    contract = resolve_local_view_contract(
+        graph_node_count=graph_nodes,
+        local_view_count=8,
+        node_budget_ratio=ratio,
+        mask_view_ratio=(1, 4),
+    )
+
+    assert contract.effective_node_budget == expected_budget
+    assert contract.node_budget_remainder == expected_remainder
+    assert contract.effective_mask_view_count == 2
+
+
+def test_ratio_contract_rejects_nonintegral_mask_view_count() -> None:
+    with pytest.raises(ValueError, match="integral view count"):
+        resolve_local_view_contract(
+            graph_node_count=2809,
+            local_view_count=8,
+            node_budget_ratio=(1, 2),
+            mask_view_ratio=(1, 3),
+        )
+
+
 def test_topology_preserves_ordered_active_sources_and_allows_string_only() -> None:
     topology = _topology()
     assert topology.active_sources == ("string", "go")
@@ -246,6 +307,78 @@ def test_fanout_view_is_deterministic_budgeted_and_keeps_only_sampled_edges() ->
     assert observed_nonself <= set(topology.sources["string"].edges)
     loops = [edge.source for edge in first.edges_by_source["string"] if edge.source == edge.target]
     assert loops == list(first.node_ids)
+
+
+def test_fanout_accepts_ratio_derived_nonlegacy_budget() -> None:
+    topology = _dense_fanout_topology()
+    budget = topology.n_nodes // 2
+    view = build_fanout_view(
+        topology,
+        anchors=(0,),
+        node_budget=budget,
+        seed=19,
+        view_id="fanout_ratio",
+        mask_anchors=False,
+    )
+
+    assert 0 in view.node_ids
+    assert len(view.node_ids) <= budget
+
+
+@pytest.mark.parametrize("node_budget", [256, 512])
+@pytest.mark.parametrize("condition_count", [1, 5, 8])
+def test_precomputed_fanout_index_preserves_every_training_view_exactly(
+    node_budget: int,
+    condition_count: int,
+) -> None:
+    topology = _dense_fanout_topology()
+    anchors_by_condition = {
+        f"condition-{index}": ((index * 47) % topology.n_nodes,) for index in range(condition_count)
+    }
+    parameters = {
+        "anchors_by_condition": anchors_by_condition,
+        "heldout_target_ids": (299,),
+        "run_seed": 17,
+        "global_step": 31,
+        "local_count": 8,
+        "local_node_budget": node_budget,
+        "local_builder": "fanout",
+        "local_fanouts": (20, 10, 5, 5),
+        "local_anchor_mask_count": 4,
+    }
+
+    reference = build_training_graph_views(topology, **parameters)
+    optimized = build_training_graph_views(
+        topology,
+        incoming_edges=build_incoming_edge_index(topology),
+        **parameters,
+    )
+
+    assert optimized == reference
+
+
+def test_precomputed_fanout_index_preserves_multi_and_isolated_anchor_behavior() -> None:
+    topology = _topology()
+    index = build_incoming_edge_index(topology)
+    for anchors in ((0, 1), (6,)):
+        reference = build_fanout_view(
+            topology,
+            anchors=anchors,
+            node_budget=256,
+            seed=8,
+            view_id="fanout",
+            mask_anchors=True,
+        )
+        optimized = build_fanout_view(
+            topology,
+            anchors=anchors,
+            node_budget=256,
+            seed=8,
+            view_id="fanout",
+            mask_anchors=True,
+            incoming_edges=index,
+        )
+        assert optimized == reference
 
 
 def test_local_anchor_mask_count_accepts_zero_and_other_counts() -> None:

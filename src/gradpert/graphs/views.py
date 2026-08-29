@@ -12,6 +12,8 @@ import numpy as np
 
 from gradpert.graphs.pruning import DirectedEdge, PrunedSourceGraph
 
+IncomingEdgeIndex = Mapping[int, tuple[tuple[str, DirectedEdge], ...]]
+
 
 @dataclass(frozen=True)
 class GraphTopology:
@@ -40,6 +42,118 @@ class GraphTopology:
     @property
     def n_nodes(self) -> int:
         return len(self.gene_ids)
+
+
+@dataclass(frozen=True)
+class ResolvedLocalViewContract:
+    """Exact ratio-derived local-view integers bound to one runtime topology."""
+
+    graph_node_count: int
+    local_view_count: int
+    node_budget_ratio_numerator: int
+    node_budget_ratio_denominator: int
+    effective_node_budget: int
+    node_budget_remainder: int
+    mask_view_ratio_numerator: int
+    mask_view_ratio_denominator: int
+    effective_mask_view_count: int
+    derivation_mode: Literal["ratio", "legacy_fixed"] = "ratio"
+    requested_fixed_node_budget: int | None = None
+    requested_fixed_mask_view_count: int | None = None
+
+    def payload(self) -> dict[str, int | str | None]:
+        return {
+            "schema_version": "resolved-local-view-contract-v1",
+            "derivation_mode": self.derivation_mode,
+            "graph_node_count": self.graph_node_count,
+            "local_view_count": self.local_view_count,
+            "node_budget_ratio": (
+                f"{self.node_budget_ratio_numerator}/{self.node_budget_ratio_denominator}"
+            ),
+            "effective_node_budget": self.effective_node_budget,
+            "node_budget_remainder": self.node_budget_remainder,
+            "mask_view_ratio": (
+                f"{self.mask_view_ratio_numerator}/{self.mask_view_ratio_denominator}"
+            ),
+            "effective_mask_view_count": self.effective_mask_view_count,
+            "requested_fixed_node_budget": self.requested_fixed_node_budget,
+            "requested_fixed_mask_view_count": self.requested_fixed_mask_view_count,
+        }
+
+
+def resolve_local_view_contract(
+    *,
+    graph_node_count: int,
+    local_view_count: int,
+    node_budget_ratio: tuple[int, int],
+    mask_view_ratio: tuple[int, int],
+) -> ResolvedLocalViewContract:
+    """Resolve exact fractions without float rounding or silent budget expansion."""
+
+    if graph_node_count <= 0 or local_view_count <= 0:
+        raise ValueError("graph node and local view counts must be positive")
+    node_numerator, node_denominator = node_budget_ratio
+    mask_numerator, mask_denominator = mask_view_ratio
+    if node_denominator <= 0 or not 0 < node_numerator <= node_denominator:
+        raise ValueError("local node-budget ratio must be in (0, 1]")
+    if mask_denominator <= 0 or not 0 <= mask_numerator <= mask_denominator:
+        raise ValueError("local mask-view ratio must be in [0, 1]")
+
+    scaled_nodes = graph_node_count * node_numerator
+    effective_node_budget, node_budget_remainder = divmod(
+        scaled_nodes,
+        node_denominator,
+    )
+    if effective_node_budget <= 0:
+        raise ValueError("local node-budget ratio resolves to zero nodes")
+
+    scaled_masks = local_view_count * mask_numerator
+    effective_mask_view_count, mask_remainder = divmod(scaled_masks, mask_denominator)
+    if mask_remainder:
+        raise ValueError("local mask-view ratio must resolve to an integral view count")
+
+    return ResolvedLocalViewContract(
+        graph_node_count=graph_node_count,
+        local_view_count=local_view_count,
+        node_budget_ratio_numerator=node_numerator,
+        node_budget_ratio_denominator=node_denominator,
+        effective_node_budget=effective_node_budget,
+        node_budget_remainder=node_budget_remainder,
+        mask_view_ratio_numerator=mask_numerator,
+        mask_view_ratio_denominator=mask_denominator,
+        effective_mask_view_count=effective_mask_view_count,
+    )
+
+
+def resolve_legacy_local_view_contract(
+    *,
+    graph_node_count: int,
+    local_view_count: int,
+    fixed_node_budget: int,
+    fixed_mask_view_count: int,
+) -> ResolvedLocalViewContract:
+    """Preserve sealed fixed-count v1/pilot semantics without entering new matrices."""
+
+    if graph_node_count <= 0 or local_view_count <= 0:
+        raise ValueError("graph node and local view counts must be positive")
+    if not 0 < fixed_node_budget <= graph_node_count:
+        raise ValueError("legacy fixed local node budget must be within the runtime graph")
+    if not 0 <= fixed_mask_view_count <= local_view_count:
+        raise ValueError("legacy fixed local mask count exceeds the local view count")
+    return ResolvedLocalViewContract(
+        graph_node_count=graph_node_count,
+        local_view_count=local_view_count,
+        node_budget_ratio_numerator=fixed_node_budget,
+        node_budget_ratio_denominator=graph_node_count,
+        effective_node_budget=fixed_node_budget,
+        node_budget_remainder=0,
+        mask_view_ratio_numerator=fixed_mask_view_count,
+        mask_view_ratio_denominator=local_view_count,
+        effective_mask_view_count=fixed_mask_view_count,
+        derivation_mode="legacy_fixed",
+        requested_fixed_node_budget=fixed_node_budget,
+        requested_fixed_mask_view_count=fixed_mask_view_count,
+    )
 
 
 @dataclass(frozen=True)
@@ -229,9 +343,11 @@ def build_ring_induced_view(
     )
 
 
-def _incoming_edges_by_target(
+def build_incoming_edge_index(
     topology: GraphTopology,
 ) -> dict[int, tuple[tuple[str, DirectedEdge], ...]]:
+    """Materialize the immutable, source-ordered Fanout candidate index once."""
+
     source_order = {name: index for index, name in enumerate(topology.active_sources)}
     incoming: dict[int, list[tuple[str, DirectedEdge]]] = {
         node_id: [] for node_id in range(topology.n_nodes)
@@ -264,6 +380,7 @@ def build_fanout_view(
     view_id: str,
     mask_anchors: bool,
     fanouts: tuple[int, int, int, int] = (20, 10, 5, 5),
+    incoming_edges: IncomingEdgeIndex | None = None,
 ) -> GraphView:
     """Sample four incoming hops while retaining only the sampled base edges."""
 
@@ -272,14 +389,14 @@ def build_fanout_view(
         raise ValueError("local view requires at least one active anchor")
     if any(anchor < 0 or anchor >= topology.n_nodes for anchor in anchor_ids):
         raise ValueError("anchor is outside the graph universe")
-    if node_budget not in {256, 512}:
-        raise ValueError("fanout local node budget must be 256 or 512")
+    if node_budget <= 0:
+        raise ValueError("fanout local node budget must be positive")
     if node_budget < len(anchor_ids):
         raise ValueError("local node budget cannot retain all active anchors")
     if len(fanouts) != 4 or any(value <= 0 for value in fanouts):
         raise ValueError("all four fanout values must be positive")
 
-    incoming = _incoming_edges_by_target(topology)
+    incoming = incoming_edges if incoming_edges is not None else build_incoming_edge_index(topology)
     selected = set(anchor_ids)
     frontier = set(anchor_ids)
     sampled_by_source: dict[str, set[DirectedEdge]] = {
@@ -434,12 +551,13 @@ def _build_local_views(
     local_count: int,
     local_node_budget: int,
     incoming_neighbors: Mapping[int, frozenset[int]] | None,
+    incoming_edges: IncomingEdgeIndex | None,
     local_builder: Literal["ring_induced", "fanout"],
     local_fanouts: tuple[int, int, int, int],
     local_anchor_mask_count: int,
 ) -> tuple[tuple[GraphView, ...], tuple[int, ...]]:
-    if local_count != 8:
-        raise ValueError("v1 requires exactly eight local views")
+    if local_count <= 0:
+        raise ValueError("local view count must be positive")
     if not 0 <= local_anchor_mask_count <= local_count:
         raise ValueError("local anchor mask count must be between zero and local count")
     if local_builder not in {"ring_induced", "fanout"}:
@@ -501,6 +619,7 @@ def _build_local_views(
                     view_id=f"local_{view_index}",
                     mask_anchors=view_index in masked_local_indices,
                     fanouts=local_fanouts,
+                    incoming_edges=incoming_edges,
                 )
             )
     return tuple(locals_), masked_local_indices
@@ -521,6 +640,7 @@ def build_training_graph_views(
     local_anchor_mask_count: int = 4,
     prediction_view: GraphView | None = None,
     incoming_neighbors: Mapping[int, frozenset[int]] | None = None,
+    incoming_edges: IncomingEdgeIndex | None = None,
 ) -> GraDPertTrainingViews:
     """Build one batch-level global pair and locals once per unique condition."""
 
@@ -565,6 +685,7 @@ def build_training_graph_views(
             local_count=local_count,
             local_node_budget=local_node_budget,
             incoming_neighbors=incoming_neighbors,
+            incoming_edges=incoming_edges,
             local_builder=local_builder,
             local_fanouts=local_fanouts,
             local_anchor_mask_count=local_anchor_mask_count,

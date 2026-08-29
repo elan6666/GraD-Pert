@@ -1,29 +1,31 @@
 # Byte Auto Run
 
-- Goal: Deliver the confirmed GraD-Pert B2-vNext config-driven single/multi-
-  graph ablation system, verify it locally and on the server, synchronize a
-  clean public commit, and launch the frozen Nadig Jurkat canonical-split seed-1
-  10-epoch matrix.
+- Goal: Deliver a measured exact-effect optimization for the successor Nadig
+  Jurkat A0, then complete the preregistered H graph-scale and L local-view
+  10-epoch modules with reviewed zero-PKL evidence.
 - Started at: 2026-08-27T18:54:33Z
-- Current loop number: 1
-- Completed stages: prior v1 benchmark and speed-pilot delivery; requirement
-  discussion; source-derived graph/GenePT exploration; B2-vNext product and
-  technical shaping; config-driven implementation; local gates; Torch/PyG/
-  anndata server development gates; two read-only repair reviews.
-- Current stage: Local Graph queue publication-receipt repair and controlled
-  continuation after a mid-queue GitHub connectivity failure.
-- Remaining plans: verify the queue-scoped publication receipt; commit, push
-  and synchronize a clean successor; run only unfinished A0/L2/L4 in a new
-  namespace; validate and document the Local Graph module.
-- Review verdict: ship to clean-commit/formal-preflight; long training is not
-  yet authorized by evidence until the formal receipts and A0 gate pass.
-- Iteration count: 2 of 3.
-- Subagent mode: off for this sequential identity/queue repair.
-- Active subagent scopes: none.
-- Hard blockers: none. GenePT training availability is conditional on the
-  authoritative server target-coverage preflight and is not a blocker for the
-  rest of the matrix.
-- Exact resume action: finish plan 027 gates, publish/synchronize the successor
-  commit, seal one live publication receipt, then launch only A0/L2/L4 with
-  every row bound to that receipt.
+- Current loop number: 4
+- Completed stages: repository harness; design discussion; successor A0/H/L
+  experiment Markdown; ratio config, graph-view, loss, matrix and generic-H
+  implementation; bounded no-test profiler harness; focused local gates.
+- Current stage: publish the locally reviewed Plan 029 reference source and run
+  exact-environment server pytest/Ruff/format/strict-mypy/build before the real
+  A0 capacity/profile gate.
+- Remaining plans: finish plan 029 server gates; execute plan 028 reference
+  capacity/profile, measured optimization, exact-effect gate and ABBA timing;
+  execute plan 030 H/L materialization, queues, validation, review and delivery.
+- Review verdict: pending exact server gates and measured performance evidence.
+- Iteration count: 1 of 3.
+- Subagent mode: on; all three scoped implementation handoffs are complete and
+  merged by the primary agent.
+- Active subagent scopes: none; three Plan 029 implementation repairs and their
+  independent reviews are complete.
+- Goal-mode exception: Pursue Goal remains inactive because every upcoming CUDA
+  process must first observe no active continuous goal. This safety contract
+  takes precedence; Byte OS files retain the end-to-end objective.
+- Hard blockers: none. Missing local Torch/nbformat/mypy are server-gate items,
+  not completion blockers.
+- Exact resume action: commit/publish/synchronize the clean reference source,
+  pass full server gates, call `get_goal`, then on one idle RTX 5090 run only
+  the bounded training-only capacity/profile/timing harness.
 - Parked future items: recorded in `.byte-os/FUTURE.md`, excluded from Auto.

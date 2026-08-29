@@ -1,255 +1,419 @@
 {
+  "architecture_reference": "docs/design/GRADPERT_VNEXT_ABLATIONS.md",
   "canonical_split_count": 1,
   "dataset_id": "nadig_jurkat",
-  "design_reference": "docs/design/GRADPERT_VNEXT_ABLATIONS.md",
+  "design_reference": "docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md",
+  "matrix_id": "nadig_jurkat_vnext_ratio_graph_v2",
   "max_epochs": 10,
-  "row_count": 22,
+  "row_count": 25,
   "rows": [
     {
-      "config_path": "configs/ablations/nadig_jurkat/a0_default/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "6fea049bc856760ad1b0aa01cbc3b03f36d41c3b4400a6148d82c4115bf8e582",
+      "config_path": "configs/ablations/nadig_jurkat/a0_ratio_ring_half/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "919217394f3fd5490c0cf119a37a3ec3941e8ae8e3b41397f0928ec04089beab",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "reference",
       "split_policy": "frozen_canonical",
-      "variant_id": "a0_default"
+      "variant_id": "a0_ratio_ring_half"
     },
     {
-      "config_path": "configs/ablations/nadig_jurkat/l1_ring_256/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "754fc0088575961a2a716676a60b5d65efa3f705585e14c028f907c5bce3451d",
+      "config_path": "configs/ablations/nadig_jurkat/h1_hvg1024_ratio_half/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "b1ff5ff9c65cfeb9e6c3beea0cd2efab560e7fade87b2d555aa2deaeb9f081d1",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "graph_hvg_count",
+        "runtime_graph_root"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "graph_hvg_count",
       "split_policy": "frozen_canonical",
-      "variant_id": "l1_ring_256"
+      "variant_id": "h1_hvg1024_ratio_half"
     },
     {
-      "config_path": "configs/ablations/nadig_jurkat/l2_fanout_512/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "ad880e314ecb61f535810995fc547b8f82408de2456e5819dbf8a9f09d1a5816",
+      "config_path": "configs/ablations/nadig_jurkat/h2_hvg2048_ratio_half/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "9bd2681115ff816aebb131e3f38a3c74c1f486a5fbb808e0582be84d1b1bd679",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "graph_hvg_count",
+        "runtime_graph_root"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "graph_hvg_count",
       "split_policy": "frozen_canonical",
-      "variant_id": "l2_fanout_512"
+      "variant_id": "h2_hvg2048_ratio_half"
     },
     {
-      "config_path": "configs/ablations/nadig_jurkat/l3_ring_512/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "fb88eda0ee9a212317a9a491f6f72d326937a38e5765e29e4575cadef6ac72f6",
+      "config_path": "configs/ablations/nadig_jurkat/h3_hvg5000_ratio_half/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "7902a8b36723465bb52c132f05f17b3f7b44fad4359cc3ad82b82f78df1a6402",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "graph_hvg_count",
+        "runtime_graph_root"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "graph_hvg_count",
       "split_policy": "frozen_canonical",
-      "variant_id": "l3_ring_512"
+      "variant_id": "h3_hvg5000_ratio_half"
     },
     {
-      "config_path": "configs/ablations/nadig_jurkat/l4_anchor_mask_4/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "6e2a64089d31cf1c6e3c78246616f901c0c8fcd6908aed6bad7262167ac99750",
+      "config_path": "configs/ablations/nadig_jurkat/l1_fanout_ratio_half/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "b6314dee7a4b28ea34addc9480f076ff9b6659a15b5277d3b553b242b18e5d9e",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "local_view_builder"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "local_view_builder",
       "split_policy": "frozen_canonical",
-      "variant_id": "l4_anchor_mask_4"
+      "variant_id": "l1_fanout_ratio_half"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/l2_ring_half_count4/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "c7ecd75d34e0f3e3625e6b95822db01065c0d95d9fd7d45de84efaeed2bbe4d6",
+      "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "local_view_count"
+      ],
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "semantic_factor": "local_view_count",
+      "split_policy": "frozen_canonical",
+      "variant_id": "l2_ring_half_count4"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/l3_ring_quarter/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "d5f7bc61a57d615110e734b3e2a75128b33eb3dbbc783c42c4c5544fc187b5cd",
+      "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "local_view_node_budget_ratio"
+      ],
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "semantic_factor": "local_view_node_budget_ratio",
+      "split_policy": "frozen_canonical",
+      "variant_id": "l3_ring_quarter"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/l4_ring_half_mask_half/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "0f3de8eaa45f3fa8dc1f88b03a7590fd848162fd066fa7e93095800db55787ae",
+      "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "local_anchor_mask_view_ratio"
+      ],
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "semantic_factor": "local_anchor_mask_view_ratio",
+      "split_policy": "frozen_canonical",
+      "variant_id": "l4_ring_half_mask_half"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/l5_ring_half_mask_quarter/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "ffe3f302e02dd348c4531b47d08219bfcd6b7b6e1484ee202bc6c35d58de63b1",
+      "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "local_anchor_mask_view_ratio"
+      ],
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "semantic_factor": "local_anchor_mask_view_ratio",
+      "split_policy": "frozen_canonical",
+      "variant_id": "l5_ring_half_mask_quarter"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/m1_single_string_gat/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "d458e4a2d9aef1c2a03c44c6e38ee081c136a908a97d31acfefcf2d95f3a971f",
+      "config_sha256": "d5a7e56c8c56f3e3bd3d6079c460a0e939776a9710b738baf5f137effd708c2d",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "graph_encoder_dropout",
+        "graph_encoder_family",
+        "graph_sources"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "graph_encoder_family",
       "split_policy": "frozen_canonical",
       "variant_id": "m1_single_string_gat"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/m2_single_string_transformer/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "2c50adc91b8ec462e6df6832cecd304b2edbe668a9b339d8459745d73735b13a",
+      "config_sha256": "8c51b883663a8ed32f3dcfec9e073ba52b54f20846d37bf13645c2fb800a9066",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "graph_encoder_family",
+        "graph_sources"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "graph_encoder_family",
       "split_policy": "frozen_canonical",
       "variant_id": "m2_single_string_transformer"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/m4_adaptive_source_gat/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "ccafb4abb1d55b81b1c3bf607585ee19611fc412347749704f586798e387dfd3",
+      "config_sha256": "4d2af5008c85121d962fe2965348c070c284011a990e6d248813f8886785d70d",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "graph_encoder_dropout",
+        "graph_encoder_family"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "graph_encoder_family",
       "split_policy": "frozen_canonical",
       "variant_id": "m4_adaptive_source_gat"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/w1_string_edge_feature/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "0cbf9d3a0613804134591bc4b2b2cac6d10d3c4e2c1b60a1a9d78320315de907",
+      "config_sha256": "a693cfcdc6dc84ae0acf3830a29b34a463c284c67d68d687cc683e51cbb21026",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "graph_encoder_dropout",
+        "graph_encoder_family",
+        "graph_sources",
+        "string_weight_mode"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "string_weight_mode",
       "split_policy": "frozen_canonical",
       "variant_id": "w1_string_edge_feature"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/w2_string_fixed_prior/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "a66a2b6748e6e42341070a5db8d8d9c0a78bafe4d30d0a71724a394658aa0f8a",
+      "config_sha256": "ed57bdb8afca6e6dc7d0cd14648fd9386a0ccab8f0a42929c907c67a8fd48b72",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "graph_encoder_dropout",
+        "graph_encoder_family",
+        "graph_sources",
+        "string_weight_mode"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "string_weight_mode",
       "split_policy": "frozen_canonical",
       "variant_id": "w2_string_fixed_prior"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/w3_string_prior_residual/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "2a004fcccff119ce6ea92f130ec0616e7e77c595af8b1503137169c05b25f8cc",
+      "config_sha256": "c3f3550d5a4b0a0eae8ce16df76f5471b204a3fedabac51b3855c60f61a396a6",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "graph_encoder_dropout",
+        "graph_encoder_family",
+        "graph_sources",
+        "string_weight_mode"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "string_weight_mode",
       "split_policy": "frozen_canonical",
       "variant_id": "w3_string_prior_residual"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/ws_string_weight_shuffle/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "9491c82fd62852fef6c609d18da2aedf8644cfd5942bd85b41e562ed92693a18",
+      "config_sha256": "ecd9a560c022d86ddf7d9b3585acbf26c6468ba919d9f32d24192ad0fe642abd",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "graph_encoder_dropout",
+        "graph_encoder_family",
+        "graph_sources",
+        "string_weight_mode"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "string_weight_mode",
       "split_policy": "frozen_canonical",
       "variant_id": "ws_string_weight_shuffle"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/d1_control_mlp/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "cfdff3c9dcc80461b2cb85cdcb199ced7fb74f41ad445fd55deb1cdc0dc330f8",
+      "config_sha256": "faf4d39739a1a23f4b4243835227d6ee303bba5f94dc51ab6aa6e5ddfcc1b778",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "decoder_mode"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "decoder_mode",
       "split_policy": "frozen_canonical",
       "variant_id": "d1_control_mlp"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/d2_control_transformer/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "7de3304726fdd2ce0f71062a74e27fc6d8f8db6b9524f936db5804d3accd247d",
+      "config_sha256": "293277097da565c3599b55b7c9cf4fc19450070c52622413a6f06fc1588e0e3d",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "decoder_mode"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "decoder_mode",
       "split_policy": "frozen_canonical",
       "variant_id": "d2_control_transformer"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/e1_frozen_genept/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "413643873ea82a920821a612b465e27271132ab5fa826845a33d514c90da798b",
+      "config_sha256": "98b4feae8adb5f848a44039c7eeb09f069ac3beafc6f762b22a396779fa23cb7",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "gene_feature_mode",
+        "genept_artifact_path",
+        "genept_expected_sha256",
+        "runtime_graph_root"
+      ],
       "genept_preflight_required": true,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "gene_feature_mode",
       "split_policy": "frozen_canonical",
       "variant_id": "e1_frozen_genept"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/e2_genept_id_residual/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "8777c43be4fef1c221a1aaae45f358ff68da43a1938ef8880e24d0ee03ba1feb",
+      "config_sha256": "65beccd42df3d8ced76d87d82a58ea963adaaae8201479956d080afd0f357af9",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "gene_feature_mode",
+        "genept_artifact_path",
+        "genept_expected_sha256",
+        "runtime_graph_root"
+      ],
       "genept_preflight_required": true,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "gene_feature_mode",
       "split_policy": "frozen_canonical",
       "variant_id": "e2_genept_id_residual"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/e3_genept_initialized/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "87200cea80606c2ea3da025b59ad23147c5e8eb6c8b537e5a02ebf91db96f7f2",
+      "config_sha256": "fd39635431d4456f77b10d42381f985c763629b5e5a8768c446ce566505db2f7",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "gene_feature_mode",
+        "genept_artifact_path",
+        "genept_expected_sha256",
+        "runtime_graph_root"
+      ],
       "genept_preflight_required": true,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "gene_feature_mode",
       "split_policy": "frozen_canonical",
       "variant_id": "e3_genept_initialized"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/es_genept_shuffle/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "468dd7e2eb92d45e6461cc60ee4400c6335a2cf9dc3540f7e833bd0ed4150702",
+      "config_sha256": "90b214c891e3fa79566d45a06e8400eebaeb3db13d4947e102bead9dfcb875ac",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "gene_feature_mode",
+        "genept_artifact_path",
+        "genept_expected_sha256",
+        "runtime_graph_root"
+      ],
       "genept_preflight_required": true,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "gene_feature_mode",
       "split_policy": "frozen_canonical",
       "variant_id": "es_genept_shuffle"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/o1_no_condition/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "af459c20d699ab7f9a493de2075578bfd6035d0e47935d32958d733caea41475",
+      "config_sha256": "aa2a378eb48ad75dca988597227e5dca607ea988225c2f717be0a0cd7ab23f44",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "condition_consistency_loss_weight"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "condition_consistency_loss_weight",
       "split_policy": "frozen_canonical",
       "variant_id": "o1_no_condition"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/o2_no_masked_node/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "bdeaede4e010cf3ba083b10e9ed9040c5b256507c5135235f385e7fc1a9023da",
+      "config_sha256": "e1282f71a171afa0c0a3b2510d4845d313884171c6bbb243d5ca8df1c343efca",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "masked_node_loss_weight"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "masked_node_loss_weight",
       "split_policy": "frozen_canonical",
       "variant_id": "o2_no_masked_node"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/o3_no_spread/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "e0b10be234a35ae494b494149739570c0f3cc288de482f691a6bf20174cc6a87",
+      "config_sha256": "4d3fbdae9033e6b33ae560a84fa57f3200877dad1f38430ed2d67d17b1c55215",
       "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "spread_loss_weight"
+      ],
       "genept_preflight_required": false,
       "max_epochs": 10,
       "result_mode": "metrics_only",
       "run_seed": 1,
+      "semantic_factor": "spread_loss_weight",
       "split_policy": "frozen_canonical",
       "variant_id": "o3_no_spread"
-    },
-    {
-      "config_path": "configs/ablations/nadig_jurkat/g1_canonical_full/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "226f2635a6fc8cb2934ee263284c7a8d2014e1d77d182e891656a7c1c280843e",
-      "dataset_id": "nadig_jurkat",
-      "genept_preflight_required": false,
-      "max_epochs": 10,
-      "result_mode": "metrics_only",
-      "run_seed": 1,
-      "split_policy": "frozen_canonical",
-      "variant_id": "g1_canonical_full"
     }
   ],
   "run_seeds": [
     1
   ],
-  "schema_version": "1"
+  "schema_version": "2"
 }

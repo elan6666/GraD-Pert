@@ -630,6 +630,44 @@
   ordered-control receipts reach 9.64 MB, so the bounded small-sync per-file
   limit is raised from 8 to 16 MiB while the total limit remains 128 MiB.
 
+## 2026-08-29 — Successor ratio/H/L matrix and measured-performance harness
+
+- Replaced the superseded fixed local coordinates with the preregistered
+  successor A0/H/L matrix. A0 is HVG512+targets, RingInduced, exact local node
+  ratio `1/2`, eight locals and mask-view ratio `0/1`. H1/H2/H3 request
+  HVG1024/2048/5000 through the same pre-split materializer; L1--L5 each differ
+  directly from A0 by one requested local factor.
+- Implemented exact rational parsing, floor-derived local budgets, integral
+  mask-view counts, generalized 4/8-local consistency terms and generic
+  512/1024/2048/5000 graph manifests. The sealed 2,809-node A0 resolves to
+  budget 1,404 with remainder 1.
+- Added a pre-model all-condition anchor-capacity gate, a single resolved
+  contract shared with the step engine, model/engine architecture identity
+  checks, and a compact streaming `local_view_realization.json` aggregate bound
+  into training and performance receipts. Historical architecture-omitted
+  capacity probes retain fixed-512/four-mask behavior.
+- Hardened schema-v2 launch validation: exact matrix ID/25-row variant set,
+  canonical config path, resolved variant identity, semantic factor and
+  recomputed A0 parameter diffs are required. Forged declarations, config
+  relabeling and rehashed multi-factor drift fail before a process is created;
+  intentional 22-row schema-v1 compatibility remains separate.
+- Added a bounded training-only A0 measurement harness. It hash-pins the config,
+  graph/source/protocol/split identity, prevents real validation/test data
+  construction and caching, stops in the Nth completed-step call, records
+  p50/p90/p95/p99 and profiler traces, enforces idle physical GPU/RAM/disk and
+  `max(4 GiB, 15% VRAM)` capacity predicates, and always attempts an atomic
+  primary/teardown failure receipt.
+- Added existing-H destination lineage checks and a production four-axis audit
+  requiring common materialization identity, target coverage, nested HVG/graph
+  sets, ordered ranking consistency and per-axis artifact/topology hashes.
+- Primary-agent local integration: 324 passed with 10 honest skips when
+  notebook tests are excluded; three Torch suites relevant to the new runtime
+  contract are among the local dependency skips. Ruff, format on 151 files,
+  compileall and diff-check passed. Full local pytest is blocked at collection
+  only because `nbformat` is absent; local Torch/anndata/mypy/build are also
+  unavailable. Exact-commit server pytest/Ruff/format/strict-mypy/build and
+  CUDA integration remain mandatory before Plan 029 is complete.
+
 ## 2026-08-29 — Queue-scoped publication receipt repair
 
 - The 8221 Local Graph GPU1 queue completed L3 exactly, then L4 failed before

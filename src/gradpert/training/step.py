@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import random
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -18,10 +20,14 @@ from gradpert.config.native import NativeArchitectureOptions
 from gradpert.graphs import (
     GraDPertTrainingViews,
     GraphTopology,
+    ResolvedLocalViewContract,
+    build_incoming_edge_index,
     build_incoming_neighbor_index,
     build_prediction_graph_view,
     build_training_graph_views,
     clean_graph_view,
+    resolve_legacy_local_view_contract,
+    resolve_local_view_contract,
 )
 from gradpert.hashing import sha256_json
 from gradpert.modeling import (
@@ -69,6 +75,15 @@ class GraDPertStepMetrics:
     prediction_ms: float
     backward_update_ms: float
     step_wall_ms: float
+    local_view_realization_count: int
+    local_node_count_sum: int
+    local_node_count_min: int
+    local_node_count_max: int
+    local_budget_hit_count: int
+    local_node_counts_sha256: str
+    masked_local_assignment_count: int
+    masked_local_index_counts_json: str
+    masked_local_assignments_sha256: str
 
 
 @dataclass(frozen=True)
@@ -91,6 +106,56 @@ class LossWeights:
             raise ValueError("loss weights must be finite and non-negative")
         if self.prediction == 0:
             raise ValueError("prediction loss weight must be positive")
+
+
+def resolve_architecture_local_view_contract(
+    architecture: NativeArchitectureOptions,
+    *,
+    graph_node_count: int,
+) -> ResolvedLocalViewContract:
+    """Bind one architecture's exact local-view contract to a runtime graph."""
+
+    if architecture.legacy_local_view_node_budget is None:
+        return resolve_local_view_contract(
+            graph_node_count=graph_node_count,
+            local_view_count=architecture.local_view_count,
+            node_budget_ratio=(
+                architecture.local_view_node_budget_ratio_numerator,
+                architecture.local_view_node_budget_ratio_denominator,
+            ),
+            mask_view_ratio=(
+                architecture.local_anchor_mask_view_ratio_numerator,
+                architecture.local_anchor_mask_view_ratio_denominator,
+            ),
+        )
+    if architecture.legacy_local_anchor_mask_count is None:
+        raise ValueError("legacy local-view budget requires a legacy mask count")
+    return resolve_legacy_local_view_contract(
+        graph_node_count=graph_node_count,
+        local_view_count=architecture.local_view_count,
+        fixed_node_budget=architecture.legacy_local_view_node_budget,
+        fixed_mask_view_count=architecture.legacy_local_anchor_mask_count,
+    )
+
+
+def require_local_view_anchor_capacity(
+    contract: ResolvedLocalViewContract,
+    anchors_by_condition: Mapping[str, tuple[int, ...]],
+) -> None:
+    """Fail before model construction when any condition cannot fit its anchors."""
+
+    violations = [
+        (condition, len(set(anchors)))
+        for condition, anchors in anchors_by_condition.items()
+        if len(set(anchors)) > contract.effective_node_budget
+    ]
+    if violations:
+        condition, anchor_count = sorted(violations)[0]
+        raise ValueError(
+            "local view node budget cannot retain all condition anchors: "
+            f"condition={condition!r}, anchors={anchor_count}, "
+            f"budget={contract.effective_node_budget}"
+        )
 
 
 def build_native_optimizer(
@@ -211,6 +276,7 @@ class GraDPertStepEngine:
         total_schedule_steps: int,
         heldout_target_ids: tuple[int, ...],
         architecture: NativeArchitectureOptions | None = None,
+        local_view_contract: ResolvedLocalViewContract | None = None,
         loss_weights: LossWeights | None = None,
         resident_graph_tensors: bool = False,
         capture_equivalence_health: bool = False,
@@ -230,15 +296,44 @@ class GraDPertStepEngine:
         self.run_seed = run_seed
         self.total_schedule_steps = total_schedule_steps
         self.heldout_target_ids = heldout_target_ids
-        self.architecture = architecture or NativeArchitectureOptions.from_parameters({})
+        default_architecture = NativeArchitectureOptions.from_parameters({})
+        if architecture is None:
+            if model.architecture.payload_sha256 != default_architecture.payload_sha256:
+                raise ValueError(
+                    "an explicit model architecture requires the same architecture in the engine"
+                )
+            self.architecture = model.architecture
+            expected_local_view_contract = resolve_legacy_local_view_contract(
+                graph_node_count=topology.n_nodes,
+                local_view_count=self.architecture.local_view_count,
+                fixed_node_budget=min(512, topology.n_nodes),
+                fixed_mask_view_count=4,
+            )
+        else:
+            if architecture.payload_sha256 != model.architecture.payload_sha256:
+                raise ValueError("model and engine native architectures differ")
+            self.architecture = architecture
+            expected_local_view_contract = resolve_architecture_local_view_contract(
+                architecture,
+                graph_node_count=topology.n_nodes,
+            )
+        if local_view_contract is not None and local_view_contract != expected_local_view_contract:
+            raise ValueError("pre-resolved and engine local-view contracts differ")
+        self.local_view_contract = local_view_contract or expected_local_view_contract
         self.loss_weights = loss_weights or LossWeights()
         self.prediction_view = build_prediction_graph_view(topology)
         self.incoming_neighbors = (
             build_incoming_neighbor_index(topology) if resident_graph_tensors else None
         )
+        self.incoming_edges = (
+            build_incoming_edge_index(topology)
+            if self.architecture.local_view_builder == "fanout"
+            else None
+        )
         self.resident_graph_tensors = resident_graph_tensors
         self.capture_equivalence_health = capture_equivalence_health
         self.first_step_health: dict[str, object] | None = None
+        self.last_view_stats: dict[str, object] | None = None
         self.model.student_encoder.configure_string_weight_contract(self.prediction_view)
         self.model.teacher_encoder.configure_string_weight_contract(self.prediction_view)
         if resident_graph_tensors:
@@ -270,12 +365,57 @@ class GraDPertStepEngine:
             global_step=global_step,
             prediction_view=self.prediction_view if self.resident_graph_tensors else None,
             incoming_neighbors=self.incoming_neighbors,
+            incoming_edges=self.incoming_edges,
             local_count=self.architecture.local_view_count,
-            local_node_budget=self.architecture.local_view_node_budget,
+            local_node_budget=self.local_view_contract.effective_node_budget,
             local_builder=self.architecture.local_view_builder,
             local_fanouts=self.architecture.local_view_fanout,
-            local_anchor_mask_count=self.architecture.local_anchor_mask_count,
+            local_anchor_mask_count=self.local_view_contract.effective_mask_view_count,
         )
+        local_views = tuple(
+            view
+            for condition_views in views.locals_by_condition.values()
+            for view in condition_views
+        )
+        local_node_counts = tuple(len(view.node_ids) for view in local_views)
+        masked_assignments = tuple(
+            (condition, views.masked_local_indices_by_condition[condition])
+            for condition in views.anchors_by_condition
+        )
+        masked_assignment_payload = [
+            [condition, list(masked_indices)] for condition, masked_indices in masked_assignments
+        ]
+        masked_local_index_counts = [0] * self.architecture.local_view_count
+        for _, masked_indices in masked_assignments:
+            for local_index in masked_indices:
+                masked_local_index_counts[local_index] += 1
+        local_budget_hit_count = sum(
+            count == self.local_view_contract.effective_node_budget for count in local_node_counts
+        )
+        self.last_view_stats = {
+            "schema_version": "native-step-view-stats-v1",
+            "global_step": global_step,
+            "unique_condition_count": len(views.anchors_by_condition),
+            "local_view_count": len(local_views),
+            "local_node_counts": list(local_node_counts),
+            "local_node_count_min": min(local_node_counts),
+            "local_node_count_max": max(local_node_counts),
+            "local_node_count_mean": sum(local_node_counts) / len(local_node_counts),
+            "effective_node_budget": self.local_view_contract.effective_node_budget,
+            "budget_hit_count": local_budget_hit_count,
+            "nonself_edge_counts_by_source": {
+                source: [
+                    sum(edge.source != edge.target for edge in view.edges_by_source[source])
+                    for view in local_views
+                ]
+                for source in self.topology.active_sources
+            },
+            "warning_count": sum(len(view.warnings) for view in local_views),
+            "masked_local_indices_by_condition": {
+                condition: list(indices)
+                for condition, indices in views.masked_local_indices_by_condition.items()
+            },
+        }
         view_structure_sha256 = _view_structure_sha256(views) if capture_health else None
         view_build_ms = (time.perf_counter() - view_started) * 1000.0
         use_cuda_events = self.model.student_encoder.gene_embeddings.is_cuda
@@ -512,6 +652,18 @@ class GraDPertStepEngine:
             prediction_ms=prediction_ms,
             backward_update_ms=backward_update_ms,
             step_wall_ms=(time.perf_counter() - step_started) * 1000.0,
+            local_view_realization_count=len(local_node_counts),
+            local_node_count_sum=sum(local_node_counts),
+            local_node_count_min=min(local_node_counts),
+            local_node_count_max=max(local_node_counts),
+            local_budget_hit_count=local_budget_hit_count,
+            local_node_counts_sha256=sha256_json(list(local_node_counts)),
+            masked_local_assignment_count=sum(masked_local_index_counts),
+            masked_local_index_counts_json=json.dumps(
+                masked_local_index_counts,
+                separators=(",", ":"),
+            ),
+            masked_local_assignments_sha256=sha256_json(masked_assignment_payload),
         )
         if capture_health:
             self.first_step_health = {
@@ -539,6 +691,7 @@ class GraDPertStepEngine:
                     "spread": self.loss_weights.spread,
                 },
                 "native_architecture": self.architecture.payload(),
+                "resolved_local_view_contract": self.local_view_contract.payload(),
                 "update_order": update_order,
             }
         return metrics

@@ -24,6 +24,145 @@ from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file
 from gradpert.pilots import GenePTAvailabilityReceipt
 
+SUCCESSOR_V2_MATRIX_ID = "nadig_jurkat_vnext_ratio_graph_v2"
+SUCCESSOR_V2_CONTRACT: dict[str, tuple[str, frozenset[str]]] = {
+    "a0_ratio_ring_half": ("reference", frozenset()),
+    "h1_hvg1024_ratio_half": (
+        "graph_hvg_count",
+        frozenset({"graph_hvg_count", "runtime_graph_root"}),
+    ),
+    "h2_hvg2048_ratio_half": (
+        "graph_hvg_count",
+        frozenset({"graph_hvg_count", "runtime_graph_root"}),
+    ),
+    "h3_hvg5000_ratio_half": (
+        "graph_hvg_count",
+        frozenset({"graph_hvg_count", "runtime_graph_root"}),
+    ),
+    "l1_fanout_ratio_half": ("local_view_builder", frozenset({"local_view_builder"})),
+    "l2_ring_half_count4": ("local_view_count", frozenset({"local_view_count"})),
+    "l3_ring_quarter": (
+        "local_view_node_budget_ratio",
+        frozenset({"local_view_node_budget_ratio"}),
+    ),
+    "l4_ring_half_mask_half": (
+        "local_anchor_mask_view_ratio",
+        frozenset({"local_anchor_mask_view_ratio"}),
+    ),
+    "l5_ring_half_mask_quarter": (
+        "local_anchor_mask_view_ratio",
+        frozenset({"local_anchor_mask_view_ratio"}),
+    ),
+    "m1_single_string_gat": (
+        "graph_encoder_family",
+        frozenset({"graph_sources", "graph_encoder_family", "graph_encoder_dropout"}),
+    ),
+    "m2_single_string_transformer": (
+        "graph_encoder_family",
+        frozenset({"graph_sources", "graph_encoder_family"}),
+    ),
+    "m4_adaptive_source_gat": (
+        "graph_encoder_family",
+        frozenset({"graph_encoder_family", "graph_encoder_dropout"}),
+    ),
+    "w1_string_edge_feature": (
+        "string_weight_mode",
+        frozenset(
+            {
+                "graph_sources",
+                "graph_encoder_family",
+                "graph_encoder_dropout",
+                "string_weight_mode",
+            }
+        ),
+    ),
+    "w2_string_fixed_prior": (
+        "string_weight_mode",
+        frozenset(
+            {
+                "graph_sources",
+                "graph_encoder_family",
+                "graph_encoder_dropout",
+                "string_weight_mode",
+            }
+        ),
+    ),
+    "w3_string_prior_residual": (
+        "string_weight_mode",
+        frozenset(
+            {
+                "graph_sources",
+                "graph_encoder_family",
+                "graph_encoder_dropout",
+                "string_weight_mode",
+            }
+        ),
+    ),
+    "ws_string_weight_shuffle": (
+        "string_weight_mode",
+        frozenset(
+            {
+                "graph_sources",
+                "graph_encoder_family",
+                "graph_encoder_dropout",
+                "string_weight_mode",
+            }
+        ),
+    ),
+    "d1_control_mlp": ("decoder_mode", frozenset({"decoder_mode"})),
+    "d2_control_transformer": ("decoder_mode", frozenset({"decoder_mode"})),
+    "e1_frozen_genept": (
+        "gene_feature_mode",
+        frozenset(
+            {
+                "gene_feature_mode",
+                "genept_artifact_path",
+                "genept_expected_sha256",
+                "runtime_graph_root",
+            }
+        ),
+    ),
+    "e2_genept_id_residual": (
+        "gene_feature_mode",
+        frozenset(
+            {
+                "gene_feature_mode",
+                "genept_artifact_path",
+                "genept_expected_sha256",
+                "runtime_graph_root",
+            }
+        ),
+    ),
+    "e3_genept_initialized": (
+        "gene_feature_mode",
+        frozenset(
+            {
+                "gene_feature_mode",
+                "genept_artifact_path",
+                "genept_expected_sha256",
+                "runtime_graph_root",
+            }
+        ),
+    ),
+    "es_genept_shuffle": (
+        "gene_feature_mode",
+        frozenset(
+            {
+                "gene_feature_mode",
+                "genept_artifact_path",
+                "genept_expected_sha256",
+                "runtime_graph_root",
+            }
+        ),
+    ),
+    "o1_no_condition": (
+        "condition_consistency_loss_weight",
+        frozenset({"condition_consistency_loss_weight"}),
+    ),
+    "o2_no_masked_node": ("masked_node_loss_weight", frozenset({"masked_node_loss_weight"})),
+    "o3_no_spread": ("spread_loss_weight", frozenset({"spread_loss_weight"})),
+}
+
 
 @dataclass(frozen=True)
 class AblationMatrixRow:
@@ -32,6 +171,9 @@ class AblationMatrixRow:
     config_sha256: str
     run_seed: int
     genept_preflight_required: bool
+    matrix_schema_version: Literal["1", "2"]
+    semantic_factor: str | None
+    declared_parameter_diffs: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -44,6 +186,9 @@ class AblationLaunchPlanRow:
     run_seed: int
     device: str
     disposition: Literal["run", "skip_genept_missing_target"]
+    matrix_schema_version: Literal["1", "2"]
+    semantic_factor: str | None
+    declared_parameter_diffs: tuple[str, ...]
 
 
 def _require_git_source(repository_root: Path, expected_commit: str) -> None:
@@ -83,21 +228,48 @@ def load_ablation_matrix(
     payload = json.loads(matrix_file.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("ablation matrix must be a JSON object")
+    schema_version = payload.get("schema_version")
     if (
-        payload.get("schema_version") != "1"
+        schema_version not in {"1", "2"}
         or payload.get("dataset_id") != "nadig_jurkat"
         or payload.get("canonical_split_count") != 1
         or payload.get("run_seeds") != [1]
         or payload.get("max_epochs") != 10
     ):
         raise ValueError("ablation matrix experiment identity differs from the frozen design")
+    if schema_version == "2" and payload.get("matrix_id") != SUCCESSOR_V2_MATRIX_ID:
+        raise ValueError("schema-v2 ablation matrix id differs from the successor contract")
+    if schema_version == "1" and payload.get("matrix_id") == SUCCESSOR_V2_MATRIX_ID:
+        raise ValueError("schema-v1 matrix cannot claim the successor schema-v2 identity")
     raw_rows = payload.get("rows")
+    expected_row_count = {"1": 22, "2": 25}[str(schema_version)]
     if (
         not isinstance(raw_rows, list)
         or payload.get("row_count") != len(raw_rows)
-        or len(raw_rows) != 22
+        or len(raw_rows) != expected_row_count
     ):
-        raise ValueError("ablation matrix must contain exactly 22 declared rows")
+        raise ValueError(f"ablation matrix must contain exactly {expected_row_count} declared rows")
+
+    if schema_version == "2":
+        raw_variant_ids = [
+            raw.get("variant_id") if isinstance(raw, dict) else None for raw in raw_rows
+        ]
+        if (
+            any(not isinstance(variant_id, str) for variant_id in raw_variant_ids)
+            or len(set(raw_variant_ids)) != len(raw_variant_ids)
+            or set(raw_variant_ids) != set(SUCCESSOR_V2_CONTRACT)
+        ):
+            raise ValueError("schema-v2 matrix variant set differs from the successor contract")
+
+    baseline_parameters: dict[str, object] | None = None
+    if schema_version == "2":
+        baseline_relative = (
+            "configs/ablations/nadig_jurkat/a0_ratio_ring_half/gradpert_b2/nadig_jurkat.yaml"
+        )
+        baseline_config = load_experiment_config((root / baseline_relative).resolve(strict=True))
+        baseline_parameters = {
+            name: parameter.value for name, parameter in baseline_config.model.parameters.items()
+        }
 
     rows: list[AblationMatrixRow] = []
     seen: set[str] = set()
@@ -108,6 +280,8 @@ def load_ablation_matrix(
         relative_config = raw.get("config_path")
         expected_hash = raw.get("config_sha256")
         requires_genept = raw.get("genept_preflight_required")
+        semantic_factor = raw.get("semantic_factor")
+        declared_parameter_diffs = raw.get("declared_parameter_diffs")
         if (
             not isinstance(variant_id, str)
             or not variant_id
@@ -118,6 +292,24 @@ def load_ablation_matrix(
             or not isinstance(requires_genept, bool)
         ):
             raise ValueError("ablation matrix row identity is malformed or duplicated")
+        if schema_version == "2":
+            expected_semantic_factor, expected_diffs = SUCCESSOR_V2_CONTRACT[variant_id]
+            if (
+                semantic_factor != expected_semantic_factor
+                or not isinstance(declared_parameter_diffs, list)
+                or any(not isinstance(name, str) for name in declared_parameter_diffs)
+                or declared_parameter_diffs != sorted(set(declared_parameter_diffs))
+                or frozenset(declared_parameter_diffs) != expected_diffs
+            ):
+                raise ValueError(f"schema-v2 semantic declaration differs: {variant_id}")
+            expected_relative_config = (
+                f"configs/ablations/nadig_jurkat/{variant_id}/gradpert_b2/nadig_jurkat.yaml"
+            )
+            if relative_config != expected_relative_config:
+                raise ValueError(f"schema-v2 config path does not match variant id: {variant_id}")
+        else:
+            semantic_factor = None
+            declared_parameter_diffs = []
         config_path = (root / relative_config).resolve(strict=True)
         if not config_path.is_relative_to(root) or config_path.is_symlink():
             raise ValueError("ablation config must be a regular file inside the repository")
@@ -141,6 +333,24 @@ def load_ablation_matrix(
             or config.artifacts.result_mode != "metrics_only"
         ):
             raise ValueError(f"resolved config differs from matrix row: {variant_id}")
+        if schema_version == "2":
+            assert baseline_parameters is not None
+            resolved_variant = config.model.parameters.get("performance_pilot_variant")
+            if resolved_variant is None or resolved_variant.value != f"vnext_{variant_id}":
+                raise ValueError(f"schema-v2 config identity differs from variant id: {variant_id}")
+            observed_parameters = {
+                name: parameter.value for name, parameter in config.model.parameters.items()
+            }
+            observed_diffs = {
+                name
+                for name in set(baseline_parameters) | set(observed_parameters)
+                if baseline_parameters.get(name, "<missing>")
+                != observed_parameters.get(name, "<missing>")
+            }
+            observed_diffs.discard("performance_pilot_variant")
+            expected_diffs = SUCCESSOR_V2_CONTRACT[variant_id][1]
+            if observed_diffs != expected_diffs:
+                raise ValueError(f"schema-v2 resolved parameter diff differs: {variant_id}")
         seen.add(variant_id)
         rows.append(
             AblationMatrixRow(
@@ -149,6 +359,9 @@ def load_ablation_matrix(
                 config_sha256=expected_hash,
                 run_seed=1,
                 genept_preflight_required=requires_genept,
+                matrix_schema_version=schema_version,
+                semantic_factor=semantic_factor,
+                declared_parameter_diffs=tuple(declared_parameter_diffs),
             )
         )
     return tuple(rows)
@@ -204,6 +417,9 @@ def build_ablation_launch_plan(
                 run_seed=row.run_seed,
                 device=device,
                 disposition=disposition,
+                matrix_schema_version=row.matrix_schema_version,
+                semantic_factor=row.semantic_factor,
+                declared_parameter_diffs=row.declared_parameter_diffs,
             )
         )
     return tuple(plan)

@@ -50,10 +50,11 @@ def condition_consistency_loss(
     teacher_global_logits: tuple[Tensor, Tensor],
     center: Tensor,
 ) -> Tensor:
-    """Average the exact 9+9 cross-view terms."""
+    """Average the exact ``2 * (local_count + 1)`` cross-view terms."""
 
-    if len(student_view_logits) != 10:
-        raise ValueError("condition consistency requires two globals plus eight locals")
+    local_count = len(student_view_logits) - 2
+    if local_count not in {4, 8}:
+        raise ValueError("condition consistency requires two globals plus four or eight locals")
     terms: list[Tensor] = []
     for teacher_index, teacher_logits in enumerate(teacher_global_logits):
         targets = centered_teacher_probabilities(teacher_logits, center)
@@ -61,8 +62,11 @@ def condition_consistency_loss(
             if student_index == teacher_index:
                 continue
             terms.append(_soft_target_cross_entropy(student_logits, targets).mean())
-    if len(terms) != 18:
-        raise AssertionError("condition consistency pairing must contain exactly 18 terms")
+    expected_term_count = 2 * (local_count + 1)
+    if len(terms) != expected_term_count:
+        raise AssertionError(
+            f"condition consistency pairing must contain exactly {expected_term_count} terms"
+        )
     return torch.stack(terms).mean()
 
 

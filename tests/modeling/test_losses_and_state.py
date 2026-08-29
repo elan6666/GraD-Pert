@@ -15,9 +15,13 @@ from gradpert.modeling import (  # noqa: E402
 )
 
 
-def test_condition_consistency_has_18_terms_and_gradients() -> None:
+@pytest.mark.parametrize(("local_count", "term_count"), [(4, 10), (8, 18)])
+def test_condition_consistency_has_expected_terms_and_gradients(
+    local_count: int,
+    term_count: int,
+) -> None:
     center = torch.zeros(1, 8)
-    students = tuple(torch.randn(3, 8, requires_grad=True) for _ in range(10))
+    students = tuple(torch.randn(3, 8, requires_grad=True) for _ in range(local_count + 2))
     teachers = (torch.randn(3, 8), torch.randn(3, 8))
     loss = condition_consistency_loss(
         student_view_logits=students,
@@ -27,6 +31,39 @@ def test_condition_consistency_has_18_terms_and_gradients() -> None:
     assert loss.ndim == 0
     loss.backward()
     assert all(item.grad is not None for item in students)
+    assert term_count == 2 * (local_count + 1)
+
+
+def test_condition_consistency_preserves_legacy_eight_local_arithmetic() -> None:
+    torch.manual_seed(31)
+    center = torch.randn(1, 8)
+    students = tuple(torch.randn(3, 8) for _ in range(10))
+    teachers = (torch.randn(3, 8), torch.randn(3, 8))
+    observed = condition_consistency_loss(
+        student_view_logits=students,
+        teacher_global_logits=teachers,
+        center=center,
+    )
+
+    legacy_terms = []
+    for teacher_index, teacher_logits in enumerate(teachers):
+        targets = torch.softmax((teacher_logits - center) / 0.04, dim=-1).detach()
+        for student_index, student_logits in enumerate(students):
+            if student_index == teacher_index:
+                continue
+            log_probabilities = torch.log_softmax(student_logits / 0.1, dim=-1)
+            legacy_terms.append(-(targets * log_probabilities).sum(dim=-1).mean())
+    expected = torch.stack(legacy_terms).mean()
+    assert torch.equal(observed, expected)
+
+
+def test_condition_consistency_rejects_unregistered_local_count() -> None:
+    with pytest.raises(ValueError, match="four or eight locals"):
+        condition_consistency_loss(
+            student_view_logits=tuple(torch.randn(3, 8) for _ in range(7)),
+            teacher_global_logits=(torch.randn(3, 8), torch.randn(3, 8)),
+            center=torch.zeros(1, 8),
+        )
 
 
 def test_masked_node_normalizes_over_one_shared_global_and_handles_empty() -> None:

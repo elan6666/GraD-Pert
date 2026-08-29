@@ -1,11 +1,13 @@
-"""Receipt-backed HVG512-plus-target runtime graph for B2-vNext."""
+"""Receipt-backed HVG-plus-target runtime graphs for B2-vNext."""
 
 from __future__ import annotations
 
 import importlib
 import time
+from collections.abc import Mapping
+from itertools import pairwise
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 from pydantic import Field, model_validator
@@ -39,9 +41,29 @@ from gradpert.pilots.graph_axis import (
     _rank_selected_hvgs,
 )
 
+SupportedHVGCount = Literal[512, 1024, 2048, 5000]
+VNextGraphSchemaVersion = Literal[
+    "recomputed-hvg512-graph-v2",
+    "recomputed-hvg-graph-v3",
+]
+_SUPPORTED_HVG_COUNTS = (512, 1024, 2048, 5000)
+
+
+def _validated_hvg_count(requested_hvg_count: int) -> SupportedHVGCount:
+    if requested_hvg_count not in _SUPPORTED_HVG_COUNTS:
+        raise ValueError(
+            "vNext graph HVG count must be one of "
+            f"{', '.join(str(value) for value in _SUPPORTED_HVG_COUNTS)}"
+        )
+    return cast(SupportedHVGCount, requested_hvg_count)
+
+
+def _ranking_receipt_name(requested_hvg_count: int) -> str:
+    return f"hvg{_validated_hvg_count(requested_hvg_count)}_dispersion_ranking.json"
+
 
 class VNextGraphManifest(StrictManifest):
-    schema_version: Literal["recomputed-hvg512-graph-v2"]
+    schema_version: VNextGraphSchemaVersion
     dataset_id: Literal["nadig_jurkat"]
     protocol_id: NonEmpty
     canonical_data_sha256: Sha256
@@ -53,7 +75,7 @@ class VNextGraphManifest(StrictManifest):
     normalize_total: Literal[4000]
     log1p: Literal[True]
     hvg_subset: Literal[True]
-    requested_hvg_count: Literal[512]
+    requested_hvg_count: SupportedHVGCount
     expression_gene_count: Literal[5000]
     hvg_fit_scope: Literal["full_filtered_cell_line_pre_split"]
     hvg_fit_cell_count: int = Field(ge=1)
@@ -81,6 +103,10 @@ class VNextGraphManifest(StrictManifest):
 
     @model_validator(mode="after")
     def enforce_content(self) -> VNextGraphManifest:
+        if self.schema_version == "recomputed-hvg512-graph-v2" and (
+            self.requested_hvg_count != 512
+        ):
+            raise ValueError("legacy HVG512 graph schema requires requested_hvg_count=512")
         if len(self.direct_hvg_gene_ids) != self.requested_hvg_count:
             raise ValueError("direct HVG receipt count differs from requested_hvg_count")
         if len(self.direct_hvg_gene_ids) != len(set(self.direct_hvg_gene_ids)):
@@ -104,7 +130,7 @@ class VNextGraphManifest(StrictManifest):
         ):
             raise ValueError("normalized-dispersion HVG rank hash differs")
         if set(self.direct_hvg_gene_ids) != set(self.normalized_dispersion_ranked_hvg_gene_ids):
-            raise ValueError("subset HVG512 differs from normalized-dispersion selection")
+            raise ValueError("subset HVGs differ from normalized-dispersion selection")
         if sha256_json(self.candidate_target_ids) != self.candidate_target_order_sha256:
             raise ValueError("candidate target hash differs")
         if len(self.candidate_target_ids) != len(set(self.candidate_target_ids)):
@@ -119,10 +145,10 @@ class VNextGraphManifest(StrictManifest):
         if self.gene_feature_policy == "learned_id":
             if observed_axis != requested_axis:
                 raise ValueError(
-                    "learned-ID vNext graph axis must equal exactly HVG512 union targets"
+                    "learned-ID vNext graph axis must equal exactly HVGs union targets"
                 )
             if self.graph_gene_ids[: self.requested_hvg_count] != self.direct_hvg_gene_ids:
-                raise ValueError("learned-ID vNext graph must preserve the direct HVG512 prefix")
+                raise ValueError("learned-ID vNext graph must preserve the direct HVG prefix")
         else:
             removed = set(self.genept_removed_non_target_gene_ids)
             if not removed <= set(self.direct_hvg_gene_ids) or removed & set(
@@ -131,8 +157,7 @@ class VNextGraphManifest(StrictManifest):
                 raise ValueError("GenePT may remove only non-target HVG genes")
             if observed_axis != requested_axis - removed:
                 raise ValueError(
-                    "GenePT vNext graph axis must equal HVG512 union targets "
-                    "minus receipted removals"
+                    "GenePT vNext graph axis must equal HVGs union targets minus receipted removals"
                 )
             retained_hvgs = [gene for gene in self.direct_hvg_gene_ids if gene not in removed]
             if self.graph_gene_ids[: len(retained_hvgs)] != retained_hvgs:
@@ -169,6 +194,50 @@ class VNextGraphManifest(StrictManifest):
                 self.genept_removed_non_target_gene_ids_sha256
             ):
                 raise ValueError("GenePT removed-gene hash differs")
+        return self
+
+
+class VNextGraphScaleAuditReceipt(StrictManifest):
+    """Cross-axis proof that every formal H graph shares one frozen lineage."""
+
+    schema_version: Literal["vnext-hvg-scale-audit-v1"]
+    status: Literal["passed"]
+    dataset_id: Literal["nadig_jurkat"]
+    protocol_id: NonEmpty
+    requested_hvg_counts: list[SupportedHVGCount]
+    canonical_data_sha256: Sha256
+    split_content_sha256: Sha256
+    source_h5ad_sha256: Sha256
+    source_registry_sha256: Sha256
+    hvg_fit_condition_ids_sha256: Sha256
+    candidate_target_order_sha256: Sha256
+    manifest_file_sha256_by_hvg_count: dict[str, Sha256]
+    direct_hvg_order_sha256_by_hvg_count: dict[str, Sha256]
+    ranked_hvg_order_sha256_by_hvg_count: dict[str, Sha256]
+    graph_gene_order_sha256_by_hvg_count: dict[str, Sha256]
+    topology_content_sha256_by_hvg_count: dict[str, Sha256]
+    nested_pairs: list[NonEmpty]
+
+    @model_validator(mode="after")
+    def enforce_scale_audit(self) -> VNextGraphScaleAuditReceipt:
+        expected_counts = list(_SUPPORTED_HVG_COUNTS)
+        if self.requested_hvg_counts != expected_counts:
+            raise ValueError("vNext graph-scale audit requires all supported HVG counts in order")
+        expected_keys = {str(value) for value in expected_counts}
+        for values in (
+            self.manifest_file_sha256_by_hvg_count,
+            self.direct_hvg_order_sha256_by_hvg_count,
+            self.ranked_hvg_order_sha256_by_hvg_count,
+            self.graph_gene_order_sha256_by_hvg_count,
+            self.topology_content_sha256_by_hvg_count,
+        ):
+            if set(values) != expected_keys:
+                raise ValueError("vNext graph-scale audit hash keys differ from supported counts")
+        expected_pairs = [
+            f"{smaller}<{larger}" for smaller, larger in pairwise(_SUPPORTED_HVG_COUNTS)
+        ]
+        if self.nested_pairs != expected_pairs:
+            raise ValueError("vNext graph-scale audit nested-pair coverage differs")
         return self
 
 
@@ -230,12 +299,15 @@ def _genept_availability_receipt(
     )
 
 
-def _direct_hvg512(
+def _direct_hvgs(
     source: object,
     entry: DatasetRegistryEntry,
+    *,
+    requested_hvg_count: int,
 ) -> tuple[tuple[str, ...], tuple[str, ...], list[dict[str, str]], tuple[str, ...], int]:
     """Mirror TxPert within-cell HVG selection before condition splitting."""
 
+    hvg_count = _validated_hvg_count(requested_hvg_count)
     filtered, _ = filter_cells_by_perturbation_effect(source, entry)
     canonical, _ = canonicalize_metadata(filtered, entry)
     condition_column = entry.canonical_metadata.condition_column
@@ -250,13 +322,13 @@ def _direct_hvg512(
     scanpy.pp.highly_variable_genes(
         canonical,
         flavor="seurat",
-        n_top_genes=512,
+        n_top_genes=hvg_count,
         subset=True,
     )
     subset_gene_ids = tuple(str(value) for value in canonical.var["gene_name"])
-    if len(subset_gene_ids) != 512:
-        raise ValueError("TxPert-style subset=True did not retain exactly 512 genes")
-    ranked = _rank_selected_hvgs(canonical, expected_count=512)
+    if len(subset_gene_ids) != hvg_count:
+        raise ValueError(f"TxPert-style subset=True did not retain the requested {hvg_count} genes")
+    ranked = _rank_selected_hvgs(canonical, expected_count=hvg_count)
     gene_names = tuple(str(value) for value in canonical.var["gene_name"])
     if len(gene_names) != len(set(gene_names)):
         raise ValueError("full-cell-line HVG ranking requires unique canonical gene names")
@@ -280,6 +352,59 @@ def _direct_hvg512(
     return subset_gene_ids, ranked, ranking_receipt, fit_condition_ids, fit_cell_count
 
 
+def _direct_hvg512(
+    source: object,
+    entry: DatasetRegistryEntry,
+) -> tuple[tuple[str, ...], tuple[str, ...], list[dict[str, str]], tuple[str, ...], int]:
+    """Retain the frozen HVG512 helper contract for existing callers."""
+
+    return _direct_hvgs(source, entry, requested_hvg_count=512)
+
+
+def _ordered_hvg_target_union(
+    direct_hvgs: tuple[str, ...],
+    canonical_graph_genes: tuple[str, ...],
+    candidate_targets: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Keep the HVG prefix and append missing targets in canonical graph order."""
+
+    target_set = set(candidate_targets)
+    missing_targets = sorted(target_set - set(canonical_graph_genes))
+    if missing_targets:
+        raise ValueError(f"candidate targets are absent from canonical graph: {missing_targets}")
+    hvg_set = set(direct_hvgs)
+    return direct_hvgs + tuple(
+        gene for gene in canonical_graph_genes if gene in target_set and gene not in hvg_set
+    )
+
+
+def _require_existing_graph_lineage(
+    manifest: VNextGraphManifest,
+    *,
+    entry: DatasetRegistryEntry,
+    canonical: CanonicalDataManifest,
+    split: SplitManifest,
+    requested_hvg_count: SupportedHVGCount,
+    source_h5ad_sha256: str,
+    source_registry_sha256: str,
+) -> None:
+    expected = {
+        "dataset_id": entry.dataset_id,
+        "protocol_id": entry.protocol_id,
+        "canonical_data_sha256": canonical.canonical_adata_sha256,
+        "split_content_sha256": split.split_content_sha256,
+        "requested_hvg_count": requested_hvg_count,
+        "source_h5ad_sha256": source_h5ad_sha256,
+        "source_registry_sha256": source_registry_sha256,
+    }
+    observed = {name: getattr(manifest, name) for name in expected}
+    if observed != expected:
+        differing = sorted(name for name in expected if observed[name] != expected[name])
+        raise ValueError(
+            "existing vNext graph lineage differs from the request: " + ", ".join(differing)
+        )
+
+
 def materialize_vnext_hvg512_graph(
     *,
     entry: DatasetRegistryEntry,
@@ -288,17 +413,16 @@ def materialize_vnext_hvg512_graph(
     source_registry_path: str | Path,
     source_registry: GraphSourceRegistry,
     official_checkout: str | Path,
+    requested_hvg_count: int = 512,
 ) -> VNextGraphManifest:
-    """Build the immutable Nadig HVG512-plus-target graph without changing H5AD."""
+    """Build a supported Nadig HVG-plus-target graph without changing H5AD."""
 
     if entry.dataset_id != "nadig_jurkat" or entry.source.semantics != "raw_single_cell":
         raise ValueError("the first B2-vNext graph is frozen to raw Nadig Jurkat")
+    hvg_count = _validated_hvg_count(requested_hvg_count)
     started = time.perf_counter()
     layout = DatasetLayout(Path(data_root), entry.dataset_id, entry.protocol_id)
     target = Path(destination)
-    if target.exists() and any(target.iterdir()):
-        return load_vnext_graph_topology(target)[1]
-    target.mkdir(parents=True, exist_ok=True)
     canonical = CanonicalDataManifest.model_validate_json(
         layout.canonical_manifest.read_text(encoding="utf-8")
     )
@@ -311,6 +435,20 @@ def materialize_vnext_hvg512_graph(
     observed_source_sha = sha256_file(source_path, chunk_size=8 * 1024 * 1024)
     if observed_source_sha != entry.source.checksum.value:
         raise ValueError("raw source H5AD differs from the frozen registry")
+    observed_registry_sha = sha256_file(source_registry_path)
+    if target.exists() and any(target.iterdir()):
+        existing = load_vnext_graph_topology(target)[1]
+        _require_existing_graph_lineage(
+            existing,
+            entry=entry,
+            canonical=canonical,
+            split=split,
+            requested_hvg_count=hvg_count,
+            source_h5ad_sha256=observed_source_sha,
+            source_registry_sha256=observed_registry_sha,
+        )
+        return existing
+    target.mkdir(parents=True, exist_ok=True)
 
     anndata = importlib.import_module("anndata")
     source = anndata.read_h5ad(source_path)
@@ -320,9 +458,10 @@ def materialize_vnext_hvg512_graph(
         dispersion_ranking,
         fit_condition_ids,
         fit_cell_count,
-    ) = _direct_hvg512(
+    ) = _direct_hvgs(
         source,
         entry,
+        requested_hvg_count=hvg_count,
     )
     if getattr(source, "isbacked", False):
         source.file.close()
@@ -332,13 +471,10 @@ def materialize_vnext_hvg512_graph(
         (layout.canonical / "graph_gene_ids.txt").read_text(encoding="utf-8").splitlines()
     )
     candidate_targets = _candidate_targets(split)
-    missing_targets = sorted(set(candidate_targets) - set(canonical_graph_genes))
-    if missing_targets:
-        raise ValueError(f"candidate targets are absent from canonical graph: {missing_targets}")
-    hvg_set = set(direct_hvgs)
-    target_set = set(candidate_targets)
-    graph_gene_ids = direct_hvgs + tuple(
-        gene for gene in canonical_graph_genes if gene in target_set and gene not in hvg_set
+    graph_gene_ids = _ordered_hvg_target_union(
+        direct_hvgs,
+        canonical_graph_genes,
+        candidate_targets,
     )
 
     source_paths = verify_graph_source_checkout(official_checkout, source_registry)
@@ -359,33 +495,40 @@ def materialize_vnext_hvg512_graph(
         artifact_hashes[source_name] = sha256_file(artifact_path)
         edge_counts[source_name] = len(graph.edges)
     atomic_text(target / "graph_gene_ids.txt", "\n".join(graph_gene_ids) + "\n")
-    atomic_json(
-        target / "hvg512_dispersion_ranking.json",
-        {
-            "schema_version": "txpert-full-cell-line-hvg-dispersions-norm-v2",
-            "fit_scope": "full_filtered_cell_line_pre_split",
-            "fit_cell_count": fit_cell_count,
-            "fit_condition_ids": list(fit_condition_ids),
-            "fit_condition_ids_sha256": sha256_json(list(fit_condition_ids)),
-            "ordered_entries": dispersion_ranking,
-            "ordered_entries_sha256": dispersion_ranking_hash,
-        },
+    schema_version: VNextGraphSchemaVersion = (
+        "recomputed-hvg512-graph-v2" if hvg_count == 512 else "recomputed-hvg-graph-v3"
     )
+    ranking_receipt: dict[str, object] = {
+        "schema_version": (
+            "txpert-full-cell-line-hvg-dispersions-norm-v2"
+            if hvg_count == 512
+            else "txpert-full-cell-line-hvg-dispersions-norm-v3"
+        ),
+        "fit_scope": "full_filtered_cell_line_pre_split",
+        "fit_cell_count": fit_cell_count,
+        "fit_condition_ids": list(fit_condition_ids),
+        "fit_condition_ids_sha256": sha256_json(list(fit_condition_ids)),
+        "ordered_entries": dispersion_ranking,
+        "ordered_entries_sha256": dispersion_ranking_hash,
+    }
+    if hvg_count != 512:
+        ranking_receipt["requested_hvg_count"] = hvg_count
+    atomic_json(target / _ranking_receipt_name(hvg_count), ranking_receipt)
     graph_hash = sha256_json(list(graph_gene_ids))
     manifest = VNextGraphManifest(
-        schema_version="recomputed-hvg512-graph-v2",
+        schema_version=schema_version,
         dataset_id="nadig_jurkat",
         protocol_id=entry.protocol_id,
         canonical_data_sha256=canonical.canonical_adata_sha256,
         split_content_sha256=split.split_content_sha256,
         source_h5ad_sha256=observed_source_sha,
-        source_registry_sha256=sha256_file(source_registry_path),
+        source_registry_sha256=observed_registry_sha,
         hvg_method="scanpy.pp.highly_variable_genes",
         hvg_flavor="seurat",
         normalize_total=4000,
         log1p=True,
         hvg_subset=True,
-        requested_hvg_count=512,
+        requested_hvg_count=hvg_count,
         expression_gene_count=5000,
         hvg_fit_scope="full_filtered_cell_line_pre_split",
         hvg_fit_cell_count=fit_cell_count,
@@ -423,10 +566,19 @@ def load_vnext_graph_topology(
     gene_ids = tuple((source / "graph_gene_ids.txt").read_text(encoding="utf-8").splitlines())
     if sha256_json(list(gene_ids)) != manifest.graph_gene_order_sha256:
         raise ValueError("vNext runtime graph axis differs from its manifest")
-    ranking = read_json(source / "hvg512_dispersion_ranking.json")
+    ranking = read_json(source / _ranking_receipt_name(manifest.requested_hvg_count))
+    expected_ranking_schema = (
+        "txpert-full-cell-line-hvg-dispersions-norm-v2"
+        if manifest.schema_version == "recomputed-hvg512-graph-v2"
+        else "txpert-full-cell-line-hvg-dispersions-norm-v3"
+    )
     if (
         not isinstance(ranking, dict)
-        or ranking.get("schema_version") != "txpert-full-cell-line-hvg-dispersions-norm-v2"
+        or ranking.get("schema_version") != expected_ranking_schema
+        or (
+            manifest.schema_version == "recomputed-hvg-graph-v3"
+            and ranking.get("requested_hvg_count") != manifest.requested_hvg_count
+        )
         or ranking.get("fit_scope") != manifest.hvg_fit_scope
         or ranking.get("fit_cell_count") != manifest.hvg_fit_cell_count
         or ranking.get("fit_condition_ids") != manifest.hvg_fit_condition_ids
@@ -452,6 +604,133 @@ def load_vnext_graph_topology(
             artifact, source_name=source_name, gene_ids=gene_ids
         )
     return GraphTopology(gene_ids=gene_ids, sources=graphs), manifest
+
+
+def _is_ordered_subsequence(smaller: list[str], larger: list[str]) -> bool:
+    larger_iterator = iter(larger)
+    return all(any(candidate == gene for candidate in larger_iterator) for gene in smaller)
+
+
+def audit_vnext_hvg_graph_axes(
+    roots_by_hvg_count: Mapping[int, str | Path],
+    *,
+    destination: str | Path,
+) -> VNextGraphScaleAuditReceipt:
+    """Seal the real four-axis H lineage before any formal matrix launch."""
+
+    if set(roots_by_hvg_count) != set(_SUPPORTED_HVG_COUNTS):
+        raise ValueError("vNext graph-scale audit requires exactly H512/H1024/H2048/H5000")
+    roots = {hvg_count: Path(roots_by_hvg_count[hvg_count]) for hvg_count in _SUPPORTED_HVG_COUNTS}
+    manifests = {
+        hvg_count: load_vnext_graph_topology(roots[hvg_count])[1]
+        for hvg_count in _SUPPORTED_HVG_COUNTS
+    }
+    shared_fields = (
+        "dataset_id",
+        "protocol_id",
+        "canonical_data_sha256",
+        "split_content_sha256",
+        "source_h5ad_sha256",
+        "source_registry_sha256",
+        "hvg_method",
+        "hvg_flavor",
+        "normalize_total",
+        "log1p",
+        "hvg_subset",
+        "expression_gene_count",
+        "hvg_fit_scope",
+        "hvg_fit_cell_count",
+        "hvg_fit_condition_ids",
+        "hvg_fit_condition_ids_sha256",
+        "candidate_target_ids",
+        "candidate_target_order_sha256",
+        "gene_feature_policy",
+    )
+    reference = manifests[512]
+    if any(manifest.gene_feature_policy != "learned_id" for manifest in manifests.values()):
+        raise ValueError("formal H graph-scale audit accepts only learned-ID parent axes")
+    for hvg_count, manifest in manifests.items():
+        if manifest.requested_hvg_count != hvg_count:
+            raise ValueError(f"H{hvg_count} graph manifest count differs from its audit slot")
+        differing = [
+            field
+            for field in shared_fields
+            if getattr(manifest, field) != getattr(reference, field)
+        ]
+        if differing:
+            raise ValueError(
+                f"H{hvg_count} graph lineage differs from H512: " + ", ".join(differing)
+            )
+
+    nested_pairs: list[str] = []
+    for smaller_count, larger_count in pairwise(_SUPPORTED_HVG_COUNTS):
+        smaller = manifests[smaller_count]
+        larger = manifests[larger_count]
+        smaller_hvgs = set(smaller.direct_hvg_gene_ids)
+        larger_hvgs = set(larger.direct_hvg_gene_ids)
+        if not smaller_hvgs < larger_hvgs:
+            raise ValueError(f"H{smaller_count} direct HVGs are not nested in H{larger_count}")
+        if not _is_ordered_subsequence(
+            smaller.direct_hvg_gene_ids,
+            larger.direct_hvg_gene_ids,
+        ):
+            raise ValueError(
+                f"H{smaller_count} direct-HVG order is not preserved in H{larger_count}"
+            )
+        if larger.normalized_dispersion_ranked_hvg_gene_ids[:smaller_count] != (
+            smaller.normalized_dispersion_ranked_hvg_gene_ids
+        ):
+            raise ValueError(
+                f"H{smaller_count} normalized-dispersion ranking is not the H{larger_count} prefix"
+            )
+        if not set(smaller.graph_gene_ids) < set(larger.graph_gene_ids):
+            raise ValueError(f"H{smaller_count} graph axis is not nested in H{larger_count}")
+        nested_pairs.append(f"{smaller_count}<{larger_count}")
+
+    receipt = VNextGraphScaleAuditReceipt(
+        schema_version="vnext-hvg-scale-audit-v1",
+        status="passed",
+        dataset_id="nadig_jurkat",
+        protocol_id=reference.protocol_id,
+        requested_hvg_counts=[
+            _validated_hvg_count(hvg_count) for hvg_count in _SUPPORTED_HVG_COUNTS
+        ],
+        canonical_data_sha256=reference.canonical_data_sha256,
+        split_content_sha256=reference.split_content_sha256,
+        source_h5ad_sha256=reference.source_h5ad_sha256,
+        source_registry_sha256=reference.source_registry_sha256,
+        hvg_fit_condition_ids_sha256=reference.hvg_fit_condition_ids_sha256,
+        candidate_target_order_sha256=reference.candidate_target_order_sha256,
+        manifest_file_sha256_by_hvg_count={
+            str(hvg_count): sha256_file(roots[hvg_count] / "manifest.json")
+            for hvg_count in _SUPPORTED_HVG_COUNTS
+        },
+        direct_hvg_order_sha256_by_hvg_count={
+            str(hvg_count): manifests[hvg_count].direct_hvg_gene_order_sha256
+            for hvg_count in _SUPPORTED_HVG_COUNTS
+        },
+        ranked_hvg_order_sha256_by_hvg_count={
+            str(hvg_count): manifests[hvg_count].frozen_rank_hvg_gene_order_sha256
+            for hvg_count in _SUPPORTED_HVG_COUNTS
+        },
+        graph_gene_order_sha256_by_hvg_count={
+            str(hvg_count): manifests[hvg_count].graph_gene_order_sha256
+            for hvg_count in _SUPPORTED_HVG_COUNTS
+        },
+        topology_content_sha256_by_hvg_count={
+            str(hvg_count): manifests[hvg_count].topology_content_sha256
+            for hvg_count in _SUPPORTED_HVG_COUNTS
+        },
+        nested_pairs=nested_pairs,
+    )
+    destination_path = Path(destination)
+    atomic_json(destination_path, receipt.model_dump(mode="json"))
+    sealed = VNextGraphScaleAuditReceipt.model_validate_json(
+        destination_path.read_text(encoding="utf-8")
+    )
+    if sealed != receipt:
+        raise RuntimeError("vNext graph-scale audit receipt round-trip differs")
+    return receipt
 
 
 def materialize_genept_vnext_graph(
@@ -516,12 +795,13 @@ def materialize_genept_vnext_graph(
         artifact_hashes[source_name] = sha256_file(artifact_path)
         edge_counts[source_name] = len(graph.edges)
     atomic_text(target / "graph_gene_ids.txt", "\n".join(graph_gene_ids) + "\n")
-    parent_ranking = read_json(Path(parent_root) / "hvg512_dispersion_ranking.json")
+    ranking_name = _ranking_receipt_name(parent.requested_hvg_count)
+    parent_ranking = read_json(Path(parent_root) / ranking_name)
     if sha256_json(parent_ranking["ordered_entries"]) != (
         parent.normalized_dispersion_ranking_sha256
     ):
         raise ValueError("parent normalized-dispersion receipt differs")
-    atomic_json(target / "hvg512_dispersion_ranking.json", parent_ranking)
+    atomic_json(target / ranking_name, parent_ranking)
     graph_hash = sha256_json(list(graph_gene_ids))
     manifest = VNextGraphManifest(
         schema_version=parent.schema_version,

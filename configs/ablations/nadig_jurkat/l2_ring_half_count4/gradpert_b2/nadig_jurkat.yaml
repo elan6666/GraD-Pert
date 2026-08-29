@@ -29,9 +29,9 @@ model:
       source: user_locked
       reference: docs/design/GRADPERT_V1.md
     graph_axis_policy:
-      value: canonical_full
+      value: recomputed_hvg_union_candidate_targets
       source: user_locked
-      reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
+      reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
     systems_optimizations:
       value: all_seven_semantics_preserving_v1
       source: user_locked
@@ -117,13 +117,9 @@ model:
       source: user_locked
       reference: docs/design/GRADPERT_V1.md
     local_view_count:
-      value: 8
+      value: 4
       source: user_locked
-      reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
-    local_view_node_budget:
-      value: 256
-      source: user_locked
-      reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
+      reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
     drop_edge:
       value: 0.1
       source: user_locked
@@ -205,13 +201,17 @@ model:
       source: project_preregistered
       reference: docs/design/GRADPERT_V1.md#9-optimization-and-selection
     performance_pilot_variant:
-      value: vnext_g1_canonical_full
+      value: vnext_l2_ring_half_count4
       source: user_locked
-      reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
+      reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
     graph_hvg_count:
-      value: 5000
+      value: 512
       source: user_locked
-      reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
+      reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
+    runtime_graph_root:
+      value: vnext/graph_axes/nadig_jurkat/hvg512_plus_targets
+      source: user_locked
+      reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
     graph_encoder_family:
       value: multi_source_sparse_transformer
       source: user_locked
@@ -241,17 +241,21 @@ model:
       source: user_locked
       reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
     local_view_builder:
-      value: fanout
+      value: ring_induced
       source: user_locked
-      reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
+      reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
+    local_view_node_budget_ratio:
+      value: 1/2
+      source: user_locked
+      reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
     local_view_fanout:
       value: '20_10_5_5'
       source: user_locked
       reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
-    local_anchor_mask_count:
-      value: 0
+    local_anchor_mask_view_ratio:
+      value: 0/1
       source: user_locked
-      reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
+      reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
     gene_feature_mode:
       value: learned_id
       source: user_locked
@@ -319,7 +323,7 @@ evaluation:
   - trishift_pearson_delta
   - systema_pearson
 artifacts:
-  root: runs/ablations/nadig_jurkat/g1_canonical_full
+  root: runs/ablations/nadig_jurkat/l2_ring_half_count4
   large_artifacts_server_only: true
   result_mode: metrics_only
   result_pkl_name: result.pkl
