@@ -9,10 +9,12 @@ import pytest
 from pydantic import ValidationError
 
 from gradpert.features import MissingGenePTTargetsError
+from gradpert.features.text_prior import GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256
 from gradpert.hashing import sha256_json
 from gradpert.pilots import vnext_graph_axis
 from gradpert.pilots.vnext_graph_axis import (
     GenePTAvailabilityReceipt,
+    GenePTSeedAvailabilityReceipt,
     VNextGraphManifest,
     VNextGraphScaleAuditReceipt,
     _direct_hvg512,
@@ -22,6 +24,7 @@ from gradpert.pilots.vnext_graph_axis import (
     _require_existing_graph_lineage,
     audit_vnext_hvg_graph_axes,
     materialize_genept_vnext_graph,
+    preflight_genept_seed_vnext,
 )
 
 HASH = "a" * 64
@@ -455,6 +458,77 @@ def test_genept_unavailable_receipt_seals_exact_missing_targets() -> None:
     )
     assert receipt.status == "unavailable_missing_perturbation_targets"
     assert receipt.result_topology_content_sha256 is None
+
+
+def test_genept_seed_preflight_preserves_parent_graph_and_seals_superset(
+    monkeypatch, tmp_path
+) -> None:
+    parent = _manifest()
+    selected_count = len(parent.graph_gene_ids)
+    prior = SimpleNamespace(
+        source_path=(tmp_path / "seed-go-protein-pathway.npz").resolve(),
+        source_sha256=GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256,
+        source_size_bytes=123,
+        model="doubao-embedding-vision",
+        embedding_width=2048,
+        source_gene_count=selected_count + 2,
+        source_gene_order_sha256="4" * 64,
+        gene_ids=tuple(parent.graph_gene_ids),
+        gene_order_sha256=parent.graph_gene_order_sha256,
+        selected_matrix_sha256="5" * 64,
+        extra_source_gene_count=2,
+        extra_source_gene_ids_sha256="6" * 64,
+        perturbation_target_gene_ids=tuple(parent.candidate_target_ids),
+        perturbation_target_gene_ids_sha256=parent.candidate_target_order_sha256,
+        zero_vector_gene_ids=(),
+    )
+    observed: dict[str, object] = {}
+    monkeypatch.setattr(
+        vnext_graph_axis,
+        "load_vnext_graph_topology",
+        lambda root: (object(), parent),
+    )
+
+    def verify(path, **kwargs):  # type: ignore[no-untyped-def]
+        observed.update(kwargs)
+        return prior
+
+    monkeypatch.setattr(vnext_graph_axis, "verify_text_prior_npz", verify)
+    availability = tmp_path / "availability.json"
+    runtime_graph_root = "vnext/graph_axes/nadig_jurkat/hvg512_plus_targets"
+    parent_root = tmp_path / runtime_graph_root
+    parent_root.mkdir(parents=True)
+    (parent_root / "manifest.json").write_text("{}\n", encoding="utf-8")
+
+    receipt = preflight_genept_seed_vnext(
+        parent_root=parent_root,
+        genept_artifact_path=prior.source_path,
+        expected_genept_sha256=GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256,
+        runtime_graph_root=runtime_graph_root,
+        availability_receipt_path=availability,
+    )
+
+    assert observed["expected_gene_ids"] == tuple(parent.graph_gene_ids)
+    assert observed["perturbation_target_gene_ids"] == tuple(parent.candidate_target_ids)
+    assert receipt.status == "available"
+    assert receipt.result_topology_content_sha256 == parent.topology_content_sha256
+    assert receipt.source_gene_count == selected_count + 2
+    assert receipt.extra_source_gene_count == 2
+    assert (
+        GenePTSeedAvailabilityReceipt.model_validate_json(availability.read_text(encoding="utf-8"))
+        == receipt
+    )
+
+
+def test_genept_seed_preflight_rejects_nonsealed_artifact_before_loading(tmp_path) -> None:
+    with pytest.raises(ValueError, match="sealed ProteinPathway"):
+        preflight_genept_seed_vnext(
+            parent_root=tmp_path / "parent",
+            genept_artifact_path=tmp_path / "other.npz",
+            expected_genept_sha256="0" * 64,
+            runtime_graph_root="vnext/graph_axes/nadig_jurkat/hvg512_plus_targets",
+            availability_receipt_path=tmp_path / "availability.json",
+        )
 
 
 def test_genept_missing_target_aborts_before_graph_destination(monkeypatch, tmp_path) -> None:

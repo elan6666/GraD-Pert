@@ -144,6 +144,8 @@ def _parser() -> argparse.ArgumentParser:
         run.add_argument("--development-commit")
         run.add_argument("--source-publication-receipt", type=Path)
         run.add_argument("--source-publication-receipt-sha256")
+        run.add_argument("--genept-preflight-receipt", type=Path)
+        run.add_argument("--genept-preflight-receipt-sha256")
         run.add_argument("--resume", action="store_true")
         run.add_argument("--json", action="store_true", dest="as_json")
 
@@ -529,6 +531,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.source_publication_receipt_sha256 is None
         ):
             parser.error("publication receipt path and hash must be provided together")
+        if (args.genept_preflight_receipt is None) != (
+            args.genept_preflight_receipt_sha256 is None
+        ):
+            parser.error("GenePT preflight receipt path and hash must be provided together")
         result = run_native_experiment(
             config_path=args.config,
             data_root=args.data_root,
@@ -542,6 +548,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             development_commit=args.development_commit,
             source_publication_receipt=args.source_publication_receipt,
             source_publication_receipt_sha256=args.source_publication_receipt_sha256,
+            genept_preflight_receipt=args.genept_preflight_receipt,
+            genept_preflight_receipt_sha256=args.genept_preflight_receipt_sha256,
             resume=args.resume,
         )
         payload = {

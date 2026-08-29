@@ -1,9 +1,9 @@
 ---
 id: 029
-status: in_progress
+status: complete
 wave: 1
 depends_on: []
-updated_at: 2026-08-29T17:10:00+08:00
+updated_at: 2026-08-29T18:32:23+08:00
 ---
 
 # Plan 029 — ratio-based graph-scale and local-view matrix

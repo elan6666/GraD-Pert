@@ -11,16 +11,15 @@ from pathlib import Path
 
 import yaml
 
-from gradpert.features import GENEPT_EMB_B_SHA256
-
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "configs/experiments/gradpert_b2/nadig_jurkat.yaml"
 OUTPUT = ROOT / "configs/ablations/nadig_jurkat"
 REFERENCE = "docs/design/GRADPERT_VNEXT_ABLATIONS.md"
 SUCCESSOR_REFERENCE = "docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md"
 GENEPT_PATH = (
-    "/data/yilangliu/trishift/src/data/Data_GeneEmbd/GenePT_gene_embedding_ada_text.pickle"
+    "/data/yilangliu/GenePT-Seed/data/embeddings/seed-go-protein-pathway-master-aligned.npz"
 )
+GENEPT_SHA256 = "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318"
 
 SUCCESSOR_A0 = "a0_ratio_ring_half"
 LEGACY_FIXED_BUDGET_VARIANTS = frozenset(
@@ -221,30 +220,22 @@ def variants() -> dict[str, VariantSpec]:
         "e1_frozen_genept": variant(
             "gene_feature_mode",
             {"gene_feature_mode": "frozen_genept_projection"},
-            derived_diffs=frozenset(
-                {"genept_artifact_path", "genept_expected_sha256", "runtime_graph_root"}
-            ),
+            derived_diffs=frozenset({"genept_artifact_path", "genept_expected_sha256"}),
         ),
         "e2_genept_id_residual": variant(
             "gene_feature_mode",
             {"gene_feature_mode": "genept_id_residual"},
-            derived_diffs=frozenset(
-                {"genept_artifact_path", "genept_expected_sha256", "runtime_graph_root"}
-            ),
+            derived_diffs=frozenset({"genept_artifact_path", "genept_expected_sha256"}),
         ),
         "e3_genept_initialized": variant(
             "gene_feature_mode",
             {"gene_feature_mode": "genept_initialized"},
-            derived_diffs=frozenset(
-                {"genept_artifact_path", "genept_expected_sha256", "runtime_graph_root"}
-            ),
+            derived_diffs=frozenset({"genept_artifact_path", "genept_expected_sha256"}),
         ),
         "es_genept_shuffle": variant(
             "gene_feature_mode",
             {"gene_feature_mode": "genept_shuffled"},
-            derived_diffs=frozenset(
-                {"genept_artifact_path", "genept_expected_sha256", "runtime_graph_root"}
-            ),
+            derived_diffs=frozenset({"genept_artifact_path", "genept_expected_sha256"}),
         ),
         "o1_no_condition": variant(
             "condition_consistency_loss_weight", {"condition_consistency_loss_weight": 0.0}
@@ -301,10 +292,7 @@ def render() -> None:
         for key, value in spec.changes.items():
             parameters[key] = sourced(value, reference=change_reference)
         if name.startswith(("e1_", "e2_", "e3_", "es_")):
-            parameters["runtime_graph_root"] = sourced(
-                "vnext/graph_axes/nadig_jurkat/hvg512_genept_exact"
-            )
-            parameters["genept_expected_sha256"] = sourced(GENEPT_EMB_B_SHA256)
+            parameters["genept_expected_sha256"] = sourced(GENEPT_SHA256)
             parameters["genept_artifact_path"] = sourced(GENEPT_PATH)
         require_declared_parameter_diff(variant_id=name, payload=payload, spec=spec)
         payload["artifacts"]["root"] = f"runs/ablations/nadig_jurkat/{name}"

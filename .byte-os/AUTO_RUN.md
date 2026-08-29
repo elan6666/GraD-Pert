@@ -1,31 +1,36 @@
 # Byte Auto Run
 
-- Goal: Deliver a measured exact-effect optimization for the successor Nadig
-  Jurkat A0, then complete the preregistered H graph-scale and L local-view
-  10-epoch modules with reviewed zero-PKL evidence.
+- Goal: Deliver a truth-free capacity/performance census for all 25 Nadig
+  Jurkat vNext coordinates, implement only a measured exact-effect optimization,
+  then complete the preregistered H graph-scale and L local-view 10-epoch
+  modules with reviewed zero-PKL evidence.
 - Started at: 2026-08-27T18:54:33Z
-- Current loop number: 4
+- Current loop number: 5
 - Completed stages: repository harness; design discussion; successor A0/H/L
   experiment Markdown; ratio config, graph-view, loss, matrix and generic-H
   implementation; bounded no-test profiler harness; focused local gates.
-- Current stage: publish the locally reviewed Plan 029 reference source and run
-  exact-environment server pytest/Ruff/format/strict-mypy/build before the real
-  A0 capacity/profile gate.
-- Remaining plans: finish plan 029 server gates; execute plan 028 reference
-  capacity/profile, measured optimization, exact-effect gate and ABBA timing;
-  execute plan 030 H/L materialization, queues, validation, review and delivery.
-- Review verdict: pending exact server gates and measured performance evidence.
+- Current stage: Plan 032 prior migration plus Plan 031 instrumentation and
+  analysis build after the first
+  exact A0 capacity process failed before one completed step with a preserved
+  32-GiB OOM receipt.
+- Remaining plans: complete Plan 032 Seed-GO-ProteinPathway integration;
+  execute Plan 031 all-25-row adaptive capacity/performance
+  census; execute Plan 028 measured optimization, exact-effect gate and ABBA
+  timing; execute Plan 030 H/L materialization, queues, validation, review and
+  delivery.
+- Review verdict: pending census evidence and measured performance optimization.
 - Iteration count: 1 of 3.
-- Subagent mode: on; all three scoped implementation handoffs are complete and
-  merged by the primary agent.
-- Active subagent scopes: none; three Plan 029 implementation repairs and their
-  independent reviews are complete.
-- Goal-mode exception: Pursue Goal remains inactive because every upcoming CUDA
-  process must first observe no active continuous goal. This safety contract
-  takes precedence; Byte OS files retain the end-to-end objective.
-- Hard blockers: none. Missing local Torch/nbformat/mypy are server-gate items,
-  not completion blockers.
-- Exact resume action: commit/publish/synchronize the clean reference source,
-  pass full server gates, call `get_goal`, then on one idle RTX 5090 run only
-  the bounded training-only capacity/profile/timing harness.
+- Subagent mode: on; three disjoint implementations cover census contracts,
+  OOM lifecycle instrumentation and the Plan 032 prior migration.
+- Active subagent scopes: `official_graph_models`, `native_architecture_gap`,
+  and `genept_shiftblock`; disjoint write ownership is recorded in
+  `.byte-os/SUBAGENTS.md`.
+- Goal mode: active for non-CUDA Byte Auto planning/build/review. Before any
+  CUDA launch, the project rule requires the user-controlled goal to be
+  inactive; this is the only expected execution-boundary pause.
+- Hard blockers: none during local instrumentation. CUDA execution will be
+  blocked until Pursue Goal is inactive.
+- Exact resume action: complete Plan 032 and Plan 031 instrumentation/tests and review,
+  publish/synchronize a clean source, then request inactive goal state and run
+  only the hash-pinned all-row capacity funnel on idle RTX 5090 processes.
 - Parked future items: recorded in `.byte-os/FUTURE.md`, excluded from Auto.

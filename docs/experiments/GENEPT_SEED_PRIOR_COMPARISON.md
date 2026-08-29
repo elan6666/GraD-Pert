@@ -1,5 +1,31 @@
 # GenePT-Seed prior comparison
 
+## vNext E-row binding
+
+The current 25-row Nadig Jurkat vNext matrix does not compare the three prior
+conditions below. Its E1/E2/E3/ES rows are all locked to the selected
+GenePT-Seed `Seed-GO-ProteinPathway` condition using the sealed master artifact
+`/data/yilangliu/GenePT-Seed/data/embeddings/seed-go-protein-pathway-master-aligned.npz`,
+SHA-256
+`34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318`.
+The artifact contains 17,730 unique exact-case labels, width-2,048 vectors,
+and zero all-zero vectors. Each E row selects the unchanged ordered 2,809-node
+`hvg512_plus_targets` axis by exact label. Extra source labels are ignored and
+receipted; duplicates, missing runtime labels or perturbation targets,
+non-finite rows, wrong identity metadata, and any zero-fill fallback abort
+before training.
+
+Before any E-row launch, run the repository preflight
+`scripts/ablations/preflight_genept_seed.py` against the unchanged
+`vnext/graph_axes/nadig_jurkat/hvg512_plus_targets` root. The resulting sealed
+receipt binds the parent topology, exact source artifact, 17,730-label source
+axis, ordered 2,809-label selection, perturbation targets, ignored extras and
+selected matrix bytes. The native runner independently repeats artifact and
+selection verification.
+
+The comparison design below remains a separate future experiment and must not
+be mixed with the vNext E-row evidence.
+
 ## Question
 
 On the frozen Nadig Jurkat B2-vNext coordinate, does replacing the text
@@ -40,5 +66,8 @@ GO release and source hashes.
 
 ## Results
 
-Pending the server embedding and training runs. This section must be populated
-from strict receipts, never from console snippets alone.
+The three 2,048-dimensional Seed embedding conditions have been produced and
+audited. The ProteinPathway condition led the separately frozen GGI diagnostic;
+that evidence motivated prior selection only. No GraD-Pert prediction run has
+yet established an E-row effect, so prediction results remain pending strict
+training and evaluation receipts.

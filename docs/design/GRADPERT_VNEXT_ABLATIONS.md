@@ -76,21 +76,33 @@ on every graph load. Every H row uses the same recomputed-HVG-plus-target
 policy; H=5000 is not a shortcut to `canonical_full`. Expression inputs,
 outputs, and evaluation remain on the frozen Top-5000 axis.
 
-The GenePT `emb_b` artifact contract is:
+Every vNext GenePT E row is locked to the GenePT-Seed
+`Seed-GO-ProteinPathway` master artifact:
 
-- GenePT V2 Ada text embedding, exact SHA-256
-  `fd297510ddd3040744033fde0b0f2cf15a40ac8b2fd2fb02f10667295e55c862`;
-- mapping schema `dict[str, list[float]]`, 93,800 exact-case keys, vector width
-  1,536, finite values only;
-- exact canonical gene-ID matching only: no case folding, aliases, random
-  fill, zero fill, or silent condition removal;
-- a missing non-target graph gene is removed while preserving the relative
-  canonical order, after which STRING/GO are re-pruned;
-- a missing train, validation, or test perturbation target makes the GenePT
-  variant unavailable before model construction and no training is launched;
-- `ctrl` is not a graph node;
-- receipts bind artifact hash, pre/post graph axes, removed IDs, target
-  coverage, ordered feature-tensor hash, and rebuilt topology hashes.
+- server path
+  `/data/yilangliu/GenePT-Seed/data/embeddings/seed-go-protein-pathway-master-aligned.npz`;
+- exact SHA-256
+  `34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318`;
+- NPZ schema with exactly `genes`, `vectors`, and `model`, where `model` is
+  exactly `doubao-embedding-vision`, the source axis has 17,730 unique
+  exact-case labels, vector width is 2,048, all values are finite, and there
+  are zero all-zero vectors;
+- the ordered 2,809-node `hvg512_plus_targets` runtime axis is selected from
+  the sealed superset by exact case-sensitive label and retained in runtime
+  order; source genes outside that axis are ignored and their ordered count
+  and hash are receipted;
+- duplicate source labels, any missing runtime label, any missing train,
+  validation, or test perturbation target, a wrong hash/model/width, or a
+  non-finite/zero source row aborts before tensor or model construction;
+- no aliasing, case folding, random fill, zero fill, graph-gene removal, or
+  silent condition removal is allowed; `ctrl` is not a graph node;
+- receipts bind source artifact identity and order, selected runtime order and
+  matrix hash, ignored-source order hash, complete target coverage, and the
+  unchanged STRING/GO topology hashes.
+
+Unlike the retired `emb_b` filtered-axis proposal, E rows use the same
+unfiltered `hvg512_plus_targets` graph as A0. The prior is a sealed superset;
+it does not determine graph membership.
 
 GenePT modes are distinct: frozen projected input, projected input plus learned
 ID residual, trainable embedding initialized from a deterministic GenePT

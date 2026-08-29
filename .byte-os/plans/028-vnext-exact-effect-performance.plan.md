@@ -1,9 +1,9 @@
 ---
 id: 028
 status: pending
-wave: 2
-depends_on: [029]
-updated_at: 2026-08-29T17:10:00+08:00
+wave: 4
+depends_on: [031]
+updated_at: 2026-08-29T19:15:00+08:00
 ---
 
 # Plan 028 — B2-vNext measured exact-effect performance engineering

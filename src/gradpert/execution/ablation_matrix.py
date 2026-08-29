@@ -22,7 +22,7 @@ from gradpert.config import load_experiment_config
 from gradpert.data._io import atomic_json
 from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file
-from gradpert.pilots import GenePTAvailabilityReceipt
+from gradpert.pilots import GenePTAvailabilityReceipt, GenePTSeedAvailabilityReceipt
 
 SUCCESSOR_V2_MATRIX_ID = "nadig_jurkat_vnext_ratio_graph_v2"
 SUCCESSOR_V2_CONTRACT: dict[str, tuple[str, frozenset[str]]] = {
@@ -118,7 +118,6 @@ SUCCESSOR_V2_CONTRACT: dict[str, tuple[str, frozenset[str]]] = {
                 "gene_feature_mode",
                 "genept_artifact_path",
                 "genept_expected_sha256",
-                "runtime_graph_root",
             }
         ),
     ),
@@ -129,7 +128,6 @@ SUCCESSOR_V2_CONTRACT: dict[str, tuple[str, frozenset[str]]] = {
                 "gene_feature_mode",
                 "genept_artifact_path",
                 "genept_expected_sha256",
-                "runtime_graph_root",
             }
         ),
     ),
@@ -140,7 +138,6 @@ SUCCESSOR_V2_CONTRACT: dict[str, tuple[str, frozenset[str]]] = {
                 "gene_feature_mode",
                 "genept_artifact_path",
                 "genept_expected_sha256",
-                "runtime_graph_root",
             }
         ),
     ),
@@ -151,7 +148,6 @@ SUCCESSOR_V2_CONTRACT: dict[str, tuple[str, frozenset[str]]] = {
                 "gene_feature_mode",
                 "genept_artifact_path",
                 "genept_expected_sha256",
-                "runtime_graph_root",
             }
         ),
     ),
@@ -174,6 +170,9 @@ class AblationMatrixRow:
     matrix_schema_version: Literal["1", "2"]
     semantic_factor: str | None
     declared_parameter_diffs: tuple[str, ...]
+    genept_artifact_path: str | None
+    genept_expected_sha256: str | None
+    runtime_graph_root: str | None
 
 
 @dataclass(frozen=True)
@@ -189,6 +188,12 @@ class AblationLaunchPlanRow:
     matrix_schema_version: Literal["1", "2"]
     semantic_factor: str | None
     declared_parameter_diffs: tuple[str, ...]
+    genept_preflight_receipt_path: str | None
+    genept_preflight_receipt_sha256: str | None
+    genept_preflight_schema_version: str | None
+    genept_preflight_status: str | None
+    genept_preflight_artifact_sha256: str | None
+    genept_preflight_missing_target_ids_sha256: str | None
 
 
 def _require_git_source(repository_root: Path, expected_commit: str) -> None:
@@ -351,6 +356,23 @@ def load_ablation_matrix(
             expected_diffs = SUCCESSOR_V2_CONTRACT[variant_id][1]
             if observed_diffs != expected_diffs:
                 raise ValueError(f"schema-v2 resolved parameter diff differs: {variant_id}")
+        genept_artifact_path: str | None = None
+        genept_expected_sha256: str | None = None
+        runtime_graph_root: str | None = None
+        if requires_genept:
+            resolved_genept_values: dict[str, str] = {}
+            for parameter_name in (
+                "genept_artifact_path",
+                "genept_expected_sha256",
+                "runtime_graph_root",
+            ):
+                parameter = config.model.parameters.get(parameter_name)
+                if parameter is None or not isinstance(parameter.value, str) or not parameter.value:
+                    raise ValueError(f"GenePT row lacks a sealed {parameter_name}: {variant_id}")
+                resolved_genept_values[parameter_name] = parameter.value
+            genept_artifact_path = resolved_genept_values["genept_artifact_path"]
+            genept_expected_sha256 = resolved_genept_values["genept_expected_sha256"]
+            runtime_graph_root = resolved_genept_values["runtime_graph_root"]
         seen.add(variant_id)
         rows.append(
             AblationMatrixRow(
@@ -362,6 +384,9 @@ def load_ablation_matrix(
                 matrix_schema_version=schema_version,
                 semantic_factor=semantic_factor,
                 declared_parameter_diffs=tuple(declared_parameter_diffs),
+                genept_artifact_path=genept_artifact_path,
+                genept_expected_sha256=genept_expected_sha256,
+                runtime_graph_root=runtime_graph_root,
             )
         )
     return tuple(rows)
@@ -374,6 +399,7 @@ def build_ablation_launch_plan(
     runs_root: str | Path,
     device: str,
     genept_availability_receipt: str | Path | None,
+    data_root: str | Path | None = None,
 ) -> tuple[AblationLaunchPlanRow, ...]:
     """Resolve selected rows and fail closed before any training process starts."""
 
@@ -389,13 +415,62 @@ def build_ablation_launch_plan(
 
     needs_genept = any(by_id[variant].genept_preflight_required for variant in selected)
     genept_status: str | None = None
+    genept_receipt_path: Path | None = None
+    genept_receipt_sha256: str | None = None
+    genept_receipt_schema: str | None = None
+    genept_artifact_sha256: str | None = None
+    genept_missing_target_ids_sha256: str | None = None
+    genept_receipt: GenePTAvailabilityReceipt | GenePTSeedAvailabilityReceipt | None = None
     if needs_genept:
         if genept_availability_receipt is None:
             raise ValueError("GenePT variants require a sealed availability receipt")
-        receipt = GenePTAvailabilityReceipt.model_validate_json(
-            Path(genept_availability_receipt).resolve(strict=True).read_text(encoding="utf-8")
-        )
+        genept_receipt_path = Path(genept_availability_receipt).resolve(strict=True)
+        genept_receipt_sha256 = sha256_file(genept_receipt_path)
+        receipt_text = genept_receipt_path.read_text(encoding="utf-8")
+        raw_receipt = json.loads(receipt_text)
+        if not isinstance(raw_receipt, dict):
+            raise ValueError("GenePT availability receipt must be a JSON object")
+        genept_receipt_schema = raw_receipt.get("schema_version")
+        if genept_receipt_schema == "genept-vnext-availability-v1":
+            receipt = GenePTAvailabilityReceipt.model_validate_json(receipt_text)
+            genept_missing_target_ids_sha256 = receipt.missing_perturbation_target_gene_ids_sha256
+        elif genept_receipt_schema == "genept-seed-go-protein-pathway-availability-v1":
+            receipt = GenePTSeedAvailabilityReceipt.model_validate_json(receipt_text)
+        else:
+            raise ValueError("unsupported GenePT availability receipt schema")
         genept_status = receipt.status
+        genept_artifact_sha256 = receipt.genept_source_sha256
+        genept_receipt = receipt
+        if isinstance(receipt, GenePTSeedAvailabilityReceipt):
+            if data_root is None:
+                raise ValueError("GenePT Seed launch planning requires the live data root")
+            relative_graph_root = Path(receipt.runtime_graph_root)
+            if relative_graph_root.is_absolute() or ".." in relative_graph_root.parts:
+                raise ValueError("GenePT Seed receipt runtime graph root is unsafe")
+            live_manifest_path = (
+                Path(data_root)
+                .resolve(strict=True)
+                .joinpath(*relative_graph_root.parts)
+                .joinpath("manifest.json")
+                .resolve(strict=True)
+            )
+            live_manifest = json.loads(live_manifest_path.read_text(encoding="utf-8"))
+            if not isinstance(live_manifest, dict):
+                raise ValueError("live GenePT parent graph manifest must be a JSON object")
+            candidate_targets = live_manifest.get("candidate_target_ids")
+            if (
+                sha256_file(live_manifest_path) != receipt.parent_graph_manifest_sha256
+                or live_manifest.get("topology_content_sha256")
+                != receipt.parent_topology_content_sha256
+                or live_manifest.get("graph_gene_order_sha256")
+                != receipt.parent_graph_gene_order_sha256
+                or live_manifest.get("graph_gene_count") != receipt.selected_gene_count
+                or live_manifest.get("candidate_target_order_sha256")
+                != receipt.candidate_target_order_sha256
+                or not isinstance(candidate_targets, list)
+                or len(candidate_targets) != receipt.perturbation_target_gene_count
+            ):
+                raise ValueError("GenePT Seed preflight differs from the live graph manifest")
 
     root = Path(runs_root).resolve()
     plan: list[AblationLaunchPlanRow] = []
@@ -405,8 +480,23 @@ def build_ablation_launch_plan(
         if run_root.exists() and any(run_root.iterdir()):
             raise ValueError(f"refusing to overwrite existing ablation run: {run_root}")
         disposition: Literal["run", "skip_genept_missing_target"] = "run"
-        if row.genept_preflight_required and genept_status != "available":
-            disposition = "skip_genept_missing_target"
+        if row.genept_preflight_required:
+            assert genept_receipt is not None
+            if isinstance(genept_receipt, GenePTSeedAvailabilityReceipt):
+                if (
+                    row.genept_artifact_path != genept_receipt.genept_source_path
+                    or row.genept_expected_sha256 != genept_receipt.genept_source_sha256
+                    or row.runtime_graph_root != genept_receipt.runtime_graph_root
+                ):
+                    raise ValueError(
+                        f"GenePT Seed preflight identity differs from config: {variant_id}"
+                    )
+            elif row.genept_artifact_path is not None and row.genept_artifact_path.endswith(".npz"):
+                raise ValueError(
+                    f"GenePT NPZ variant requires the Seed availability schema: {variant_id}"
+                )
+            if genept_status != "available":
+                disposition = "skip_genept_missing_target"
         plan.append(
             AblationLaunchPlanRow(
                 variant_id=variant_id,
@@ -420,6 +510,22 @@ def build_ablation_launch_plan(
                 matrix_schema_version=row.matrix_schema_version,
                 semantic_factor=row.semantic_factor,
                 declared_parameter_diffs=row.declared_parameter_diffs,
+                genept_preflight_receipt_path=(
+                    str(genept_receipt_path) if row.genept_preflight_required else None
+                ),
+                genept_preflight_receipt_sha256=(
+                    genept_receipt_sha256 if row.genept_preflight_required else None
+                ),
+                genept_preflight_schema_version=(
+                    genept_receipt_schema if row.genept_preflight_required else None
+                ),
+                genept_preflight_status=(genept_status if row.genept_preflight_required else None),
+                genept_preflight_artifact_sha256=(
+                    genept_artifact_sha256 if row.genept_preflight_required else None
+                ),
+                genept_preflight_missing_target_ids_sha256=(
+                    genept_missing_target_ids_sha256 if row.genept_preflight_required else None
+                ),
             )
         )
     return tuple(plan)
@@ -467,6 +573,16 @@ def _command(
                 source_publication_receipt_sha256,
             ]
         )
+    if row.genept_preflight_receipt_path is not None:
+        assert row.genept_preflight_receipt_sha256 is not None
+        command.extend(
+            [
+                "--genept-preflight-receipt",
+                row.genept_preflight_receipt_path,
+                "--genept-preflight-receipt-sha256",
+                row.genept_preflight_receipt_sha256,
+            ]
+        )
     return command
 
 
@@ -507,6 +623,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         runs_root=args.runs_root,
         device=args.device,
         genept_availability_receipt=args.genept_availability_receipt,
+        data_root=args.data_root,
     )
     plan_payload: dict[str, Any] = {
         "schema_version": "nadig-vnext-ablation-launch-plan-v1",

@@ -19,14 +19,17 @@
 7. GraD-Pert、GEARS、TxPert 与每个 nonlearned baseline 的五数据集配置均为独立、自包含文件，配置矩阵完整性和禁止隐藏全局默认由测试验证。
 8. B2-vNext 默认配置、HVG512+targets、RingInduced、运行时图节点覆盖比例
    `1/2`、8 个 local、mask-view 比例 `0/1`、native multi-source sparse
-   graph Transformer、四项损失权重、decoder 和 GenePT coverage contracts
+   graph Transformer、四项损失权重、decoder 和 Seed-GO-ProteinPathway
+   GenePT coverage contracts
    均通过合成黄金测试、服务器 CUDA gate 与 config/receipt identity 验证。
 9. H 图规模与 L 局部图两个 Nadig 10-epoch 模块在运行前冻结；每个可用坐标只训练一次，
-   test 只访问一次，零持久化 PKL；不可用 GenePT 坐标保存权威缺失-target
-   receipt 而不启动训练。
-10. 新 A0 先完成真实无 test-truth profiling；只有实测达到门槛的实现瓶颈
-    才允许优化，并通过逐 view/union/RNG/梯度/状态精确等价与单 GPU ABBA
-    计时后，才成为 H/L 正式实验的源代码谱系。
+   test 只访问一次，零持久化 PKL；GenePT 坐标只使用 SHA 锁定、17,730
+   标签全覆盖的 Seed-GO-ProteinPathway，并按运行时图轴精确重排。
+10. 25 个 vNext 坐标先完成无 validation/test-truth 的自适应性能测绘：
+    静态解析、单步容量、5+20 短计时、按需 profiler 与 10+100 延长测量；
+    只有实测达到门槛或导致容量失败的实现瓶颈才允许优化，并通过逐
+    view/union/RNG/梯度/状态精确等价与单 GPU ABBA 后，才成为 H/L 正式
+    实验的源码谱系。短跑结果不得用于科学坐标选择。
 
 ## Current baseline
 

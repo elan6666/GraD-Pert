@@ -93,7 +93,7 @@ def test_successor_l_rows_are_exact_one_factor_local_variants() -> None:
         ) == values
 
 
-def test_genept_rows_bind_exact_artifact_and_filtered_graph() -> None:
+def test_genept_rows_bind_seed_go_protein_pathway_master_and_unfiltered_graph() -> None:
     genept_paths = tuple(
         path
         for path in config_paths()
@@ -104,9 +104,12 @@ def test_genept_rows_bind_exact_artifact_and_filtered_graph() -> None:
         config = load_experiment_config(path)
         parameters = config.model.parameters
         assert parameters["genept_expected_sha256"].value == (
-            "fd297510ddd3040744033fde0b0f2cf15a40ac8b2fd2fb02f10667295e55c862"
+            "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318"
         )
-        assert parameters["runtime_graph_root"].value.endswith("hvg512_genept_exact")
+        assert parameters["genept_artifact_path"].value == (
+            "/data/yilangliu/GenePT-Seed/data/embeddings/seed-go-protein-pathway-master-aligned.npz"
+        )
+        assert parameters["runtime_graph_root"].value.endswith("hvg512_plus_targets")
 
 
 def test_vnext_matrix_hash_pins_every_config_before_results() -> None:
@@ -176,25 +179,21 @@ def test_each_ablation_differs_from_a0_only_by_its_declared_factor() -> None:
             "gene_feature_mode",
             "genept_artifact_path",
             "genept_expected_sha256",
-            "runtime_graph_root",
         },
         "e2_genept_id_residual": {
             "gene_feature_mode",
             "genept_artifact_path",
             "genept_expected_sha256",
-            "runtime_graph_root",
         },
         "e3_genept_initialized": {
             "gene_feature_mode",
             "genept_artifact_path",
             "genept_expected_sha256",
-            "runtime_graph_root",
         },
         "es_genept_shuffle": {
             "gene_feature_mode",
             "genept_artifact_path",
             "genept_expected_sha256",
-            "runtime_graph_root",
         },
         "o1_no_condition": {"condition_consistency_loss_weight"},
         "o2_no_masked_node": {"masked_node_loss_weight"},

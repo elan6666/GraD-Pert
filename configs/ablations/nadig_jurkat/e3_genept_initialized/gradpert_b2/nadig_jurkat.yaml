@@ -209,9 +209,9 @@ model:
       source: user_locked
       reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
     runtime_graph_root:
-      value: vnext/graph_axes/nadig_jurkat/hvg512_genept_exact
+      value: vnext/graph_axes/nadig_jurkat/hvg512_plus_targets
       source: user_locked
-      reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
+      reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
     graph_encoder_family:
       value: multi_source_sparse_transformer
       source: user_locked
@@ -265,11 +265,11 @@ model:
       source: user_locked
       reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
     genept_expected_sha256:
-      value: fd297510ddd3040744033fde0b0f2cf15a40ac8b2fd2fb02f10667295e55c862
+      value: 34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318
       source: user_locked
       reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
     genept_artifact_path:
-      value: /data/yilangliu/trishift/src/data/Data_GeneEmbd/GenePT_gene_embedding_ada_text.pickle
+      value: /data/yilangliu/GenePT-Seed/data/embeddings/seed-go-protein-pathway-master-aligned.npz
       source: user_locked
       reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
 training:

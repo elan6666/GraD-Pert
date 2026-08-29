@@ -296,13 +296,12 @@
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/e1_frozen_genept/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "98b4feae8adb5f848a44039c7eeb09f069ac3beafc6f762b22a396779fa23cb7",
+      "config_sha256": "37900b6f46950bac96ba5b66efa7c1800f35fa5a37dd0285c1623cd2923ed377",
       "dataset_id": "nadig_jurkat",
       "declared_parameter_diffs": [
         "gene_feature_mode",
         "genept_artifact_path",
-        "genept_expected_sha256",
-        "runtime_graph_root"
+        "genept_expected_sha256"
       ],
       "genept_preflight_required": true,
       "max_epochs": 10,
@@ -314,13 +313,12 @@
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/e2_genept_id_residual/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "65beccd42df3d8ced76d87d82a58ea963adaaae8201479956d080afd0f357af9",
+      "config_sha256": "1ae0bcabd40829f5dc0734054af78588140010f3d41ebc2e7cb048e16c96e026",
       "dataset_id": "nadig_jurkat",
       "declared_parameter_diffs": [
         "gene_feature_mode",
         "genept_artifact_path",
-        "genept_expected_sha256",
-        "runtime_graph_root"
+        "genept_expected_sha256"
       ],
       "genept_preflight_required": true,
       "max_epochs": 10,
@@ -332,13 +330,12 @@
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/e3_genept_initialized/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "fd39635431d4456f77b10d42381f985c763629b5e5a8768c446ce566505db2f7",
+      "config_sha256": "39c30911b100465c742d45f1edb2fe28c96db4f5cc6316df5c509fa370a7ab5f",
       "dataset_id": "nadig_jurkat",
       "declared_parameter_diffs": [
         "gene_feature_mode",
         "genept_artifact_path",
-        "genept_expected_sha256",
-        "runtime_graph_root"
+        "genept_expected_sha256"
       ],
       "genept_preflight_required": true,
       "max_epochs": 10,
@@ -350,13 +347,12 @@
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/es_genept_shuffle/gradpert_b2/nadig_jurkat.yaml",
-      "config_sha256": "90b214c891e3fa79566d45a06e8400eebaeb3db13d4947e102bead9dfcb875ac",
+      "config_sha256": "4d01ab5bcb8bcf29426a1189cd4e5413f2eff8a7cce36b0cb0a4d8f0b0880cf7",
       "dataset_id": "nadig_jurkat",
       "declared_parameter_diffs": [
         "gene_feature_mode",
         "genept_artifact_path",
-        "genept_expected_sha256",
-        "runtime_graph_root"
+        "genept_expected_sha256"
       ],
       "genept_preflight_required": true,
       "max_epochs": 10,

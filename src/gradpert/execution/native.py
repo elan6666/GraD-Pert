@@ -29,6 +29,7 @@ from gradpert.execution.identity import (
     inspect_source_identity,
 )
 from gradpert.features import (
+    TextPriorArtifact,
     build_genept_coverage_plan,
     build_ordered_genept_matrix,
     verify_genept_emb_b,
@@ -38,6 +39,7 @@ from gradpert.graphs import GraphTopology, ResolvedLocalViewContract, load_datas
 from gradpert.hashing import sha256_file, sha256_json
 from gradpert.modeling import CenterState, GraDPertJointModel
 from gradpert.pilots import (
+    GenePTSeedAvailabilityReceipt,
     ReducedGraphManifest,
     VNextGraphManifest,
     load_reduced_graph_topology,
@@ -67,6 +69,64 @@ class NativeRunResult:
     run_manifest: RunManifest
     source: SourceIdentity
     environment: EnvironmentIdentity
+
+
+def _ordered_perturbation_target_gene_ids(
+    training_data: CanonicalTrainingData,
+) -> tuple[str, ...]:
+    """Return the exact sorted perturbation-target union for the sealed split."""
+
+    return tuple(
+        sorted(
+            {
+                component
+                for condition in (
+                    *training_data.split.train_conditions,
+                    *training_data.split.val_conditions,
+                    *training_data.split.test_conditions,
+                )
+                for component in condition.split("+")
+                if component != training_data.split.control_condition_id
+            }
+        )
+    )
+
+
+def _text_prior_receipt(
+    prior: TextPriorArtifact,
+    *,
+    feature_mode: str,
+) -> dict[str, object]:
+    """Seal source-superset selection without persisting the large extra-ID list."""
+
+    is_superset = prior.source_gene_count != len(prior.gene_ids)
+    return {
+        "schema_version": (
+            "sealed-superset-text-prior-v1" if is_superset else "exact-axis-text-prior-v2"
+        ),
+        "artifact_path": str(prior.source_path),
+        "artifact_size_bytes": prior.source_size_bytes,
+        "artifact_sha256": prior.source_sha256,
+        "model": prior.model,
+        "embedding_width": prior.embedding_width,
+        "identifier_matching": "exact_case_sensitive",
+        "source_gene_count": prior.source_gene_count,
+        "source_gene_order_sha256": prior.source_gene_order_sha256,
+        "selected_gene_count": len(prior.gene_ids),
+        "selected_gene_order_sha256": prior.gene_order_sha256,
+        "selected_matrix_sha256": prior.selected_matrix_sha256,
+        "extra_source_gene_count": prior.extra_source_gene_count,
+        "extra_source_gene_ids_sha256": prior.extra_source_gene_ids_sha256,
+        "extra_source_gene_policy": "ignore_preserving_runtime_axis",
+        "perturbation_target_gene_count": len(prior.perturbation_target_gene_ids),
+        "perturbation_target_gene_ids_sha256": (prior.perturbation_target_gene_ids_sha256),
+        "missing_runtime_gene_policy": "fail_before_model_construction",
+        "missing_perturbation_target_policy": "fail_before_model_construction",
+        "zero_vector_gene_count": len(prior.zero_vector_gene_ids),
+        "zero_vector_gene_ids": list(prior.zero_vector_gene_ids),
+        "zero_fill_policy": "forbidden",
+        "feature_mode": feature_mode,
+    }
 
 
 def _integer_parameter(config: ExperimentConfig, name: str) -> int:
@@ -383,6 +443,8 @@ def run_native_experiment(
     development_commit: str | None = None,
     source_publication_receipt: str | Path | None = None,
     source_publication_receipt_sha256: str | None = None,
+    genept_preflight_receipt: str | Path | None = None,
+    genept_preflight_receipt_sha256: str | None = None,
     resume: bool = False,
 ) -> NativeRunResult:
     """Run one isolated smoke/pilot/full lifecycle with exactly one final test access."""
@@ -451,9 +513,12 @@ def run_native_experiment(
     max_epochs = _training_integer(config, "max_epochs")
     system_options = _native_system_options(config)
     architecture = NativeArchitectureOptions.from_parameters(config.model.parameters)
+    if (genept_preflight_receipt is None) != (genept_preflight_receipt_sha256 is None):
+        raise ValueError("GenePT preflight receipt path and hash must be provided together")
     cold_start_started = time.perf_counter()
     graph_axis_policy = architecture.graph_axis_policy
     reduced_manifest: ReducedGraphManifest | VNextGraphManifest | None = None
+    runtime_graph_root_label: str | None = None
     if graph_axis_policy == "canonical_full":
         topology = load_dataset_graph_topology(
             dataset_id=config.dataset_id,
@@ -471,6 +536,7 @@ def run_native_experiment(
         if relative_root is None:
             raise ValueError("reduced graph policy requires runtime_graph_root")
         relative_path = Path(relative_root)
+        runtime_graph_root_label = relative_root
         if relative_path.is_absolute() or any(
             part in {"", ".", ".."} for part in relative_path.parts
         ):
@@ -505,6 +571,46 @@ def run_native_experiment(
         sources=topology.sources,
         active_sources=architecture.graph_sources,
     )
+    genept_preflight_provenance: dict[str, object] | None = None
+    configured_prior_path = _optional_string_parameter(config, "genept_artifact_path")
+    uses_seed_npz = (
+        architecture.gene_feature_mode != "learned_id"
+        and configured_prior_path is not None
+        and Path(configured_prior_path).suffix == ".npz"
+    )
+    if uses_seed_npz:
+        if genept_preflight_receipt is None or genept_preflight_receipt_sha256 is None:
+            raise ValueError("GenePT Seed NPZ run requires a sealed preflight receipt")
+        preflight_path = Path(genept_preflight_receipt).resolve(strict=True)
+        if sha256_file(preflight_path) != genept_preflight_receipt_sha256:
+            raise ValueError("GenePT preflight receipt SHA-256 differs")
+        preflight = GenePTSeedAvailabilityReceipt.model_validate_json(
+            preflight_path.read_text(encoding="utf-8")
+        )
+        if (
+            preflight.genept_source_path != configured_prior_path
+            or preflight.genept_source_sha256 != architecture.genept_expected_sha256
+            or preflight.runtime_graph_root != runtime_graph_root_label
+            or preflight.parent_graph_manifest_sha256 != sha256_file(graph_manifest_path)
+            or preflight.parent_topology_content_sha256
+            != getattr(reduced_manifest, "topology_content_sha256", None)
+            or preflight.parent_graph_gene_order_sha256 != sha256_json(list(topology.gene_ids))
+            or preflight.candidate_target_order_sha256
+            != getattr(reduced_manifest, "candidate_target_order_sha256", None)
+        ):
+            raise ValueError("GenePT preflight identity differs from the live native inputs")
+        genept_preflight_provenance = {
+            "receipt_path": str(preflight_path),
+            "receipt_sha256": genept_preflight_receipt_sha256,
+            "receipt": preflight.model_dump(mode="json"),
+        }
+        _write_or_require_json(
+            small_root / "genept_preflight.json",
+            genept_preflight_provenance,
+            resume=resume,
+        )
+    elif genept_preflight_receipt is not None:
+        raise ValueError("GenePT preflight receipt is only valid for a GenePT Seed NPZ run")
 
     with (
         CanonicalTrainingData(
@@ -558,6 +664,11 @@ def run_native_experiment(
         genept_tensor = None
         genept_receipt: dict[str, object] | None = None
         if architecture.gene_feature_mode != "learned_id":
+            perturbation_target_gene_ids = _ordered_perturbation_target_gene_ids(training_data)
+            if isinstance(
+                reduced_manifest, VNextGraphManifest
+            ) and perturbation_target_gene_ids != tuple(reduced_manifest.candidate_target_ids):
+                raise ValueError("split-derived targets differ from the vNext graph manifest")
             artifact_label = _optional_string_parameter(config, "genept_artifact_path")
             if artifact_label is None:
                 raise ValueError("GenePT feature mode requires genept_artifact_path")
@@ -574,42 +685,19 @@ def run_native_experiment(
                     artifact_path,
                     expected_sha256=expected_sha,
                     expected_gene_ids=training_data.graph_gene_ids,
+                    perturbation_target_gene_ids=perturbation_target_gene_ids,
                 )
                 genept_tensor = torch.from_numpy(prior.values.copy())
-                genept_receipt = {
-                    "schema_version": "exact-axis-text-prior-v1",
-                    "artifact_path": str(prior.source_path),
-                    "artifact_size_bytes": prior.source_size_bytes,
-                    "artifact_sha256": prior.source_sha256,
-                    "model": prior.model,
-                    "gene_count": len(prior.gene_ids),
-                    "gene_order_sha256": prior.gene_order_sha256,
-                    "embedding_width": prior.embedding_width,
-                    "zero_vector_gene_count": len(prior.zero_vector_gene_ids),
-                    "zero_vector_gene_ids": list(prior.zero_vector_gene_ids),
-                    "zero_vector_policy": "learned_id_residual",
-                    "feature_mode": architecture.gene_feature_mode,
-                }
+                genept_receipt = _text_prior_receipt(
+                    prior,
+                    feature_mode=architecture.gene_feature_mode,
+                )
             else:
                 artifact = verify_genept_emb_b(artifact_path)
-                targets = tuple(
-                    sorted(
-                        {
-                            component
-                            for condition in (
-                                *training_data.split.train_conditions,
-                                *training_data.split.val_conditions,
-                                *training_data.split.test_conditions,
-                            )
-                            for component in condition.split("+")
-                            if component != training_data.split.control_condition_id
-                        }
-                    )
-                )
                 coverage = build_genept_coverage_plan(
                     artifact,
                     ordered_graph_gene_ids=training_data.graph_gene_ids,
-                    perturbation_target_gene_ids=targets,
+                    perturbation_target_gene_ids=perturbation_target_gene_ids,
                 )
                 if coverage.retained_graph_gene_ids != training_data.graph_gene_ids:
                     raise ValueError(
@@ -697,6 +785,7 @@ def run_native_experiment(
             "native_architecture_sha256": architecture.payload_sha256,
             "resolved_local_view_contract": local_view_contract.payload(),
             "genept_feature": genept_receipt,
+            "genept_preflight": genept_preflight_provenance,
             "runtime_graph_gene_count": len(training_data.graph_gene_ids),
             "runtime_graph_gene_order_sha256": sha256_json(list(training_data.graph_gene_ids)),
             "systems_optimizations": system_options.payload(),

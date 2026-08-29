@@ -7,9 +7,10 @@ import json
 import math
 import random
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import numpy as np
 import torch
@@ -84,6 +85,63 @@ class GraDPertStepMetrics:
     masked_local_assignment_count: int
     masked_local_index_counts_json: str
     masked_local_assignments_sha256: str
+
+
+GRADPERT_STAGE_PHASE_IDS = (
+    "views",
+    "teacher_global_forward",
+    "teacher_global",
+    "teacher_global_projection",
+    "student_global_forward",
+    "student_global",
+    "student_global_projection",
+    "student_local_index",
+    "student_local_view",
+    "condition_consistency_loss",
+    "masked_node_loss",
+    "spread_loss",
+    "prediction_forward",
+    "auxiliary_grad",
+    "prediction_backward",
+    "gradient_merge",
+    "optimizer",
+    "ema",
+    "centers",
+)
+_GRADPERT_STAGE_PHASE_ID_SET = frozenset(GRADPERT_STAGE_PHASE_IDS)
+
+
+@dataclass(frozen=True)
+class GraDPertStageEvent:
+    """One observer-only boundary around a stable native train-step phase."""
+
+    schema_version: str
+    global_step: int
+    phase_id: str
+    status: Literal["entered", "completed", "failure"]
+    global_view_index: int | None = None
+    local_view_index: int | None = None
+    condition_index: int | None = None
+    condition_id: str | None = None
+    failure_type: str | None = None
+    failure_message: str | None = None
+
+    def payload(self) -> dict[str, object]:
+        return {
+            "schema_version": self.schema_version,
+            "global_step": self.global_step,
+            "phase_id": self.phase_id,
+            "status": self.status,
+            "global_view_index": self.global_view_index,
+            "local_view_index": self.local_view_index,
+            "condition_index": self.condition_index,
+            "condition_id": self.condition_id,
+            "failure_type": self.failure_type,
+            "failure_message": self.failure_message,
+        }
+
+
+GraDPertStageObserver = Callable[[GraDPertStageEvent, "GraDPertStepEngine"], None]
 
 
 @dataclass(frozen=True)
@@ -280,6 +338,7 @@ class GraDPertStepEngine:
         loss_weights: LossWeights | None = None,
         resident_graph_tensors: bool = False,
         capture_equivalence_health: bool = False,
+        stage_observer: GraDPertStageObserver | None = None,
     ) -> None:
         if topology.n_nodes != model.graph_gene_count:
             raise ValueError("topology and model graph-gene counts differ")
@@ -332,6 +391,8 @@ class GraDPertStepEngine:
         )
         self.resident_graph_tensors = resident_graph_tensors
         self.capture_equivalence_health = capture_equivalence_health
+        self.stage_observer = stage_observer
+        self.stage_observer_failures: list[dict[str, object]] = []
         self.first_step_health: dict[str, object] | None = None
         self.last_view_stats: dict[str, object] | None = None
         self.model.student_encoder.configure_string_weight_contract(self.prediction_view)
@@ -339,6 +400,92 @@ class GraDPertStepEngine:
         if resident_graph_tensors:
             self.model.student_encoder.configure_resident_graph_tensors(self.prediction_view)
             self.model.teacher_encoder.configure_resident_graph_tensors(self.prediction_view)
+
+    def _emit_stage_event(
+        self,
+        *,
+        global_step: int,
+        phase_id: str,
+        status: Literal["entered", "completed", "failure"],
+        global_view_index: int | None = None,
+        local_view_index: int | None = None,
+        condition_index: int | None = None,
+        condition_id: str | None = None,
+        failure: BaseException | None = None,
+    ) -> None:
+        observer = self.stage_observer
+        if observer is None:
+            return
+        if phase_id not in _GRADPERT_STAGE_PHASE_ID_SET:
+            raise ValueError(f"unknown GraD-Pert stage phase ID: {phase_id}")
+        event = GraDPertStageEvent(
+            schema_version="gradpert-stage-event-v1",
+            global_step=global_step,
+            phase_id=phase_id,
+            status=status,
+            global_view_index=global_view_index,
+            local_view_index=local_view_index,
+            condition_index=condition_index,
+            condition_id=condition_id,
+            failure_type=type(failure).__name__ if failure is not None else None,
+            failure_message=str(failure) if failure is not None else None,
+        )
+        try:
+            observer(event, self)
+        except BaseException as observer_error:
+            self.stage_observer_failures.append(
+                {
+                    "schema_version": "gradpert-stage-observer-failure-v1",
+                    "event": event.payload(),
+                    "failure_type": type(observer_error).__name__,
+                    "failure_message": str(observer_error),
+                }
+            )
+
+    @contextmanager
+    def _observe_stage(
+        self,
+        phase_id: str,
+        *,
+        global_step: int,
+        global_view_index: int | None = None,
+        local_view_index: int | None = None,
+        condition_index: int | None = None,
+        condition_id: str | None = None,
+    ) -> Iterator[None]:
+        self._emit_stage_event(
+            global_step=global_step,
+            phase_id=phase_id,
+            status="entered",
+            global_view_index=global_view_index,
+            local_view_index=local_view_index,
+            condition_index=condition_index,
+            condition_id=condition_id,
+        )
+        try:
+            yield
+        except BaseException as error:
+            self._emit_stage_event(
+                global_step=global_step,
+                phase_id=phase_id,
+                status="failure",
+                global_view_index=global_view_index,
+                local_view_index=local_view_index,
+                condition_index=condition_index,
+                condition_id=condition_id,
+                failure=error,
+            )
+            raise
+        else:
+            self._emit_stage_event(
+                global_step=global_step,
+                phase_id=phase_id,
+                status="completed",
+                global_view_index=global_view_index,
+                local_view_index=local_view_index,
+                condition_index=condition_index,
+                condition_id=condition_id,
+            )
 
     def train_step(
         self,
@@ -357,21 +504,22 @@ class GraDPertStepEngine:
         step_started = time.perf_counter()
         self.model.train()
         view_started = time.perf_counter()
-        views = build_training_graph_views(
-            self.topology,
-            anchors_by_condition=batch.anchors_by_condition,
-            heldout_target_ids=self.heldout_target_ids,
-            run_seed=self.run_seed,
-            global_step=global_step,
-            prediction_view=self.prediction_view if self.resident_graph_tensors else None,
-            incoming_neighbors=self.incoming_neighbors,
-            incoming_edges=self.incoming_edges,
-            local_count=self.architecture.local_view_count,
-            local_node_budget=self.local_view_contract.effective_node_budget,
-            local_builder=self.architecture.local_view_builder,
-            local_fanouts=self.architecture.local_view_fanout,
-            local_anchor_mask_count=self.local_view_contract.effective_mask_view_count,
-        )
+        with self._observe_stage("views", global_step=global_step):
+            views = build_training_graph_views(
+                self.topology,
+                anchors_by_condition=batch.anchors_by_condition,
+                heldout_target_ids=self.heldout_target_ids,
+                run_seed=self.run_seed,
+                global_step=global_step,
+                prediction_view=self.prediction_view if self.resident_graph_tensors else None,
+                incoming_neighbors=self.incoming_neighbors,
+                incoming_edges=self.incoming_edges,
+                local_count=self.architecture.local_view_count,
+                local_node_budget=self.local_view_contract.effective_node_budget,
+                local_builder=self.architecture.local_view_builder,
+                local_fanouts=self.architecture.local_view_fanout,
+                local_anchor_mask_count=self.local_view_contract.effective_mask_view_count,
+            )
         local_views = tuple(
             view
             for condition_views in views.locals_by_condition.values()
@@ -430,23 +578,51 @@ class GraDPertStepEngine:
         mark("teacher_start")
         clean_globals = tuple(clean_graph_view(view) for view in views.globals)
         with torch.no_grad():
-            teacher_encoded = self.model.teacher_encoder.forward_many(clean_globals)
-            teacher_condition_states = tuple(
-                _stack_condition_states(encoded, views) for encoded in teacher_encoded
-            )
-            teacher_condition_logits = tuple(
-                self.model.teacher_projector(states) for states in teacher_condition_states
-            )
+            with self._observe_stage("teacher_global_forward", global_step=global_step):
+                teacher_encoded = self.model.teacher_encoder.forward_many(clean_globals)
+            teacher_condition_states_list: list[Tensor] = []
+            for global_view_index, encoded in enumerate(teacher_encoded):
+                with self._observe_stage(
+                    "teacher_global",
+                    global_step=global_step,
+                    global_view_index=global_view_index,
+                ):
+                    teacher_condition_states_list.append(_stack_condition_states(encoded, views))
+            teacher_condition_states = tuple(teacher_condition_states_list)
+            del teacher_condition_states_list
+            teacher_condition_logits_list: list[Tensor] = []
+            for global_view_index, states in enumerate(teacher_condition_states):
+                with self._observe_stage(
+                    "teacher_global_projection",
+                    global_step=global_step,
+                    global_view_index=global_view_index,
+                ):
+                    teacher_condition_logits_list.append(self.model.teacher_projector(states))
+            teacher_condition_logits = tuple(teacher_condition_logits_list)
+            del teacher_condition_logits_list
         mark("teacher_end")
 
         mark("student_global_start")
-        student_encoded = self.model.student_encoder.forward_many(views.globals)
-        student_global_states = tuple(
-            _stack_condition_states(encoded, views) for encoded in student_encoded
-        )
-        student_view_logits: list[Tensor] = [
-            self.model.student_projector(states) for states in student_global_states
-        ]
+        with self._observe_stage("student_global_forward", global_step=global_step):
+            student_encoded = self.model.student_encoder.forward_many(views.globals)
+        student_global_states_list: list[Tensor] = []
+        for global_view_index, encoded in enumerate(student_encoded):
+            with self._observe_stage(
+                "student_global",
+                global_step=global_step,
+                global_view_index=global_view_index,
+            ):
+                student_global_states_list.append(_stack_condition_states(encoded, views))
+        student_global_states = tuple(student_global_states_list)
+        del student_global_states_list
+        student_view_logits: list[Tensor] = []
+        for global_view_index, states in enumerate(student_global_states):
+            with self._observe_stage(
+                "student_global_projection",
+                global_step=global_step,
+                global_view_index=global_view_index,
+            ):
+                student_view_logits.append(self.model.student_projector(states))
         mark("student_global_end")
         mark("student_local_start")
         for local_index in range(self.architecture.local_view_count):
@@ -455,40 +631,58 @@ class GraDPertStepEngine:
                 views.locals_by_condition[condition_id][local_index]
                 for condition_id in condition_ids
             )
-            local_encoded = self.model.student_encoder.forward_many(local_views)
-            local_states = [
-                encoded.condition_state(views.anchors_by_condition[condition_id])
-                for condition_id, encoded in zip(condition_ids, local_encoded, strict=True)
-            ]
-            student_view_logits.append(self.model.student_projector(torch.stack(local_states)))
+            with self._observe_stage(
+                "student_local_index",
+                global_step=global_step,
+                local_view_index=local_index,
+            ):
+                local_encoded = self.model.student_encoder.forward_many(local_views)
+                local_states: list[Tensor] = []
+                for condition_index, (condition_id, encoded) in enumerate(
+                    zip(condition_ids, local_encoded, strict=True)
+                ):
+                    with self._observe_stage(
+                        "student_local_view",
+                        global_step=global_step,
+                        local_view_index=local_index,
+                        condition_index=condition_index,
+                        condition_id=condition_id,
+                    ):
+                        local_states.append(
+                            encoded.condition_state(views.anchors_by_condition[condition_id])
+                        )
+                student_view_logits.append(self.model.student_projector(torch.stack(local_states)))
         mark("student_local_end")
 
-        condition_loss = condition_consistency_loss(
-            student_view_logits=tuple(student_view_logits),
-            teacher_global_logits=teacher_condition_logits,
-            center=self.centers.condition,
-        )
+        with self._observe_stage("condition_consistency_loss", global_step=global_step):
+            condition_loss = condition_consistency_loss(
+                student_view_logits=tuple(student_view_logits),
+                teacher_global_logits=teacher_condition_logits,
+                center=self.centers.condition,
+            )
 
-        masked_global_index = views.masked_global_index
-        masked_node_ids = views.globals[masked_global_index].masked_node_ids
-        student_masked_states = student_encoded[masked_global_index].node_states_for(
-            masked_node_ids
-        )
-        teacher_masked_states = teacher_encoded[masked_global_index].node_states_for(
-            masked_node_ids
-        )
-        student_masked_logits = self.model.student_projector(student_masked_states)
-        with torch.no_grad():
-            teacher_masked_logits = self.model.teacher_projector(teacher_masked_states)
-        masked_loss = masked_node_consistency_loss(
-            student_logits=student_masked_logits,
-            teacher_logits=teacher_masked_logits,
-            center=self.centers.masked_node,
-        )
+        with self._observe_stage("masked_node_loss", global_step=global_step):
+            masked_global_index = views.masked_global_index
+            masked_node_ids = views.globals[masked_global_index].masked_node_ids
+            student_masked_states = student_encoded[masked_global_index].node_states_for(
+                masked_node_ids
+            )
+            teacher_masked_states = teacher_encoded[masked_global_index].node_states_for(
+                masked_node_ids
+            )
+            student_masked_logits = self.model.student_projector(student_masked_states)
+            with torch.no_grad():
+                teacher_masked_logits = self.model.teacher_projector(teacher_masked_states)
+            masked_loss = masked_node_consistency_loss(
+                student_logits=student_masked_logits,
+                teacher_logits=teacher_masked_logits,
+                center=self.centers.masked_node,
+            )
 
-        spread_terms = [embedding_spread_loss(states) for states in student_global_states]
-        spread_available = all(available for _, available in spread_terms)
-        spread_loss = torch.stack([value for value, _ in spread_terms]).mean()
+        with self._observe_stage("spread_loss", global_step=global_step):
+            spread_terms = [embedding_spread_loss(states) for states in student_global_states]
+            spread_available = all(available for _, available in spread_terms)
+            spread_loss = torch.stack([value for value, _ in spread_terms]).mean()
         auxiliary_loss = (
             self.loss_weights.condition_consistency * condition_loss
             + self.loss_weights.masked_node * masked_loss
@@ -496,15 +690,16 @@ class GraDPertStepEngine:
         )
 
         mark("prediction_start")
-        prediction = self.model.predict_expression_batch(
-            batch.control_expression,
-            views.prediction,
-            batch.condition_ids,
-            views.anchors_by_condition,
-        )
-        prediction_loss = F.mse_loss(prediction, batch.target_expression)
-        weighted_prediction_loss = self.loss_weights.prediction * prediction_loss
-        total_loss = weighted_prediction_loss + auxiliary_loss
+        with self._observe_stage("prediction_forward", global_step=global_step):
+            prediction = self.model.predict_expression_batch(
+                batch.control_expression,
+                views.prediction,
+                batch.condition_ids,
+                views.anchors_by_condition,
+            )
+            prediction_loss = F.mse_loss(prediction, batch.target_expression)
+            weighted_prediction_loss = self.loss_weights.prediction * prediction_loss
+            total_loss = weighted_prediction_loss + auxiliary_loss
         mark("prediction_end")
 
         condition_probabilities = torch.cat(
@@ -527,13 +722,15 @@ class GraDPertStepEngine:
         trainable_parameters = tuple(
             parameter for parameter in self.model.parameters() if parameter.requires_grad
         )
-        auxiliary_gradients = torch.autograd.grad(
-            auxiliary_loss,
-            trainable_parameters,
-            allow_unused=True,
-        )
-        self.optimizer.zero_grad(set_to_none=True)
-        weighted_prediction_loss.backward()  # type: ignore[no-untyped-call]
+        with self._observe_stage("auxiliary_grad", global_step=global_step):
+            auxiliary_gradients = torch.autograd.grad(
+                auxiliary_loss,
+                trainable_parameters,
+                allow_unused=True,
+            )
+        with self._observe_stage("prediction_backward", global_step=global_step):
+            self.optimizer.zero_grad(set_to_none=True)
+            weighted_prediction_loss.backward()  # type: ignore[no-untyped-call]
 
         graph_parameter_ids = {
             id(parameter)
@@ -564,16 +761,18 @@ class GraDPertStepEngine:
             else None
         )
 
-        for parameter, auxiliary_gradient in zip(
-            trainable_parameters, auxiliary_gradients, strict=True
-        ):
-            if auxiliary_gradient is None:
-                continue
-            if parameter.grad is None:
-                parameter.grad = auxiliary_gradient.detach()
-            else:
-                parameter.grad.add_(auxiliary_gradient.detach())
-        self.optimizer.step()
+        with self._observe_stage("gradient_merge", global_step=global_step):
+            for parameter, auxiliary_gradient in zip(
+                trainable_parameters, auxiliary_gradients, strict=True
+            ):
+                if auxiliary_gradient is None:
+                    continue
+                if parameter.grad is None:
+                    parameter.grad = auxiliary_gradient.detach()
+                else:
+                    parameter.grad.add_(auxiliary_gradient.detach())
+        with self._observe_stage("optimizer", global_step=global_step):
+            self.optimizer.step()
         if capture_health:
             update_order.append("optimizer_step")
         schedule_last_step = max(1, self.total_schedule_steps - 1)
@@ -581,24 +780,26 @@ class GraDPertStepEngine:
             global_step=global_step,
             total_steps=schedule_last_step,
         )
-        update_teacher_ema(
-            self.model.student_encoder,
-            self.model.teacher_encoder,
-            momentum=momentum,
-        )
-        update_teacher_ema(
-            self.model.student_projector,
-            self.model.teacher_projector,
-            momentum=momentum,
-        )
+        with self._observe_stage("ema", global_step=global_step):
+            update_teacher_ema(
+                self.model.student_encoder,
+                self.model.teacher_encoder,
+                momentum=momentum,
+            )
+            update_teacher_ema(
+                self.model.student_projector,
+                self.model.teacher_projector,
+                momentum=momentum,
+            )
         if capture_health:
             update_order.append("teacher_ema")
-        update_center(
-            self.centers.condition,
-            torch.cat(teacher_condition_logits),
-        )
-        if masked_node_ids:
-            update_center(self.centers.masked_node, teacher_masked_logits)
+        with self._observe_stage("centers", global_step=global_step):
+            update_center(
+                self.centers.condition,
+                torch.cat(teacher_condition_logits),
+            )
+            if masked_node_ids:
+                update_center(self.centers.masked_node, teacher_masked_logits)
         if capture_health:
             update_order.append("center_update")
         mark("backward_end")

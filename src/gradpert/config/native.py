@@ -8,7 +8,6 @@ from fractions import Fraction
 from math import gcd
 from typing import Literal, cast
 
-from gradpert.features import GENEPT_EMB_B_SHA256
 from gradpert.hashing import sha256_json
 
 GraphAxisPolicy = Literal[
@@ -270,18 +269,14 @@ class NativeArchitectureOptions:
 
         uses_genept = self.gene_feature_mode != "learned_id"
         if uses_genept:
-            if self.gene_feature_mode == "genept_id_residual":
-                if (
-                    self.genept_expected_sha256 is None
-                    or len(self.genept_expected_sha256) != 64
-                    or any(
-                        character not in "0123456789abcdef"
-                        for character in self.genept_expected_sha256
-                    )
-                ):
-                    raise ValueError("GenePT ID-residual mode requires a lowercase SHA-256")
-            elif self.genept_expected_sha256 != GENEPT_EMB_B_SHA256:
-                raise ValueError("GenePT modes require the exact frozen emb_b SHA-256")
+            if (
+                self.genept_expected_sha256 is None
+                or len(self.genept_expected_sha256) != 64
+                or any(
+                    character not in "0123456789abcdef" for character in self.genept_expected_sha256
+                )
+            ):
+                raise ValueError("GenePT modes require a lowercase artifact SHA-256")
         elif self.genept_expected_sha256 is not None:
             raise ValueError("learned_id mode must not bind an unused GenePT artifact")
 

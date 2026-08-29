@@ -26,6 +26,9 @@ from gradpert.training.checkpoint import (  # noqa: E402
 )
 from gradpert.training.logging import TrainingReceiptWriter  # noqa: E402
 from gradpert.training.step import (  # noqa: E402
+    GRADPERT_STAGE_PHASE_IDS,
+    GraDPertStageEvent,
+    GraDPertStageObserver,
     GraDPertStepEngine,
     GraDPertStepMetrics,
     LossWeights,
@@ -70,7 +73,12 @@ def _batch() -> GraDPertTrainingBatch:
     )
 
 
-def _components(device: torch.device | None = None):  # type: ignore[no-untyped-def]
+def _components(
+    device: torch.device | None = None,
+    *,
+    capture_equivalence_health: bool = False,
+    stage_observer: GraDPertStageObserver | None = None,
+):  # type: ignore[no-untyped-def]
     target_device = device or torch.device("cpu")
     model = GraDPertJointModel(
         graph_gene_count=7,
@@ -87,6 +95,8 @@ def _components(device: torch.device | None = None):  # type: ignore[no-untyped-
         run_seed=1,
         total_schedule_steps=400,
         heldout_target_ids=(6,),
+        capture_equivalence_health=capture_equivalence_health,
+        stage_observer=stage_observer,
     )
     return model, optimizer, centers, engine
 
@@ -298,6 +308,182 @@ def test_native_step_obeys_gradient_and_update_boundaries() -> None:
     assert any(parameter.grad is not None for parameter in model.basal_encoder.parameters())
     assert any(parameter.grad is not None for parameter in model.student_projector.parameters())
     assert model.student_encoder.mask_token.grad is not None
+
+
+def test_stage_observer_emits_stable_order_and_index_context() -> None:
+    events: list[GraDPertStageEvent] = []
+
+    def observer(event: GraDPertStageEvent, engine: GraDPertStepEngine) -> None:
+        assert engine.stage_observer is observer
+        events.append(event)
+
+    _seed_all(41)
+    _, _, _, engine = _components(stage_observer=observer)
+    engine.train_step(_batch(), global_step=0)
+
+    expected: list[tuple[str, str, int | None, int | None, int | None, str | None]] = []
+
+    def add_pair(
+        phase_id: str,
+        *,
+        global_view_index: int | None = None,
+        local_view_index: int | None = None,
+        condition_index: int | None = None,
+        condition_id: str | None = None,
+    ) -> None:
+        for status in ("entered", "completed"):
+            expected.append(
+                (
+                    phase_id,
+                    status,
+                    global_view_index,
+                    local_view_index,
+                    condition_index,
+                    condition_id,
+                )
+            )
+
+    add_pair("views")
+    add_pair("teacher_global_forward")
+    for global_index in range(2):
+        add_pair("teacher_global", global_view_index=global_index)
+    for global_index in range(2):
+        add_pair("teacher_global_projection", global_view_index=global_index)
+    add_pair("student_global_forward")
+    for global_index in range(2):
+        add_pair("student_global", global_view_index=global_index)
+    for global_index in range(2):
+        add_pair("student_global_projection", global_view_index=global_index)
+    for local_index in range(8):
+        expected.append(("student_local_index", "entered", None, local_index, None, None))
+        for condition_index, condition_id in enumerate(("A+ctrl", "B+ctrl")):
+            add_pair(
+                "student_local_view",
+                local_view_index=local_index,
+                condition_index=condition_index,
+                condition_id=condition_id,
+            )
+        expected.append(("student_local_index", "completed", None, local_index, None, None))
+    for phase_id in (
+        "condition_consistency_loss",
+        "masked_node_loss",
+        "spread_loss",
+        "prediction_forward",
+        "auxiliary_grad",
+        "prediction_backward",
+        "gradient_merge",
+        "optimizer",
+        "ema",
+        "centers",
+    ):
+        add_pair(phase_id)
+
+    observed = [
+        (
+            event.phase_id,
+            event.status,
+            event.global_view_index,
+            event.local_view_index,
+            event.condition_index,
+            event.condition_id,
+        )
+        for event in events
+    ]
+    assert observed == expected
+    assert {event.phase_id for event in events} == set(GRADPERT_STAGE_PHASE_IDS)
+    assert all(event.schema_version == "gradpert-stage-event-v1" for event in events)
+    assert all(event.failure_type is None and event.failure_message is None for event in events)
+    assert engine.stage_observer_failures == []
+
+
+def test_stage_observer_preserves_loss_gradients_rng_and_state() -> None:
+    _seed_all(71)
+    baseline_model, _, baseline_centers, baseline = _components(capture_equivalence_health=True)
+    baseline_metrics = baseline.train_step(_batch(), global_step=0)
+    baseline_state = {
+        name: value.detach().clone() for name, value in baseline_model.state_dict().items()
+    }
+    baseline_gradients = {
+        name: None if parameter.grad is None else parameter.grad.detach().clone()
+        for name, parameter in baseline_model.named_parameters()
+    }
+    baseline_condition_center = baseline_centers.condition.detach().clone()
+    baseline_masked_center = baseline_centers.masked_node.detach().clone()
+
+    observed_events: list[GraDPertStageEvent] = []
+    _seed_all(71)
+    observed_model, _, observed_centers, observed = _components(
+        capture_equivalence_health=True,
+        stage_observer=lambda event, _engine: observed_events.append(event),
+    )
+    observed_metrics = observed.train_step(_batch(), global_step=0)
+
+    assert observed_metrics.total_loss == pytest.approx(baseline_metrics.total_loss, abs=0, rel=0)
+    assert observed.first_step_health == baseline.first_step_health
+    assert observed.stage_observer_failures == []
+    assert observed_events
+    for name, value in observed_model.state_dict().items():
+        assert torch.equal(value, baseline_state[name])
+    for name, parameter in observed_model.named_parameters():
+        expected_gradient = baseline_gradients[name]
+        if expected_gradient is None:
+            assert parameter.grad is None
+        else:
+            assert parameter.grad is not None
+            assert torch.equal(parameter.grad, expected_gradient)
+    assert torch.equal(observed_centers.condition, baseline_condition_center)
+    assert torch.equal(observed_centers.masked_node, baseline_masked_center)
+
+
+def test_stage_observer_reports_mid_step_primary_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    events: list[GraDPertStageEvent] = []
+
+    def failing_observer(event: GraDPertStageEvent, _engine: GraDPertStepEngine) -> None:
+        events.append(event)
+        raise LookupError("secondary observer failure")
+
+    _, _, _, engine = _components(stage_observer=failing_observer)
+    original_forward_many = engine.model.student_encoder.forward_many
+    call_count = 0
+
+    def fail_first_local(views):  # type: ignore[no-untyped-def]
+        nonlocal call_count
+        call_count += 1
+        if call_count == 2:
+            raise RuntimeError("synthetic local forward failure")
+        return original_forward_many(views)
+
+    monkeypatch.setattr(engine.model.student_encoder, "forward_many", fail_first_local)
+    with pytest.raises(RuntimeError, match="synthetic local forward failure"):
+        engine.train_step(_batch(), global_step=0)
+
+    assert [(event.phase_id, event.status, event.local_view_index) for event in events[-2:]] == [
+        ("student_local_index", "entered", 0),
+        ("student_local_index", "failure", 0),
+    ]
+    assert events[-1].failure_type == "RuntimeError"
+    assert events[-1].failure_message == "synthetic local forward failure"
+    assert not any(event.phase_id == "optimizer" for event in events)
+    assert engine.stage_observer_failures[-1]["failure_type"] == "LookupError"
+    assert engine.stage_observer_failures[-1]["failure_message"] == "secondary observer failure"
+
+
+def test_stage_observer_failure_is_secondary_to_train_step() -> None:
+    def broken_observer(_event: GraDPertStageEvent, _engine: GraDPertStepEngine) -> None:
+        raise LookupError("observer unavailable")
+
+    _seed_all(81)
+    _, _, _, engine = _components(stage_observer=broken_observer)
+    metrics = engine.train_step(_batch(), global_step=0)
+    assert metrics.total_loss > 0
+    assert engine.stage_observer_failures
+    assert {failure["failure_type"] for failure in engine.stage_observer_failures} == {
+        "LookupError"
+    }
+    assert all(
+        failure["failure_message"] == "observer unavailable"
+        for failure in engine.stage_observer_failures
+    )
 
 
 def test_native_step_applies_explicit_loss_weights() -> None:

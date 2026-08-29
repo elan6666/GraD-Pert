@@ -2,17 +2,45 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: building
+stage: implementation
 current_workflow: byte-build
 next_workflow: byte-review
 review_verdict: none
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-29T18:35:00+08:00
+updated_at: 2026-08-29T19:13:01+08:00
 ---
 
 # Status
+
+- The user replaced every E-row `emb_b` dependency with the GenePT-Seed
+  `Seed-GO-ProteinPathway` master artifact (SHA
+  `34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318`).
+  Plan 032 selects the exact runtime axis from its 17,730 nonzero 2,048-wide
+  vectors; the old 17-missing-target skip no longer describes this lineage.
+
+- User-authorized Plan 031 now precedes implementation optimization: all 25
+  schema-v2 Nadig Jurkat rows enter an adaptive truth-free funnel of static
+  preflight, one complete-step capacity, 5+20 short timing, focused profiler
+  attribution and conditional 10+100 extension. Short runs are performance
+  evidence only and cannot select a scientific row.
+- The generic bounded census worker now supports only P1 capacity, P2 timing
+  and the separate diagnostic profiler. It preserves the ordered attempted
+  batch even when the first native step fails before returning, distinguishes
+  attempted batches from completed steps, emits truth-free/non-scientific
+  evidence, and never exposes P3 or a formal epoch entrypoint.
+- The first exact A0 capacity process at clean commit `454ab1ff` passed source,
+  config, data, split, graph, idle-GPU, RAM and disk preflight but failed before
+  returning step 0: PyTorch had allocated about 30.65 GiB on the 31.36-GiB
+  RTX 5090 and a 30-MiB allocation failed. No validation/test truth was opened;
+  the receipt/log are immutable. This makes stage-level memory bisection the
+  first measured engineering task.
+- Plan 029 is complete: local and server gates passed at `454ab1ff` with 396
+  tests and one honest frozen-reference skip, Ruff, format on 235 files,
+  strict mypy on 73 source files and isolated package build.
+- Active dependency chain: Plan 032 prior migration -> Plan 031 census -> Plan 028 smallest measured
+  exact-effect optimization -> Plan 030 H/L formal 10-epoch execution.
 
 - Plans 029, 028 and 030 now govern the active successor program. The
   preregistered A0 is HVG512+targets on the sealed 2,809-node graph,
@@ -26,10 +54,12 @@ updated_at: 2026-08-29T18:35:00+08:00
   materialization, new 25-row matrix, legacy v1/pilot compatibility, a
   training-only bounded A0 profiler, runtime schema-v2 semantic enforcement,
   pre-model anchor-capacity validation and persisted realized-view evidence.
-  Primary-agent local gates pass 324 tests with 10 honest dependency/evidence
-  skips when notebook tests are excluded; Ruff, format on 151 files,
-  compileall and diff checks pass. Full server Torch/anndata/nbformat/strict
-  mypy/build gates remain required before publication is accepted.
+  Primary-agent local gates pass 366 tests with 10 honest dependency/evidence
+  skips when notebook tests are excluded; Ruff, format on 156 files,
+  compileall, deterministic config regeneration and diff checks pass. The
+  local interpreter lacks Torch, anndata, nbformat, mypy and build; full server
+  Torch/anndata/nbformat/strict-mypy/build gates remain required before
+  publication is accepted.
 - Performance selection remains deliberately open. The old Fanout preindex
   benchmark is retained only for L1. The first server artifact will be the
   unoptimized RingInduced A0 capacity/profile receipt; no sparse-union or Ring

@@ -25,7 +25,9 @@ from gradpert.features import (
     MissingGenePTTargetsError,
     build_genept_coverage_plan,
     verify_genept_emb_b,
+    verify_text_prior_npz,
 )
+from gradpert.features.text_prior import GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256
 from gradpert.graphs.materialization import (
     _atomic_graph,
     _load_pruned_graph,
@@ -274,6 +276,125 @@ class GenePTAvailabilityReceipt(StrictManifest):
         ):
             raise ValueError("unavailable GenePT receipt requires only missing target IDs")
         return self
+
+
+class GenePTSeedAvailabilityReceipt(StrictManifest):
+    """Sealed full-coverage preflight for the Seed-GO-ProteinPathway superset."""
+
+    schema_version: Literal["genept-seed-go-protein-pathway-availability-v1"]
+    status: Literal["available"]
+    dataset_id: Literal["nadig_jurkat"]
+    identifier_matching: Literal["exact_case_sensitive"]
+    extra_source_gene_policy: Literal["ignore_preserving_runtime_axis"]
+    missing_runtime_gene_policy: Literal["fail_before_model_construction"]
+    missing_perturbation_target_policy: Literal["fail_before_model_construction"]
+    parent_topology_content_sha256: Sha256
+    parent_graph_gene_order_sha256: Sha256
+    candidate_target_order_sha256: Sha256
+    prior_contract_id: Literal["seed_go_protein_pathway_master_v1"]
+    runtime_graph_root: NonEmpty
+    parent_graph_manifest_sha256: Sha256
+    genept_source_path: NonEmpty
+    genept_source_size_bytes: int = Field(gt=0)
+    genept_source_sha256: Sha256
+    genept_model: NonEmpty
+    embedding_width: int = Field(gt=0)
+    source_gene_count: int = Field(gt=0)
+    source_gene_order_sha256: Sha256
+    selected_gene_count: int = Field(gt=0)
+    selected_gene_order_sha256: Sha256
+    selected_matrix_sha256: Sha256
+    extra_source_gene_count: int = Field(ge=0)
+    extra_source_gene_ids_sha256: Sha256
+    perturbation_target_gene_count: int = Field(gt=0)
+    perturbation_target_gene_ids_sha256: Sha256
+    zero_vector_gene_count: Literal[0]
+    result_topology_content_sha256: Sha256
+
+    @model_validator(mode="after")
+    def enforce_seed_availability(self) -> GenePTSeedAvailabilityReceipt:
+        if self.selected_gene_order_sha256 != self.parent_graph_gene_order_sha256:
+            raise ValueError("GenePT Seed selected axis differs from the parent graph axis")
+        if self.perturbation_target_gene_ids_sha256 != self.candidate_target_order_sha256:
+            raise ValueError("GenePT Seed target identity differs from the parent target union")
+        if self.result_topology_content_sha256 != self.parent_topology_content_sha256:
+            raise ValueError("GenePT Seed preflight must preserve the parent graph topology")
+        if self.source_gene_count != self.selected_gene_count + self.extra_source_gene_count:
+            raise ValueError("GenePT Seed source/selected/extra gene counts do not reconcile")
+        return self
+
+
+def preflight_genept_seed_vnext(
+    *,
+    parent_root: str | Path,
+    genept_artifact_path: str | Path,
+    expected_genept_sha256: str,
+    runtime_graph_root: str,
+    availability_receipt_path: str | Path,
+) -> GenePTSeedAvailabilityReceipt:
+    """Verify the sealed prior against the unchanged H512+targets runtime graph."""
+
+    if expected_genept_sha256 != GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256:
+        raise ValueError("GenePT Seed preflight requires the sealed ProteinPathway artifact")
+    relative_runtime_root = Path(runtime_graph_root)
+    if (
+        relative_runtime_root.is_absolute()
+        or ".." in relative_runtime_root.parts
+        or not relative_runtime_root.parts
+    ):
+        raise ValueError("GenePT Seed runtime graph root must be a safe relative path")
+    parent_path = Path(parent_root).resolve(strict=True)
+    if not str(parent_path).endswith(str(relative_runtime_root)):
+        raise ValueError("GenePT Seed parent path differs from the declared runtime graph root")
+    parent_manifest_path = parent_path / "manifest.json"
+    _, parent = load_vnext_graph_topology(parent_path)
+    if parent.gene_feature_policy != "learned_id":
+        raise ValueError("GenePT Seed preflight requires the unfiltered learned-ID parent graph")
+    prior = verify_text_prior_npz(
+        genept_artifact_path,
+        expected_sha256=expected_genept_sha256,
+        expected_gene_ids=tuple(parent.graph_gene_ids),
+        perturbation_target_gene_ids=tuple(parent.candidate_target_ids),
+    )
+    receipt = GenePTSeedAvailabilityReceipt(
+        schema_version="genept-seed-go-protein-pathway-availability-v1",
+        status="available",
+        dataset_id="nadig_jurkat",
+        identifier_matching="exact_case_sensitive",
+        extra_source_gene_policy="ignore_preserving_runtime_axis",
+        missing_runtime_gene_policy="fail_before_model_construction",
+        missing_perturbation_target_policy="fail_before_model_construction",
+        parent_topology_content_sha256=parent.topology_content_sha256,
+        parent_graph_gene_order_sha256=parent.graph_gene_order_sha256,
+        candidate_target_order_sha256=parent.candidate_target_order_sha256,
+        prior_contract_id="seed_go_protein_pathway_master_v1",
+        runtime_graph_root=runtime_graph_root,
+        parent_graph_manifest_sha256=sha256_file(parent_manifest_path),
+        genept_source_path=str(prior.source_path),
+        genept_source_size_bytes=prior.source_size_bytes,
+        genept_source_sha256=prior.source_sha256,
+        genept_model=prior.model,
+        embedding_width=prior.embedding_width,
+        source_gene_count=prior.source_gene_count,
+        source_gene_order_sha256=prior.source_gene_order_sha256,
+        selected_gene_count=len(prior.gene_ids),
+        selected_gene_order_sha256=prior.gene_order_sha256,
+        selected_matrix_sha256=prior.selected_matrix_sha256,
+        extra_source_gene_count=prior.extra_source_gene_count,
+        extra_source_gene_ids_sha256=prior.extra_source_gene_ids_sha256,
+        perturbation_target_gene_count=len(prior.perturbation_target_gene_ids),
+        perturbation_target_gene_ids_sha256=prior.perturbation_target_gene_ids_sha256,
+        zero_vector_gene_count=len(prior.zero_vector_gene_ids),
+        result_topology_content_sha256=parent.topology_content_sha256,
+    )
+    destination = Path(availability_receipt_path)
+    atomic_json(destination, receipt.model_dump(mode="json"))
+    sealed = GenePTSeedAvailabilityReceipt.model_validate_json(
+        destination.read_text(encoding="utf-8")
+    )
+    if sealed != receipt:
+        raise RuntimeError("GenePT Seed availability receipt round-trip differs")
+    return receipt
 
 
 def _genept_availability_receipt(

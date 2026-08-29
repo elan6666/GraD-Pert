@@ -2,13 +2,20 @@ from __future__ import annotations
 
 import csv
 from pathlib import Path
+from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 pytest.importorskip("torch")
 pytest.importorskip("torch_geometric")
 
-from gradpert.execution.native import _read_local_view_realization_receipt
+from gradpert.execution.native import (
+    _ordered_perturbation_target_gene_ids,
+    _read_local_view_realization_receipt,
+    _text_prior_receipt,
+)
+from gradpert.features import TextPriorArtifact
 from gradpert.graphs import resolve_local_view_contract
 
 
@@ -87,3 +94,51 @@ def test_local_view_realization_receipt_rejects_budget_overrun(tmp_path: Path) -
 
     with pytest.raises(ValueError, match="realized local-view count or budget"):
         _read_local_view_realization_receipt(steps, contract=_contract())
+
+
+def test_genept_seed_receipt_binds_superset_selection_without_large_extra_ids(
+    tmp_path: Path,
+) -> None:
+    selected = np.zeros((2, 3), dtype=np.float32)
+    artifact = TextPriorArtifact(
+        source_path=tmp_path / "seed-go-protein-pathway.npz",
+        source_sha256="a" * 64,
+        source_size_bytes=123,
+        gene_ids=("A", "B"),
+        values=selected,
+        model="doubao-embedding-vision",
+        embedding_width=3,
+        gene_order_sha256="b" * 64,
+        zero_vector_gene_ids=(),
+        source_gene_count=4,
+        source_gene_order_sha256="c" * 64,
+        extra_source_gene_count=2,
+        extra_source_gene_ids=("EXTRA_A", "EXTRA_B"),
+        extra_source_gene_ids_sha256="d" * 64,
+        perturbation_target_gene_ids=("A",),
+        perturbation_target_gene_ids_sha256="e" * 64,
+        selected_matrix_sha256="f" * 64,
+    )
+
+    receipt = _text_prior_receipt(artifact, feature_mode="genept_frozen")
+
+    assert receipt["schema_version"] == "sealed-superset-text-prior-v1"
+    assert receipt["source_gene_count"] == 4
+    assert receipt["selected_gene_count"] == 2
+    assert receipt["extra_source_gene_count"] == 2
+    assert receipt["extra_source_gene_ids_sha256"] == "d" * 64
+    assert "extra_source_gene_ids" not in receipt
+    assert receipt["zero_fill_policy"] == "forbidden"
+
+
+def test_genept_target_union_uses_all_sealed_split_partitions() -> None:
+    training_data = SimpleNamespace(
+        split=SimpleNamespace(
+            train_conditions=("A+ctrl", "B"),
+            val_conditions=("C+A",),
+            test_conditions=("D+ctrl",),
+            control_condition_id="ctrl",
+        )
+    )
+
+    assert _ordered_perturbation_target_gene_ids(training_data) == ("A", "B", "C", "D")

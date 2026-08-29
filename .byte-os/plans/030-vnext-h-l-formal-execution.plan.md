@@ -1,9 +1,9 @@
 ---
 id: 030
 status: pending
-wave: 3
+wave: 5
 depends_on: [028]
-updated_at: 2026-08-29T17:10:00+08:00
+updated_at: 2026-08-29T19:15:00+08:00
 ---
 
 # Plan 030 — formal H and L module execution

@@ -2,6 +2,18 @@
 
 Subagent mode: on
 
+## Plans 031/032 disjoint implementation — active
+
+| Task | Scope | Write access | Status |
+|---|---|---|---|
+| `official_graph_models` | Generic matrix-aware census worker, protocols, promotion and aggregation | `scripts/performance/**`, `tests/performance/**` | active |
+| `native_architecture_gap` | Diagnostic-only step stage observer and focused training tests | `src/gradpert/training/step.py`, `tests/training/**` | active |
+| `genept_shiftblock` | Seed-GO-ProteinPathway superset selection, E configs/matrix/tests and GenePT docs | explicitly assigned GenePT/config files only | active |
+
+The primary agent owns Plans 031/032, Byte OS integration, implementation merge,
+server verification and all launch authorization. Implementation ownership is
+assigned only after these handoffs and must use disjoint files.
+
 ## Current read-only exploration
 
 | Task | Scope | Write access | Status |

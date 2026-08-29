@@ -114,11 +114,31 @@ def test_fixed_local_view_factors_fail_closed(legacy_name: str) -> None:
         NativeArchitectureOptions.from_parameters(_vnext(**{legacy_name: 4}))
 
 
-def test_genept_requires_exact_artifact_identity() -> None:
-    with pytest.raises(ValueError, match="exact frozen emb_b"):
+def test_genept_requires_artifact_identity_for_every_route() -> None:
+    with pytest.raises(ValueError, match="artifact SHA-256"):
         NativeArchitectureOptions.from_parameters(
             _vnext(gene_feature_mode="frozen_genept_projection")
         )
+
+
+@pytest.mark.parametrize(
+    "feature_mode",
+    [
+        "frozen_genept_projection",
+        "genept_id_residual",
+        "genept_initialized",
+        "genept_shuffled",
+    ],
+)
+def test_genept_routes_accept_one_hash_pinned_artifact(feature_mode: str) -> None:
+    options = NativeArchitectureOptions.from_parameters(
+        _vnext(
+            gene_feature_mode=feature_mode,
+            genept_expected_sha256="a" * 64,
+        )
+    )
+    assert options.gene_feature_mode == feature_mode
+    assert options.genept_expected_sha256 == "a" * 64
 
 
 def test_single_gat_accepts_registered_weight_ablation() -> None:
