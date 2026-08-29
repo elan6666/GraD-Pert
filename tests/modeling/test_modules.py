@@ -132,8 +132,8 @@ def _vnext_options(**changes: object) -> NativeArchitectureOptions:
         "string_weight_mode": "selection_only",
         "local_view_builder": "fanout",
         "local_view_count": 8,
-        "local_view_node_budget": 256,
-        "local_anchor_mask_count": 0,
+        "local_view_node_budget_ratio": "1/2",
+        "local_anchor_mask_view_ratio": "0/1",
         "gene_feature_mode": "learned_id",
         "decoder_mode": "additive",
     }
