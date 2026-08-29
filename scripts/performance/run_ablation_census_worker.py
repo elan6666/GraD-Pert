@@ -107,6 +107,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--census-root", type=Path, required=True)
     parser.add_argument("--development-commit", type=_commit_argument, required=True)
+    parser.add_argument("--source-publication-receipt", type=Path, required=True)
+    parser.add_argument(
+        "--source-publication-receipt-sha256",
+        type=_sha256_argument,
+        required=True,
+    )
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--p0-preflight-receipt", type=Path, required=True)
     parser.add_argument(
@@ -261,6 +267,12 @@ def _resolve_p0_preflight(
         args.repository_root.resolve(strict=True)
     ):
         raise WorkerGateError("P0 preflight source is not clean")
+    publication_receipt = _regular_file_evidence(
+        args.source_publication_receipt,
+        args.source_publication_receipt_sha256,
+        label="source publication receipt",
+        expected_size_bytes=source.get("publication_receipt_size_bytes"),
+    )
     source_tree_sha256 = source.get("source_tree_sha256")
     if (
         not isinstance(source_tree_sha256, str)
@@ -271,6 +283,9 @@ def _resolve_p0_preflight(
         or source.get("remote_ref") != "refs/heads/codex/vnext-performance"
         or source.get("published_commit") != args.development_commit
         or source.get("formal_eligible") is not True
+        or source.get("publication_receipt_path") != publication_receipt["path"]
+        or source.get("publication_receipt_sha256") != publication_receipt["sha256"]
+        or source.get("publication_receipt_size_bytes") != publication_receipt["size_bytes"]
     ):
         raise WorkerGateError("P0 preflight published source identity differs")
     data = payload.get("data")
@@ -471,6 +486,7 @@ def _resolve_stage_prerequisite(
                 "remote_ref_equals_p0",
                 "source_content_tree_equals_p0",
                 "remote_url_equals_p0",
+                "publication_receipt_equals_p0",
             }
             or not all(bool(value) for value in predicates.values())
         ):
@@ -485,6 +501,9 @@ def _resolve_stage_prerequisite(
         "remote_ref",
         "published_commit",
         "formal_eligible",
+        "publication_receipt_path",
+        "publication_receipt_sha256",
+        "publication_receipt_size_bytes",
         "status_porcelain_sha256",
     ):
         if repository.get(name) != final_repository.get(name):
@@ -759,6 +778,28 @@ def _require_immutable_inputs(
         _regular_file_evidence(path, expected_sha256, label=label)
         for path, expected_sha256, label in expected_files
     ]
+    source = p0_preflight.get("source")
+    if not isinstance(source, Mapping):
+        raise WorkerGateError("P0 preflight lacks its source publication receipt")
+    publication_receipt_path = source.get("publication_receipt_path")
+    publication_receipt_sha256 = source.get("publication_receipt_sha256")
+    publication_receipt_size_bytes = source.get("publication_receipt_size_bytes")
+    if (
+        not isinstance(publication_receipt_path, str)
+        or not isinstance(publication_receipt_sha256, str)
+        or not isinstance(publication_receipt_size_bytes, int)
+        or isinstance(publication_receipt_size_bytes, bool)
+        or publication_receipt_size_bytes <= 0
+    ):
+        raise WorkerGateError("P0 source publication receipt identity is malformed")
+    evidence.append(
+        _regular_file_evidence(
+            Path(publication_receipt_path),
+            publication_receipt_sha256,
+            label="source publication receipt",
+            expected_size_bytes=publication_receipt_size_bytes,
+        )
+    )
     data = p0_preflight.get("data")
     if not isinstance(data, Mapping):
         raise WorkerGateError("P0 preflight lacks live data artifact identities")
@@ -919,6 +960,11 @@ def _repository_identity_evidence(
     commit = _git_output(root, "rev-parse", "HEAD")
     tree = _git_output(root, "rev-parse", "HEAD^{tree}")
     status = _git_output(root, "status", "--porcelain", "--untracked-files=normal")
+    publication_receipt = _regular_file_evidence(
+        args.source_publication_receipt,
+        args.source_publication_receipt_sha256,
+        label="source publication receipt",
+    )
     try:
         source_identity = inspect_source_identity(
             root,
@@ -926,6 +972,8 @@ def _repository_identity_evidence(
             expected_repository="https://github.com/elan6666/GraD-Pert",
             development_commit=args.development_commit,
             remote_ref="refs/heads/codex/vnext-performance",
+            publication_receipt=Path(str(publication_receipt["path"])),
+            expected_publication_receipt_sha256=args.source_publication_receipt_sha256,
         )
     except (OSError, RuntimeError, ValueError) as error:
         raise WorkerGateError("source content-tree identity inspection failed") from error
@@ -949,6 +997,21 @@ def _repository_identity_evidence(
         if isinstance(expected_p0_source, Mapping)
         else source_identity.published_commit
     )
+    expected_publication_receipt_path = (
+        expected_p0_source.get("publication_receipt_path")
+        if isinstance(expected_p0_source, Mapping)
+        else publication_receipt["path"]
+    )
+    expected_publication_receipt_sha256 = (
+        expected_p0_source.get("publication_receipt_sha256")
+        if isinstance(expected_p0_source, Mapping)
+        else publication_receipt["sha256"]
+    )
+    expected_publication_receipt_size_bytes = (
+        expected_p0_source.get("publication_receipt_size_bytes")
+        if isinstance(expected_p0_source, Mapping)
+        else publication_receipt["size_bytes"]
+    )
     predicates = {
         "head_equals_development_commit": commit == args.development_commit,
         "worktree_clean": status == "",
@@ -959,6 +1022,14 @@ def _repository_identity_evidence(
         "remote_ref_equals_p0": source_identity.remote_ref == expected_remote_ref,
         "source_content_tree_equals_p0": source_identity.tree_sha256 == expected_tree_sha256,
         "remote_url_equals_p0": source_identity.remote_url == expected_remote_url,
+        "publication_receipt_equals_p0": (
+            publication_receipt["path"] == expected_publication_receipt_path
+            and publication_receipt["sha256"] == expected_publication_receipt_sha256
+            and publication_receipt["size_bytes"] == expected_publication_receipt_size_bytes
+            and source_identity.publication_receipt_sha256
+            == args.source_publication_receipt_sha256
+            == expected_publication_receipt_sha256
+        ),
     }
     return {
         "schema_version": "nadig-vnext-performance-repository-identity-v1",
@@ -971,6 +1042,9 @@ def _repository_identity_evidence(
         "remote_ref": source_identity.remote_ref,
         "published_commit": source_identity.published_commit,
         "formal_eligible": source_identity.formal_eligible,
+        "publication_receipt_path": publication_receipt["path"],
+        "publication_receipt_sha256": publication_receipt["sha256"],
+        "publication_receipt_size_bytes": publication_receipt["size_bytes"],
         "status_porcelain": status,
         "status_porcelain_sha256": hashlib.sha256(status.encode("utf-8")).hexdigest(),
         "predicates": predicates,
@@ -1003,6 +1077,9 @@ def _record_final_repository_identity(
             "remote_ref",
             "published_commit",
             "formal_eligible",
+            "publication_receipt_path",
+            "publication_receipt_sha256",
+            "publication_receipt_size_bytes",
             "status_porcelain_sha256",
         )
         passed = (
@@ -1860,6 +1937,8 @@ def _load_runtime() -> RuntimeModules:
 
 
 def _validate_args(args: argparse.Namespace) -> None:
+    if args.source_publication_receipt is None or args.source_publication_receipt_sha256 is None:
+        raise WorkerGateError("source publication receipt path/SHA are required")
     if not 0 < args.minimum_gpu_headroom_fraction < 1:
         raise WorkerGateError("minimum GPU headroom fraction must be in (0, 1)")
     numeric = (

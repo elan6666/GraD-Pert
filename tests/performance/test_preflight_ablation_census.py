@@ -263,7 +263,7 @@ def _dependencies(
         return loaded[str(path.resolve())]
 
     return preflight.PreflightDependencies(
-        inspect_source=lambda root, commit: {
+        inspect_source=lambda root, commit, publication, publication_sha: {
             "schema_version": "nadig-vnext-performance-source-identity-v1",
             "repository_root": str(root.resolve()),
             "expected_repository": preflight.EXPECTED_REPOSITORY,
@@ -277,8 +277,10 @@ def _dependencies(
             "published_commit": commit,
             "formal_eligible": True,
             "formal_eligibility_reason": None,
-            "publication_verification_method": "git_ls_remote_live",
-            "publication_receipt_sha256": None,
+            "publication_verification_method": "hash_pinned_source_publication_receipt",
+            "publication_receipt_path": str(publication.resolve()),
+            "publication_receipt_sha256": publication_sha,
+            "publication_receipt_size_bytes": publication.stat().st_size,
             "source_dirty": False,
         },
         load_data_identity=lambda _root, _protocol: _data_identity(preflight),
@@ -322,11 +324,16 @@ def _run(
         wrong_topology=wrong_genept,
         selected_count_delta=genept_selected_count_delta,
     )
+    publication_receipt = tmp_path / "source-publication-receipt.json"
+    publication_receipt.write_text('{"schema_version":"fixture"}\n', encoding="utf-8")
+    publication_receipt_sha256 = hashlib.sha256(publication_receipt.read_bytes()).hexdigest()
     return preflight.build_preflight_receipt(
         matrix_path=MATRIX,
         expected_matrix_sha256=matrix_sha256,
         repository_root=PROJECT_ROOT,
         expected_source_commit=SOURCE_COMMIT,
+        source_publication_receipt=publication_receipt,
+        source_publication_receipt_sha256=publication_receipt_sha256,
         data_root=data_root,
         genept_preflight_receipt=genept_path,
         genept_preflight_receipt_sha256=hashlib.sha256(genept_path.read_bytes()).hexdigest(),
@@ -531,11 +538,13 @@ def test_matrix_tampering_fails_before_any_row_is_claimed(
             expected_matrix_sha256="0" * 64,
             repository_root=PROJECT_ROOT,
             expected_source_commit=SOURCE_COMMIT,
+            source_publication_receipt=tmp_path / "not-inspected-publication.json",
+            source_publication_receipt_sha256="f" * 64,
             data_root=data_root,
             genept_preflight_receipt=None,
             genept_preflight_receipt_sha256=None,
             dependencies=preflight.PreflightDependencies(
-                inspect_source=lambda root, commit: {},
+                inspect_source=lambda root, commit, publication, publication_sha: {},
                 load_data_identity=lambda root, protocol: _data_identity(preflight),
                 load_graph=lambda root: (None, None),
                 verify_artifact=lambda path, sha, size: {},
@@ -631,6 +640,9 @@ def test_source_inspection_binds_git_and_exact_content_tree(
         capture_output=True,
         text=True,
     ).stdout.strip()
+    publication_receipt = tmp_path / "source-publication-receipt.json"
+    publication_receipt.write_text('{"schema_version":"fixture"}\n', encoding="utf-8")
+    publication_receipt_sha256 = hashlib.sha256(publication_receipt.read_bytes()).hexdigest()
     observed_calls: list[dict[str, object]] = []
 
     def inspect_formal_source(root: Path, **kwargs: object) -> SimpleNamespace:
@@ -658,11 +670,16 @@ def test_source_inspection_binds_git_and_exact_content_tree(
             published_commit=observed_commit,
             formal_eligible=True,
             formal_eligibility_reason=None,
-            publication_receipt_sha256=None,
+            publication_receipt_sha256=publication_receipt_sha256,
         )
 
     monkeypatch.setattr(preflight, "inspect_source_identity", inspect_formal_source)
-    evidence = preflight._inspect_clean_source(repository, commit)
+    evidence = preflight._inspect_clean_source(
+        repository,
+        commit,
+        publication_receipt,
+        publication_receipt_sha256,
+    )
     assert evidence["observed_commit"] == commit
     assert len(evidence["git_tree_object"]) == 40
     assert len(evidence["source_tree_sha256"]) == 64
@@ -674,24 +691,42 @@ def test_source_inspection_binds_git_and_exact_content_tree(
             "formal": True,
             "expected_repository": preflight.EXPECTED_REPOSITORY,
             "remote_ref": preflight.SOURCE_REMOTE_REF,
+            "publication_receipt": publication_receipt.resolve(),
+            "expected_publication_receipt_sha256": publication_receipt_sha256,
         }
     ]
 
     (repository / "src/package/module.py").write_text("VALUE = 2\n", encoding="utf-8")
     with pytest.raises(preflight.PreflightError, match="clean source worktree"):
-        preflight._inspect_clean_source(repository, commit)
+        preflight._inspect_clean_source(
+            repository,
+            commit,
+            publication_receipt,
+            publication_receipt_sha256,
+        )
 
 
 def test_source_evidence_rejects_wrong_remote_and_unpublished_commit(
     preflight: ModuleType,
+    tmp_path: Path,
 ) -> None:
-    source = _dependencies(preflight, {}).inspect_source(PROJECT_ROOT, SOURCE_COMMIT)
+    publication_receipt = tmp_path / "source-publication-receipt.json"
+    publication_receipt.write_text('{"schema_version":"fixture"}\n', encoding="utf-8")
+    publication_receipt_sha256 = hashlib.sha256(publication_receipt.read_bytes()).hexdigest()
+    source = _dependencies(preflight, {}).inspect_source(
+        PROJECT_ROOT,
+        SOURCE_COMMIT,
+        publication_receipt,
+        publication_receipt_sha256,
+    )
     wrong_remote = {**source, "remote_url": "https://github.com/example/not-gradpert"}
     with pytest.raises(preflight.PreflightError, match="source remote differs"):
         preflight._validate_source_evidence(
             wrong_remote,
             repository_root=PROJECT_ROOT,
             expected_commit=SOURCE_COMMIT,
+            publication_receipt=publication_receipt,
+            expected_publication_receipt_sha256=publication_receipt_sha256,
         )
 
     unpublished = {
@@ -705,6 +740,32 @@ def test_source_evidence_rejects_wrong_remote_and_unpublished_commit(
             unpublished,
             repository_root=PROJECT_ROOT,
             expected_commit=SOURCE_COMMIT,
+            publication_receipt=publication_receipt,
+            expected_publication_receipt_sha256=publication_receipt_sha256,
+        )
+
+
+def test_source_publication_receipt_is_required_and_hash_pinned(
+    preflight: ModuleType,
+    tmp_path: Path,
+) -> None:
+    missing = tmp_path / "missing-publication.json"
+    with pytest.raises(preflight.PreflightError, match="must be a regular file"):
+        preflight._inspect_clean_source(
+            PROJECT_ROOT,
+            SOURCE_COMMIT,
+            missing,
+            "f" * 64,
+        )
+
+    publication_receipt = tmp_path / "source-publication-receipt.json"
+    publication_receipt.write_text("fixture\n", encoding="utf-8")
+    with pytest.raises(preflight.PreflightError, match="SHA-256 differs"):
+        preflight._inspect_clean_source(
+            PROJECT_ROOT,
+            SOURCE_COMMIT,
+            publication_receipt,
+            "f" * 64,
         )
 
 
@@ -713,6 +774,9 @@ def test_cli_failure_still_writes_atomic_non_scientific_receipt(
     tmp_path: Path,
 ) -> None:
     destination = tmp_path / "failed.json"
+    publication_receipt = tmp_path / "source-publication-receipt.json"
+    publication_receipt.write_text("fixture\n", encoding="utf-8")
+    publication_receipt_sha256 = hashlib.sha256(publication_receipt.read_bytes()).hexdigest()
     argv = [
         "--matrix",
         str(MATRIX),
@@ -722,6 +786,10 @@ def test_cli_failure_still_writes_atomic_non_scientific_receipt(
         str(PROJECT_ROOT),
         "--expected-source-commit",
         SOURCE_COMMIT,
+        "--source-publication-receipt",
+        str(publication_receipt),
+        "--source-publication-receipt-sha256",
+        publication_receipt_sha256,
         "--data-root",
         str(tmp_path),
         "--receipt",
@@ -749,6 +817,9 @@ def test_cli_rejects_existing_symlink_and_directory_before_inspection(
         raise AssertionError("existing receipt must fail before P0 inspection")
 
     monkeypatch.setattr(preflight, "build_preflight_receipt", reject_inspection)
+    publication_receipt = tmp_path / "source-publication-receipt.json"
+    publication_receipt.write_text("fixture\n", encoding="utf-8")
+    publication_receipt_sha256 = hashlib.sha256(publication_receipt.read_bytes()).hexdigest()
     directory = tmp_path / "existing-directory"
     directory.mkdir()
     symlink = tmp_path / "existing-symlink"
@@ -764,6 +835,10 @@ def test_cli_rejects_existing_symlink_and_directory_before_inspection(
                 str(PROJECT_ROOT),
                 "--expected-source-commit",
                 SOURCE_COMMIT,
+                "--source-publication-receipt",
+                str(publication_receipt),
+                "--source-publication-receipt-sha256",
+                publication_receipt_sha256,
                 "--data-root",
                 str(tmp_path),
                 "--receipt",

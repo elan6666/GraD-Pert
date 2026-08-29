@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import subprocess
 import sys
@@ -216,6 +217,11 @@ def _clean_repository(tmp_path: Path) -> tuple[Path, str]:
 
 def _args(tmp_path: Path, *, stage_id: str) -> Namespace:
     repository, commit = _clean_repository(tmp_path)
+    source_publication_receipt = tmp_path / "source-publication-receipt.json"
+    source_publication_receipt.write_text(
+        '{"schema_version":"source-publication-receipt-v1"}\n',
+        encoding="utf-8",
+    )
     return Namespace(
         matrix=tmp_path / "matrix.json",
         expected_matrix_sha256="c" * 64,
@@ -226,6 +232,10 @@ def _args(tmp_path: Path, *, stage_id: str) -> Namespace:
         census_root=tmp_path / "census",
         repository_root=repository,
         development_commit=commit,
+        source_publication_receipt=source_publication_receipt,
+        source_publication_receipt_sha256=hashlib.sha256(
+            source_publication_receipt.read_bytes()
+        ).hexdigest(),
         p0_preflight_receipt=tmp_path / "p0.json",
         p0_preflight_receipt_sha256="d" * 64,
         batch_manifest=tmp_path / "batches.json",
@@ -253,6 +263,7 @@ def _repository_identity(worker: ModuleType, args: Namespace) -> dict[str, objec
         remote_ref="refs/heads/codex/vnext-performance",
         published_commit=args.development_commit,
         formal_eligible=True,
+        publication_receipt_sha256=args.source_publication_receipt_sha256,
     )
     original = worker.inspect_source_identity
     worker.inspect_source_identity = lambda *_args, **_kwargs: identity
@@ -262,6 +273,14 @@ def _repository_identity(worker: ModuleType, args: Namespace) -> dict[str, objec
         worker.inspect_source_identity = original
     assert all(evidence["predicates"].values())
     return evidence
+
+
+def _source_publication_binding(args: Namespace) -> dict[str, object]:
+    return {
+        "publication_receipt_path": str(args.source_publication_receipt.resolve()),
+        "publication_receipt_sha256": args.source_publication_receipt_sha256,
+        "publication_receipt_size_bytes": args.source_publication_receipt.stat().st_size,
+    }
 
 
 def _binding(tmp_path: Path):
@@ -454,10 +473,15 @@ def _immutable_inputs_fixture(worker: ModuleType, tmp_path: Path):
     config_path = tmp_path / "config.yaml"
     p0_path = tmp_path / "p0.json"
     batches_path = tmp_path / "batches.json"
+    source_publication_receipt = tmp_path / "source-publication-receipt.json"
     matrix_sha = write(matrix_path, b'{"matrix":true}\n')
     config_sha = write(config_path, b"model: sealed\n")
     p0_sha = write(p0_path, b'{"p0":true}\n')
     batches_sha = write(batches_path, b'{"batches":true}\n')
+    source_publication_receipt_sha = write(
+        source_publication_receipt,
+        b'{"schema_version":"source-publication-receipt-v1"}\n',
+    )
     binding = _binding(tmp_path)
     binding.matrix_path = str(matrix_path)
     binding.matrix_sha256 = matrix_sha
@@ -490,6 +514,11 @@ def _immutable_inputs_fixture(worker: ModuleType, tmp_path: Path):
     p0 = {
         "receipt_path": str(p0_path),
         "receipt_sha256": p0_sha,
+        "source": {
+            "publication_receipt_path": str(source_publication_receipt),
+            "publication_receipt_sha256": source_publication_receipt_sha,
+            "publication_receipt_size_bytes": source_publication_receipt.stat().st_size,
+        },
         "data": {
             "canonical_manifest_path": str(canonical_manifest),
             "canonical_manifest_sha256": canonical_manifest_sha,
@@ -549,15 +578,17 @@ def _immutable_inputs_fixture(worker: ModuleType, tmp_path: Path):
         p0=p0,
         go_path=go_path,
         source_h5ad=source_h5ad,
+        source_publication_receipt=source_publication_receipt,
     )
 
 
 def test_worker_cli_excludes_p3(worker: ModuleType) -> None:
-    choices = next(
-        action.choices for action in worker._parser()._actions if action.dest == "stage_id"
-    )
+    actions = {action.dest: action for action in worker._parser()._actions}
+    choices = actions["stage_id"].choices
     assert set(choices) == {"p1_capacity", "p2_timing", "diagnostic_profile"}
     assert "p3_timing" not in choices
+    assert actions["source_publication_receipt"].required is True
+    assert actions["source_publication_receipt_sha256"].required is True
 
 
 def test_p2_and_profile_require_paired_p1_prerequisite(worker: ModuleType, tmp_path: Path) -> None:
@@ -575,6 +606,13 @@ def test_p2_and_profile_require_paired_p1_prerequisite(worker: ModuleType, tmp_p
     p1_args.p1_receipt_sha256 = "a" * 64
     with pytest.raises(worker.WorkerGateError, match="cannot accept"):
         worker._validate_args(p1_args)
+
+    missing_publication_root = tmp_path / "missing-publication"
+    missing_publication_root.mkdir()
+    missing_publication = _args(missing_publication_root, stage_id="p1_capacity")
+    missing_publication.source_publication_receipt = None
+    with pytest.raises(worker.WorkerGateError, match="source publication receipt"):
+        worker._validate_args(missing_publication)
 
 
 def test_p2_prerequisite_is_hash_pinned_and_gpu_bound(
@@ -803,6 +841,9 @@ def test_p0_preflight_binds_source_data_row_and_a0_graph(
             "remote_ref": "refs/heads/codex/vnext-performance",
             "published_commit": args.development_commit,
             "formal_eligible": True,
+            "publication_receipt_path": str(args.source_publication_receipt.resolve()),
+            "publication_receipt_sha256": args.source_publication_receipt_sha256,
+            "publication_receipt_size_bytes": args.source_publication_receipt.stat().st_size,
             "source_dirty": False,
         },
         "data": {
@@ -832,6 +873,17 @@ def test_p0_preflight_binds_source_data_row_and_a0_graph(
     )
     assert resolved["receipt_sha256"] == args.p0_preflight_receipt_sha256
     assert resolved["row_payload_sha256"] == worker._sha256_json(rows[0])
+
+    payload["source"]["publication_receipt_size_bytes"] += 1
+    receipt_path.write_text(worker.json.dumps(payload, sort_keys=True), encoding="utf-8")
+    args.p0_preflight_receipt_sha256 = worker._sha256_file(receipt_path)
+    with pytest.raises(worker.WorkerGateError, match="source publication receipt size changed"):
+        worker._resolve_p0_preflight(
+            args,
+            binding=binding,
+            batch_manifest=manifest,
+        )
+    payload["source"]["publication_receipt_size_bytes"] -= 1
 
     payload["cross_h_audit"] = {"status": "blocked"}
     receipt_path.write_text(worker.json.dumps(payload, sort_keys=True), encoding="utf-8")
@@ -1283,19 +1335,32 @@ def test_repository_identity_records_tree_and_fails_dirty_or_mismatched_commit(
         remote_ref="refs/heads/codex/vnext-performance",
         published_commit=args.development_commit,
         formal_eligible=True,
+        publication_receipt_sha256=args.source_publication_receipt_sha256,
     )
-    monkeypatch.setattr(worker, "inspect_source_identity", lambda *_args, **_kwargs: identity)
+    observed_kwargs: dict[str, object] = {}
+
+    def inspect(*_args, **kwargs):
+        observed_kwargs.update(kwargs)
+        return identity
+
+    monkeypatch.setattr(worker, "inspect_source_identity", inspect)
     p0_source = {
         "source_tree_sha256": identity.tree_sha256,
         "remote_url": identity.remote_url,
         "remote_ref": identity.remote_ref,
         "published_commit": identity.published_commit,
+        **_source_publication_binding(args),
     }
     evidence = worker._repository_identity_evidence(args, expected_p0_source=p0_source)
     assert evidence["head_commit"] == args.development_commit
     assert len(evidence["head_tree"]) == 40
     assert evidence["status_porcelain"] == ""
     assert all(evidence["predicates"].values())
+    assert observed_kwargs["publication_receipt"] == args.source_publication_receipt.resolve()
+    assert (
+        observed_kwargs["expected_publication_receipt_sha256"]
+        == args.source_publication_receipt_sha256
+    )
 
     args.development_commit = "f" * 40
     mismatched = worker._repository_identity_evidence(args, expected_p0_source=p0_source)
@@ -1340,6 +1405,7 @@ def test_repository_identity_rejects_wrong_remote_or_unpublished_commit(
             args.development_commit if published_commit is None else published_commit
         ),
         formal_eligible=True,
+        publication_receipt_sha256=args.source_publication_receipt_sha256,
     )
     monkeypatch.setattr(worker, "inspect_source_identity", lambda *_args, **_kwargs: identity)
     evidence = worker._repository_identity_evidence(
@@ -1349,9 +1415,37 @@ def test_repository_identity_rejects_wrong_remote_or_unpublished_commit(
             "remote_url": "https://github.com/elan6666/GraD-Pert.git",
             "remote_ref": "refs/heads/codex/vnext-performance",
             "published_commit": args.development_commit,
+            **_source_publication_binding(args),
         },
     )
     assert evidence["predicates"][failed_predicate] is False
+
+
+def test_source_publication_receipt_missing_wrong_or_mutated_fails_closed(
+    worker: ModuleType,
+    tmp_path: Path,
+) -> None:
+    missing_root = tmp_path / "missing"
+    missing_root.mkdir()
+    missing_args = _args(missing_root, stage_id="p1_capacity")
+    missing_args.source_publication_receipt.unlink()
+    with pytest.raises(worker.WorkerGateError, match="source publication receipt is missing"):
+        worker._repository_identity_evidence(missing_args)
+
+    wrong_hash_root = tmp_path / "wrong-hash"
+    wrong_hash_root.mkdir()
+    wrong_hash_args = _args(wrong_hash_root, stage_id="p1_capacity")
+    wrong_hash_args.source_publication_receipt_sha256 = "f" * 64
+    with pytest.raises(worker.WorkerGateError, match="source publication receipt changed"):
+        worker._repository_identity_evidence(wrong_hash_args)
+
+    mutated_root = tmp_path / "mutated"
+    mutated_root.mkdir()
+    mutated_args = _args(mutated_root, stage_id="p1_capacity")
+    original = mutated_args.source_publication_receipt.read_bytes()
+    mutated_args.source_publication_receipt.write_bytes(b"x" + original[1:])
+    with pytest.raises(worker.WorkerGateError, match="source publication receipt changed"):
+        worker._repository_identity_evidence(mutated_args)
 
 
 def test_persistent_pkl_scan_fails_without_deleting_and_hash_pins_paths(
@@ -1521,6 +1615,33 @@ def test_immutable_input_audit_detects_live_graph_and_data_tampering(
         )
 
 
+def test_source_publication_receipt_is_rehashed_by_immutable_audit(
+    worker: ModuleType,
+    tmp_path: Path,
+) -> None:
+    frozen = _immutable_inputs_fixture(worker, tmp_path)
+    evidence = worker._require_immutable_inputs(
+        binding=frozen.binding,
+        p0_preflight=frozen.p0,
+        batch_manifest=frozen.manifest,
+        stage_prerequisite=None,
+        data_root=frozen.data_root,
+    )
+    labels = [binding["label"] for binding in evidence["files"]]
+    assert labels.count("source publication receipt") == 1
+
+    original = frozen.source_publication_receipt.read_bytes()
+    frozen.source_publication_receipt.write_bytes(b"x" + original[1:])
+    with pytest.raises(worker.WorkerGateError, match="source publication receipt changed"):
+        worker._require_immutable_inputs(
+            binding=frozen.binding,
+            p0_preflight=frozen.p0,
+            batch_manifest=frozen.manifest,
+            stage_prerequisite=None,
+            data_root=frozen.data_root,
+        )
+
+
 def test_genept_artifact_size_is_bound_by_p0(
     worker: ModuleType,
     tmp_path: Path,
@@ -1619,6 +1740,7 @@ def test_final_source_drift_fails_without_replacing_primary_failure(
         remote_ref=initial["remote_ref"],
         published_commit=args.development_commit,
         formal_eligible=True,
+        publication_receipt_sha256=args.source_publication_receipt_sha256,
     )
     monkeypatch.setattr(worker, "inspect_source_identity", lambda *_args, **_kwargs: identity)
     (Path(args.repository_root) / "drift.txt").write_text("dirty\n", encoding="utf-8")
@@ -1649,6 +1771,7 @@ def test_final_source_content_tree_detects_ignored_file_drift(
         remote_ref=initial["remote_ref"],
         published_commit=args.development_commit,
         formal_eligible=True,
+        publication_receipt_sha256=args.source_publication_receipt_sha256,
     )
     monkeypatch.setattr(worker, "inspect_source_identity", lambda *_args, **_kwargs: identity)
     state = worker.WorkerState(repository_identity=initial)
@@ -1660,6 +1783,7 @@ def test_final_source_content_tree_detects_ignored_file_drift(
             "remote_url": initial["remote_url"],
             "remote_ref": initial["remote_ref"],
             "published_commit": args.development_commit,
+            **_source_publication_binding(args),
         },
     )
     assert isinstance(state.primary_failure, worker.WorkerGateError)

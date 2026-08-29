@@ -111,7 +111,7 @@ class DataIdentity:
 
 @dataclass(frozen=True)
 class PreflightDependencies:
-    inspect_source: Callable[[Path, str], Mapping[str, object]]
+    inspect_source: Callable[[Path, str, Path, str], Mapping[str, object]]
     load_data_identity: Callable[[Path, str], DataIdentity]
     load_graph: Callable[[Path], tuple[Any, Any]]
     verify_artifact: Callable[[Path, str, int], Mapping[str, object]]
@@ -135,6 +135,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--expected-matrix-sha256", type=_sha256_argument, required=True)
     parser.add_argument("--repository-root", type=Path, required=True)
     parser.add_argument("--expected-source-commit", type=_commit_argument, required=True)
+    parser.add_argument("--source-publication-receipt", type=Path, required=True)
+    parser.add_argument(
+        "--source-publication-receipt-sha256",
+        type=_sha256_argument,
+        required=True,
+    )
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--genept-preflight-receipt", type=Path)
     parser.add_argument("--genept-preflight-receipt-sha256", type=_sha256_argument)
@@ -254,13 +260,26 @@ def _normalized_repository_url(value: str) -> str:
     return normalized
 
 
-def _inspect_clean_source(repository_root: Path, expected_commit: str) -> dict[str, object]:
+def _inspect_clean_source(
+    repository_root: Path,
+    expected_commit: str,
+    publication_receipt: Path,
+    expected_publication_receipt_sha256: str,
+) -> dict[str, object]:
     root = repository_root.resolve(strict=True)
+    if not publication_receipt.is_file() or publication_receipt.is_symlink():
+        raise PreflightError("P0 source publication receipt must be a regular file")
+    resolved_publication_receipt = publication_receipt.resolve(strict=True)
+    observed_publication_receipt_sha256 = sha256_file(resolved_publication_receipt)
+    if observed_publication_receipt_sha256 != expected_publication_receipt_sha256:
+        raise PreflightError("P0 source publication receipt SHA-256 differs")
     identity = inspect_source_identity(
         root,
         formal=True,
         expected_repository=EXPECTED_REPOSITORY,
         remote_ref=SOURCE_REMOTE_REF,
+        publication_receipt=resolved_publication_receipt,
+        expected_publication_receipt_sha256=expected_publication_receipt_sha256,
     )
     head_tree = subprocess.run(
         ["git", "-C", str(root), "rev-parse", "HEAD^{tree}"],
@@ -272,6 +291,17 @@ def _inspect_clean_source(repository_root: Path, expected_commit: str) -> dict[s
         raise PreflightError("P0 source commit differs from the frozen commit")
     if identity.dirty:
         raise PreflightError("P0 requires a clean source worktree")
+    if (
+        identity.published_commit != expected_commit
+        or identity.remote_ref != SOURCE_REMOTE_REF
+        or identity.formal_eligible is not True
+        or identity.formal_eligibility_reason is not None
+        or identity.publication_receipt_sha256 != expected_publication_receipt_sha256
+        or not isinstance(identity.remote_url, str)
+        or _normalized_repository_url(identity.remote_url)
+        != _normalized_repository_url(EXPECTED_REPOSITORY)
+    ):
+        raise PreflightError("P0 formal publication identity differs from the frozen source")
     return {
         "schema_version": "nadig-vnext-performance-source-identity-v1",
         "repository_root": str(root),
@@ -286,8 +316,10 @@ def _inspect_clean_source(repository_root: Path, expected_commit: str) -> dict[s
         "published_commit": identity.published_commit,
         "formal_eligible": identity.formal_eligible,
         "formal_eligibility_reason": identity.formal_eligibility_reason,
-        "publication_verification_method": "git_ls_remote_live",
+        "publication_verification_method": "hash_pinned_source_publication_receipt",
+        "publication_receipt_path": str(resolved_publication_receipt),
         "publication_receipt_sha256": identity.publication_receipt_sha256,
+        "publication_receipt_size_bytes": resolved_publication_receipt.stat().st_size,
         "source_dirty": False,
     }
 
@@ -297,8 +329,17 @@ def _validate_source_evidence(
     *,
     repository_root: Path,
     expected_commit: str,
+    publication_receipt: Path,
+    expected_publication_receipt_sha256: str,
 ) -> None:
     expected_root = str(repository_root.resolve(strict=True))
+    if not publication_receipt.is_file() or publication_receipt.is_symlink():
+        raise PreflightError("P0 source publication receipt must be a regular file")
+    resolved_publication_receipt = publication_receipt.resolve(strict=True)
+    observed_publication_receipt_sha256 = sha256_file(resolved_publication_receipt)
+    observed_publication_receipt_size = resolved_publication_receipt.stat().st_size
+    if observed_publication_receipt_sha256 != expected_publication_receipt_sha256:
+        raise PreflightError("P0 source publication receipt SHA-256 differs")
     if (
         source.get("repository_root") != expected_root
         or source.get("expected_repository") != EXPECTED_REPOSITORY
@@ -308,8 +349,10 @@ def _validate_source_evidence(
         or source.get("remote_ref") != SOURCE_REMOTE_REF
         or source.get("formal_eligible") is not True
         or source.get("formal_eligibility_reason") is not None
-        or source.get("publication_verification_method") != "git_ls_remote_live"
-        or source.get("publication_receipt_sha256") is not None
+        or source.get("publication_verification_method") != "hash_pinned_source_publication_receipt"
+        or source.get("publication_receipt_path") != str(resolved_publication_receipt)
+        or source.get("publication_receipt_sha256") != expected_publication_receipt_sha256
+        or source.get("publication_receipt_size_bytes") != observed_publication_receipt_size
         or source.get("source_dirty") is not False
     ):
         raise PreflightError("P0 source identity evidence differs from the frozen source")
@@ -719,6 +762,8 @@ def build_preflight_receipt(
     expected_matrix_sha256: str,
     repository_root: Path,
     expected_source_commit: str,
+    source_publication_receipt: Path,
+    source_publication_receipt_sha256: str,
     data_root: Path,
     genept_preflight_receipt: Path | None,
     genept_preflight_receipt_sha256: str | None,
@@ -738,11 +783,20 @@ def build_preflight_receipt(
     )
     if len(bindings) != 25 or [binding.matrix_row_index for binding in bindings] != list(range(25)):
         raise PreflightError("P0 requires all exact 25 matrix rows in order")
-    source = dict(deps.inspect_source(repository_root, expected_source_commit))
+    source = dict(
+        deps.inspect_source(
+            repository_root,
+            expected_source_commit,
+            source_publication_receipt,
+            source_publication_receipt_sha256,
+        )
+    )
     _validate_source_evidence(
         source,
         repository_root=repository_root,
         expected_commit=expected_source_commit,
+        publication_receipt=source_publication_receipt,
+        expected_publication_receipt_sha256=source_publication_receipt_sha256,
     )
     configs = {
         binding.variant_id: load_experiment_config(binding.config_path) for binding in bindings
@@ -994,6 +1048,8 @@ def main(argv: list[str] | None = None) -> int:
             expected_matrix_sha256=args.expected_matrix_sha256,
             repository_root=args.repository_root,
             expected_source_commit=args.expected_source_commit,
+            source_publication_receipt=args.source_publication_receipt,
+            source_publication_receipt_sha256=args.source_publication_receipt_sha256,
             data_root=args.data_root,
             genept_preflight_receipt=args.genept_preflight_receipt,
             genept_preflight_receipt_sha256=args.genept_preflight_receipt_sha256,
