@@ -5,7 +5,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -61,6 +61,73 @@ def _batches(census: ModuleType, count: int):
     return tuple(_batch(census, index) for index in range(count))
 
 
+def _batch_manifest_payload(
+    census: ModuleType,
+    bindings,
+    tmp_path: Path,
+) -> dict[str, object]:
+    batches = _batches(census, census.EXACT_FROZEN_BATCH_COUNT)
+    runtime_graph_root = "vnext/graph_axes/nadig_jurkat/hvg512_plus_targets"
+    graph_manifest_path = tmp_path / runtime_graph_root / "manifest.json"
+    graph_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    graph_manifest_path.write_text('{"sealed": true}\n', encoding="utf-8")
+    return {
+        "schema_version": "nadig-vnext-performance-batch-manifest-v2",
+        "evidence_class": "performance_training_only",
+        "scientific_completion": False,
+        "matrix_id": census.SUCCESSOR_V2_MATRIX_ID,
+        "matrix_path": bindings[0].matrix_path,
+        "matrix_sha256": bindings[0].matrix_sha256,
+        "a0_config_path": bindings[0].config_path,
+        "a0_config_sha256": bindings[0].config_sha256,
+        "dataset_id": "nadig_jurkat",
+        "protocol_id": "within_cell_unseen_single",
+        "run_seed": 1,
+        "epoch": 0,
+        "batch_size": 256,
+        "max_unique_conditions": 8,
+        "epoch_step_count": 582,
+        "frozen_prefix_count": 110,
+        "batch_order_policy": census.EXACT_BATCH_ORDER_POLICY,
+        "control_pairing_policy": census.EXACT_CONTROL_PAIRING_POLICY,
+        "canonical_data_sha256": "d" * 64,
+        "observation_order_sha256": "f" * 64,
+        "split_content_sha256": "e" * 64,
+        "ordered_training_row_ids_sha256": "1" * 64,
+        "ordered_control_pools_sha256": "2" * 64,
+        "runtime_graph_root": runtime_graph_root,
+        "runtime_graph_manifest_path": str(graph_manifest_path.resolve()),
+        "runtime_graph_manifest_sha256": hashlib.sha256(
+            graph_manifest_path.read_bytes()
+        ).hexdigest(),
+        "runtime_graph_gene_order_sha256": "4" * 64,
+        "forbidden_runtime": {
+            "cuda_imported_or_initialized": False,
+            "expression_array_reads": 0,
+            "model_constructed": False,
+            "optimizer_constructed": False,
+            "test_object_constructed": False,
+            "validation_object_constructed": False,
+        },
+        "batch_sequence_sha256": census.batch_sequence_sha256(batches),
+        "batches": [
+            {**batch.payload(), "batch_identity_sha256": batch.sha256} for batch in batches
+        ],
+    }
+
+
+def _frozen_batch_manifest(census: ModuleType, bindings, tmp_path: Path):
+    payload = _batch_manifest_payload(census, bindings, tmp_path)
+    path = tmp_path / "frozen-batches.json"
+    path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    return census.load_frozen_batch_manifest(
+        path,
+        expected_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+        expected_matrix_sha256=bindings[0].matrix_sha256,
+        expected_config_sha256=bindings[0].config_sha256,
+    )
+
+
 def _training_only() -> dict[str, object]:
     return {
         "scope": "performance_training_only",
@@ -73,21 +140,87 @@ def _training_only() -> dict[str, object]:
     }
 
 
+def _native_identity_receipts(*, genept: bool) -> dict[str, object]:
+    names = set(
+        {
+            "config.resolved.yaml",
+            "source_identity.json",
+            "environment.json",
+            "resolved_local_view_contract.json",
+            "training_data.json",
+            "run_meta.json",
+        }
+    )
+    if genept:
+        names.update({"genept_preflight.json", "genept_feature.json"})
+    return {
+        "files": [{"relative_path": f"native-run/small_results/{name}"} for name in sorted(names)]
+    }
+
+
+def _repository_identity_payload() -> dict[str, object]:
+    return {
+        "schema_version": "nadig-vnext-performance-repository-identity-v1",
+        "repository_root": "/sealed/source",
+        "declared_development_commit": "a" * 40,
+        "head_commit": "a" * 40,
+        "head_tree": "b" * 40,
+        "source_tree_sha256": "c" * 64,
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "remote_ref": "refs/heads/codex/vnext-performance",
+        "published_commit": "a" * 40,
+        "formal_eligible": True,
+        "status_porcelain": "",
+        "status_porcelain_sha256": hashlib.sha256(b"").hexdigest(),
+        "predicates": {
+            "head_equals_development_commit": True,
+            "worktree_clean": True,
+            "formal_source_eligible": True,
+            "published_commit_equals_development_commit": True,
+            "remote_ref_equals_p0": True,
+            "source_content_tree_equals_p0": True,
+            "remote_url_equals_p0": True,
+        },
+    }
+
+
+def _immutable_input_evidence(census: ModuleType) -> dict[str, object]:
+    files = [
+        {
+            "label": "sealed matrix",
+            "path": "/sealed/matrix.json",
+            "sha256": "d" * 64,
+            "size_bytes": 128,
+        }
+    ]
+    return {
+        "schema_version": "nadig-vnext-performance-immutable-input-audit-v1",
+        "file_count": len(files),
+        "files": files,
+        "ordered_file_bindings_sha256": census._sha256_json(files),
+    }
+
+
 def _stage_payload(
     census: ModuleType,
     binding,
     stage_id: str,
-    expected_batches,
+    batch_manifest,
     *,
+    p0_preflight_sha256: str,
+    stage_prerequisite: dict[str, object] | None = None,
     status: str = "complete",
 ) -> dict[str, object]:
     protocol = census.STAGE_PROTOCOLS[stage_id]
+    expected_batches = batch_manifest.batches
     observed_count = protocol.total_steps if status == "complete" else 0
     timing_samples = (
         [float(100 + index) for index in range(protocol.measured_steps)]
         if protocol.timing_acceptance and status == "complete"
         else []
     )
+    repository_identity = _repository_identity_payload()
+    immutable_input_evidence = _immutable_input_evidence(census)
     return {
         "schema_version": "nadig-vnext-performance-stage-v1",
         "evidence_class": "performance_training_only",
@@ -95,6 +228,7 @@ def _stage_payload(
         "variant_id": binding.variant_id,
         "config_sha256": binding.config_sha256,
         "matrix_sha256": binding.matrix_sha256,
+        "binding": binding.payload(),
         "stage_id": stage_id,
         "protocol": protocol.payload(),
         "status": status,
@@ -108,11 +242,85 @@ def _stage_payload(
         "completed_step_count": observed_count,
         "observed_step_count": observed_count,
         "batches": [batch.payload() for batch in expected_batches[:observed_count]],
+        "batch_sequence_sha256": census.batch_sequence_sha256(expected_batches[:observed_count]),
+        "p0_preflight": {
+            "receipt_sha256": p0_preflight_sha256,
+            "preclaim_immutable_input_evidence": immutable_input_evidence,
+        },
+        "frozen_batch_manifest": {
+            "receipt_path": batch_manifest.path,
+            "receipt_sha256": batch_manifest.sha256,
+            "expected_batch_count": batch_manifest.frozen_prefix_count,
+            "expected_sequence_sha256": batch_manifest.batch_sequence_sha256,
+            "observed_prefix_count": observed_count,
+            "observed_prefix_sha256": census.batch_sequence_sha256(
+                expected_batches[:observed_count]
+            ),
+            "expected_prefix_sha256": census.batch_sequence_sha256(
+                expected_batches[:observed_count]
+            ),
+            "prefix_matches": True,
+        },
+        "stage_prerequisite": stage_prerequisite,
+        "batch_gate_failure": None,
+        "steps": [
+            {
+                "global_step": index,
+                "phase": "warmup" if index < protocol.warmup_steps else "measured",
+                "batch_identity_sha256": expected_batches[index].sha256,
+            }
+            for index in range(observed_count)
+        ],
+        "repository_identity": repository_identity,
+        "final_repository_identity": repository_identity,
+        "final_immutable_input_evidence": immutable_input_evidence,
+        "resource_preflight": {
+            "selected_physical_gpu": {"uuid": "GPU-test"},
+            "predicates": {"idle": True},
+        },
+        "capacity_evidence": {"predicates": {"capacity": True}},
+        "persistent_pkl_scan": {
+            "passed": True,
+            "persistent_pkl_count": 0,
+        },
+        "native_identity_receipts": _native_identity_receipts(
+            genept=binding.genept_preflight_required
+        ),
         "timing_samples_ms": timing_samples,
         "torch_profiler_trace_sha256": ("a" * 64 if stage_id == "diagnostic_profile" else None),
         "torch_profiler_table_sha256": ("b" * 64 if stage_id == "diagnostic_profile" else None),
         "primary_failure": None if status == "complete" else {"type": "RuntimeError"},
         "teardown_failures": [],
+    }
+
+
+def _fallback_stage_payload(
+    census: ModuleType,
+    binding,
+    stage_id: str = "p1_capacity",
+) -> dict[str, object]:
+    return {
+        "schema_version": "nadig-vnext-performance-stage-v1",
+        "evidence_class": "performance_training_only",
+        "scientific_completion": False,
+        "variant_id": binding.variant_id,
+        "config_sha256": binding.config_sha256,
+        "matrix_sha256": binding.matrix_sha256,
+        "binding": binding.payload(),
+        "stage_id": stage_id,
+        "protocol": census.STAGE_PROTOCOLS[stage_id].payload(),
+        "attempt_root": "/sealed/attempt-001",
+        "development_commit": "a" * 40,
+        "status": "failed",
+        "running_receipt_replaced": True,
+        "completed_step_count": 0,
+        "attempted_batch_count": 0,
+        "primary_failure": {"type": "WorkerGateError", "message": "receipt failed"},
+        "teardown_failures": [],
+        "receipt_construction_failure": {
+            "type": "ValueError",
+            "message": "non-finite payload",
+        },
     }
 
 
@@ -184,6 +392,209 @@ def test_batch_identity_is_order_sensitive_and_prefix_bound(census: ModuleType) 
         census.require_batch_prefix(changed, expected)
     with pytest.raises(ValueError, match="zero-based contiguous"):
         census.batch_sequence_sha256((expected[1],))
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["global_step", "actual_batch_size", "unique_condition_count"],
+)
+def test_batch_identity_rejects_boolean_numeric_fields(
+    census: ModuleType,
+    field: str,
+) -> None:
+    payload = _batch(census, 0).payload()
+    payload[field] = True
+    with pytest.raises(ValueError, match="numeric identity fields"):
+        census.OrderedBatchIdentity.from_payload(payload)
+    with pytest.raises(ValueError, match="plain integers"):
+        census.OrderedBatchIdentity.create(**payload)
+
+
+def test_batch_identity_rejects_empty_active_anchor_group(census: ModuleType) -> None:
+    payload = _batch(census, 0).payload()
+    active_anchor_ids = payload["active_anchor_ids"]
+    assert isinstance(active_anchor_ids, list)
+    active_anchor_ids[0] = []
+    with pytest.raises(ValueError, match="anchor groups must be nonempty"):
+        census.OrderedBatchIdentity.from_payload(payload)
+
+
+def test_batch_manifest_is_exact_count_hash_pinned_and_identity_bound(
+    census: ModuleType,
+    bindings,
+    tmp_path: Path,
+) -> None:
+    payload = _batch_manifest_payload(census, bindings, tmp_path)
+    path = tmp_path / "batch-manifest.json"
+    path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    expected_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+    manifest = census.load_frozen_batch_manifest(
+        path,
+        expected_sha256=expected_sha256,
+        expected_matrix_sha256=bindings[0].matrix_sha256,
+        expected_config_sha256=bindings[0].config_sha256,
+    )
+    assert len(manifest.batches) == 110
+    assert manifest.batch_sequence_sha256 == payload["batch_sequence_sha256"]
+    assert manifest.matrix_path == str(MATRIX.resolve())
+    assert manifest.config_path == str(Path(bindings[0].config_path).resolve())
+    assert manifest.runtime_graph_root == payload["runtime_graph_root"]
+    assert manifest.runtime_graph_manifest_path == payload["runtime_graph_manifest_path"]
+
+    payload["batches"] = payload["batches"][:-1]
+    path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    with pytest.raises(ValueError, match="rows are malformed"):
+        census.load_frozen_batch_manifest(path)
+
+
+def test_freeze_batches_uses_metadata_only_api_and_semantic_gene_anchors(
+    census: ModuleType,
+    matrix_sha256: str,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    # Other server tests legitimately import Torch during collection.  This
+    # functional unit isolates the fresh-process precondition; the fail-closed
+    # production guard is exercised separately below.
+    monkeypatch.delitem(census.sys.modules, "torch", raising=False)
+    graph_root = tmp_path / "vnext/graph_axes/nadig_jurkat/hvg512_plus_targets"
+    graph_root.mkdir(parents=True)
+    (graph_root / "manifest.json").write_text("{}\n", encoding="utf-8")
+    topology = SimpleNamespace(gene_ids=("G0", "G1", "PERT"))
+    graph_manifest = SimpleNamespace(
+        requested_hvg_count=512,
+        graph_gene_count=3,
+        graph_gene_order_sha256=census.sha256_json(["G0", "G1", "PERT"]),
+    )
+    monkeypatch.setattr(
+        census,
+        "load_vnext_graph_topology",
+        lambda _root: (topology, graph_manifest),
+    )
+
+    conditions = tuple("PERT" if index % 2 == 0 else "G0+PERT" for index in range(256))
+    specs = tuple(
+        SimpleNamespace(
+            perturbed_row_ids=tuple(f"row-{step}-{index}" for index in range(256)),
+            control_row_ids=tuple(f"control-{step}-{index}" for index in range(256)),
+            condition_ids=conditions,
+            anchor_gene_ids_by_condition={
+                "PERT": ("PERT",),
+                "G0+PERT": ("G0", "PERT"),
+            },
+        )
+        for step in range(582)
+    )
+
+    class FakeTrainingData:
+        attempt_expression_read = False
+
+        def __init__(self, **kwargs) -> None:
+            assert kwargs["graph_gene_ids_override"] == topology.gene_ids
+            self.manifest = SimpleNamespace(
+                canonical_adata_sha256="d" * 64,
+                observation_order_sha256="f" * 64,
+            )
+            self.split = SimpleNamespace(split_content_sha256="e" * 64)
+            self.row_ids = ("train-0", "train-1")
+            self.train_row_indices = (0, 1)
+            self.control_pools = {"ctx": ("control-0", "control-1")}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def require_experiment_data_contract(self, **_kwargs: object) -> None:
+            return None
+
+        def training_batch_identity_specs(self, **kwargs):
+            assert kwargs == {"epoch": 0, "batch_size": 256, "max_unique_conditions": 8}
+            if self.attempt_expression_read:
+                self._read_expression_indices((0,))
+            return specs
+
+        def _read_expression_indices(self, _indices: object) -> object:
+            raise AssertionError("freeze guard did not intercept an expression read")
+
+    monkeypatch.setattr(census, "CanonicalTrainingData", FakeTrainingData)
+    payload = census.freeze_batch_manifest(
+        matrix_path=MATRIX,
+        repository_root=PROJECT_ROOT,
+        expected_matrix_sha256=matrix_sha256,
+        data_root=tmp_path,
+    )
+    assert payload["frozen_prefix_count"] == 110
+    assert len(payload["batches"]) == 110
+    first = payload["batches"][0]
+    assert first["active_anchor_ids"][:2] == [["PERT"], ["G0", "PERT"]]
+    assert payload["forbidden_runtime"]["expression_array_reads"] == 0
+    assert payload["forbidden_runtime"]["cuda_imported_or_initialized"] is False
+    assert payload["runtime_graph_manifest_path"] == str((graph_root / "manifest.json").resolve())
+
+    FakeTrainingData.attempt_expression_read = True
+    with pytest.raises(RuntimeError, match="attempted to read expression arrays"):
+        census.freeze_batch_manifest(
+            matrix_path=MATRIX,
+            repository_root=PROJECT_ROOT,
+            expected_matrix_sha256=matrix_sha256,
+            data_root=tmp_path,
+        )
+
+
+def test_freeze_batches_rejects_a_loaded_torch_runtime(
+    census: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setitem(census.sys.modules, "torch", object())
+    with pytest.raises(ValueError, match="before importing the CUDA runtime surface"):
+        census.freeze_batch_manifest(
+            matrix_path=MATRIX,
+            repository_root=PROJECT_ROOT,
+            expected_matrix_sha256="0" * 64,
+            data_root=tmp_path,
+        )
+
+
+def test_evidence_output_claim_is_exclusive_and_preserves_first_bytes(
+    census: ModuleType,
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "batch-manifest.json"
+    census._claim_json_output(destination, {"status": "claimed", "owner": "first"})
+    sealed = destination.read_bytes()
+    with pytest.raises(FileExistsError):
+        census._claim_json_output(destination, {"status": "claimed", "owner": "second"})
+    assert destination.read_bytes() == sealed
+
+
+def test_freeze_cli_preserves_structured_failure_after_claim(
+    census: ModuleType,
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "failed-batch-manifest.json"
+    with pytest.raises(ValueError):
+        census.main(
+            [
+                "--matrix",
+                str(MATRIX),
+                "--repository-root",
+                str(PROJECT_ROOT),
+                "--expected-matrix-sha256",
+                "0" * 64,
+                "freeze-batches",
+                "--data-root",
+                str(tmp_path),
+                "--output",
+                str(destination),
+            ]
+        )
+    payload = json.loads(destination.read_text(encoding="utf-8"))
+    assert payload["status"] == "failed"
+    assert payload["scientific_completion"] is False
+    assert payload["primary_failure"]["type"] == "ValueError"
 
 
 def test_training_only_evidence_fails_closed(census: ModuleType) -> None:
@@ -350,7 +761,7 @@ def test_atomic_failure_receipt_preserves_primary_and_teardown_errors(
 def _records_with_a0_timing(
     census: ModuleType,
     bindings,
-    expected_batches,
+    batch_manifest,
     tmp_path: Path,
     *,
     include_p3: bool,
@@ -368,15 +779,41 @@ def _records_with_a0_timing(
             )
             continue
         stages: dict[str, object] = {}
-        for stage_id in ("p1_capacity", "p2_timing"):
-            stages[stage_id] = _write_receipt(
-                tmp_path / binding.variant_id / f"{stage_id}.json",
-                _stage_payload(census, binding, stage_id, expected_batches),
-            )
+        p0_sha256 = "9" * 64
+        p1_pointer = _write_receipt(
+            tmp_path / binding.variant_id / "p1_capacity.json",
+            _stage_payload(
+                census,
+                binding,
+                "p1_capacity",
+                batch_manifest,
+                p0_preflight_sha256=p0_sha256,
+            ),
+        )
+        stages["p1_capacity"] = p1_pointer
+        prerequisite = {**p1_pointer, "physical_gpu_uuid": "GPU-test"}
+        stages["p2_timing"] = _write_receipt(
+            tmp_path / binding.variant_id / "p2_timing.json",
+            _stage_payload(
+                census,
+                binding,
+                "p2_timing",
+                batch_manifest,
+                p0_preflight_sha256=p0_sha256,
+                stage_prerequisite=prerequisite,
+            ),
+        )
         if include_p3:
             stages["p3_timing"] = _write_receipt(
                 tmp_path / binding.variant_id / "p3_timing.json",
-                _stage_payload(census, binding, "p3_timing", expected_batches),
+                _stage_payload(
+                    census,
+                    binding,
+                    "p3_timing",
+                    batch_manifest,
+                    p0_preflight_sha256=p0_sha256,
+                    stage_prerequisite=prerequisite,
+                ),
             )
         records.append(
             {
@@ -393,18 +830,19 @@ def test_aggregate_requires_exact_25_order_and_separates_20_and_100_panels(
     bindings,
     tmp_path: Path,
 ) -> None:
-    expected_batches = _batches(census, census.STAGE_PROTOCOLS["p3_timing"].total_steps)
+    batch_manifest = _frozen_batch_manifest(census, bindings, tmp_path)
     records = _records_with_a0_timing(
         census,
         bindings,
-        expected_batches,
+        batch_manifest,
         tmp_path,
         include_p3=True,
     )
     report = census.aggregate_census_report(
         bindings=bindings,
         row_records=records,
-        expected_batches=expected_batches,
+        batch_manifest=batch_manifest,
+        p0_preflight_sha256="9" * 64,
     )
     assert report["status"] == "complete_with_preregistered_unavailable_or_capacity_failures"
     assert report["measured_20_row_count"] == 1
@@ -420,7 +858,114 @@ def test_aggregate_requires_exact_25_order_and_separates_20_and_100_panels(
         census.aggregate_census_report(
             bindings=bindings,
             row_records=list(reversed(records)),
-            expected_batches=expected_batches,
+            batch_manifest=batch_manifest,
+            p0_preflight_sha256="9" * 64,
+        )
+
+
+def test_complete_stage_rejects_terminal_source_and_immutable_input_forgeries(
+    census: ModuleType,
+    bindings,
+    tmp_path: Path,
+) -> None:
+    batch_manifest = _frozen_batch_manifest(census, bindings, tmp_path)
+    binding = bindings[0]
+    payload = _stage_payload(
+        census,
+        binding,
+        "p1_capacity",
+        batch_manifest,
+        p0_preflight_sha256="9" * 64,
+    )
+    census._validate_stage_receipt(
+        payload,
+        binding=binding,
+        stage_id="p1_capacity",
+        batch_manifest=batch_manifest,
+        p0_preflight_sha256="9" * 64,
+    )
+
+    for expected_message, mutate in (
+        (
+            "final repository identity is not clean",
+            lambda forged: forged["final_repository_identity"]["predicates"].__setitem__(
+                "worktree_clean", False
+            ),
+        ),
+        (
+            "repository identity changed",
+            lambda forged: forged["final_repository_identity"].__setitem__("head_tree", "f" * 40),
+        ),
+        (
+            "final immutable-input digest differs",
+            lambda forged: forged["final_immutable_input_evidence"].__setitem__(
+                "ordered_file_bindings_sha256", "0" * 64
+            ),
+        ),
+    ):
+        forged = json.loads(json.dumps(payload))
+        mutate(forged)
+        with pytest.raises(ValueError, match=expected_message):
+            census._validate_stage_receipt(
+                forged,
+                binding=binding,
+                stage_id="p1_capacity",
+                batch_manifest=batch_manifest,
+                p0_preflight_sha256="9" * 64,
+            )
+
+    changed = json.loads(json.dumps(payload))
+    final_inputs = changed["final_immutable_input_evidence"]
+    final_inputs["files"][0]["size_bytes"] = 129
+    final_inputs["ordered_file_bindings_sha256"] = census._sha256_json(final_inputs["files"])
+    with pytest.raises(ValueError, match="immutable inputs changed"):
+        census._validate_stage_receipt(
+            changed,
+            binding=binding,
+            stage_id="p1_capacity",
+            batch_manifest=batch_manifest,
+            p0_preflight_sha256="9" * 64,
+        )
+
+
+def test_terminal_fallback_is_preserved_as_execution_failed_without_metrics(
+    census: ModuleType,
+    bindings,
+    tmp_path: Path,
+) -> None:
+    batch_manifest = _frozen_batch_manifest(census, bindings, tmp_path)
+    fallback = _fallback_stage_payload(census, bindings[0])
+    pointer = _write_receipt(tmp_path / "fallback.json", fallback)
+    records = [
+        {
+            "variant_id": binding.variant_id,
+            "state": "execution_failed" if index == 0 else "unavailable_preflight",
+            "disposition_reason": "synthetic terminal fallback",
+            "stages": {"p1_capacity": pointer} if index == 0 else {},
+        }
+        for index, binding in enumerate(bindings)
+    ]
+    report = census.aggregate_census_report(
+        bindings=bindings,
+        row_records=records,
+        batch_manifest=batch_manifest,
+        p0_preflight_sha256="9" * 64,
+    )
+    assert report["status"] == "partial_blocked"
+    assert report["measured_20_row_count"] == 0
+    first_stage = report["rows"][0]["stages"]["p1_capacity"]
+    assert first_stage["status"] == "failed"
+    assert first_stage["terminal_receipt_kind"] == "construction_fallback"
+    assert first_stage["timing_summary_ms"] is None
+
+    fallback["timing_samples_ms"] = []
+    with pytest.raises(ValueError, match="cannot expose measurement evidence"):
+        census._validate_stage_receipt(
+            fallback,
+            binding=bindings[0],
+            stage_id="p1_capacity",
+            batch_manifest=batch_manifest,
+            p0_preflight_sha256="9" * 64,
         )
 
 
@@ -429,11 +974,11 @@ def test_aggregate_rejects_tampered_receipt_and_profiler_timing_mixing(
     bindings,
     tmp_path: Path,
 ) -> None:
-    expected_batches = _batches(census, census.STAGE_PROTOCOLS["p3_timing"].total_steps)
+    batch_manifest = _frozen_batch_manifest(census, bindings, tmp_path)
     records = _records_with_a0_timing(
         census,
         bindings,
-        expected_batches,
+        batch_manifest,
         tmp_path,
         include_p3=False,
     )
@@ -449,12 +994,14 @@ def test_aggregate_rejects_tampered_receipt_and_profiler_timing_mixing(
         census.aggregate_census_report(
             bindings=bindings,
             row_records=records,
-            expected_batches=expected_batches,
+            batch_manifest=batch_manifest,
+            p0_preflight_sha256="9" * 64,
         )
     p2_pointer["receipt_sha256"] = "0" * 64
     with pytest.raises(ValueError, match="SHA-256 differs"):
         census.aggregate_census_report(
             bindings=bindings,
             row_records=records,
-            expected_batches=expected_batches,
+            batch_manifest=batch_manifest,
+            p0_preflight_sha256="9" * 64,
         )

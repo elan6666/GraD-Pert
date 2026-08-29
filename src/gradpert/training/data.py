@@ -81,6 +81,16 @@ class _TrainingBatchSpec:
 
 
 @dataclass(frozen=True)
+class TrainingBatchIdentitySpec:
+    """Expression-free ordered identity for one deterministic train batch."""
+
+    perturbed_row_ids: tuple[str, ...]
+    control_row_ids: tuple[str, ...]
+    condition_ids: tuple[str, ...]
+    anchor_gene_ids_by_condition: Mapping[str, tuple[str, ...]]
+
+
+@dataclass(frozen=True)
 class _CpuTrainingBatch:
     spec: _TrainingBatchSpec
     control_expression: np.ndarray[Any, Any]
@@ -456,6 +466,38 @@ class CanonicalTrainingData:
             )
         self.pipeline_stats.epoch_batch_identity_sha256 = sha256_json(identity_rows)
         return tuple(specs)
+
+    def training_batch_identity_specs(
+        self,
+        *,
+        epoch: int,
+        batch_size: int = 64,
+        max_unique_conditions: int = 8,
+    ) -> tuple[TrainingBatchIdentitySpec, ...]:
+        """Return the deterministic batch schedule without reading expression arrays."""
+
+        identities: list[TrainingBatchIdentitySpec] = []
+        for spec in self._batch_specs(
+            epoch=epoch,
+            batch_size=batch_size,
+            max_unique_conditions=max_unique_conditions,
+        ):
+            anchor_gene_ids: dict[str, tuple[str, ...]] = {}
+            for condition, anchors in spec.anchors_by_condition.items():
+                if any(anchor < 0 or anchor >= len(self.graph_gene_ids) for anchor in anchors):
+                    raise ValueError("training batch anchor is outside the runtime graph axis")
+                anchor_gene_ids[condition] = tuple(
+                    self.graph_gene_ids[anchor] for anchor in anchors
+                )
+            identities.append(
+                TrainingBatchIdentitySpec(
+                    perturbed_row_ids=spec.perturbed_row_ids,
+                    control_row_ids=spec.control_row_ids,
+                    condition_ids=spec.condition_ids,
+                    anchor_gene_ids_by_condition=anchor_gene_ids,
+                )
+            )
+        return tuple(identities)
 
     def _materialize_cpu_batch(self, spec: _TrainingBatchSpec) -> _CpuTrainingBatch:
         started = time.perf_counter()

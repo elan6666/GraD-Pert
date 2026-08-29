@@ -26,12 +26,14 @@ from typing import Literal, TypeVar
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
-from gradpert.config import load_experiment_config  # noqa: E402
+from gradpert.config import ExperimentConfig, load_experiment_config  # noqa: E402
 from gradpert.execution.ablation_matrix import (  # noqa: E402
     SUCCESSOR_V2_CONTRACT,
     SUCCESSOR_V2_MATRIX_ID,
 )
-from gradpert.hashing import sha256_file  # noqa: E402
+from gradpert.hashing import sha256_file, sha256_json  # noqa: E402
+from gradpert.pilots import load_vnext_graph_topology  # noqa: E402
+from gradpert.training.data import CanonicalTrainingData  # noqa: E402
 
 GIB = 1024**3
 A0_VARIANT_ID = "a0_ratio_ring_half"
@@ -40,6 +42,22 @@ MATRIX_ROW_COUNT = 25
 EXACT_TRAIN_BATCH_SIZE = 256
 EXACT_EVAL_BATCH_SIZE = 256
 EXACT_PROTOTYPE_COUNT = 16384
+EXACT_MAX_UNIQUE_CONDITIONS = 8
+EXACT_STEPS_PER_EPOCH = 582
+EXACT_FROZEN_BATCH_COUNT = 110
+EXACT_BATCH_ORDER_POLICY = "condition_limited_seeded_v1"
+EXACT_CONTROL_PAIRING_POLICY = "same_context_sha256_pcg64_per_epoch_v1"
+EXACT_NATIVE_IDENTITY_FILES = frozenset(
+    {
+        "config.resolved.yaml",
+        "source_identity.json",
+        "environment.json",
+        "resolved_local_view_contract.json",
+        "training_data.json",
+        "run_meta.json",
+    }
+)
+EXACT_GENEPT_NATIVE_IDENTITY_FILES = frozenset({"genept_preflight.json", "genept_feature.json"})
 
 StageId = Literal["p1_capacity", "p2_timing", "p3_timing", "diagnostic_profile"]
 RowState = Literal[
@@ -183,7 +201,7 @@ class OrderedBatchIdentity:
         actual_batch_size = payload.get("actual_batch_size")
         unique_condition_count = payload.get("unique_condition_count")
         if not all(
-            isinstance(value, int)
+            isinstance(value, int) and not isinstance(value, bool)
             for value in (global_step, actual_batch_size, unique_condition_count)
         ):
             raise ValueError("batch numeric identity fields are malformed")
@@ -198,6 +216,13 @@ class OrderedBatchIdentity:
         )
 
     def validate(self) -> None:
+        numeric_fields = (
+            self.global_step,
+            self.actual_batch_size,
+            self.unique_condition_count,
+        )
+        if any(not isinstance(value, int) or isinstance(value, bool) for value in numeric_fields):
+            raise ValueError("batch numeric identity fields must be plain integers")
         if self.global_step < 0:
             raise ValueError("batch global step must be nonnegative")
         if self.actual_batch_size <= 0:
@@ -210,12 +235,16 @@ class OrderedBatchIdentity:
         )
         if any(len(field) != self.actual_batch_size for field in fields):
             raise ValueError("ordered batch identity lengths differ from actual batch size")
+        if any(not anchors for anchors in self.active_anchor_ids):
+            raise ValueError("active anchor groups must be nonempty")
         if any(not value for field in self.active_anchor_ids for value in field):
             raise ValueError("active anchor IDs must be nonempty strings")
         if any(not value for field in fields[:3] for value in field):
             raise ValueError("batch row/condition/control IDs must be nonempty strings")
         if self.unique_condition_count != len(set(self.condition_ids)):
             raise ValueError("unique condition count differs from ordered condition IDs")
+        if not 1 <= self.unique_condition_count <= EXACT_MAX_UNIQUE_CONDITIONS:
+            raise ValueError("unique condition count is outside the frozen census limit")
 
     def payload(self) -> dict[str, object]:
         return {
@@ -231,6 +260,37 @@ class OrderedBatchIdentity:
     @property
     def sha256(self) -> str:
         return _sha256_json(self.payload())
+
+
+@dataclass(frozen=True)
+class FrozenBatchManifest:
+    path: str
+    sha256: str
+    matrix_path: str
+    matrix_sha256: str
+    config_path: str
+    config_sha256: str
+    dataset_id: str
+    protocol_id: str
+    run_seed: int
+    epoch: int
+    batch_size: int
+    max_unique_conditions: int
+    epoch_step_count: int
+    frozen_prefix_count: int
+    batch_order_policy: str
+    control_pairing_policy: str
+    canonical_data_sha256: str
+    observation_order_sha256: str
+    split_content_sha256: str
+    ordered_training_row_ids_sha256: str
+    ordered_control_pools_sha256: str
+    runtime_graph_root: str
+    runtime_graph_manifest_path: str
+    runtime_graph_manifest_sha256: str
+    runtime_graph_gene_order_sha256: str
+    batch_sequence_sha256: str
+    batches: tuple[OrderedBatchIdentity, ...]
 
 
 @dataclass(frozen=True)
@@ -430,6 +490,170 @@ def require_batch_prefix(
         raise ValueError("observed ordered batch identities differ from the frozen prefix")
 
 
+def _parameter_value(config: ExperimentConfig, name: str) -> object:
+    parameter = config.model.parameters.get(name)
+    if parameter is None:
+        raise ValueError(f"A0 config lacks required parameter: {name}")
+    return parameter.value
+
+
+def freeze_batch_manifest(
+    *,
+    matrix_path: str | Path,
+    repository_root: str | Path,
+    expected_matrix_sha256: str,
+    data_root: str | Path,
+) -> dict[str, object]:
+    """Freeze the exact expression-free 110-step schedule shared by all rows."""
+
+    torch_module_loaded_before = "torch" in sys.modules
+    if torch_module_loaded_before:
+        raise ValueError("batch freeze must start before importing the CUDA runtime surface")
+    expression_array_reads = 0
+
+    binding = bind_matrix_variant(
+        matrix_path,
+        repository_root=repository_root,
+        expected_matrix_sha256=expected_matrix_sha256,
+        variant_id=A0_VARIANT_ID,
+    )
+    config = load_experiment_config(binding.config_path)
+    runtime_graph_root = _parameter_value(config, "runtime_graph_root")
+    max_unique_conditions = _parameter_value(config, "max_unique_conditions_per_batch")
+    graph_hvg_count = _parameter_value(config, "graph_hvg_count")
+    if (
+        not isinstance(runtime_graph_root, str)
+        or not isinstance(max_unique_conditions, int)
+        or max_unique_conditions != EXACT_MAX_UNIQUE_CONDITIONS
+        or graph_hvg_count != 512
+        or config.training.train_batch_size.value != EXACT_TRAIN_BATCH_SIZE
+    ):
+        raise ValueError("A0 batch-freeze config differs from the exact census contract")
+    relative_graph_root = Path(runtime_graph_root)
+    if relative_graph_root.is_absolute() or any(
+        part in {"", ".", ".."} for part in relative_graph_root.parts
+    ):
+        raise ValueError("A0 runtime graph root must be a safe relative path")
+    resolved_data_root = Path(data_root).resolve(strict=True)
+    graph_root = resolved_data_root.joinpath(*relative_graph_root.parts)
+    topology, graph_manifest = load_vnext_graph_topology(graph_root)
+    graph_manifest_path = graph_root / "manifest.json"
+    if (
+        graph_manifest.requested_hvg_count != 512
+        or graph_manifest.graph_gene_count != len(topology.gene_ids)
+        or graph_manifest.graph_gene_order_sha256 != sha256_json(list(topology.gene_ids))
+    ):
+        raise ValueError("A0 runtime graph differs from the frozen HVG512 identity")
+
+    with CanonicalTrainingData(
+        dataset_id=config.dataset_id,
+        protocol_id=config.data.protocol_id,
+        data_root=resolved_data_root,
+        run_seed=binding.run_seed,
+        graph_gene_ids_override=topology.gene_ids,
+        graph_manifest_path_override=graph_manifest_path,
+    ) as training_data:
+        training_data.require_experiment_data_contract(
+            registry_version=config.data.registry_version,
+            split_policy=config.data.split_policy,
+        )
+        original_expression_reader = training_data._read_expression_indices
+
+        def reject_expression_read(*_args: object, **_kwargs: object) -> object:
+            nonlocal expression_array_reads
+            expression_array_reads += 1
+            raise RuntimeError("batch identity freeze attempted to read expression arrays")
+
+        training_data._read_expression_indices = reject_expression_read  # type: ignore[method-assign]
+        try:
+            identity_specs = training_data.training_batch_identity_specs(
+                epoch=0,
+                batch_size=EXACT_TRAIN_BATCH_SIZE,
+                max_unique_conditions=EXACT_MAX_UNIQUE_CONDITIONS,
+            )
+        finally:
+            training_data._read_expression_indices = original_expression_reader  # type: ignore[method-assign]
+        if len(identity_specs) != EXACT_STEPS_PER_EPOCH:
+            raise ValueError("Nadig Jurkat epoch step count differs from the frozen 582")
+        selected_specs = identity_specs[:EXACT_FROZEN_BATCH_COUNT]
+        identities = tuple(
+            OrderedBatchIdentity.create(
+                global_step=global_step,
+                row_ids=spec.perturbed_row_ids,
+                condition_ids=spec.condition_ids,
+                control_row_ids=spec.control_row_ids,
+                active_anchor_ids=[
+                    spec.anchor_gene_ids_by_condition[condition] for condition in spec.condition_ids
+                ],
+                actual_batch_size=len(spec.condition_ids),
+                unique_condition_count=len(set(spec.condition_ids)),
+            )
+            for global_step, spec in enumerate(selected_specs)
+        )
+        if len(identities) != EXACT_FROZEN_BATCH_COUNT or any(
+            identity.actual_batch_size != EXACT_TRAIN_BATCH_SIZE for identity in identities
+        ):
+            raise ValueError("frozen census prefix must contain 110 full batch-256 identities")
+        train_row_ids = tuple(
+            training_data.row_ids[index] for index in training_data.train_row_indices
+        )
+        control_pool_payload = {
+            context: list(row_ids)
+            for context, row_ids in sorted(training_data.control_pools.items())
+        }
+        canonical_data_sha256 = training_data.manifest.canonical_adata_sha256
+        observation_order_sha256 = training_data.manifest.observation_order_sha256
+        split_content_sha256 = training_data.split.split_content_sha256
+
+    torch_module_loaded_after = "torch" in sys.modules
+    forbidden_runtime = {
+        "cuda_imported_or_initialized": (torch_module_loaded_before or torch_module_loaded_after),
+        "model_constructed": False,
+        "optimizer_constructed": False,
+        "expression_array_reads": expression_array_reads,
+        "validation_object_constructed": False,
+        "test_object_constructed": False,
+    }
+    if forbidden_runtime["cuda_imported_or_initialized"] or expression_array_reads:
+        raise ValueError("batch freeze touched a forbidden runtime surface")
+
+    return {
+        "schema_version": "nadig-vnext-performance-batch-manifest-v2",
+        "evidence_class": "performance_training_only",
+        "scientific_completion": False,
+        "matrix_path": binding.matrix_path,
+        "matrix_sha256": binding.matrix_sha256,
+        "matrix_id": binding.matrix_id,
+        "a0_config_path": binding.config_path,
+        "a0_config_sha256": binding.config_sha256,
+        "dataset_id": config.dataset_id,
+        "protocol_id": config.data.protocol_id,
+        "run_seed": binding.run_seed,
+        "epoch": 0,
+        "batch_size": EXACT_TRAIN_BATCH_SIZE,
+        "max_unique_conditions": EXACT_MAX_UNIQUE_CONDITIONS,
+        "epoch_step_count": EXACT_STEPS_PER_EPOCH,
+        "frozen_prefix_count": EXACT_FROZEN_BATCH_COUNT,
+        "batch_order_policy": EXACT_BATCH_ORDER_POLICY,
+        "control_pairing_policy": EXACT_CONTROL_PAIRING_POLICY,
+        "canonical_data_sha256": canonical_data_sha256,
+        "observation_order_sha256": observation_order_sha256,
+        "split_content_sha256": split_content_sha256,
+        "ordered_training_row_ids_sha256": sha256_json(list(train_row_ids)),
+        "ordered_control_pools_sha256": sha256_json(control_pool_payload),
+        "runtime_graph_root": runtime_graph_root,
+        "runtime_graph_manifest_path": str(graph_manifest_path.resolve()),
+        "runtime_graph_manifest_sha256": sha256_file(graph_manifest_path),
+        "runtime_graph_gene_order_sha256": sha256_json(list(topology.gene_ids)),
+        "forbidden_runtime": forbidden_runtime,
+        "batch_sequence_sha256": batch_sequence_sha256(identities),
+        "batches": [
+            {**identity.payload(), "batch_identity_sha256": identity.sha256}
+            for identity in identities
+        ],
+    }
+
+
 def timing_summary(values: Sequence[float]) -> dict[str, float]:
     if not values or any(not math.isfinite(value) or value <= 0 for value in values):
         raise ValueError("timing samples must be finite positive values")
@@ -621,6 +845,33 @@ def _atomic_json(path: Path, payload: object) -> None:
         Path(temporary_name).unlink(missing_ok=True)
 
 
+def _claim_json_output(path: Path, payload: object) -> Path:
+    """Atomically reserve a new evidence path before any expensive inspection."""
+
+    parent = path.parent.resolve(strict=False)
+    parent.mkdir(parents=True, exist_ok=True)
+    destination = parent / path.name
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(destination, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(
+                payload,
+                stream,
+                allow_nan=False,
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+            stream.write("\n")
+    except BaseException:
+        destination.unlink(missing_ok=True)
+        raise
+    return destination
+
+
 class AtomicStageObserver:
     """Optional worker observer that preserves the last entered/completed stage."""
 
@@ -729,14 +980,166 @@ def _load_hashed_json(path: str | Path, expected_sha256: str) -> dict[str, objec
     return payload
 
 
+_REPOSITORY_IDENTITY_FIELDS = (
+    "repository_root",
+    "declared_development_commit",
+    "head_commit",
+    "head_tree",
+    "source_tree_sha256",
+    "remote_url",
+    "remote_ref",
+    "published_commit",
+    "formal_eligible",
+    "status_porcelain_sha256",
+)
+_REPOSITORY_PREDICATES = frozenset(
+    {
+        "head_equals_development_commit",
+        "worktree_clean",
+        "formal_source_eligible",
+        "published_commit_equals_development_commit",
+        "remote_ref_equals_p0",
+        "source_content_tree_equals_p0",
+        "remote_url_equals_p0",
+    }
+)
+
+
+def _validate_repository_identity(
+    payload: object,
+    *,
+    label: str,
+) -> Mapping[str, object]:
+    if not isinstance(payload, dict):
+        raise ValueError(f"complete census stage lacks {label} repository identity")
+    predicates = payload.get("predicates")
+    if (
+        payload.get("schema_version") != "nadig-vnext-performance-repository-identity-v1"
+        or not isinstance(predicates, dict)
+        or set(predicates) != _REPOSITORY_PREDICATES
+        or not all(value is True for value in predicates.values())
+        or payload.get("formal_eligible") is not True
+        or payload.get("status_porcelain") != ""
+    ):
+        raise ValueError(f"complete census stage {label} repository identity is not clean")
+    return payload
+
+
+def _validate_immutable_input_evidence(
+    payload: object,
+    *,
+    label: str,
+) -> Mapping[str, object]:
+    if not isinstance(payload, dict) or set(payload) != {
+        "schema_version",
+        "file_count",
+        "files",
+        "ordered_file_bindings_sha256",
+    }:
+        raise ValueError(f"complete census stage {label} immutable-input evidence is malformed")
+    files = payload.get("files")
+    file_count = payload.get("file_count")
+    if (
+        payload.get("schema_version") != "nadig-vnext-performance-immutable-input-audit-v1"
+        or not isinstance(files, list)
+        or not files
+        or not isinstance(file_count, int)
+        or isinstance(file_count, bool)
+        or file_count != len(files)
+    ):
+        raise ValueError(f"complete census stage {label} immutable-input evidence is malformed")
+    for evidence in files:
+        if not isinstance(evidence, dict) or set(evidence) != {
+            "label",
+            "path",
+            "sha256",
+            "size_bytes",
+        }:
+            raise ValueError(f"complete census stage {label} immutable file is malformed")
+        file_label = evidence.get("label")
+        path = evidence.get("path")
+        sha256 = evidence.get("sha256")
+        size_bytes = evidence.get("size_bytes")
+        if (
+            not isinstance(file_label, str)
+            or not file_label
+            or not isinstance(path, str)
+            or not Path(path).is_absolute()
+            or not isinstance(sha256, str)
+            or not isinstance(size_bytes, int)
+            or isinstance(size_bytes, bool)
+            or size_bytes <= 0
+        ):
+            raise ValueError(f"complete census stage {label} immutable file is malformed")
+        _validate_sha256(sha256, field=f"{label} immutable-file SHA-256")
+    if payload.get("ordered_file_bindings_sha256") != _sha256_json(files):
+        raise ValueError(f"complete census stage {label} immutable-input digest differs")
+    return payload
+
+
+def _validate_terminal_fallback_stage_receipt(
+    payload: Mapping[str, object],
+    *,
+    protocol: StageProtocol,
+) -> dict[str, object]:
+    primary_failure = payload.get("primary_failure")
+    construction_failure = payload.get("receipt_construction_failure")
+    attempted_batches = payload.get("attempted_batch_count")
+    completed_steps = payload.get("completed_step_count")
+    if (
+        payload.get("status") != "failed"
+        or payload.get("running_receipt_replaced") is not True
+        or not isinstance(primary_failure, dict)
+        or set(primary_failure) != {"type", "message"}
+        or not all(isinstance(primary_failure.get(name), str) for name in ("type", "message"))
+        or not primary_failure.get("type")
+        or not isinstance(construction_failure, dict)
+        or set(construction_failure) != {"type", "message"}
+        or not all(isinstance(construction_failure.get(name), str) for name in ("type", "message"))
+        or not construction_failure.get("type")
+        or not isinstance(attempted_batches, int)
+        or isinstance(attempted_batches, bool)
+        or not isinstance(completed_steps, int)
+        or isinstance(completed_steps, bool)
+        or not 0 <= completed_steps <= attempted_batches <= protocol.total_steps
+        or not isinstance(payload.get("teardown_failures"), list)
+    ):
+        raise ValueError("census fallback stage receipt is malformed")
+    forbidden_measurement_fields = {
+        "batch_sequence_sha256",
+        "batches",
+        "steps",
+        "timing_samples_ms",
+        "timing_summary_ms",
+        "torch_profiler_trace_sha256",
+        "torch_profiler_table_sha256",
+    }
+    if forbidden_measurement_fields.intersection(payload):
+        raise ValueError("census fallback stage receipt cannot expose measurement evidence")
+    return {
+        "status": "failed",
+        "terminal_receipt_kind": "construction_fallback",
+        "attempted_batch_count": attempted_batches,
+        "completed_step_count": completed_steps,
+        "observed_step_count": completed_steps,
+        "batch_sequence_sha256": None,
+        "timing_summary_ms": None,
+        "receipt_primary_failure": primary_failure,
+        "physical_gpu_uuid": None,
+        "stage_prerequisite": None,
+    }
+
+
 def _validate_stage_receipt(
     payload: Mapping[str, object],
     *,
     binding: FrozenVariantBinding,
     stage_id: StageId,
-    expected_batches: Sequence[OrderedBatchIdentity],
+    batch_manifest: FrozenBatchManifest,
+    p0_preflight_sha256: str,
 ) -> dict[str, object]:
     protocol = STAGE_PROTOCOLS[stage_id]
+    expected_batches = batch_manifest.batches
     if (
         payload.get("schema_version") != "nadig-vnext-performance-stage-v1"
         or payload.get("evidence_class") != "performance_training_only"
@@ -744,10 +1147,26 @@ def _validate_stage_receipt(
         or payload.get("variant_id") != binding.variant_id
         or payload.get("config_sha256") != binding.config_sha256
         or payload.get("matrix_sha256") != binding.matrix_sha256
+        or _sha256_json(payload.get("binding")) != _sha256_json(binding.payload())
         or payload.get("stage_id") != stage_id
         or payload.get("protocol") != protocol.payload()
     ):
         raise ValueError("census stage receipt identity differs")
+    if payload.get("running_receipt_replaced") is True:
+        return _validate_terminal_fallback_stage_receipt(payload, protocol=protocol)
+    if "running_receipt_replaced" in payload:
+        raise ValueError("census stage receipt has a malformed fallback marker")
+    p0_binding = payload.get("p0_preflight")
+    manifest_binding = payload.get("frozen_batch_manifest")
+    if (
+        not isinstance(p0_binding, dict)
+        or p0_binding.get("receipt_sha256") != p0_preflight_sha256
+        or not isinstance(manifest_binding, dict)
+        or manifest_binding.get("receipt_sha256") != batch_manifest.sha256
+        or manifest_binding.get("expected_batch_count") != batch_manifest.frozen_prefix_count
+        or manifest_binding.get("expected_sequence_sha256") != batch_manifest.batch_sequence_sha256
+    ):
+        raise ValueError("census stage prerequisite binding differs")
     training_only = payload.get("training_only_evidence")
     if not isinstance(training_only, dict):
         raise ValueError("census stage receipt lacks training-only evidence")
@@ -783,6 +1202,15 @@ def _validate_stage_receipt(
     if any(batch.actual_batch_size != EXACT_TRAIN_BATCH_SIZE for batch in batches):
         raise ValueError("census stage batch size differs from the frozen batch 256")
     require_batch_prefix(batches, expected_batches)
+    observed_prefix_sha256 = batch_sequence_sha256(batches)
+    if (
+        payload.get("batch_sequence_sha256") != observed_prefix_sha256
+        or manifest_binding.get("observed_prefix_count") != len(batches)
+        or manifest_binding.get("observed_prefix_sha256") != observed_prefix_sha256
+        or manifest_binding.get("expected_prefix_sha256") != observed_prefix_sha256
+        or manifest_binding.get("prefix_matches") is not True
+    ):
+        raise ValueError("census declared batch prefix differs from observed batches")
     attempted_batches = payload.get("attempted_batch_count")
     completed_steps = payload.get("completed_step_count")
     observed_steps = payload.get("observed_step_count")
@@ -802,6 +1230,18 @@ def _validate_stage_receipt(
         raise ValueError("complete census stage has the wrong step count")
     if status == "failed" and attempted_batches > protocol.total_steps:
         raise ValueError("failed census stage exceeds its bounded step count")
+    steps = payload.get("steps")
+    if not isinstance(steps, list) or len(steps) != completed_steps:
+        raise ValueError("census stage step evidence count differs")
+    for index, step in enumerate(steps):
+        expected_phase = "warmup" if index < protocol.warmup_steps else "measured"
+        if (
+            not isinstance(step, dict)
+            or step.get("global_step") != index
+            or step.get("batch_identity_sha256") != batches[index].sha256
+            or step.get("phase") != expected_phase
+        ):
+            raise ValueError("census stage per-step batch evidence differs")
     timing_values = payload.get("timing_samples_ms")
     if not isinstance(timing_values, list) or any(
         not isinstance(value, (int, float)) for value in timing_values
@@ -825,14 +1265,85 @@ def _validate_stage_receipt(
         if timing_values:
             raise ValueError("capacity/profile receipt cannot expose timing-acceptance samples")
         summary = None
+    repository = payload.get("repository_identity")
+    final_repository = payload.get("final_repository_identity")
+    final_immutable_inputs = payload.get("final_immutable_input_evidence")
+    resource = payload.get("resource_preflight")
+    capacity = payload.get("capacity_evidence")
+    persistent_pkl = payload.get("persistent_pkl_scan")
+    native_identity = payload.get("native_identity_receipts")
+    if not all(
+        isinstance(value, dict)
+        for value in (repository, resource, capacity, persistent_pkl, native_identity)
+    ):
+        raise ValueError("census stage lacks repository/resource/PKL evidence")
+    native_files = native_identity.get("files")
+    if not isinstance(native_files, list) or any(
+        not isinstance(value, dict) for value in native_files
+    ):
+        raise ValueError("census native identity bindings are malformed")
+    native_names = {
+        Path(str(value.get("relative_path"))).name
+        for value in native_files
+        if isinstance(value.get("relative_path"), str)
+    }
+    required_native_names = set(EXACT_NATIVE_IDENTITY_FILES)
+    if binding.genept_preflight_required:
+        required_native_names.update(EXACT_GENEPT_NATIVE_IDENTITY_FILES)
+    if not required_native_names <= native_names:
+        raise ValueError("census stage native identity bindings are incomplete")
+    selected_gpu = resource.get("selected_physical_gpu")
+    physical_gpu_uuid = selected_gpu.get("uuid") if isinstance(selected_gpu, dict) else None
+    if not isinstance(physical_gpu_uuid, str) or not physical_gpu_uuid:
+        raise ValueError("census stage lacks physical GPU UUID")
+    if status == "complete":
+        initial_repository = _validate_repository_identity(repository, label="initial")
+        terminal_repository = _validate_repository_identity(final_repository, label="final")
+        if any(
+            initial_repository.get(name) != terminal_repository.get(name)
+            for name in _REPOSITORY_IDENTITY_FIELDS
+        ):
+            raise ValueError("complete census stage repository identity changed during execution")
+        initial_immutable_inputs = _validate_immutable_input_evidence(
+            p0_binding.get("preclaim_immutable_input_evidence"),
+            label="initial",
+        )
+        terminal_immutable_inputs = _validate_immutable_input_evidence(
+            final_immutable_inputs,
+            label="final",
+        )
+        if _sha256_json(initial_immutable_inputs) != _sha256_json(terminal_immutable_inputs):
+            raise ValueError("complete census stage immutable inputs changed during execution")
+        predicate_groups = (
+            repository.get("predicates"),
+            resource.get("predicates"),
+            capacity.get("predicates"),
+        )
+        if any(
+            not isinstance(group, dict)
+            or not group
+            or not all(bool(value) for value in group.values())
+            for group in predicate_groups
+        ):
+            raise ValueError("complete census stage has a failed safety predicate")
+        if (
+            persistent_pkl.get("passed") is not True
+            or persistent_pkl.get("persistent_pkl_count") != 0
+            or payload.get("batch_gate_failure") is not None
+            or payload.get("primary_failure") is not None
+            or payload.get("teardown_failures") != []
+        ):
+            raise ValueError("complete census stage has failure or persistent-PKL evidence")
     return {
         "status": status,
         "attempted_batch_count": attempted_batches,
         "completed_step_count": completed_steps,
         "observed_step_count": completed_steps,
-        "batch_sequence_sha256": batch_sequence_sha256(batches),
+        "batch_sequence_sha256": observed_prefix_sha256,
         "timing_summary_ms": summary,
         "receipt_primary_failure": payload.get("primary_failure"),
+        "physical_gpu_uuid": physical_gpu_uuid,
+        "stage_prerequisite": payload.get("stage_prerequisite"),
     }
 
 
@@ -840,7 +1351,8 @@ def aggregate_census_report(
     *,
     bindings: Sequence[FrozenVariantBinding],
     row_records: Sequence[Mapping[str, object]],
-    expected_batches: Sequence[OrderedBatchIdentity],
+    batch_manifest: FrozenBatchManifest,
+    p0_preflight_sha256: str,
 ) -> dict[str, object]:
     """Aggregate exactly 25 rows while keeping P2 and P3 panels separate."""
 
@@ -852,8 +1364,10 @@ def aggregate_census_report(
         raise ValueError("census row records must match the exact matrix order")
     if len(set(observed_order)) != MATRIX_ROW_COUNT:
         raise ValueError("census row records are missing or duplicated")
-    if len(expected_batches) < STAGE_PROTOCOLS["p3_timing"].total_steps:
-        raise ValueError("frozen batch manifest must cover the full P3 prefix")
+    _validate_sha256(p0_preflight_sha256, field="P0 preflight SHA-256")
+    expected_batches = batch_manifest.batches
+    if len(expected_batches) != EXACT_FROZEN_BATCH_COUNT:
+        raise ValueError("frozen batch manifest must contain exactly 110 steps")
     if any(batch.actual_batch_size != EXACT_TRAIN_BATCH_SIZE for batch in expected_batches):
         raise ValueError("frozen batch manifest differs from the exact batch 256")
 
@@ -890,13 +1404,29 @@ def aggregate_census_report(
                 payload,
                 binding=binding,
                 stage_id=raw_stage_id,
-                expected_batches=expected_batches,
+                batch_manifest=batch_manifest,
+                p0_preflight_sha256=p0_preflight_sha256,
             )
             stage_summaries[raw_stage_id] = {
                 "receipt_path": str(Path(path).resolve()),
                 "receipt_sha256": expected_sha,
                 **summary,
             }
+        p1_summary = stage_summaries.get("p1_capacity")
+        for dependent_stage in ("p2_timing", "p3_timing", "diagnostic_profile"):
+            dependent = stage_summaries.get(dependent_stage)
+            if dependent is None:
+                continue
+            if not isinstance(p1_summary, dict) or p1_summary.get("status") != "complete":
+                raise ValueError(f"{dependent_stage} lacks a complete P1 prerequisite")
+            prerequisite = dependent.get("stage_prerequisite")
+            if (
+                not isinstance(prerequisite, dict)
+                or prerequisite.get("receipt_sha256") != p1_summary.get("receipt_sha256")
+                or prerequisite.get("physical_gpu_uuid") != p1_summary.get("physical_gpu_uuid")
+                or dependent.get("physical_gpu_uuid") != p1_summary.get("physical_gpu_uuid")
+            ):
+                raise ValueError(f"{dependent_stage} P1/GPU binding differs")
         required_by_state: dict[str, tuple[StageId, ...]] = {
             "p1_pass": ("p1_capacity",),
             "p2_complete": ("p1_capacity", "p2_timing"),
@@ -906,8 +1436,14 @@ def aggregate_census_report(
             summary = stage_summaries.get(required)
             if not isinstance(summary, dict) or summary.get("status") != "complete":
                 raise ValueError(f"census state lacks complete required stage: {required}")
-        if state in {"capacity_failed", "execution_failed"} and not stage_summaries:
-            raise ValueError("failed census row must preserve at least one stage receipt")
+        if state in {"capacity_failed", "execution_failed"} and (
+            not stage_summaries
+            or not any(
+                isinstance(summary, dict) and summary.get("status") == "failed"
+                for summary in stage_summaries.values()
+            )
+        ):
+            raise ValueError("failed census row must preserve at least one failed stage receipt")
         if state in {"p2_complete", "p3_complete"}:
             summary_20 = stage_summaries["p2_timing"]
             assert isinstance(summary_20, dict)
@@ -972,9 +1508,12 @@ def aggregate_census_report(
         "row_count": MATRIX_ROW_COUNT,
         "stage_protocols": {name: value.payload() for name, value in STAGE_PROTOCOLS.items()},
         "frozen_batch_manifest": {
+            "receipt_path": batch_manifest.path,
+            "receipt_sha256": batch_manifest.sha256,
             "batch_count": len(expected_batches),
             "batch_sequence_sha256": batch_sequence_sha256(expected_batches),
         },
+        "p0_preflight_sha256": p0_preflight_sha256,
         "state_counts": dict(sorted(counts.items())),
         "disposition_sections": disposition_sections,
         "measured_20_row_count": measured_20,
@@ -988,18 +1527,158 @@ def aggregate_census_report(
     }
 
 
-def _load_batch_manifest(path: Path) -> tuple[OrderedBatchIdentity, ...]:
-    payload = json.loads(path.resolve(strict=True).read_text(encoding="utf-8"))
-    if not isinstance(payload, dict) or payload.get("schema_version") != (
-        "nadig-vnext-performance-batch-manifest-v1"
+def load_frozen_batch_manifest(
+    path: str | Path,
+    *,
+    expected_sha256: str | None = None,
+    expected_matrix_sha256: str | None = None,
+    expected_config_sha256: str | None = None,
+) -> FrozenBatchManifest:
+    resolved = Path(path).resolve(strict=True)
+    observed_sha256 = sha256_file(resolved)
+    if expected_sha256 is not None:
+        _validate_sha256(expected_sha256, field="expected batch-manifest SHA-256")
+        if observed_sha256 != expected_sha256:
+            raise ValueError("frozen batch manifest SHA-256 differs")
+    payload = json.loads(resolved.read_text(encoding="utf-8"))
+    if (
+        not isinstance(payload, dict)
+        or payload.get("schema_version") != "nadig-vnext-performance-batch-manifest-v2"
+        or payload.get("evidence_class") != "performance_training_only"
+        or payload.get("scientific_completion") is not False
+        or payload.get("matrix_id") != SUCCESSOR_V2_MATRIX_ID
+        or payload.get("dataset_id") != "nadig_jurkat"
+        or payload.get("protocol_id") != "within_cell_unseen_single"
+        or payload.get("run_seed") != 1
+        or payload.get("epoch") != 0
+        or payload.get("batch_size") != EXACT_TRAIN_BATCH_SIZE
+        or payload.get("max_unique_conditions") != EXACT_MAX_UNIQUE_CONDITIONS
+        or payload.get("epoch_step_count") != EXACT_STEPS_PER_EPOCH
+        or payload.get("frozen_prefix_count") != EXACT_FROZEN_BATCH_COUNT
+        or payload.get("batch_order_policy") != EXACT_BATCH_ORDER_POLICY
+        or payload.get("control_pairing_policy") != EXACT_CONTROL_PAIRING_POLICY
     ):
-        raise ValueError("frozen batch manifest schema differs")
+        raise ValueError("frozen batch manifest identity differs")
+    matrix_sha256 = payload.get("matrix_sha256")
+    config_sha256 = payload.get("a0_config_sha256")
+    if not isinstance(matrix_sha256, str) or not isinstance(config_sha256, str):
+        raise ValueError("frozen batch manifest lacks matrix/config identities")
+    _validate_sha256(matrix_sha256, field="batch-manifest matrix SHA-256")
+    _validate_sha256(config_sha256, field="batch-manifest A0 config SHA-256")
+    if expected_matrix_sha256 is not None and matrix_sha256 != expected_matrix_sha256:
+        raise ValueError("frozen batch manifest matrix SHA-256 differs")
+    if expected_config_sha256 is not None and config_sha256 != expected_config_sha256:
+        raise ValueError("frozen batch manifest A0 config SHA-256 differs")
+    sealed_paths: dict[str, Path] = {}
+    for name, label in (
+        ("matrix_path", "matrix"),
+        ("a0_config_path", "A0 config"),
+        ("runtime_graph_manifest_path", "runtime-graph manifest"),
+    ):
+        value = payload.get(name)
+        if not isinstance(value, str) or not value:
+            raise ValueError(f"frozen batch manifest lacks {label} path")
+        candidate = Path(value)
+        if not candidate.is_absolute():
+            raise ValueError(f"frozen batch manifest {label} path must be absolute")
+        resolved_candidate = candidate.resolve(strict=True)
+        if not resolved_candidate.is_file():
+            raise ValueError(f"frozen batch manifest {label} path is not a regular file")
+        sealed_paths[name] = resolved_candidate
+    runtime_graph_root = payload.get("runtime_graph_root")
+    if not isinstance(runtime_graph_root, str) or not runtime_graph_root:
+        raise ValueError("frozen batch manifest lacks runtime-graph root")
+    relative_graph_root = Path(runtime_graph_root)
+    if relative_graph_root.is_absolute() or any(
+        part in {"", ".", ".."} for part in relative_graph_root.parts
+    ):
+        raise ValueError("frozen batch manifest runtime-graph root is unsafe")
+    graph_suffix = (*relative_graph_root.parts, "manifest.json")
+    observed_graph_suffix = tuple(
+        sealed_paths["runtime_graph_manifest_path"].parts[-len(graph_suffix) :]
+    )
+    if observed_graph_suffix != graph_suffix:
+        raise ValueError("frozen batch manifest runtime-graph path/root binding differs")
+    forbidden_runtime = payload.get("forbidden_runtime")
+    if not isinstance(forbidden_runtime, dict) or forbidden_runtime != {
+        "cuda_imported_or_initialized": False,
+        "expression_array_reads": 0,
+        "model_constructed": False,
+        "optimizer_constructed": False,
+        "test_object_constructed": False,
+        "validation_object_constructed": False,
+    }:
+        raise ValueError("frozen batch manifest used a forbidden runtime surface")
     batches = payload.get("batches")
-    if not isinstance(batches, list) or any(not isinstance(value, dict) for value in batches):
+    if (
+        not isinstance(batches, list)
+        or len(batches) != EXACT_FROZEN_BATCH_COUNT
+        or any(not isinstance(value, dict) for value in batches)
+    ):
         raise ValueError("frozen batch manifest rows are malformed")
-    identities = tuple(OrderedBatchIdentity.from_payload(value) for value in batches)
-    batch_sequence_sha256(identities)
-    return identities
+    batch_identities = tuple(OrderedBatchIdentity.from_payload(value) for value in batches)
+    for raw, identity in zip(batches, batch_identities, strict=True):
+        if raw.get("batch_identity_sha256") != identity.sha256:
+            raise ValueError("frozen batch identity SHA-256 differs")
+    sequence_sha256 = batch_sequence_sha256(batch_identities)
+    if payload.get("batch_sequence_sha256") != sequence_sha256 or any(
+        identity.actual_batch_size != EXACT_TRAIN_BATCH_SIZE for identity in batch_identities
+    ):
+        raise ValueError("frozen batch manifest sequence differs")
+    sha_fields = {
+        "canonical_data_sha256": "canonical",
+        "observation_order_sha256": "observation-order",
+        "split_content_sha256": "split",
+        "ordered_training_row_ids_sha256": "training-row-order",
+        "ordered_control_pools_sha256": "control-pool-order",
+        "runtime_graph_manifest_sha256": "runtime-graph manifest",
+        "runtime_graph_gene_order_sha256": "runtime-graph gene-order",
+    }
+    identity_hashes: dict[str, str] = {}
+    for name, label in sha_fields.items():
+        value = payload.get(name)
+        if not isinstance(value, str):
+            raise ValueError(f"frozen batch manifest lacks {label} identity")
+        _validate_sha256(value, field=f"batch-manifest {label} SHA-256")
+        identity_hashes[name] = value
+    if sha256_file(sealed_paths["matrix_path"]) != matrix_sha256:
+        raise ValueError("frozen batch manifest matrix path/hash binding differs")
+    if sha256_file(sealed_paths["a0_config_path"]) != config_sha256:
+        raise ValueError("frozen batch manifest A0 config path/hash binding differs")
+    if (
+        sha256_file(sealed_paths["runtime_graph_manifest_path"])
+        != identity_hashes["runtime_graph_manifest_sha256"]
+    ):
+        raise ValueError("frozen batch manifest runtime-graph path/hash binding differs")
+    return FrozenBatchManifest(
+        path=str(resolved),
+        sha256=observed_sha256,
+        matrix_path=str(sealed_paths["matrix_path"]),
+        matrix_sha256=matrix_sha256,
+        config_path=str(sealed_paths["a0_config_path"]),
+        config_sha256=config_sha256,
+        dataset_id="nadig_jurkat",
+        protocol_id="within_cell_unseen_single",
+        run_seed=1,
+        epoch=0,
+        batch_size=EXACT_TRAIN_BATCH_SIZE,
+        max_unique_conditions=EXACT_MAX_UNIQUE_CONDITIONS,
+        epoch_step_count=EXACT_STEPS_PER_EPOCH,
+        frozen_prefix_count=EXACT_FROZEN_BATCH_COUNT,
+        batch_order_policy=EXACT_BATCH_ORDER_POLICY,
+        control_pairing_policy=EXACT_CONTROL_PAIRING_POLICY,
+        canonical_data_sha256=identity_hashes["canonical_data_sha256"],
+        observation_order_sha256=identity_hashes["observation_order_sha256"],
+        split_content_sha256=identity_hashes["split_content_sha256"],
+        ordered_training_row_ids_sha256=identity_hashes["ordered_training_row_ids_sha256"],
+        ordered_control_pools_sha256=identity_hashes["ordered_control_pools_sha256"],
+        runtime_graph_root=runtime_graph_root,
+        runtime_graph_manifest_path=str(sealed_paths["runtime_graph_manifest_path"]),
+        runtime_graph_manifest_sha256=identity_hashes["runtime_graph_manifest_sha256"],
+        runtime_graph_gene_order_sha256=identity_hashes["runtime_graph_gene_order_sha256"],
+        batch_sequence_sha256=sequence_sha256,
+        batches=batch_identities,
+    )
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -1010,20 +1689,62 @@ def _parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     plan = subparsers.add_parser("plan", help="print the frozen 25-row census plan")
     plan.add_argument("--json", action="store_true", dest="as_json")
+    freeze = subparsers.add_parser(
+        "freeze-batches",
+        help="write the exact CPU-only 110-step training-batch manifest",
+    )
+    freeze.add_argument("--data-root", type=Path, required=True)
+    freeze.add_argument("--output", type=Path, required=True)
     aggregate = subparsers.add_parser("aggregate", help="aggregate sealed worker receipts")
     aggregate.add_argument("--row-records", type=Path, required=True)
     aggregate.add_argument("--batch-manifest", type=Path, required=True)
+    aggregate.add_argument("--batch-manifest-sha256", required=True)
+    aggregate.add_argument("--p0-preflight-receipt", type=Path, required=True)
+    aggregate.add_argument("--p0-preflight-receipt-sha256", required=True)
     aggregate.add_argument("--output", type=Path, required=True)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    bindings = bind_matrix_variants(
-        args.matrix,
-        repository_root=args.repository_root,
-        expected_matrix_sha256=args.expected_matrix_sha256,
-    )
+    claimed_output: Path | None = None
+    if args.command != "plan":
+        claim_schema = (
+            "nadig-vnext-performance-batch-manifest-claim-v1"
+            if args.command == "freeze-batches"
+            else "nadig-vnext-performance-census-report-claim-v1"
+        )
+        claimed_output = _claim_json_output(
+            args.output,
+            {
+                "schema_version": claim_schema,
+                "status": "claimed",
+                "evidence_class": "performance_training_only",
+                "scientific_completion": False,
+            },
+        )
+    try:
+        bindings = bind_matrix_variants(
+            args.matrix,
+            repository_root=args.repository_root,
+            expected_matrix_sha256=args.expected_matrix_sha256,
+        )
+    except BaseException as error:
+        if claimed_output is not None:
+            _atomic_json(
+                claimed_output,
+                {
+                    "schema_version": "nadig-vnext-performance-evidence-failure-v1",
+                    "status": "failed",
+                    "evidence_class": "performance_training_only",
+                    "scientific_completion": False,
+                    "primary_failure": {
+                        "type": type(error).__name__,
+                        "message": str(error),
+                    },
+                },
+            )
+        raise
     if args.command == "plan":
         payload = {
             "schema_version": "nadig-vnext-performance-census-plan-v1",
@@ -1033,19 +1754,63 @@ def main(argv: Sequence[str] | None = None) -> int:
         }
         print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
         return 0
+    if args.command == "freeze-batches":
+        assert claimed_output is not None
+        try:
+            payload = freeze_batch_manifest(
+                matrix_path=args.matrix,
+                repository_root=args.repository_root,
+                expected_matrix_sha256=args.expected_matrix_sha256,
+                data_root=args.data_root,
+            )
+        except BaseException as error:
+            _atomic_json(
+                claimed_output,
+                {
+                    "schema_version": "nadig-vnext-performance-batch-manifest-v2",
+                    "status": "failed",
+                    "evidence_class": "performance_training_only",
+                    "scientific_completion": False,
+                    "primary_failure": {
+                        "type": type(error).__name__,
+                        "message": str(error),
+                    },
+                },
+            )
+            raise
+        _atomic_json(claimed_output, payload)
+        print(claimed_output)
+        return 0
     row_records = json.loads(args.row_records.resolve(strict=True).read_text(encoding="utf-8"))
     if not isinstance(row_records, list) or any(
         not isinstance(value, dict) for value in row_records
     ):
         raise ValueError("census row records must be a JSON list of objects")
-    expected_batches = _load_batch_manifest(args.batch_manifest)
+    batch_manifest = load_frozen_batch_manifest(
+        args.batch_manifest,
+        expected_sha256=args.batch_manifest_sha256,
+        expected_matrix_sha256=args.expected_matrix_sha256,
+        expected_config_sha256=bindings[0].config_sha256,
+    )
+    p0_preflight = _load_hashed_json(
+        args.p0_preflight_receipt,
+        args.p0_preflight_receipt_sha256,
+    )
+    if (
+        p0_preflight.get("schema_version") != "nadig-vnext-performance-p0-preflight-v1"
+        or p0_preflight.get("status") != "passed"
+        or p0_preflight.get("matrix_sha256") != args.expected_matrix_sha256
+    ):
+        raise ValueError("aggregate P0 preflight identity differs")
     report = aggregate_census_report(
         bindings=bindings,
         row_records=row_records,
-        expected_batches=expected_batches,
+        batch_manifest=batch_manifest,
+        p0_preflight_sha256=args.p0_preflight_receipt_sha256,
     )
-    _atomic_json(args.output.resolve(), report)
-    print(args.output.resolve())
+    assert claimed_output is not None
+    _atomic_json(claimed_output, report)
+    print(claimed_output)
     return 0
 
 

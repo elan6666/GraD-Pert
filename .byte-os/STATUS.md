@@ -9,7 +9,7 @@ review_verdict: none
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-29T19:13:01+08:00
+updated_at: 2026-08-29T20:55:16+08:00
 ---
 
 # Status
@@ -25,7 +25,31 @@ updated_at: 2026-08-29T19:13:01+08:00
   preflight, one complete-step capacity, 5+20 short timing, focused profiler
   attribution and conditional 10+100 extension. Short runs are performance
   evidence only and cannot select a scientific row.
-- The generic bounded census worker now supports only P1 capacity, P2 timing
+- Plan 031's CPU-only launch closure is now implemented in the isolated
+  branch. A static P0 tool binds the exact 25-row matrix, clean source content
+  tree, canonical/source/split identities, all four nested H axes, every
+  resolved rational local-view contract, and the one Seed-GO-ProteinPathway
+  preflight without importing CUDA or constructing model/evaluation objects.
+  A separate expression-free manifest freezes exactly the first 110 semantic
+  batch identities (ordered rows, conditions, sampled controls and gene-name
+  anchors) from the real seed-1 batch scheduler.
+- Every census worker now verifies the hash-pinned P0 and batch manifest before
+  claiming an attempt root, rejects a batch before its optimizer step on the
+  first identity mismatch, preserves append-only preclaim and in-run failures,
+  requires P2/profile to cite a completed P1 receipt on the same physical GPU,
+  rehashes every sealed data/graph/GenePT input before and after native
+  execution, rechecks the clean published GitHub source content tree after the
+  run, and requires native identity receipts plus whole-attempt zero PKL.
+  Aggregation independently revalidates the same lineage, final immutable-input
+  evidence and per-step batch SHA values. P0 and batch-manifest destinations
+  are atomically claimed with exclusive creation so concurrent attempts cannot
+  overwrite one another.
+- Current local gates for this uncommitted integration are 83 focused
+  performance/data tests and 413 non-notebook tests with 10 honest local
+  dependency/reference skips; Ruff, format on 158 files, compile checks and
+  whitespace checks pass. Exact-commit server pytest/mypy/build gates remain
+  required before live P0 generation.
+- The generic bounded census worker supports only P1 capacity, P2 timing
   and the separate diagnostic profiler. It preserves the ordered attempted
   batch even when the first native step fails before returning, distinguishes
   attempted batches from completed steps, emits truth-free/non-scientific

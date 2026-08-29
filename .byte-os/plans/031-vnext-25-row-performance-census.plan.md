@@ -8,6 +8,20 @@ updated_at: 2026-08-29T19:15:00+08:00
 
 # Plan 031 — B2-vNext 25-row capacity and performance census
 
+## Implementation readiness
+
+- The non-CUDA P0 checker, expression-free 110-step semantic batch manifest,
+  bounded P1/P2/profile worker, native phase observer, P1-to-P2 same-GPU gate,
+  zero-PKL scan and independent aggregation validators are implemented. P0 and
+  batch evidence use atomic exclusive output claims; workers rehash all sealed
+  data, graph and GenePT files and the published source content tree both
+  before and after execution.
+- H512/H1024/H2048/H5000 graph materialization and the cross-H nested lineage
+  audit are sealed server-side. The new exact-commit P0 receipt and frozen
+  batch manifest still must be generated after publication; the checkboxes
+  below remain open until live receipts exist.
+- No new CUDA census process or formal H/L row has launched from this source.
+
 ## Objective
 
 Measure every registered Nadig Jurkat vNext coordinate through an adaptive,
