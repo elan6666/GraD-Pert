@@ -598,7 +598,12 @@ class GraDPertStepEngine:
                     global_view_index=global_view_index,
                 ):
                     teacher_condition_logits_list.append(self.model.teacher_projector(states))
-            teacher_condition_logits = tuple(teacher_condition_logits_list)
+            if len(teacher_condition_logits_list) != 2:
+                raise AssertionError("Teacher must return exactly two global projections")
+            teacher_condition_logits = (
+                teacher_condition_logits_list[0],
+                teacher_condition_logits_list[1],
+            )
             del teacher_condition_logits_list
         mark("teacher_end")
 

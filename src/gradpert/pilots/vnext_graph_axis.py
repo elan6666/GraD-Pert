@@ -356,6 +356,8 @@ def preflight_genept_seed_vnext(
         expected_gene_ids=tuple(parent.graph_gene_ids),
         perturbation_target_gene_ids=tuple(parent.candidate_target_ids),
     )
+    if prior.zero_vector_gene_ids:
+        raise AssertionError("sealed Seed-GO-ProteinPathway preflight returned zero vectors")
     receipt = GenePTSeedAvailabilityReceipt(
         schema_version="genept-seed-go-protein-pathway-availability-v1",
         status="available",
@@ -384,7 +386,7 @@ def preflight_genept_seed_vnext(
         extra_source_gene_ids_sha256=prior.extra_source_gene_ids_sha256,
         perturbation_target_gene_count=len(prior.perturbation_target_gene_ids),
         perturbation_target_gene_ids_sha256=prior.perturbation_target_gene_ids_sha256,
-        zero_vector_gene_count=len(prior.zero_vector_gene_ids),
+        zero_vector_gene_count=0,
         result_topology_content_sha256=parent.topology_content_sha256,
     )
     destination = Path(availability_receipt_path)

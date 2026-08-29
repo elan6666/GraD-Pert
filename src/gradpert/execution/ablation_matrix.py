@@ -431,6 +431,7 @@ def build_ablation_launch_plan(
         if not isinstance(raw_receipt, dict):
             raise ValueError("GenePT availability receipt must be a JSON object")
         genept_receipt_schema = raw_receipt.get("schema_version")
+        receipt: GenePTAvailabilityReceipt | GenePTSeedAvailabilityReceipt
         if genept_receipt_schema == "genept-vnext-availability-v1":
             receipt = GenePTAvailabilityReceipt.model_validate_json(receipt_text)
             genept_missing_target_ids_sha256 = receipt.missing_perturbation_target_gene_ids_sha256
