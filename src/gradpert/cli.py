@@ -144,6 +144,10 @@ def _parser() -> argparse.ArgumentParser:
         run.add_argument("--development-commit")
         run.add_argument("--source-publication-receipt", type=Path)
         run.add_argument("--source-publication-receipt-sha256")
+        run.add_argument(
+            "--source-publication-remote-ref",
+            default="refs/heads/main",
+        )
         run.add_argument("--genept-preflight-receipt", type=Path)
         run.add_argument("--genept-preflight-receipt-sha256")
         run.add_argument("--resume", action="store_true")
@@ -548,6 +552,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             development_commit=args.development_commit,
             source_publication_receipt=args.source_publication_receipt,
             source_publication_receipt_sha256=args.source_publication_receipt_sha256,
+            source_publication_remote_ref=args.source_publication_remote_ref,
             genept_preflight_receipt=args.genept_preflight_receipt,
             genept_preflight_receipt_sha256=args.genept_preflight_receipt_sha256,
             resume=args.resume,

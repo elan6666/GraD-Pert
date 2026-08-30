@@ -540,6 +540,7 @@ def _command(
     repository_root: Path,
     source_publication_receipt: Path | None,
     source_publication_receipt_sha256: str | None,
+    source_publication_remote_ref: str,
 ) -> list[str]:
     command = [
         python_executable,
@@ -572,6 +573,8 @@ def _command(
                 str(source_publication_receipt),
                 "--source-publication-receipt-sha256",
                 source_publication_receipt_sha256,
+                "--source-publication-remote-ref",
+                source_publication_remote_ref,
             ]
         )
     if row.genept_preflight_receipt_path is not None:
@@ -601,6 +604,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--python-executable", default=sys.executable)
     parser.add_argument("--source-publication-receipt", type=Path)
     parser.add_argument("--source-publication-receipt-sha256")
+    parser.add_argument(
+        "--source-publication-remote-ref",
+        default="refs/heads/main",
+    )
     parser.add_argument("--dry-run", action="store_true")
     return parser
 
@@ -635,6 +642,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             None if publication_receipt is None else str(publication_receipt)
         ),
         "source_publication_receipt_sha256": args.source_publication_receipt_sha256,
+        "source_publication_remote_ref": args.source_publication_remote_ref,
         "row_count": len(plan),
         "rows": [asdict(row) for row in plan],
     }
@@ -651,6 +659,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             expected_repository=expected_repository,
             publication_receipt=publication_receipt,
             expected_publication_receipt_sha256=args.source_publication_receipt_sha256,
+            remote_ref=args.source_publication_remote_ref,
         )
     receipt_root = args.receipt_root.resolve()
     receipt_root.mkdir(parents=True, exist_ok=True)
@@ -679,6 +688,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             repository_root=repository_root,
             source_publication_receipt=publication_receipt,
             source_publication_receipt_sha256=args.source_publication_receipt_sha256,
+            source_publication_remote_ref=args.source_publication_remote_ref,
         )
         result = subprocess.run(command, env=environment, check=False)
         atomic_json(

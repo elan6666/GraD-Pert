@@ -253,13 +253,17 @@ def test_genept_seed_preflight_provenance_is_bound_to_each_e_row(tmp_path: Path)
         python_executable="python",
         data_root=data_root,
         repository_root=ROOT,
-        source_publication_receipt=None,
-        source_publication_receipt_sha256=None,
+        source_publication_receipt=tmp_path / "publication.json",
+        source_publication_receipt_sha256="a" * 64,
+        source_publication_remote_ref="refs/heads/codex/vnext-performance",
     )
     assert command[command.index("--genept-preflight-receipt") + 1] == str(path.resolve())
     assert (
         command[command.index("--genept-preflight-receipt-sha256") + 1]
         == hashlib.sha256(path.read_bytes()).hexdigest()
+    )
+    assert command[command.index("--source-publication-remote-ref") + 1] == (
+        "refs/heads/codex/vnext-performance"
     )
 
     live_payload = json.loads(graph_manifest.read_text(encoding="utf-8"))
@@ -306,6 +310,8 @@ def test_dry_plan_binds_queue_publication_receipt(
                 str(publication),
                 "--source-publication-receipt-sha256",
                 receipt_sha256,
+                "--source-publication-remote-ref",
+                "refs/heads/codex/vnext-performance",
                 "--dry-run",
             ]
         )
@@ -314,3 +320,4 @@ def test_dry_plan_binds_queue_publication_receipt(
     payload = json.loads(capsys.readouterr().out)
     assert payload["source_publication_receipt"] == str(publication)
     assert payload["source_publication_receipt_sha256"] == receipt_sha256
+    assert payload["source_publication_remote_ref"] == ("refs/heads/codex/vnext-performance")
