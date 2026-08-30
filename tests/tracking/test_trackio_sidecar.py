@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import stat
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -125,6 +126,13 @@ class _NoMountTrackio(_FakeTrackio):
         self.init_kwargs = kwargs
         self.hub.exists = True
         return SimpleNamespace(id="trackio-run-1")
+
+
+class _FilesystemTrackio(_FakeTrackio):
+    def init(self, **kwargs: Any) -> Any:
+        store = Path(os.environ["TRACKIO_DIR"])
+        (store / "trackio-test.sqlite").write_text("private\n", encoding="utf-8")
+        return super().init(**kwargs)
 
 
 class _RaisingFinishTrackio(_FakeTrackio):
@@ -356,6 +364,37 @@ def test_sidecar_logs_only_allowlisted_curves_and_system_settings(tmp_path: Path
     assert receipt["telemetry_authority"] is False
     assert receipt["live_dashboard_provisional"] is True
     assert receipt["remote_sync_verified"] is False
+
+
+def test_sidecar_creates_owner_only_local_tracking_state_and_restores_umask(
+    tmp_path: Path,
+) -> None:
+    run_root = _make_run(tmp_path)
+    config = _config(tmp_path, run_root)
+    hub = _FakeHub()
+    previous_umask = os.umask(0o022)
+    try:
+        run_trackio_sidecar(
+            config,
+            trackio_module=_FilesystemTrackio(hub),
+            hub_module=hub,
+        )
+        observed_umask = os.umask(0o022)
+        assert observed_umask == 0o022
+    finally:
+        os.umask(previous_umask)
+
+    private_paths = (
+        config.trackio_dir,
+        config.trackio_dir / "trackio-test.sqlite",
+        config.state_path,
+        config.receipt_path,
+        config.state_path.with_suffix(f"{config.state_path.suffix}.lock"),
+    )
+    for path in private_paths:
+        mode = stat.S_IMODE(path.stat(follow_symlinks=False).st_mode)
+        assert mode & 0o077 == 0, (path, oct(mode))
+    assert stat.S_IMODE(config.trackio_dir.stat().st_mode) == 0o700
 
 
 def test_sidecar_rejects_nonformal_source(tmp_path: Path) -> None:

@@ -53,8 +53,9 @@ PYTHONPATH=src:. python scripts/tracking/sync_trackio.py --help
 - Fresh server regression passed from the clean public checkout: 153 tests,
   Ruff, full 62-file strict mypy, isolated build, and 30 config verification.
 - Fifteen learned one-epoch integrations have not yet all passed.
-- Local, GitHub, and the server checkout currently share one clean commit; any
-  follow-up source change must repeat the push/pull parity gate.
+- Local and GitHub share the current clean branch commit. A fresh server
+  checkout has not yet been synchronized or gated; CUDA remains blocked until
+  the three-way identity and clean-tree gate passes.
 - Current datasets-v2 small receipts still need allowlisted synchronization.
 
 ## Subagent exploration

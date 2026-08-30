@@ -740,11 +740,16 @@
 - Fresh-lineage locking, finite/contiguous receipt gates, exact source/run
   identity, private-Space verification, fsync-plus-atomic state and explicit
   provisional/non-authoritative receipt fields prevent dashboard state from
-  being confused with scientific evidence. Twenty focused tests pass; the full
-  locked dev/data/model/tracking local surface passes 543 tests with 2 honest
-  skips, Ruff and format on 164 files, strict mypy on all 76 source files, and
-  an isolated wheel/sdist build. Clean publication, exact-commit server gates,
-  and server login/Space creation remain pending. The private destination is
+  being confused with scientific evidence. Twenty-one focused tests pass; the
+  full locked dev/data/model/tracking local surface passes 544 tests with 2 honest
+  skips, Ruff and format on 255 files, strict mypy on all 76 source files, and
+  an isolated wheel/sdist build. Fresh server synchronization, exact-commit
+  gates and server login/Space creation remain pending. The private destination is
   bound to Space `elan68681/grad-pert-vnext-ablations` and Bucket
   `elan68681/grad-pert-vnext-ablations-bucket`; both require server-side Hub
   write authentication before activation.
+- A final privacy review found that a default server `umask` could leave the
+  local Trackio store traversable by other users. The sidecar now applies
+  `0077` for its complete lifetime, verifies the store as `0700`, restores the
+  caller's prior mask, and tests owner-only store/database/state/receipt/lock
+  permissions.

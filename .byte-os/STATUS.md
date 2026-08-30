@@ -2,14 +2,14 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: implementation
-current_workflow: byte-build
-next_workflow: byte-review
-review_verdict: none
+stage: verification
+current_workflow: byte-review
+next_workflow: byte-do
+review_verdict: pass
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-31T06:05:00+08:00
+updated_at: 2026-08-31T06:43:57+08:00
 ---
 
 # Status
@@ -33,18 +33,18 @@ updated_at: 2026-08-31T06:05:00+08:00
   bottleneck may be changed, followed by strict exact-effect and serial ABBA
   gates. Formal scope after acceptance is A0/H1/H2/H3 sequentially on one GPU.
 - The v3 generator is deterministic and the integrated local surface passes
-  543 tests with 2 honest skips under the locked dev/data/model/tracking
-  extras, including 20 Trackio sidecar tests and all prior migration gates.
-  Ruff, format on 164 files, compileall and diff checks pass. Strict mypy
+  544 tests with 2 honest skips under the locked dev/data/model/tracking
+  extras, including 21 Trackio sidecar tests and all prior migration gates.
+  Ruff, format on 255 files, compileall and diff checks pass. Strict mypy
   passes on all 76 source files and the isolated wheel/sdist build passes.
-  Clean publication and exact-commit server gates remain required before CUDA.
+  Fresh server synchronization and exact-commit gates remain required before CUDA.
 - Private Hugging Face Trackio support is implemented as an optional,
   out-of-process formal-only sidecar. It exposes allowlisted loss,
   validation, stage-throughput and one-GPU telemetry curves while excluding
   test metrics and every artifact/data surface. It is disabled for all
-  capacity/profile/exact-effect/ABBA lineages. Twenty focused sidecar tests pass;
-  remote activation remains blocked on private server-side `hf auth login`
-  with write scope. The selected private targets are Space
+  capacity/profile/exact-effect/ABBA lineages. Twenty-one focused sidecar tests
+  pass; remote activation remains blocked on private server-side `hf auth
+  login` with write scope. The selected private targets are Space
   `elan68681/grad-pert-vnext-ablations` and Bucket
   `elan68681/grad-pert-vnext-ablations-bucket`; the current Codex connector
   credential is read-only and therefore created neither.

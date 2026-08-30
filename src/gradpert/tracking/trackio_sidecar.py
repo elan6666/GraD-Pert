@@ -636,7 +636,10 @@ def _run_trackio_sidecar(
     run_meta = _load_json(run_meta_path)
     steps_per_epoch, safe_config = _safe_run_config(run_meta, config)
 
-    config.trackio_dir.mkdir(parents=True, exist_ok=False)
+    config.trackio_dir.mkdir(mode=0o700, parents=True, exist_ok=False)
+    config.trackio_dir.chmod(0o700)
+    if stat.S_IMODE(config.trackio_dir.stat(follow_symlinks=False).st_mode) != 0o700:
+        raise TrackingGateError("Trackio storage directory is not owner-only")
     os.environ["TRACKIO_DIR"] = str(config.trackio_dir.resolve())
     os.environ.setdefault(
         "TRACKIO_PLOT_ORDER",
@@ -867,15 +870,20 @@ def run_trackio_sidecar(
 ) -> dict[str, object]:
     """Run one fail-closed sidecar process under an exclusive lineage lock."""
 
+    # Trackio owns SQLite/JSONL files below its private store.  Keep their
+    # creation owner-only for the full sidecar lifetime, then restore the
+    # process setting for in-process callers and tests.
+    previous_umask = os.umask(0o077)
     lock_path = config.state_path.with_suffix(f"{config.state_path.suffix}.lock")
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    if lock_path.is_symlink():
-        raise TrackingGateError("tracking lock must not be a symlink")
-    no_follow = getattr(os, "O_NOFOLLOW", 0)
-    descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT | no_follow, 0o600)
+    descriptor: int | None = None
     previous_trackio_dir = os.environ.get("TRACKIO_DIR")
     previous_plot_order = os.environ.get("TRACKIO_PLOT_ORDER")
     try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        if lock_path.is_symlink():
+            raise TrackingGateError("tracking lock must not be a symlink")
+        no_follow = getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT | no_follow, 0o600)
         try:
             fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as error:
@@ -895,5 +903,9 @@ def run_trackio_sidecar(
             os.environ.pop("TRACKIO_PLOT_ORDER", None)
         else:
             os.environ["TRACKIO_PLOT_ORDER"] = previous_plot_order
-        fcntl.flock(descriptor, fcntl.LOCK_UN)
-        os.close(descriptor)
+        try:
+            if descriptor is not None:
+                fcntl.flock(descriptor, fcntl.LOCK_UN)
+                os.close(descriptor)
+        finally:
+            os.umask(previous_umask)

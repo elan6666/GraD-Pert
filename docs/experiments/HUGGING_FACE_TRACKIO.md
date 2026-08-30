@@ -36,6 +36,9 @@ is intentionally included as run identity. The sidecar never calls
 
 The native writer buffers up to 64 step rows. Live curves therefore update in
 small batches rather than forcing a per-step write into the training path.
+The sidecar applies an owner-only `0077` file-creation mask for its full
+lifetime and verifies the fresh local Trackio store as `0700`; its SQLite,
+JSONL, state, receipt and lock files are therefore not group/world readable.
 
 ## One-time private authentication
 
