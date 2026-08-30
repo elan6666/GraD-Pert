@@ -24,6 +24,7 @@ def _enabled_options() -> NativeSystemOptions:
         validation_expression_cache=True,
         buffered_training_logs=True,
         single_checkpoint_serialization=True,
+        local_activation_checkpointing=True,
         pin_memory=True,
         nonblocking_transfer=True,
         prefetch_depth=2,
@@ -108,6 +109,8 @@ def test_system_options_reject_partial_enablement() -> None:
             buffered_training_logs=True,
             single_checkpoint_serialization=True,
         )
+    with pytest.raises(ValueError, match="requires all seven"):
+        NativeSystemOptions(local_activation_checkpointing=True)
 
 
 def test_validation_cache_restores_duplicates_and_fails_closed_on_miss() -> None:

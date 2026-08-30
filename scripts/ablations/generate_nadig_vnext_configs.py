@@ -71,6 +71,11 @@ def base_config() -> dict[str, object]:
     parameters.pop("local_anchor_mask_count", None)
     parameters.update(
         {
+            "systems_local_activation_checkpointing": sourced(
+                True,
+                source="project_preregistered",
+                reference="docs/experiments/VNEXT_EXACT_EFFECT_PERFORMANCE.md",
+            ),
             "performance_pilot_variant": sourced(
                 f"vnext_{SUCCESSOR_A0}", reference=SUCCESSOR_REFERENCE
             ),

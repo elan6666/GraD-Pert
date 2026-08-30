@@ -136,7 +136,39 @@ after hashing large inputs and falsely reported about 2.2 GiB, while Linux
 uses `MemAvailable` and preserves this state as a distinct resource-preflight
 failure instead of demanding nonexistent native identity receipts.
 
-The next lineage uses the exact eight-row sentinel above. Before an
-implementation target is selected, A0 must pass source/resource/capacity gates
-and real server profiling. Strict mypy, CUDA exact-effect gates and matched
-end-to-end timing remain pending.
+The first eight-row sentinel at clean commit `b37963e` is sealed as failed and
+must not be repaired or relaunched. A0 failed during its first training step
+with a real CUDA out-of-memory error: about 30.65 GiB was already allocated on
+the 31.36-GiB RTX 5090 when another 30 MiB allocation was requested. The
+stage-progress receipt localizes the retained memory growth precisely:
+
+| Completed phase | Allocated CUDA memory |
+|---|---:|
+| Student global views | about 5.44 GiB |
+| Local index 0, eight condition views | about 13.92 GiB |
+| Local index 1, eight condition views | about 22.40 GiB |
+| Local index 2, eight condition views | about 30.87 GiB |
+| Local index 3 | entered, then OOM |
+
+The approximately 8.47-GiB increase per completed local index identifies
+retained Student-local autograd activations as the capacity blocker; this is
+not a fragmentation diagnosis. The failed line also exposed two measurement-
+harness defects: nested stage events require a stack, and the validator must
+run with both the repository root and `src` on its import path. Those failures
+are operational evidence only and do not alter the observed CUDA exception.
+
+The smallest selected implementation change is non-reentrant activation
+checkpointing for Student local graph forwards only. It preserves the original
+forward order and recomputes each local forward during backward with preserved
+RNG. Exphormer-MG BatchNorm buffers are isolated per checkpointed view: the
+original forward applies its single running-stat update to the real encoder,
+while recomputation uses private pre-view buffers and cannot update the real
+state. Globals, prediction, Teacher, view construction, graph/channel/edge
+order, dropout order, losses and update order are unchanged.
+
+Synthetic full-step reference-versus-checkpointed tests require exact non-
+timing metrics, every parameter gradient, Student and Teacher state including
+BatchNorm buffers, optimizer state, both centers, RNG and first-step health.
+These CPU exact-effect tests pass; an exact CUDA one-step gate, a fresh eight-
+row capacity lineage, real A0 profiling and serial same-GPU ABBA timing remain
+required before the optimization can be shipped or formal H/L can start.

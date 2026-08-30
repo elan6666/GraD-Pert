@@ -226,6 +226,9 @@ def _native_system_options(config: ExperimentConfig) -> NativeSystemOptions:
         single_checkpoint_serialization=_optional_boolean_parameter(
             config, "systems_single_checkpoint_serialization"
         ),
+        local_activation_checkpointing=_optional_boolean_parameter(
+            config, "systems_local_activation_checkpointing"
+        ),
         pin_memory=_optional_boolean_parameter(config, "systems_pin_memory"),
         nonblocking_transfer=_optional_boolean_parameter(config, "systems_nonblocking_transfer"),
         prefetch_depth=_optional_integer_parameter(config, "systems_prefetch_depth", default=1),
@@ -754,6 +757,7 @@ def run_native_experiment(
             local_view_contract=local_view_contract,
             loss_weights=_native_loss_weights(config),
             resident_graph_tensors=system_options.resident_graph_tensors,
+            checkpoint_student_local_activations=(system_options.local_activation_checkpointing),
             capture_equivalence_health=system_options.enabled,
         )
         checkpoint_identity = CheckpointIdentity(

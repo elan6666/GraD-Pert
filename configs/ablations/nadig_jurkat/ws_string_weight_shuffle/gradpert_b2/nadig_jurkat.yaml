@@ -200,6 +200,10 @@ model:
       value: drop_for_batchnorm
       source: project_preregistered
       reference: docs/design/GRADPERT_V1.md#9-optimization-and-selection
+    systems_local_activation_checkpointing:
+      value: true
+      source: project_preregistered
+      reference: docs/experiments/VNEXT_EXACT_EFFECT_PERFORMANCE.md
     performance_pilot_variant:
       value: vnext_ws_string_weight_shuffle
       source: user_locked

@@ -43,6 +43,7 @@ from gradpert.modeling import (
     update_center,
     update_teacher_ema,
 )
+from gradpert.modeling.modules import ConfigurableGeneGraphEncoder
 from gradpert.training.batch import GraDPertTrainingBatch
 
 
@@ -337,6 +338,7 @@ class GraDPertStepEngine:
         local_view_contract: ResolvedLocalViewContract | None = None,
         loss_weights: LossWeights | None = None,
         resident_graph_tensors: bool = False,
+        checkpoint_student_local_activations: bool = False,
         capture_equivalence_health: bool = False,
         stage_observer: GraDPertStageObserver | None = None,
     ) -> None:
@@ -390,6 +392,7 @@ class GraDPertStepEngine:
             else None
         )
         self.resident_graph_tensors = resident_graph_tensors
+        self.checkpoint_student_local_activations = checkpoint_student_local_activations
         self.capture_equivalence_health = capture_equivalence_health
         self.stage_observer = stage_observer
         self.stage_observer_failures: list[dict[str, object]] = []
@@ -641,7 +644,18 @@ class GraDPertStepEngine:
                 global_step=global_step,
                 local_view_index=local_index,
             ):
-                local_encoded = self.model.student_encoder.forward_many(local_views)
+                if self.checkpoint_student_local_activations and isinstance(
+                    self.model.student_encoder,
+                    ConfigurableGeneGraphEncoder,
+                ):
+                    local_encoded = self.model.student_encoder.forward_many_checkpointed(
+                        local_views
+                    )
+                else:
+                    # Adaptive-source GAT has no sparse-Transformer activation
+                    # path to checkpoint; its original ordered local forwards
+                    # remain the exact implementation.
+                    local_encoded = self.model.student_encoder.forward_many(local_views)
                 local_states: list[Tensor] = []
                 for condition_index, (condition_id, encoded) in enumerate(
                     zip(condition_ids, local_encoded, strict=True)

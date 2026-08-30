@@ -921,6 +921,7 @@ class AtomicStageObserver:
 
     def __init__(self, receipt_path: str | Path, base_receipt: Mapping[str, object]) -> None:
         self.receipt_path = Path(receipt_path)
+        self._active_stage_stack: list[str] = []
         self.receipt: dict[str, object] = {
             "schema_version": "nadig-vnext-performance-stage-progress-v1",
             **dict(base_receipt),
@@ -941,16 +942,18 @@ class AtomicStageObserver:
         events = self.receipt["stage_events"]
         assert isinstance(events, list)
         events.append(event)
+        self._active_stage_stack.append(stage)
         self.receipt["last_entered_stage"] = stage
         self._write()
 
     def completed(self, stage: str, telemetry: Mapping[str, object] | None = None) -> None:
-        if self.receipt["last_entered_stage"] != stage:
+        if not self._active_stage_stack or self._active_stage_stack[-1] != stage:
             raise ValueError("cannot complete a stage that was not the last entered stage")
         event = {"event": "completed", "stage": stage, "telemetry": dict(telemetry or {})}
         events = self.receipt["stage_events"]
         assert isinstance(events, list)
         events.append(event)
+        self._active_stage_stack.pop()
         self.receipt["last_completed_stage"] = stage
         self._write()
 

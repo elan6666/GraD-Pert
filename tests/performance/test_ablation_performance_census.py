@@ -918,6 +918,30 @@ def test_atomic_failure_receipt_preserves_primary_and_teardown_errors(
     assert receipt["teardown_failures"][0]["type"] == "RuntimeError"
 
 
+def test_atomic_stage_observer_accepts_nested_native_phases(
+    census: ModuleType,
+    tmp_path: Path,
+) -> None:
+    receipt_path = tmp_path / "nested.json"
+    observer = census.AtomicStageObserver(receipt_path, {"scope": "performance_training_only"})
+    observer.entered("student_local_index")
+    observer.entered("student_local_view")
+    observer.completed("student_local_view")
+    observer.completed("student_local_index")
+    observer.finalize(result={"steps": 1}, primary_failure=None, teardown_failures=[])
+
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["status"] == "complete"
+    assert receipt["last_entered_stage"] == "student_local_view"
+    assert receipt["last_completed_stage"] == "student_local_index"
+    assert [(event["event"], event["stage"]) for event in receipt["stage_events"]] == [
+        ("entered", "student_local_index"),
+        ("entered", "student_local_view"),
+        ("completed", "student_local_view"),
+        ("completed", "student_local_index"),
+    ]
+
+
 def _records_with_a0_timing(
     census: ModuleType,
     bindings,

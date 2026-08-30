@@ -227,6 +227,60 @@ def test_vnext_transformer_training_view_is_independent_of_companion_views() -> 
     torch.testing.assert_close(paired.node_states, independent.node_states, rtol=0, atol=0)
 
 
+def test_vnext_local_activation_checkpoint_is_exact_for_rng_buffers_and_gradients() -> None:
+    options = _vnext_options()
+    baseline_model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+    )
+    checkpoint_model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+    )
+    checkpoint_model.load_state_dict(baseline_model.state_dict())
+    baseline_model.train()
+    checkpoint_model.train()
+    selected = (_views().locals[0], _views().locals[1])
+
+    torch.manual_seed(20260830)
+    baseline = baseline_model.student_encoder.forward_many(selected)
+    baseline_loss = torch.stack([item.node_states.square().sum() for item in baseline]).sum()
+    baseline_loss.backward()
+    baseline_rng = torch.get_rng_state().clone()
+    baseline_state = {
+        name: value.detach().clone()
+        for name, value in baseline_model.student_encoder.state_dict().items()
+    }
+    baseline_gradients = {
+        name: None if parameter.grad is None else parameter.grad.detach().clone()
+        for name, parameter in baseline_model.student_encoder.named_parameters()
+    }
+
+    torch.manual_seed(20260830)
+    observed = checkpoint_model.student_encoder.forward_many_checkpointed(selected)
+    observed_loss = torch.stack([item.node_states.square().sum() for item in observed]).sum()
+    observed_loss.backward()
+
+    assert torch.equal(observed_loss, baseline_loss)
+    assert torch.equal(torch.get_rng_state(), baseline_rng)
+    for expected, actual in zip(baseline, observed, strict=True):
+        assert expected.node_ids == actual.node_ids
+        assert torch.equal(actual.node_states, expected.node_states)
+    for name, value in checkpoint_model.student_encoder.state_dict().items():
+        assert torch.equal(value, baseline_state[name]), name
+    for name, parameter in checkpoint_model.student_encoder.named_parameters():
+        expected = baseline_gradients[name]
+        if expected is None:
+            assert parameter.grad is None
+        else:
+            assert parameter.grad is not None
+            assert torch.equal(parameter.grad, expected), name
+
+
 @pytest.mark.parametrize(
     "weight_mode",
     ["edge_feature", "fixed_prior", "prior_residual", "shuffled_edge_feature"],

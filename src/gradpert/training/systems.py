@@ -8,7 +8,7 @@ from typing import Any
 
 @dataclass(frozen=True)
 class NativeSystemOptions:
-    """Seven semantics-preserving optimizations and their bounded tunables."""
+    """Semantics-preserving runtime optimizations and their bounded tunables."""
 
     merged_hdf5_reads: bool = False
     control_expression_cache: bool = False
@@ -17,6 +17,7 @@ class NativeSystemOptions:
     validation_expression_cache: bool = False
     buffered_training_logs: bool = False
     single_checkpoint_serialization: bool = False
+    local_activation_checkpointing: bool = False
     pin_memory: bool = False
     nonblocking_transfer: bool = False
     prefetch_depth: int = 1
@@ -34,6 +35,10 @@ class NativeSystemOptions:
         )
         if any(primary) and not all(primary):
             raise ValueError("performance pilots require all seven system optimizations together")
+        if self.local_activation_checkpointing and not all(primary):
+            raise ValueError(
+                "local activation checkpointing requires all seven system optimizations"
+            )
         if self.background_prefetch:
             if not self.pin_memory or not self.nonblocking_transfer:
                 raise ValueError("background prefetch requires pinned nonblocking transfer")

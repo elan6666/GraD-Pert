@@ -153,6 +153,7 @@ def _require_reference_a0(
         "systems_buffered_training_logs": True,
         "systems_log_buffer_steps": 64,
         "systems_single_checkpoint_serialization": True,
+        "systems_local_activation_checkpointing": True,
     }
     observed_parameters = {name: _parameter(config, name) for name in expected_parameters}
     if observed_parameters != expected_parameters:

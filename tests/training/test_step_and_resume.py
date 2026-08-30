@@ -105,12 +105,13 @@ def _vnext_architecture(
     *,
     gene_feature_mode: str = "learned_id",
     decoder_mode: str = "additive",
+    graph_encoder_family: str = "multi_source_sparse_transformer",
 ) -> NativeArchitectureOptions:
     parameters: dict[str, object] = {
         "graph_axis_policy": "canonical_full",
         "graph_hvg_count": 5000,
         "graph_sources": "string_go",
-        "graph_encoder_family": "multi_source_sparse_transformer",
+        "graph_encoder_family": graph_encoder_family,
         "graph_encoder_dropout": 0.1,
         "local_view_builder": "fanout",
         "local_view_node_budget_ratio": "1/2",
@@ -127,10 +128,14 @@ def _vnext_components(
     *,
     gene_feature_mode: str = "learned_id",
     decoder_mode: str = "additive",
+    graph_encoder_family: str = "multi_source_sparse_transformer",
+    checkpoint_student_local_activations: bool = False,
+    capture_equivalence_health: bool = False,
 ):  # type: ignore[no-untyped-def]
     architecture = _vnext_architecture(
         gene_feature_mode=gene_feature_mode,
         decoder_mode=decoder_mode,
+        graph_encoder_family=graph_encoder_family,
     )
     genept = (
         None
@@ -155,6 +160,8 @@ def _vnext_components(
         total_schedule_steps=400,
         heldout_target_ids=(6,),
         architecture=architecture,
+        checkpoint_student_local_activations=checkpoint_student_local_activations,
+        capture_equivalence_health=capture_equivalence_health,
     )
     return model, optimizer, centers, engine
 
@@ -163,6 +170,26 @@ def _seed_all(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+
+
+def _assert_nested_exact(observed, expected) -> None:  # type: ignore[no-untyped-def]
+    if isinstance(expected, torch.Tensor):
+        assert isinstance(observed, torch.Tensor)
+        assert torch.equal(observed, expected)
+        return
+    if isinstance(expected, dict):
+        assert isinstance(observed, dict)
+        assert observed.keys() == expected.keys()
+        for key in expected:
+            _assert_nested_exact(observed[key], expected[key])
+        return
+    if isinstance(expected, (tuple, list)):
+        assert type(observed) is type(expected)
+        assert len(observed) == len(expected)
+        for observed_item, expected_item in zip(observed, expected, strict=True):
+            _assert_nested_exact(observed_item, expected_item)
+        return
+    assert observed == expected
 
 
 def _identity() -> CheckpointIdentity:
@@ -431,6 +458,72 @@ def test_stage_observer_preserves_loss_gradients_rng_and_state() -> None:
         else:
             assert parameter.grad is not None
             assert torch.equal(parameter.grad, expected_gradient)
+    assert torch.equal(observed_centers.condition, baseline_condition_center)
+    assert torch.equal(observed_centers.masked_node, baseline_masked_center)
+
+
+@pytest.mark.parametrize(
+    "graph_encoder_family",
+    ["multi_source_sparse_transformer", "adaptive_relation_gat"],
+)
+def test_local_activation_checkpoint_preserves_complete_first_step_trajectory(
+    graph_encoder_family: str,
+) -> None:
+    batch = GraDPertTrainingBatch(
+        control_expression=torch.arange(10, dtype=torch.float32).reshape(2, 5) / 10,
+        target_expression=torch.arange(10, 20, dtype=torch.float32).reshape(2, 5) / 10,
+        condition_ids=("A+ctrl", "B+ctrl"),
+        anchors_by_condition={"A+ctrl": (0,), "B+ctrl": (1,)},
+        perturbed_row_ids=("p1", "p2"),
+        control_row_ids=("c1", "c2"),
+        perturbed_row_ids_sha256="1" * 64,
+        control_row_ids_sha256="2" * 64,
+        pretransfer_control_sha256="3" * 64,
+        pretransfer_target_sha256="4" * 64,
+    )
+
+    _seed_all(20260830)
+    baseline_model, baseline_optimizer, baseline_centers, baseline = _vnext_components(
+        graph_encoder_family=graph_encoder_family, capture_equivalence_health=True
+    )
+    _seed_all(930)
+    baseline_metrics = baseline.train_step(batch, global_step=0)
+    baseline_rng = torch.get_rng_state().clone()
+    baseline_model_state = {
+        name: value.detach().clone() for name, value in baseline_model.state_dict().items()
+    }
+    baseline_gradients = {
+        name: None if parameter.grad is None else parameter.grad.detach().clone()
+        for name, parameter in baseline_model.named_parameters()
+    }
+    baseline_optimizer_state = baseline_optimizer.state_dict()
+    baseline_condition_center = baseline_centers.condition.detach().clone()
+    baseline_masked_center = baseline_centers.masked_node.detach().clone()
+
+    _seed_all(20260830)
+    observed_model, observed_optimizer, observed_centers, observed = _vnext_components(
+        graph_encoder_family=graph_encoder_family,
+        checkpoint_student_local_activations=True,
+        capture_equivalence_health=True,
+    )
+    _seed_all(930)
+    observed_metrics = observed.train_step(batch, global_step=0)
+
+    for name in baseline_metrics.__dataclass_fields__:
+        if not name.endswith("_ms"):
+            assert getattr(observed_metrics, name) == getattr(baseline_metrics, name), name
+    assert observed.first_step_health == baseline.first_step_health
+    assert torch.equal(torch.get_rng_state(), baseline_rng)
+    for name, value in observed_model.state_dict().items():
+        assert torch.equal(value, baseline_model_state[name]), name
+    for name, parameter in observed_model.named_parameters():
+        expected = baseline_gradients[name]
+        if expected is None:
+            assert parameter.grad is None
+        else:
+            assert parameter.grad is not None
+            assert torch.equal(parameter.grad, expected), name
+    _assert_nested_exact(observed_optimizer.state_dict(), baseline_optimizer_state)
     assert torch.equal(observed_centers.condition, baseline_condition_center)
     assert torch.equal(observed_centers.masked_node, baseline_masked_center)
 

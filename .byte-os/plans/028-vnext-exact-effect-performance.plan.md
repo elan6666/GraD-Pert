@@ -1,9 +1,9 @@
 ---
 id: 028
-status: pending
+status: in_progress
 wave: 4
 depends_on: [031]
-updated_at: 2026-08-29T19:15:00+08:00
+updated_at: 2026-08-30T16:18:00+08:00
 ---
 
 # Plan 028 — B2-vNext measured exact-effect performance engineering
@@ -70,14 +70,26 @@ model operation, update, validation output and prediction exactly unchanged.
 - [ ] Preserve a minimal atomic failure receipt for preflight, training,
       profiler teardown and telemetry failures without masking the primary error.
 
+Observed capacity evidence at sealed commit `b37963e`: A0 completed Student
+globals at about 5.44 GiB allocated, then completed local indices 0/1/2 at
+about 13.92/22.40/30.87 GiB before OOM on local index 3. The approximately
+8.47-GiB retained increase per local index authorizes a capacity fix before the
+ordinary attribution profile. This line is immutable and cannot be relaunched.
+Its validator import failure and nested-observer error are separately preserved
+harness failures; neither is used to classify the CUDA exception as a completed
+capacity receipt.
+
 ### Iteration 2 — smallest measured fix
 
-- [ ] Reproduce the chosen bottleneck in a focused benchmark or profiler test.
-- [ ] Implement the smallest semantics-preserving change.
+- [x] Reproduce the chosen retained-activation lifetime in ordered stage-memory
+      evidence from the real A0 failure.
+- [x] Implement non-reentrant activation checkpointing for Student local sparse-
+      Transformer forwards only.
 - [ ] Preserve exact ordered views, sparse-union tensors, channel and local-edge
       order, per-view BatchNorm execution and dropout RNG.
-- [ ] Compare captured/restored reference/optimized forward tensors, losses,
-      every gradient, model/optimizer/Teacher/center/RNG state exactly.
+- [x] Compare captured/restored reference/optimized forward tensors, losses,
+      every gradient, model/optimizer/Teacher/center/RNG state exactly in a
+      complete synthetic CPU step. Repeat the hard gate on CUDA before shipping.
 - [ ] Retain the already measured Fanout incoming-index optimization for the L1
       path only; do not count it as an A0 speed improvement unless profiling
       executes Fanout.
@@ -95,7 +107,11 @@ model operation, update, validation output and prediction exactly unchanged.
 
 ## Acceptance criteria
 
-- The first server artifact is a reference profile, not an optimized run.
+- Before an optimization is selected, the first server artifact is either a
+  reference profile or a measured reference capacity failure that localizes the
+  blocker. The latter authorizes only a capacity-preserving implementation fix;
+  an optimized run still cannot make a throughput claim without later profile
+  and ABBA evidence.
 - Capacity/profile receipts prove validation and test data handles were never
   constructed; this claim is scoped to post-materialization model fitting and
   does not describe the preregistered full-cell-line HVG preparation.

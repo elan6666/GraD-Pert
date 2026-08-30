@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
 from typing import cast
 
 import torch
 from torch import Tensor, nn
+from torch.func import functional_call
 from torch.nn import functional as F
+from torch.utils.checkpoint import checkpoint
 from torch_geometric.nn import GATv2Conv  # type: ignore[import-untyped]
 
 from gradpert.config.native import NativeArchitectureOptions
@@ -46,6 +49,20 @@ class EncodedGraphView:
         if not anchor_ids:
             raise ValueError("condition requires at least one active anchor")
         return self.node_states_for(anchor_ids).sum(dim=0)
+
+
+class _SparseUnionForwardModule(nn.Module):
+    def __init__(
+        self,
+        backend: SparseGraphTransformerEncoder,
+        union: SparseUnionTensors,
+    ) -> None:
+        super().__init__()
+        self.backend = backend
+        self.union = union
+
+    def forward(self, node_inputs: Tensor) -> Tensor:
+        return self.backend.forward_union(node_inputs, self.union)
 
 
 class _GraphAttentionTower(nn.Module):
@@ -664,6 +681,76 @@ class ConfigurableGeneGraphEncoder(nn.Module):
             EncodedGraphView(node_ids=view.node_ids, node_states=state)
             for view, state in zip(views, splits, strict=True)
         )
+
+    def forward_many_checkpointed(
+        self,
+        views: Sequence[GraphView],
+    ) -> tuple[EncodedGraphView, ...]:
+        """Checkpoint independent sparse training views without changing their order."""
+
+        if not views:
+            raise ValueError("at least one graph view is required")
+        if not self.training or not isinstance(self.backend, SparseGraphTransformerEncoder):
+            return self.forward_many(views)
+
+        encoded: list[EncodedGraphView] = []
+        for view in views:
+            inputs = self._node_inputs(view)
+            union = self._batched_sparse_union((view,), (int(inputs.shape[0]),), self.backend)
+            states = self._checkpoint_sparse_union(inputs, union)
+            encoded.append(EncodedGraphView(node_ids=view.node_ids, node_states=states))
+        return tuple(encoded)
+
+    def _checkpoint_sparse_union(
+        self,
+        inputs: Tensor,
+        union: SparseUnionTensors,
+    ) -> Tensor:
+        if not isinstance(self.backend, SparseGraphTransformerEncoder):
+            raise TypeError("sparse checkpointing requires the sparse Transformer backend")
+        module = _SparseUnionForwardModule(self.backend, union)
+        actual_buffers = dict(module.named_buffers())
+        initial_buffers = {name: value.detach().clone() for name, value in actual_buffers.items()}
+        working_buffers = {name: value.detach().clone() for name, value in initial_buffers.items()}
+
+        def forward_union(node_inputs: Tensor) -> Tensor:
+            return cast(
+                Tensor,
+                functional_call(
+                    module,
+                    working_buffers,
+                    (node_inputs,),
+                    strict=False,
+                ),
+            )
+
+        @contextmanager
+        def reset_recompute_buffers() -> Iterator[None]:
+            working_buffers.clear()
+            working_buffers.update(
+                {name: value.detach().clone() for name, value in initial_buffers.items()}
+            )
+            yield
+
+        def checkpoint_contexts():  # type: ignore[no-untyped-def]
+            return nullcontext(), reset_recompute_buffers()
+
+        states = checkpoint(
+            forward_union,
+            inputs,
+            use_reentrant=False,
+            context_fn=checkpoint_contexts,
+            determinism_check="default",
+            preserve_rng_state=True,
+        )
+        with torch.no_grad():
+            for name, actual in actual_buffers.items():
+                # BatchNorm's native running-stat update does not invalidate
+                # earlier forward graphs.  Mirror that buffer-only behavior;
+                # a normal ``copy_`` would bump the version counter and make
+                # the still-live global-view backward fail.
+                actual.data.copy_(working_buffers[name])
+        return cast(Tensor, states)
 
     def forward(self, view: GraphView) -> EncodedGraphView:
         return self.forward_many((view,))[0]

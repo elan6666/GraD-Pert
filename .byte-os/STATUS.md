@@ -9,10 +9,32 @@ review_verdict: none
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-30T15:14:40+08:00
+updated_at: 2026-08-30T16:12:00+08:00
 ---
 
 # Status
+
+- The clean `b37963e` eight-row sentinel is sealed as failed. A0 entered its
+  first Student-local phase and raised a real CUDA OOM after about 30.65 GiB
+  was allocated; H3 was stopped by the peer-failure gate. Source remained
+  clean, both GPUs were released and the whole lineage retained zero PKL.
+- Preserved stage telemetry localizes the capacity blocker: about 5.44 GiB
+  after Student globals, 13.92/22.40/30.87 GiB after local indices 0/1/2, then
+  OOM while entering local index 3. The roughly 8.47-GiB retained increase per
+  local index is activation-state growth, not allocator fragmentation.
+- The isolated successor implements non-reentrant activation checkpointing for
+  Student local forwards only. It preserves ordered independent forwards and
+  RNG, and isolates stateful Exphormer BatchNorm buffers so recomputation does
+  not apply a second running-stat update. A full synthetic reference-versus-
+  optimized step is bit-exact for non-timing metrics, gradients, optimizer,
+  Student/Teacher state including buffers, centers, RNG and first-step health.
+- The nested stage observer now maintains an active-stage stack, and future
+  queue validators must include both repository root and `src` in their import
+  closure. Current gates pass 437 local non-notebook tests with 10 honest
+  dependency/reference skips and 518 server tests with one honest frozen-
+  reference skip; Ruff/format pass, strict mypy passes on 74 source files and
+  the isolated build succeeds. Fresh exact-commit publication, CUDA capacity/
+  exact-effect/profile and ABBA timing remain pending.
 
 - The user replaced the 25-row CUDA performance census with an exact eight-row
   representative sentinel: A0, H3, L1, L2, M4, W1, D2 and E2. The scientific
