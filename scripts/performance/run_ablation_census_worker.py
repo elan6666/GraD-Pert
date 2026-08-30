@@ -32,6 +32,9 @@ sys.path.insert(0, str(SCRIPT_ROOT))
 import ablation_performance_census as census  # noqa: E402
 
 from gradpert.execution.identity import inspect_source_identity  # noqa: E402
+from gradpert.execution.system_resources import (  # noqa: E402
+    host_available_memory_bytes,
+)
 
 GIB = 1024**3
 SUPPORTED_STAGES = ("p1_capacity", "p2_timing", "diagnostic_profile")
@@ -83,6 +86,7 @@ class WorkerState:
     persistent_pkl_scan: dict[str, object] = field(default_factory=dict)
     terminal_stage_progress: dict[str, object] | None = None
     batch_gate_failure: dict[str, object] | None = None
+    native_runtime_started: bool = False
 
 
 def _sha256_argument(value: str) -> str:
@@ -1136,10 +1140,7 @@ def _resolve_genept_preflight(
 
 
 def _host_available_bytes() -> int | None:
-    try:
-        return int(os.sysconf("SC_AVPHYS_PAGES")) * int(os.sysconf("SC_PAGE_SIZE"))
-    except (OSError, ValueError):
-        return None
+    return host_available_memory_bytes()
 
 
 def _nvidia_rows(fields: Sequence[str], *, compute_apps: bool = False) -> list[dict[str, str]]:
@@ -1880,6 +1881,10 @@ def _build_stage_receipt(
             "receipt_sha256": args.genept_preflight_receipt_sha256,
         },
         "status": "complete" if state.primary_failure is None else "failed",
+        "resource_preflight_failure": (
+            state.primary_failure is not None and not state.native_runtime_started
+        ),
+        "native_runtime_started": state.native_runtime_started,
         "training_only_evidence": training_only,
         "instrumentation": {
             "timing_acceptance": protocol.timing_acceptance,
@@ -1971,6 +1976,10 @@ def _resolve_preclaim_inputs(
         expected_matrix_sha256=args.expected_matrix_sha256,
         variant_id=args.variant_id,
     )
+    try:
+        census.require_performance_sentinel_variant(binding.variant_id)
+    except ValueError as error:
+        raise WorkerGateError(str(error)) from error
     a0_binding = census.bind_matrix_variant(
         args.matrix,
         repository_root=args.repository_root,
@@ -2159,17 +2168,20 @@ def main(argv: list[str] | None = None) -> int:
         if not all(bool(value) for value in predicates.values()):
             raise WorkerGateError("physical GPU/host/disk preflight failed")
         _require_prerequisite_gpu(stage_prerequisite, resource_preflight)
+        runtime = _load_runtime()
+        state.native_runtime_started = True
         state = _execute_bounded_native(
             args,
             binding=binding,
             attempt_root=attempt_root,
-            runtime=_load_runtime(),
+            runtime=runtime,
             resource_preflight=resource_preflight,
             repository_identity=repository_identity,
             genept_preflight=genept_preflight,
             batch_manifest=batch_manifest,
             p0_preflight=p0_preflight,
         )
+        state.native_runtime_started = True
     except BaseException as error:
         resource_preflight = locals().get(
             "resource_preflight",

@@ -1891,3 +1891,81 @@ def test_receipt_construction_failure_writes_minimal_terminal_fallback(
     }
     assert forbidden_measurement_fields.isdisjoint(receipt)
     assert worker.json.loads(receipt_path.read_text(encoding="utf-8")) == receipt
+
+
+def test_resource_failure_receipt_declares_that_native_runtime_never_started(
+    worker: ModuleType,
+    tmp_path: Path,
+) -> None:
+    args = _args(tmp_path, stage_id="p1_capacity")
+    binding = _binding(tmp_path)
+    attempt_root = tmp_path / "resource-failure" / "attempt-001"
+    attempt_root.mkdir(parents=True)
+    state = worker.WorkerState(
+        primary_failure=worker.WorkerGateError("physical GPU/host/disk preflight failed"),
+        repository_identity=_repository_identity(worker, args),
+    )
+    state.final_repository_identity = state.repository_identity
+    state.final_immutable_input_evidence = {
+        "schema_version": "nadig-vnext-performance-immutable-input-audit-v1",
+        "file_count": 1,
+        "files": [
+            {
+                "label": "sealed matrix",
+                "path": str((tmp_path / "matrix.json").resolve()),
+                "sha256": "a" * 64,
+                "size_bytes": 1,
+            }
+        ],
+        "ordered_file_bindings_sha256": "b" * 64,
+    }
+    state.native_identity_receipts = {
+        "schema_version": "nadig-vnext-native-small-identity-bindings-v1",
+        "candidate_names": [],
+        "files": [],
+        "ordered_bindings_sha256": worker._sha256_json([]),
+    }
+    state.persistent_pkl_scan = {
+        "schema_version": "nadig-vnext-performance-zero-pkl-scan-v1",
+        "attempt_root": str(attempt_root),
+        "persistent_pkl_count": 0,
+        "ordered_relative_paths": [],
+        "ordered_relative_paths_sha256": worker._sha256_json([]),
+        "passed": True,
+    }
+    resource = {
+        "schema_version": "nadig-vnext-performance-resource-preflight-v1",
+        "selected_physical_gpu": {"uuid": "GPU-test"},
+        "predicates": {"host_available_at_least_limit": False},
+    }
+
+    receipt = worker._build_stage_receipt(
+        args,
+        binding=binding,
+        attempt_root=attempt_root,
+        resource_preflight=resource,
+        state=state,
+        p0_preflight=_p0_binding(),
+        batch_manifest=_batch_manifest(worker, tmp_path),
+        stage_prerequisite=None,
+    )
+
+    assert receipt["status"] == "failed"
+    assert receipt["resource_preflight_failure"] is True
+    assert receipt["native_runtime_started"] is False
+    assert receipt["native_identity_receipts"]["files"] == []
+
+
+def test_preclaim_rejects_non_sentinel_variant_before_other_prerequisites(
+    worker: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    args = _args(tmp_path, stage_id="p1_capacity")
+    args.variant_id = "o2_no_masked_node"
+    binding = SimpleNamespace(variant_id=args.variant_id)
+    monkeypatch.setattr(worker, "_validate_args", lambda _args: None)
+    monkeypatch.setattr(worker.census, "bind_matrix_variant", lambda *_args, **_kwargs: binding)
+
+    with pytest.raises(worker.WorkerGateError, match="eight-row sentinel"):
+        worker._resolve_preclaim_inputs(args)

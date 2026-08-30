@@ -98,10 +98,45 @@ Every phase attempts an atomic failure receipt even when preflight or profiler
 teardown fails; teardown errors are recorded separately and never replace the
 primary error.
 
+## Representative performance sentinel
+
+Performance capacity and bottleneck discovery use eight representative rows
+from the unchanged 25-row scientific matrix:
+
+| Row | Performance path covered |
+|---|---|
+| A0 `a0_ratio_ring_half` | primary RingInduced-50% optimization target |
+| H3 `h3_hvg5000_ratio_half` | largest runtime graph and worst graph-memory case |
+| L1 `l1_fanout_ratio_half` | alternate Fanout local-view construction |
+| L2 `l2_ring_half_count4` | dynamic four-local path and consistency-term count |
+| M4 `m4_adaptive_source_gat` | alternate multi-source GAT encoder |
+| W1 `w1_string_edge_feature` | STRING edge-feature path |
+| D2 `d2_control_transformer` | heaviest decoder path |
+| E2 `e2_genept_id_residual` | Seed-GO-ProteinPathway full-axis projection |
+
+The sentinel is capacity/performance evidence only and never scientific
+completion. M4 is used instead of M1 because M1 and W1 both exercise the
+single-source STRING-GAT family. An objective-only row is omitted because the
+current native step still computes those auxiliary loss tensors before their
+configured scalar weights are applied; zeroing a weight does not remove that
+compute path. L2 gives more distinct implementation coverage.
+
+P1 runs one complete step for all eight rows. Real profiler attribution remains
+A0-led; later short timing is added only where it helps select or regression-
+check an implementation optimization. The formal A0/H1--H3/L1--L5 experiments
+remain separate fixed 10-epoch scientific runs after exact-effect and matched
+ABBA performance gates pass.
+
 ## Current boundary
 
-The superseded `276d` queue has stopped and its evidence remains immutable. The
-candidate is isolated in a separate worktree. Before any implementation target
-is selected, the new ratio-based A0 configuration and reference path must pass
-source gates, an idle-GPU capacity check, and real server profiling. Strict
-mypy, CUDA exact-effect gates and matched end-to-end timing remain pending.
+The superseded `276d` queue and the failed 25-row P1-v4 launch remain immutable.
+P1-v4 did not enter native/model construction: its host gate used free pages
+after hashing large inputs and falsely reported about 2.2 GiB, while Linux
+`MemAvailable` showed about 241 GiB reclaimable memory. The implementation now
+uses `MemAvailable` and preserves this state as a distinct resource-preflight
+failure instead of demanding nonexistent native identity receipts.
+
+The next lineage uses the exact eight-row sentinel above. Before an
+implementation target is selected, A0 must pass source/resource/capacity gates
+and real server profiling. Strict mypy, CUDA exact-effect gates and matched
+end-to-end timing remain pending.

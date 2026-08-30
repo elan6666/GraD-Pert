@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Frozen protocol and receipt tooling for the 25-row performance census.
+"""Frozen protocol and receipt tooling for the performance sentinel census.
 
 This module does not implement or launch model training.  It binds the exact
-schema-v2 matrix, defines the only accepted bounded measurement stages, seals
-ordered training-batch identities, and aggregates already-produced worker
-receipts without mixing profiler samples into timing evidence.
+schema-v2 scientific matrix, selects the exact representative performance rows,
+defines the only accepted bounded measurement stages, seals ordered training-
+batch identities, and aggregates already-produced worker receipts without
+mixing profiler samples into timing evidence.
 """
 
 from __future__ import annotations
@@ -37,6 +38,27 @@ from gradpert.training.data import CanonicalTrainingData  # noqa: E402
 
 GIB = 1024**3
 A0_VARIANT_ID = "a0_ratio_ring_half"
+PERFORMANCE_SENTINEL_ID = "nadig_jurkat_vnext_performance_sentinel_v1"
+PERFORMANCE_SENTINEL_VARIANT_IDS = (
+    A0_VARIANT_ID,
+    "h3_hvg5000_ratio_half",
+    "l1_fanout_ratio_half",
+    "l2_ring_half_count4",
+    "m4_adaptive_source_gat",
+    "w1_string_edge_feature",
+    "d2_control_transformer",
+    "e2_genept_id_residual",
+)
+PERFORMANCE_SENTINEL_ROLES = {
+    A0_VARIANT_ID: "reference_ring_induced_half",
+    "h3_hvg5000_ratio_half": "maximum_graph_axis_capacity",
+    "l1_fanout_ratio_half": "alternate_local_builder",
+    "l2_ring_half_count4": "reduced_local_view_count",
+    "m4_adaptive_source_gat": "alternate_multi_source_gat_encoder",
+    "w1_string_edge_feature": "edge_feature_path",
+    "d2_control_transformer": "heaviest_decoder_path",
+    "e2_genept_id_residual": "genept_full_axis_projection",
+}
 MATRIX_SCHEMA_VERSION = "2"
 MATRIX_ROW_COUNT = 25
 EXACT_TRAIN_BATCH_SIZE = 256
@@ -61,6 +83,7 @@ EXACT_GENEPT_NATIVE_IDENTITY_FILES = frozenset({"genept_preflight.json", "genept
 
 StageId = Literal["p1_capacity", "p2_timing", "p3_timing", "diagnostic_profile"]
 RowState = Literal[
+    "not_selected_performance_sentinel",
     "unavailable_preflight",
     "blocked_missing_prerequisite",
     "deferred_resource_busy",
@@ -470,6 +493,27 @@ def bind_matrix_variant(
     if len(matches) != 1:
         raise ValueError("performance-census variant is not one exact matrix row")
     return matches[0]
+
+
+def bind_performance_sentinel(
+    bindings: Sequence[FrozenVariantBinding],
+) -> tuple[FrozenVariantBinding, ...]:
+    """Select the exact ordered performance-only sentinel from the 25-row matrix."""
+
+    if (
+        len(bindings) != MATRIX_ROW_COUNT
+        or len({binding.variant_id for binding in bindings}) != MATRIX_ROW_COUNT
+    ):
+        raise ValueError("performance sentinel requires the exact 25-row matrix binding")
+    by_id = {binding.variant_id: binding for binding in bindings}
+    if set(PERFORMANCE_SENTINEL_VARIANT_IDS) - set(by_id):
+        raise ValueError("performance sentinel row is absent from the scientific matrix")
+    return tuple(by_id[variant_id] for variant_id in PERFORMANCE_SENTINEL_VARIANT_IDS)
+
+
+def require_performance_sentinel_variant(variant_id: str) -> None:
+    if variant_id not in PERFORMANCE_SENTINEL_VARIANT_IDS:
+        raise ValueError("bounded performance worker accepts only the frozen eight-row sentinel")
 
 
 def batch_sequence_sha256(batches: Sequence[OrderedBatchIdentity]) -> str:
@@ -1130,6 +1174,134 @@ def _validate_terminal_fallback_stage_receipt(
     }
 
 
+def _validate_resource_preflight_failure_stage_receipt(
+    payload: Mapping[str, object],
+) -> dict[str, object]:
+    primary_failure = payload.get("primary_failure")
+    repository = payload.get("repository_identity")
+    final_repository = payload.get("final_repository_identity")
+    p0_binding = payload.get("p0_preflight")
+    final_immutable_inputs = payload.get("final_immutable_input_evidence")
+    resource = payload.get("resource_preflight")
+    capacity = payload.get("capacity_evidence")
+    persistent_pkl = payload.get("persistent_pkl_scan")
+    native_identity = payload.get("native_identity_receipts")
+    batches = payload.get("batches")
+    steps = payload.get("steps")
+    timing_values = payload.get("timing_samples_ms")
+    if (
+        payload.get("status") != "failed"
+        or payload.get("resource_preflight_failure") is not True
+        or payload.get("native_runtime_started") is not False
+        or payload.get("attempted_batch_count") != 0
+        or payload.get("completed_step_count") != 0
+        or payload.get("observed_step_count") != 0
+        or batches != []
+        or steps != []
+        or timing_values != []
+        or payload.get("batch_gate_failure") is not None
+        or payload.get("teardown_failures") != []
+        or not isinstance(primary_failure, dict)
+        or set(primary_failure) != {"type", "message"}
+        or not all(
+            isinstance(primary_failure.get(name), str) and primary_failure.get(name)
+            for name in ("type", "message")
+        )
+        or primary_failure.get("type") != "WorkerGateError"
+        or primary_failure.get("message") != "physical GPU/host/disk preflight failed"
+    ):
+        raise ValueError("census resource-preflight failure receipt is malformed")
+    manifest_binding = payload.get("frozen_batch_manifest")
+    empty_batch_sha256 = batch_sequence_sha256(())
+    if (
+        not isinstance(manifest_binding, dict)
+        or manifest_binding.get("observed_prefix_count") != 0
+        or manifest_binding.get("observed_prefix_sha256") != empty_batch_sha256
+        or manifest_binding.get("expected_prefix_sha256") != empty_batch_sha256
+        or manifest_binding.get("prefix_matches") is not True
+        or payload.get("batch_sequence_sha256") != empty_batch_sha256
+    ):
+        raise ValueError("census resource-preflight batch evidence differs")
+    initial_repository = _validate_repository_identity(repository, label="initial")
+    terminal_repository = _validate_repository_identity(final_repository, label="final")
+    if any(
+        initial_repository.get(name) != terminal_repository.get(name)
+        for name in _REPOSITORY_IDENTITY_FIELDS
+    ):
+        raise ValueError("resource-preflight failure repository identity changed")
+    if not isinstance(p0_binding, dict):
+        raise ValueError("resource-preflight failure lacks initial immutable inputs")
+    initial_immutable_inputs = _validate_immutable_input_evidence(
+        p0_binding.get("preclaim_immutable_input_evidence"),
+        label="initial",
+    )
+    terminal_immutable_inputs = _validate_immutable_input_evidence(
+        final_immutable_inputs,
+        label="final",
+    )
+    if _sha256_json(initial_immutable_inputs) != _sha256_json(terminal_immutable_inputs):
+        raise ValueError("resource-preflight failure immutable inputs changed")
+    expected_resource_predicates = {
+        "no_competing_compute_processes",
+        "gpu_utilization_at_most_limit",
+        "gpu_memory_used_at_most_limit",
+        "disk_free_at_least_limit",
+        "host_available_at_least_limit",
+    }
+    if (
+        not isinstance(resource, dict)
+        or resource.get("schema_version") != "nadig-vnext-performance-resource-preflight-v1"
+        or not isinstance(resource.get("selected_physical_gpu"), dict)
+        or not isinstance(resource["selected_physical_gpu"].get("uuid"), str)
+        or not resource["selected_physical_gpu"].get("uuid")
+        or not isinstance(resource.get("predicates"), dict)
+        or not resource["predicates"]
+        or set(resource["predicates"]) != expected_resource_predicates
+        or any(not isinstance(value, bool) for value in resource["predicates"].values())
+        or all(value is True for value in resource["predicates"].values())
+    ):
+        raise ValueError("census resource-preflight failure predicates are malformed")
+    expected_capacity_predicates = {
+        "exact_observed_step_count": False,
+        "zero_cuda_allocation_retries_or_ooms": True,
+        "gpu_free_bytes_at_least_required_headroom": False,
+    }
+    if (
+        not isinstance(capacity, dict)
+        or capacity.get("minimum_gpu_free_bytes") != 0
+        or capacity.get("gpu_total_bytes") != 0
+        or not isinstance(capacity.get("required_gpu_free_bytes"), int)
+        or isinstance(capacity.get("required_gpu_free_bytes"), bool)
+        or int(capacity["required_gpu_free_bytes"]) <= 0
+        or capacity.get("cuda_retry_or_oom_counter_max") != 0
+        or capacity.get("predicates") != expected_capacity_predicates
+    ):
+        raise ValueError("census resource-preflight capacity evidence is malformed")
+    if (
+        not isinstance(persistent_pkl, dict)
+        or persistent_pkl.get("schema_version") != "nadig-vnext-performance-zero-pkl-scan-v1"
+        or persistent_pkl.get("passed") is not True
+        or persistent_pkl.get("persistent_pkl_count") != 0
+        or persistent_pkl.get("ordered_relative_paths") != []
+        or not isinstance(native_identity, dict)
+        or native_identity.get("schema_version") != "nadig-vnext-native-small-identity-bindings-v1"
+        or native_identity.get("files") != []
+    ):
+        raise ValueError("census resource-preflight failure PKL/native evidence differs")
+    return {
+        "status": "failed",
+        "terminal_receipt_kind": "resource_preflight_failure",
+        "attempted_batch_count": 0,
+        "completed_step_count": 0,
+        "observed_step_count": 0,
+        "batch_sequence_sha256": empty_batch_sha256,
+        "timing_summary_ms": None,
+        "receipt_primary_failure": primary_failure,
+        "physical_gpu_uuid": resource["selected_physical_gpu"]["uuid"],
+        "stage_prerequisite": payload.get("stage_prerequisite"),
+    }
+
+
 def _validate_stage_receipt(
     payload: Mapping[str, object],
     *,
@@ -1189,6 +1361,15 @@ def _validate_stage_receipt(
     status = payload.get("status")
     if status not in {"complete", "failed"}:
         raise ValueError("census stage status is malformed")
+    if payload.get("resource_preflight_failure") is True:
+        return _validate_resource_preflight_failure_stage_receipt(
+            payload,
+        )
+    if (
+        "resource_preflight_failure" in payload
+        and payload.get("resource_preflight_failure") is not False
+    ):
+        raise ValueError("census resource-preflight failure marker is malformed")
     batches_payload = payload.get("batches")
     if not isinstance(batches_payload, list):
         raise ValueError("census stage receipt lacks ordered batches")
@@ -1372,6 +1553,7 @@ def aggregate_census_report(
         raise ValueError("frozen batch manifest differs from the exact batch 256")
 
     allowed_states: set[str] = {
+        "not_selected_performance_sentinel",
         "unavailable_preflight",
         "blocked_missing_prerequisite",
         "deferred_resource_busy",
@@ -1391,6 +1573,12 @@ def aggregate_census_report(
         raw_stages = record.get("stages", {})
         if not isinstance(raw_stages, dict):
             raise ValueError("census row stages must be an object")
+        is_sentinel = binding.variant_id in PERFORMANCE_SENTINEL_VARIANT_IDS
+        if state == "not_selected_performance_sentinel":
+            if is_sentinel or raw_stages:
+                raise ValueError("performance sentinel selection/state differs")
+        elif not is_sentinel:
+            raise ValueError("non-sentinel row must be marked not selected")
         stage_summaries: dict[str, object] = {}
         for raw_stage_id, evidence in raw_stages.items():
             if raw_stage_id not in STAGE_PROTOCOLS or not isinstance(evidence, dict):
@@ -1474,25 +1662,33 @@ def aggregate_census_report(
         )
 
     counts = Counter(str(record["state"]) for record in row_records)
+    selected_records = [
+        record for record in row_records if record["variant_id"] in PERFORMANCE_SENTINEL_VARIANT_IDS
+    ]
     blocking = sum(
-        counts[state]
-        for state in (
+        1
+        for record in selected_records
+        if record["state"]
+        in {
             "blocked_missing_prerequisite",
             "deferred_resource_busy",
             "execution_failed",
             "p1_pass",
-        )
+        }
     )
+    if any(record["state"] == "not_selected_performance_sentinel" for record in selected_records):
+        raise ValueError("selected performance row cannot be marked not selected")
     measured_20 = len(panel_20)
     if blocking:
         status = "partial_blocked"
-    elif measured_20 == MATRIX_ROW_COUNT:
-        status = "complete_all_25_measured"
+    elif measured_20 == len(PERFORMANCE_SENTINEL_VARIANT_IDS):
+        status = "complete_sentinel_8_measured"
     else:
         status = "complete_with_preregistered_unavailable_or_capacity_failures"
     disposition_sections = {
         state: [str(record["variant_id"]) for record in row_records if record["state"] == state]
         for state in (
+            "not_selected_performance_sentinel",
             "unavailable_preflight",
             "blocked_missing_prerequisite",
             "deferred_resource_busy",
@@ -1506,6 +1702,9 @@ def aggregate_census_report(
         "matrix_id": bindings[0].matrix_id,
         "matrix_sha256": bindings[0].matrix_sha256,
         "row_count": MATRIX_ROW_COUNT,
+        "performance_sentinel_id": PERFORMANCE_SENTINEL_ID,
+        "selected_row_count": len(PERFORMANCE_SENTINEL_VARIANT_IDS),
+        "selected_variant_ids": list(PERFORMANCE_SENTINEL_VARIANT_IDS),
         "stage_protocols": {name: value.payload() for name, value in STAGE_PROTOCOLS.items()},
         "frozen_batch_manifest": {
             "receipt_path": batch_manifest.path,
@@ -1687,8 +1886,13 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--repository-root", type=Path, required=True)
     parser.add_argument("--expected-matrix-sha256", required=True)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    plan = subparsers.add_parser("plan", help="print the frozen 25-row census plan")
+    plan = subparsers.add_parser("plan", help="print the frozen 25-row matrix binding")
     plan.add_argument("--json", action="store_true", dest="as_json")
+    sentinel = subparsers.add_parser(
+        "sentinel-plan",
+        help="print the exact eight-row performance-only sentinel",
+    )
+    sentinel.add_argument("--json", action="store_true", dest="as_json")
     freeze = subparsers.add_parser(
         "freeze-batches",
         help="write the exact CPU-only 110-step training-batch manifest",
@@ -1708,7 +1912,7 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     claimed_output: Path | None = None
-    if args.command != "plan":
+    if args.command not in {"plan", "sentinel-plan"}:
         claim_schema = (
             "nadig-vnext-performance-batch-manifest-claim-v1"
             if args.command == "freeze-batches"
@@ -1745,12 +1949,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                 },
             )
         raise
-    if args.command == "plan":
+    if args.command in {"plan", "sentinel-plan"}:
+        selected = bindings if args.command == "plan" else bind_performance_sentinel(bindings)
         payload = {
-            "schema_version": "nadig-vnext-performance-census-plan-v1",
+            "schema_version": (
+                "nadig-vnext-performance-census-plan-v1"
+                if args.command == "plan"
+                else "nadig-vnext-performance-sentinel-plan-v1"
+            ),
             "matrix_sha256": args.expected_matrix_sha256,
             "stage_protocols": {name: value.payload() for name, value in STAGE_PROTOCOLS.items()},
-            "rows": [binding.payload() for binding in bindings],
+            "performance_sentinel_id": (
+                None if args.command == "plan" else PERFORMANCE_SENTINEL_ID
+            ),
+            "scientific_matrix_row_count": MATRIX_ROW_COUNT,
+            "selected_row_count": len(selected),
+            "selected_variant_ids": [binding.variant_id for binding in selected],
+            "rows": [
+                {
+                    **binding.payload(),
+                    "performance_role": PERFORMANCE_SENTINEL_ROLES.get(binding.variant_id),
+                }
+                for binding in selected
+            ],
+            "scientific_completion": False,
         }
         print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
         return 0

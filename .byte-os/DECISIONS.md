@@ -1,5 +1,23 @@
 # Decision Log
 
+## 2026-08-30
+
+- Use an exact eight-row performance sentinel rather than running bounded
+  performance census stages for all 25 scientific rows: A0, H3, L1, L2, M4,
+  W1, D2 and E2. The source matrix remains 25 rows, and the sentinel cannot
+  satisfy scientific completion.
+- Use M4 rather than M1 because M1 and W1 overlap on the single-source
+  STRING-GAT family. Use L2 rather than an objective-weight row because the
+  current native step computes auxiliary loss tensors before applying their
+  weights, while L2 exercises the distinct four-local implementation path.
+- Run one complete P1 capacity step for all eight. Use A0 for profiler-led
+  optimization selection and add short timing only where it improves a
+  measured decision or regression gate. Formal A0/H/L remains fixed at 10
+  epochs after exact-effect and ABBA performance acceptance.
+- On Linux, resource preflight uses `/proc/meminfo` `MemAvailable`; free-page
+  counts are fallback-only because immutable-input hashing can move hundreds
+  of GiB into reclaimable page cache.
+
 ## 2026-08-29
 
 - Performance optimization compares reference and optimized implementations of

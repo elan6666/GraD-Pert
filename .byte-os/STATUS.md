@@ -9,10 +9,23 @@ review_verdict: none
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-29T20:55:16+08:00
+updated_at: 2026-08-30T15:14:40+08:00
 ---
 
 # Status
+
+- The user replaced the 25-row CUDA performance census with an exact eight-row
+  representative sentinel: A0, H3, L1, L2, M4, W1, D2 and E2. The scientific
+  matrix remains 25 rows; formal A0/H1--H3/L1--L5 remains 10 epochs and starts
+  only after exact-effect optimization review.
+- Preserved P1-v4 stopped before native/model construction. Its A0 resource
+  gate falsely used Linux free pages after multi-gigabyte input hashing (about
+  2.2 GiB) while `MemAvailable` was about 241 GiB. The worker and profiler now
+  share a `MemAvailable`-first probe, and resource-preflight failure has a
+  dedicated receipt path that does not require nonexistent native identities.
+- The eight-row sentinel and the two infrastructure repairs pass 84 focused
+  local tests. Full repository gates, review, publication, fresh server P0/P1
+  lineage and real CUDA profiling remain pending.
 
 - The user replaced every E-row `emb_b` dependency with the GenePT-Seed
   `Seed-GO-ProteinPathway` master artifact (SHA
@@ -20,11 +33,9 @@ updated_at: 2026-08-29T20:55:16+08:00
   Plan 032 selects the exact runtime axis from its 17,730 nonzero 2,048-wide
   vectors; the old 17-missing-target skip no longer describes this lineage.
 
-- User-authorized Plan 031 now precedes implementation optimization: all 25
-  schema-v2 Nadig Jurkat rows enter an adaptive truth-free funnel of static
-  preflight, one complete-step capacity, 5+20 short timing, focused profiler
-  attribution and conditional 10+100 extension. Short runs are performance
-  evidence only and cannot select a scientific row.
+- The Plan 031 25-row CUDA census is superseded by the eight-row performance
+  sentinel. Its 25-row CPU-only static matrix/graph/GenePT validation remains
+  useful prerequisite evidence. Short runs remain performance evidence only.
 - Plan 031's CPU-only launch closure is now implemented in the isolated
   branch. A static P0 tool binds the exact 25-row matrix, clean source content
   tree, canonical/source/split identities, all four nested H axes, every

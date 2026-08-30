@@ -22,6 +22,10 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
+from gradpert.execution.system_resources import (  # noqa: E402
+    host_available_memory_bytes,
+)
+
 GIB = 1024**3
 EXACT_A0_GRAPH_NODE_COUNT = 2809
 EXACT_A0_LOCAL_NODE_BUDGET = 1404
@@ -289,12 +293,7 @@ def _nvidia_snapshot() -> dict[str, object]:
 
 
 def _host_available_bytes() -> int | None:
-    try:
-        pages = int(os.sysconf("SC_AVPHYS_PAGES"))
-        page_size = int(os.sysconf("SC_PAGE_SIZE"))
-    except (OSError, ValueError):
-        return None
-    return pages * page_size
+    return host_available_memory_bytes()
 
 
 def _top_processes() -> dict[str, object]:

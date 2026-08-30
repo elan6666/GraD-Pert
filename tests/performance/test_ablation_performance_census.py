@@ -324,6 +324,64 @@ def _fallback_stage_payload(
     }
 
 
+def _resource_preflight_failure_payload(
+    census: ModuleType,
+    binding,
+    batch_manifest,
+) -> dict[str, object]:
+    payload = _stage_payload(
+        census,
+        binding,
+        "p1_capacity",
+        batch_manifest,
+        p0_preflight_sha256="9" * 64,
+        status="failed",
+    )
+    payload.update(
+        {
+            "resource_preflight_failure": True,
+            "native_runtime_started": False,
+            "resource_preflight": {
+                "schema_version": "nadig-vnext-performance-resource-preflight-v1",
+                "selected_physical_gpu": {"uuid": "GPU-test"},
+                "predicates": {
+                    "no_competing_compute_processes": True,
+                    "gpu_utilization_at_most_limit": True,
+                    "gpu_memory_used_at_most_limit": True,
+                    "disk_free_at_least_limit": True,
+                    "host_available_at_least_limit": False,
+                },
+            },
+            "persistent_pkl_scan": {
+                "schema_version": "nadig-vnext-performance-zero-pkl-scan-v1",
+                "passed": True,
+                "persistent_pkl_count": 0,
+                "ordered_relative_paths": [],
+            },
+            "capacity_evidence": {
+                "minimum_gpu_free_bytes": 0,
+                "gpu_total_bytes": 0,
+                "required_gpu_free_bytes": 4 * 1024**3,
+                "cuda_retry_or_oom_counter_max": 0,
+                "predicates": {
+                    "exact_observed_step_count": False,
+                    "zero_cuda_allocation_retries_or_ooms": True,
+                    "gpu_free_bytes_at_least_required_headroom": False,
+                },
+            },
+            "native_identity_receipts": {
+                "schema_version": "nadig-vnext-native-small-identity-bindings-v1",
+                "files": [],
+            },
+            "primary_failure": {
+                "type": "WorkerGateError",
+                "message": "physical GPU/host/disk preflight failed",
+            },
+        }
+    )
+    return payload
+
+
 def _write_receipt(path: Path, payload: dict[str, object]) -> dict[str, str]:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
@@ -356,6 +414,108 @@ def test_stage_protocols_are_frozen_and_separate_timing_from_profile(census: Mod
     }
     assert protocols["diagnostic_profile"].total_steps == 5
     assert protocols["diagnostic_profile"].timing_acceptance is False
+
+
+def test_performance_sentinel_is_exact_ordered_and_keeps_scientific_matrix_intact(
+    census: ModuleType,
+    bindings,
+) -> None:
+    selected = census.bind_performance_sentinel(bindings)
+
+    assert len(bindings) == 25
+    assert tuple(binding.variant_id for binding in selected) == (
+        "a0_ratio_ring_half",
+        "h3_hvg5000_ratio_half",
+        "l1_fanout_ratio_half",
+        "l2_ring_half_count4",
+        "m4_adaptive_source_gat",
+        "w1_string_edge_feature",
+        "d2_control_transformer",
+        "e2_genept_id_residual",
+    )
+    assert len(selected) == 8
+    assert sum(binding.genept_preflight_required for binding in selected) == 1
+    assert selected[-1].genept_preflight_required is True
+    assert not any(binding.variant_id.startswith("o") for binding in selected)
+    assert set(census.PERFORMANCE_SENTINEL_ROLES) == {binding.variant_id for binding in selected}
+
+
+def test_performance_worker_rejects_every_non_sentinel_matrix_row(
+    census: ModuleType,
+    bindings,
+) -> None:
+    selected_ids = set(census.PERFORMANCE_SENTINEL_VARIANT_IDS)
+    for binding in bindings:
+        if binding.variant_id in selected_ids:
+            census.require_performance_sentinel_variant(binding.variant_id)
+        else:
+            with pytest.raises(ValueError, match="eight-row sentinel"):
+                census.require_performance_sentinel_variant(binding.variant_id)
+
+
+def test_sentinel_plan_cli_emits_only_hash_bound_representative_rows(
+    census: ModuleType,
+    matrix_sha256: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert (
+        census.main(
+            [
+                "--matrix",
+                str(MATRIX),
+                "--repository-root",
+                str(PROJECT_ROOT),
+                "--expected-matrix-sha256",
+                matrix_sha256,
+                "sentinel-plan",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["schema_version"] == "nadig-vnext-performance-sentinel-plan-v1"
+    assert payload["scientific_matrix_row_count"] == 25
+    assert payload["selected_row_count"] == 8
+    assert payload["selected_variant_ids"] == list(census.PERFORMANCE_SENTINEL_VARIANT_IDS)
+    assert [row["variant_id"] for row in payload["rows"]] == payload["selected_variant_ids"]
+    assert all(row["performance_role"] for row in payload["rows"])
+    assert payload["scientific_completion"] is False
+
+
+def test_aggregate_distinguishes_unmeasured_sentinel_from_unselected_matrix_rows(
+    census: ModuleType,
+    bindings,
+    tmp_path: Path,
+) -> None:
+    batch_manifest = _frozen_batch_manifest(census, bindings, tmp_path)
+    selected_ids = set(census.PERFORMANCE_SENTINEL_VARIANT_IDS)
+    records = [
+        {
+            "variant_id": binding.variant_id,
+            "state": (
+                "unavailable_preflight"
+                if binding.variant_id in selected_ids
+                else "not_selected_performance_sentinel"
+            ),
+            "disposition_reason": "synthetic selection boundary",
+            "stages": {},
+        }
+        for binding in bindings
+    ]
+
+    report = census.aggregate_census_report(
+        bindings=bindings,
+        row_records=records,
+        batch_manifest=batch_manifest,
+        p0_preflight_sha256="9" * 64,
+    )
+
+    assert report["performance_sentinel_id"] == census.PERFORMANCE_SENTINEL_ID
+    assert report["selected_row_count"] == 8
+    assert report["selected_variant_ids"] == list(census.PERFORMANCE_SENTINEL_VARIANT_IDS)
+    assert len(report["disposition_sections"]["not_selected_performance_sentinel"]) == 17
 
 
 def test_exact_matrix_binding_covers_25_rows_and_rejects_tampering(
@@ -772,7 +932,11 @@ def _records_with_a0_timing(
             records.append(
                 {
                     "variant_id": binding.variant_id,
-                    "state": "unavailable_preflight",
+                    "state": (
+                        "unavailable_preflight"
+                        if binding.variant_id in census.PERFORMANCE_SENTINEL_VARIANT_IDS
+                        else "not_selected_performance_sentinel"
+                    ),
                     "disposition_reason": "synthetic unavailable",
                     "stages": {},
                 }
@@ -939,7 +1103,15 @@ def test_terminal_fallback_is_preserved_as_execution_failed_without_metrics(
     records = [
         {
             "variant_id": binding.variant_id,
-            "state": "execution_failed" if index == 0 else "unavailable_preflight",
+            "state": (
+                "execution_failed"
+                if index == 0
+                else (
+                    "unavailable_preflight"
+                    if binding.variant_id in census.PERFORMANCE_SENTINEL_VARIANT_IDS
+                    else "not_selected_performance_sentinel"
+                )
+            ),
             "disposition_reason": "synthetic terminal fallback",
             "stages": {"p1_capacity": pointer} if index == 0 else {},
         }
@@ -962,6 +1134,77 @@ def test_terminal_fallback_is_preserved_as_execution_failed_without_metrics(
     with pytest.raises(ValueError, match="cannot expose measurement evidence"):
         census._validate_stage_receipt(
             fallback,
+            binding=bindings[0],
+            stage_id="p1_capacity",
+            batch_manifest=batch_manifest,
+            p0_preflight_sha256="9" * 64,
+        )
+
+
+def test_resource_preflight_failure_preserves_primary_failure_without_native_identity(
+    census: ModuleType,
+    bindings,
+    tmp_path: Path,
+) -> None:
+    batch_manifest = _frozen_batch_manifest(census, bindings, tmp_path)
+    payload = _resource_preflight_failure_payload(census, bindings[0], batch_manifest)
+
+    summary = census._validate_stage_receipt(
+        payload,
+        binding=bindings[0],
+        stage_id="p1_capacity",
+        batch_manifest=batch_manifest,
+        p0_preflight_sha256="9" * 64,
+    )
+
+    assert summary["status"] == "failed"
+    assert summary["terminal_receipt_kind"] == "resource_preflight_failure"
+    assert summary["attempted_batch_count"] == 0
+    assert summary["physical_gpu_uuid"] == "GPU-test"
+    assert summary["receipt_primary_failure"] == payload["primary_failure"]
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    (
+        (
+            lambda payload: payload["resource_preflight"]["predicates"].update(
+                host_available_at_least_limit=True
+            ),
+            "predicates are malformed",
+        ),
+        (
+            lambda payload: payload["native_identity_receipts"].update(
+                files=[{"relative_path": "native-run/small_results/run_meta.json"}]
+            ),
+            "PKL/native evidence differs",
+        ),
+        (
+            lambda payload: payload["final_repository_identity"]["predicates"].update(
+                worktree_clean=False
+            ),
+            "repository identity is not clean",
+        ),
+        (
+            lambda payload: payload.update(primary_failure=None),
+            "receipt is malformed",
+        ),
+    ),
+)
+def test_resource_preflight_failure_rejects_forged_terminal_evidence(
+    census: ModuleType,
+    bindings,
+    tmp_path: Path,
+    mutate,
+    message: str,
+) -> None:
+    batch_manifest = _frozen_batch_manifest(census, bindings, tmp_path)
+    payload = _resource_preflight_failure_payload(census, bindings[0], batch_manifest)
+    mutate(payload)
+
+    with pytest.raises(ValueError, match=message):
+        census._validate_stage_receipt(
+            payload,
             binding=bindings[0],
             stage_id="p1_capacity",
             batch_manifest=batch_manifest,
