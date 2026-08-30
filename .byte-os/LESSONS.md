@@ -42,3 +42,17 @@
 - Prevention: exact-effect tests compare every output, loss, gradient,
   optimizer state, Student and Teacher parameter/buffer state, centers and RNG
   after a complete step. An output-only checkpoint test is insufficient.
+
+## Receipt producers and validators must share one exact predicate schema
+
+- Mistake: the P1 worker emitted the valid
+  `publication_receipt_equals_p0` source predicate, but the terminal validator's
+  exact allowlist omitted it. After the import path was repaired, the validator
+  still rejected every legitimate terminal receipt as malformed.
+- Correct evidence: a replay with repository root plus `src` on `PYTHONPATH`
+  reaches the validator; a synthetic copy of the preserved exact CUDA-OOM
+  receipt with the unrelated old observer failure removed is then classified
+  as `capacity_failed` with exit code 10.
+- Prevention: derive producer and validator keys from one shared constant and
+  keep an end-to-end replay test. Unit fixtures must include every field the
+  real producer emits; a self-consistent reduced fixture can hide schema drift.

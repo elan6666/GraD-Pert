@@ -180,6 +180,7 @@ def _repository_identity_payload() -> dict[str, object]:
             "remote_ref_equals_p0": True,
             "source_content_tree_equals_p0": True,
             "remote_url_equals_p0": True,
+            "publication_receipt_equals_p0": True,
         },
     }
 
@@ -1078,6 +1079,12 @@ def test_complete_stage_rejects_terminal_source_and_immutable_input_forgeries(
             "final repository identity is not clean",
             lambda forged: forged["final_repository_identity"]["predicates"].__setitem__(
                 "worktree_clean", False
+            ),
+        ),
+        (
+            "final repository identity is not clean",
+            lambda forged: forged["final_repository_identity"]["predicates"].__setitem__(
+                "publication_receipt_equals_p0", False
             ),
         ),
         (

@@ -1048,6 +1048,7 @@ _REPOSITORY_PREDICATES = frozenset(
         "remote_ref_equals_p0",
         "source_content_tree_equals_p0",
         "remote_url_equals_p0",
+        "publication_receipt_equals_p0",
     }
 )
 

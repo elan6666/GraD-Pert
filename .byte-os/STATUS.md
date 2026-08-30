@@ -9,7 +9,7 @@ review_verdict: none
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-30T16:12:00+08:00
+updated_at: 2026-08-30T17:04:00+08:00
 ---
 
 # Status
@@ -30,7 +30,11 @@ updated_at: 2026-08-30T16:12:00+08:00
   Student/Teacher state including buffers, centers, RNG and first-step health.
 - The nested stage observer now maintains an active-stage stack, and future
   queue validators must include both repository root and `src` in their import
-  closure. Current gates pass 437 local non-notebook tests with 10 honest
+  closure. A prelaunch replay additionally found and repaired an exact-schema
+  mismatch: the worker emitted `publication_receipt_equals_p0` but the terminal
+  validator allowlist omitted it. The corrected validator classifies an exact
+  CUDA allocator OOM as capacity evidence only when observer/source/input/PKL
+  gates are intact. Current gates pass 437 local non-notebook tests with 10 honest
   dependency/reference skips and 518 server tests with one honest frozen-
   reference skip; Ruff/format pass, strict mypy passes on 74 source files and
   the isolated build succeeds. Fresh exact-commit publication, CUDA capacity/
