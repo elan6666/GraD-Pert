@@ -177,6 +177,7 @@ def test_vnext_resident_graph_contract_caches_sparse_prediction_union() -> None:
     payload = model.student_encoder.resident_graph_tensor_payload()
     assert payload["active"] is True
     assert payload["sparse_union_active"] is True
+    assert payload["sparse_union_implementation"] == "cpu_vectorized"
     assert payload["sparse_union_edge_count"] > 0
     assert payload["sparse_union_channel_names"] == [
         "string",
@@ -195,6 +196,75 @@ def test_vnext_resident_graph_contract_caches_sparse_prediction_union() -> None:
         is model.student_encoder._resident_sparse_union
     )
     torch.testing.assert_close(after, before, rtol=0, atol=0)
+
+
+def test_sparse_union_implementation_selector_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", "unknown")
+    with pytest.raises(ValueError, match="reference or cpu_vectorized"):
+        GraDPertJointModel(
+            graph_gene_count=7,
+            expression_gene_count=5,
+            prototype_count=8192,
+            architecture=_vnext_options(),
+        )
+
+
+def test_cpu_vectorized_sparse_union_is_exact_for_training_state_and_gradients(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    options = _vnext_options()
+    monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", "reference")
+    reference_model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+    )
+    monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", "cpu_vectorized")
+    optimized_model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+    )
+    optimized_model.load_state_dict(reference_model.state_dict())
+    reference_model.train()
+    optimized_model.train()
+    selected = (_views().globals[0], _views().locals[0], _views().locals[1])
+
+    torch.manual_seed(20260830)
+    reference = reference_model.student_encoder.forward_many_checkpointed(selected)
+    reference_loss = torch.stack([item.node_states.square().sum() for item in reference]).sum()
+    reference_loss.backward()
+    reference_rng = torch.get_rng_state().clone()
+    reference_state = {
+        name: value.detach().clone()
+        for name, value in reference_model.student_encoder.state_dict().items()
+    }
+    reference_gradients = {
+        name: None if parameter.grad is None else parameter.grad.detach().clone()
+        for name, parameter in reference_model.student_encoder.named_parameters()
+    }
+
+    torch.manual_seed(20260830)
+    optimized = optimized_model.student_encoder.forward_many_checkpointed(selected)
+    optimized_loss = torch.stack([item.node_states.square().sum() for item in optimized]).sum()
+    optimized_loss.backward()
+
+    assert torch.equal(optimized_loss, reference_loss)
+    assert torch.equal(torch.get_rng_state(), reference_rng)
+    for expected, actual in zip(reference, optimized, strict=True):
+        assert expected.node_ids == actual.node_ids
+        assert torch.equal(actual.node_states, expected.node_states)
+    for name, value in optimized_model.student_encoder.state_dict().items():
+        assert torch.equal(value, reference_state[name]), name
+    for name, parameter in optimized_model.student_encoder.named_parameters():
+        expected = reference_gradients[name]
+        if expected is None:
+            assert parameter.grad is None
+        else:
+            assert parameter.grad is not None
+            assert torch.equal(parameter.grad, expected), name
 
 
 def test_vnext_transformer_training_view_is_independent_of_companion_views() -> None:

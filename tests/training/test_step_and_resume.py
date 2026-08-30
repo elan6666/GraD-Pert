@@ -528,6 +528,70 @@ def test_local_activation_checkpoint_preserves_complete_first_step_trajectory(
     assert torch.equal(observed_centers.masked_node, baseline_masked_center)
 
 
+def test_cpu_vectorized_sparse_union_preserves_complete_first_step_trajectory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    batch = GraDPertTrainingBatch(
+        control_expression=torch.arange(10, dtype=torch.float32).reshape(2, 5) / 10,
+        target_expression=torch.arange(10, 20, dtype=torch.float32).reshape(2, 5) / 10,
+        condition_ids=("A+ctrl", "B+ctrl"),
+        anchors_by_condition={"A+ctrl": (0,), "B+ctrl": (1,)},
+        perturbed_row_ids=("p1", "p2"),
+        control_row_ids=("c1", "c2"),
+        perturbed_row_ids_sha256="1" * 64,
+        control_row_ids_sha256="2" * 64,
+        pretransfer_control_sha256="3" * 64,
+        pretransfer_target_sha256="4" * 64,
+    )
+
+    monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", "reference")
+    _seed_all(20260830)
+    reference_model, reference_optimizer, reference_centers, reference = _vnext_components(
+        checkpoint_student_local_activations=True,
+        capture_equivalence_health=True,
+    )
+    _seed_all(930)
+    reference_metrics = reference.train_step(batch, global_step=0)
+    reference_rng = torch.get_rng_state().clone()
+    reference_model_state = {
+        name: value.detach().clone() for name, value in reference_model.state_dict().items()
+    }
+    reference_gradients = {
+        name: None if parameter.grad is None else parameter.grad.detach().clone()
+        for name, parameter in reference_model.named_parameters()
+    }
+    reference_optimizer_state = reference_optimizer.state_dict()
+    reference_condition_center = reference_centers.condition.detach().clone()
+    reference_masked_center = reference_centers.masked_node.detach().clone()
+
+    monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", "cpu_vectorized")
+    _seed_all(20260830)
+    optimized_model, optimized_optimizer, optimized_centers, optimized = _vnext_components(
+        checkpoint_student_local_activations=True,
+        capture_equivalence_health=True,
+    )
+    _seed_all(930)
+    optimized_metrics = optimized.train_step(batch, global_step=0)
+
+    for name in reference_metrics.__dataclass_fields__:
+        if not name.endswith("_ms"):
+            assert getattr(optimized_metrics, name) == getattr(reference_metrics, name), name
+    assert optimized.first_step_health == reference.first_step_health
+    assert torch.equal(torch.get_rng_state(), reference_rng)
+    for name, value in optimized_model.state_dict().items():
+        assert torch.equal(value, reference_model_state[name]), name
+    for name, parameter in optimized_model.named_parameters():
+        expected = reference_gradients[name]
+        if expected is None:
+            assert parameter.grad is None
+        else:
+            assert parameter.grad is not None
+            assert torch.equal(parameter.grad, expected), name
+    _assert_nested_exact(optimized_optimizer.state_dict(), reference_optimizer_state)
+    assert torch.equal(optimized_centers.condition, reference_condition_center)
+    assert torch.equal(optimized_centers.masked_node, reference_masked_center)
+
+
 def test_stage_observer_reports_mid_step_primary_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     events: list[GraDPertStageEvent] = []
 

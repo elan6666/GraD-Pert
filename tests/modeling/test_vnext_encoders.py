@@ -15,6 +15,7 @@ from gradpert.modeling.encoders import (  # noqa: E402
     StringWeightMode,
     _prepare_normalized_string_weights,
     build_sparse_union,
+    build_sparse_union_from_ordered_pairs,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -90,6 +91,53 @@ def test_sparse_union_matches_the_frozen_official_multihot_fixture() -> None:
             union.edge_index.t().tolist(), union.edge_membership.tolist(), strict=True
         )
     ] == golden["ordered_by_edge"]
+
+
+@pytest.mark.parametrize("expander_degree", [0, 3])
+def test_cpu_pair_sparse_union_is_bitwise_reference_exact(expander_degree: int) -> None:
+    string, go = _graphs()
+    reference = build_sparse_union(
+        node_count=5,
+        sources=(string, go),
+        expected_names=("string", "go"),
+        add_reverse_edges=True,
+        add_self_loops=True,
+        expander_degree=expander_degree,
+    )
+    optimized = build_sparse_union_from_ordered_pairs(
+        node_count=5,
+        sources=(
+            (
+                "string",
+                tuple(
+                    zip(
+                        string.edge_index[0].tolist(),
+                        string.edge_index[1].tolist(),
+                        strict=True,
+                    )
+                ),
+            ),
+            (
+                "go",
+                tuple(
+                    zip(
+                        go.edge_index[0].tolist(),
+                        go.edge_index[1].tolist(),
+                        strict=True,
+                    )
+                ),
+            ),
+        ),
+        expected_names=("string", "go"),
+        device=string.edge_index.device,
+        add_reverse_edges=True,
+        add_self_loops=True,
+        expander_degree=expander_degree,
+    )
+    assert optimized.channel_names == reference.channel_names
+    assert torch.equal(optimized.edge_index, reference.edge_index)
+    assert torch.equal(optimized.edge_membership, reference.edge_membership)
+    assert torch.equal(optimized.local_edge_index, reference.local_edge_index)
 
 
 @pytest.mark.parametrize(

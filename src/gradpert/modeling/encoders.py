@@ -12,8 +12,9 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from math import sqrt
-from typing import cast
+from typing import Any, cast
 
+import numpy as np
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
@@ -46,6 +47,9 @@ class SparseUnionTensors:
     edge_membership: Tensor
     local_edge_index: Tensor
     channel_names: tuple[str, ...]
+
+
+OrderedGraphSourcePairs = tuple[tuple[str, tuple[tuple[int, int], ...]], ...]
 
 
 def _validate_sources(
@@ -453,6 +457,80 @@ def build_sparse_union(
         edge_index=edge_index,
         edge_membership=membership_tensor,
         local_edge_index=sources[0].edge_index,
+        channel_names=tuple(name for name, _ in channels),
+    )
+
+
+def build_sparse_union_from_ordered_pairs(
+    *,
+    node_count: int,
+    sources: OrderedGraphSourcePairs,
+    expected_names: tuple[str, ...],
+    device: torch.device,
+    add_reverse_edges: bool = True,
+    add_self_loops: bool = True,
+    expander_degree: int = 3,
+) -> SparseUnionTensors:
+    """Build the exact sparse union without a device-to-host edge round trip."""
+
+    if node_count <= 0:
+        raise ValueError("node_count must be positive")
+    names = tuple(name for name, _ in sources)
+    if names != expected_names:
+        raise ValueError(f"ordered graph sources must be {expected_names}, received {names}")
+    if len(set(names)) != len(names):
+        raise ValueError("graph source names must be unique")
+    if not sources:
+        raise ValueError("sparse graph Transformer requires at least one source")
+    for source_name, pairs in sources:
+        if any(
+            source < 0 or source >= node_count or target < 0 or target >= node_count
+            for source, target in pairs
+        ):
+            raise ValueError(f"{source_name} edge index is outside the shared node axis")
+
+    channels: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    for source_name, pairs in sources:
+        channels.append((source_name, pairs))
+        if add_reverse_edges and not _is_undirected(pairs):
+            channels.append((f"{source_name}:reverse", tuple((b, a) for a, b in pairs)))
+    if add_self_loops:
+        channels.append(("self", tuple((node, node) for node in range(node_count))))
+    if expander_degree > 0:
+        channels.append(("expander", _expander_pairs(node_count, expander_degree)))
+    if not channels:
+        raise ValueError("sparse graph Transformer requires at least one edge channel")
+
+    pair_arrays: list[np.ndarray[Any, np.dtype[np.int64]]] = []
+    channel_arrays: list[np.ndarray[Any, np.dtype[np.int64]]] = []
+    for channel_index, (_, pairs) in enumerate(channels):
+        pair_array = np.asarray(pairs, dtype=np.int64).reshape(-1, 2)
+        pair_arrays.append(pair_array)
+        channel_arrays.append(np.full(pair_array.shape[0], channel_index, dtype=np.int64))
+    all_pairs = np.concatenate(pair_arrays, axis=0)
+    all_channels = np.concatenate(channel_arrays, axis=0)
+    if all_pairs.shape[0] == 0:
+        raise ValueError("sparse graph Transformer requires at least one materialized edge")
+    order = np.lexsort((all_pairs[:, 1], all_pairs[:, 0]))
+    sorted_pairs = all_pairs[order]
+    sorted_channels = all_channels[order]
+    unique_start = np.ones(sorted_pairs.shape[0], dtype=np.bool_)
+    unique_start[1:] = np.any(sorted_pairs[1:] != sorted_pairs[:-1], axis=1)
+    group_ids = np.cumsum(unique_start, dtype=np.int64) - 1
+    ordered_edges = np.ascontiguousarray(sorted_pairs[unique_start])
+    membership = np.zeros((ordered_edges.shape[0], len(channels)), dtype=np.float32)
+    membership[group_ids, sorted_channels] = 1.0
+    first_source_pairs = np.asarray(sources[0][1], dtype=np.int64).reshape(-1, 2)
+
+    edge_index = torch.as_tensor(ordered_edges, device=device, dtype=torch.long).t().contiguous()
+    membership_tensor = torch.as_tensor(membership, device=device, dtype=torch.float32)
+    local_edge_index = (
+        torch.as_tensor(first_source_pairs, device=device, dtype=torch.long).t().contiguous()
+    )
+    return SparseUnionTensors(
+        edge_index=edge_index,
+        edge_membership=membership_tensor,
+        local_edge_index=local_edge_index,
         channel_names=tuple(name for name, _ in channels),
     )
 

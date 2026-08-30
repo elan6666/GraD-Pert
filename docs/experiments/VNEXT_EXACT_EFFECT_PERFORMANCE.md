@@ -60,6 +60,33 @@ real A0 must first show its profiler counts and stage costs. Training views must
 remain independent because Exphormer-MG BatchNorm running statistics and
 dropout RNG order are scientific state.
 
+This hypothesis is now confirmed by two sealed real-A0 diagnostics at clean
+commit `a7beebf`. The five-step Torch profile records about 11.3--12.0 seconds
+per warm/profile step; Student locals account for 7.9--8.43 seconds (about
+68--70%). The separate cProfile attempt completed the same five-step
+training-only protocol and attributes 55.481 seconds cumulative to 345
+`_batched_sparse_union` calls and 52.829 seconds to 342 `build_sparse_union`
+calls. By contrast, `_local_scalar_dense` contributes only about 14 ms across
+the three Torch-profiled steps, so host scalar synchronization alone is not the
+selected explanation.
+
+The smallest selected throughput change is an ordered CPU-vectorized sparse
+union. It consumes the existing ordered per-source graph-view pairs, preserves
+the exact lexicographic edge/channel and first-source local-edge order, and
+transfers only the final edge index, membership and local-edge tensors. A
+same-commit environment selector retains the reference implementation for the
+exact CUDA hard gate and ABBA comparison; the selected implementation is
+written into the resident graph runtime receipt.
+
+On the real A0 first batch (8 unique conditions, 2 globals plus 64 locals,
+every local exactly 1,404 nodes), three CPU repetitions gave reference times
+of 8,214.3/8,327.9/8,276.7 ms and optimized times of
+2,312.5/2,310.5/2,308.7 ms for all 66 unions. Every union tensor was exactly
+equal. The medians are 8,276.7 and 2,310.5 ms: 3.58x speedup and 72.1 percent
+reduction for union preparation. This microbenchmark is target-specific
+evidence, not an end-to-end throughput claim; the latter still requires serial
+same-GPU ABBA.
+
 ## Exact-effect gates
 
 - Exact node IDs and ordered per-source edges/weights for every view.

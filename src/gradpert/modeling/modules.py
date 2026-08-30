@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
@@ -26,6 +27,7 @@ from gradpert.modeling.encoders import (
     StringWeightMode,
     _prepare_normalized_string_weights,
     build_sparse_union,
+    build_sparse_union_from_ordered_pairs,
 )
 
 
@@ -404,6 +406,12 @@ class ConfigurableGeneGraphEncoder(nn.Module):
             }:
                 self.gene_embeddings.requires_grad_(False)
         self.backend = _native_graph_backend(options)
+        self.sparse_union_implementation = os.environ.get(
+            "GRADPERT_SPARSE_UNION_IMPL",
+            "cpu_vectorized",
+        )
+        if self.sparse_union_implementation not in {"reference", "cpu_vectorized"}:
+            raise ValueError("GRADPERT_SPARSE_UNION_IMPL must be reference or cpu_vectorized")
         self._resident_prediction_view: GraphView | None = None
         self._resident_source_tensors: tuple[GraphSourceTensors, ...] | None = None
         self._resident_sparse_union: SparseUnionTensors | None = None
@@ -552,13 +560,10 @@ class ConfigurableGeneGraphEncoder(nn.Module):
         self._resident_prediction_view = prediction_view
         self._resident_source_tensors = self._source_tensors(prediction_view)
         if isinstance(self.backend, SparseGraphTransformerEncoder):
-            self._resident_sparse_union = build_sparse_union(
-                node_count=self.n_genes,
-                sources=self._resident_source_tensors,
-                expected_names=self.backend.source_names,
-                add_reverse_edges=self.backend.add_reverse_edges,
-                add_self_loops=self.backend.add_self_loops,
-                expander_degree=self.backend.expander_degree,
+            self._resident_sparse_union = self._single_sparse_union(
+                prediction_view,
+                self.n_genes,
+                self.backend,
             )
         else:
             self._resident_sparse_union = None
@@ -572,6 +577,7 @@ class ConfigurableGeneGraphEncoder(nn.Module):
                 source.name: int(source.edge_index.shape[1]) for source in sources
             },
             "sparse_union_active": self._resident_sparse_union is not None,
+            "sparse_union_implementation": self.sparse_union_implementation,
             "sparse_union_edge_count": (
                 int(self._resident_sparse_union.edge_index.shape[1])
                 if self._resident_sparse_union is not None
@@ -630,14 +636,7 @@ class ConfigurableGeneGraphEncoder(nn.Module):
         fixed = {name: index for index, name in enumerate(backend.edge_channel_names)}
         offset = 0
         for view, count in zip(views, node_counts, strict=True):
-            union = build_sparse_union(
-                node_count=count,
-                sources=self._source_tensors(view),
-                expected_names=backend.source_names,
-                add_reverse_edges=backend.add_reverse_edges,
-                add_self_loops=backend.add_self_loops,
-                expander_degree=backend.expander_degree,
-            )
+            union = self._single_sparse_union(view, count, backend)
             aligned = union.edge_membership.new_zeros((union.edge_membership.shape[0], len(fixed)))
             for index, name in enumerate(union.channel_names):
                 aligned[:, fixed[name]] = union.edge_membership[:, index]
@@ -650,6 +649,42 @@ class ConfigurableGeneGraphEncoder(nn.Module):
             edge_membership=torch.cat(memberships, dim=0),
             local_edge_index=torch.cat(local_indices, dim=1),
             channel_names=backend.edge_channel_names,
+        )
+
+    def _single_sparse_union(
+        self,
+        view: GraphView,
+        node_count: int,
+        backend: SparseGraphTransformerEncoder,
+    ) -> SparseUnionTensors:
+        if self.sparse_union_implementation == "reference":
+            return build_sparse_union(
+                node_count=node_count,
+                sources=self._source_tensors(view),
+                expected_names=backend.source_names,
+                add_reverse_edges=backend.add_reverse_edges,
+                add_self_loops=backend.add_self_loops,
+                expander_degree=backend.expander_degree,
+            )
+        local_by_global = {node_id: index for index, node_id in enumerate(view.node_ids)}
+        ordered_sources = tuple(
+            (
+                source_name,
+                tuple(
+                    (local_by_global[edge.source], local_by_global[edge.target])
+                    for edge in view.edges_by_source[source_name]
+                ),
+            )
+            for source_name in self.options.graph_sources
+        )
+        return build_sparse_union_from_ordered_pairs(
+            node_count=node_count,
+            sources=ordered_sources,
+            expected_names=backend.source_names,
+            device=self.gene_embeddings.device,
+            add_reverse_edges=backend.add_reverse_edges,
+            add_self_loops=backend.add_self_loops,
+            expander_degree=backend.expander_degree,
         )
 
     def forward_many(self, views: Sequence[GraphView]) -> tuple[EncodedGraphView, ...]:

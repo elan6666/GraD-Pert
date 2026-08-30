@@ -1,5 +1,21 @@
 # Lessons
 
+## Cross-profile attribution should choose the smallest measured boundary
+
+- Mistake avoided: static inspection suggested both scalar GPU synchronization
+  and sparse-union construction, but either could have been too small to matter
+  on the real A0 path.
+- Correct evidence: the Torch profile found only about 14 ms of
+  `_local_scalar_dense` across three profiled steps, while an independent
+  five-step cProfile attributed 52.829 seconds cumulative to 342
+  `build_sparse_union` calls. A real first-batch CPU microbenchmark then showed
+  exact tensors with median union preparation falling from 8,276.7 to
+  2,310.5 ms.
+- Prevention: require a stage profile, a second profiler at the suspected
+  implementation boundary, and an exact real-shape microbenchmark before
+  editing. Optimize only that boundary, preserve a same-commit reference path,
+  and reserve end-to-end claims for serial same-GPU ABBA.
+
 ## Linux capacity checks must use reclaimable available memory
 
 - Mistake: the CUDA preflight used `SC_AVPHYS_PAGES`, which measures currently

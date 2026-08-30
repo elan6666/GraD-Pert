@@ -9,10 +9,30 @@ review_verdict: none
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-30T17:04:00+08:00
+updated_at: 2026-08-30T19:17:00+08:00
 ---
 
 # Status
+
+- The clean `a7beebf` eight-row sentinel is sealed: A0/H3/L1/L2/D2/E2 pass
+  one complete training-only step; M4 is an authorized CUDA-OOM capacity
+  failure and W1 an authorized post-step memory-headroom failure. The A0 Torch
+  profile records 11.3--12.0 seconds per warm/profile step, with Student locals
+  at 7.9--8.43 seconds (about 68--70%). The independent cProfile attempt
+  completed five steps and attributes 55.481 seconds cumulative to 345
+  `_batched_sparse_union` calls and 52.829 seconds to 342 `build_sparse_union`
+  calls. Both profiles are truth-free performance evidence with zero PKL.
+- The isolated candidate now replaces only sparse-union preparation with an
+  exact ordered CPU-vectorized implementation and keeps a same-commit
+  `reference` selector. Server Torch tests prove bit-exact union tensors and a
+  complete first-step trajectory including non-timing metrics, views, RNG,
+  every gradient, model/optimizer/Teacher state and centers. On the real A0
+  first batch (8 conditions, 66 views, 1,404-node locals), exact CPU union
+  preparation fell from median 8,276.7 ms to 2,310.5 ms (3.58x, 72.1%). Full
+  candidate gates pass 523 server tests with one honest frozen-reference skip,
+  Ruff, format on 247 files, strict mypy on 74 source files and an isolated
+  build. Clean-commit CUDA exact-effect hard gate and serial ABBA timing remain
+  pending.
 
 - The clean `b37963e` eight-row sentinel is sealed as failed. A0 entered its
   first Student-local phase and raised a real CUDA OOM after about 30.65 GiB

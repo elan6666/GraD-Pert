@@ -3,7 +3,7 @@ id: 028
 status: in_progress
 wave: 4
 depends_on: [031]
-updated_at: 2026-08-30T16:18:00+08:00
+updated_at: 2026-08-30T19:17:00+08:00
 ---
 
 # Plan 028 — B2-vNext measured exact-effect performance engineering
@@ -49,23 +49,23 @@ model operation, update, validation output and prediction exactly unchanged.
 
 ### Iteration 1 — unoptimized real A0 profile
 
-- [ ] Publish/synchronize a clean reference commit after plan 029 gates.
-- [ ] Bind the profiler to a hash-pinned A0 contract covering config bytes,
+- [x] Publish/synchronize a clean reference commit after plan 029 gates.
+- [x] Bind the profiler to a hash-pinned A0 contract covering config bytes,
       protocol/split, graph manifest/gene/source/topology hashes, optimizer,
       loss, systems, artifact mode and physical GPU identity.
-- [ ] Verify one idle physical GPU and no competing host/storage workload.
-- [ ] Run a training-only bounded real-data capacity gate without constructing
+- [x] Verify one idle physical GPU and no competing host/storage workload.
+- [x] Run a training-only bounded real-data capacity gate without constructing
       validation or test data. Stop immediately after the declared step count;
       do not produce or transfer an additional batch.
-- [ ] Fail capacity on allocator retries/OOMs, non-finite state, occupied GPU,
+- [x] Fail capacity on allocator retries/OOMs, non-finite state, occupied GPU,
       insufficient disk/RAM, or remaining VRAM below
       `max(4 GiB, 15% physical VRAM)`.
-- [ ] Record warmup-excluded stage distributions, peak memory, GPU UUID/driver/
+- [x] Record warmup-excluded stage distributions, peak memory, GPU UUID/driver/
       clocks/power/temperature/utilization, CPU/RAM/disk/thread state.
-- [ ] Capture profiler counts and time for view construction, union preparation,
+- [x] Capture profiler counts and time for view construction, union preparation,
       `_local_scalar_dense`, D2H/H2D, Teacher global, Student global, Student
       local, prediction and backward.
-- [ ] Select an implementation target only if the measured evidence shows a
+- [x] Select an implementation target only if the measured evidence shows a
       material residual contribution. Record a no-change decision if it does not.
 - [ ] Preserve a minimal atomic failure receipt for preflight, training,
       profiler teardown and telemetry failures without masking the primary error.
@@ -90,6 +90,13 @@ capacity receipt.
 - [x] Compare captured/restored reference/optimized forward tensors, losses,
       every gradient, model/optimizer/Teacher/center/RNG state exactly in a
       complete synthetic CPU step. Repeat the hard gate on CUDA before shipping.
+- [x] Select sparse-union preparation as the only throughput target after the
+      sealed Torch and Python profiles. Implement an exact ordered CPU-native
+      union that transfers only final tensors and retains a same-commit
+      `reference` selector for the CUDA hard gate and ABBA comparison.
+- [x] Prove exact union tensors on the real A0 first batch (8 conditions,
+      66 global/local views, 1,404-node locals). The CPU median fell from
+      8,276.7 ms to 2,310.5 ms for those 66 unions (3.58x; 72.1% reduction).
 - [ ] Retain the already measured Fanout incoming-index optimization for the L1
       path only; do not count it as an A0 speed improvement unless profiling
       executes Fanout.
