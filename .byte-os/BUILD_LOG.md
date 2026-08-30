@@ -685,3 +685,19 @@
   diff check, and a real temporary Git/CLI receipt creation-and-consumption
   workflow. Exact-environment full mypy and Torch-backed tests remain server
   gates.
+
+## 2026-08-30 — Exact-effect sparse-union performance acceptance
+
+- Measured real A0 profiles selected sparse-union preparation after Student
+  locals accounted for 68--70% of step wall and cProfile attributed 52.829 s
+  cumulative to 342 union builds. The real first-batch union microbenchmark
+  improved from 8,276.7 to 2,310.5 ms with exact tensor parity.
+- At clean commit `7332cc1`, deterministic CUDA reference/optimized execution
+  matched every non-timing metric, view/union identity, gradient, model,
+  Teacher, optimizer, center and RNG state.
+- Serial single-GPU ABBA used five warmups and twenty measured steps per arm.
+  Reference p50 was 11,166.911/11,082.219 ms; optimized p50 was
+  4,842.376/4,890.634 ms. The paired ratio was 0.437470 (56.253% reduction,
+  2.286x), both p90 comparisons improved, peak allocated/reserved GPU memory
+  changed by only +0.017/+0.041%, and all arms retained zero PKL with no
+  validation/test access. Plan 028 is complete and Plan 030 is active.

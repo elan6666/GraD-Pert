@@ -1,9 +1,9 @@
 ---
 id: 028
-status: in_progress
+status: complete
 wave: 4
 depends_on: [031]
-updated_at: 2026-08-30T19:17:00+08:00
+updated_at: 2026-08-30T20:45:00+08:00
 ---
 
 # Plan 028 — B2-vNext measured exact-effect performance engineering
@@ -67,7 +67,7 @@ model operation, update, validation output and prediction exactly unchanged.
       local, prediction and backward.
 - [x] Select an implementation target only if the measured evidence shows a
       material residual contribution. Record a no-change decision if it does not.
-- [ ] Preserve a minimal atomic failure receipt for preflight, training,
+- [x] Preserve a minimal atomic failure receipt for preflight, training,
       profiler teardown and telemetry failures without masking the primary error.
 
 Observed capacity evidence at sealed commit `b37963e`: A0 completed Student
@@ -85,7 +85,7 @@ capacity receipt.
       evidence from the real A0 failure.
 - [x] Implement non-reentrant activation checkpointing for Student local sparse-
       Transformer forwards only.
-- [ ] Preserve exact ordered views, sparse-union tensors, channel and local-edge
+- [x] Preserve exact ordered views, sparse-union tensors, channel and local-edge
       order, per-view BatchNorm execution and dropout RNG.
 - [x] Compare captured/restored reference/optimized forward tensors, losses,
       every gradient, model/optimizer/Teacher/center/RNG state exactly in a
@@ -97,20 +97,25 @@ capacity receipt.
 - [x] Prove exact union tensors on the real A0 first batch (8 conditions,
       66 global/local views, 1,404-node locals). The CPU median fell from
       8,276.7 ms to 2,310.5 ms for those 66 unions (3.58x; 72.1% reduction).
-- [ ] Retain the already measured Fanout incoming-index optimization for the L1
+- [x] Retain the already measured Fanout incoming-index optimization for the L1
       path only; do not count it as an A0 speed improvement unless profiling
       executes Fanout.
 
 ### Iteration 3 — matched timing and review
 
-- [ ] Pass full pytest, Ruff, format, strict mypy and isolated build on the
+- [x] Pass full pytest, Ruff, format, strict mypy and isolated build on the
       exact synchronized commit.
-- [ ] Pass serial one-step reference/optimized exact-effect hard gates.
-- [ ] Run serial single-physical-GPU ABBA timing with identical instrumentation,
+- [x] Pass serial one-step reference/optimized exact-effect hard gates.
+- [x] Run serial single-physical-GPU ABBA timing with identical instrumentation,
       warmed state and fresh roots.
-- [ ] Report raw replicates, paired median ratio, p50/p90/p95/p99 stages,
+- [x] Report raw replicates, paired median ratio, p50/p90/p95/p99 stages,
       resource telemetry and every equality hash.
-- [ ] Complete independent review and ship only if exact-effect passes.
+- [x] Complete independent review and ship only if exact-effect passes.
+
+Accepted result: paired median optimized/reference ratio `0.437470`, 56.253%
+wall reduction, 2.286x speedup and 6,258.060 ms median absolute reduction per
+step. Both p90 pairs improved. Peak allocated/reserved GPU memory increased
+only 0.017/0.041%, below the 5% gate, with zero CUDA retry/OOM counters.
 
 ## Acceptance criteria
 

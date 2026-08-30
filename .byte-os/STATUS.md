@@ -9,10 +9,21 @@ review_verdict: none
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-30T19:17:00+08:00
+updated_at: 2026-08-30T20:45:00+08:00
 ---
 
 # Status
+
+- Exact-effect performance engineering is accepted at clean commit `7332cc1`.
+  The deterministic CUDA hard gate is exact for non-timing metrics, views,
+  unions, every gradient, Student/Teacher and optimizer state, centers and
+  CPU/CUDA RNG. Serial one-GPU ABBA (5 warmups + 20 measured steps per arm)
+  reduced paired median step wall from the reference 11.167/11.082 seconds to
+  4.842/4.891 seconds: ratio 0.437470, 56.253% reduction, 2.286x speedup and
+  6.258 seconds saved per step. Both p90 pairs improved; peak allocated and
+  reserved GPU memory increased only 0.017% and 0.041%, with zero retry/OOM,
+  zero PKL and no validation/test access. Plan 028 is complete; Plan 030 formal
+  A0/H1--H3/L1--L5 is the next authorized work.
 
 - The clean `a7beebf` eight-row sentinel is sealed: A0/H3/L1/L2/D2/E2 pass
   one complete training-only step; M4 is an authorized CUDA-OOM capacity
@@ -31,8 +42,8 @@ updated_at: 2026-08-30T19:17:00+08:00
   preparation fell from median 8,276.7 ms to 2,310.5 ms (3.58x, 72.1%). Full
   candidate gates pass 523 server tests with one honest frozen-reference skip,
   Ruff, format on 247 files, strict mypy on 74 source files and an isolated
-  build. Clean-commit CUDA exact-effect hard gate and serial ABBA timing remain
-  pending.
+  build. The later clean-commit CUDA exact-effect and serial ABBA gates passed
+  as recorded above.
 
 - The clean `b37963e` eight-row sentinel is sealed as failed. A0 entered its
   first Student-local phase and raised a real CUDA OOM after about 30.65 GiB

@@ -87,6 +87,19 @@ reduction for union preparation. This microbenchmark is target-specific
 evidence, not an end-to-end throughput claim; the latter still requires serial
 same-GPU ABBA.
 
+The clean `7332cc1` deterministic CUDA hard gate subsequently passed exact
+non-timing metrics, views and unions, every gradient, Student/Teacher model
+state, optimizer state, centers, and CPU/CUDA RNG. Serial single-GPU ABBA then
+ran A1 reference, B1 CPU-vectorized, B2 CPU-vectorized, and A2 reference. Each
+arm used five warmups and twenty measured steps on the identical frozen batch
+sequence. Reference p50 was 11,166.911/11,082.219 ms; optimized p50 was
+4,842.376/4,890.634 ms. The paired median ratio was 0.437470: a 56.253 percent
+wall reduction, 2.286x speedup, and 6,258.060 ms median absolute reduction per
+step. Optimized p90 improved in both pairs. Peak allocated/reserved GPU memory
+rose only 0.017/0.041 percent, CUDA retry/OOM counters were zero, and all arms
+retained zero PKL with no validation or test access. The implementation passes
+the preregistered timing and capacity gates.
+
 ## Exact-effect gates
 
 - Exact node IDs and ordered per-source edges/weights for every view.
@@ -196,6 +209,8 @@ order, dropout order, losses and update order are unchanged.
 Synthetic full-step reference-versus-checkpointed tests require exact non-
 timing metrics, every parameter gradient, Student and Teacher state including
 BatchNorm buffers, optimizer state, both centers, RNG and first-step health.
-These CPU exact-effect tests pass; an exact CUDA one-step gate, a fresh eight-
-row capacity lineage, real A0 profiling and serial same-GPU ABBA timing remain
-required before the optimization can be shipped or formal H/L can start.
+These CPU gates, the clean eight-row capacity lineage, real A0 profiles,
+deterministic CUDA exact-effect gate, and serial same-GPU ABBA now pass. The
+accepted sparse-union implementation is ready for the preregistered formal H/L
+lineage; none of the performance evidence is relabeled as scientific
+completion.

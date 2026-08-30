@@ -1,0 +1,71 @@
+{
+  "schema_version": "gradpert-vnext-exact-effect-abba-summary-v1",
+  "evidence_class": "performance_training_only",
+  "scientific_completion": false,
+  "source_commit": "7332cc1cf27460a41e9c130839aca05159212538",
+  "exact_effect_receipt": {
+    "sha256": "10327bdd6fbd226a0daf44e18d74991f5bca62a0d3ebc89f4ac8819e8a4dbda9",
+    "status": "passed"
+  },
+  "protocol": {
+    "order": ["A1_reference", "B1_cpu_vectorized", "B2_cpu_vectorized", "A2_reference"],
+    "physical_gpu_count": 1,
+    "warmup_steps_per_arm": 5,
+    "measured_steps_per_arm": 20,
+    "validation_accessed": false,
+    "test_truth_accessed": false,
+    "persistent_pkl_count": 0,
+    "batch_sequence_sha256": "bfe15ca7d1a0acfb425b53848536f08e83009a3733b762b38e6f90fc1f39efa7"
+  },
+  "arms": {
+    "A1_reference": {
+      "receipt_sha256": "72b4d573c4573f65e25028d36f3f3b8db0e658aa1a5ed29895837297c07e3b5e",
+      "p50_ms": 11166.911398526281,
+      "p90_ms": 21047.255825903267,
+      "p95_ms": 21776.37430387549,
+      "p99_ms": 22391.19188583456,
+      "peak_allocated_gpu_bytes": 10241836032,
+      "peak_reserved_gpu_bytes": 10353639424
+    },
+    "B1_cpu_vectorized": {
+      "receipt_sha256": "1770d8e92dbab1bb4e1da262581d12236c460b280515855fe2cf86f4e1c1ad00",
+      "p50_ms": 4842.375639360398,
+      "p90_ms": 4922.0642297994345,
+      "p95_ms": 5013.5186405153945,
+      "p99_ms": 5105.4273768747225,
+      "peak_allocated_gpu_bytes": 10243573760,
+      "peak_reserved_gpu_bytes": 10357833728
+    },
+    "B2_cpu_vectorized": {
+      "receipt_sha256": "7b26d701ac2cd5cc54ff951fde39d29b67913cc534f958c5b62fda71186f87a9",
+      "p50_ms": 4890.634423587471,
+      "p90_ms": 4927.34545795247,
+      "p95_ms": 4955.981418676674,
+      "p99_ms": 4956.310083754361,
+      "peak_allocated_gpu_bytes": 10243573760,
+      "peak_reserved_gpu_bytes": 10357833728
+    },
+    "A2_reference": {
+      "receipt_sha256": "fc8f6ff542f5107077c24a840ff9fd408d72f52318511b01025252eb758accb0",
+      "p50_ms": 11082.218553638086,
+      "p90_ms": 11180.119053926319,
+      "p95_ms": 11228.972794977017,
+      "p99_ms": 11315.40268483106,
+      "peak_allocated_gpu_bytes": 10241836032,
+      "peak_reserved_gpu_bytes": 10353639424
+    }
+  },
+  "acceptance": {
+    "paired_median_ratio": 0.4374703559174184,
+    "median_wall_reduction_percent": 56.25296440825815,
+    "speedup": 2.285869171415973,
+    "median_absolute_reduction_ms": 6258.059944608249,
+    "optimized_peak_allocated_increase_percent": 0.01696695782447133,
+    "optimized_peak_reserved_increase_percent": 0.040510431436091565,
+    "median_reduction_gate_passed": true,
+    "absolute_reduction_gate_passed": true,
+    "p90_regression_gate_passed": true,
+    "peak_memory_regression_gate_passed": true,
+    "accepted": true
+  }
+}

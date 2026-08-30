@@ -2,6 +2,13 @@
 
 ## 2026-08-30
 
+- Accept the ordered CPU-vectorized sparse-union implementation after exact
+  deterministic CUDA equality and serial same-GPU ABBA. The paired median
+  optimized/reference ratio is 0.437470 (56.253% reduction, 2.286x), both p90
+  comparisons improve, and peak allocated/reserved GPU memory rises only
+  0.017/0.041%. This is implementation evidence only; formal H/L remains a
+  separate ten-epoch scientific lineage.
+
 - Use an exact eight-row performance sentinel rather than running bounded
   performance census stages for all 25 scientific rows: A0, H3, L1, L2, M4,
   W1, D2 and E2. The source matrix remains 25 rows, and the sentinel cannot
