@@ -29,8 +29,8 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from gradpert.config import ExperimentConfig, load_experiment_config  # noqa: E402
 from gradpert.execution.ablation_matrix import (  # noqa: E402
-    SUCCESSOR_V2_CONTRACT,
-    SUCCESSOR_V2_MATRIX_ID,
+    SUCCESSOR_CONTRACT,
+    SUCCESSOR_MATRIX_ID,
 )
 from gradpert.hashing import sha256_file, sha256_json  # noqa: E402
 from gradpert.pilots import load_vnext_graph_topology  # noqa: E402
@@ -38,12 +38,12 @@ from gradpert.training.data import CanonicalTrainingData  # noqa: E402
 
 GIB = 1024**3
 A0_VARIANT_ID = "a0_ratio_ring_half"
-PERFORMANCE_SENTINEL_ID = "nadig_jurkat_vnext_performance_sentinel_v1"
+PERFORMANCE_SENTINEL_ID = "nadig_jurkat_vnext_performance_sentinel_v2"
 PERFORMANCE_SENTINEL_VARIANT_IDS = (
     A0_VARIANT_ID,
     "h3_hvg5000_ratio_half",
     "l1_fanout_ratio_half",
-    "l2_ring_half_count4",
+    "l2_ring_half_count8",
     "m4_adaptive_source_gat",
     "w1_string_edge_feature",
     "d2_control_transformer",
@@ -53,7 +53,7 @@ PERFORMANCE_SENTINEL_ROLES = {
     A0_VARIANT_ID: "reference_ring_induced_half",
     "h3_hvg5000_ratio_half": "maximum_graph_axis_capacity",
     "l1_fanout_ratio_half": "alternate_local_builder",
-    "l2_ring_half_count4": "reduced_local_view_count",
+    "l2_ring_half_count8": "increased_local_view_count",
     "m4_adaptive_source_gat": "alternate_multi_source_gat_encoder",
     "w1_string_edge_feature": "edge_feature_path",
     "d2_control_transformer": "heaviest_decoder_path",
@@ -372,7 +372,7 @@ def bind_matrix_variants(
     if (
         not isinstance(payload, dict)
         or payload.get("schema_version") != MATRIX_SCHEMA_VERSION
-        or payload.get("matrix_id") != SUCCESSOR_V2_MATRIX_ID
+        or payload.get("matrix_id") != SUCCESSOR_MATRIX_ID
         or payload.get("row_count") != MATRIX_ROW_COUNT
     ):
         raise ValueError("performance census requires the exact schema-v2 25-row matrix")
@@ -383,7 +383,7 @@ def bind_matrix_variants(
     if (
         any(not isinstance(variant_id, str) for variant_id in raw_variant_ids)
         or len(set(raw_variant_ids)) != MATRIX_ROW_COUNT
-        or set(raw_variant_ids) != set(SUCCESSOR_V2_CONTRACT)
+        or set(raw_variant_ids) != set(SUCCESSOR_CONTRACT)
     ):
         raise ValueError("performance census matrix variant set differs")
     baseline_relative = (
@@ -409,7 +409,7 @@ def bind_matrix_variants(
             or relative_config
             != f"configs/ablations/nadig_jurkat/{variant_id}/gradpert_b2/nadig_jurkat.yaml"
             or not isinstance(config_sha256, str)
-            or semantic_factor != SUCCESSOR_V2_CONTRACT[variant_id][0]
+            or semantic_factor != SUCCESSOR_CONTRACT[variant_id][0]
             or not isinstance(declared_diffs, list)
             or any(not isinstance(name, str) for name in declared_diffs)
             or declared_diffs != sorted(set(declared_diffs))
@@ -462,7 +462,7 @@ def bind_matrix_variants(
             FrozenVariantBinding(
                 matrix_path=str(matrix),
                 matrix_sha256=expected_matrix_sha256,
-                matrix_id=SUCCESSOR_V2_MATRIX_ID,
+                matrix_id=SUCCESSOR_MATRIX_ID,
                 matrix_schema_version=MATRIX_SCHEMA_VERSION,
                 matrix_row_index=index,
                 variant_id=variant_id,
@@ -1749,7 +1749,7 @@ def load_frozen_batch_manifest(
         or payload.get("schema_version") != "nadig-vnext-performance-batch-manifest-v2"
         or payload.get("evidence_class") != "performance_training_only"
         or payload.get("scientific_completion") is not False
-        or payload.get("matrix_id") != SUCCESSOR_V2_MATRIX_ID
+        or payload.get("matrix_id") != SUCCESSOR_MATRIX_ID
         or payload.get("dataset_id") != "nadig_jurkat"
         or payload.get("protocol_id") != "within_cell_unseen_single"
         or payload.get("run_seed") != 1

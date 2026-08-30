@@ -10,6 +10,8 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
+from gradpert.hashing import sha256_json
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = PROJECT_ROOT / "scripts/performance/preflight_ablation_census.py"
 MATRIX = PROJECT_ROOT / "configs/ablations/nadig_jurkat/matrix.json"
@@ -214,12 +216,12 @@ def _genept_receipt(
     selected_count = manifest.graph_gene_count + selected_count_delta
     source_count = 17730
     receipt = preflight.GenePTSeedAvailabilityReceipt(
-        schema_version="genept-seed-go-protein-pathway-availability-v1",
+        schema_version="genept-seed-go-protein-pathway-availability-v2",
         status="available",
         dataset_id="nadig_jurkat",
         identifier_matching="exact_case_sensitive",
         extra_source_gene_policy="ignore_preserving_runtime_axis",
-        missing_runtime_gene_policy="fail_before_model_construction",
+        missing_non_perturbation_gene_policy="omit_preserving_canonical_order",
         missing_perturbation_target_policy="fail_before_model_construction",
         parent_topology_content_sha256=topology,
         parent_graph_gene_order_sha256=manifest.graph_gene_order_sha256,
@@ -234,11 +236,15 @@ def _genept_receipt(
         embedding_width=2048,
         source_gene_count=source_count,
         source_gene_order_sha256="c" * 64,
+        requested_runtime_gene_count=selected_count,
+        requested_runtime_gene_order_sha256=manifest.graph_gene_order_sha256,
         selected_gene_count=selected_count,
         selected_gene_order_sha256=manifest.graph_gene_order_sha256,
         selected_matrix_sha256="d" * 64,
         extra_source_gene_count=source_count - selected_count,
         extra_source_gene_ids_sha256="e" * 64,
+        ignored_missing_non_perturbation_gene_count=0,
+        ignored_missing_non_perturbation_gene_ids_sha256=sha256_json([]),
         perturbation_target_gene_count=len(manifest.candidate_target_ids),
         perturbation_target_gene_ids_sha256=manifest.candidate_target_order_sha256,
         zero_vector_gene_count=0,
@@ -412,9 +418,14 @@ def test_all_25_rows_close_when_all_graphs_and_genept_are_ready(
     assert baseline["graph"]["candidate_target_order_sha256"]
     assert by_id["a0_ratio_ring_half"]["local_view_contract"]["effective_node_budget"] == 261
     assert by_id["a0_ratio_ring_half"]["local_view_contract"]["node_budget_remainder"] == 0
+    assert by_id["a0_ratio_ring_half"]["local_view_contract"]["local_view_count"] == 4
+    assert by_id["l2_ring_half_count8"]["local_view_contract"]["local_view_count"] == 8
     assert by_id["l3_ring_quarter"]["local_view_contract"]["effective_node_budget"] == 130
     assert by_id["l3_ring_quarter"]["local_view_contract"]["node_budget_remainder"] == 2
-    assert by_id["l4_ring_half_mask_half"]["local_view_contract"]["effective_mask_view_count"] == 4
+    assert by_id["l4_ring_half_mask_half"]["local_view_contract"]["effective_mask_view_count"] == 2
+    assert (
+        by_id["l5_ring_half_mask_quarter"]["local_view_contract"]["effective_mask_view_count"] == 1
+    )
     assert all(row["anchor_capacity"]["checked"] is False for row in receipt["rows"])
     assert all(
         row["genept"]["status"] == "passed"

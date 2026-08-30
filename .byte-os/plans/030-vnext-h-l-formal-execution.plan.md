@@ -1,12 +1,17 @@
 ---
 id: 030
-status: in_progress
+status: superseded
 wave: 5
 depends_on: [028]
-updated_at: 2026-08-30T20:45:00+08:00
+updated_at: 2026-08-31T00:00:00+08:00
 ---
 
 # Plan 030 — formal H and L module execution
+
+Superseded by Plan 033 after the user changed A0 from eight to four local
+views, paused L execution, and required a fresh measured performance pass.
+Interrupted `f1c14d8` runs remain immutable evidence and do not satisfy the new
+matrix.
 
 ## Objective
 

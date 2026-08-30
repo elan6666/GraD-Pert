@@ -17,6 +17,7 @@ from gradpert.execution.native import (
 )
 from gradpert.features import TextPriorArtifact
 from gradpert.graphs import resolve_local_view_contract
+from gradpert.hashing import sha256_json
 
 
 def _write_rows(path: Path, rows: list[dict[str, object]]) -> None:
@@ -118,16 +119,25 @@ def test_genept_seed_receipt_binds_superset_selection_without_large_extra_ids(
         perturbation_target_gene_ids=("A",),
         perturbation_target_gene_ids_sha256="e" * 64,
         selected_matrix_sha256="f" * 64,
+        requested_runtime_gene_ids=("A", "B", "MISSING"),
+        requested_runtime_gene_order_sha256=sha256_json(["A", "B", "MISSING"]),
+        ignored_missing_non_perturbation_gene_ids=("MISSING",),
+        ignored_missing_non_perturbation_gene_ids_sha256=sha256_json(["MISSING"]),
     )
 
     receipt = _text_prior_receipt(artifact, feature_mode="genept_frozen")
 
-    assert receipt["schema_version"] == "sealed-superset-text-prior-v1"
+    assert receipt["schema_version"] == "sealed-superset-text-prior-v2"
     assert receipt["source_gene_count"] == 4
+    assert receipt["requested_runtime_gene_count"] == 3
     assert receipt["selected_gene_count"] == 2
     assert receipt["extra_source_gene_count"] == 2
     assert receipt["extra_source_gene_ids_sha256"] == "d" * 64
     assert "extra_source_gene_ids" not in receipt
+    assert receipt["ignored_missing_non_perturbation_gene_count"] == 1
+    assert receipt["ignored_missing_non_perturbation_gene_ids_sha256"] == sha256_json(["MISSING"])
+    assert receipt["missing_non_perturbation_gene_policy"] == ("omit_preserving_canonical_order")
+    assert "missing_runtime_gene_policy" not in receipt
     assert receipt["zero_fill_policy"] == "forbidden"
 
 

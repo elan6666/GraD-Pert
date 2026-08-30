@@ -99,10 +99,26 @@ def _text_prior_receipt(
 ) -> dict[str, object]:
     """Seal source-superset selection without persisting the large extra-ID list."""
 
+    retained = tuple(
+        gene_id
+        for gene_id in prior.requested_runtime_gene_ids
+        if gene_id not in set(prior.ignored_missing_non_perturbation_gene_ids)
+    )
+    if (
+        retained != prior.gene_ids
+        or prior.source_gene_count != len(prior.gene_ids) + prior.extra_source_gene_count
+        or len(prior.requested_runtime_gene_ids)
+        != len(prior.gene_ids) + len(prior.ignored_missing_non_perturbation_gene_ids)
+        or sha256_json(list(prior.requested_runtime_gene_ids))
+        != prior.requested_runtime_gene_order_sha256
+        or sha256_json(list(prior.ignored_missing_non_perturbation_gene_ids))
+        != prior.ignored_missing_non_perturbation_gene_ids_sha256
+    ):
+        raise ValueError("text-prior selected/requested/ignored receipt state is inconsistent")
     is_superset = prior.source_gene_count != len(prior.gene_ids)
     return {
         "schema_version": (
-            "sealed-superset-text-prior-v1" if is_superset else "exact-axis-text-prior-v2"
+            "sealed-superset-text-prior-v2" if is_superset else "exact-axis-text-prior-v3"
         ),
         "artifact_path": str(prior.source_path),
         "artifact_size_bytes": prior.source_size_bytes,
@@ -112,6 +128,8 @@ def _text_prior_receipt(
         "identifier_matching": "exact_case_sensitive",
         "source_gene_count": prior.source_gene_count,
         "source_gene_order_sha256": prior.source_gene_order_sha256,
+        "requested_runtime_gene_count": len(prior.requested_runtime_gene_ids),
+        "requested_runtime_gene_order_sha256": prior.requested_runtime_gene_order_sha256,
         "selected_gene_count": len(prior.gene_ids),
         "selected_gene_order_sha256": prior.gene_order_sha256,
         "selected_matrix_sha256": prior.selected_matrix_sha256,
@@ -120,7 +138,13 @@ def _text_prior_receipt(
         "extra_source_gene_policy": "ignore_preserving_runtime_axis",
         "perturbation_target_gene_count": len(prior.perturbation_target_gene_ids),
         "perturbation_target_gene_ids_sha256": (prior.perturbation_target_gene_ids_sha256),
-        "missing_runtime_gene_policy": "fail_before_model_construction",
+        "ignored_missing_non_perturbation_gene_count": len(
+            prior.ignored_missing_non_perturbation_gene_ids
+        ),
+        "ignored_missing_non_perturbation_gene_ids_sha256": (
+            prior.ignored_missing_non_perturbation_gene_ids_sha256
+        ),
+        "missing_non_perturbation_gene_policy": "omit_preserving_canonical_order",
         "missing_perturbation_target_policy": "fail_before_model_construction",
         "zero_vector_gene_count": len(prior.zero_vector_gene_ids),
         "zero_vector_gene_ids": list(prior.zero_vector_gene_ids),
@@ -600,6 +624,12 @@ def run_native_experiment(
             or preflight.parent_topology_content_sha256
             != getattr(reduced_manifest, "topology_content_sha256", None)
             or preflight.parent_graph_gene_order_sha256 != sha256_json(list(topology.gene_ids))
+            or preflight.requested_runtime_gene_count != len(topology.gene_ids)
+            or preflight.selected_gene_count != len(topology.gene_ids)
+            or preflight.selected_gene_order_sha256 != sha256_json(list(topology.gene_ids))
+            or preflight.ignored_missing_non_perturbation_gene_count != 0
+            or preflight.result_topology_content_sha256
+            != getattr(reduced_manifest, "topology_content_sha256", None)
             or preflight.candidate_target_order_sha256
             != getattr(reduced_manifest, "candidate_target_order_sha256", None)
         ):

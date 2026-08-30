@@ -2,9 +2,10 @@
 
 ## Status and purpose
 
-This document preregisters the successor to the interrupted `42e`, `8221`, and
-`276d` local-graph lineages. Those run roots remain immutable descriptive
-evidence, but none of their A/L coordinates may satisfy this successor matrix.
+This document preregisters the four-local successor to the interrupted `42e`,
+`8221`, `276d`, and `f1c14d8` local-graph lineages. Those run roots remain
+immutable descriptive evidence, but none of their A/H/L coordinates may
+satisfy this successor matrix.
 
 The experiment asks two separate questions on Nadig Jurkat:
 
@@ -70,7 +71,7 @@ mask count silently. Both the requested ratio and effective count are receipted.
 | Teacher/Student global views | same complete runtime node axis |
 | Local builder | `RingInduced` |
 | Local node budget | `50%` of actual `N_global` (`1,404` for H=512) |
-| Local views per condition | `8` |
+| Local views per condition | `4` |
 | Local anchor-mask ratio | `0%` |
 | Encoder and sources | Exphormer-MG, ordered STRING then GO |
 
@@ -103,12 +104,12 @@ A0 plus exactly one named factor.
 
 | ID | Builder | Node ratio | Local count | Anchor-mask ratio | Only changed factor |
 |---|---|---:|---:|---:|---|
-| A0 | RingInduced | 50% | 8 | 0% | reference |
-| L1 | Fanout | 50% | 8 | 0% | builder |
-| L2 | RingInduced | 50% | 4 | 0% | local count |
-| L3 | RingInduced | 25% | 8 | 0% | local node coverage |
-| L4 | RingInduced | 50% | 8 | 50% | anchor-mask ratio |
-| L5 | RingInduced | 50% | 8 | 25% | anchor-mask ratio |
+| A0 | RingInduced | 50% | 4 | 0% | reference |
+| L1 | Fanout | 50% | 4 | 0% | builder |
+| L2 | RingInduced | 50% | 8 | 0% | local count |
+| L3 | RingInduced | 25% | 4 | 0% | local node coverage |
+| L4 | RingInduced | 50% | 4 | 50% (`2/4`) | anchor-mask ratio |
+| L5 | RingInduced | 50% | 4 | 25% (`1/4`) | anchor-mask ratio |
 
 The matrix generator must construct every row from A0 and validate a semantic
 diff allowlist. Derived values such as effective node or mask counts are not
@@ -117,16 +118,18 @@ generation.
 
 ## Performance-first execution gate
 
-No H/L 10-epoch queue launches until exact-effect performance engineering has
-completed for the new A0 coordinate. Performance work follows this order:
+No formal A/H queue launches until exact-effect performance engineering has
+completed for the new four-local A0 coordinate. L is configured and frozen but
+remains paused by user instruction. Performance work follows this order:
 
-1. Run an unoptimized real-data A0 capacity check and profiler on one idle
-   physical GPU. Measure before choosing an implementation target.
+1. Run the current accepted implementation as the real-data A0 reference in a
+   capacity check and profiler on one idle physical GPU. Measure before choosing
+   another implementation target.
 2. Record stage distributions and profiler evidence for view construction,
    sparse-union preparation, host/device transfers and synchronizations,
    Teacher global, Student global, Student local, prediction, backward, logging,
-   validation, peak memory, clocks, power, temperature, CPU, RAM, disk, and
-   competing processes.
+   peak memory, clocks, power, temperature, CPU, RAM, disk, and competing
+   processes. Validation and test readers remain unopened.
 3. Optimize only a measured material bottleneck. Do not reduce views, graph
    coverage, sources, layers, prototypes, precision, losses, validation, or
    evaluation to obtain speed.
@@ -138,12 +141,13 @@ completed for the new A0 coordinate. Performance work follows this order:
    gate. Concurrent two-GPU timing is not accepted as an absolute speed claim.
 
 Only a reviewed, clean, locally/GitHub/server synchronized performance commit
-may become the source lineage for the H/L runs.
+may become the source lineage for the A/H runs.
 
 ## Formal completion
 
-H0/A0 is trained once and shared by both modules. Each remaining H/L row runs
-once for the preregistered 10 epochs. Every successful run must contain exactly
+H0/A0 is trained once and shared by both modules. The currently authorized
+formal scope is A0 followed by H1/H2/H3 sequentially on one physical GPU; L
+does not launch until separately authorized. Every successful run must contain exactly
 one best checkpoint, zero persistent PKL, exact split/control/truth identities,
 10 ordered validations, no test truth during fitting, one best-checkpoint test
 evaluation, and the three frozen headline metrics. Large scientific artifacts

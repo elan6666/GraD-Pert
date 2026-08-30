@@ -24,8 +24,8 @@ from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file
 from gradpert.pilots import GenePTAvailabilityReceipt, GenePTSeedAvailabilityReceipt
 
-SUCCESSOR_V2_MATRIX_ID = "nadig_jurkat_vnext_ratio_graph_v2"
-SUCCESSOR_V2_CONTRACT: dict[str, tuple[str, frozenset[str]]] = {
+SUCCESSOR_MATRIX_ID = "nadig_jurkat_vnext_ratio_graph_v3"
+SUCCESSOR_CONTRACT: dict[str, tuple[str, frozenset[str]]] = {
     "a0_ratio_ring_half": ("reference", frozenset()),
     "h1_hvg1024_ratio_half": (
         "graph_hvg_count",
@@ -40,7 +40,7 @@ SUCCESSOR_V2_CONTRACT: dict[str, tuple[str, frozenset[str]]] = {
         frozenset({"graph_hvg_count", "runtime_graph_root"}),
     ),
     "l1_fanout_ratio_half": ("local_view_builder", frozenset({"local_view_builder"})),
-    "l2_ring_half_count4": ("local_view_count", frozenset({"local_view_count"})),
+    "l2_ring_half_count8": ("local_view_count", frozenset({"local_view_count"})),
     "l3_ring_quarter": (
         "local_view_node_budget_ratio",
         frozenset({"local_view_node_budget_ratio"}),
@@ -242,9 +242,9 @@ def load_ablation_matrix(
         or payload.get("max_epochs") != 10
     ):
         raise ValueError("ablation matrix experiment identity differs from the frozen design")
-    if schema_version == "2" and payload.get("matrix_id") != SUCCESSOR_V2_MATRIX_ID:
+    if schema_version == "2" and payload.get("matrix_id") != SUCCESSOR_MATRIX_ID:
         raise ValueError("schema-v2 ablation matrix id differs from the successor contract")
-    if schema_version == "1" and payload.get("matrix_id") == SUCCESSOR_V2_MATRIX_ID:
+    if schema_version == "1" and payload.get("matrix_id") == SUCCESSOR_MATRIX_ID:
         raise ValueError("schema-v1 matrix cannot claim the successor schema-v2 identity")
     raw_rows = payload.get("rows")
     expected_row_count = {"1": 22, "2": 25}[str(schema_version)]
@@ -262,7 +262,7 @@ def load_ablation_matrix(
         if (
             any(not isinstance(variant_id, str) for variant_id in raw_variant_ids)
             or len(set(raw_variant_ids)) != len(raw_variant_ids)
-            or set(raw_variant_ids) != set(SUCCESSOR_V2_CONTRACT)
+            or set(raw_variant_ids) != set(SUCCESSOR_CONTRACT)
         ):
             raise ValueError("schema-v2 matrix variant set differs from the successor contract")
 
@@ -298,7 +298,7 @@ def load_ablation_matrix(
         ):
             raise ValueError("ablation matrix row identity is malformed or duplicated")
         if schema_version == "2":
-            expected_semantic_factor, expected_diffs = SUCCESSOR_V2_CONTRACT[variant_id]
+            expected_semantic_factor, expected_diffs = SUCCESSOR_CONTRACT[variant_id]
             if (
                 semantic_factor != expected_semantic_factor
                 or not isinstance(declared_parameter_diffs, list)
@@ -353,7 +353,7 @@ def load_ablation_matrix(
                 != observed_parameters.get(name, "<missing>")
             }
             observed_diffs.discard("performance_pilot_variant")
-            expected_diffs = SUCCESSOR_V2_CONTRACT[variant_id][1]
+            expected_diffs = SUCCESSOR_CONTRACT[variant_id][1]
             if observed_diffs != expected_diffs:
                 raise ValueError(f"schema-v2 resolved parameter diff differs: {variant_id}")
         genept_artifact_path: str | None = None
@@ -435,7 +435,7 @@ def build_ablation_launch_plan(
         if genept_receipt_schema == "genept-vnext-availability-v1":
             receipt = GenePTAvailabilityReceipt.model_validate_json(receipt_text)
             genept_missing_target_ids_sha256 = receipt.missing_perturbation_target_gene_ids_sha256
-        elif genept_receipt_schema == "genept-seed-go-protein-pathway-availability-v1":
+        elif genept_receipt_schema == "genept-seed-go-protein-pathway-availability-v2":
             receipt = GenePTSeedAvailabilityReceipt.model_validate_json(receipt_text)
         else:
             raise ValueError("unsupported GenePT availability receipt schema")
@@ -465,7 +465,10 @@ def build_ablation_launch_plan(
                 != receipt.parent_topology_content_sha256
                 or live_manifest.get("graph_gene_order_sha256")
                 != receipt.parent_graph_gene_order_sha256
+                or live_manifest.get("graph_gene_count") != receipt.requested_runtime_gene_count
                 or live_manifest.get("graph_gene_count") != receipt.selected_gene_count
+                or receipt.ignored_missing_non_perturbation_gene_count != 0
+                or receipt.result_topology_content_sha256 != receipt.parent_topology_content_sha256
                 or live_manifest.get("candidate_target_order_sha256")
                 != receipt.candidate_target_order_sha256
                 or not isinstance(candidate_targets, list)

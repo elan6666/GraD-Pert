@@ -1,9 +1,9 @@
 ---
 id: 031
-status: in_progress
+status: superseded
 wave: 3
 depends_on: [029, 032]
-updated_at: 2026-08-29T19:15:00+08:00
+updated_at: 2026-08-31T06:30:00+08:00
 ---
 
 # Plan 031 — B2-vNext 25-row capacity and performance census

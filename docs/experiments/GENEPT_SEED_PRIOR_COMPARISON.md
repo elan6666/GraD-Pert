@@ -11,17 +11,20 @@ SHA-256
 The artifact contains 17,730 unique exact-case labels, width-2,048 vectors,
 and zero all-zero vectors. Each E row selects the unchanged ordered 2,809-node
 `hvg512_plus_targets` axis by exact label. Extra source labels are ignored and
-receipted; duplicates, missing runtime labels or perturbation targets,
-non-finite rows, wrong identity metadata, and any zero-fill fallback abort
-before training.
+receipted. Missing perturbation targets, duplicates, non-finite rows, wrong
+identity metadata, and any zero-fill fallback abort before training. A missing
+non-perturbation runtime gene is instead omitted in preserved canonical order
+and its ordered count/hash is receipted. The selected artifact has complete
+2,809-gene runtime coverage, so the current E-row axis remains unchanged.
 
 Before any E-row launch, run the repository preflight
 `scripts/ablations/preflight_genept_seed.py` against the unchanged
 `vnext/graph_axes/nadig_jurkat/hvg512_plus_targets` root. The resulting sealed
 receipt binds the parent topology, exact source artifact, 17,730-label source
 axis, ordered 2,809-label selection, perturbation targets, ignored extras and
-selected matrix bytes. The native runner independently repeats artifact and
-selection verification.
+selected matrix bytes. It also binds any ignored missing non-perturbation
+runtime labels; the sealed current receipt must record none. The native runner
+independently repeats artifact and selection verification.
 
 The comparison design below remains a separate future experiment and must not
 be mixed with the vNext E-row evidence.

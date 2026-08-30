@@ -2,16 +2,20 @@
 
 ## Scope
 
-This work optimizes the implementation of the successor Nadig Jurkat A0
-configuration preregistered in
-`docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md`. It does not change
-or compare scientific factors. The graph axis, RingInduced local views at 50%
-of the actual runtime graph, eight locals, STRING+GO Exphormer-MG, batch size
-256, 16,384 prototypes, seed, loss, optimizer/update order, validation and test
-protocol remain fixed.
+The accepted measurements below belong to the historical eight-local A0 and
+remain immutable implementation evidence. The current successor A0 uses four
+locals and a new matrix identity; it must be profiled and timed again before
+any current-coordinate speed or utilization claim. The implementation
+comparison itself still holds every scientific factor fixed within its own
+coordinate: graph axis, RingInduced 50% local coverage, local count,
+STRING+GO Exphormer-MG, batch size 256, 16,384 prototypes, seed, loss,
+optimizer/update order, validation and test protocol.
 
-Changing to GAT or Fanout, a different local ratio, fewer views, AMP/TF32, or a
-different validation schedule is outside this exact-effect comparison.
+The active four-local protocol is defined in
+`docs/experiments/VNEXT_FOUR_LOCAL_PERFORMANCE.md`.
+
+Changing to GAT or Fanout, a different local ratio or count, AMP/TF32, or a
+different validation schedule is outside an exact-effect comparison.
 
 ## Measured baseline
 
@@ -78,7 +82,7 @@ same-commit environment selector retains the reference implementation for the
 exact CUDA hard gate and ABBA comparison; the selected implementation is
 written into the resident graph runtime receipt.
 
-On the real A0 first batch (8 unique conditions, 2 globals plus 64 locals,
+On the historical eight-local A0 first batch (8 unique conditions, 2 globals plus 64 locals,
 every local exactly 1,404 nodes), three CPU repetitions gave reference times
 of 8,214.3/8,327.9/8,276.7 ms and optimized times of
 2,312.5/2,310.5/2,308.7 ms for all 66 unions. Every union tensor was exactly
@@ -109,8 +113,9 @@ the preregistered timing and capacity gates.
   order before any union optimization.
 - Captured/restored RNG with exact forward tensors, losses, every gradient,
   optimizer state, model state, Teacher EMA, centers and RNG after one step.
-- Exact validation and prediction content hashes. Timing/telemetry fields are
-  the only equality exclusion.
+- Exact training-only synthetic prediction content hashes. Formal validation
+  hashes are checked later in A/H execution; performance phases never open a
+  validation reader. Timing/telemetry fields are the only equality exclusion.
 - Serial single-physical-GPU ABBA timing with identical instrumentation,
   warmed caches and no competing GPU/host jobs. Report raw timings and paired
   median ratios rather than the overlapping serial stage sum.
@@ -138,17 +143,17 @@ Every phase attempts an atomic failure receipt even when preflight or profiler
 teardown fails; teardown errors are recorded separately and never replace the
 primary error.
 
-## Representative performance sentinel
+## Historical representative performance sentinel
 
-Performance capacity and bottleneck discovery use eight representative rows
-from the unchanged 25-row scientific matrix:
+The sealed eight-local v2 performance capacity and bottleneck discovery used
+these eight representative rows from its then-frozen 25-row matrix:
 
 | Row | Performance path covered |
 |---|---|
 | A0 `a0_ratio_ring_half` | primary RingInduced-50% optimization target |
 | H3 `h3_hvg5000_ratio_half` | largest runtime graph and worst graph-memory case |
 | L1 `l1_fanout_ratio_half` | alternate Fanout local-view construction |
-| L2 `l2_ring_half_count4` | dynamic four-local path and consistency-term count |
+| L2 `l2_ring_half_count4` | reduced four-local path and consistency-term count |
 | M4 `m4_adaptive_source_gat` | alternate multi-source GAT encoder |
 | W1 `w1_string_edge_feature` | STRING edge-feature path |
 | D2 `d2_control_transformer` | heaviest decoder path |
@@ -161,11 +166,9 @@ current native step still computes those auxiliary loss tensors before their
 configured scalar weights are applied; zeroing a weight does not remove that
 compute path. L2 gives more distinct implementation coverage.
 
-P1 runs one complete step for all eight rows. Real profiler attribution remains
-A0-led; later short timing is added only where it helps select or regression-
-check an implementation optimization. The formal A0/H1--H3/L1--L5 experiments
-remain separate fixed 10-epoch scientific runs after exact-effect and matched
-ABBA performance gates pass.
+P1 ran one complete step for all eight rows where capacity allowed. That
+sentinel is historical performance evidence only. Plan 033 does not reuse it
+as the current four-local profile or authorize L execution.
 
 ## Current boundary
 
@@ -210,7 +213,7 @@ Synthetic full-step reference-versus-checkpointed tests require exact non-
 timing metrics, every parameter gradient, Student and Teacher state including
 BatchNorm buffers, optimizer state, both centers, RNG and first-step health.
 These CPU gates, the clean eight-row capacity lineage, real A0 profiles,
-deterministic CUDA exact-effect gate, and serial same-GPU ABBA now pass. The
-accepted sparse-union implementation is ready for the preregistered formal H/L
-lineage; none of the performance evidence is relabeled as scientific
-completion.
+deterministic CUDA exact-effect gate, and serial same-GPU ABBA passed for the
+historical eight-local coordinate. The accepted sparse-union implementation is
+the reference implementation for the new four-local profile; none of the old
+performance evidence is relabeled as current timing or scientific completion.

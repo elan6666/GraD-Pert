@@ -9,10 +9,45 @@ review_verdict: none
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-30T20:45:00+08:00
+updated_at: 2026-08-31T06:05:00+08:00
 ---
 
 # Status
+
+- All `f1c14d8` formal queues are stopped by user request. GPU0 A0 is preserved
+  as interrupted at 1,094/5,820 steps; GPU1 H3 is preserved as interrupted at
+  1,874/5,820 steps. Neither is failed or scientifically complete, no L row
+  started, both GPUs were released, and the run root retained zero persistent
+  PKL. The old automation was deleted so it cannot relaunch the superseded
+  coordinate.
+- Plan 033 replaces Plan 030. The active A0 now has four RingInduced local
+  views at ratio `1/2`; the 25-row matrix identity advances to
+  `nadig_jurkat_vnext_ratio_graph_v3`. H/M/W/D/E/O inherit four locals. L1 is
+  Fanout with four locals; L2 is the direct eight-local count ablation; L3
+  keeps four locals at ratio `1/4`; L4/L5 resolve mask ratios to `2/4` and
+  `1/4`. L execution remains paused.
+- The accepted eight-local sparse-union implementation remains valid
+  implementation history, but its 56.253% ABBA result is not a speed claim for
+  the new four-local A0. The next compute is a fresh single-GPU capacity and
+  measured profile at the new exact coordinate. Only a measured material
+  bottleneck may be changed, followed by strict exact-effect and serial ABBA
+  gates. Formal scope after acceptance is A0/H1/H2/H3 sequentially on one GPU.
+- The v3 generator is deterministic and the integrated local surface passes
+  543 tests with 2 honest skips under the locked dev/data/model/tracking
+  extras, including 20 Trackio sidecar tests and all prior migration gates.
+  Ruff, format on 164 files, compileall and diff checks pass. Strict mypy
+  passes on all 76 source files and the isolated wheel/sdist build passes.
+  Clean publication and exact-commit server gates remain required before CUDA.
+- Private Hugging Face Trackio support is implemented as an optional,
+  out-of-process formal-only sidecar. It exposes allowlisted loss,
+  validation, stage-throughput and one-GPU telemetry curves while excluding
+  test metrics and every artifact/data surface. It is disabled for all
+  capacity/profile/exact-effect/ABBA lineages. Twenty focused sidecar tests pass;
+  remote activation remains blocked on private server-side `hf auth login`
+  with write scope. The selected private targets are Space
+  `elan68681/grad-pert-vnext-ablations` and Bucket
+  `elan68681/grad-pert-vnext-ablations-bucket`; the current Codex connector
+  credential is read-only and therefore created neither.
 
 - Exact-effect performance engineering is accepted at clean commit `7332cc1`.
   The deterministic CUDA hard gate is exact for non-timing metrics, views,
@@ -22,8 +57,9 @@ updated_at: 2026-08-30T20:45:00+08:00
   4.842/4.891 seconds: ratio 0.437470, 56.253% reduction, 2.286x speedup and
   6.258 seconds saved per step. Both p90 pairs improved; peak allocated and
   reserved GPU memory increased only 0.017% and 0.041%, with zero retry/OOM,
-  zero PKL and no validation/test access. Plan 028 is complete; Plan 030 formal
-  A0/H1--H3/L1--L5 is the next authorized work.
+  zero PKL and no validation/test access. Plan 028 is complete. Plan 030 was
+  the next authorized work at that coordinate but is now superseded by Plan
+  033.
 
 - The clean `a7beebf` eight-row sentinel is sealed: A0/H3/L1/L2/D2/E2 pass
   one complete training-only step; M4 is an authorized CUDA-OOM capacity
@@ -131,15 +167,17 @@ updated_at: 2026-08-30T20:45:00+08:00
 - Plan 029 is complete: local and server gates passed at `454ab1ff` with 396
   tests and one honest frozen-reference skip, Ruff, format on 235 files,
   strict mypy on 73 source files and isolated package build.
-- Active dependency chain: Plan 032 prior migration -> Plan 031 census -> Plan 028 smallest measured
-  exact-effect optimization -> Plan 030 H/L formal 10-epoch execution.
+- Historical dependency chain Plan 032 -> Plan 031 -> Plan 028 -> Plan 030 is
+  complete through performance acceptance but superseded before formal
+  completion. Plan 033 alone governs the active four-local performance and
+  A/H-only program.
 
-- Plans 029, 028 and 030 now govern the active successor program. The
-  preregistered A0 is HVG512+targets on the sealed 2,809-node graph,
-  RingInduced locals at exact ratio `1/2` (floor cap 1,404), eight locals and
-  mask-view ratio `0/1`. H varies only requested HVG count
-  512/1024/2048/5000; L rows each change exactly builder, count, node ratio or
-  mask-view ratio relative to A0.
+- Plans 029 and 028 describe the prior eight-local successor. Their code and
+  evidence remain preserved, while the active v3 A0 is HVG512+targets on the
+  sealed 2,809-node graph, RingInduced locals at exact ratio `1/2` (floor cap
+  1,404), four locals and mask-view ratio `0/1`. H varies only requested HVG
+  count 512/1024/2048/5000; L rows remain configured as direct single-factor
+  comparisons but are not authorized to run.
 - Plan 029 implementation is integrated in isolated branch
   `codex/vnext-performance`: exact rational config fields, runtime B/M
   resolution and receipts, generalized L=4/8 consistency loss, generic H graph

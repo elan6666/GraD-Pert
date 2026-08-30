@@ -117,7 +117,7 @@ model:
       source: user_locked
       reference: docs/design/GRADPERT_V1.md
     local_view_count:
-      value: 8
+      value: 4
       source: user_locked
       reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
     drop_edge:
@@ -200,6 +200,10 @@ model:
       value: drop_for_batchnorm
       source: project_preregistered
       reference: docs/design/GRADPERT_V1.md#9-optimization-and-selection
+    systems_local_activation_checkpointing:
+      value: true
+      source: project_preregistered
+      reference: docs/experiments/VNEXT_EXACT_EFFECT_PERFORMANCE.md
     performance_pilot_variant:
       value: genept_prior_genept_seed
       source: user_locked

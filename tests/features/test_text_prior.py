@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from gradpert.features import verify_text_prior_npz
+from gradpert.hashing import sha256_json
 
 
 def _write_prior(tmp_path, *, genes, vectors, model="doubao-embedding-vision"):
@@ -38,6 +39,10 @@ def test_verify_text_prior_npz_selects_runtime_order_and_receipts_extras(tmp_pat
     assert artifact.extra_source_gene_count == 1
     assert artifact.extra_source_gene_ids == ("EXTRA",)
     assert artifact.perturbation_target_gene_ids == ("GeneA",)
+    assert artifact.requested_runtime_gene_ids == ("genea", "TP53", "GeneA")
+    assert artifact.requested_runtime_gene_order_sha256 == sha256_json(["genea", "TP53", "GeneA"])
+    assert artifact.ignored_missing_non_perturbation_gene_ids == ()
+    assert artifact.ignored_missing_non_perturbation_gene_ids_sha256 == sha256_json([])
     assert (
         artifact.selected_matrix_sha256
         == hashlib.sha256(
@@ -47,20 +52,37 @@ def test_verify_text_prior_npz_selects_runtime_order_and_receipts_extras(tmp_pat
     assert artifact.zero_vector_gene_ids == ()
 
 
-def test_verify_text_prior_npz_rejects_missing_runtime_gene(tmp_path):
+def test_verify_text_prior_npz_ignores_missing_non_target_in_runtime_order(tmp_path):
     path, digest = _write_prior(
         tmp_path,
-        genes=["TP53", "GeneA"],
-        vectors=[[1.0, 1.5], [2.0, 2.5]],
+        genes=["TP53", "GeneA", "GeneB"],
+        vectors=[[1.0, 1.5], [2.0, 2.5], [3.0, 3.5]],
     )
-    with pytest.raises(ValueError, match="missing runtime graph gene"):
-        verify_text_prior_npz(
-            path,
-            expected_sha256=digest,
-            expected_gene_ids=("TP53", "genea"),
-            expected_source_gene_count=2,
-            expected_embedding_width=2,
-        )
+    artifact = verify_text_prior_npz(
+        path,
+        expected_sha256=digest,
+        expected_gene_ids=("GeneB", "MISSING_A", "TP53", "MISSING_B", "GeneA"),
+        perturbation_target_gene_ids=("TP53",),
+        expected_source_gene_count=3,
+        expected_embedding_width=2,
+    )
+    assert artifact.requested_runtime_gene_ids == (
+        "GeneB",
+        "MISSING_A",
+        "TP53",
+        "MISSING_B",
+        "GeneA",
+    )
+    assert artifact.gene_ids == ("GeneB", "TP53", "GeneA")
+    assert artifact.values.tolist() == [[3.0, 3.5], [1.0, 1.5], [2.0, 2.5]]
+    assert artifact.ignored_missing_non_perturbation_gene_ids == (
+        "MISSING_A",
+        "MISSING_B",
+    )
+    assert artifact.ignored_missing_non_perturbation_gene_ids_sha256 == sha256_json(
+        ["MISSING_A", "MISSING_B"]
+    )
+    assert artifact.gene_order_sha256 == sha256_json(["GeneB", "TP53", "GeneA"])
 
 
 def test_verify_text_prior_npz_rejects_missing_target_before_runtime_selection(tmp_path):

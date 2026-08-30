@@ -473,11 +473,15 @@ def test_genept_seed_preflight_preserves_parent_graph_and_seals_superset(
         embedding_width=2048,
         source_gene_count=selected_count + 2,
         source_gene_order_sha256="4" * 64,
+        requested_runtime_gene_ids=tuple(parent.graph_gene_ids),
+        requested_runtime_gene_order_sha256=parent.graph_gene_order_sha256,
         gene_ids=tuple(parent.graph_gene_ids),
         gene_order_sha256=parent.graph_gene_order_sha256,
         selected_matrix_sha256="5" * 64,
         extra_source_gene_count=2,
         extra_source_gene_ids_sha256="6" * 64,
+        ignored_missing_non_perturbation_gene_ids=(),
+        ignored_missing_non_perturbation_gene_ids_sha256=sha256_json([]),
         perturbation_target_gene_ids=tuple(parent.candidate_target_ids),
         perturbation_target_gene_ids_sha256=parent.candidate_target_order_sha256,
         zero_vector_gene_ids=(),
@@ -514,10 +518,65 @@ def test_genept_seed_preflight_preserves_parent_graph_and_seals_superset(
     assert receipt.result_topology_content_sha256 == parent.topology_content_sha256
     assert receipt.source_gene_count == selected_count + 2
     assert receipt.extra_source_gene_count == 2
+    assert receipt.requested_runtime_gene_count == selected_count
+    assert receipt.ignored_missing_non_perturbation_gene_count == 0
+    assert receipt.missing_non_perturbation_gene_policy == "omit_preserving_canonical_order"
     assert (
         GenePTSeedAvailabilityReceipt.model_validate_json(availability.read_text(encoding="utf-8"))
         == receipt
     )
+
+
+def test_genept_seed_preflight_receipts_ordered_non_target_omission(monkeypatch, tmp_path) -> None:
+    parent = _manifest()
+    missing = parent.graph_gene_ids[0]
+    retained = tuple(gene_id for gene_id in parent.graph_gene_ids if gene_id != missing)
+    prior = SimpleNamespace(
+        source_path=(tmp_path / "seed-go-protein-pathway.npz").resolve(),
+        source_sha256=GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256,
+        source_size_bytes=123,
+        model="doubao-embedding-vision",
+        embedding_width=2048,
+        source_gene_count=len(retained) + 2,
+        source_gene_order_sha256="4" * 64,
+        requested_runtime_gene_ids=tuple(parent.graph_gene_ids),
+        requested_runtime_gene_order_sha256=parent.graph_gene_order_sha256,
+        gene_ids=retained,
+        gene_order_sha256=sha256_json(list(retained)),
+        selected_matrix_sha256="5" * 64,
+        extra_source_gene_count=2,
+        extra_source_gene_ids_sha256="6" * 64,
+        ignored_missing_non_perturbation_gene_ids=(missing,),
+        ignored_missing_non_perturbation_gene_ids_sha256=sha256_json([missing]),
+        perturbation_target_gene_ids=tuple(parent.candidate_target_ids),
+        perturbation_target_gene_ids_sha256=parent.candidate_target_order_sha256,
+        zero_vector_gene_ids=(),
+    )
+    monkeypatch.setattr(
+        vnext_graph_axis,
+        "load_vnext_graph_topology",
+        lambda root: (object(), parent),
+    )
+    monkeypatch.setattr(vnext_graph_axis, "verify_text_prior_npz", lambda *args, **kwargs: prior)
+    runtime_graph_root = "vnext/graph_axes/nadig_jurkat/hvg512_plus_targets"
+    parent_root = tmp_path / runtime_graph_root
+    parent_root.mkdir(parents=True)
+    (parent_root / "manifest.json").write_text("{}\n", encoding="utf-8")
+
+    receipt = preflight_genept_seed_vnext(
+        parent_root=parent_root,
+        genept_artifact_path=prior.source_path,
+        expected_genept_sha256=GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256,
+        runtime_graph_root=runtime_graph_root,
+        availability_receipt_path=tmp_path / "availability.json",
+    )
+
+    assert receipt.status == "available"
+    assert receipt.requested_runtime_gene_count == len(parent.graph_gene_ids)
+    assert receipt.selected_gene_count == len(retained)
+    assert receipt.ignored_missing_non_perturbation_gene_count == 1
+    assert receipt.ignored_missing_non_perturbation_gene_ids_sha256 == sha256_json([missing])
+    assert receipt.result_topology_content_sha256 is None
 
 
 def test_genept_seed_preflight_rejects_nonsealed_artifact_before_loading(tmp_path) -> None:

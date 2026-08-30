@@ -1,5 +1,30 @@
 # Decision Log
 
+## 2026-08-31
+
+- Replace the successor A0 scientific coordinate from eight to four
+  RingInduced local views. Advance the matrix identity to
+  `nadig_jurkat_vnext_ratio_graph_v3`; old hashes, receipts and interrupted
+  runs remain immutable eight-local evidence and cannot satisfy the new A0.
+- Preserve single-variable L design by changing L2 from four to eight locals.
+  L1 remains Fanout at four locals, L3 remains quarter local-node coverage at
+  four locals, and L4/L5 retain proportional masks that resolve to `2/4` and
+  `1/4`. Every H/M/W/D/E/O row inherits the four-local A0.
+- Stop all active experiments and pause L execution. After a fresh measured
+  performance pass, run only A0/H1/H2/H3 sequentially on one physical GPU.
+- Treat the accepted eight-local sparse-union ABBA result as historical
+  implementation evidence, not current-coordinate timing. Reprofile the new
+  four-local A0 before selecting another optimization; GPU utilization is a
+  diagnostic, while exact state, step wall, tails, memory and zero OOM remain
+  acceptance gates.
+- Use Hugging Face Trackio only as a separate formal-run telemetry sidecar.
+  Mirror an explicit scalar allowlist for loss/validation/performance curves,
+  manually sample the one selected GPU, keep the 64-step native log buffer,
+  and never upload test metrics, predictions, row/gene identities, data or
+  checkpoints. Because Trackio step replay is not idempotent, every live run
+  uses a fresh locked lineage with `resume="never"` and remains provisional;
+  native receipts are authoritative.
+
 ## 2026-08-30
 
 - Accept the ordered CPU-vectorized sparse-union implementation after exact

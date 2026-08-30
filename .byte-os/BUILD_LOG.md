@@ -700,4 +700,51 @@
   4,842.376/4,890.634 ms. The paired ratio was 0.437470 (56.253% reduction,
   2.286x), both p90 comparisons improved, peak allocated/reserved GPU memory
   changed by only +0.017/+0.041%, and all arms retained zero PKL with no
-  validation/test access. Plan 028 is complete and Plan 030 is active.
+  validation/test access. Plan 028 is complete; its figures describe the
+  historical eight-local coordinate.
+
+## 2026-08-31 — four-local successor matrix migration started
+
+- Stopped and preserved the active `f1c14d8` formal runs. A0 ended at 1,094
+  steps and H3 at 1,874 steps; neither is scientific completion. No L row
+  launched, GPUs were released, zero persistent PKL remained, and the obsolete
+  monitor automation was removed.
+- Rebased the successor scientific matrix on four RingInduced locals. L2 is
+  now the eight-local single-factor row; proportional L4/L5 masks resolve to
+  two and one masked views. Matrix identity advances to v3, while schema v2 is
+  retained because the receipt structure is unchanged.
+- Regenerated all 25 self-contained ablation configs and the three GenePT-Seed
+  prior comparison configs. At migration start, fresh gates remained pending;
+  the local results below now close the available local surface, while exact-
+  environment server gates remain pending before any CUDA launch.
+- Focused config/execution/performance gates pass 113 tests. The complete
+  dependency-available local surface passes 437 tests with 10 honest skips for
+  absent Torch/anndata and frozen-reference dependencies. Ruff, format on 160
+  files, compileall, deterministic regeneration and diff checks pass. The
+  notebook collection remains unrun locally because `nbformat` is absent;
+  full Torch/notebook/mypy/build gates remain required on the server.
+
+## 2026-08-31 — private Trackio scalar dashboard integration
+
+- Added the optional `tracking` dependency group pinned to Trackio 0.37 and
+  Hugging Face Hub 1.x, plus an out-of-process formal-only sidecar and private
+  Space preflight. Native training and every performance script remain free of
+  Trackio imports.
+- The sidecar tails stable snapshots of only `train_steps.csv`,
+  `validation.csv`, `run_meta.json` and the pre-test training receipt. It maps
+  loss components, distillation/gradient health, stage timing, throughput and
+  validation scalars; it never opens test summaries or uploads artifacts.
+- Trackio's all-device background GPU monitor is disabled. The sidecar samples
+  exactly one configured GPU every 30 seconds, keeps CPU telemetry isolated in
+  its own process and preserves the native 64-step receipt buffer.
+- Fresh-lineage locking, finite/contiguous receipt gates, exact source/run
+  identity, private-Space verification, fsync-plus-atomic state and explicit
+  provisional/non-authoritative receipt fields prevent dashboard state from
+  being confused with scientific evidence. Twenty focused tests pass; the full
+  locked dev/data/model/tracking local surface passes 543 tests with 2 honest
+  skips, Ruff and format on 164 files, strict mypy on all 76 source files, and
+  an isolated wheel/sdist build. Clean publication, exact-commit server gates,
+  and server login/Space creation remain pending. The private destination is
+  bound to Space `elan68681/grad-pert-vnext-ablations` and Bucket
+  `elan68681/grad-pert-vnext-ablations-bucket`; both require server-side Hub
+  write authentication before activation.

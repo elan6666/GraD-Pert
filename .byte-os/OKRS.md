@@ -12,24 +12,25 @@
 
 1. 干净环境安装、静态检查、单元测试和合成端到端 smoke 全部通过，并记录命令与环境 hash。
 2. Replogle K562、Replogle RPE1、Nadig Jurkat、Nadig HepG2、Norman 五个数据集均通过下载校验、预处理/QC 和 canonical split 门禁；所有模型加载后的 train/validation/test condition IDs 与 `split_hash` 完全一致。
-3. 唯一 GraD-Pert B2 路线完成完整训练 step、EMA/center 更新、checkpoint 恢复和 Scouter-style 每条件 300-control 推理；服务器容量门锁定 batch 256、16,384 prototypes 和 expandable allocator。当前默认使用完整图和七项系统优化的 B2；Nadig Jurkat seed 1 进入最多 200 epochs、validation-only patience 10 的正式训练。
+3. 唯一 GraD-Pert B2 路线完成完整训练 step、EMA/center 更新、checkpoint 恢复和 Scouter-style 每条件 300-control 推理；服务器容量门锁定 batch 256、16,384 prototypes 和 expandable allocator。历史 Plan 021 的 Nadig Jurkat seed 1 使用最多 200 epochs、validation-only patience 10；当前 vNext A/H 合同改为固定 10 epochs、无 early stop。
 4. GraD-Pert、官方包调用的 GEARS、官方包调用的 TxPert 在五数据集上均完成 1 epoch 集成门禁并进入统一 evaluator；三个 nonlearned baselines 完成统一评估；每个适用指标具有逐 condition 值、macro 汇总、availability 和来源 commit。
 5. 每次正式运行在服务器保存完整 manifest、最佳 checkpoint、history、推理配方、精确 control/truth IDs 与 notebook provenance；默认不保存 PKL，需要逐细胞下游时才显式生成一个去重 `result.pkl`。本地仅同步小型指标、日志、receipt 和 server-artifact pointer。
 6. 每个正式服务器任务的 preflight receipt 证明本地 HEAD、GitHub commit 与服务器 HEAD 完全一致，且服务器 worktree 干净；任何不一致均中止任务。
 7. GraD-Pert、GEARS、TxPert 与每个 nonlearned baseline 的五数据集配置均为独立、自包含文件，配置矩阵完整性和禁止隐藏全局默认由测试验证。
 8. B2-vNext 默认配置、HVG512+targets、RingInduced、运行时图节点覆盖比例
-   `1/2`、8 个 local、mask-view 比例 `0/1`、native multi-source sparse
+   `1/2`、4 个 local、mask-view 比例 `0/1`、native multi-source sparse
    graph Transformer、四项损失权重、decoder 和 Seed-GO-ProteinPathway
    GenePT coverage contracts
    均通过合成黄金测试、服务器 CUDA gate 与 config/receipt identity 验证。
-9. H 图规模与 L 局部图两个 Nadig 10-epoch 模块在运行前冻结；每个可用坐标只训练一次，
-   test 只访问一次，零持久化 PKL；GenePT 坐标只使用 SHA 锁定、17,730
-   标签全覆盖的 Seed-GO-ProteinPathway，并按运行时图轴精确重排。
-10. 25 个 vNext 坐标先完成无 validation/test-truth 的自适应性能测绘：
-    静态解析、单步容量、5+20 短计时、按需 profiler 与 10+100 延长测量；
-    只有实测达到门槛或导致容量失败的实现瓶颈才允许优化，并通过逐
-    view/union/RNG/梯度/状态精确等价与单 GPU ABBA 后，才成为 H/L 正式
-    实验的源码谱系。短跑结果不得用于科学坐标选择。
+9. H 与 L 配置均在运行前冻结；当前只允许 A0/H1/H2/H3 依次在一个 GPU
+   上各训练一次，L 保持暂停。每个正式行 test 只访问一次、零持久化
+   PKL；GenePT 坐标只使用 SHA 锁定、17,730 标签全覆盖的
+   Seed-GO-ProteinPathway，并按运行时图轴精确重排。
+10. 新四-local A0 先完成无 validation/test-truth 的单步容量、真实 stage/
+    Torch/Python profile 与 5+20 timing。只有新坐标实测达到门槛或导致
+    容量失败的瓶颈才允许优化，并通过逐 view/union/RNG/梯度/状态精确
+    等价与单 GPU ABBA 后，才成为 A/H 正式实验的源码谱系。短跑结果
+    不得用于科学坐标选择。
 
 ## Current baseline
 

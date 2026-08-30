@@ -43,6 +43,9 @@ protocol.
   result bundle, metric registry and three headline Pearson families.
 - Server commit preflight, formal launch, result allowlist sync, artifact
   pointers, read-only analysis notebook examples.
+- Optional private Trackio dashboards for formal training/validation scalar
+  curves and single-GPU telemetry, isolated from performance timing and all
+  test/prediction/artifact surfaces.
 
 ## Active B2-vNext extension
 
@@ -50,15 +53,16 @@ The active extension keeps the standalone B2 training/evaluation product and
 adds a single config-driven architecture surface for a preregistered one-
 dataset ablation program. Its default is TxPert-style full-cell-line,
 pre-split HVG512 plus all perturbation targets,
-STRING+GO native multi-source sparse graph Transformer, eight RingInduced
+STRING+GO native multi-source sparse graph Transformer, four RingInduced
 views capped at exact ratio `1/2` of the actual runtime graph, no local anchor
 masking (`0/1` mask-view ratio), and direct losses `1.0/0.8/0.4/0.1`.
 
 The successor program contains two direct-to-A0 modules. H changes only the
 requested HVG count across 512/1024/2048/5000 while retaining a `1/2` local
 coverage ratio. L changes exactly one of builder, local count, local node ratio,
-or local mask-view ratio. Fixed local budgets/counts are legacy evidence only,
-not successor scientific factors.
+or local mask-view ratio; its count row uses eight locals against the four-local
+A0. Fixed local node budgets and fixed mask-view counts are legacy evidence
+only; local-view count remains an explicit successor scientific factor.
 
 The same main path must also select source-audited single/multi graph encoders,
 STRING weight policies, decoder strategies, and GenePT feature modes. No
@@ -81,8 +85,9 @@ source-identity contracts.
 2. Every dataset must pass source, preprocessing, gene, QC, split, control, and
    coverage gates before training.
 3. Each model/dataset config is self-contained, strict, and hashable.
-4. Every learned model/dataset pair runs exactly one epoch in the current
-   execution phase. Test is evaluated only after the selected checkpoint.
+4. Every learned model/dataset pair first passes an exactly one-epoch v1
+   integration smoke. The separately preregistered vNext formal A/H rows use
+   exactly 10 epochs; test is evaluated only after the selected checkpoint.
 5. Every runner always emits prediction-only content receipts using the exact
    shared 300-control row IDs. The default mode persists no PKL; explicit
    `single_pkl` mode emits exactly one deduplicated `result.pkl`.

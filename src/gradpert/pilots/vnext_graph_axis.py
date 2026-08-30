@@ -279,14 +279,14 @@ class GenePTAvailabilityReceipt(StrictManifest):
 
 
 class GenePTSeedAvailabilityReceipt(StrictManifest):
-    """Sealed full-coverage preflight for the Seed-GO-ProteinPathway superset."""
+    """Sealed coverage preflight for the Seed-GO-ProteinPathway superset."""
 
-    schema_version: Literal["genept-seed-go-protein-pathway-availability-v1"]
+    schema_version: Literal["genept-seed-go-protein-pathway-availability-v2"]
     status: Literal["available"]
     dataset_id: Literal["nadig_jurkat"]
     identifier_matching: Literal["exact_case_sensitive"]
     extra_source_gene_policy: Literal["ignore_preserving_runtime_axis"]
-    missing_runtime_gene_policy: Literal["fail_before_model_construction"]
+    missing_non_perturbation_gene_policy: Literal["omit_preserving_canonical_order"]
     missing_perturbation_target_policy: Literal["fail_before_model_construction"]
     parent_topology_content_sha256: Sha256
     parent_graph_gene_order_sha256: Sha256
@@ -301,26 +301,43 @@ class GenePTSeedAvailabilityReceipt(StrictManifest):
     embedding_width: int = Field(gt=0)
     source_gene_count: int = Field(gt=0)
     source_gene_order_sha256: Sha256
+    requested_runtime_gene_count: int = Field(gt=0)
+    requested_runtime_gene_order_sha256: Sha256
     selected_gene_count: int = Field(gt=0)
     selected_gene_order_sha256: Sha256
     selected_matrix_sha256: Sha256
     extra_source_gene_count: int = Field(ge=0)
     extra_source_gene_ids_sha256: Sha256
+    ignored_missing_non_perturbation_gene_count: int = Field(ge=0)
+    ignored_missing_non_perturbation_gene_ids_sha256: Sha256
     perturbation_target_gene_count: int = Field(gt=0)
     perturbation_target_gene_ids_sha256: Sha256
     zero_vector_gene_count: Literal[0]
-    result_topology_content_sha256: Sha256
+    result_topology_content_sha256: Sha256 | None = None
 
     @model_validator(mode="after")
     def enforce_seed_availability(self) -> GenePTSeedAvailabilityReceipt:
-        if self.selected_gene_order_sha256 != self.parent_graph_gene_order_sha256:
-            raise ValueError("GenePT Seed selected axis differs from the parent graph axis")
+        if self.requested_runtime_gene_order_sha256 != self.parent_graph_gene_order_sha256:
+            raise ValueError("GenePT Seed requested axis differs from the parent graph axis")
         if self.perturbation_target_gene_ids_sha256 != self.candidate_target_order_sha256:
             raise ValueError("GenePT Seed target identity differs from the parent target union")
-        if self.result_topology_content_sha256 != self.parent_topology_content_sha256:
-            raise ValueError("GenePT Seed preflight must preserve the parent graph topology")
         if self.source_gene_count != self.selected_gene_count + self.extra_source_gene_count:
             raise ValueError("GenePT Seed source/selected/extra gene counts do not reconcile")
+        if self.requested_runtime_gene_count != (
+            self.selected_gene_count + self.ignored_missing_non_perturbation_gene_count
+        ):
+            raise ValueError("GenePT Seed requested/selected/ignored gene counts do not reconcile")
+        if self.ignored_missing_non_perturbation_gene_count == 0:
+            if self.ignored_missing_non_perturbation_gene_ids_sha256 != sha256_json([]):
+                raise ValueError("GenePT Seed zero ignored-gene count requires the empty hash")
+            if self.selected_gene_order_sha256 != self.parent_graph_gene_order_sha256:
+                raise ValueError("full-coverage GenePT Seed selected axis differs from parent")
+            if self.result_topology_content_sha256 != self.parent_topology_content_sha256:
+                raise ValueError("full-coverage GenePT Seed must preserve parent topology")
+        elif self.result_topology_content_sha256 is not None:
+            raise ValueError(
+                "GenePT Seed omissions require a separately materialized result topology"
+            )
         return self
 
 
@@ -359,12 +376,12 @@ def preflight_genept_seed_vnext(
     if prior.zero_vector_gene_ids:
         raise AssertionError("sealed Seed-GO-ProteinPathway preflight returned zero vectors")
     receipt = GenePTSeedAvailabilityReceipt(
-        schema_version="genept-seed-go-protein-pathway-availability-v1",
+        schema_version="genept-seed-go-protein-pathway-availability-v2",
         status="available",
         dataset_id="nadig_jurkat",
         identifier_matching="exact_case_sensitive",
         extra_source_gene_policy="ignore_preserving_runtime_axis",
-        missing_runtime_gene_policy="fail_before_model_construction",
+        missing_non_perturbation_gene_policy="omit_preserving_canonical_order",
         missing_perturbation_target_policy="fail_before_model_construction",
         parent_topology_content_sha256=parent.topology_content_sha256,
         parent_graph_gene_order_sha256=parent.graph_gene_order_sha256,
@@ -379,15 +396,27 @@ def preflight_genept_seed_vnext(
         embedding_width=prior.embedding_width,
         source_gene_count=prior.source_gene_count,
         source_gene_order_sha256=prior.source_gene_order_sha256,
+        requested_runtime_gene_count=len(prior.requested_runtime_gene_ids),
+        requested_runtime_gene_order_sha256=prior.requested_runtime_gene_order_sha256,
         selected_gene_count=len(prior.gene_ids),
         selected_gene_order_sha256=prior.gene_order_sha256,
         selected_matrix_sha256=prior.selected_matrix_sha256,
         extra_source_gene_count=prior.extra_source_gene_count,
         extra_source_gene_ids_sha256=prior.extra_source_gene_ids_sha256,
+        ignored_missing_non_perturbation_gene_count=len(
+            prior.ignored_missing_non_perturbation_gene_ids
+        ),
+        ignored_missing_non_perturbation_gene_ids_sha256=(
+            prior.ignored_missing_non_perturbation_gene_ids_sha256
+        ),
         perturbation_target_gene_count=len(prior.perturbation_target_gene_ids),
         perturbation_target_gene_ids_sha256=prior.perturbation_target_gene_ids_sha256,
         zero_vector_gene_count=0,
-        result_topology_content_sha256=parent.topology_content_sha256,
+        result_topology_content_sha256=(
+            parent.topology_content_sha256
+            if not prior.ignored_missing_non_perturbation_gene_ids
+            else None
+        ),
     )
     destination = Path(availability_receipt_path)
     atomic_json(destination, receipt.model_dump(mode="json"))

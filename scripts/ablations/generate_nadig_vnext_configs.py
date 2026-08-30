@@ -96,7 +96,7 @@ def base_config() -> dict[str, object]:
             "graph_add_self_loops": sourced(True),
             "graph_first_source_local_branch": sourced(True),
             "local_view_builder": sourced("ring_induced", reference=SUCCESSOR_REFERENCE),
-            "local_view_count": sourced(8, reference=SUCCESSOR_REFERENCE),
+            "local_view_count": sourced(4, reference=SUCCESSOR_REFERENCE),
             "local_view_node_budget_ratio": sourced("1/2", reference=SUCCESSOR_REFERENCE),
             "local_view_fanout": sourced("20_10_5_5"),
             "local_anchor_mask_view_ratio": sourced("0/1", reference=SUCCESSOR_REFERENCE),
@@ -147,7 +147,7 @@ def variants() -> dict[str, VariantSpec]:
             },
         ),
         "l1_fanout_ratio_half": variant("local_view_builder", {"local_view_builder": "fanout"}),
-        "l2_ring_half_count4": variant("local_view_count", {"local_view_count": 4}),
+        "l2_ring_half_count8": variant("local_view_count", {"local_view_count": 8}),
         "l3_ring_quarter": variant(
             "local_view_node_budget_ratio",
             {"local_view_node_budget_ratio": "1/4"},
@@ -332,7 +332,7 @@ def render() -> None:
         )
     matrix = {
         "schema_version": "2",
-        "matrix_id": "nadig_jurkat_vnext_ratio_graph_v2",
+        "matrix_id": "nadig_jurkat_vnext_ratio_graph_v3",
         "design_reference": SUCCESSOR_REFERENCE,
         "architecture_reference": REFERENCE,
         "dataset_id": "nadig_jurkat",

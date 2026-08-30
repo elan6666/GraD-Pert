@@ -121,7 +121,7 @@ def test_schema_v2_rejects_rehashed_multi_factor_config(tmp_path: Path) -> None:
     row = next(row for row in payload["rows"] if row["variant_id"] == "l1_fanout_ratio_half")
     config = repository / row["config_path"]
     config_payload = yaml.safe_load(config.read_text(encoding="utf-8"))
-    config_payload["model"]["parameters"]["local_view_count"]["value"] = 4
+    config_payload["model"]["parameters"]["local_view_count"]["value"] = 8
     config.write_text(yaml.safe_dump(config_payload, sort_keys=False), encoding="utf-8")
     row["config_sha256"] = hashlib.sha256(config.read_bytes()).hexdigest()
     matrix.write_text(json.dumps(payload), encoding="utf-8")
@@ -196,12 +196,12 @@ def test_genept_seed_preflight_provenance_is_bound_to_each_e_row(tmp_path: Path)
         encoding="utf-8",
     )
     receipt = GenePTSeedAvailabilityReceipt(
-        schema_version="genept-seed-go-protein-pathway-availability-v1",
+        schema_version="genept-seed-go-protein-pathway-availability-v2",
         status="available",
         dataset_id="nadig_jurkat",
         identifier_matching="exact_case_sensitive",
         extra_source_gene_policy="ignore_preserving_runtime_axis",
-        missing_runtime_gene_policy="fail_before_model_construction",
+        missing_non_perturbation_gene_policy="omit_preserving_canonical_order",
         missing_perturbation_target_policy="fail_before_model_construction",
         parent_topology_content_sha256="1" * 64,
         parent_graph_gene_order_sha256="2" * 64,
@@ -216,11 +216,15 @@ def test_genept_seed_preflight_provenance_is_bound_to_each_e_row(tmp_path: Path)
         embedding_width=2048,
         source_gene_count=17730,
         source_gene_order_sha256="5" * 64,
+        requested_runtime_gene_count=2809,
+        requested_runtime_gene_order_sha256="2" * 64,
         selected_gene_count=2809,
         selected_gene_order_sha256="2" * 64,
         selected_matrix_sha256="6" * 64,
         extra_source_gene_count=14921,
         extra_source_gene_ids_sha256="7" * 64,
+        ignored_missing_non_perturbation_gene_count=0,
+        ignored_missing_non_perturbation_gene_ids_sha256=sha256_json([]),
         perturbation_target_gene_count=218,
         perturbation_target_gene_ids_sha256="3" * 64,
         zero_vector_gene_count=0,
@@ -243,7 +247,7 @@ def test_genept_seed_preflight_provenance_is_bound_to_each_e_row(tmp_path: Path)
     assert plan[1].genept_preflight_receipt_path == str(path.resolve())
     assert plan[1].genept_preflight_receipt_sha256 == hashlib.sha256(path.read_bytes()).hexdigest()
     assert (
-        plan[1].genept_preflight_schema_version == "genept-seed-go-protein-pathway-availability-v1"
+        plan[1].genept_preflight_schema_version == "genept-seed-go-protein-pathway-availability-v2"
     )
     assert plan[1].genept_preflight_status == "available"
     assert plan[1].genept_preflight_artifact_sha256 == genept_row.genept_expected_sha256

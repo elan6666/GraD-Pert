@@ -117,7 +117,7 @@ model:
       source: user_locked
       reference: docs/design/GRADPERT_V1.md
     local_view_count:
-      value: 4
+      value: 8
       source: user_locked
       reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
     drop_edge:
@@ -205,7 +205,7 @@ model:
       source: project_preregistered
       reference: docs/experiments/VNEXT_EXACT_EFFECT_PERFORMANCE.md
     performance_pilot_variant:
-      value: vnext_l2_ring_half_count4
+      value: vnext_l2_ring_half_count8
       source: user_locked
       reference: docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md
     graph_hvg_count:
@@ -327,7 +327,7 @@ evaluation:
   - trishift_pearson_delta
   - systema_pearson
 artifacts:
-  root: runs/ablations/nadig_jurkat/l2_ring_half_count4
+  root: runs/ablations/nadig_jurkat/l2_ring_half_count8
   large_artifacts_server_only: true
   result_mode: metrics_only
   result_pkl_name: result.pkl

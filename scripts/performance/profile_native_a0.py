@@ -118,7 +118,7 @@ def _require_reference_a0(
         "graph_encoder_family": "multi_source_sparse_transformer",
         "string_weight_mode": "selection_only",
         "local_view_builder": "ring_induced",
-        "local_view_count": 8,
+        "local_view_count": 4,
         "local_view_node_budget_ratio_numerator": 1,
         "local_view_node_budget_ratio_denominator": 2,
         "local_anchor_mask_view_ratio_numerator": 0,
@@ -656,7 +656,7 @@ def _profile_run(
             contract.graph_node_count != EXACT_A0_GRAPH_NODE_COUNT
             or contract.effective_node_budget != EXACT_A0_LOCAL_NODE_BUDGET
             or contract.node_budget_remainder != 1
-            or contract.local_view_count != 8
+            or contract.local_view_count != 4
             or contract.effective_mask_view_count != 0
             or contract.derivation_mode != "ratio"
         ):

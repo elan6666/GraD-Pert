@@ -40,6 +40,7 @@ def test_genept_seed_prior_configs_are_pinned_and_otherwise_identical() -> None:
         assert config.model.parameters["gene_feature_mode"].value == "genept_id_residual"
         assert config.model.parameters["genept_expected_sha256"].value == row["artifact_sha256"]
         assert config.model.parameters["genept_artifact_path"].value == row["artifact_path"]
+        assert config.model.parameters["local_view_count"].value == 4
         assert config.training.max_epochs.value == 10
         assert config.training.run_seeds == [1]
         normalized.append(_normalized(path))

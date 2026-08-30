@@ -1,9 +1,9 @@
 ---
 id: 032
-status: in_progress
+status: completed
 wave: 2
 depends_on: [029]
-updated_at: 2026-08-29T19:15:00+08:00
+updated_at: 2026-08-31T06:30:00+08:00
 ---
 
 # Plan 032 — Seed-GO-ProteinPathway prior migration
@@ -42,8 +42,11 @@ selected rows were finite, width 2,048 and zero-free; audited case pairs such as
   and reorder them to runtime graph order before model construction.
 - Exact-case labels take precedence and case-paired labels remain distinct.
 - Extra source labels are ignored with count/order hashes in the receipt.
-- A duplicate source label, missing runtime graph label, missing perturbation
-  target, non-finite row, wrong SHA/model/width or zero fill fails closed.
+- A missing perturbation target, duplicate source label, non-finite row, wrong
+  SHA/model/width or zero fill fails closed before model construction.
+- A missing non-perturbation runtime gene is omitted in preserved canonical
+  order and its ordered count/hash is receipted. The selected artifact covers
+  the full current runtime axis, so this policy changes no registered E row.
 - E rows use the same unfiltered HVG512-plus-targets topology as A0. H/L/A0 and
   every non-E scientific factor remain unchanged.
 
@@ -54,8 +57,8 @@ selected rows were finite, width 2,048 and zero-free; audited case pairs such as
 - All four feature modes accept the same sealed NPZ identity and differ from
   A0 only by their declared feature-route and derived prior fields.
 - Focused tests cover superset selection, runtime order, case pairs, duplicate
-  labels, missing runtime labels, non-finite values, wrong hashes and matrix
-  tampering.
+  labels, fail-closed missing perturbation targets, ordered omission of missing
+  non-perturbation genes, non-finite values, wrong hashes and matrix tampering.
 - The GenePT availability receipt preserves artifact path/SHA/schema/status,
   selected and extra label hashes, and target coverage. No receipt means
   blocked preflight, not a skip.
@@ -72,5 +75,5 @@ selected rows were finite, width 2,048 and zero-free; audited case pairs such as
 
 - No GraD-Pert training, validation or test evaluation in this plan.
 - No comparison among old GenePT, Seed, GO-EXP, Protein or HPA priors.
-- No zero fill, case folding, aliases, nearest-gene substitution or graph
-  pruning to manufacture coverage.
+- No zero fill, case folding, aliases, nearest-gene substitution or
+  unreceipted graph pruning to manufacture coverage.

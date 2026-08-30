@@ -1,5 +1,19 @@
 # Lessons
 
+## A changed baseline must reverse dependent ablations where necessary
+
+- Requirement correction: the successor A0 changed from eight to four local
+  views. Merely editing A0 would make the old four-local L2 identical to the
+  reference and would silently destroy the single-factor matrix.
+- Correct migration: regenerate every successor row from the new A0, redefine
+  L2 as eight locals, derive proportional masks as `2/4` and `1/4`, advance the
+  matrix identity, and invalidate old config/run hashes without rewriting the
+  old evidence.
+- Prevention: after any baseline change, compute each row's resolved parameter
+  diff against the new baseline and require it to equal the declared allowlist.
+  Also audit derived quantities and every secondary config generator that uses
+  A0 as its base.
+
 ## Cross-profile attribution should choose the smallest measured boundary
 
 - Mistake avoided: static inspection suggested both scalar GPU synchronization

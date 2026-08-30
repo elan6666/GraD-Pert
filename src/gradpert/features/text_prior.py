@@ -38,6 +38,10 @@ class TextPriorArtifact:
     perturbation_target_gene_ids: tuple[str, ...]
     perturbation_target_gene_ids_sha256: str
     selected_matrix_sha256: str
+    requested_runtime_gene_ids: tuple[str, ...]
+    requested_runtime_gene_order_sha256: str
+    ignored_missing_non_perturbation_gene_ids: tuple[str, ...]
+    ignored_missing_non_perturbation_gene_ids_sha256: str
 
 
 def verify_text_prior_npz(
@@ -148,12 +152,15 @@ def verify_text_prior_npz(
     )
     if missing_targets:
         raise ValueError("text-prior source is missing perturbation target gene labels")
-    missing_runtime = tuple(gene_id for gene_id in expected_gene_ids if gene_id not in source_index)
-    if missing_runtime:
-        raise ValueError("text-prior source is missing runtime graph gene labels")
+    ignored_missing_non_perturbation_gene_ids = tuple(
+        gene_id for gene_id in expected_gene_ids if gene_id not in source_index
+    )
+    retained_runtime_gene_ids = tuple(
+        gene_id for gene_id in expected_gene_ids if gene_id in source_index
+    )
 
     selected_indices = np.asarray(
-        [source_index[gene_id] for gene_id in expected_gene_ids], dtype=np.int64
+        [source_index[gene_id] for gene_id in retained_runtime_gene_ids], dtype=np.int64
     )
     selected_values = np.ascontiguousarray(values[selected_indices], dtype=np.float32)
     selected_values.setflags(write=False)
@@ -164,11 +171,11 @@ def verify_text_prior_npz(
         source_path=source.resolve(),
         source_sha256=observed_sha256,
         source_size_bytes=source.stat().st_size,
-        gene_ids=expected_gene_ids,
+        gene_ids=retained_runtime_gene_ids,
         values=selected_values,
         model=model,
         embedding_width=int(selected_values.shape[1]),
-        gene_order_sha256=sha256_json(list(expected_gene_ids)),
+        gene_order_sha256=sha256_json(list(retained_runtime_gene_ids)),
         zero_vector_gene_ids=zero_vector_gene_ids,
         source_gene_count=len(source_gene_ids),
         source_gene_order_sha256=sha256_json(list(source_gene_ids)),
@@ -178,4 +185,10 @@ def verify_text_prior_npz(
         perturbation_target_gene_ids=perturbation_target_gene_ids,
         perturbation_target_gene_ids_sha256=sha256_json(list(perturbation_target_gene_ids)),
         selected_matrix_sha256=hashlib.sha256(selected_values.tobytes(order="C")).hexdigest(),
+        requested_runtime_gene_ids=expected_gene_ids,
+        requested_runtime_gene_order_sha256=sha256_json(list(expected_gene_ids)),
+        ignored_missing_non_perturbation_gene_ids=(ignored_missing_non_perturbation_gene_ids),
+        ignored_missing_non_perturbation_gene_ids_sha256=sha256_json(
+            list(ignored_missing_non_perturbation_gene_ids)
+        ),
     )

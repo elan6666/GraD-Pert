@@ -25,11 +25,11 @@ source-derived native behavior and frozen synthetic golden tests.
   the public TxPert STRING+GO Exphormer-MG graph-encoder behavior.
 - Global views: two complete runtime-graph views; source-specific DropEdge 0.1;
   exactly one Student global receives the existing eligible-node mask.
-- Local views: eight inbound four-layer RingInduced views. Their node cap is
+- Local views: four inbound four-layer RingInduced views. Their node cap is
   the exact integer floor of one half of the actual runtime graph size after
   target union; all active anchors are retained. The sealed 2,809-node H=512
   graph therefore resolves to a cap of 1,404 nodes.
-- Local anchor masking: disabled (`0/8`). This does not disable the global
+- Local anchor masking: disabled (`0/4`). This does not disable the global
   masked-node objective.
 - Prediction view: deterministic complete runtime graph, without DropEdge,
   view masks, local sampling, or projection head.
@@ -51,7 +51,7 @@ graph_sources: string_go
 graph_encoder_family: multi_source_sparse_transformer
 string_weight_mode: selection_only
 local_view_builder: ring_induced
-local_view_count: 8
+local_view_count: 4
 local_view_node_budget_ratio: 1/2
 local_view_fanout: 20_10_5_5
 local_anchor_mask_view_ratio: 0/1
@@ -91,18 +91,24 @@ Every vNext GenePT E row is locked to the GenePT-Seed
   the sealed superset by exact case-sensitive label and retained in runtime
   order; source genes outside that axis are ignored and their ordered count
   and hash are receipted;
-- duplicate source labels, any missing runtime label, any missing train,
-  validation, or test perturbation target, a wrong hash/model/width, or a
-  non-finite/zero source row aborts before tensor or model construction;
-- no aliasing, case folding, random fill, zero fill, graph-gene removal, or
-  silent condition removal is allowed; `ctrl` is not a graph node;
+- duplicate source labels, any missing train, validation, or test perturbation
+  target, a wrong hash/model/width, or a non-finite/zero source row aborts
+  before tensor or model construction;
+- a missing non-perturbation runtime gene is omitted while preserving the
+  requested canonical order; its ordered count/hash and the retained-axis
+  order/matrix hashes are receipted. The frozen `Seed-GO-ProteinPathway`
+  artifact currently covers all 2,809 runtime genes, so no omission occurs in
+  the registered coordinate;
+- no aliasing, case folding, random fill, zero fill, unreceipted graph-gene
+  removal, or silent condition removal is allowed; `ctrl` is not a graph node;
 - receipts bind source artifact identity and order, selected runtime order and
   matrix hash, ignored-source order hash, complete target coverage, and the
   unchanged STRING/GO topology hashes.
 
-Unlike the retired `emb_b` filtered-axis proposal, E rows use the same
-unfiltered `hvg512_plus_targets` graph as A0. The prior is a sealed superset;
-it does not determine graph membership.
+Unlike the retired `emb_b` filtered-axis proposal, the registered E rows use
+the same unfiltered `hvg512_plus_targets` graph as A0 because the selected prior
+has full runtime coverage. The prior is a sealed superset; only a future,
+receipted missing non-target could remove a runtime gene.
 
 GenePT modes are distinct: frozen projected input, projected input plus learned
 ID residual, trainable embedding initialized from a deterministic GenePT
@@ -158,12 +164,12 @@ Every row differs from A0 in only the named factor unless labeled interaction.
 
 ### Local construction, coverage, count, and masking
 
-- A0: RingInduced, node ratio `1/2`, eight locals, mask-view ratio `0/1`.
+- A0: RingInduced, node ratio `1/2`, four locals, mask-view ratio `0/1`.
 - L1: Fanout with all other A0 factors unchanged.
-- L2: four local views with all other A0 factors unchanged.
+- L2: eight local views with all other A0 factors unchanged.
 - L3: local node ratio `1/4` with all other A0 factors unchanged.
-- L4: local anchor mask-view ratio `1/2` (`4/8`).
-- L5: local anchor mask-view ratio `1/4` (`2/8`).
+- L4: local anchor mask-view ratio `1/2` (`2/4`).
+- L5: local anchor mask-view ratio `1/4` (`1/4`).
 
 Every L row is constructed directly from A0. The node cap is
 `floor(actual_graph_nodes * ratio)` and the mask count is

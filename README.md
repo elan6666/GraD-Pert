@@ -15,6 +15,7 @@ The repository is under active implementation. Current authoritative material:
 - [server execution contract](docs/design/SERVER_EXECUTION.md)
 - [reference alignment and licenses](docs/provenance/REFERENCE_ALIGNMENT.md)
 - [experiment architecture alignment](docs/provenance/TRISHIFT_ARCHITECTURE_ALIGNMENT.md)
+- [private Trackio loss/utilization dashboards](docs/experiments/HUGGING_FACE_TRACKIO.md)
 
 ## Scope
 
@@ -90,29 +91,37 @@ including future train, validation, and test conditions.
 
 A0 uses ordered STRING+GO Top-20 graphs and a native sparse multi-source graph
 Transformer aligned to the public TxPert Exphormer-MG graph-encoder surface.
-It uses two global views, eight four-hop Local-Fanout views with schedule
-`[20, 10, 5, 5]` and total node budget 256, no local-anchor masking (`0/8`),
-the existing global node mask, the additive decoder, all seven systems groups,
-and direct loss weights `1.0/0.8/0.4/0.1` for prediction, condition
-consistency, masked-node consistency, and embedding spread.
+It uses two global views and four four-hop RingInduced local views. Each local
+node cap is the exact floor of 50% of the actual HVG512-plus-target runtime
+graph (`1,404/2,809` on the sealed Jurkat axis). Local-anchor masking is off
+(`0/4`); the existing global node mask remains enabled. The decoder is
+additive, all seven systems groups remain enabled, and direct loss weights are
+`1.0/0.8/0.4/0.1` for prediction, condition consistency, masked-node
+consistency, and embedding spread.
 
 The frozen matrix is generated under
 `configs/ablations/nadig_jurkat/<variant>/gradpert_b2/nadig_jurkat.yaml`.
 Each YAML is complete and is read by the same `gradpert model` entrypoint; there
-is no ablation-specific main function. The matrix covers Local-Fanout/Ring and
-256/512 budgets, single STRING GATv2, single/multi sparse graph Transformers,
-native adaptive source fusion, five STRING weight routes, additive/MLP/
-control-conditioned-Transformer decoders, four GenePT feature routes, three
-loss removals, and the canonical full-graph control.
+is no ablation-specific main function. The matrix covers proportional
+RingInduced/Fanout local construction, count/coverage/mask ratios, single
+STRING GATv2, single/multi sparse graph Transformers, native adaptive source
+fusion, five STRING weight routes, additive/MLP/
+control-conditioned-Transformer decoders, four GenePT feature routes, and
+three loss removals. The H module varies HVG512/1024/2048/5000 while retaining
+50% local coverage and four locals. The L module is frozen as direct A0
+single-factor rows: Fanout, eight locals, 25% local coverage, 50% mask ratio,
+or 25% mask ratio. L execution is currently paused.
 
-GenePT uses only the frozen TriShift `emb_b` artifact with exact SHA-256
-`fd297510ddd3040744033fde0b0f2cf15a40ac8b2fd2fb02f10667295e55c862`.
-Matching is exact and case-sensitive. A graph gene missing from GenePT is
-removed only when it is not a perturbation target, with STRING/GO re-pruned in
-the retained canonical order. If any train/validation/test perturbation target
-is missing, all GenePT rows are marked unavailable before model construction
-and no GenePT training is launched; aliases and silent zero/random filling are
-forbidden.
+GenePT E rows use the frozen GenePT-Seed `Seed-GO-ProteinPathway` master
+artifact (SHA-256
+`34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318`).
+The 17,730-gene source covers the complete runtime axes by exact,
+case-sensitive labels; extra non-runtime source genes are ignored and
+receipted. A missing perturbation target aborts before model construction. A
+missing non-perturbation runtime gene is omitted in preserved canonical order,
+with its ordered count/hash receipted; aliases and silent zero/random filling
+are forbidden. The selected `Seed-GO-ProteinPathway` artifact currently misses
+no runtime gene, so this policy does not change the formal coordinate.
 
 ## Nadig Jurkat one-epoch speed pilot
 
@@ -179,7 +188,13 @@ Server experiment planning and result staging are dry-run-first:
 PYTHONPATH=src:. python scripts/server/run_experiment_matrix.py --help
 PYTHONPATH=src:. python scripts/server/stage_small_results.py --help
 PYTHONPATH=src:. python scripts/results/build_final_catalog.py --help
+PYTHONPATH=src:. python scripts/tracking/sync_trackio.py --help
 ```
+
+Formal ablations can install the optional `tracking` extra and mirror only
+allowlisted training/validation scalars to a private Hugging Face Trackio
+Space. The sidecar is excluded from performance timing and never uploads test
+metrics, predictions, datasets, checkpoints or per-cell artifacts.
 
 Do not use historical design alternatives under `TxPert/` as active scope. See
 root `AGENTS.md` before editing.

@@ -46,7 +46,7 @@ def test_vnext_default_is_the_successor_ratio_a0() -> None:
     assert options.graph_sources == ("string", "go")
     assert options.graph_encoder_family == "multi_source_sparse_transformer"
     assert options.local_view_builder == "ring_induced"
-    assert options.local_view_count == 8
+    assert options.local_view_count == 4
     assert config.model.parameters["local_view_node_budget_ratio"].value == "1/2"
     assert config.model.parameters["local_anchor_mask_view_ratio"].value == "0/1"
     assert "local_view_node_budget" not in config.model.parameters
@@ -69,17 +69,17 @@ def test_successor_h_rows_change_only_graph_scale_and_keep_recomputed_axes() -> 
         assert parameters["runtime_graph_root"].value.endswith(graph_suffix)
         assert parameters["local_view_builder"].value == "ring_induced"
         assert parameters["local_view_node_budget_ratio"].value == "1/2"
-        assert parameters["local_view_count"].value == 8
+        assert parameters["local_view_count"].value == 4
         assert parameters["local_anchor_mask_view_ratio"].value == "0/1"
 
 
 def test_successor_l_rows_are_exact_one_factor_local_variants() -> None:
     expected = {
-        "l1_fanout_ratio_half": ("fanout", "1/2", 8, "0/1"),
-        "l2_ring_half_count4": ("ring_induced", "1/2", 4, "0/1"),
-        "l3_ring_quarter": ("ring_induced", "1/4", 8, "0/1"),
-        "l4_ring_half_mask_half": ("ring_induced", "1/2", 8, "1/2"),
-        "l5_ring_half_mask_quarter": ("ring_induced", "1/2", 8, "1/4"),
+        "l1_fanout_ratio_half": ("fanout", "1/2", 4, "0/1"),
+        "l2_ring_half_count8": ("ring_induced", "1/2", 8, "0/1"),
+        "l3_ring_quarter": ("ring_induced", "1/4", 4, "0/1"),
+        "l4_ring_half_mask_half": ("ring_induced", "1/2", 4, "1/2"),
+        "l5_ring_half_mask_quarter": ("ring_induced", "1/2", 4, "1/4"),
     }
     for variant_id, values in expected.items():
         config = load_experiment_config(CONFIG_ROOT / variant_id / "gradpert_b2/nadig_jurkat.yaml")
@@ -115,7 +115,7 @@ def test_genept_rows_bind_seed_go_protein_pathway_master_and_unfiltered_graph() 
 def test_vnext_matrix_hash_pins_every_config_before_results() -> None:
     matrix = json.loads((CONFIG_ROOT / "matrix.json").read_text(encoding="utf-8"))
     assert matrix["schema_version"] == "2"
-    assert matrix["matrix_id"] == "nadig_jurkat_vnext_ratio_graph_v2"
+    assert matrix["matrix_id"] == "nadig_jurkat_vnext_ratio_graph_v3"
     assert matrix["row_count"] == 25
     assert matrix["run_seeds"] == [1]
     assert matrix["max_epochs"] == 10
@@ -138,7 +138,7 @@ def test_each_ablation_differs_from_a0_only_by_its_declared_factor() -> None:
         "h2_hvg2048_ratio_half": {"graph_hvg_count", "runtime_graph_root"},
         "h3_hvg5000_ratio_half": {"graph_hvg_count", "runtime_graph_root"},
         "l1_fanout_ratio_half": {"local_view_builder"},
-        "l2_ring_half_count4": {"local_view_count"},
+        "l2_ring_half_count8": {"local_view_count"},
         "l3_ring_quarter": {"local_view_node_budget_ratio"},
         "l4_ring_half_mask_half": {"local_anchor_mask_view_ratio"},
         "l5_ring_half_mask_quarter": {"local_anchor_mask_view_ratio"},

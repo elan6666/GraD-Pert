@@ -27,7 +27,6 @@
 ## Commands available now
 
 ```bash
-python3 /Users/elan/.codex/skills/byte-do/scripts/byte_state.py validate --root /Users/elan/code/grad-pert
 git -C TxPert/official-repo status --short
 git -C TxPert/official-repo rev-parse HEAD
 rg --files --hidden -g '!TxPert/official-repo.incomplete-archive/**'
@@ -41,10 +40,12 @@ python -m ruff check .
 python -m ruff format --check .
 python -m mypy src
 python -m build
+uv sync --frozen --extra data --extra model --extra tracking
 gradpert config verify --all
 python -m pytest -q tests/server tests/execution/test_matrix.py tests/execution/test_small_sync.py
 PYTHONPATH=src:. python scripts/server/run_experiment_matrix.py --help
 PYTHONPATH=src:. python scripts/server/stage_small_results.py --help
+PYTHONPATH=src:. python scripts/tracking/sync_trackio.py --help
 ```
 
 ## Known gaps and follow-up setup

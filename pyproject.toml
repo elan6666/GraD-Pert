@@ -34,6 +34,10 @@ analysis = [
   "pyarrow>=15",
   "scipy>=1.10",
 ]
+tracking = [
+  "huggingface-hub>=1.29,<2",
+  "trackio[gpu]>=0.37,<0.38",
+]
 dev = [
   "build>=1.2",
   "mypy>=1.10",
