@@ -6,6 +6,7 @@ from gradpert.graphs import (
     GraphTopology,
     build_graph_view_batch,
     build_incoming_edge_index,
+    build_induced_edge_index,
     build_prediction_graph_view,
     build_ring_induced_view,
     build_training_graph_views,
@@ -260,6 +261,79 @@ def _dense_fanout_topology() -> GraphTopology:
         top_k=20,
     )
     return GraphTopology(gene_ids=genes, sources={"string": string})
+
+
+@pytest.mark.parametrize("node_budget", [150, 256, 512])
+@pytest.mark.parametrize("condition_count", [1, 5, 8])
+@pytest.mark.parametrize("local_count", [4, 8])
+def test_precomputed_induced_index_preserves_every_training_view_exactly(
+    node_budget: int,
+    condition_count: int,
+    local_count: int,
+) -> None:
+    topology = _dense_fanout_topology()
+    anchors_by_condition = {
+        f"condition-{index}": ((index * 47) % topology.n_nodes,) for index in range(condition_count)
+    }
+    parameters = {
+        "anchors_by_condition": anchors_by_condition,
+        "heldout_target_ids": (299,),
+        "run_seed": 17,
+        "global_step": 31,
+        "local_count": local_count,
+        "local_node_budget": node_budget,
+        "local_builder": "ring_induced",
+        "local_anchor_mask_count": local_count // 2,
+    }
+
+    reference = build_training_graph_views(topology, **parameters)
+    optimized = build_training_graph_views(
+        topology,
+        induced_edges=build_induced_edge_index(topology),
+        **parameters,
+    )
+
+    assert optimized == reference
+
+
+def test_precomputed_induced_index_preserves_multi_and_isolated_anchor_behavior() -> None:
+    topology = _topology()
+    index = build_induced_edge_index(topology)
+    for anchors, budget in (((0, 1), 4), ((6,), 4), ((0,), 1), ((0,), 7)):
+        reference = build_ring_induced_view(
+            topology,
+            anchors=anchors,
+            node_budget=budget,
+            seed=8,
+            view_id="ring",
+            mask_anchors=True,
+        )
+        optimized = build_ring_induced_view(
+            topology,
+            anchors=anchors,
+            node_budget=budget,
+            seed=8,
+            view_id="ring",
+            mask_anchors=True,
+            induced_edges=index,
+        )
+        assert optimized == reference
+
+
+def test_induced_index_rejects_source_order_mismatch() -> None:
+    topology = _topology()
+    index = build_induced_edge_index(topology)
+    reversed_index = {name: index[name] for name in reversed(topology.active_sources)}
+    with pytest.raises(ValueError, match="source order"):
+        build_ring_induced_view(
+            topology,
+            anchors=(0,),
+            node_budget=4,
+            seed=8,
+            view_id="ring",
+            mask_anchors=False,
+            induced_edges=reversed_index,
+        )
 
 
 def test_fanout_view_is_deterministic_budgeted_and_keeps_only_sampled_edges() -> None:

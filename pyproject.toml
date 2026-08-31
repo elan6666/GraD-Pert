@@ -36,6 +36,7 @@ analysis = [
 ]
 tracking = [
   "huggingface-hub>=1.29,<2",
+  "httpx[socks]>=0.28,<0.29",
   "trackio[gpu]>=0.37,<0.38",
 ]
 dev = [

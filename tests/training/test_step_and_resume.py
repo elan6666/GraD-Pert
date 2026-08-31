@@ -945,7 +945,9 @@ def test_checkpoint_peer_copy_fallback_is_byte_identical(tmp_path: Path, monkeyp
     assert len(digest) == 64
 
 
-def test_resident_graph_tensors_preserve_first_step_trajectory() -> None:
+def test_resident_graph_tensors_preserve_first_step_trajectory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     batch = GraDPertTrainingBatch(
         control_expression=torch.arange(10, dtype=torch.float32).reshape(2, 5) / 10,
         target_expression=torch.arange(10, 20, dtype=torch.float32).reshape(2, 5) / 10,
@@ -959,6 +961,7 @@ def test_resident_graph_tensors_preserve_first_step_trajectory() -> None:
         pretransfer_target_sha256="4" * 64,
     )
 
+    monkeypatch.setenv("GRADPERT_RING_INDUCED_IMPL", "reference")
     _seed_all(91)
     baseline_model, baseline_optimizer, baseline_centers, _ = _components()
     baseline = GraDPertStepEngine(
@@ -973,6 +976,7 @@ def test_resident_graph_tensors_preserve_first_step_trajectory() -> None:
     )
     baseline_metrics = baseline.train_step(batch, global_step=0)
 
+    monkeypatch.setenv("GRADPERT_RING_INDUCED_IMPL", "indexed")
     _seed_all(91)
     resident_model, resident_optimizer, resident_centers, _ = _components()
     resident = GraDPertStepEngine(
@@ -990,12 +994,21 @@ def test_resident_graph_tensors_preserve_first_step_trajectory() -> None:
 
     assert resident_metrics.total_loss == pytest.approx(baseline_metrics.total_loss, abs=0, rel=0)
     assert resident.first_step_health == baseline.first_step_health
+    assert resident.induced_edges is not None
     assert resident.model.student_encoder.resident_graph_tensor_payload() == {
         "active": True,
         "node_count": 7,
         "go_edge_count": 13,
         "string_edge_count": 13,
     }
+
+
+def test_ring_induced_implementation_selector_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GRADPERT_RING_INDUCED_IMPL", "invented")
+    with pytest.raises(ValueError, match="reference or indexed"):
+        _components()
 
 
 def test_trainer_serializes_once_then_materializes_best_peer(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]

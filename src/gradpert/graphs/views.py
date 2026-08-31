@@ -13,6 +13,7 @@ import numpy as np
 from gradpert.graphs.pruning import DirectedEdge, PrunedSourceGraph
 
 IncomingEdgeIndex = Mapping[int, tuple[tuple[str, DirectedEdge], ...]]
+InducedEdgeIndex = Mapping[str, Mapping[int, tuple[DirectedEdge, ...]]]
 
 
 @dataclass(frozen=True)
@@ -296,6 +297,7 @@ def build_ring_induced_view(
     view_id: str,
     mask_anchors: bool,
     incoming_neighbors: Mapping[int, frozenset[int]] | None = None,
+    induced_edges: InducedEdgeIndex | None = None,
 ) -> GraphView:
     anchor_ids = tuple(sorted(set(anchors)))
     if not anchor_ids:
@@ -323,11 +325,24 @@ def build_ring_induced_view(
         selected.update(int(node_id) for node_id in sampled)
         break
 
-    edges_by_source = {
-        name: _base_edges_with_self_loops(topology.sources[name], node_ids=selected)
-        for name in topology.active_sources
-    }
-    incident_nodes = _nonself_incident_nodes(edges_by_source)
+    if induced_edges is None:
+        edges_by_source = {
+            name: _base_edges_with_self_loops(topology.sources[name], node_ids=selected)
+            for name in topology.active_sources
+        }
+        incident_nodes = _nonself_incident_nodes(edges_by_source)
+    else:
+        if tuple(induced_edges) != topology.active_sources:
+            raise ValueError("induced-edge index source order differs from the topology")
+        edges_by_source = {}
+        incident_nodes = set()
+        for name in topology.active_sources:
+            edges, source_incident = _indexed_induced_edges_with_self_loops(
+                induced_edges[name],
+                selected,
+            )
+            edges_by_source[name] = edges
+            incident_nodes.update(source_incident)
     eligible_anchors = tuple(anchor for anchor in anchor_ids if anchor in incident_nodes)
     isolated_anchors = tuple(anchor for anchor in anchor_ids if anchor not in incident_nodes)
     warnings = tuple(
@@ -341,6 +356,48 @@ def build_ring_induced_view(
         masked_anchor_ids=eligible_anchors if mask_anchors else (),
         warnings=warnings,
     )
+
+
+def build_induced_edge_index(
+    topology: GraphTopology,
+) -> dict[str, dict[int, tuple[DirectedEdge, ...]]]:
+    """Index source-preserving incoming edges once for exact induced subgraphs."""
+
+    result: dict[str, dict[int, tuple[DirectedEdge, ...]]] = {}
+    for source_name in topology.active_sources:
+        incoming: dict[int, list[DirectedEdge]] = {
+            node_id: [] for node_id in range(topology.n_nodes)
+        }
+        for edge in topology.sources[source_name].edges:
+            incoming[edge.target].append(edge)
+        result[source_name] = {target: tuple(edges) for target, edges in incoming.items()}
+    return result
+
+
+def _indexed_induced_edges_with_self_loops(
+    incoming_by_target: Mapping[int, tuple[DirectedEdge, ...]],
+    selected: set[int],
+) -> tuple[tuple[DirectedEdge, ...], set[int]]:
+    """Reproduce target/source ordering while visiting selected targets only."""
+
+    retained: list[DirectedEdge] = []
+    incident_nodes: set[int] = set()
+    for target in sorted(selected):
+        incoming = incoming_by_target[target]
+        loop = DirectedEdge(target, target, 1.0)
+        loop_inserted = False
+        for edge in incoming:
+            if edge.source not in selected:
+                continue
+            if not loop_inserted and edge.source > target:
+                retained.append(loop)
+                loop_inserted = True
+            retained.append(edge)
+            incident_nodes.add(edge.source)
+            incident_nodes.add(edge.target)
+        if not loop_inserted:
+            retained.append(loop)
+    return tuple(retained), incident_nodes
 
 
 def build_incoming_edge_index(
@@ -551,6 +608,7 @@ def _build_local_views(
     local_count: int,
     local_node_budget: int,
     incoming_neighbors: Mapping[int, frozenset[int]] | None,
+    induced_edges: InducedEdgeIndex | None,
     incoming_edges: IncomingEdgeIndex | None,
     local_builder: Literal["ring_induced", "fanout"],
     local_fanouts: tuple[int, int, int, int],
@@ -607,6 +665,7 @@ def _build_local_views(
                     view_id=f"local_{view_index}",
                     mask_anchors=view_index in masked_local_indices,
                     incoming_neighbors=incoming_neighbors,
+                    induced_edges=induced_edges,
                 )
             )
         else:
@@ -640,6 +699,7 @@ def build_training_graph_views(
     local_anchor_mask_count: int = 4,
     prediction_view: GraphView | None = None,
     incoming_neighbors: Mapping[int, frozenset[int]] | None = None,
+    induced_edges: InducedEdgeIndex | None = None,
     incoming_edges: IncomingEdgeIndex | None = None,
 ) -> GraDPertTrainingViews:
     """Build one batch-level global pair and locals once per unique condition."""
@@ -685,6 +745,7 @@ def build_training_graph_views(
             local_count=local_count,
             local_node_budget=local_node_budget,
             incoming_neighbors=incoming_neighbors,
+            induced_edges=induced_edges,
             incoming_edges=incoming_edges,
             local_builder=local_builder,
             local_fanouts=local_fanouts,

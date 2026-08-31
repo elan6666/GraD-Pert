@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import random
 import time
 from collections.abc import Callable, Iterator, Mapping
@@ -24,6 +25,7 @@ from gradpert.graphs import (
     ResolvedLocalViewContract,
     build_incoming_edge_index,
     build_incoming_neighbor_index,
+    build_induced_edge_index,
     build_prediction_graph_view,
     build_training_graph_views,
     clean_graph_view,
@@ -459,8 +461,21 @@ class GraDPertStepEngine:
         self.local_view_contract = local_view_contract or expected_local_view_contract
         self.loss_weights = loss_weights or LossWeights()
         self.prediction_view = build_prediction_graph_view(topology)
+        self.ring_induced_implementation = os.environ.get(
+            "GRADPERT_RING_INDUCED_IMPL",
+            "indexed",
+        )
+        if self.ring_induced_implementation not in {"reference", "indexed"}:
+            raise ValueError("GRADPERT_RING_INDUCED_IMPL must be reference or indexed")
         self.incoming_neighbors = (
             build_incoming_neighbor_index(topology) if resident_graph_tensors else None
+        )
+        self.induced_edges = (
+            build_induced_edge_index(topology)
+            if resident_graph_tensors
+            and self.architecture.local_view_builder == "ring_induced"
+            and self.ring_induced_implementation == "indexed"
+            else None
         )
         self.incoming_edges = (
             build_incoming_edge_index(topology)
@@ -611,6 +626,7 @@ class GraDPertStepEngine:
                 global_step=global_step,
                 prediction_view=self.prediction_view if self.resident_graph_tensors else None,
                 incoming_neighbors=self.incoming_neighbors,
+                induced_edges=self.induced_edges,
                 incoming_edges=self.incoming_edges,
                 local_count=self.architecture.local_view_count,
                 local_node_budget=self.local_view_contract.effective_node_budget,
