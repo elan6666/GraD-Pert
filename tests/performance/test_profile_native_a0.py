@@ -104,6 +104,47 @@ def test_percentiles_are_linear_and_explicit(profiler_script: ModuleType) -> Non
     }
 
 
+@pytest.mark.parametrize(
+    ("explicit_count", "checkpointing", "expected"),
+    [(None, True, 4), (None, False, 0), (0, True, 0), (2, True, 2)],
+)
+def test_local_checkpoint_count_is_explicit_or_resolved_from_legacy_boolean(
+    profiler_script: ModuleType,
+    explicit_count: int | None,
+    checkpointing: bool,
+    expected: int,
+) -> None:
+    parameters = {"systems_local_activation_checkpointing": SimpleNamespace(value=checkpointing)}
+    if explicit_count is not None:
+        parameters["systems_local_activation_checkpoint_count"] = SimpleNamespace(
+            value=explicit_count
+        )
+    config = SimpleNamespace(model=SimpleNamespace(parameters=parameters))
+    architecture = SimpleNamespace(local_view_count=4)
+    assert (
+        profiler_script._resolved_local_activation_checkpoint_count(config, architecture)
+        == expected
+    )
+
+
+@pytest.mark.parametrize("value", [-1, 5, True, 1.5])
+def test_local_checkpoint_count_fails_closed_on_invalid_values(
+    profiler_script: ModuleType,
+    value: object,
+) -> None:
+    config = SimpleNamespace(
+        model=SimpleNamespace(
+            parameters={
+                "systems_local_activation_checkpointing": SimpleNamespace(value=True),
+                "systems_local_activation_checkpoint_count": SimpleNamespace(value=value),
+            }
+        )
+    )
+    architecture = SimpleNamespace(local_view_count=4)
+    with pytest.raises(profiler_script.ProfileGateError):
+        profiler_script._resolved_local_activation_checkpoint_count(config, architecture)
+
+
 def test_capacity_requires_max_of_four_gib_and_fifteen_percent(
     profiler_script: ModuleType,
 ) -> None:

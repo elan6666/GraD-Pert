@@ -72,6 +72,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--expected-source-registry-sha256", type=_sha256_argument, required=True)
     parser.add_argument("--expected-graph-gene-order-sha256", type=_sha256_argument, required=True)
     parser.add_argument("--expected-topology-content-sha256", type=_sha256_argument, required=True)
+    parser.add_argument(
+        "--expected-local-activation-checkpoint-count",
+        type=int,
+        choices=range(5),
+    )
     parser.add_argument("--minimum-gpu-headroom-fraction", type=float, default=0.15)
     parser.add_argument("--minimum-gpu-free-bytes", type=int, default=4 * GIB)
     parser.add_argument("--maximum-idle-gpu-utilization-percent", type=float, default=5.0)
@@ -87,6 +92,22 @@ def _parameter(config: Any, name: str) -> object:
         return config.model.parameters[name].value
     except KeyError as error:
         raise ValueError(f"A0 config lacks required parameter: {name}") from error
+
+
+def _resolved_local_activation_checkpoint_count(config: Any, architecture: Any) -> int:
+    parameter = config.model.parameters.get("systems_local_activation_checkpoint_count")
+    if parameter is None:
+        return (
+            architecture.local_view_count
+            if _parameter(config, "systems_local_activation_checkpointing") is True
+            else 0
+        )
+    value = parameter.value
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ProfileGateError("local activation checkpoint count must be an integer")
+    if not 0 <= value <= architecture.local_view_count:
+        raise ProfileGateError("local activation checkpoint count exceeds A0 local views")
+    return value
 
 
 def _require_reference_a0(
@@ -163,6 +184,12 @@ def _require_reference_a0(
             if observed_parameters[name] != expected_parameters[name]
         )
         raise ProfileGateError("A0 semantic parameters differ: " + ", ".join(differing))
+    local_checkpoint_count = _resolved_local_activation_checkpoint_count(config, architecture)
+    if (
+        args.expected_local_activation_checkpoint_count is not None
+        and local_checkpoint_count != args.expected_local_activation_checkpoint_count
+    ):
+        raise ProfileGateError("local activation checkpoint count differs from the launch contract")
     training_identity = {
         "formal_run_policy": config.training.formal_run_policy,
         "max_epochs": config.training.max_epochs.value,
@@ -238,6 +265,9 @@ def _require_reference_a0(
         "protocol_id": config.data.protocol_id,
         "split_policy": config.data.split_policy,
         "semantic_parameters": expected_parameters,
+        "runtime_system_parameters": {
+            "local_activation_checkpoint_count": local_checkpoint_count,
+        },
         "training_identity": training_identity,
         "runtime_hashes": observed_hashes,
         "graph_node_count": len(topology.gene_ids),
