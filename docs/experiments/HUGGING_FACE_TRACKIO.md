@@ -62,6 +62,17 @@ or a different Bucket already mounted at `/data` is rejected; a missing Bucket
 is created private. A missing Space is created with `private=True` and rechecked
 as private.
 
+If private Space creation is externally blocked and the user explicitly
+chooses to continue, the sidecar may run in
+`--local-private-bucket-archive` mode. It skips Space creation and records the
+same allowlisted metrics in an owner-only local Trackio store. The formal queue
+then archives that tracking directory to the existing private Bucket with the
+authenticated `hf buckets sync` command. Its receipt says
+`delivery_mode=local_private_bucket_archive`, `space_sync_attempted=false` and
+`remote_sync_verified=false`; it never claims a live web dashboard. Restoring
+the archived store and running `trackio show` provides local loss curves, while
+a future private Space requires a separate explicit sync.
+
 ## Formal sidecar launch
 
 Use a fresh tracking directory, state file and receipt for every immutable
@@ -86,6 +97,7 @@ PYTHONPATH=src:. python scripts/tracking/sync_trackio.py \
   --expected-config-sha256 EXACT_CONFIG_SHA256 \
   --expected-optimizer-steps 5820 \
   --expected-validations 10 \
+  --local-private-bucket-archive \
   --gpu-device 0
 ```
 

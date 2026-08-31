@@ -133,6 +133,7 @@ class TrackioSidecarConfig:
     gpu_device: int = 0
     auto_log_cpu: bool = True
     system_log_interval: float = 30.0
+    remote_space_sync: bool = True
 
     def __post_init__(self) -> None:
         for label, value in (
@@ -649,14 +650,16 @@ def _run_trackio_sidecar(
     _require_trackio_storage_dir(trackio, config.trackio_dir)
     hub = hub_module if hub_module is not None else _import_optional("huggingface_hub")
     api = _hub_api(hub)
-    space_existed = _require_private_hugging_face_space(hub, api, config.space_id)
-    if space_existed:
-        _require_space_bucket_mount(
-            api,
-            config.space_id,
-            config.bucket_id,
-            require_present=False,
-        )
+    space_existed = False
+    if config.remote_space_sync:
+        space_existed = _require_private_hugging_face_space(hub, api, config.space_id)
+        if space_existed:
+            _require_space_bucket_mount(
+                api,
+                config.space_id,
+                config.bucket_id,
+                require_present=False,
+            )
     _require_private_hugging_face_bucket(
         hub,
         api,
@@ -668,31 +671,40 @@ def _run_trackio_sidecar(
     run: Any | None = None
     finish_attempted = False
     try:
-        run = trackio.init(
-            project=config.project,
-            name=display_name,
-            group=config.group,
-            space_id=config.space_id,
-            bucket_id=config.bucket_id,
-            config=safe_config,
-            resume="never",
-            private=True,
-            embed=False,
+        init_kwargs: dict[str, Any] = {
+            "project": config.project,
+            "name": display_name,
+            "group": config.group,
+            "config": safe_config,
+            "resume": "never",
             # Trackio 0.37's background monitor observes every physical GPU.  Log
             # one explicit logical device below to preserve the one-GPU scope.
-            auto_log_gpu=False,
-            gpu_log_interval=config.system_log_interval,
-            auto_log_cpu=config.auto_log_cpu,
-            cpu_log_interval=config.system_log_interval,
+            "auto_log_gpu": False,
+            "gpu_log_interval": config.system_log_interval,
+            "auto_log_cpu": config.auto_log_cpu,
+            "cpu_log_interval": config.system_log_interval,
+        }
+        if config.remote_space_sync:
+            init_kwargs |= {
+                "space_id": config.space_id,
+                "bucket_id": config.bucket_id,
+                "private": True,
+                "embed": False,
+            }
+        run = trackio.init(
+            **init_kwargs,
         )
-        if not space_existed and not _require_private_hugging_face_space(hub, api, config.space_id):
-            raise TrackingGateError("new Trackio Space was not verifiably created as private")
-        _require_space_bucket_mount(
-            api,
-            config.space_id,
-            config.bucket_id,
-            require_present=True,
-        )
+        if config.remote_space_sync:
+            if not space_existed and not _require_private_hugging_face_space(
+                hub, api, config.space_id
+            ):
+                raise TrackingGateError("new Trackio Space was not verifiably created as private")
+            _require_space_bucket_mount(
+                api,
+                config.space_id,
+                config.bucket_id,
+                require_present=True,
+            )
         if not _require_private_hugging_face_bucket(
             hub,
             api,
@@ -820,6 +832,11 @@ def _run_trackio_sidecar(
         "group": config.group,
         "space_id": config.space_id,
         "bucket_id": config.bucket_id,
+        "delivery_mode": (
+            "private_space" if config.remote_space_sync else "local_private_bucket_archive"
+        ),
+        "space_sync_attempted": config.remote_space_sync,
+        "private_bucket_archive_required": not config.remote_space_sync,
         "variant_id": config.variant_id,
         "run_id": config.expected_run_id,
         "trackio_run_id": trackio_run_id,
@@ -833,7 +850,8 @@ def _run_trackio_sidecar(
         "validation_csv_sha256": sha256_file(validation_path),
         "metric_policy": "allowlisted_train_validation_scalars_only",
         "telemetry_authority": False,
-        "live_dashboard_provisional": True,
+        "live_dashboard_provisional": config.remote_space_sync,
+        "local_dashboard_available": not config.remote_space_sync,
         "remote_sync_verified": False,
         "test_metrics_uploaded": False,
         "artifacts_uploaded": False,

@@ -775,3 +775,16 @@
   delivery. Private Trackio Space creation remains externally blocked by a
   truthful `402 Payment Required`; the private Bucket and owner keychain
   authentication are ready, and no public fallback is authorized.
+
+## 2026-08-31 — private Bucket Trackio fallback
+
+- Added an explicit `local_private_bucket_archive` sidecar mode for the
+  account-plan case where a private Trackio Space cannot be created. It keeps
+  the same scalar allowlist and owner-only local store, skips Space creation,
+  and receipts that no remote Space sync occurred.
+- The real Trackio integration smoke recorded two train points and one
+  validation point, exposed the local project through `trackio list`, and
+  uploaded the 172,032-byte SQLite store to the private Bucket prefix
+  `smoke/local-only-77645d6`. The remote object hash is
+  `2be6f2decd5d442c7dc4fb2af565e11f554e236c4d1ae86985b172a3c0f0e4c2`.
+  No public Space, test metric, prediction, data or checkpoint was uploaded.

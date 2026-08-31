@@ -50,7 +50,9 @@ updated_at: 2026-08-31T06:43:57+08:00
   `elan68681/grad-pert-vnext-ablations` and Bucket
   `elan68681/grad-pert-vnext-ablations-bucket`; owner authentication and the
   private Bucket are verified, while private Space creation returns `402
-  Payment Required`. No public substitute is authorized.
+  Payment Required`. No public substitute is authorized. The user chose to
+  continue with owner-only local Trackio stores archived to the private Bucket;
+  receipts must state that live Space sync is unavailable.
 
 - Exact-effect performance engineering is accepted at clean commit `7332cc1`.
   The deterministic CUDA hard gate is exact for non-timing metrics, views,

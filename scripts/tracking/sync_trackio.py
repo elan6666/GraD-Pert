@@ -53,6 +53,15 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--gpu-device", type=int, default=0)
     parser.add_argument("--no-log-gpu", action="store_false", dest="log_gpu")
     parser.add_argument("--no-auto-log-cpu", action="store_false", dest="auto_log_cpu")
+    parser.add_argument(
+        "--local-private-bucket-archive",
+        action="store_false",
+        dest="remote_space_sync",
+        help=(
+            "record an owner-only local Trackio store for later private Bucket "
+            "archival without creating or syncing a Hugging Face Space"
+        ),
+    )
     return parser
 
 
@@ -85,6 +94,7 @@ def main() -> int:
         gpu_device=args.gpu_device,
         auto_log_cpu=args.auto_log_cpu,
         system_log_interval=args.system_log_interval,
+        remote_space_sync=args.remote_space_sync,
     )
     run_trackio_sidecar(config)
     return 0

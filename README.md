@@ -203,7 +203,9 @@ Space. The sidecar is excluded from performance timing and never uploads test
 metrics, predictions, datasets, checkpoints or per-cell artifacts.
 The owner-authenticated private Bucket is ready, while creation of the private
 Trackio Space currently requires a Hugging Face plan that permits private
-Spaces; no public dashboard fallback is enabled.
+Spaces; no public dashboard fallback is enabled. With explicit continuation,
+formal rows use owner-only local Trackio stores archived to that private Bucket
+and label remote web synchronization unavailable.
 
 Do not use historical design alternatives under `TxPert/` as active scope. See
 root `AGENTS.md` before editing.

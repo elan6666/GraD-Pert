@@ -31,6 +31,10 @@
   RingInduced incoming-edge index after exact CUDA state equality and same-GPU
   ABBA ratio 0.848836 (15.116%, 452.540 ms lower step wall), improved p90 and
   identical peak GPU memory.
+- Continue formal telemetry without a public Space by writing the exact
+  allowlisted Trackio metrics to owner-only local stores and archiving them to
+  the authenticated private Hugging Face Bucket. This mode must record that no
+  Space sync was attempted and cannot be presented as a live remote dashboard.
 
 ## 2026-08-30
 

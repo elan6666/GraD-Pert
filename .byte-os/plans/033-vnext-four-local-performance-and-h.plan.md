@@ -121,5 +121,8 @@ parallelism across at most two physical GPUs. L is configured but does not run.
 - The private Bucket and owner credential are ready, but private Space creation
   returned `402 Payment Required`; never replace it with a public Space absent
   explicit user authorization.
+- The user chose to continue using owner-only local Trackio stores archived to
+  the private Bucket. Queue receipts must bind the Bucket object hashes and
+  truthfully retain `remote_sync_verified=false`.
 - A0/H1/H2/H3 share exact split and ordered 300-control/truth hashes and pass
   their complete formal receipt validators.

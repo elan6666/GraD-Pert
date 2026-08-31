@@ -128,6 +128,16 @@ class _NoMountTrackio(_FakeTrackio):
         return SimpleNamespace(id="trackio-run-1")
 
 
+class _LocalOnlyTrackio(_FakeTrackio):
+    def init(self, **kwargs: Any) -> Any:
+        self.init_kwargs = kwargs
+        assert "space_id" not in kwargs
+        assert "bucket_id" not in kwargs
+        assert "private" not in kwargs
+        assert "embed" not in kwargs
+        return SimpleNamespace(id="trackio-run-1")
+
+
 class _FilesystemTrackio(_FakeTrackio):
     def init(self, **kwargs: Any) -> Any:
         store = Path(os.environ["TRACKIO_DIR"])
@@ -364,6 +374,35 @@ def test_sidecar_logs_only_allowlisted_curves_and_system_settings(tmp_path: Path
     assert receipt["telemetry_authority"] is False
     assert receipt["live_dashboard_provisional"] is True
     assert receipt["remote_sync_verified"] is False
+
+
+def test_sidecar_local_only_mode_preserves_private_bucket_without_creating_space(
+    tmp_path: Path,
+) -> None:
+    run_root = _make_run(tmp_path)
+    config = TrackioSidecarConfig(
+        **{**_config(tmp_path, run_root).__dict__, "remote_space_sync": False}
+    )
+    hub = _FakeHub(exists=False, bucket_exists=True, bucket_private=True)
+    trackio = _LocalOnlyTrackio(hub)
+
+    receipt = run_trackio_sidecar(
+        config,
+        trackio_module=trackio,
+        hub_module=hub,
+    )
+
+    assert hub.exists is False
+    assert hub.bucket_exists is True
+    assert trackio.finished is True
+    assert receipt["delivery_mode"] == "local_private_bucket_archive"
+    assert receipt["space_sync_attempted"] is False
+    assert receipt["private_bucket_archive_required"] is True
+    assert receipt["local_dashboard_available"] is True
+    assert receipt["live_dashboard_provisional"] is False
+    assert receipt["remote_sync_verified"] is False
+    assert receipt["test_metrics_uploaded"] is False
+    assert receipt["artifacts_uploaded"] is False
 
 
 def test_sidecar_creates_owner_only_local_tracking_state_and_restores_umask(
@@ -651,3 +690,4 @@ def test_wrapper_has_no_token_argument() -> None:
     wrapper = (root / "scripts/tracking/sync_trackio.py").read_text(encoding="utf-8")
     assert "--token" not in wrapper
     assert "hf_token" not in wrapper.lower()
+    assert "--local-private-bucket-archive" in wrapper
