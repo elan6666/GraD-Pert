@@ -63,6 +63,15 @@ physical GPU. L is configured but does not run.
   count without changing any scientific factor. Fresh capacity attempts test
   `3,2,1,0` after the already-passed all-four reference, followed by complete
   exact-effect and ABBA gates before a formal H launch.
+- The clean `0467372` capacity boundary completed counts three and two; count
+  one failed before any optimizer step with a real CUDA OOM and count zero was
+  consequently not launched. The minimum passing count is therefore two,
+  sealed by receipt SHA
+  `06bac22e5cc0fb6a3f34314bb9dfa68b349e7b67e2889c4fa2884b68ad36f1ab`.
+- The exact-effect gate extends first-step evidence with prediction, complete
+  gradient, optimizer, Teacher, center, combined model and CPU/CUDA RNG hashes.
+  It runs the all-four reference and count-two candidate with deterministic
+  algorithms on the same physical GPU before any timing acceptance.
 
 ## Formal execution
 

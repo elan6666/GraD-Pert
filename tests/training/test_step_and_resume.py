@@ -490,6 +490,16 @@ def test_local_activation_checkpoint_preserves_complete_first_step_trajectory(
     )
     _seed_all(930)
     baseline_metrics = baseline.train_step(batch, global_step=0)
+    assert baseline.first_step_health is not None
+    assert baseline.first_step_health["schema_version"] == "native-first-step-equivalence-v2"
+    for name in (
+        "teacher_state_after_sha256",
+        "gradient_state_after_sha256",
+        "optimizer_state_after_sha256",
+        "centers_state_after_sha256",
+        "prediction_content_sha256",
+    ):
+        assert len(str(baseline.first_step_health[name])) == 64
     baseline_rng = torch.get_rng_state().clone()
     baseline_model_state = {
         name: value.detach().clone() for name, value in baseline_model.state_dict().items()

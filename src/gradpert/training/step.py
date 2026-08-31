@@ -258,14 +258,89 @@ def _distribution_health(probabilities: Tensor) -> tuple[float, int]:
     return float(entropy.item()), prototypes_used
 
 
-def _model_state_sha256(model: GraDPertJointModel) -> str:
+def _update_tensor_digest(digest: Any, value: Tensor) -> None:
+    tensor = value.detach().cpu().contiguous()
+    digest.update(str(tensor.dtype).encode("ascii"))
+    digest.update(sha256_json(list(tensor.shape)).encode("ascii"))
+    digest.update(tensor.numpy().tobytes())
+
+
+def _state_dict_sha256(state: Mapping[str, Tensor]) -> str:
     digest = hashlib.sha256()
-    for name, value in sorted(model.state_dict().items()):
-        tensor = value.detach().cpu().contiguous()
+    for name, value in sorted(state.items()):
         digest.update(name.encode("utf-8"))
-        digest.update(str(tensor.dtype).encode("ascii"))
-        digest.update(sha256_json(list(tensor.shape)).encode("ascii"))
-        digest.update(tensor.numpy().tobytes())
+        _update_tensor_digest(digest, value)
+    return digest.hexdigest()
+
+
+def _model_state_sha256(model: GraDPertJointModel) -> str:
+    return _state_dict_sha256(model.state_dict())
+
+
+def _teacher_state_sha256(model: GraDPertJointModel) -> str:
+    state = {
+        **{f"encoder.{name}": value for name, value in model.teacher_encoder.state_dict().items()},
+        **{
+            f"projector.{name}": value
+            for name, value in model.teacher_projector.state_dict().items()
+        },
+    }
+    return _state_dict_sha256(state)
+
+
+def _gradient_state_sha256(model: GraDPertJointModel) -> str:
+    digest = hashlib.sha256()
+    for name, parameter in sorted(model.named_parameters()):
+        digest.update(name.encode("utf-8"))
+        if parameter.grad is None:
+            digest.update(b"none")
+        else:
+            digest.update(b"tensor")
+            _update_tensor_digest(digest, parameter.grad)
+    return digest.hexdigest()
+
+
+def _update_state_tree_digest(digest: Any, value: object) -> None:
+    if isinstance(value, Tensor):
+        digest.update(b"tensor")
+        _update_tensor_digest(digest, value)
+        return
+    if isinstance(value, Mapping):
+        digest.update(b"mapping")
+        for key in sorted(value, key=lambda item: (type(item).__name__, repr(item))):
+            _update_state_tree_digest(digest, key)
+            _update_state_tree_digest(digest, value[key])
+        return
+    if isinstance(value, (list, tuple)):
+        digest.update(b"list" if isinstance(value, list) else b"tuple")
+        for item in value:
+            _update_state_tree_digest(digest, item)
+        return
+    if value is None or isinstance(value, (str, int, float, bool)):
+        digest.update(type(value).__name__.encode("ascii"))
+        digest.update(sha256_json(value).encode("ascii"))
+        return
+    raise TypeError(f"unsupported optimizer-state value: {type(value).__name__}")
+
+
+def _optimizer_state_sha256(optimizer: torch.optim.Optimizer) -> str:
+    digest = hashlib.sha256()
+    _update_state_tree_digest(digest, optimizer.state_dict())
+    return digest.hexdigest()
+
+
+def _centers_state_sha256(centers: CenterState) -> str:
+    return _state_dict_sha256(
+        {
+            "condition": centers.condition,
+            "masked_node": centers.masked_node,
+        }
+    )
+
+
+def _tensor_sha256(value: Tensor) -> str:
+    digest = hashlib.sha256()
+    _update_tensor_digest(digest, value)
     return digest.hexdigest()
 
 
@@ -739,6 +814,7 @@ class GraDPertStepEngine:
             prediction_loss = F.mse_loss(prediction, batch.target_expression)
             weighted_prediction_loss = self.loss_weights.prediction * prediction_loss
             total_loss = weighted_prediction_loss + auxiliary_loss
+            prediction_sha256 = _tensor_sha256(prediction) if capture_health else None
         mark("prediction_end")
 
         condition_probabilities = torch.cat(
@@ -907,7 +983,7 @@ class GraDPertStepEngine:
         )
         if capture_health:
             self.first_step_health = {
-                "schema_version": "native-first-step-equivalence-v1",
+                "schema_version": "native-first-step-equivalence-v2",
                 "perturbed_row_ids_sha256": batch.perturbed_row_ids_sha256,
                 "control_row_ids_sha256": batch.control_row_ids_sha256,
                 "pretransfer_control_sha256": batch.pretransfer_control_sha256,
@@ -917,6 +993,11 @@ class GraDPertStepEngine:
                 "rng_state_after_sha256": _rng_state_sha256(),
                 "parameter_state_before_sha256": parameter_state_before_sha256,
                 "parameter_state_after_sha256": _model_state_sha256(self.model),
+                "teacher_state_after_sha256": _teacher_state_sha256(self.model),
+                "gradient_state_after_sha256": _gradient_state_sha256(self.model),
+                "optimizer_state_after_sha256": _optimizer_state_sha256(self.optimizer),
+                "centers_state_after_sha256": _centers_state_sha256(self.centers),
+                "prediction_content_sha256": prediction_sha256,
                 "losses": {
                     "total_loss": metrics.total_loss,
                     "prediction_loss": metrics.prediction_loss,

@@ -77,6 +77,7 @@ def _parser() -> argparse.ArgumentParser:
         type=int,
         choices=range(5),
     )
+    parser.add_argument("--deterministic-algorithms", action="store_true")
     parser.add_argument("--minimum-gpu-headroom-fraction", type=float, default=0.15)
     parser.add_argument("--minimum-gpu-free-bytes", type=int, default=4 * GIB)
     parser.add_argument("--maximum-idle-gpu-utilization-percent", type=float, default=5.0)
@@ -630,6 +631,9 @@ def _profile_run(
     from gradpert.hashing import sha256_file
     from gradpert.training.step import GraDPertStepEngine
 
+    previous_deterministic_algorithms = torch.are_deterministic_algorithms_enabled()
+    torch.use_deterministic_algorithms(args.deterministic_algorithms)
+
     warmup_steps, measured_steps = {
         "capacity": (3, 3),
         "profile": (2, 3),
@@ -716,6 +720,7 @@ def _profile_run(
                 "profile_phase": "warmup" if len(observed) < warmup_steps else "measured",
                 "metrics": asdict(metrics),
                 "view_stats": engine.last_view_stats,
+                "first_step_health": engine.first_step_health if global_step == 0 else None,
                 "peak_allocated_gpu_bytes": int(
                     torch.cuda.max_memory_allocated(torch.device(args.device))
                 ),
@@ -774,6 +779,7 @@ def _profile_run(
         GraDPertStepEngine.train_step = original_train_step
         native_execution.CanonicalEvaluationData = original_evaluator
         native_execution.evaluate_validation_macro_delta = original_validation
+        torch.use_deterministic_algorithms(previous_deterministic_algorithms)
 
     measured = observed[warmup_steps:]
     measured_wall = [float(row["metrics"]["step_wall_ms"]) for row in measured]
@@ -808,6 +814,7 @@ def _profile_run(
         **access_summary,
         "instrumentation": {
             "phase": args.phase,
+            "deterministic_algorithms": args.deterministic_algorithms,
             "torch_profiler_enabled": args.phase == "profile",
             "torch_profiler_schedule": (
                 {"wait": 1, "warmup": 1, "active": 3, "repeat": 1}
