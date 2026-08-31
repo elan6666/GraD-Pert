@@ -232,6 +232,9 @@ def _native_loss_weights(config: ExperimentConfig) -> LossWeights:
 
 def _native_system_options(config: ExperimentConfig) -> NativeSystemOptions:
     label = _optional_string_parameter(config, "systems_optimizations") or "disabled"
+    local_checkpoint_count = _optional_integer_parameter(
+        config, "systems_local_activation_checkpoint_count", default=-1
+    )
     options = NativeSystemOptions(
         merged_hdf5_reads=_optional_boolean_parameter(config, "systems_merged_hdf5_reads"),
         control_expression_cache=_optional_boolean_parameter(
@@ -252,6 +255,9 @@ def _native_system_options(config: ExperimentConfig) -> NativeSystemOptions:
         ),
         local_activation_checkpointing=_optional_boolean_parameter(
             config, "systems_local_activation_checkpointing"
+        ),
+        local_activation_checkpoint_count=(
+            None if local_checkpoint_count == -1 else local_checkpoint_count
         ),
         pin_memory=_optional_boolean_parameter(config, "systems_pin_memory"),
         nonblocking_transfer=_optional_boolean_parameter(config, "systems_nonblocking_transfer"),
@@ -790,6 +796,9 @@ def run_native_experiment(
             loss_weights=_native_loss_weights(config),
             resident_graph_tensors=system_options.resident_graph_tensors,
             checkpoint_student_local_activations=(system_options.local_activation_checkpointing),
+            checkpoint_student_local_activation_count=(
+                system_options.local_activation_checkpoint_count
+            ),
             capture_equivalence_health=system_options.enabled,
         )
         checkpoint_identity = CheckpointIdentity(

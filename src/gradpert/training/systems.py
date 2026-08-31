@@ -18,6 +18,7 @@ class NativeSystemOptions:
     buffered_training_logs: bool = False
     single_checkpoint_serialization: bool = False
     local_activation_checkpointing: bool = False
+    local_activation_checkpoint_count: int | None = None
     pin_memory: bool = False
     nonblocking_transfer: bool = False
     prefetch_depth: int = 1
@@ -39,6 +40,13 @@ class NativeSystemOptions:
             raise ValueError(
                 "local activation checkpointing requires all seven system optimizations"
             )
+        if self.local_activation_checkpoint_count is not None:
+            if not self.local_activation_checkpointing:
+                raise ValueError(
+                    "a local activation checkpoint count requires checkpointing to be enabled"
+                )
+            if self.local_activation_checkpoint_count < 0:
+                raise ValueError("local activation checkpoint count must be nonnegative")
         if self.background_prefetch:
             if not self.pin_memory or not self.nonblocking_transfer:
                 raise ValueError("background prefetch requires pinned nonblocking transfer")

@@ -130,6 +130,7 @@ def _vnext_components(
     decoder_mode: str = "additive",
     graph_encoder_family: str = "multi_source_sparse_transformer",
     checkpoint_student_local_activations: bool = False,
+    checkpoint_student_local_activation_count: int | None = None,
     capture_equivalence_health: bool = False,
 ):  # type: ignore[no-untyped-def]
     architecture = _vnext_architecture(
@@ -161,6 +162,7 @@ def _vnext_components(
         heldout_target_ids=(6,),
         architecture=architecture,
         checkpoint_student_local_activations=checkpoint_student_local_activations,
+        checkpoint_student_local_activation_count=checkpoint_student_local_activation_count,
         capture_equivalence_health=capture_equivalence_health,
     )
     return model, optimizer, centers, engine
@@ -526,6 +528,86 @@ def test_local_activation_checkpoint_preserves_complete_first_step_trajectory(
     _assert_nested_exact(observed_optimizer.state_dict(), baseline_optimizer_state)
     assert torch.equal(observed_centers.condition, baseline_condition_center)
     assert torch.equal(observed_centers.masked_node, baseline_masked_center)
+
+
+@pytest.mark.parametrize("checkpoint_count", [0, 1, 2])
+def test_selective_local_activation_checkpoint_preserves_complete_first_step_trajectory(
+    checkpoint_count: int,
+) -> None:
+    batch = GraDPertTrainingBatch(
+        control_expression=torch.arange(10, dtype=torch.float32).reshape(2, 5) / 10,
+        target_expression=torch.arange(10, 20, dtype=torch.float32).reshape(2, 5) / 10,
+        condition_ids=("A+ctrl", "B+ctrl"),
+        anchors_by_condition={"A+ctrl": (0,), "B+ctrl": (1,)},
+        perturbed_row_ids=("p1", "p2"),
+        control_row_ids=("c1", "c2"),
+        perturbed_row_ids_sha256="1" * 64,
+        control_row_ids_sha256="2" * 64,
+        pretransfer_control_sha256="3" * 64,
+        pretransfer_target_sha256="4" * 64,
+    )
+
+    _seed_all(20260830)
+    baseline_model, baseline_optimizer, baseline_centers, baseline = _vnext_components(
+        capture_equivalence_health=True
+    )
+    _seed_all(930)
+    baseline_metrics = baseline.train_step(batch, global_step=0)
+    baseline_rng = torch.get_rng_state().clone()
+    baseline_model_state = {
+        name: value.detach().clone() for name, value in baseline_model.state_dict().items()
+    }
+    baseline_gradients = {
+        name: None if parameter.grad is None else parameter.grad.detach().clone()
+        for name, parameter in baseline_model.named_parameters()
+    }
+    baseline_optimizer_state = baseline_optimizer.state_dict()
+    baseline_condition_center = baseline_centers.condition.detach().clone()
+    baseline_masked_center = baseline_centers.masked_node.detach().clone()
+
+    _seed_all(20260830)
+    observed_model, observed_optimizer, observed_centers, observed = _vnext_components(
+        checkpoint_student_local_activations=True,
+        checkpoint_student_local_activation_count=checkpoint_count,
+        capture_equivalence_health=True,
+    )
+    _seed_all(930)
+    observed_metrics = observed.train_step(batch, global_step=0)
+
+    for name in baseline_metrics.__dataclass_fields__:
+        if not name.endswith("_ms"):
+            assert getattr(observed_metrics, name) == getattr(baseline_metrics, name), name
+    assert observed.first_step_health == baseline.first_step_health
+    assert torch.equal(torch.get_rng_state(), baseline_rng)
+    for name, value in observed_model.state_dict().items():
+        assert torch.equal(value, baseline_model_state[name]), name
+    for name, parameter in observed_model.named_parameters():
+        expected = baseline_gradients[name]
+        if expected is None:
+            assert parameter.grad is None
+        else:
+            assert parameter.grad is not None
+            assert torch.equal(parameter.grad, expected), name
+    _assert_nested_exact(observed_optimizer.state_dict(), baseline_optimizer_state)
+    assert torch.equal(observed_centers.condition, baseline_condition_center)
+    assert torch.equal(observed_centers.masked_node, baseline_masked_center)
+
+
+def test_selective_local_activation_checkpoint_count_fails_closed() -> None:
+    with pytest.raises(ValueError, match="requires checkpointing"):
+        _vnext_components(checkpoint_student_local_activation_count=1)
+    with pytest.raises(ValueError, match="requires checkpointing"):
+        _vnext_components(checkpoint_student_local_activation_count=0)
+    with pytest.raises(ValueError, match="nonnegative"):
+        _vnext_components(
+            checkpoint_student_local_activations=True,
+            checkpoint_student_local_activation_count=-1,
+        )
+    with pytest.raises(ValueError, match="exceeds the local-view count"):
+        _vnext_components(
+            checkpoint_student_local_activations=True,
+            checkpoint_student_local_activation_count=9,
+        )
 
 
 def test_cpu_vectorized_sparse_union_preserves_complete_first_step_trajectory(

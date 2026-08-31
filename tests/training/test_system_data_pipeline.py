@@ -111,6 +111,24 @@ def test_system_options_reject_partial_enablement() -> None:
         )
     with pytest.raises(ValueError, match="requires all seven"):
         NativeSystemOptions(local_activation_checkpointing=True)
+    with pytest.raises(ValueError, match="requires checkpointing"):
+        NativeSystemOptions(local_activation_checkpoint_count=1)
+    with pytest.raises(ValueError, match="requires checkpointing"):
+        NativeSystemOptions(local_activation_checkpoint_count=0)
+    with pytest.raises(ValueError, match="nonnegative"):
+        NativeSystemOptions(
+            merged_hdf5_reads=True,
+            control_expression_cache=True,
+            background_prefetch=True,
+            resident_graph_tensors=True,
+            validation_expression_cache=True,
+            buffered_training_logs=True,
+            single_checkpoint_serialization=True,
+            local_activation_checkpointing=True,
+            local_activation_checkpoint_count=-1,
+            pin_memory=True,
+            nonblocking_transfer=True,
+        )
 
 
 def test_validation_cache_restores_duplicates_and_fails_closed_on_miss() -> None:

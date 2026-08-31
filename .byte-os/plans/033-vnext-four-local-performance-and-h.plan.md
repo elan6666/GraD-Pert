@@ -48,6 +48,22 @@ physical GPU. L is configured but does not run.
    step wall without p90 or memory regression; utilization is diagnostic, not
    a substitute for throughput or exactness.
 
+## Measured checkpointing target
+
+- The sealed four-local capacity pass completed six training-only steps with
+  10.035/10.138 GB peak allocated/reserved memory and at least 22.812 GB free;
+  receipt SHA
+  `a6befedb276df507e393cb30b723208546b600ed7c3cdf4e14480c08239192d0`.
+- The sealed Torch profile completed two warmup plus three profiled steps. Its
+  2.914--3.080 s measured steps attribute 1.356--1.494 s to Student locals,
+  0.526--0.682 s to view construction and 0.622--0.632 s to backward/update;
+  receipt SHA
+  `61e653a4274f241025ff7bb798b576c2bbc1664a19ef8e82bca0e8ef31367393`.
+- The next implementation therefore exposes an ordered checkpointed-local
+  count without changing any scientific factor. Fresh capacity attempts test
+  `3,2,1,0` after the already-passed all-four reference, followed by complete
+  exact-effect and ABBA gates before a formal H launch.
+
 ## Formal execution
 
 - Only after performance acceptance, create a fresh H-only lineage.

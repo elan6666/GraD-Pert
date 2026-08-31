@@ -339,6 +339,7 @@ class GraDPertStepEngine:
         loss_weights: LossWeights | None = None,
         resident_graph_tensors: bool = False,
         checkpoint_student_local_activations: bool = False,
+        checkpoint_student_local_activation_count: int | None = None,
         capture_equivalence_health: bool = False,
         stage_observer: GraDPertStageObserver | None = None,
     ) -> None:
@@ -393,6 +394,25 @@ class GraDPertStepEngine:
         )
         self.resident_graph_tensors = resident_graph_tensors
         self.checkpoint_student_local_activations = checkpoint_student_local_activations
+        if checkpoint_student_local_activation_count is not None and not (
+            checkpoint_student_local_activations
+        ):
+            raise ValueError(
+                "a student local activation checkpoint count requires checkpointing to be enabled"
+            )
+        if checkpoint_student_local_activation_count is None:
+            checkpoint_count = (
+                self.architecture.local_view_count if checkpoint_student_local_activations else 0
+            )
+        else:
+            checkpoint_count = checkpoint_student_local_activation_count
+        if checkpoint_count < 0:
+            raise ValueError("student local activation checkpoint count must be nonnegative")
+        if checkpoint_count > self.architecture.local_view_count:
+            raise ValueError(
+                "student local activation checkpoint count exceeds the local-view count"
+            )
+        self.checkpoint_student_local_activation_count = checkpoint_count
         self.capture_equivalence_health = capture_equivalence_health
         self.stage_observer = stage_observer
         self.stage_observer_failures: list[dict[str, object]] = []
@@ -644,7 +664,7 @@ class GraDPertStepEngine:
                 global_step=global_step,
                 local_view_index=local_index,
             ):
-                if self.checkpoint_student_local_activations and isinstance(
+                if local_index < self.checkpoint_student_local_activation_count and isinstance(
                     self.model.student_encoder,
                     ConfigurableGeneGraphEncoder,
                 ):
