@@ -67,10 +67,19 @@ step wall and 100 ms per step to its boundary.
 
 A local 2,809-node, eight-condition, four-local microbenchmark found that
 caching expander pairs reduced 34 union preparations from median 1,309.41 to
-1,143.57 ms (12.66%, 165.84 ms), but this is hypothesis evidence only. A
+1,143.57 ms (12.66%, 165.84 ms), but this remained hypothesis evidence. A
 naive NumPy Ring selection/merge prototype was exactly equal yet 9.8% slower
-than the reference and is rejected unless a different server measurement
-justifies revisiting it.
+and was rejected.
+
+The subsequent real server Python profile selected repeated RingInduced edge
+and incident-node scans: six bounded steps attributed 5.723 seconds to
+`build_training_graph_views`, 5.173 seconds to 192 RingInduced builds, 3.039
+seconds to repeated base-edge/self-loop preparation and 1.840 seconds to
+incident-node scans. The selected implementation builds one immutable,
+source-aware incoming-edge index per topology. It preserves target/source
+order and self-loop insertion while visiting only selected targets. On the
+sealed 2,809-node topology, 32 local views fell from median 983.661 to 833.647
+ms (15.251%, 150.014 ms) with exact complete-view SHA equality.
 
 ## Exact-effect and timing gates
 
@@ -81,8 +90,8 @@ state, centers, CPU/CUDA RNG, predictions and all non-timing receipt fields.
 Asynchronous work additionally requires exact final state and log order after
 flush.
 
-Timing uses serial same-GPU A1-B1-B2-A2 with five warmups and twenty measured
-steps per arm. Acceptance requires:
+Timing uses serial same-GPU A1-B1-B2-A2 with warmup-excluded measured steps.
+Acceptance requires:
 
 - median wall reduction at least 10% and 100 ms in both paired comparisons;
 - neither optimized p90 worse by more than 5%;
@@ -90,8 +99,21 @@ steps per arm. Acceptance requires:
 - required VRAM headroom, zero allocator retry/OOM, zero PKL and no truth
   access.
 
-Only after review and a new clean synchronized commit may the formal A0/H1/H2/
-H3 queue launch sequentially on one GPU. L remains paused.
+The deterministic CUDA gate at source `1fc1576` passed six reference and six
+indexed steps with exact non-timing metrics, views, CPU/CUDA RNG, losses, every
+gradient, Student/Teacher parameters and buffers, optimizer, centers and
+prediction hashes. The serial same-GPU ABBA used two warmups and ten measured
+steps per arm. Reference p50 was 2,964.568/3,018.291 ms and indexed p50 was
+2,554.524/2,523.254 ms. The paired median ratio was 0.848836: 15.116% and
+452.540 ms lower step wall. Both p90 pairs improved, allocated/reserved GPU
+memory was identical, minimum free memory was 22.812 GB and all arms retained
+zero retry/OOM, zero PKL and unopened validation/test readers. The indexed
+implementation is accepted.
+
+Only after review and a new clean synchronized commit may formal A0/H1/H2/H3
+launch. The user authorized row-level execution on two physical GPUs: no row
+uses more than one GPU, and at most two rows run concurrently. L remains
+paused.
 
 ## Formal loss and utilization dashboard
 
@@ -103,3 +125,8 @@ single selected GPU without entering the training process. Trackio is disabled
 for capacity/profile/exact-effect/ABBA work and never receives test metrics,
 predictions, datasets, checkpoints or row-level identities. Its live view is
 auxiliary and provisional; native receipts remain authoritative.
+
+The private Bucket exists and owner authentication is verified. Creation of
+the required private Trackio Space currently returns `402 Payment Required`.
+No public substitute is permitted without an explicit privacy decision, so
+remote dashboards remain blocked independently of scientific execution.

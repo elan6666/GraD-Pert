@@ -753,3 +753,25 @@
   `0077` for its complete lifetime, verifies the store as `0700`, restores the
   caller's prior mask, and tests owner-only store/database/state/receipt/lock
   permissions.
+
+## 2026-08-31 — four-local RingInduced index accepted
+
+- The four-local checkpoint count-two candidate passed deterministic exactness
+  but was rejected after same-GPU ABBA measured a 1.026487 ratio (2.65%
+  slower). Formal default therefore remains checkpoint count four.
+- A new real Python profile attributed 5.173 seconds across 192 RingInduced
+  builds to repeated base-edge/self-loop and incident-node scans. The selected
+  implementation builds one immutable source-aware incoming-edge index per
+  topology and preserves ordered edges, weights, self-loop insertion, warnings
+  and complete views.
+- On the sealed 2,809-node Jurkat topology, exact 32-view construction improved
+  from median 983.661 to 833.647 ms (15.251%, 150.014 ms). Deterministic CUDA
+  reference/indexed runs matched all non-timing metrics, views, CPU/CUDA RNG,
+  losses, every gradient, Student/Teacher, optimizer, centers and predictions.
+- Serial same-GPU ABBA reduced paired median step wall by 15.116% and 452.540
+  ms (ratio 0.848836); both p90 pairs improved, GPU memory was identical, and
+  all arms retained zero retry/OOM, zero PKL and no validation/test access.
+- The user authorized formal A/H row-level use of both GPUs after performance
+  delivery. Private Trackio Space creation remains externally blocked by a
+  truthful `402 Payment Required`; the private Bucket and owner keychain
+  authentication are ready, and no public fallback is authorized.

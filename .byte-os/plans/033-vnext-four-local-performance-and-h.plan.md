@@ -3,7 +3,7 @@ id: 033
 status: in_progress
 wave: 6
 depends_on: [028, 032]
-updated_at: 2026-08-31T00:00:00+08:00
+updated_at: 2026-08-31T16:30:00+08:00
 ---
 
 # Plan 033 — four-local A0 performance engineering and H execution
@@ -12,8 +12,8 @@ updated_at: 2026-08-31T00:00:00+08:00
 
 Freeze the new four-local A0 and its direct single-factor matrix, measure the
 real single-GPU execution path, implement only exact-effect optimizations
-supported by those measurements, and then run A0/H1/H2/H3 sequentially on one
-physical GPU. L is configured but does not run.
+supported by those measurements, and then run A0/H1/H2/H3 with row-level
+parallelism across at most two physical GPUs. L is configured but does not run.
 
 ## Scientific coordinate
 
@@ -72,11 +72,24 @@ physical GPU. L is configured but does not run.
   gradient, optimizer, Teacher, center, combined model and CPU/CUDA RNG hashes.
   It runs the all-four reference and count-two candidate with deterministic
   algorithms on the same physical GPU before any timing acceptance.
+- Count two passed exactness but was rejected by same-GPU ABBA because its
+  paired median ratio was 1.026487 (2.65% slower); count four remains default.
+- A fresh real Python profile selected repeated RingInduced edge and
+  incident-node scans. The immutable source-aware incoming-edge index reduced
+  exact 32-view construction from median 983.661 to 833.647 ms (15.251%).
+- Deterministic CUDA equality passed at evidence SHA
+  `2b4f241aba137cdd138f576ca20a27b1f954f2b59dcbf874ed2a53b8f177f088`.
+  Same-GPU ABBA passed at SHA
+  `7e82fe419da63a2d85b8786af6751acafbc0ddfd1caf2bc1488cba7cda1ea579`:
+  paired ratio 0.848836, 15.116% and 452.540 ms lower wall, improved p90,
+  identical peak GPU memory, zero retry/OOM/PKL and no truth access.
 
 ## Formal execution
 
 - Only after performance acceptance, create a fresh H-only lineage.
-- Run A0, H1, H2 and H3 sequentially on one physical GPU.
+- Run A0/H1/H2/H3 as independent one-GPU rows with at most two rows active.
+  Use two hash-pinned queues only after per-row capacity checks; H3 may run
+  alone when its larger graph requires isolated capacity.
 - Launch one out-of-process private Trackio sidecar per formal row. It may read
   only allowlisted `train_steps.csv`, `validation.csv`, `run_meta.json` and the
   pre-test training receipt; performance phases never launch it. Treat the
@@ -105,5 +118,8 @@ physical GPU. L is configured but does not run.
   because Trackio 0.37 delivery is best effort, the dashboard receipt remains
   provisional with `remote_sync_verified=false`. A dashboard failure does not
   alter scientific status.
+- The private Bucket and owner credential are ready, but private Space creation
+  returned `402 Payment Required`; never replace it with a public Space absent
+  explicit user authorization.
 - A0/H1/H2/H3 share exact split and ordered 300-control/truth hashes and pass
   their complete formal receipt validators.

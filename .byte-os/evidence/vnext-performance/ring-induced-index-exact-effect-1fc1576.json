@@ -1,0 +1,44 @@
+{
+  "candidate_implementation": "indexed",
+  "exact_hashes": {
+    "centers_state_after_sha256": "6d5aaaf76dda1ad3bee7827e43f0c4960c836ef994b7ebac65e4cf03fcaef6f8",
+    "gradient_state_after_sha256": "a22f5ece9446a717a148d7f33e776a2d70fff3ab6ae89cebb95263c54edd41d7",
+    "optimizer_state_after_sha256": "2962220eb500896164a73f5a6efb373ac2a166076492b01083e3d2a4033c7cec",
+    "parameter_state_after_sha256": "72bc527eb7c2368eac6d97d5f1cf7f5b8223db8b4c502ad5265b147a3ee47f50",
+    "parameter_state_before_sha256": "30471b4a4a046e1564166c8056c5233086295c041e5efcbcc9169574dde5ce00",
+    "prediction_content_sha256": "15fa911e049e179de8b8c07a74e1fc2c087dd33245c55310e2160fdef51a9d6e",
+    "rng_state_after_sha256": "01c02e6082dbcebe074e489559e19bebc4d130ca8c7451c69aeeaaf54e483e19",
+    "rng_state_before_sha256": "a6c5715cce799458510009b1629c7b2851c7ed81f5366b25c3e510d26a5ee62c",
+    "teacher_state_after_sha256": "f67a2ac599543e55ac321083e201f8a9f5b22e0c6b13a2730b525b186a2c364a",
+    "view_structure_sha256": "9316c4f320efd484b1fb1c8262bbefbffb777d81bc7b363199595d532e75a09c"
+  },
+  "mismatched_predicates": [],
+  "predicates": {
+    "all_six_non_timing_metrics_exact": true,
+    "all_six_view_receipts_exact": true,
+    "first_step_complete_state_exact": true,
+    "first_step_health_v2": true,
+    "indexed_complete": true,
+    "indexed_count4": true,
+    "indexed_deterministic": true,
+    "indexed_six_steps": true,
+    "indexed_training_only": true,
+    "indexed_zero_retry_oom": true,
+    "reference_complete": true,
+    "reference_count4": true,
+    "reference_deterministic": true,
+    "reference_six_steps": true,
+    "reference_training_only": true,
+    "reference_zero_retry_oom": true,
+    "required_exact_hashes_present": true
+  },
+  "profile_receipt_sha256": {
+    "indexed": "50628237c639431a553baad98998ed0048b6110ba3dfb2364cd4df03d97bb5db",
+    "reference": "9bdca146c81ae24f4caf81569e3f53bff5b2ebb59a0c31398ce78a648a20eb45"
+  },
+  "reference_implementation": "reference",
+  "schema_version": "ring-induced-index-deterministic-exact-effect-v1",
+  "scientific_completion": false,
+  "source_commit": "1fc157616f63128c2fbe6146826a0814f131fd1a",
+  "status": "passed"
+}

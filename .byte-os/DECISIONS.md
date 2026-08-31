@@ -11,7 +11,9 @@
   four locals, and L4/L5 retain proportional masks that resolve to `2/4` and
   `1/4`. Every H/M/W/D/E/O row inherits the four-local A0.
 - Stop all active experiments and pause L execution. After a fresh measured
-  performance pass, run only A0/H1/H2/H3 sequentially on one physical GPU.
+  performance pass, run only A0/H1/H2/H3. The user later authorized row-level
+  parallelism across both physical GPUs; every row remains single-GPU and H3
+  may require isolated capacity.
 - Treat the accepted eight-local sparse-union ABBA result as historical
   implementation evidence, not current-coordinate timing. Reprofile the new
   four-local A0 before selecting another optimization; GPU utilization is a
@@ -24,6 +26,11 @@
   checkpoints. Because Trackio step replay is not idempotent, every live run
   uses a fresh locked lineage with `resume="never"` and remains provisional;
   native receipts are authoritative.
+- Reject checkpoint count two despite capacity/exactness because its same-GPU
+  ABBA was 2.65% slower; retain count four. Accept the measured immutable
+  RingInduced incoming-edge index after exact CUDA state equality and same-GPU
+  ABBA ratio 0.848836 (15.116%, 452.540 ms lower step wall), improved p90 and
+  identical peak GPU memory.
 
 ## 2026-08-30
 

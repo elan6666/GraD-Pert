@@ -1,0 +1,33 @@
+{
+  "condition_count": 8,
+  "exact_local_view_sha256_equal": true,
+  "indexed_median_ms": 833.6474057286978,
+  "indexed_ms": [
+    833.6474057286978,
+    893.5593999922276,
+    860.988165717572,
+    694.7564892470837,
+    866.8522918596864,
+    668.4713391587138,
+    821.5082841925323
+  ],
+  "local_count": 4,
+  "local_view_sha256": "62aee463b9e93f4193f5fdf4d33638cc399042486b3b89c4bee4c6a18ca75c4a",
+  "median_reduction_pct": 15.250540989003248,
+  "median_speedup": 1.1799485349755967,
+  "node_budget": 1404,
+  "reference_median_ms": 983.6610350757837,
+  "reference_ms": [
+    953.8656016811728,
+    982.211007270962,
+    983.6610350757837,
+    1033.2858767360449,
+    988.2797193713486,
+    980.4871310479939,
+    1027.5408676825464
+  ],
+  "repeats_after_warmup": 7,
+  "schema_version": "ring-induced-index-microbenchmark-v1",
+  "topology_content_sha256": "ba22af6e9e9a558533aaae850f619840ea2d717310eb3362a52476c3c1ea9128",
+  "topology_node_count": 2809
+}

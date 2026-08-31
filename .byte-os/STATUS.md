@@ -26,28 +26,31 @@ updated_at: 2026-08-31T06:43:57+08:00
   Fanout with four locals; L2 is the direct eight-local count ablation; L3
   keeps four locals at ratio `1/4`; L4/L5 resolve mask ratios to `2/4` and
   `1/4`. L execution remains paused.
-- The accepted eight-local sparse-union implementation remains valid
-  implementation history, but its 56.253% ABBA result is not a speed claim for
-  the new four-local A0. The next compute is a fresh single-GPU capacity and
-  measured profile at the new exact coordinate. Only a measured material
-  bottleneck may be changed, followed by strict exact-effect and serial ABBA
-  gates. Formal scope after acceptance is A0/H1/H2/H3 sequentially on one GPU.
+- The accepted eight-local sparse-union implementation remains valid history,
+  but its 56.253% result is not a four-local speed claim. Fresh four-local
+  profiling selected repeated RingInduced edge/incident scans. At `1fc1576`,
+  the immutable source-aware index passed exact CUDA state equality and serial
+  same-GPU ABBA: paired ratio 0.848836, 15.116% and 452.540 ms lower step wall,
+  improved p90, identical GPU memory, zero retry/OOM/PKL and no truth access.
+  Formal scope is A0/H1/H2/H3 with at most two independent single-GPU rows;
+  L remains paused.
 - The v3 generator is deterministic and the integrated local surface passes
   544 tests with 2 honest skips under the locked dev/data/model/tracking
   extras, including 21 Trackio sidecar tests and all prior migration gates.
   Ruff, format on 255 files, compileall and diff checks pass. Strict mypy
   passes on all 76 source files and the isolated wheel/sdist build passes.
-  Fresh server synchronization and exact-commit gates remain required before CUDA.
+  Exact-commit `1fc1576` server gates pass 578 tests with one honest frozen
+  skip, Ruff, format on 256 files, strict mypy on 76 files and isolated build.
 - Private Hugging Face Trackio support is implemented as an optional,
   out-of-process formal-only sidecar. It exposes allowlisted loss,
   validation, stage-throughput and one-GPU telemetry curves while excluding
   test metrics and every artifact/data surface. It is disabled for all
   capacity/profile/exact-effect/ABBA lineages. Twenty-one focused sidecar tests
-  pass; remote activation remains blocked on private server-side `hf auth
-  login` with write scope. The selected private targets are Space
+  pass. The selected private targets are Space
   `elan68681/grad-pert-vnext-ablations` and Bucket
-  `elan68681/grad-pert-vnext-ablations-bucket`; the current Codex connector
-  credential is read-only and therefore created neither.
+  `elan68681/grad-pert-vnext-ablations-bucket`; owner authentication and the
+  private Bucket are verified, while private Space creation returns `402
+  Payment Required`. No public substitute is authorized.
 
 - Exact-effect performance engineering is accepted at clean commit `7332cc1`.
   The deterministic CUDA hard gate is exact for non-timing metrics, views,

@@ -112,6 +112,12 @@ three loss removals. The H module varies HVG512/1024/2048/5000 while retaining
 single-factor rows: Fanout, eight locals, 25% local coverage, 50% mask ratio,
 or 25% mask ratio. L execution is currently paused.
 
+The four-local runtime uses the accepted immutable RingInduced incoming-edge
+index. On the sealed Jurkat A0 path it passed exact CUDA state equality and
+same-GPU ABBA with a 0.848836 paired step-wall ratio (15.116%, 452.540 ms
+lower), improved p90 and identical peak GPU memory. Formal A0/H rows may use
+both physical GPUs at row level; every row remains single-GPU.
+
 GenePT E rows use the frozen GenePT-Seed `Seed-GO-ProteinPathway` master
 artifact (SHA-256
 `34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318`).
@@ -195,6 +201,9 @@ Formal ablations can install the optional `tracking` extra and mirror only
 allowlisted training/validation scalars to a private Hugging Face Trackio
 Space. The sidecar is excluded from performance timing and never uploads test
 metrics, predictions, datasets, checkpoints or per-cell artifacts.
+The owner-authenticated private Bucket is ready, while creation of the private
+Trackio Space currently requires a Hugging Face plan that permits private
+Spaces; no public dashboard fallback is enabled.
 
 Do not use historical design alternatives under `TxPert/` as active scope. See
 root `AGENTS.md` before editing.
