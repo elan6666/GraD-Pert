@@ -143,12 +143,28 @@ remains paused by user instruction. Performance work follows this order:
 Only a reviewed, clean, locally/GitHub/server synchronized performance commit
 may become the source lineage for the A/H runs.
 
-## Formal completion
+## Formal H results
 
-H0/A0 is trained once and shared by both modules. The currently authorized
-formal scope is A0 followed by H1/H2/H3 sequentially on one physical GPU; L
-does not launch until separately authorized. Every successful run must contain exactly
-one best checkpoint, zero persistent PKL, exact split/control/truth identities,
-10 ordered validations, no test truth during fitting, one best-checkpoint test
-evaluation, and the three frozen headline metrics. Large scientific artifacts
-remain on `/data/yilangliu`; only reviewed small receipts and results are staged.
+The four-local A/H lineage `formal-vnext-ah-845c10a-v2` completed at exact
+source `845c10a`. Each row has 5,820 ordered optimizer steps, ten validations,
+one evaluation from `best.pt`, the exact three metrics, zero persistent PKL and
+only the retained best checkpoint. All rows share the exact canonical split,
+condition order, ordered 300-control rows and truth-row identities.
+
+| Row | Runtime nodes | Local cap | TxPert macro delta | TriShift delta | Systema Pearson |
+|---|---:|---:|---:|---:|---:|
+| A0 / HVG512 | 2,809 | 1,404 | 0.251406 | 0.245002 | 0.018933 |
+| H1 / HVG1024 | 3,238 | 1,619 | 0.251408 | 0.239399 | 0.017970 |
+| H2 / HVG2048 | 4,115 | 2,057 | 0.247875 | 0.225980 | 0.017752 |
+| H3 / HVG5000 | 6,487 | 3,243 | 0.247738 | 0.234845 | 0.031904 |
+
+These are single-seed descriptive direct comparisons. Increasing the global
+HVG count did not improve all three metrics consistently: H3 has the highest
+Systema point estimate, while A0/H1 have the highest TxPert macro point
+estimates and A0 has the highest TriShift point estimate. The results do not
+establish equivalence or general superiority and do not authorize test-selected
+configuration changes. A0 remains the preregistered default; L remains paused.
+
+The reviewed compact evidence is in
+`.byte-os/evidence/vnext-performance/formal-ah-four-local-845c10a.json`.
+Large scientific artifacts remain on `/data/yilangliu`.

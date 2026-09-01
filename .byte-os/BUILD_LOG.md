@@ -788,3 +788,24 @@
   `smoke/local-only-77645d6`. The remote object hash is
   `2be6f2decd5d442c7dc4fb2af565e11f554e236c4d1ae86985b172a3c0f0e4c2`.
   No public Space, test metric, prediction, data or checkpoint was uploaded.
+
+## 2026-09-01 — four-local A/H formal completion
+
+- Exact source `845c10a` completed A0/H1/H2/H3. A strict independent replay
+  validated 5,820 contiguous steps, ten validations, no test truth during fit,
+  one evaluation from hash-matched `best.pt`, exact three finite metrics, the
+  four-local ratio contract, CPU-vectorized sparse union and clean source
+  identity for every row.
+- All rows share canonical data SHA `f051343c...e845861`, split SHA
+  `ecb2099c...63cdd0`, condition-order SHA `3cfe9206...338b15`, ordered
+  300-control-row SHA `de102e67...dff0b8` and truth-row SHA
+  `e410ef47...3c4ef`. The full run root contains zero PKL and each row retains
+  only `best.pt`.
+- H point estimates are mixed: larger axes do not improve all three metrics
+  consistently, so the review retains A0 and makes no equivalence claim.
+- Trackio delivery remained non-authoritative. A0/H3 local stores completed,
+  while the expired reverse SOCKS endpoint prevented private Bucket archival
+  and blocked H1/H2 Trackio startup. No scientific run was replayed or relabeled.
+- Post-result local gates pass 578 tests with two honest skips (frozen upstream
+  evidence absent and CUDA unavailable), Ruff, format on 258 files, strict mypy
+  on 76 source files, JSON/diff checks and an isolated wheel/sdist build.

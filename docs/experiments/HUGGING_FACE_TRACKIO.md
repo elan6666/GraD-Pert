@@ -127,3 +127,14 @@ dashboard is unavailable. The local receipt therefore says points were
 `enqueued`, not remotely proven. The future hash-pinned formal A/H queue must
 start and stop one sidecar per row; a manual dry run alone does not satisfy that
 launch contract.
+
+## Observed four-local A/H delivery
+
+In `formal-vnext-ah-845c10a-v2`, A0 and H3 completed their owner-only local
+Trackio stores with all 5,820 train points and ten validation points, but the
+private Bucket archive failed after the reverse SOCKS endpoint disappeared.
+H1 and H2 encountered the same refused endpoint during live Bucket preflight,
+so their local Trackio clients did not start. All four native scientific runs
+completed and passed strict validation. The tracking failure is retained
+truthfully; no run was replayed, resumed or relabeled, and no public fallback
+was created.

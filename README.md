@@ -118,6 +118,13 @@ same-GPU ABBA with a 0.848836 paired step-wall ratio (15.116%, 452.540 ms
 lower), improved p90 and identical peak GPU memory. Formal A0/H rows may use
 both physical GPUs at row level; every row remains single-GPU.
 
+The formal four-local A/H lineage is complete at source `845c10a`: A0 and
+H1/H2/H3 each passed 10 epochs, 5,820 ordered steps, 10 validations, one
+best-checkpoint evaluation and the zero-PKL contract. Larger HVG axes produced
+mixed single-seed point estimates rather than a consistent gain, so A0 remains
+the preregistered default and no equivalence claim is made. See
+[the H result table](docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md#formal-h-results).
+
 GenePT E rows use the frozen GenePT-Seed `Seed-GO-ProteinPathway` master
 artifact (SHA-256
 `34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318`).

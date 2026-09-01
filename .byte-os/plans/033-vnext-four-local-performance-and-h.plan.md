@@ -1,9 +1,9 @@
 ---
 id: 033
-status: in_progress
+status: complete
 wave: 6
 depends_on: [028, 032]
-updated_at: 2026-08-31T16:30:00+08:00
+updated_at: 2026-09-01T14:30:00+08:00
 ---
 
 # Plan 033 — four-local A0 performance engineering and H execution
@@ -126,3 +126,17 @@ parallelism across at most two physical GPUs. L is configured but does not run.
   truthfully retain `remote_sync_verified=false`.
 - A0/H1/H2/H3 share exact split and ordered 300-control/truth hashes and pass
   their complete formal receipt validators.
+
+## Completion
+
+- Source `845c10a` completed A0/H1/H2/H3 with 5,820 contiguous steps, ten
+  validations, one best-checkpoint test evaluation, three finite metrics,
+  zero PKL and only `best.pt` per row.
+- Exact canonical split, condition order, ordered 300-control rows and truth
+  rows match across all four runs. Compact validation evidence is staged at
+  `.byte-os/evidence/vnext-performance/formal-ah-four-local-845c10a.json`.
+- Trackio remained auxiliary: A0/H3 local stores completed, while private
+  archive delivery and H1/H2 startup were blocked by the expired reverse SOCKS
+  endpoint. Scientific status is unchanged and no replay was attempted.
+- The single-seed H results are mixed and do not authorize replacing A0 or
+  claiming equivalence. L remains paused.

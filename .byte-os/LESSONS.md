@@ -86,3 +86,18 @@
 - Prevention: derive producer and validator keys from one shared constant and
   keep an end-to-end replay test. Unit fixtures must include every field the
   real producer emits; a self-consistent reduced fixture can hide schema drift.
+
+## Local telemetry must not depend on a long-lived archive transport
+
+- Mistake: local-private Trackio mode repeated a live Hugging Face Bucket
+  preflight when each queued row started. The reverse SOCKS endpoint expired
+  during the long formal queue, so H1/H2 lost local scalar capture even though
+  their native training receipts completed normally.
+- Correct boundary: local scalar collection and remote archival are separate
+  best-effort stages. A sealed launch-time private-Bucket receipt can bind the
+  intended destination, while a later transport outage must be receipted as an
+  archive failure rather than preventing owner-only local collection.
+- Prevention: before the next tracked formal lineage, make the sidecar consume
+  a hash-pinned launch preflight, test proxy loss between rows, and defer the
+  live Bucket operation until post-row archival. Never replay this completed
+  lineage to manufacture missing telemetry.

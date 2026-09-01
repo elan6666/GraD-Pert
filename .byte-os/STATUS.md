@@ -9,11 +9,21 @@ review_verdict: pass
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-08-31T06:43:57+08:00
+updated_at: 2026-09-01T14:30:00+08:00
 ---
 
 # Status
 
+- Plan 033 is complete. Exact source `845c10a` finished formal four-local
+  A0/H1/H2/H3. Every row passed 5,820 contiguous steps, ten validations, one
+  best-checkpoint evaluation, exact three metrics, identical canonical
+  split/control/truth identities, zero PKL and best-only checkpoint retention.
+  The single-seed H point estimates are mixed and do not replace A0 or establish
+  equivalence. L remains paused.
+- Trackio is explicitly partial for this lineage: A0/H3 owner-only local stores
+  completed, but private Bucket archives failed; H1/H2 local clients were
+  blocked by the expired reverse SOCKS endpoint. Native scientific status and
+  receipts remain authoritative and complete.
 - All `f1c14d8` formal queues are stopped by user request. GPU0 A0 is preserved
   as interrupted at 1,094/5,820 steps; GPU1 H3 is preserved as interrupted at
   1,874/5,820 steps. Neither is failed or scientifically complete, no L row

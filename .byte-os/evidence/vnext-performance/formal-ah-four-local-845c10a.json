@@ -1,0 +1,112 @@
+{
+  "schema_version": "formal-vnext-ah-final-validation-v1",
+  "lineage": "formal-vnext-ah-845c10a-v2",
+  "source_commit": "845c10a19b71a6f74fa88a048ea09443f00b9509",
+  "source_tree_sha256": "a113fc06574889011574aeca5be1dc63939ab5f6d29e7b67bab898e230c110a8",
+  "source_publication_receipt_sha256": "702785910830f3bc0e11a287c42f62879e36a415337d79930922a427568152e4",
+  "scientific_validation": {
+    "status": "passed",
+    "canonical_data_sha256": "f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861",
+    "split_content_sha256": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0",
+    "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+    "condition_count": 592,
+    "condition_order_sha256": "3cfe920623437df9a43867e0033359199d68dfced76fee33acfa5de044338b15",
+    "ordered_300_control_rows_sha256": "de102e670d8c8eb54d814a6ba9e2f57262b0f8d0f664e8476a5e9e847edff0b8",
+    "ordered_truth_rows_sha256": "e410ef47db09af9b0da46430d6b95971faeedcbd778801cf5a0eb0471af3c4ef",
+    "queue_gpu0_receipt_sha256": "eb7922d640dea57155472e74a9fadc675ca6504bbb20f85726d1c2342c63945f",
+    "queue_gpu1_receipt_sha256": "1cb87235a45769158ea9d91c7d2ed6817058e47f234a9d0c1af0f87cc9dbcd2a",
+    "persistent_pkl_count": 0,
+    "checks": [
+      "exact source and clean publication identity",
+      "5820 contiguous ordered optimizer steps per row",
+      "10 ordered validations per row",
+      "canonical test truth absent during fit",
+      "one evaluation from the retained best checkpoint",
+      "exactly three finite headline metrics",
+      "identical canonical split and ordered control/truth row identities",
+      "metrics_only null PKL fields and no surviving work directory",
+      "zero PKL across the whole lineage and only best.pt per row",
+      "four RingInduced locals at a ratio-derived one-half node budget",
+      "CPU-vectorized sparse union on ordered STRING and GO channels"
+    ]
+  },
+  "rows": {
+    "a0_ratio_ring_half": {
+      "graph_hvg_count": 512,
+      "graph_node_count": 2809,
+      "effective_local_node_budget": 1404,
+      "graph_topology_content_sha256": "ba22af6e9e9a558533aaae850f619840ea2d717310eb3362a52476c3c1ea9128",
+      "optimizer_steps": 5820,
+      "validations": 10,
+      "test_evaluations": 1,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.2514060568017894,
+        "trishift_pearson_delta": 0.24500225425749936,
+        "systema_pearson": 0.018932562289451206
+      },
+      "mean_step_wall_ms": 2711.7491053298704,
+      "peak_allocated_gpu_bytes": 10200590848,
+      "row_receipt_sha256": "74eb6b4b647c6d69120fff9e4289c164988fa66a8d1d3535254fb393c7761131"
+    },
+    "h1_hvg1024_ratio_half": {
+      "graph_hvg_count": 1024,
+      "graph_node_count": 3238,
+      "effective_local_node_budget": 1619,
+      "graph_topology_content_sha256": "b436b2c0e9aab5d9547e4b65f95865ad2b9ad95b3d55962e1fe976ccb0874b74",
+      "optimizer_steps": 5820,
+      "validations": 10,
+      "test_evaluations": 1,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.251408431370761,
+        "trishift_pearson_delta": 0.23939899132145703,
+        "systema_pearson": 0.017970426673464313
+      },
+      "mean_step_wall_ms": 2958.4871670397933,
+      "peak_allocated_gpu_bytes": 11640541184,
+      "row_receipt_sha256": "bb04b343dd653acd44048d4f4179a83f7df8d6769d87ab82fa2f94585663d81b"
+    },
+    "h2_hvg2048_ratio_half": {
+      "graph_hvg_count": 2048,
+      "graph_node_count": 4115,
+      "effective_local_node_budget": 2057,
+      "graph_topology_content_sha256": "faeda612f975cc7bf47d75318c3f7b7bb379ab9bd14fe57258681678d101a625",
+      "optimizer_steps": 5820,
+      "validations": 10,
+      "test_evaluations": 1,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.24787510841762858,
+        "trishift_pearson_delta": 0.22598025830525484,
+        "systema_pearson": 0.01775224763649458
+      },
+      "mean_step_wall_ms": 3559.7644645728733,
+      "peak_allocated_gpu_bytes": 14983245824,
+      "row_receipt_sha256": "576effdff27be758d7546d1c6c63ff0fed06ca7d338e40c49ac76b1815868256"
+    },
+    "h3_hvg5000_ratio_half": {
+      "graph_hvg_count": 5000,
+      "graph_node_count": 6487,
+      "effective_local_node_budget": 3243,
+      "graph_topology_content_sha256": "a9eaf87a948376387d8f93578db4507c7b51e74481c6419d9393f313e8ce4349",
+      "optimizer_steps": 5820,
+      "validations": 10,
+      "test_evaluations": 1,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.24773832975176854,
+        "trishift_pearson_delta": 0.23484472234164683,
+        "systema_pearson": 0.031903555244594047
+      },
+      "mean_step_wall_ms": 5961.498442650957,
+      "peak_allocated_gpu_bytes": 24647825920,
+      "row_receipt_sha256": "954bb92170aafbcacfab391192da1624aff61767f54526deeab5fc8ed31af95b"
+    }
+  },
+  "trackio": {
+    "telemetry_authority": false,
+    "a0_ratio_ring_half": "local_client_complete; private Bucket archive failed",
+    "h1_hvg1024_ratio_half": "local client not started because the reverse SOCKS endpoint refused the Bucket preflight connection",
+    "h2_hvg2048_ratio_half": "local client not started because the reverse SOCKS endpoint refused the Bucket preflight connection",
+    "h3_hvg5000_ratio_half": "local_client_complete; private Bucket archive failed",
+    "scientific_status_affected": false
+  },
+  "interpretation": "Single-seed descriptive direct comparisons only. Larger HVG axes did not improve all three headline metrics consistently; no equivalence, superiority, or test-selected default claim is made."
+}
