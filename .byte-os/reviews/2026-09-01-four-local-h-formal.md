@@ -36,4 +36,3 @@ local stores, but the subsequent private Bucket archive failed. H1 and H2
 could not start their local client because the long-lived reverse SOCKS
 endpoint refused the live Bucket preflight connection. Native scientific
 receipts were unaffected. No tracking replay or lineage mutation was attempted.
-
