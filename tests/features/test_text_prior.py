@@ -3,7 +3,19 @@ import hashlib
 import numpy as np
 import pytest
 
-from gradpert.features import verify_text_prior_npz
+from gradpert.features import (
+    GENEPT_PROTEIN_REACTOME_SIGNOR_GENE_COUNT,
+    GENEPT_PROTEIN_REACTOME_SIGNOR_MODEL,
+    GENEPT_PROTEIN_REACTOME_SIGNOR_SHA256,
+    GENEPT_PROTEIN_REACTOME_SIGNOR_WIDTH,
+    verify_text_prior_npz,
+)
+from gradpert.features.text_prior import (
+    GENEPT_SEED_GO_PROTEIN_PATHWAY_GENE_COUNT,
+    GENEPT_SEED_GO_PROTEIN_PATHWAY_MODEL,
+    GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256,
+    GENEPT_SEED_GO_PROTEIN_PATHWAY_WIDTH,
+)
 from gradpert.hashing import sha256_json
 
 
@@ -16,6 +28,19 @@ def _write_prior(tmp_path, *, genes, vectors, model="doubao-embedding-vision"):
         model=np.asarray(model),
     )
     return path, hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def test_protein_reactome_signor_is_the_exact_protein_pathway_artifact() -> None:
+    assert GENEPT_PROTEIN_REACTOME_SIGNOR_SHA256 == (
+        "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318"
+    )
+    assert GENEPT_PROTEIN_REACTOME_SIGNOR_MODEL == "doubao-embedding-vision"
+    assert GENEPT_PROTEIN_REACTOME_SIGNOR_GENE_COUNT == 17_730
+    assert GENEPT_PROTEIN_REACTOME_SIGNOR_WIDTH == 2_048
+    assert GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256 == GENEPT_PROTEIN_REACTOME_SIGNOR_SHA256
+    assert GENEPT_SEED_GO_PROTEIN_PATHWAY_MODEL == GENEPT_PROTEIN_REACTOME_SIGNOR_MODEL
+    assert GENEPT_SEED_GO_PROTEIN_PATHWAY_GENE_COUNT == GENEPT_PROTEIN_REACTOME_SIGNOR_GENE_COUNT
+    assert GENEPT_SEED_GO_PROTEIN_PATHWAY_WIDTH == GENEPT_PROTEIN_REACTOME_SIGNOR_WIDTH
 
 
 def test_verify_text_prior_npz_selects_runtime_order_and_receipts_extras(tmp_path):

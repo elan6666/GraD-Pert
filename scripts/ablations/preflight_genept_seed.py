@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seal the Seed-GO-ProteinPathway prior against one unchanged vNext graph."""
+"""Seal the Protein+Reactome+SIGNOR prior against one unchanged vNext graph."""
 
 from __future__ import annotations
 

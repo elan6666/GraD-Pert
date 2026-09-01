@@ -27,7 +27,7 @@ from gradpert.features import (
     verify_genept_emb_b,
     verify_text_prior_npz,
 )
-from gradpert.features.text_prior import GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256
+from gradpert.features.text_prior import GENEPT_PROTEIN_REACTOME_SIGNOR_SHA256
 from gradpert.graphs.materialization import (
     _atomic_graph,
     _load_pruned_graph,
@@ -279,7 +279,7 @@ class GenePTAvailabilityReceipt(StrictManifest):
 
 
 class GenePTSeedAvailabilityReceipt(StrictManifest):
-    """Sealed coverage preflight for the Seed-GO-ProteinPathway superset."""
+    """Sealed coverage preflight for the Protein+Reactome+SIGNOR superset."""
 
     schema_version: Literal["genept-seed-go-protein-pathway-availability-v2"]
     status: Literal["available"]
@@ -351,8 +351,10 @@ def preflight_genept_seed_vnext(
 ) -> GenePTSeedAvailabilityReceipt:
     """Verify the sealed prior against the unchanged H512+targets runtime graph."""
 
-    if expected_genept_sha256 != GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256:
-        raise ValueError("GenePT Seed preflight requires the sealed ProteinPathway artifact")
+    if expected_genept_sha256 != GENEPT_PROTEIN_REACTOME_SIGNOR_SHA256:
+        raise ValueError(
+            "GenePT Seed preflight requires the sealed Protein+Reactome+SIGNOR artifact"
+        )
     relative_runtime_root = Path(runtime_graph_root)
     if (
         relative_runtime_root.is_absolute()
@@ -374,7 +376,7 @@ def preflight_genept_seed_vnext(
         perturbation_target_gene_ids=tuple(parent.candidate_target_ids),
     )
     if prior.zero_vector_gene_ids:
-        raise AssertionError("sealed Seed-GO-ProteinPathway preflight returned zero vectors")
+        raise AssertionError("sealed Protein+Reactome+SIGNOR preflight returned zero vectors")
     receipt = GenePTSeedAvailabilityReceipt(
         schema_version="genept-seed-go-protein-pathway-availability-v2",
         status="available",

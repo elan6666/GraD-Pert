@@ -1,5 +1,24 @@
 # Build Log
 
+## 2026-09-02 — plan 034 Protein+Reactome+SIGNOR binding and local gates
+
+- Verified on the server that the requested `Protein+Reactome+SIGNOR`
+  condition is GenePT-Seed profile `protein-pathway`, historically named
+  `Seed-GO-ProteinPathway`. The canonical aligned NPZ and unaligned NPZ are
+  byte-identical at SHA-256
+  `34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318`.
+- Bound the user-facing provenance name without copying or regenerating the
+  17,730 by 2,048 `doubao-embedding-vision` vectors. Backward-compatible
+  constants retain the upstream artifact label, and a focused test prevents
+  either name from drifting to another SHA/model/shape.
+- Re-rendered the 25-row config matrix; no generated YAML or matrix content
+  changed, proving that the requested prior was already the E-row artifact.
+- Added Plan 034 with hard module order E, then D, then L, then M and at most
+  two rows active inside one module.
+- Local verification passed: 579 tests with two honest skips (frozen TxPert
+  evidence absent and CUDA unavailable), Ruff, format on 259 files, strict
+  mypy on 76 source files, and isolated wheel/sdist build.
+
 ## 2026-08-24 — plan 001 started
 
 - Initialized root Git repository on `main` and configured

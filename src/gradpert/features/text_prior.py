@@ -11,12 +11,21 @@ import numpy as np
 
 from gradpert.hashing import sha256_file, sha256_json
 
-GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256 = (
+GENEPT_PROTEIN_REACTOME_SIGNOR_SHA256 = (
     "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318"
 )
-GENEPT_SEED_GO_PROTEIN_PATHWAY_MODEL = "doubao-embedding-vision"
-GENEPT_SEED_GO_PROTEIN_PATHWAY_GENE_COUNT = 17_730
-GENEPT_SEED_GO_PROTEIN_PATHWAY_WIDTH = 2_048
+GENEPT_PROTEIN_REACTOME_SIGNOR_MODEL = "doubao-embedding-vision"
+GENEPT_PROTEIN_REACTOME_SIGNOR_GENE_COUNT = 17_730
+GENEPT_PROTEIN_REACTOME_SIGNOR_WIDTH = 2_048
+
+# GenePT-Seed names this exact condition ``protein-pathway`` /
+# ``Seed-GO-ProteinPathway``.  The user-facing scientific factor is
+# Protein+Reactome+SIGNOR.  These aliases must stay byte-identical and never
+# imply a second embedding artifact.
+GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256 = GENEPT_PROTEIN_REACTOME_SIGNOR_SHA256
+GENEPT_SEED_GO_PROTEIN_PATHWAY_MODEL = GENEPT_PROTEIN_REACTOME_SIGNOR_MODEL
+GENEPT_SEED_GO_PROTEIN_PATHWAY_GENE_COUNT = GENEPT_PROTEIN_REACTOME_SIGNOR_GENE_COUNT
+GENEPT_SEED_GO_PROTEIN_PATHWAY_WIDTH = GENEPT_PROTEIN_REACTOME_SIGNOR_WIDTH
 
 
 @dataclass(frozen=True)
@@ -56,25 +65,25 @@ def verify_text_prior_npz(
 ) -> TextPriorArtifact:
     """Verify a sealed superset and select the runtime graph axis in exact order."""
 
-    locked_master = expected_sha256 == GENEPT_SEED_GO_PROTEIN_PATHWAY_SHA256
+    locked_master = expected_sha256 == GENEPT_PROTEIN_REACTOME_SIGNOR_SHA256
     if locked_master:
         locked_contract = (
-            ("model", expected_model, GENEPT_SEED_GO_PROTEIN_PATHWAY_MODEL),
+            ("model", expected_model, GENEPT_PROTEIN_REACTOME_SIGNOR_MODEL),
             (
                 "source gene count",
                 expected_source_gene_count,
-                GENEPT_SEED_GO_PROTEIN_PATHWAY_GENE_COUNT,
+                GENEPT_PROTEIN_REACTOME_SIGNOR_GENE_COUNT,
             ),
-            ("embedding width", expected_embedding_width, GENEPT_SEED_GO_PROTEIN_PATHWAY_WIDTH),
+            ("embedding width", expected_embedding_width, GENEPT_PROTEIN_REACTOME_SIGNOR_WIDTH),
         )
         for label, supplied, locked in locked_contract:
             if supplied is not None and supplied != locked:
                 raise ValueError(
-                    f"sealed Seed-GO-ProteinPathway {label} cannot override {locked!r}"
+                    f"sealed Protein+Reactome+SIGNOR {label} cannot override {locked!r}"
                 )
-        expected_model = GENEPT_SEED_GO_PROTEIN_PATHWAY_MODEL
-        expected_source_gene_count = GENEPT_SEED_GO_PROTEIN_PATHWAY_GENE_COUNT
-        expected_embedding_width = GENEPT_SEED_GO_PROTEIN_PATHWAY_WIDTH
+        expected_model = GENEPT_PROTEIN_REACTOME_SIGNOR_MODEL
+        expected_source_gene_count = GENEPT_PROTEIN_REACTOME_SIGNOR_GENE_COUNT
+        expected_embedding_width = GENEPT_PROTEIN_REACTOME_SIGNOR_WIDTH
     strict_superset = locked_master or any(
         value is not None
         for value in (expected_model, expected_source_gene_count, expected_embedding_width)

@@ -580,7 +580,7 @@ def test_genept_seed_preflight_receipts_ordered_non_target_omission(monkeypatch,
 
 
 def test_genept_seed_preflight_rejects_nonsealed_artifact_before_loading(tmp_path) -> None:
-    with pytest.raises(ValueError, match="sealed ProteinPathway"):
+    with pytest.raises(ValueError, match=r"sealed Protein\+Reactome\+SIGNOR"):
         preflight_genept_seed_vnext(
             parent_root=tmp_path / "parent",
             genept_artifact_path=tmp_path / "other.npz",

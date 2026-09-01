@@ -77,7 +77,9 @@ policy; H=5000 is not a shortcut to `canonical_full`. Expression inputs,
 outputs, and evaluation remain on the frozen Top-5000 axis.
 
 Every vNext GenePT E row is locked to the GenePT-Seed
-`Seed-GO-ProteinPathway` master artifact:
+`Protein+Reactome+SIGNOR` condition. GenePT-Seed's artifact filename and
+historical condition label are `Seed-GO-ProteinPathway`; these are two names
+for the same bytes, not two priors:
 
 - server path
   `/data/yilangliu/GenePT-Seed/data/embeddings/seed-go-protein-pathway-master-aligned.npz`;
@@ -87,6 +89,10 @@ Every vNext GenePT E row is locked to the GenePT-Seed
   exactly `doubao-embedding-vision`, the source axis has 17,730 unique
   exact-case labels, vector width is 2,048, all values are finite, and there
   are zero all-zero vectors;
+- the upstream corpus profile is exactly `protein-pathway`: the Protein layer
+  plus human Reactome pathway names and direct human SIGNOR causal relations
+  with real partner symbols; no HPA, masked-SIGNOR, shuffled-SIGNOR,
+  Reactome-only, or SIGNOR-only artifact is substituted;
 - the ordered 2,809-node `hvg512_plus_targets` runtime axis is selected from
   the sealed superset by exact case-sensitive label and retained in runtime
   order; source genes outside that axis are ignored and their ordered count
@@ -96,7 +102,7 @@ Every vNext GenePT E row is locked to the GenePT-Seed
   before tensor or model construction;
 - a missing non-perturbation runtime gene is omitted while preserving the
   requested canonical order; its ordered count/hash and the retained-axis
-  order/matrix hashes are receipted. The frozen `Seed-GO-ProteinPathway`
+  order/matrix hashes are receipted. The frozen `Protein+Reactome+SIGNOR`
   artifact currently covers all 2,809 runtime genes, so no omission occurs in
   the registered coordinate;
 - no aliasing, case folding, random fill, zero fill, unreceipted graph-gene

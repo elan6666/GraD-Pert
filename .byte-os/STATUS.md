@@ -2,17 +2,28 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: verification
-current_workflow: byte-review
-next_workflow: byte-do
+stage: execution
+current_workflow: byte-auto
+next_workflow: byte-auto
 review_verdict: pass
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-09-01T14:30:00+08:00
+updated_at: 2026-09-02T00:00:00+08:00
 ---
 
 # Status
+
+- Plan 034 is active. The user authorized formal E, D, L and M execution in
+  that exact module order under the completed four-local A0 coordinate. Rows
+  inside one module may use at most two GPUs, but a hard module barrier blocks
+  D until E passes, L until D passes and M until L passes.
+- The requested GenePT prior label `Protein+Reactome+SIGNOR` is the exact
+  existing GenePT-Seed `protein-pathway` / `Seed-GO-ProteinPathway` artifact,
+  not a second embedding. Server evidence binds 17,730 by 2,048
+  `doubao-embedding-vision` vectors at SHA
+  `34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318`.
+  A fresh Nadig Jurkat coverage preflight remains required before E launch.
 
 - Plan 033 is complete. Exact source `845c10a` finished formal four-local
   A0/H1/H2/H3. Every row passed 5,820 contiguous steps, ten validations, one
