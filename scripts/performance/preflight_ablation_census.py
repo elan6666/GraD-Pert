@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the non-CUDA P0 closure for the exact 25-row ablation census."""
+"""Run the non-CUDA P0 closure for the exact 29-row ablation census."""
 
 from __future__ import annotations
 
@@ -781,8 +781,12 @@ def build_preflight_receipt(
         repository_root=repository_root,
         expected_matrix_sha256=expected_matrix_sha256,
     )
-    if len(bindings) != 25 or [binding.matrix_row_index for binding in bindings] != list(range(25)):
-        raise PreflightError("P0 requires all exact 25 matrix rows in order")
+    if len(bindings) != census.MATRIX_ROW_COUNT or [
+        binding.matrix_row_index for binding in bindings
+    ] != list(range(census.MATRIX_ROW_COUNT)):
+        raise PreflightError(
+            f"P0 requires all exact {census.MATRIX_ROW_COUNT} matrix rows in order"
+        )
     source = dict(
         deps.inspect_source(
             repository_root,
@@ -989,7 +993,7 @@ def build_preflight_receipt(
     except BaseException as error:
         cross_h = {"status": "blocked_invalid_lineage", "reason": str(error)}
     passed_count = sum(row["status"] == "passed" for row in row_payloads)
-    all_passed = passed_count == 25 and cross_h.get("status") == "passed"
+    all_passed = passed_count == census.MATRIX_ROW_COUNT and cross_h.get("status") == "passed"
     runtime_after = _require_no_torch_imports("completion")
     return {
         "schema_version": "nadig-vnext-performance-p0-preflight-v1",

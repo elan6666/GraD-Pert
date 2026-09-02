@@ -16,6 +16,7 @@ BASE = ROOT / "configs/experiments/gradpert_b2/nadig_jurkat.yaml"
 OUTPUT = ROOT / "configs/ablations/nadig_jurkat"
 REFERENCE = "docs/design/GRADPERT_VNEXT_ABLATIONS.md"
 SUCCESSOR_REFERENCE = "docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md"
+DECODER_FACTORIAL_REFERENCE = "docs/experiments/VNEXT_DECODER_FUSION_WIDTH.md"
 # GenePT-Seed names this exact artifact ``Seed-GO-ProteinPathway``.  Its
 # scientific factor is Protein+Reactome+SIGNOR; no second file is implied.
 GENEPT_PROTEIN_REACTOME_SIGNOR_PATH = (
@@ -226,6 +227,19 @@ def variants() -> dict[str, VariantSpec]:
         "d2_control_transformer": variant(
             "decoder_mode", {"decoder_mode": "control_condition_transformer"}
         ),
+        "d3_concat_p64": variant("decoder_fusion", {"decoder_mode": "concat"}),
+        "d4_concat_transformer_p64": variant(
+            "decoder_fusion",
+            {"decoder_mode": "concat_transformer"},
+        ),
+        "d5_concat_p256": variant(
+            "decoder_fusion_x_perturbation_width",
+            {"decoder_mode": "concat", "graph_tower_output_dim": 256},
+        ),
+        "d6_concat_transformer_p256": variant(
+            "decoder_fusion_x_perturbation_width",
+            {"decoder_mode": "concat_transformer", "graph_tower_output_dim": 256},
+        ),
         "e1_frozen_genept": variant(
             "gene_feature_mode",
             {"gene_feature_mode": "frozen_genept_projection"},
@@ -294,7 +308,14 @@ def render() -> None:
         payload = copy.deepcopy(base_config())
         parameters = payload["model"]["parameters"]
         successor_row = name == SUCCESSOR_A0 or name.startswith(("h", "l"))
-        change_reference = SUCCESSOR_REFERENCE if successor_row else REFERENCE
+        decoder_factorial_row = name.startswith(("d3_", "d4_", "d5_", "d6_"))
+        change_reference = (
+            SUCCESSOR_REFERENCE
+            if successor_row
+            else DECODER_FACTORIAL_REFERENCE
+            if decoder_factorial_row
+            else REFERENCE
+        )
         parameters["performance_pilot_variant"] = sourced(
             f"vnext_{name}", reference=change_reference
         )
@@ -336,8 +357,9 @@ def render() -> None:
         )
     matrix = {
         "schema_version": "2",
-        "matrix_id": "nadig_jurkat_vnext_ratio_graph_v3",
+        "matrix_id": "nadig_jurkat_vnext_ratio_graph_v4",
         "design_reference": SUCCESSOR_REFERENCE,
+        "decoder_factorial_reference": DECODER_FACTORIAL_REFERENCE,
         "architecture_reference": REFERENCE,
         "dataset_id": "nadig_jurkat",
         "canonical_split_count": 1,

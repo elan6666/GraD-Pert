@@ -204,6 +204,18 @@ factors.
 - D0: additive (A0).
 - D1: parameter-matched MLP control.
 - D2: two-token control-conditioned Transformer.
+- D3: direct `concat(b64, p64)` decoder input.
+- D4: `concat(b64, p64, T([b64, p64]))`, where `T` is a one-layer,
+  four-head, 64-wide pre-norm Transformer with concat readout.
+- D5: direct `concat(b64, p256)` decoder input; the graph tower and shared
+  DINO/iBOT projector input are 256-wide.
+- D6: `concat(b64, p256, T([b64, Wp(p256)]))`; `Wp` is the only 256-to-64
+  token projection and the decoder retains the original 256-wide `p`.
+
+D3--D6 are a preregistered 2-by-2 factorial. Compare D3 versus D5 and D4
+versus D6 for perturbation width, and D3 versus D4 and D5 versus D6 for the
+Transformer interaction. Their old D1/D2 evidence remains immutable and must
+not be relabeled as this factorial.
 
 ### Node features
 

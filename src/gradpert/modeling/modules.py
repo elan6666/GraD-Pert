@@ -814,6 +814,34 @@ class ControlConditionTransformer(nn.Module):
         return cast(Tensor, self.output(encoded.reshape(encoded.shape[0], 128)))
 
 
+class ConcatControlConditionTransformer(nn.Module):
+    """TriShift-aligned two-token interaction with a concat readout."""
+
+    def __init__(self, condition_dim: int) -> None:
+        super().__init__()
+        if condition_dim not in {64, 256}:
+            raise ValueError("condition_dim must be 64 or 256")
+        self.condition_projection: nn.Module = (
+            nn.Identity() if condition_dim == 64 else nn.Linear(condition_dim, 64)
+        )
+        layer = nn.TransformerEncoderLayer(
+            d_model=64,
+            nhead=4,
+            dim_feedforward=256,
+            dropout=0.0,
+            activation="gelu",
+            batch_first=True,
+            norm_first=True,
+        )
+        self.encoder = nn.TransformerEncoder(layer, num_layers=1)
+
+    def forward(self, basal: Tensor, condition: Tensor) -> Tensor:
+        projected_condition = self.condition_projection(condition)
+        tokens = torch.stack((basal, projected_condition), dim=1)
+        encoded = self.encoder(tokens)
+        return cast(Tensor, encoded.reshape(encoded.shape[0], 128))
+
+
 class ControlConditionMLP(nn.Module):
     """Concat MLP sized within one percent of the Transformer control block."""
 
@@ -830,13 +858,15 @@ class ControlConditionMLP(nn.Module):
 
 
 class ConsistencyProjector(nn.Module):
-    def __init__(self, prototype_count: int) -> None:
+    def __init__(self, prototype_count: int, *, input_dim: int = 64) -> None:
         super().__init__()
         if prototype_count not in {65536, 32768, 16384, 8192}:
             raise ValueError("prototype_count must come from the frozen server-fit candidates")
+        if input_dim not in {64, 256}:
+            raise ValueError("projector input_dim must be 64 or 256")
         self.prototype_count = prototype_count
         self.mlp = nn.Sequential(
-            nn.Linear(64, 2048),
+            nn.Linear(input_dim, 2048),
             nn.GELU(),
             nn.Linear(2048, 2048),
             nn.GELU(),
@@ -879,12 +909,14 @@ class BasalStateEncoder(nn.Module):
 
 
 class ExpressionDecoder(nn.Module):
-    def __init__(self, gene_count: int) -> None:
+    def __init__(self, gene_count: int, *, input_dim: int = 64) -> None:
         super().__init__()
         if gene_count <= 0:
             raise ValueError("gene_count must be positive")
+        if input_dim <= 0:
+            raise ValueError("decoder input_dim must be positive")
         self.network = nn.Sequential(
-            nn.Linear(64, 512),
+            nn.Linear(input_dim, 512),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(),
             nn.Dropout(0.2),
@@ -923,9 +955,23 @@ class GraDPertJointModel(nn.Module):
             if configurable
             else AdaptiveGeneGraphEncoder(graph_gene_count)
         )
-        self.student_projector = ConsistencyProjector(prototype_count)
+        perturbation_dim = self.architecture.graph_output_dim
+        self.student_projector = ConsistencyProjector(
+            prototype_count,
+            input_dim=perturbation_dim,
+        )
         self.basal_encoder = BasalStateEncoder(expression_gene_count)
-        self.expression_decoder = ExpressionDecoder(expression_gene_count)
+        decoder_input_dim = {
+            "additive": 64,
+            "parameter_matched_mlp": 64,
+            "control_condition_transformer": 64,
+            "concat": 64 + perturbation_dim,
+            "concat_transformer": 64 + perturbation_dim + 128,
+        }[self.architecture.decoder_mode]
+        self.expression_decoder = ExpressionDecoder(
+            expression_gene_count,
+            input_dim=decoder_input_dim,
+        )
         # Construct teacher modules independently, then copy the exact student state.
         # Weight-normalized prototype layers expose computed tensors that cannot
         # safely participate in ``deepcopy``.
@@ -939,13 +985,18 @@ class GraDPertJointModel(nn.Module):
             else AdaptiveGeneGraphEncoder(graph_gene_count)
         )
         self.control_condition_fusion: nn.Module | None
-        if self.architecture.decoder_mode == "additive":
+        if self.architecture.decoder_mode in {"additive", "concat"}:
             self.control_condition_fusion = None
         elif self.architecture.decoder_mode == "parameter_matched_mlp":
             self.control_condition_fusion = ControlConditionMLP()
-        else:
+        elif self.architecture.decoder_mode == "control_condition_transformer":
             self.control_condition_fusion = ControlConditionTransformer()
-        self.teacher_projector = ConsistencyProjector(prototype_count)
+        else:
+            self.control_condition_fusion = ConcatControlConditionTransformer(perturbation_dim)
+        self.teacher_projector = ConsistencyProjector(
+            prototype_count,
+            input_dim=perturbation_dim,
+        )
         self.teacher_encoder.load_state_dict(self.student_encoder.state_dict())
         self.teacher_projector.load_state_dict(self.student_projector.state_dict())
         for parameter in self.teacher_encoder.parameters():
@@ -983,14 +1034,23 @@ class GraDPertJointModel(nn.Module):
             or control_expression.shape[1] != self.expression_gene_count
         ):
             raise ValueError("control expression must be [cells, expression_gene_count]")
-        if perturbation.shape != (control_expression.shape[0], 64):
-            raise ValueError("perturbation state must be [cells, 64]")
+        perturbation_dim = self.architecture.graph_output_dim
+        if perturbation.shape != (control_expression.shape[0], perturbation_dim):
+            raise ValueError(f"perturbation state must be [cells, {perturbation_dim}]")
         basal = self.basal_encoder(control_expression)
-        fused = (
-            basal + perturbation
-            if self.control_condition_fusion is None
-            else self.control_condition_fusion(basal, perturbation)
-        )
+        if self.architecture.decoder_mode == "additive":
+            fused = basal + perturbation
+        elif self.architecture.decoder_mode == "concat":
+            fused = torch.cat((basal, perturbation), dim=-1)
+        elif self.architecture.decoder_mode == "concat_transformer":
+            if self.control_condition_fusion is None:
+                raise RuntimeError("concat Transformer fusion was not constructed")
+            interaction = self.control_condition_fusion(basal, perturbation)
+            fused = torch.cat((basal, perturbation, interaction), dim=-1)
+        else:
+            if self.control_condition_fusion is None:
+                raise RuntimeError("control-condition fusion was not constructed")
+            fused = self.control_condition_fusion(basal, perturbation)
         return cast(Tensor, self.expression_decoder(fused))
 
     def predict_expression_batch(

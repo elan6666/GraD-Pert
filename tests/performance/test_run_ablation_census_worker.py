@@ -829,8 +829,8 @@ def test_p0_preflight_binds_source_data_row_and_a0_graph(
         "evidence_class": "performance_preflight_only",
         "scientific_completion": False,
         "matrix_sha256": binding.matrix_sha256,
-        "matrix_row_count": 25,
-        "row_status_counts": {"blocked": 0, "passed": 25},
+        "matrix_row_count": worker.census.MATRIX_ROW_COUNT,
+        "row_status_counts": {"blocked": 0, "passed": worker.census.MATRIX_ROW_COUNT},
         "cross_h_audit": {"status": "passed"},
         "source": {
             "repository_root": str(args.repository_root.resolve()),

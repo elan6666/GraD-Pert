@@ -37,7 +37,13 @@ GeneFeatureMode = Literal[
     "genept_initialized",
     "genept_shuffled",
 ]
-DecoderMode = Literal["additive", "parameter_matched_mlp", "control_condition_transformer"]
+DecoderMode = Literal[
+    "additive",
+    "parameter_matched_mlp",
+    "control_condition_transformer",
+    "concat",
+    "concat_transformer",
+]
 
 
 def _unpack(value: object) -> object:
@@ -211,16 +217,27 @@ class NativeArchitectureOptions:
         if self.local_view_builder == "fanout" and self.local_view_fanout != (20, 10, 5, 5):
             raise ValueError("B2-vNext Fanout requires the frozen 20_10_5_5 schedule")
 
-        expected_dimensions = (128, 4, 2, 128, 64)
+        expected_dimensions = (128, 4, 2, 128)
         observed_dimensions = (
             self.graph_input_dim,
             self.graph_layer_count,
             self.graph_head_count,
             self.graph_hidden_dim,
-            self.graph_output_dim,
         )
         if observed_dimensions != expected_dimensions:
             raise ValueError("native graph encoder dimensions are frozen")
+        if self.graph_output_dim not in {64, 256}:
+            raise ValueError("graph output dimension must be 64 or 256")
+        if self.graph_output_dim == 256 and self.decoder_mode not in {
+            "concat",
+            "concat_transformer",
+        }:
+            raise ValueError("256-wide perturbation states require a concat decoder ablation")
+        if (
+            self.graph_output_dim == 256
+            and self.graph_encoder_family != "multi_source_sparse_transformer"
+        ):
+            raise ValueError("256-wide perturbation states require the A0 sparse graph Transformer")
         expected_dropout = {
             "adaptive_relation_gat": 0.1,
             "single_source_gat": 0.2,
@@ -345,6 +362,8 @@ class NativeArchitectureOptions:
             "additive",
             "parameter_matched_mlp",
             "control_condition_transformer",
+            "concat",
+            "concat_transformer",
         }:
             raise ValueError(f"unsupported decoder_mode: {decoder_mode}")
         genept_sha = _value(parameters, "genept_expected_sha256", None)

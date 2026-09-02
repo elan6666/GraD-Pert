@@ -105,6 +105,7 @@ def _vnext_architecture(
     *,
     gene_feature_mode: str = "learned_id",
     decoder_mode: str = "additive",
+    graph_output_dim: int = 64,
     graph_encoder_family: str = "multi_source_sparse_transformer",
 ) -> NativeArchitectureOptions:
     parameters: dict[str, object] = {
@@ -118,6 +119,7 @@ def _vnext_architecture(
         "local_anchor_mask_view_ratio": "0/1",
         "gene_feature_mode": gene_feature_mode,
         "decoder_mode": decoder_mode,
+        "graph_tower_output_dim": graph_output_dim,
     }
     if gene_feature_mode != "learned_id":
         parameters["genept_expected_sha256"] = GENEPT_EMB_B_SHA256
@@ -128,6 +130,7 @@ def _vnext_components(
     *,
     gene_feature_mode: str = "learned_id",
     decoder_mode: str = "additive",
+    graph_output_dim: int = 64,
     graph_encoder_family: str = "multi_source_sparse_transformer",
     checkpoint_student_local_activations: bool = False,
     checkpoint_student_local_activation_count: int | None = None,
@@ -136,6 +139,7 @@ def _vnext_components(
     architecture = _vnext_architecture(
         gene_feature_mode=gene_feature_mode,
         decoder_mode=decoder_mode,
+        graph_output_dim=graph_output_dim,
         graph_encoder_family=graph_encoder_family,
     )
     genept = (
@@ -805,24 +809,30 @@ def test_checkpoint_resume_reproduces_the_next_step(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("gene_feature_mode", "decoder_mode"),
+    ("gene_feature_mode", "decoder_mode", "graph_output_dim"),
     [
-        ("learned_id", "control_condition_transformer"),
-        ("frozen_genept_projection", "additive"),
-        ("genept_id_residual", "additive"),
-        ("genept_initialized", "additive"),
-        ("genept_shuffled", "additive"),
+        ("learned_id", "control_condition_transformer", 64),
+        ("learned_id", "concat", 64),
+        ("learned_id", "concat_transformer", 64),
+        ("learned_id", "concat", 256),
+        ("learned_id", "concat_transformer", 256),
+        ("frozen_genept_projection", "additive", 64),
+        ("genept_id_residual", "additive", 64),
+        ("genept_initialized", "additive", 64),
+        ("genept_shuffled", "additive", 64),
     ],
 )
 def test_vnext_trainable_routes_update_ema_and_restore_checkpoint(
     tmp_path: Path,
     gene_feature_mode: str,
     decoder_mode: str,
+    graph_output_dim: int,
 ) -> None:
     _seed_all(37)
     model, optimizer, centers, engine = _vnext_components(
         gene_feature_mode=gene_feature_mode,
         decoder_mode=decoder_mode,
+        graph_output_dim=graph_output_dim,
     )
     before_student = {
         name: parameter.detach().clone()
@@ -852,7 +862,7 @@ def test_vnext_trainable_routes_update_ema_and_restore_checkpoint(
     )
     assert not any(parameter.grad is not None for parameter in model.teacher_encoder.parameters())
 
-    checkpoint = tmp_path / f"{gene_feature_mode}-{decoder_mode}.pt"
+    checkpoint = tmp_path / f"{gene_feature_mode}-{decoder_mode}-{graph_output_dim}.pt"
     save_training_checkpoint(
         checkpoint,
         model=model,
@@ -865,6 +875,7 @@ def test_vnext_trainable_routes_update_ema_and_restore_checkpoint(
     resumed_model, resumed_optimizer, resumed_centers, _ = _vnext_components(
         gene_feature_mode=gene_feature_mode,
         decoder_mode=decoder_mode,
+        graph_output_dim=graph_output_dim,
     )
     progress = load_training_checkpoint(
         checkpoint,

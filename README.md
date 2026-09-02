@@ -105,9 +105,10 @@ Each YAML is complete and is read by the same `gradpert model` entrypoint; there
 is no ablation-specific main function. The matrix covers proportional
 RingInduced/Fanout local construction, count/coverage/mask ratios, single
 STRING GATv2, single/multi sparse graph Transformers, native adaptive source
-fusion, five STRING weight routes, additive/MLP/
-control-conditioned-Transformer decoders, four GenePT feature routes, and
-three loss removals. The H module varies HVG512/1024/2048/5000 while retaining
+fusion, five STRING weight routes, additive/MLP/control-conditioned-Transformer
+decoders, and a 2-by-2 concat/Transformer-concat by perturbation-width
+(64/256) decoder factorial, four GenePT feature routes, and three loss
+removals. The H module varies HVG512/1024/2048/5000 while retaining
 50% local coverage and four locals. The L module is frozen as direct A0
 single-factor rows: Fanout, eight locals, 25% local coverage, 50% mask ratio,
 or 25% mask ratio. L execution is currently paused.

@@ -347,16 +347,16 @@ def _run(
     )
 
 
-def test_all_25_rows_close_when_all_graphs_and_genept_are_ready(
+def test_all_29_rows_close_when_all_graphs_and_genept_are_ready(
     preflight: ModuleType,
     tmp_path: Path,
     matrix_sha256: str,
 ) -> None:
     receipt = _run(preflight, tmp_path, matrix_sha256)
     assert receipt["status"] == "passed"
-    assert receipt["matrix_row_count"] == 25
-    assert len(receipt["rows"]) == 25
-    assert receipt["row_status_counts"] == {"passed": 25, "blocked": 0}
+    assert receipt["matrix_row_count"] == 29
+    assert len(receipt["rows"]) == 29
+    assert receipt["row_status_counts"] == {"passed": 29, "blocked": 0}
     assert receipt["cross_h_audit"]["status"] == "passed"
     assert receipt["scientific_completion"] is False
     assert receipt["source"]["source_tree_sha256"] == "d" * 64

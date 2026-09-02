@@ -25,7 +25,7 @@ def config_paths() -> tuple[Path, ...]:
 
 def test_vnext_ablation_matrix_is_self_contained_and_frozen() -> None:
     paths = config_paths()
-    assert len(paths) == 25
+    assert len(paths) == 29
     for path in paths:
         config = load_experiment_config(path)
         assert config.dataset_id == "nadig_jurkat"
@@ -115,12 +115,12 @@ def test_genept_rows_bind_seed_go_protein_pathway_master_and_unfiltered_graph() 
 def test_vnext_matrix_hash_pins_every_config_before_results() -> None:
     matrix = json.loads((CONFIG_ROOT / "matrix.json").read_text(encoding="utf-8"))
     assert matrix["schema_version"] == "2"
-    assert matrix["matrix_id"] == "nadig_jurkat_vnext_ratio_graph_v3"
-    assert matrix["row_count"] == 25
+    assert matrix["matrix_id"] == "nadig_jurkat_vnext_ratio_graph_v4"
+    assert matrix["row_count"] == 29
     assert matrix["run_seeds"] == [1]
     assert matrix["max_epochs"] == 10
-    assert len(matrix["rows"]) == 25
-    assert len({row["variant_id"] for row in matrix["rows"]}) == 25
+    assert len(matrix["rows"]) == 29
+    assert len({row["variant_id"] for row in matrix["rows"]}) == 29
     assert not ({row["variant_id"] for row in matrix["rows"]} & LEGACY_FIXED_BUDGET_VARIANTS)
     for row in matrix["rows"]:
         path = ROOT / row["config_path"]
@@ -175,6 +175,10 @@ def test_each_ablation_differs_from_a0_only_by_its_declared_factor() -> None:
         },
         "d1_control_mlp": {"decoder_mode"},
         "d2_control_transformer": {"decoder_mode"},
+        "d3_concat_p64": {"decoder_mode"},
+        "d4_concat_transformer_p64": {"decoder_mode"},
+        "d5_concat_p256": {"decoder_mode", "graph_tower_output_dim"},
+        "d6_concat_transformer_p256": {"decoder_mode", "graph_tower_output_dim"},
         "e1_frozen_genept": {
             "gene_feature_mode",
             "genept_artifact_path",

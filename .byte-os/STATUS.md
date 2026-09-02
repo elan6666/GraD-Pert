@@ -9,11 +9,21 @@ review_verdict: pass
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-09-02T00:00:00+08:00
+updated_at: 2026-09-02T16:00:00+08:00
 ---
 
 # Status
 
+- Plan 035 is active and supersedes the remaining Plan 034 queue order. At the
+  user's request, active L1/L2 were stopped and sealed as user-interrupted;
+  L3--L5 and M1/M2/M4 did not start. Completed E and historical D evidence is
+  immutable. The next formal priority is a fresh decoder factorial D3--D6.
+- D3/D4 use 64-wide perturbation states with direct `concat(b,p)` and
+  `concat(b,p,T([b,p]))`; D5/D6 repeat those fusion choices with 256-wide
+  perturbation states. For D6, only the Transformer token path applies learned
+  `256 -> 64` projection, while the decoder retains raw `p256`. The scientific
+  matrix is now 29 rows; the historical eight-row performance sentinel remains
+  unchanged and treats the four new rows as unselected.
 - Plan 034 is active. The user authorized formal E, D, L and M execution in
   that exact module order under the completed four-local A0 coordinate. Rows
   inside one module may use at most two GPUs, but a hard module barrier blocks
@@ -42,8 +52,9 @@ updated_at: 2026-09-02T00:00:00+08:00
   PKL. The old automation was deleted so it cannot relaunch the superseded
   coordinate.
 - Plan 033 replaces Plan 030. The active A0 now has four RingInduced local
-  views at ratio `1/2`; the 25-row matrix identity advances to
-  `nadig_jurkat_vnext_ratio_graph_v3`. H/M/W/D/E/O inherit four locals. L1 is
+  views at ratio `1/2`; the successor matrix began as the 25-row
+  `nadig_jurkat_vnext_ratio_graph_v3` identity and Plan 035 advances it to the
+  29-row `nadig_jurkat_vnext_ratio_graph_v4`. H/M/W/D/E/O inherit four locals. L1 is
   Fanout with four locals; L2 is the direct eight-local count ablation; L3
   keeps four locals at ratio `1/4`; L4/L5 resolve mask ratios to `2/4` and
   `1/4`. L execution remains paused.

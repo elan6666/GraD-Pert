@@ -1,5 +1,27 @@
 # Build Log
 
+## 2026-09-02 — plan 035 decoder fusion and perturbation-width factorial
+
+- Preserved completed E and historical D evidence, stopped active L1/L2, and
+  left L3--L5/M1/M2/M4 unstarted so the user-requested decoder module can run
+  first. The server interruption receipt is external to source and hash-bound
+  in its formal contract root.
+- Added D3 `concat(b64,p64)`, D4
+  `concat(b64,p64,T([b64,p64]))`, D5 `concat(b64,p256)`, and D6
+  `concat(b64,p256,T([b64,Wp(p256)]))`. The TriShift-aligned interaction uses
+  exactly two ordered 64-wide tokens; only D6 projects the Transformer token
+  from 256 to 64, while the decoder retains raw `p256`.
+- Generalized the shared Student/Teacher projector input and expression-decoder
+  input widths without changing A0 or historical D1/D2 behavior. The 256-wide
+  route fails closed outside the new concat modes and A0 sparse graph
+  Transformer.
+- Advanced the scientific matrix from 25 to 29 rows and updated the P0 and
+  performance-sentinel integrity guards. The eight selected performance rows
+  remain unchanged; D3--D6 are unselected scientific rows.
+- Verification: 595 tests passed with two honest skips (frozen TxPert checkout
+  absent in the worktree and CUDA unavailable), Ruff, format on 260 files,
+  strict mypy on 76 source files, and isolated wheel/sdist build all passed.
+
 ## 2026-09-02 — plan 034 Protein+Reactome+SIGNOR binding and local gates
 
 - Verified on the server that the requested `Protein+Reactome+SIGNOR`

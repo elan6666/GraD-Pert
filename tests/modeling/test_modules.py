@@ -13,6 +13,7 @@ from gradpert.graphs import (  # noqa: E402
 )
 from gradpert.modeling import GraDPertJointModel  # noqa: E402
 from gradpert.modeling.modules import (  # noqa: E402
+    ConcatControlConditionTransformer,
     ControlConditionMLP,
     ControlConditionTransformer,
 )
@@ -459,3 +460,54 @@ def test_control_condition_mlp_is_parameter_matched_within_one_percent() -> None
     condition = torch.randn(4, 64)
     assert transformer(basal, condition).shape == (4, 64)
     assert mlp(basal, condition).shape == (4, 64)
+
+
+@pytest.mark.parametrize(
+    ("decoder_mode", "perturbation_dim", "decoder_input_dim"),
+    [
+        ("concat", 64, 128),
+        ("concat_transformer", 64, 256),
+        ("concat", 256, 320),
+        ("concat_transformer", 256, 448),
+    ],
+)
+def test_decoder_factorial_preserves_raw_perturbation_width(
+    decoder_mode: str,
+    perturbation_dim: int,
+    decoder_input_dim: int,
+) -> None:
+    options = _vnext_options(
+        decoder_mode=decoder_mode,
+        graph_tower_output_dim=perturbation_dim,
+    )
+    model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+    )
+    assert model.expression_decoder.network[0].in_features == decoder_input_dim
+    assert model.student_projector.mlp[0].in_features == perturbation_dim
+    assert model.teacher_projector.mlp[0].in_features == perturbation_dim
+    prediction = model.decode_expression(
+        torch.randn(4, 5),
+        torch.randn(4, perturbation_dim),
+    )
+    assert prediction.shape == (4, 5)
+
+
+@pytest.mark.parametrize("condition_dim", [64, 256])
+def test_concat_transformer_uses_two_64_wide_tokens_and_concat_readout(
+    condition_dim: int,
+) -> None:
+    transformer = ConcatControlConditionTransformer(condition_dim)
+    basal = torch.randn(4, 64)
+    condition = torch.randn(4, condition_dim)
+    observed = transformer(basal, condition)
+    assert observed.shape == (4, 128)
+    if condition_dim == 64:
+        assert isinstance(transformer.condition_projection, torch.nn.Identity)
+    else:
+        assert isinstance(transformer.condition_projection, torch.nn.Linear)
+        assert transformer.condition_projection.in_features == 256
+        assert transformer.condition_projection.out_features == 64

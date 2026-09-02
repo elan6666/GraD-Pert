@@ -423,7 +423,7 @@ def test_performance_sentinel_is_exact_ordered_and_keeps_scientific_matrix_intac
 ) -> None:
     selected = census.bind_performance_sentinel(bindings)
 
-    assert len(bindings) == 25
+    assert len(bindings) == 29
     assert tuple(binding.variant_id for binding in selected) == (
         "a0_ratio_ring_half",
         "h3_hvg5000_ratio_half",
@@ -477,7 +477,7 @@ def test_sentinel_plan_cli_emits_only_hash_bound_representative_rows(
     payload = json.loads(capsys.readouterr().out)
 
     assert payload["schema_version"] == "nadig-vnext-performance-sentinel-plan-v1"
-    assert payload["scientific_matrix_row_count"] == 25
+    assert payload["scientific_matrix_row_count"] == 29
     assert payload["selected_row_count"] == 8
     assert payload["selected_variant_ids"] == list(census.PERFORMANCE_SENTINEL_VARIANT_IDS)
     assert [row["variant_id"] for row in payload["rows"]] == payload["selected_variant_ids"]
@@ -516,17 +516,17 @@ def test_aggregate_distinguishes_unmeasured_sentinel_from_unselected_matrix_rows
     assert report["performance_sentinel_id"] == census.PERFORMANCE_SENTINEL_ID
     assert report["selected_row_count"] == 8
     assert report["selected_variant_ids"] == list(census.PERFORMANCE_SENTINEL_VARIANT_IDS)
-    assert len(report["disposition_sections"]["not_selected_performance_sentinel"]) == 17
+    assert len(report["disposition_sections"]["not_selected_performance_sentinel"]) == 21
 
 
-def test_exact_matrix_binding_covers_25_rows_and_rejects_tampering(
+def test_exact_matrix_binding_covers_29_rows_and_rejects_tampering(
     census: ModuleType,
     bindings,
     matrix_sha256: str,
 ) -> None:
-    assert len(bindings) == 25
+    assert len(bindings) == 29
     assert bindings[0].variant_id == census.A0_VARIANT_ID
-    assert [binding.matrix_row_index for binding in bindings] == list(range(25))
+    assert [binding.matrix_row_index for binding in bindings] == list(range(29))
     assert all(binding.run_seed == 1 for binding in bindings)
     with pytest.raises(ValueError, match="matrix SHA-256 differs"):
         census.bind_matrix_variants(
@@ -1014,7 +1014,7 @@ def _records_with_a0_timing(
     return records
 
 
-def test_aggregate_requires_exact_25_order_and_separates_20_and_100_panels(
+def test_aggregate_requires_exact_29_order_and_separates_20_and_100_panels(
     census: ModuleType,
     bindings,
     tmp_path: Path,

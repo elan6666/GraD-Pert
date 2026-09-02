@@ -2,10 +2,11 @@
   "architecture_reference": "docs/design/GRADPERT_VNEXT_ABLATIONS.md",
   "canonical_split_count": 1,
   "dataset_id": "nadig_jurkat",
+  "decoder_factorial_reference": "docs/experiments/VNEXT_DECODER_FUSION_WIDTH.md",
   "design_reference": "docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md",
-  "matrix_id": "nadig_jurkat_vnext_ratio_graph_v3",
+  "matrix_id": "nadig_jurkat_vnext_ratio_graph_v4",
   "max_epochs": 10,
-  "row_count": 25,
+  "row_count": 29,
   "rows": [
     {
       "config_path": "configs/ablations/nadig_jurkat/a0_ratio_ring_half/gradpert_b2/nadig_jurkat.yaml",
@@ -293,6 +294,68 @@
       "semantic_factor": "decoder_mode",
       "split_policy": "frozen_canonical",
       "variant_id": "d2_control_transformer"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/d3_concat_p64/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "df4661a054e6627666efb07248f57deab7f8e5ca61bd332ab6d0d3f366b0e55c",
+      "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "decoder_mode"
+      ],
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "semantic_factor": "decoder_fusion",
+      "split_policy": "frozen_canonical",
+      "variant_id": "d3_concat_p64"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/d4_concat_transformer_p64/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "8b4c8bd6b974b0bfd0a2d9a701694abb3c15e481a253e93d669206774d2439d7",
+      "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "decoder_mode"
+      ],
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "semantic_factor": "decoder_fusion",
+      "split_policy": "frozen_canonical",
+      "variant_id": "d4_concat_transformer_p64"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/d5_concat_p256/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "8a05055e36e3bd5fac7e6c239f6b334d75e7ea10b1703b15672a2b0b3c938eff",
+      "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "decoder_mode",
+        "graph_tower_output_dim"
+      ],
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "semantic_factor": "decoder_fusion_x_perturbation_width",
+      "split_policy": "frozen_canonical",
+      "variant_id": "d5_concat_p256"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/d6_concat_transformer_p256/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "6222d18b77735ff559ee211b4500a9f1b979e69b362917897f0c4e37d193fbbb",
+      "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "decoder_mode",
+        "graph_tower_output_dim"
+      ],
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "semantic_factor": "decoder_fusion_x_perturbation_width",
+      "split_policy": "frozen_canonical",
+      "variant_id": "d6_concat_transformer_p256"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/e1_frozen_genept/gradpert_b2/nadig_jurkat.yaml",

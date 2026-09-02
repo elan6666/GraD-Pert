@@ -54,6 +54,37 @@ def test_hvg_graph_scales_are_explicitly_supported(graph_hvg_count: int) -> None
     assert options.graph_hvg_count == graph_hvg_count
 
 
+@pytest.mark.parametrize("decoder_mode", ["concat", "concat_transformer"])
+@pytest.mark.parametrize("graph_output_dim", [64, 256])
+def test_decoder_factorial_supports_both_perturbation_widths(
+    decoder_mode: str,
+    graph_output_dim: int,
+) -> None:
+    options = NativeArchitectureOptions.from_parameters(
+        _vnext(decoder_mode=decoder_mode, graph_tower_output_dim=graph_output_dim)
+    )
+    assert options.decoder_mode == decoder_mode
+    assert options.graph_output_dim == graph_output_dim
+
+
+def test_256_wide_perturbation_state_is_limited_to_concat_factorial() -> None:
+    with pytest.raises(ValueError, match="require a concat decoder ablation"):
+        NativeArchitectureOptions.from_parameters(_vnext(graph_tower_output_dim=256))
+
+
+def test_256_wide_perturbation_state_keeps_the_a0_graph_encoder() -> None:
+    with pytest.raises(ValueError, match="require the A0 sparse graph Transformer"):
+        NativeArchitectureOptions.from_parameters(
+            _vnext(
+                decoder_mode="concat",
+                graph_tower_output_dim=256,
+                graph_sources="string",
+                graph_encoder_family="single_source_gat",
+                graph_encoder_dropout=0.2,
+            )
+        )
+
+
 @pytest.mark.parametrize(
     ("local_count", "mask_ratio", "expected_mask_ratio"),
     [
