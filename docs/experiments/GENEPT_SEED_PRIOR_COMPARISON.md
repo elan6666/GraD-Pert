@@ -2,7 +2,7 @@
 
 ## vNext E-row binding
 
-The current 29-row Nadig Jurkat vNext matrix does not compare the three prior
+The current 30-row Nadig Jurkat vNext matrix does not compare the three prior
 conditions below. Its E1/E2/E3/ES rows are all locked to the selected
 GenePT-Seed `Seed-GO-ProteinPathway` condition using the sealed master artifact
 `/data/yilangliu/GenePT-Seed/data/embeddings/seed-go-protein-pathway-master-aligned.npz`,

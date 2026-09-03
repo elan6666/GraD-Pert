@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the non-CUDA P0 closure for the exact 29-row ablation census."""
+"""Run the non-CUDA P0 closure for the exact 30-row ablation census."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ from gradpert.graphs import (  # noqa: E402
 from gradpert.hashing import sha256_file  # noqa: E402
 from gradpert.pilots import (  # noqa: E402
     GenePTSeedAvailabilityReceipt,
-    load_vnext_graph_topology,
+    load_vnext_runtime_graph_topology,
 )
 
 SUPPORTED_HVG_COUNTS = (512, 1024, 2048, 5000)
@@ -550,17 +550,23 @@ def _ranking_receipt_filename(hvg_count: int) -> str:
     return f"hvg{hvg_count}_dispersion_ranking.json"
 
 
-def _capture_graph_artifacts(graph_root: Path, hvg_count: int) -> dict[str, object]:
+def _capture_graph_artifacts(
+    graph_root: Path,
+    hvg_count: int,
+    *,
+    graph_axis_policy: str = "recomputed_hvg_union_candidate_targets",
+) -> dict[str, object]:
     specifications = {
         "manifest": ("manifest.json", "runtime_graph_manifest"),
         "graph_gene_ids": ("graph_gene_ids.txt", "ordered_graph_gene_axis"),
-        "hvg_dispersion_ranking": (
-            _ranking_receipt_filename(hvg_count),
-            "hvg_dispersion_ranking_receipt",
-        ),
         "go": ("go.npz", "pruned_go_graph"),
         "string": ("string.npz", "pruned_string_graph"),
     }
+    if graph_axis_policy == "recomputed_hvg_union_candidate_targets":
+        specifications["hvg_dispersion_ranking"] = (
+            _ranking_receipt_filename(hvg_count),
+            "hvg_dispersion_ranking_receipt",
+        )
     artifacts: dict[str, object] = {}
     for artifact_id, (filename, role) in specifications.items():
         resolved = _require_resolved_within(
@@ -773,7 +779,7 @@ def build_preflight_receipt(
     deps = dependencies or PreflightDependencies(
         inspect_source=_inspect_clean_source,
         load_data_identity=_load_live_data_identity,
-        load_graph=load_vnext_graph_topology,
+        load_graph=load_vnext_runtime_graph_topology,
         verify_artifact=_verify_live_artifact,
     )
     bindings = census.bind_matrix_variants(
@@ -840,11 +846,13 @@ def build_preflight_receipt(
                     artifacts_before = _capture_graph_artifacts(
                         graph_root,
                         architecture.graph_hvg_count,
+                        graph_axis_policy=architecture.graph_axis_policy,
                     )
                     topology, manifest = deps.load_graph(graph_root)
                     artifacts_after = _capture_graph_artifacts(
                         graph_root,
                         architecture.graph_hvg_count,
+                        graph_axis_policy=architecture.graph_axis_policy,
                     )
                     if artifacts_after != artifacts_before:
                         raise PreflightError(
@@ -921,8 +929,17 @@ def build_preflight_receipt(
             or manifest.source_h5ad_sha256 != data_identity.source_h5ad_sha256
         ):
             reasons.append("runtime graph lineage differs from live canonical/source/split data")
-        if manifest.requested_hvg_count != architecture.graph_hvg_count:
-            reasons.append("runtime graph HVG count differs from config")
+        requested_count = (
+            manifest.requested_gene_count
+            if architecture.graph_axis_policy == "txpert_candidate_gene_universe"
+            else manifest.requested_hvg_count
+        )
+        if requested_count != architecture.graph_hvg_count:
+            reasons.append("runtime graph requested gene count differs from config")
+        if architecture.graph_axis_policy == "txpert_candidate_gene_universe" and (
+            manifest.candidate_gene_set_sha256 != architecture.graph_axis_source_sha256
+        ):
+            reasons.append("runtime graph candidate-gene source SHA-256 differs from config")
         if manifest.gene_feature_policy != "learned_id":
             reasons.append("runtime graph is not the learned-ID parent axis")
         if tuple(topology.gene_ids) != tuple(manifest.graph_gene_ids):
@@ -958,7 +975,9 @@ def build_preflight_receipt(
                     "split_content_sha256": manifest.split_content_sha256,
                     "source_h5ad_sha256": manifest.source_h5ad_sha256,
                     "source_registry_sha256": manifest.source_registry_sha256,
-                    "requested_hvg_count": manifest.requested_hvg_count,
+                    "requested_graph_gene_count": requested_count,
+                    "graph_axis_policy": architecture.graph_axis_policy,
+                    "graph_axis_source_sha256": architecture.graph_axis_source_sha256,
                     "graph_node_count": manifest.graph_gene_count,
                     "graph_gene_order_sha256": manifest.graph_gene_order_sha256,
                     "topology_content_sha256": manifest.topology_content_sha256,
@@ -984,7 +1003,10 @@ def build_preflight_receipt(
             }
         )
         row_payloads.append(row)
-        if not reasons:
+        if (
+            not reasons
+            and architecture.graph_axis_policy == "recomputed_hvg_union_candidate_targets"
+        ):
             manifests_by_hvg[architecture.graph_hvg_count] = manifest
             manifest_hashes_by_hvg[architecture.graph_hvg_count] = manifest_file_sha
 

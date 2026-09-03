@@ -9,8 +9,9 @@ satisfy this successor matrix.
 
 The experiment asks two separate questions on Nadig Jurkat:
 
-1. **H module:** how does the shared Teacher/Student global graph scale affect
-   prediction when the Student local-view coverage ratio is held fixed?
+1. **H module:** how do the shared Teacher/Student global graph scale and one
+   explicitly sourced candidate-gene universe affect prediction when the
+   Student local-view coverage ratio is held fixed?
 2. **L module:** how do local construction, coverage, count, and anchor masking
    affect prediction when the global graph axis is held fixed?
 
@@ -82,9 +83,15 @@ changing this scientific coordinate; it requires a newly reviewed matrix.
 
 ## H module — shared global graph scale
 
-The only scientific factor is `graph_hvg_count`. The local ratio remains 50%,
-so its effective integer budget is a declared derived consequence of graph
-scale rather than an independently tuned factor.
+H1--H3 change only `graph_hvg_count`. H4 is the preregistered non-HVG endpoint:
+it changes the graph-axis selection rule to the exact ordered 9,853-gene
+candidate universe from the frozen public TxPert `gears_gene_set.csv` at commit
+`08d82eea86746b044cf7531f4ec8c5f60e1cb73f` and file SHA-256
+`7e2be69a204b72349b793cc6723a5f88419f1ca6472ea5e28c5f7d623ee8e23d`.
+It remains in H because the question is graph-axis size/universe, but results
+must not describe H4 as a 9,853-HVG coordinate. The local ratio remains 50%, so
+its effective integer budget is a declared derived consequence of graph scale
+rather than an independently tuned factor.
 
 | ID | Global axis | Local builder | Local coverage | Interpretation |
 |---|---|---|---:|---|
@@ -92,10 +99,15 @@ scale rather than an independently tuned factor.
 | H1 | `HVG1024 + targets` | RingInduced | 50% | larger global context |
 | H2 | `HVG2048 + targets` | RingInduced | 50% | larger global context |
 | H3 | `HVG5000 + targets` | RingInduced | 50% | full prepared-HVG context |
+| H4 | TxPert candidate-gene universe (9,853 genes; no `ctrl` node) | RingInduced | 50% | cross-dataset perturbation-candidate context |
 
-All four axes are computed pre-split from the same filtered cell line and must
-be materialized, ordered, hashed, and graph-pruned before the matrix launches.
-Results do not justify selecting a new row after test inspection.
+H0--H3 are computed pre-split from the same filtered cell line. H4 instead
+preserves the frozen TxPert candidate-file order and requires every Nadig
+perturbation target to be present. Every axis must be materialized, ordered,
+hashed, and graph-pruned before launch. STRING and GO are each independently
+pruned to Top-20 incoming non-self edges. H4 does not add TxPert's control
+embedding as a graph node. Results do not justify selecting a new row after
+test inspection.
 
 ## L module — local-view factors
 
@@ -145,7 +157,7 @@ may become the source lineage for the A/H runs.
 
 ## Formal H results
 
-The four-local A/H lineage `formal-vnext-ah-845c10a-v2` completed at exact
+The four-local A/H lineage `formal-vnext-ah-845c10a-v2` completed H0--H3 at exact
 source `845c10a`. Each row has 5,820 ordered optimizer steps, ten validations,
 one evaluation from `best.pt`, the exact three metrics, zero persistent PKL and
 only the retained best checkpoint. All rows share the exact canonical split,
@@ -164,6 +176,12 @@ Systema point estimate, while A0/H1 have the highest TxPert macro point
 estimates and A0 has the highest TriShift point estimate. The results do not
 establish equivalence or general superiority and do not authorize test-selected
 configuration changes. A0 remains the preregistered default; L remains paused.
+
+H4 was added after this completed lineage and has no result in the table above.
+It must run only after the active L1--L5 lineage completes and passes review.
+Before its formal 10-epoch run, H4 requires a fresh source/graph publication
+receipt and a one-step real-data CUDA capacity gate because its 50% local cap
+resolves to 4,926 nodes.
 
 The reviewed compact evidence is in
 `.byte-os/evidence/vnext-performance/formal-ah-four-local-845c10a.json`.

@@ -241,11 +241,19 @@ preflight finds any missing perturbation target.
 - H1: HVG1024 plus the same target universe.
 - H2: HVG2048 plus the same target universe.
 - H3: HVG5000 plus the same target universe.
+- H4: the exact ordered 9,853-gene candidate universe from the frozen public
+  TxPert `gears_gene_set.csv`; this is a graph-universe endpoint, not an
+  HVG9853 claim, and it does not add TxPert's control embedding as a graph node.
 
-Teacher and Student global views share the same ordered axis at each H. The
-local node ratio remains `1/2`, so its effective integer cap changes only as a
-declared derived consequence of H. H rows are not described as fixed node
-counts because target union enlarges the runtime graph.
+Teacher and Student global views share the same ordered axis at each H. H0--H3
+use the pre-split filtered-cell-line HVG selection rule and append missing
+targets. H4 instead preserves the frozen candidate-file order, requires every
+Nadig perturbation target to be present, and binds the public file SHA-256 in
+its config and graph receipt. The local node ratio remains `1/2`, so its
+effective integer cap changes only as a declared derived consequence of H.
+H0--H3 are not described as fixed node counts because target union enlarges
+their runtime graphs; H4 is exactly 9,853 graph nodes and resolves to 4,926
+local nodes by floor division.
 
 ## 9. Required receipts
 

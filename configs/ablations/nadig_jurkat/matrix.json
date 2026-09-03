@@ -4,9 +4,9 @@
   "dataset_id": "nadig_jurkat",
   "decoder_factorial_reference": "docs/experiments/VNEXT_DECODER_FUSION_WIDTH.md",
   "design_reference": "docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md",
-  "matrix_id": "nadig_jurkat_vnext_ratio_graph_v4",
+  "matrix_id": "nadig_jurkat_vnext_ratio_graph_v5",
   "max_epochs": 10,
-  "row_count": 29,
+  "row_count": 30,
   "rows": [
     {
       "config_path": "configs/ablations/nadig_jurkat/a0_ratio_ring_half/gradpert_b2/nadig_jurkat.yaml",
@@ -68,6 +68,24 @@
       "semantic_factor": "graph_hvg_count",
       "split_policy": "frozen_canonical",
       "variant_id": "h3_hvg5000_ratio_half"
+    },
+    {
+      "config_path": "configs/ablations/nadig_jurkat/h4_txpert_candidate_ratio_half/gradpert_b2/nadig_jurkat.yaml",
+      "config_sha256": "b27d8d05ce2e7d325104ae486ac7d2d8ce1f293fec383d33e68c0d7a850c111b",
+      "dataset_id": "nadig_jurkat",
+      "declared_parameter_diffs": [
+        "graph_axis_policy",
+        "graph_axis_source_sha256",
+        "graph_hvg_count",
+        "runtime_graph_root"
+      ],
+      "genept_preflight_required": false,
+      "max_epochs": 10,
+      "result_mode": "metrics_only",
+      "run_seed": 1,
+      "semantic_factor": "graph_gene_universe",
+      "split_policy": "frozen_canonical",
+      "variant_id": "h4_txpert_candidate_ratio_half"
     },
     {
       "config_path": "configs/ablations/nadig_jurkat/l1_fanout_ratio_half/gradpert_b2/nadig_jurkat.yaml",

@@ -1,5 +1,16 @@
 # Build Log
 
+## 2026-09-03 — plan 036 TxPert candidate graph-axis H4
+
+- Added `h4_txpert_candidate_ratio_half` to the H module as a graph-universe
+  endpoint. It binds the exact ordered 9,853-gene public TxPert candidate file,
+  excludes the control embedding from the graph, retains four RingInduced
+  locals at ratio `1/2`, and keeps the 5,000-gene Nadig expression axis.
+- Added a receipt-backed materializer/loader, CLI command, runtime dispatch,
+  config and P0 source-hash gates, matrix contract, tests and design docs.
+- H4 is queued behind the active L1--L5 delivery and requires a fresh one-step
+  CUDA capacity gate before its 10-epoch formal run; M is behind H4.
+
 ## 2026-09-02 — plan 035 decoder fusion and perturbation-width factorial
 
 - Preserved completed E and historical D evidence, stopped active L1/L2, and

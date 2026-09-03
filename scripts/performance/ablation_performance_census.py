@@ -51,7 +51,7 @@ PERFORMANCE_SENTINEL_VARIANT_IDS = (
 )
 PERFORMANCE_SENTINEL_ROLES = {
     A0_VARIANT_ID: "reference_ring_induced_half",
-    "h3_hvg5000_ratio_half": "maximum_graph_axis_capacity",
+    "h3_hvg5000_ratio_half": "maximum_hvg_graph_axis_capacity",
     "l1_fanout_ratio_half": "alternate_local_builder",
     "l2_ring_half_count8": "increased_local_view_count",
     "m4_adaptive_source_gat": "alternate_multi_source_gat_encoder",
@@ -60,7 +60,7 @@ PERFORMANCE_SENTINEL_ROLES = {
     "e2_genept_id_residual": "genept_full_axis_projection",
 }
 MATRIX_SCHEMA_VERSION = "2"
-MATRIX_ROW_COUNT = 29
+MATRIX_ROW_COUNT = 30
 EXACT_TRAIN_BATCH_SIZE = 256
 EXACT_EVAL_BATCH_SIZE = 256
 EXACT_PROTOTYPE_COUNT = 16384
@@ -375,7 +375,7 @@ def bind_matrix_variants(
         or payload.get("matrix_id") != SUCCESSOR_MATRIX_ID
         or payload.get("row_count") != MATRIX_ROW_COUNT
     ):
-        raise ValueError("performance census requires the exact schema-v2 29-row matrix")
+        raise ValueError("performance census requires the exact schema-v2 30-row matrix")
     raw_rows = payload.get("rows")
     if not isinstance(raw_rows, list) or len(raw_rows) != MATRIX_ROW_COUNT:
         raise ValueError("performance census matrix row payload is malformed")
@@ -498,13 +498,13 @@ def bind_matrix_variant(
 def bind_performance_sentinel(
     bindings: Sequence[FrozenVariantBinding],
 ) -> tuple[FrozenVariantBinding, ...]:
-    """Select the exact ordered performance-only sentinel from the 29-row matrix."""
+    """Select the exact ordered performance-only sentinel from the 30-row matrix."""
 
     if (
         len(bindings) != MATRIX_ROW_COUNT
         or len({binding.variant_id for binding in bindings}) != MATRIX_ROW_COUNT
     ):
-        raise ValueError("performance sentinel requires the exact 29-row matrix binding")
+        raise ValueError("performance sentinel requires the exact 30-row matrix binding")
     by_id = {binding.variant_id: binding for binding in bindings}
     if set(PERFORMANCE_SENTINEL_VARIANT_IDS) - set(by_id):
         raise ValueError("performance sentinel row is absent from the scientific matrix")
@@ -1539,10 +1539,10 @@ def aggregate_census_report(
     batch_manifest: FrozenBatchManifest,
     p0_preflight_sha256: str,
 ) -> dict[str, object]:
-    """Aggregate exactly 29 rows while keeping P2 and P3 panels separate."""
+    """Aggregate exactly 30 rows while keeping P2 and P3 panels separate."""
 
     if len(bindings) != MATRIX_ROW_COUNT:
-        raise ValueError("census aggregation requires exactly 25 frozen bindings")
+        raise ValueError("census aggregation requires exactly 30 frozen bindings")
     expected_order = [binding.variant_id for binding in bindings]
     observed_order = [record.get("variant_id") for record in row_records]
     if observed_order != expected_order:
@@ -1890,7 +1890,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--repository-root", type=Path, required=True)
     parser.add_argument("--expected-matrix-sha256", required=True)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    plan = subparsers.add_parser("plan", help="print the frozen 29-row matrix binding")
+    plan = subparsers.add_parser("plan", help="print the frozen 30-row matrix binding")
     plan.add_argument("--json", action="store_true", dest="as_json")
     sentinel = subparsers.add_parser(
         "sentinel-plan",

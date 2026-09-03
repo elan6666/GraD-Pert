@@ -20,6 +20,12 @@ updated_at: 2026-09-03T11:30:00+08:00
   identities, zero PKL and best-only retention. Neither Transformer fusion nor
   perturbation width 256 improved all three metrics consistently, so additive
   A0 remains the default without an equivalence claim.
+- The user added H4 after the completed H0--H3 lineage. H4 binds the exact
+  ordered 9,853-gene TxPert public candidate universe (no `ctrl` graph node),
+  retains four RingInduced locals at ratio `1/2`, and advances the scientific
+  matrix to 30-row `nadig_jurkat_vnext_ratio_graph_v5`. It remains behind the
+  active L1--L5 barrier and requires a fresh graph receipt plus one-step CUDA
+  capacity gate before its 10-epoch formal run.
 - The user reauthorized continuation of the prior ablation sequence. The next
   module is a fresh L-only lineage for L1--L5; interrupted Plan 034 L roots stay
   sealed and must never be resumed or relabeled. M remains behind the L module
@@ -32,8 +38,7 @@ updated_at: 2026-09-03T11:30:00+08:00
   `concat(b,p,T([b,p]))`; D5/D6 repeat those fusion choices with 256-wide
   perturbation states. For D6, only the Transformer token path applies learned
   `256 -> 64` projection, while the decoder retains raw `p256`. The scientific
-  matrix is now 29 rows; the historical eight-row performance sentinel remains
-  unchanged and treats the four new rows as unselected.
+  matrix was 29 rows before H4; the v5 matrix now has 30 rows.
 - Plan 034 is active. The user authorized formal E, D, L and M execution in
   that exact module order under the completed four-local A0 coordinate. Rows
   inside one module may use at most two GPUs, but a hard module barrier blocks

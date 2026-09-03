@@ -24,7 +24,7 @@ from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file
 from gradpert.pilots import GenePTAvailabilityReceipt, GenePTSeedAvailabilityReceipt
 
-SUCCESSOR_MATRIX_ID = "nadig_jurkat_vnext_ratio_graph_v4"
+SUCCESSOR_MATRIX_ID = "nadig_jurkat_vnext_ratio_graph_v5"
 SUCCESSOR_CONTRACT: dict[str, tuple[str, frozenset[str]]] = {
     "a0_ratio_ring_half": ("reference", frozenset()),
     "h1_hvg1024_ratio_half": (
@@ -38,6 +38,17 @@ SUCCESSOR_CONTRACT: dict[str, tuple[str, frozenset[str]]] = {
     "h3_hvg5000_ratio_half": (
         "graph_hvg_count",
         frozenset({"graph_hvg_count", "runtime_graph_root"}),
+    ),
+    "h4_txpert_candidate_ratio_half": (
+        "graph_gene_universe",
+        frozenset(
+            {
+                "graph_axis_policy",
+                "graph_hvg_count",
+                "graph_axis_source_sha256",
+                "runtime_graph_root",
+            }
+        ),
     ),
     "l1_fanout_ratio_half": ("local_view_builder", frozenset({"local_view_builder"})),
     "l2_ring_half_count8": ("local_view_count", frozenset({"local_view_count"})),
@@ -257,7 +268,7 @@ def load_ablation_matrix(
     if schema_version == "1" and payload.get("matrix_id") == SUCCESSOR_MATRIX_ID:
         raise ValueError("schema-v1 matrix cannot claim the successor schema-v2 identity")
     raw_rows = payload.get("rows")
-    expected_row_count = {"1": 22, "2": 29}[str(schema_version)]
+    expected_row_count = {"1": 22, "2": 30}[str(schema_version)]
     if (
         not isinstance(raw_rows, list)
         or payload.get("row_count") != len(raw_rows)

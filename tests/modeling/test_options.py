@@ -54,6 +54,34 @@ def test_hvg_graph_scales_are_explicitly_supported(graph_hvg_count: int) -> None
     assert options.graph_hvg_count == graph_hvg_count
 
 
+def test_txpert_candidate_graph_requires_exact_count_and_source_hash() -> None:
+    options = NativeArchitectureOptions.from_parameters(
+        _vnext(
+            graph_axis_policy="txpert_candidate_gene_universe",
+            graph_hvg_count=9853,
+            graph_axis_source_sha256="a" * 64,
+        )
+    )
+    assert options.graph_hvg_count == 9853
+    assert options.graph_axis_source_sha256 == "a" * 64
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"graph_hvg_count": 9852, "graph_axis_source_sha256": "a" * 64},
+        {"graph_hvg_count": 9853},
+    ],
+)
+def test_txpert_candidate_graph_rejects_incomplete_identity(
+    overrides: dict[str, object],
+) -> None:
+    with pytest.raises(ValueError, match="TxPert candidate graph"):
+        NativeArchitectureOptions.from_parameters(
+            _vnext(graph_axis_policy="txpert_candidate_gene_universe", **overrides)
+        )
+
+
 @pytest.mark.parametrize("decoder_mode", ["concat", "concat_transformer"])
 @pytest.mark.parametrize("graph_output_dim", [64, 256])
 def test_decoder_factorial_supports_both_perturbation_widths(

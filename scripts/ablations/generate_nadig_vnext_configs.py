@@ -25,6 +25,9 @@ GENEPT_PROTEIN_REACTOME_SIGNOR_PATH = (
 GENEPT_PROTEIN_REACTOME_SIGNOR_SHA256 = (
     "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318"
 )
+TXPERT_CANDIDATE_GENE_SET_SHA256 = (
+    "7e2be69a204b72349b793cc6723a5f88419f1ca6472ea5e28c5f7d623ee8e23d"
+)
 
 SUCCESSOR_A0 = "a0_ratio_ring_half"
 LEGACY_FIXED_BUDGET_VARIANTS = frozenset(
@@ -149,6 +152,15 @@ def variants() -> dict[str, VariantSpec]:
             {
                 "graph_hvg_count": 5000,
                 "runtime_graph_root": "vnext/graph_axes/nadig_jurkat/hvg5000_plus_targets",
+            },
+        ),
+        "h4_txpert_candidate_ratio_half": variant(
+            "graph_gene_universe",
+            {
+                "graph_axis_policy": "txpert_candidate_gene_universe",
+                "graph_hvg_count": 9853,
+                "graph_axis_source_sha256": TXPERT_CANDIDATE_GENE_SET_SHA256,
+                "runtime_graph_root": ("vnext/graph_axes/nadig_jurkat/txpert_candidate_9853"),
             },
         ),
         "l1_fanout_ratio_half": variant("local_view_builder", {"local_view_builder": "fanout"}),
@@ -357,7 +369,7 @@ def render() -> None:
         )
     matrix = {
         "schema_version": "2",
-        "matrix_id": "nadig_jurkat_vnext_ratio_graph_v4",
+        "matrix_id": "nadig_jurkat_vnext_ratio_graph_v5",
         "design_reference": SUCCESSOR_REFERENCE,
         "decoder_factorial_reference": DECODER_FACTORIAL_REFERENCE,
         "architecture_reference": REFERENCE,

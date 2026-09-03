@@ -28,7 +28,7 @@ def _write_matrix(path: Path, payload: dict[str, object]) -> Path:
 
 def test_launcher_validates_every_frozen_config_before_planning(tmp_path: Path) -> None:
     rows = load_ablation_matrix(MATRIX, repository_root=ROOT)
-    assert len(rows) == 29
+    assert len(rows) == 30
     plan = build_ablation_launch_plan(
         rows,
         selected_variants=("a0_ratio_ring_half", "d2_control_transformer"),

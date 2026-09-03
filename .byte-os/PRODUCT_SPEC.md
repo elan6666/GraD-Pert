@@ -57,12 +57,15 @@ STRING+GO native multi-source sparse graph Transformer, four RingInduced
 views capped at exact ratio `1/2` of the actual runtime graph, no local anchor
 masking (`0/1` mask-view ratio), and direct losses `1.0/0.8/0.4/0.1`.
 
-The successor program contains two direct-to-A0 modules. H changes only the
+The successor program contains two direct-to-A0 modules. H0--H3 change only the
 requested HVG count across 512/1024/2048/5000 while retaining a `1/2` local
-coverage ratio. L changes exactly one of builder, local count, local node ratio,
-or local mask-view ratio; its count row uses eight locals against the four-local
-A0. Fixed local node budgets and fixed mask-view counts are legacy evidence
-only; local-view count remains an explicit successor scientific factor.
+coverage ratio. H4 is an explicitly distinct graph-universe endpoint using the
+exact ordered 9,853-gene frozen public TxPert candidate file, without a control
+graph node; it must not be reported as HVG9853. L changes exactly one of
+builder, local count, local node ratio, or local mask-view ratio; its count row
+uses eight locals against the four-local A0. Fixed local node budgets and fixed
+mask-view counts are legacy evidence only; local-view count remains an explicit
+successor scientific factor.
 
 The same main path must also select source-audited single/multi graph encoders,
 STRING weight policies, decoder strategies, and GenePT feature modes. No

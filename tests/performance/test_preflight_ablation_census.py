@@ -95,8 +95,10 @@ def _data_identity(preflight: ModuleType):
 
 
 def _manifest(hvg_count: int):
-    direct = [f"G{index}" for index in range(hvg_count)]
     targets = [f"T{index}" for index in range(10)]
+    candidate_axis = hvg_count == 9853
+    direct_count = hvg_count - len(targets) if candidate_axis else hvg_count
+    direct = [f"G{index}" for index in range(direct_count)]
     graph = [*direct, *targets]
     graph_hash = hashlib.sha256(
         json.dumps(graph, sort_keys=True, separators=(",", ":")).encode()
@@ -117,6 +119,10 @@ def _manifest(hvg_count: int):
         log1p=True,
         hvg_subset=True,
         requested_hvg_count=hvg_count,
+        requested_gene_count=hvg_count,
+        candidate_gene_set_sha256=(
+            "7e2be69a204b72349b793cc6723a5f88419f1ca6472ea5e28c5f7d623ee8e23d"
+        ),
         expression_gene_count=5000,
         hvg_fit_scope="full_filtered_cell_line_pre_split",
         hvg_fit_cell_count=1000,
@@ -347,16 +353,16 @@ def _run(
     )
 
 
-def test_all_29_rows_close_when_all_graphs_and_genept_are_ready(
+def test_all_30_rows_close_when_all_graphs_and_genept_are_ready(
     preflight: ModuleType,
     tmp_path: Path,
     matrix_sha256: str,
 ) -> None:
     receipt = _run(preflight, tmp_path, matrix_sha256)
     assert receipt["status"] == "passed"
-    assert receipt["matrix_row_count"] == 29
-    assert len(receipt["rows"]) == 29
-    assert receipt["row_status_counts"] == {"passed": 29, "blocked": 0}
+    assert receipt["matrix_row_count"] == 30
+    assert len(receipt["rows"]) == 30
+    assert receipt["row_status_counts"] == {"passed": 30, "blocked": 0}
     assert receipt["cross_h_audit"]["status"] == "passed"
     assert receipt["scientific_completion"] is False
     assert receipt["source"]["source_tree_sha256"] == "d" * 64

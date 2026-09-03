@@ -41,8 +41,10 @@ from gradpert.modeling import CenterState, GraDPertJointModel
 from gradpert.pilots import (
     GenePTSeedAvailabilityReceipt,
     ReducedGraphManifest,
+    TxPertCandidateGraphManifest,
     VNextGraphManifest,
     load_reduced_graph_topology,
+    load_txpert_candidate_graph,
     load_vnext_graph_topology,
 )
 from gradpert.training.checkpoint import CheckpointIdentity
@@ -552,7 +554,9 @@ def run_native_experiment(
         raise ValueError("GenePT preflight receipt path and hash must be provided together")
     cold_start_started = time.perf_counter()
     graph_axis_policy = architecture.graph_axis_policy
-    reduced_manifest: ReducedGraphManifest | VNextGraphManifest | None = None
+    reduced_manifest: (
+        ReducedGraphManifest | VNextGraphManifest | TxPertCandidateGraphManifest | None
+    ) = None
     runtime_graph_root_label: str | None = None
     if graph_axis_policy == "canonical_full":
         topology = load_dataset_graph_topology(
@@ -566,6 +570,7 @@ def run_native_experiment(
     elif graph_axis_policy in {
         "recomputed_top500_union_candidate_targets",
         "recomputed_hvg_union_candidate_targets",
+        "txpert_candidate_gene_universe",
     }:
         relative_root = _optional_string_parameter(config, "runtime_graph_root")
         if relative_root is None:
@@ -579,7 +584,7 @@ def run_native_experiment(
         graph_root = Path(data_root).joinpath(*relative_path.parts)
         if graph_axis_policy == "recomputed_top500_union_candidate_targets":
             topology, reduced_manifest = load_reduced_graph_topology(graph_root)
-        else:
+        elif graph_axis_policy == "recomputed_hvg_union_candidate_targets":
             topology, reduced_manifest = load_vnext_graph_topology(graph_root)
             prior_label = _optional_string_parameter(config, "genept_artifact_path")
             uses_exact_axis_npz = prior_label is not None and Path(prior_label).suffix == ".npz"
@@ -593,6 +598,12 @@ def run_native_experiment(
                 or reduced_manifest.genept_source_sha256 != architecture.genept_expected_sha256
             ):
                 raise ValueError("GenePT run requires the exact filtered vNext graph lineage")
+        else:
+            topology, reduced_manifest = load_txpert_candidate_graph(graph_root)
+            if architecture.gene_feature_mode != "learned_id":
+                raise ValueError("H4 TxPert candidate graph currently supports learned-ID only")
+            if reduced_manifest.candidate_gene_set_sha256 != architecture.graph_axis_source_sha256:
+                raise ValueError("H4 candidate-gene source SHA-256 differs from config")
         if (
             reduced_manifest.dataset_id != config.dataset_id
             or reduced_manifest.protocol_id != config.data.protocol_id

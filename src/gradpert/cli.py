@@ -230,6 +230,25 @@ def _parser() -> argparse.ArgumentParser:
     vnext_graph.add_argument("--official-checkout", type=Path, required=True)
     vnext_graph.add_argument("--output", type=Path, required=True)
     vnext_graph.add_argument("--json", action="store_true", dest="as_json")
+    txpert_candidate_graph = pilot_subparsers.add_parser(
+        "prepare-txpert-candidate-graph",
+        help="Build the frozen 9853-gene TxPert candidate-universe H4 graph",
+    )
+    txpert_candidate_graph.add_argument("--data-root", type=Path, required=True)
+    txpert_candidate_graph.add_argument(
+        "--dataset-registry",
+        type=Path,
+        default=Path("registry/datasets/nadig_jurkat.yaml"),
+    )
+    txpert_candidate_graph.add_argument(
+        "--source-registry",
+        type=Path,
+        default=Path("registry/graphs/public_string_go.yaml"),
+    )
+    txpert_candidate_graph.add_argument("--official-checkout", type=Path, required=True)
+    txpert_candidate_graph.add_argument("--candidate-gene-set", type=Path, required=True)
+    txpert_candidate_graph.add_argument("--output", type=Path, required=True)
+    txpert_candidate_graph.add_argument("--json", action="store_true", dest="as_json")
     genept_graph = pilot_subparsers.add_parser(
         "prepare-genept-graph",
         help="Verify GenePT coverage and re-prune an HVG512 runtime graph",
@@ -485,6 +504,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"{vnext_manifest.dataset_id} "
                 f"graph_gene_count={vnext_manifest.graph_gene_count} "
                 f"hvg_count={vnext_manifest.requested_hvg_count}"
+            )
+        return 0
+    if args.command == "pilot" and args.pilot_command == "prepare-txpert-candidate-graph":
+        from gradpert.pilots import materialize_txpert_candidate_graph
+
+        manifest = materialize_txpert_candidate_graph(
+            entry=load_dataset_registry(args.dataset_registry),
+            data_root=args.data_root,
+            destination=args.output,
+            candidate_gene_set_path=args.candidate_gene_set,
+            source_registry_path=args.source_registry,
+            source_registry=load_graph_source_registry(args.source_registry),
+            official_checkout=args.official_checkout,
+        )
+        payload = manifest.model_dump(mode="json")
+        if args.as_json:
+            print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+        else:
+            print(
+                f"{manifest.dataset_id} graph_gene_count={manifest.graph_gene_count} "
+                f"candidate_gene_set_sha256={manifest.candidate_gene_set_sha256}"
             )
         return 0
     if args.command == "pilot" and args.pilot_command == "prepare-genept-graph":

@@ -14,6 +14,7 @@ GraphAxisPolicy = Literal[
     "canonical_full",
     "recomputed_top500_union_candidate_targets",
     "recomputed_hvg_union_candidate_targets",
+    "txpert_candidate_gene_universe",
 ]
 GraphEncoderFamily = Literal[
     "adaptive_relation_gat",
@@ -176,6 +177,7 @@ class NativeArchitectureOptions:
     gene_feature_mode: GeneFeatureMode
     decoder_mode: DecoderMode
     genept_expected_sha256: str | None
+    graph_axis_source_sha256: str | None
 
     def __post_init__(self) -> None:
         if self.graph_axis_policy == "recomputed_hvg_union_candidate_targets":
@@ -184,8 +186,24 @@ class NativeArchitectureOptions:
         elif self.graph_axis_policy == "recomputed_top500_union_candidate_targets":
             if self.graph_hvg_count != 500:
                 raise ValueError("sealed Top500 pilot requires exactly 500 HVGs")
+        elif self.graph_axis_policy == "txpert_candidate_gene_universe":
+            if self.graph_hvg_count != 9853:
+                raise ValueError("TxPert candidate graph requires exactly 9853 genes")
         elif self.graph_hvg_count != 5000:
             raise ValueError("canonical_full requires graph_hvg_count=5000")
+
+        if self.graph_axis_policy == "txpert_candidate_gene_universe":
+            if (
+                self.graph_axis_source_sha256 is None
+                or len(self.graph_axis_source_sha256) != 64
+                or any(
+                    character not in "0123456789abcdef"
+                    for character in self.graph_axis_source_sha256
+                )
+            ):
+                raise ValueError("TxPert candidate graph requires a lowercase source SHA-256")
+        elif self.graph_axis_source_sha256 is not None:
+            raise ValueError("non-TxPert graph policy must not bind graph_axis_source_sha256")
 
         if self.global_view_count != 2 or self.local_view_count not in {4, 8}:
             raise ValueError("GraD-Pert requires two global and four or eight local views")
@@ -323,6 +341,7 @@ class NativeArchitectureOptions:
             "canonical_full": 5000,
             "recomputed_top500_union_candidate_targets": 500,
             "recomputed_hvg_union_candidate_targets": 512,
+            "txpert_candidate_gene_universe": 9853,
         }.get(graph_axis_policy)
         if default_hvg_count is None:
             raise ValueError(f"unsupported graph_axis_policy: {graph_axis_policy}")
@@ -369,6 +388,9 @@ class NativeArchitectureOptions:
         genept_sha = _value(parameters, "genept_expected_sha256", None)
         if genept_sha is not None and not isinstance(genept_sha, str):
             raise ValueError("genept_expected_sha256 must be a string when declared")
+        graph_axis_source_sha = _value(parameters, "graph_axis_source_sha256", None)
+        if graph_axis_source_sha is not None and not isinstance(graph_axis_source_sha, str):
+            raise ValueError("graph_axis_source_sha256 must be a string when declared")
         node_budget_ratio = _ratio(parameters, "local_view_node_budget_ratio", "1/2")
         anchor_mask_ratio = _ratio(parameters, "local_anchor_mask_view_ratio", "0/1")
         legacy_node_budget = (
@@ -409,6 +431,7 @@ class NativeArchitectureOptions:
             gene_feature_mode=cast(GeneFeatureMode, gene_feature_mode),
             decoder_mode=cast(DecoderMode, decoder_mode),
             genept_expected_sha256=genept_sha,
+            graph_axis_source_sha256=graph_axis_source_sha,
         )
 
     def payload(self) -> dict[str, object]:

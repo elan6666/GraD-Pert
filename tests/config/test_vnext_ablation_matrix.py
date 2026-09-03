@@ -25,7 +25,7 @@ def config_paths() -> tuple[Path, ...]:
 
 def test_vnext_ablation_matrix_is_self_contained_and_frozen() -> None:
     paths = config_paths()
-    assert len(paths) == 29
+    assert len(paths) == 30
     for path in paths:
         config = load_experiment_config(path)
         assert config.dataset_id == "nadig_jurkat"
@@ -73,6 +73,21 @@ def test_successor_h_rows_change_only_graph_scale_and_keep_recomputed_axes() -> 
         assert parameters["local_anchor_mask_view_ratio"].value == "0/1"
 
 
+def test_h4_binds_the_frozen_txpert_candidate_gene_universe() -> None:
+    config = load_experiment_config(
+        CONFIG_ROOT / "h4_txpert_candidate_ratio_half/gradpert_b2/nadig_jurkat.yaml"
+    )
+    parameters = config.model.parameters
+    assert parameters["graph_axis_policy"].value == "txpert_candidate_gene_universe"
+    assert parameters["graph_hvg_count"].value == 9853
+    assert parameters["graph_axis_source_sha256"].value == (
+        "7e2be69a204b72349b793cc6723a5f88419f1ca6472ea5e28c5f7d623ee8e23d"
+    )
+    assert parameters["runtime_graph_root"].value.endswith("txpert_candidate_9853")
+    assert parameters["local_view_node_budget_ratio"].value == "1/2"
+    assert parameters["local_view_count"].value == 4
+
+
 def test_successor_l_rows_are_exact_one_factor_local_variants() -> None:
     expected = {
         "l1_fanout_ratio_half": ("fanout", "1/2", 4, "0/1"),
@@ -115,12 +130,12 @@ def test_genept_rows_bind_seed_go_protein_pathway_master_and_unfiltered_graph() 
 def test_vnext_matrix_hash_pins_every_config_before_results() -> None:
     matrix = json.loads((CONFIG_ROOT / "matrix.json").read_text(encoding="utf-8"))
     assert matrix["schema_version"] == "2"
-    assert matrix["matrix_id"] == "nadig_jurkat_vnext_ratio_graph_v4"
-    assert matrix["row_count"] == 29
+    assert matrix["matrix_id"] == "nadig_jurkat_vnext_ratio_graph_v5"
+    assert matrix["row_count"] == 30
     assert matrix["run_seeds"] == [1]
     assert matrix["max_epochs"] == 10
-    assert len(matrix["rows"]) == 29
-    assert len({row["variant_id"] for row in matrix["rows"]}) == 29
+    assert len(matrix["rows"]) == 30
+    assert len({row["variant_id"] for row in matrix["rows"]}) == 30
     assert not ({row["variant_id"] for row in matrix["rows"]} & LEGACY_FIXED_BUDGET_VARIANTS)
     for row in matrix["rows"]:
         path = ROOT / row["config_path"]
@@ -137,6 +152,12 @@ def test_each_ablation_differs_from_a0_only_by_its_declared_factor() -> None:
         "h1_hvg1024_ratio_half": {"graph_hvg_count", "runtime_graph_root"},
         "h2_hvg2048_ratio_half": {"graph_hvg_count", "runtime_graph_root"},
         "h3_hvg5000_ratio_half": {"graph_hvg_count", "runtime_graph_root"},
+        "h4_txpert_candidate_ratio_half": {
+            "graph_axis_policy",
+            "graph_hvg_count",
+            "graph_axis_source_sha256",
+            "runtime_graph_root",
+        },
         "l1_fanout_ratio_half": {"local_view_builder"},
         "l2_ring_half_count8": {"local_view_count"},
         "l3_ring_quarter": {"local_view_node_budget_ratio"},
