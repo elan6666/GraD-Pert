@@ -49,6 +49,7 @@ PERFORMANCE_SENTINEL_VARIANT_IDS = (
     "d2_control_transformer",
     "e2_genept_id_residual",
 )
+PERFORMANCE_CAPACITY_ONLY_VARIANT_IDS = ("h4_txpert_candidate_ratio_half",)
 PERFORMANCE_SENTINEL_ROLES = {
     A0_VARIANT_ID: "reference_ring_induced_half",
     "h3_hvg5000_ratio_half": "maximum_hvg_graph_axis_capacity",
@@ -514,6 +515,20 @@ def bind_performance_sentinel(
 def require_performance_sentinel_variant(variant_id: str) -> None:
     if variant_id not in PERFORMANCE_SENTINEL_VARIANT_IDS:
         raise ValueError("bounded performance worker accepts only the frozen eight-row sentinel")
+
+
+def require_performance_worker_variant(variant_id: str, *, stage_id: StageId) -> None:
+    """Keep the sentinel frozen while permitting explicit capacity-only probes."""
+
+    if variant_id in PERFORMANCE_SENTINEL_VARIANT_IDS:
+        return
+    if stage_id == "p1_capacity" and variant_id in PERFORMANCE_CAPACITY_ONLY_VARIANT_IDS:
+        return
+    if variant_id in PERFORMANCE_CAPACITY_ONLY_VARIANT_IDS:
+        raise ValueError("capacity-only performance row cannot run timing or profiling stages")
+    raise ValueError(
+        "bounded performance worker accepts only the frozen sentinel or capacity-only rows"
+    )
 
 
 def batch_sequence_sha256(batches: Sequence[OrderedBatchIdentity]) -> str:

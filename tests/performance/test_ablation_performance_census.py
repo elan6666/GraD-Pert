@@ -454,6 +454,19 @@ def test_performance_worker_rejects_every_non_sentinel_matrix_row(
                 census.require_performance_sentinel_variant(binding.variant_id)
 
 
+def test_h4_is_capacity_only_without_broadening_the_frozen_sentinel(census: ModuleType) -> None:
+    variant_id = "h4_txpert_candidate_ratio_half"
+
+    assert (variant_id,) == census.PERFORMANCE_CAPACITY_ONLY_VARIANT_IDS
+    assert variant_id not in census.PERFORMANCE_SENTINEL_VARIANT_IDS
+    census.require_performance_worker_variant(variant_id, stage_id="p1_capacity")
+    for stage_id in ("p2_timing", "diagnostic_profile"):
+        with pytest.raises(ValueError, match="capacity-only"):
+            census.require_performance_worker_variant(variant_id, stage_id=stage_id)
+    with pytest.raises(ValueError, match="sentinel or capacity-only"):
+        census.require_performance_worker_variant("o2_no_masked_node", stage_id="p1_capacity")
+
+
 def test_sentinel_plan_cli_emits_only_hash_bound_representative_rows(
     census: ModuleType,
     matrix_sha256: str,

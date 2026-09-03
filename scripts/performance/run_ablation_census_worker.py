@@ -35,6 +35,12 @@ from gradpert.execution.identity import inspect_source_identity  # noqa: E402
 from gradpert.execution.system_resources import (  # noqa: E402
     host_available_memory_bytes,
 )
+from gradpert.pilots.txpert_candidate_graph_axis import (  # noqa: E402
+    TXPERT_CANDIDATE_GENE_COUNT,
+    TXPERT_CANDIDATE_GENE_SET_SHA256,
+    TXPERT_PUBLIC_COMMIT,
+    TxPertCandidateGraphManifest,
+)
 
 GIB = 1024**3
 SUPPORTED_STAGES = ("p1_capacity", "p2_timing", "diagnostic_profile")
@@ -635,26 +641,43 @@ def _require_graph_artifacts(
     label: str,
     allowed_root: Path,
 ) -> list[dict[str, object]]:
-    requested_hvg_count = graph.get("requested_hvg_count")
+    graph_axis_policy = graph.get("graph_axis_policy", "recomputed_hvg_union_candidate_targets")
+    requested_graph_gene_count = graph.get("requested_graph_gene_count")
+    legacy_requested_hvg_count = graph.get("requested_hvg_count")
+    if requested_graph_gene_count is None:
+        requested_graph_gene_count = legacy_requested_hvg_count
+    elif (
+        legacy_requested_hvg_count is not None
+        and legacy_requested_hvg_count != requested_graph_gene_count
+    ):
+        raise WorkerGateError(f"{label} graph requested-count summaries differ")
     graph_root_value = graph.get("root_path")
     artifacts = graph.get("artifacts")
     if (
-        not isinstance(requested_hvg_count, int)
-        or isinstance(requested_hvg_count, bool)
+        not isinstance(requested_graph_gene_count, int)
+        or isinstance(requested_graph_gene_count, bool)
         or not isinstance(graph_root_value, str)
         or not isinstance(artifacts, Mapping)
     ):
         raise WorkerGateError(f"{label} graph artifact contract is malformed")
-    expected_specifications = {
+    common_specifications = {
         "manifest": ("manifest.json", "runtime_graph_manifest"),
         "graph_gene_ids": ("graph_gene_ids.txt", "ordered_graph_gene_axis"),
-        "hvg_dispersion_ranking": (
-            f"hvg{requested_hvg_count}_dispersion_ranking.json",
-            "hvg_dispersion_ranking_receipt",
-        ),
         "go": ("go.npz", "pruned_go_graph"),
         "string": ("string.npz", "pruned_string_graph"),
     }
+    if graph_axis_policy == "recomputed_hvg_union_candidate_targets":
+        expected_specifications = {
+            **common_specifications,
+            "hvg_dispersion_ranking": (
+                f"hvg{requested_graph_gene_count}_dispersion_ranking.json",
+                "hvg_dispersion_ranking_receipt",
+            ),
+        }
+    elif graph_axis_policy == "txpert_candidate_gene_universe":
+        expected_specifications = common_specifications
+    else:
+        raise WorkerGateError(f"{label} graph-axis policy is unsupported")
     if set(artifacts) != set(expected_specifications):
         raise WorkerGateError(f"{label} graph artifact set differs from P0")
     graph_root = Path(graph_root_value).resolve(strict=True)
@@ -713,13 +736,30 @@ def _require_graph_artifacts(
     if (
         not isinstance(gene_order_sha256, str)
         or manifest.get("graph_gene_order_sha256") != gene_order_sha256
-        or manifest.get("requested_hvg_count") != requested_hvg_count
         or not isinstance(topology_sha256, str)
         or manifest.get("topology_content_sha256") != topology_sha256
         or _sha256_json({"graph_gene_order_sha256": gene_order_sha256, "sources": source_hashes})
         != topology_sha256
     ):
         raise WorkerGateError(f"{label} graph semantic identity differs")
+    if graph_axis_policy == "recomputed_hvg_union_candidate_targets":
+        if manifest.get("requested_hvg_count") != requested_graph_gene_count:
+            raise WorkerGateError(f"{label} graph HVG identity differs")
+    else:
+        try:
+            candidate_manifest = TxPertCandidateGraphManifest.model_validate(manifest)
+        except ValueError as error:
+            raise WorkerGateError(f"{label} TxPert candidate graph manifest differs") from error
+        if (
+            requested_graph_gene_count != TXPERT_CANDIDATE_GENE_COUNT
+            or candidate_manifest.requested_gene_count != requested_graph_gene_count
+            or graph.get("graph_axis_source_sha256") != TXPERT_CANDIDATE_GENE_SET_SHA256
+            or candidate_manifest.candidate_gene_set_sha256 != TXPERT_CANDIDATE_GENE_SET_SHA256
+            or candidate_manifest.txpert_public_commit != TXPERT_PUBLIC_COMMIT
+            or graph.get("candidate_target_order_sha256")
+            != candidate_manifest.candidate_target_order_sha256
+        ):
+            raise WorkerGateError(f"{label} TxPert candidate graph identity differs")
     gene_axis = Path(str(evidence_by_id["graph_gene_ids"]["path"]))
     try:
         gene_ids = gene_axis.read_text(encoding="utf-8").splitlines()
@@ -731,6 +771,16 @@ def _require_graph_artifacts(
         expected = source_hashes.get(source_name)
         if not isinstance(expected, str) or evidence_by_id[source_name]["sha256"] != expected:
             raise WorkerGateError(f"{label} graph {source_name} SHA-256 is malformed")
+    if graph_axis_policy == "txpert_candidate_gene_universe":
+        candidate_evidence = _regular_file_evidence(
+            Path(candidate_manifest.candidate_gene_set_path),
+            candidate_manifest.candidate_gene_set_sha256,
+            label=f"{label} TxPert candidate-gene source",
+        )
+        return [
+            *(evidence_by_id[artifact_id] for artifact_id in expected_specifications),
+            candidate_evidence,
+        ]
     ranking_path = Path(str(evidence_by_id["hvg_dispersion_ranking"]["path"]))
     try:
         ranking = json.loads(ranking_path.read_text(encoding="utf-8"))
@@ -1977,7 +2027,7 @@ def _resolve_preclaim_inputs(
         variant_id=args.variant_id,
     )
     try:
-        census.require_performance_sentinel_variant(binding.variant_id)
+        census.require_performance_worker_variant(binding.variant_id, stage_id=args.stage_id)
     except ValueError as error:
         raise WorkerGateError(str(error)) from error
     a0_binding = census.bind_matrix_variant(

@@ -1615,6 +1615,119 @@ def test_immutable_input_audit_detects_live_graph_and_data_tampering(
         )
 
 
+def test_candidate_graph_artifact_audit_has_no_hvg_ranking_dependency(
+    worker: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    graph_root = tmp_path / "data" / "graphs" / "txpert-candidate"
+    graph_root.mkdir(parents=True)
+    candidate_path = tmp_path / "gears_gene_set.csv"
+    candidate_path.write_bytes(b"sealed candidate source")
+    gene_ids = [f"gene-{index:04d}" for index in range(9853)]
+    gene_order_sha = worker._sha256_json(gene_ids)
+    targets = gene_ids[:3]
+    source_hashes = {}
+    for source_name in ("go", "string"):
+        path = graph_root / f"{source_name}.npz"
+        path.write_bytes(f"sealed-{source_name}".encode())
+        source_hashes[source_name] = worker._sha256_file(path)
+    topology_sha = worker._sha256_json(
+        {"graph_gene_order_sha256": gene_order_sha, "sources": source_hashes}
+    )
+    manifest = {
+        "schema_version": "txpert-candidate-gene-graph-v1",
+        "dataset_id": "nadig_jurkat",
+        "protocol_id": "within_cell_unseen_single",
+        "canonical_data_sha256": "1" * 64,
+        "split_content_sha256": "2" * 64,
+        "source_h5ad_sha256": "3" * 64,
+        "source_registry_sha256": "4" * 64,
+        "graph_axis_policy": "txpert_candidate_gene_universe",
+        "selection_method": "frozen_txpert_gears_gene_set_order",
+        "txpert_public_commit": worker.TXPERT_PUBLIC_COMMIT,
+        "candidate_gene_set_path": str(candidate_path),
+        "candidate_gene_set_sha256": worker.TXPERT_CANDIDATE_GENE_SET_SHA256,
+        "requested_gene_count": 9853,
+        "expression_gene_count": 5000,
+        "candidate_gene_ids": gene_ids,
+        "candidate_gene_order_sha256": gene_order_sha,
+        "candidate_target_ids": targets,
+        "candidate_target_order_sha256": worker._sha256_json(targets),
+        "graph_gene_ids": gene_ids,
+        "graph_gene_order_sha256": gene_order_sha,
+        "graph_gene_count": 9853,
+        "source_artifact_sha256": source_hashes,
+        "source_pruned_nonself_edge_count": {"go": 1, "string": 1},
+        "topology_content_sha256": topology_sha,
+        "top_k_incoming_per_source": 20,
+        "control_graph_node_included": False,
+        "gene_feature_policy": "learned_id",
+        "materialization_wall_ms": 1.0,
+    }
+    manifest_path = graph_root / "manifest.json"
+    manifest_path.write_text(worker.json.dumps(manifest), encoding="utf-8")
+    gene_axis_path = graph_root / "graph_gene_ids.txt"
+    gene_axis_path.write_text("\n".join(gene_ids) + "\n", encoding="utf-8")
+
+    roles = {
+        "manifest": "runtime_graph_manifest",
+        "graph_gene_ids": "ordered_graph_gene_axis",
+        "go": "pruned_go_graph",
+        "string": "pruned_string_graph",
+    }
+    paths = {
+        "manifest": manifest_path,
+        "graph_gene_ids": gene_axis_path,
+        "go": graph_root / "go.npz",
+        "string": graph_root / "string.npz",
+    }
+    artifacts = {
+        artifact_id: {
+            "path": str(path),
+            "sha256": worker._sha256_file(path),
+            "size_bytes": path.stat().st_size,
+            "role": roles[artifact_id],
+        }
+        for artifact_id, path in paths.items()
+    }
+    graph = {
+        "root_path": str(graph_root),
+        "manifest_path": str(manifest_path),
+        "manifest_file_sha256": artifacts["manifest"]["sha256"],
+        "artifacts": artifacts,
+        "requested_graph_gene_count": 9853,
+        "graph_axis_policy": "txpert_candidate_gene_universe",
+        "graph_axis_source_sha256": worker.TXPERT_CANDIDATE_GENE_SET_SHA256,
+        "graph_gene_order_sha256": gene_order_sha,
+        "topology_content_sha256": topology_sha,
+        "candidate_target_order_sha256": worker._sha256_json(targets),
+        "source_artifact_sha256": source_hashes,
+    }
+    real_sha256_file = worker._sha256_file
+    monkeypatch.setattr(
+        worker,
+        "_sha256_file",
+        lambda path, **kwargs: (
+            worker.TXPERT_CANDIDATE_GENE_SET_SHA256
+            if Path(path) == candidate_path
+            else real_sha256_file(path, **kwargs)
+        ),
+    )
+
+    evidence = worker._require_graph_artifacts(
+        graph, label="selected row", allowed_root=(tmp_path / "data").resolve()
+    )
+    assert len(evidence) == 5
+    assert not any("ranking" in str(item["label"]) for item in evidence)
+
+    graph["graph_axis_source_sha256"] = "f" * 64
+    with pytest.raises(worker.WorkerGateError, match="candidate graph identity"):
+        worker._require_graph_artifacts(
+            graph, label="selected row", allowed_root=(tmp_path / "data").resolve()
+        )
+
+
 def test_source_publication_receipt_is_rehashed_by_immutable_audit(
     worker: ModuleType,
     tmp_path: Path,
@@ -1967,5 +2080,33 @@ def test_preclaim_rejects_non_sentinel_variant_before_other_prerequisites(
     monkeypatch.setattr(worker, "_validate_args", lambda _args: None)
     monkeypatch.setattr(worker.census, "bind_matrix_variant", lambda *_args, **_kwargs: binding)
 
-    with pytest.raises(worker.WorkerGateError, match="eight-row sentinel"):
+    with pytest.raises(worker.WorkerGateError, match="sentinel or capacity-only"):
+        worker._resolve_preclaim_inputs(args)
+
+
+def test_preclaim_allows_h4_only_for_capacity(
+    worker: ModuleType,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    binding = SimpleNamespace(
+        variant_id="h4_txpert_candidate_ratio_half",
+        matrix_sha256="a" * 64,
+        config_sha256="b" * 64,
+    )
+    monkeypatch.setattr(worker, "_validate_args", lambda _args: None)
+    monkeypatch.setattr(worker.census, "bind_matrix_variant", lambda *_args, **_kwargs: binding)
+
+    args = _args(tmp_path, stage_id="p2_timing")
+    args.variant_id = binding.variant_id
+    with pytest.raises(worker.WorkerGateError, match="capacity-only"):
+        worker._resolve_preclaim_inputs(args)
+
+    args.stage_id = "p1_capacity"
+    monkeypatch.setattr(
+        worker.census,
+        "load_frozen_batch_manifest",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("past allowlist")),
+    )
+    with pytest.raises(RuntimeError, match="past allowlist"):
         worker._resolve_preclaim_inputs(args)
