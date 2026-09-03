@@ -130,9 +130,8 @@ generation.
 
 ## Performance-first execution gate
 
-No formal A/H queue launches until exact-effect performance engineering has
-completed for the new four-local A0 coordinate. L is configured and frozen but
-remains paused by user instruction. Performance work follows this order:
+The exact-effect performance gate for the four-local A0 coordinate completed
+before the formal A/H and L lineages launched. The accepted process was:
 
 1. Run the current accepted implementation as the real-data A0 reference in a
    capacity check and profiler on one idle physical GPU. Measure before choosing
@@ -175,14 +174,43 @@ HVG count did not improve all three metrics consistently: H3 has the highest
 Systema point estimate, while A0/H1 have the highest TxPert macro point
 estimates and A0 has the highest TriShift point estimate. The results do not
 establish equivalence or general superiority and do not authorize test-selected
-configuration changes. A0 remains the preregistered default; L remains paused.
+configuration changes. A0 remains the preregistered default.
 
 H4 was added after this completed lineage and has no result in the table above.
-It must run only after the active L1--L5 lineage completes and passes review.
-Before its formal 10-epoch run, H4 requires a fresh source/graph publication
+The L1--L5 execution barrier has now passed. Before H4's formal 10-epoch run,
+it still requires a fresh source/graph publication
 receipt and a one-step real-data CUDA capacity gate because its 50% local cap
 resolves to 4,926 nodes.
 
 The reviewed compact evidence is in
 `.byte-os/evidence/vnext-performance/formal-ah-four-local-845c10a.json`.
 Large scientific artifacts remain on `/data/yilangliu`.
+
+## Formal L results
+
+The fresh L-only lineage `formal-vnext-l-881862d-v5` completed L1--L5 at exact
+source `881862d`. Every row passed 5,820 contiguous optimizer steps, ten
+validations, one evaluation from `best.pt`, exactly three finite metrics, zero
+persistent PKL, and best-only checkpoint retention. The retained A0 row comes
+from source `845c10a`; it is cross-commit descriptive context, not an
+implementation-equivalence claim. An independent receipt verifies exact
+canonical split, gene order, and ordered 300-control/truth identities across
+the two lineages.
+
+| Row | Only changed factor vs A0 | TxPert macro delta | TriShift delta | Systema Pearson |
+|---|---|---:|---:|---:|
+| A0 (retained) | reference | 0.251406 | 0.245002 | 0.018933 |
+| L1 | Fanout builder | 0.257136 | 0.255547 | 0.036792 |
+| L2 | 8 local views | 0.234840 | 0.251431 | 0.065899 |
+| L3 | 25% local coverage | 0.242471 | 0.248325 | 0.005554 |
+| L4 | 50% anchor-mask ratio (`2/4`) | 0.255860 | 0.241372 | 0.031170 |
+| L5 | 25% anchor-mask ratio (`1/4`) | 0.247608 | 0.242451 | 0.011460 |
+
+At this single seed, L1 has higher point estimates than retained A0 on all
+three metrics and is the highest L row on TxPert and TriShift; L2 has the
+highest L-row Systema point estimate. These observations do not establish
+superiority or equivalence and do not by themselves authorize a default
+change.
+
+The reviewed compact evidence is in
+`.byte-os/evidence/vnext-performance/formal-l-four-local-881862d.json`.

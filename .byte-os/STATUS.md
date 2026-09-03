@@ -9,11 +9,26 @@ review_verdict: pass
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-09-03T11:30:00+08:00
+updated_at: 2026-09-04T00:25:00+08:00
 ---
 
 # Status
 
+- The fresh L-only lineage `formal-vnext-l-881862d-v5` is complete. L1--L5
+  each passed 5,820 contiguous steps, ten validations, one best-checkpoint
+  evaluation, exactly three finite metrics, zero PKL and best-only retention.
+  Independent strict validation passed at SHA
+  `e0f22e1fabdc6ca34e44a7404fb551f489da6dd3fecc0f78f8c561318d5e414c`;
+  the retained-A0 identity comparison passed at SHA
+  `6e31908314b5fc6d375afb3f192901fcf99ebf1a052ac67f5058e415c825b828`.
+  At one seed, L1 is above retained cross-commit A0 on all three point
+  estimates and L2 has the highest L-row Systema estimate; no superiority,
+  equivalence or default change is claimed.
+- The L barrier has passed. H4 is now the next formal row: the exact ordered
+  9,853-gene TxPert candidate universe with no control graph node, four
+  RingInduced locals and a half-graph cap of 4,926. It requires a new clean
+  synchronized source, graph receipt and one-step real-data CUDA capacity gate
+  before the formal 10-epoch run. M remains behind H4.
 - Plan 035 is complete. Exact source `75a2c2b` finished formal D3--D6; every
   row passed 5,820 contiguous steps, ten validations, one best-checkpoint
   evaluation, three finite metrics, identical canonical split/control/truth
@@ -23,26 +38,24 @@ updated_at: 2026-09-03T11:30:00+08:00
 - The user added H4 after the completed H0--H3 lineage. H4 binds the exact
   ordered 9,853-gene TxPert public candidate universe (no `ctrl` graph node),
   retains four RingInduced locals at ratio `1/2`, and advances the scientific
-  matrix to 30-row `nadig_jurkat_vnext_ratio_graph_v5`. It remains behind the
-  active L1--L5 barrier and requires a fresh graph receipt plus one-step CUDA
+  matrix to 30-row `nadig_jurkat_vnext_ratio_graph_v5`. It requires a fresh
+  graph receipt plus one-step CUDA
   capacity gate before its 10-epoch formal run.
-- The user reauthorized continuation of the prior ablation sequence. The next
-  module is a fresh L-only lineage for L1--L5; interrupted Plan 034 L roots stay
-  sealed and must never be resumed or relabeled. M remains behind the L module
-  barrier.
+- The user reauthorized continuation of the prior ablation sequence. The fresh
+  L-only lineage for L1--L5 is complete; interrupted Plan 034 L roots stay
+  sealed and must never be resumed or relabeled. M remains behind H4.
 - Plan 035 superseded the old Plan 034 queue and is now complete. The earlier
   L1/L2 roots remain sealed as user-interrupted; L3--L5 and M1/M2/M4 did not
-  start in that lineage. Completed E and D evidence is immutable. The next
-  formal priority is the newly authorized fresh L1--L5 lineage.
+  start in that lineage. Completed E and D evidence is immutable. The fresh
+  replacement L lineage is now complete.
 - D3/D4 use 64-wide perturbation states with direct `concat(b,p)` and
   `concat(b,p,T([b,p]))`; D5/D6 repeat those fusion choices with 256-wide
   perturbation states. For D6, only the Transformer token path applies learned
   `256 -> 64` projection, while the decoder retains raw `p256`. The scientific
   matrix was 29 rows before H4; the v5 matrix now has 30 rows.
-- Plan 034 is active. The user authorized formal E, D, L and M execution in
-  that exact module order under the completed four-local A0 coordinate. Rows
-  inside one module may use at most two GPUs, but a hard module barrier blocks
-  D until E passes, L until D passes and M until L passes.
+- Plan 034 authorized formal E, D, L and M execution in that order under the
+  completed four-local A0 coordinate. E, D and the fresh L replacement are
+  complete. The later H4 request inserts H4 before M.
 - The requested GenePT prior label `Protein+Reactome+SIGNOR` is the exact
   existing GenePT-Seed `protein-pathway` / `Seed-GO-ProteinPathway` artifact,
   not a second embedding. Server evidence binds 17,730 by 2,048
@@ -55,7 +68,7 @@ updated_at: 2026-09-03T11:30:00+08:00
   best-checkpoint evaluation, exact three metrics, identical canonical
   split/control/truth identities, zero PKL and best-only checkpoint retention.
   The single-seed H point estimates are mixed and do not replace A0 or establish
-  equivalence. L remains paused.
+  equivalence. The later fresh L-only lineage is complete.
 - Trackio is explicitly partial for this lineage: A0/H3 owner-only local stores
   completed, but private Bucket archives failed; H1/H2 local clients were
   blocked by the expired reverse SOCKS endpoint. Native scientific status and
@@ -72,15 +85,14 @@ updated_at: 2026-09-03T11:30:00+08:00
   29-row `nadig_jurkat_vnext_ratio_graph_v4`. H/M/W/D/E/O inherit four locals. L1 is
   Fanout with four locals; L2 is the direct eight-local count ablation; L3
   keeps four locals at ratio `1/4`; L4/L5 resolve mask ratios to `2/4` and
-  `1/4`. L execution remains paused.
+  `1/4`. The fresh L-only lineage is complete.
 - The accepted eight-local sparse-union implementation remains valid history,
   but its 56.253% result is not a four-local speed claim. Fresh four-local
   profiling selected repeated RingInduced edge/incident scans. At `1fc1576`,
   the immutable source-aware index passed exact CUDA state equality and serial
   same-GPU ABBA: paired ratio 0.848836, 15.116% and 452.540 ms lower step wall,
   improved p90, identical GPU memory, zero retry/OOM/PKL and no truth access.
-  Formal scope is A0/H1/H2/H3 with at most two independent single-GPU rows;
-  L remains paused.
+  Formal A0/H1/H2/H3 and the later fresh L1--L5 lineage are complete.
 - The v3 generator is deterministic and the integrated local surface passes
   544 tests with 2 honest skips under the locked dev/data/model/tracking
   extras, including 21 Trackio sidecar tests and all prior migration gates.

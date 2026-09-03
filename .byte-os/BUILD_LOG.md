@@ -1,5 +1,24 @@
 # Build Log
 
+## 2026-09-04 — formal four-local L completion
+
+- Completed the fresh `formal-vnext-l-881862d-v5` lineage for L1 Fanout, L2
+  eight locals, L3 quarter coverage, L4 half mask and L5 quarter mask. Every
+  row passed 5,820 contiguous steps, ten validations, one evaluation from
+  `best.pt`, exactly three finite metrics, zero PKL and best-only retention.
+- Independent strict validation passed at SHA
+  `e0f22e1fabdc6ca34e44a7404fb551f489da6dd3fecc0f78f8c561318d5e414c`.
+  Cross-commit comparison to retained A0 passed exact canonical split, gene
+  order, and ordered 300-control/truth identity checks at SHA
+  `6e31908314b5fc6d375afb3f192901fcf99ebf1a052ac67f5058e415c825b828`.
+- L1 has the highest L-row TxPert and TriShift point estimates and exceeds the
+  retained A0 point estimate on all three metrics; L2 has the highest L-row
+  Systema estimate. These are single-seed descriptive observations only, with
+  no equivalence, superiority or default-change claim.
+- Added reviewed small evidence at
+  `.byte-os/evidence/vnext-performance/formal-l-four-local-881862d.json`. The L
+  barrier is closed; H4 capacity is next and M remains behind H4.
+
 ## 2026-09-03 — plan 036 TxPert candidate graph-axis H4
 
 - Added `h4_txpert_candidate_ratio_half` to the H module as a graph-universe

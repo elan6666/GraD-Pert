@@ -108,10 +108,11 @@ STRING GATv2, single/multi sparse graph Transformers, native adaptive source
 fusion, five STRING weight routes, additive/MLP/control-conditioned-Transformer
 decoders, and a 2-by-2 concat/Transformer-concat by perturbation-width
 (64/256) decoder factorial, four GenePT feature routes, and three loss
-removals. The H module varies HVG512/1024/2048/5000 while retaining
-50% local coverage and four locals. The L module is frozen as direct A0
-single-factor rows: Fanout, eight locals, 25% local coverage, 50% mask ratio,
-or 25% mask ratio. L execution is currently paused.
+removals. The H module varies HVG512/1024/2048/5000 and adds an explicitly
+sourced H4 endpoint using TxPert's ordered 9,853-gene candidate universe,
+while retaining 50% local coverage and four locals. The L module is frozen as
+direct A0 single-factor rows: Fanout, eight locals, 25% local coverage, 50%
+mask ratio, or 25% mask ratio.
 
 The four-local runtime uses the accepted immutable RingInduced incoming-edge
 index. On the sealed Jurkat A0 path it passed exact CUDA state equality and
@@ -125,6 +126,12 @@ best-checkpoint evaluation and the zero-PKL contract. Larger HVG axes produced
 mixed single-seed point estimates rather than a consistent gain, so A0 remains
 the preregistered default and no equivalence claim is made. See
 [the H result table](docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md#formal-h-results).
+
+The formal L1--L5 lineage is also complete. In single-seed descriptive
+comparisons, L1 Fanout has higher point estimates than retained cross-commit A0
+on all three headline metrics, while L2 (eight locals) has the highest L-row
+Systema estimate. No superiority, equivalence, or default change is claimed.
+See [the L result table](docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md#formal-l-results).
 
 The formal D3--D6 decoder fusion-width factorial is also complete. Direct
 concat versus concat plus a two-token Transformer was evaluated at

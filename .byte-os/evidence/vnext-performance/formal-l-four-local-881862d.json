@@ -1,0 +1,114 @@
+{
+  "schema_version": "formal-vnext-l-final-validation-v1",
+  "lineage": "formal-vnext-l-881862d-v5",
+  "source_commit": "881862d7ac588263ac6a52686a0da09c275e4d18",
+  "scientific_validation": {
+    "status": "passed",
+    "strict_validation_path": "/data/yilangliu/GraD-Pert/contracts/formal-vnext-l-881862d-v5/strict-validation.json",
+    "strict_validation_sha256": "e0f22e1fabdc6ca34e44a7404fb551f489da6dd3fecc0f78f8c561318d5e414c",
+    "a0_comparison_path": "/data/yilangliu/GraD-Pert/contracts/formal-vnext-l-881862d-v5/strict-validation-a0-comparison.json",
+    "a0_comparison_sha256": "6e31908314b5fc6d375afb3f192901fcf99ebf1a052ac67f5058e415c825b828",
+    "queue_gpu0_receipt_sha256": "926fd652e769e449a95cf05420236fa6c6d70d7f2492d004e1041d5aaff20d9c",
+    "queue_gpu1_receipt_sha256": "463f454999f6d8df42258cc4d6ed3be3320f2ceaf69c131e75809b583a8ce542",
+    "canonical_data_sha256": "f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861",
+    "split_content_sha256": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0",
+    "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+    "gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+    "ordered_300_control_rows_sha256": "82f5c560b2adff1038e520b7a357f462b635d4017758692b540b1beac1fcd088",
+    "ordered_truth_rows_sha256": "3aaff864519da2880d0c629d0fa2b8e2c19525c052c4751aaee2838870f39e98",
+    "persistent_pkl_count": 0,
+    "checks": [
+      "exact source and clean run identity",
+      "5820 contiguous ordered optimizer steps per row",
+      "10 ordered validations per row",
+      "canonical test truth absent during fit",
+      "one evaluation from the retained best checkpoint",
+      "exactly three finite headline metrics",
+      "identical canonical split and ordered control/truth row identities",
+      "metrics_only null PKL fields and no surviving work directory",
+      "zero PKL across the whole lineage and only best.pt per row",
+      "one preregistered local-view factor changed per row"
+    ]
+  },
+  "contextual_a0": {
+    "source_commit": "845c10a19b71a6f74fa88a048ea09443f00b9509",
+    "builder": "RingInduced",
+    "node_budget_ratio": "1/2",
+    "local_view_count": 4,
+    "mask_view_ratio": "0/1",
+    "metrics": {
+      "txpert_macro_pearson_delta": 0.2514060568017894,
+      "trishift_pearson_delta": 0.24500225425749936,
+      "systema_pearson": 0.018932562289451206
+    },
+    "comparison_boundary": "retained cross-commit descriptive evidence with exact canonical split and ordered control/truth identities; not an implementation-equivalence claim"
+  },
+  "rows": {
+    "l1_fanout_ratio_half": {
+      "changed_factor": "local_builder=Fanout",
+      "effective_node_budget": 1404,
+      "local_view_count": 4,
+      "effective_mask_view_count": 0,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.25713580585274837,
+        "trishift_pearson_delta": 0.25554662741010836,
+        "systema_pearson": 0.036791980826292654
+      },
+      "row_receipt_sha256": "dbdec3effb278baeb31194627966897281c3a9dd92404be91a45d371d7890d7a",
+      "best_checkpoint_sha256": "26c8855fa8f664334f1cb4bc5f9feb697c33f7ec437e9c7fe221de4d317ae1dd"
+    },
+    "l2_ring_half_count8": {
+      "changed_factor": "local_view_count=8",
+      "effective_node_budget": 1404,
+      "local_view_count": 8,
+      "effective_mask_view_count": 0,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.23483962117649307,
+        "trishift_pearson_delta": 0.2514309578154652,
+        "systema_pearson": 0.06589896211499487
+      },
+      "row_receipt_sha256": "339dff887fc05bd062e2929c46566588f79b11ede5f2635b764288feb13df949",
+      "best_checkpoint_sha256": "75aaebd8d655ecd54874a5b759080847aa9c799fdd9bf772fea3f48fa6aac615"
+    },
+    "l3_ring_quarter": {
+      "changed_factor": "local_node_budget_ratio=1/4",
+      "effective_node_budget": 702,
+      "local_view_count": 4,
+      "effective_mask_view_count": 0,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.24247119142700263,
+        "trishift_pearson_delta": 0.24832523505624068,
+        "systema_pearson": 0.005553519884617724
+      },
+      "row_receipt_sha256": "ecd09bffd4dab5937e7e8b42f6aaadff6850b64cafd0a59085f7a3f16cd74a49",
+      "best_checkpoint_sha256": "e92f0f0b84233478a837edb2a305cfe655dbe9e70585671af373af6b6f122f99"
+    },
+    "l4_ring_half_mask_half": {
+      "changed_factor": "local_anchor_mask_view_ratio=1/2",
+      "effective_node_budget": 1404,
+      "local_view_count": 4,
+      "effective_mask_view_count": 2,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.2558596768036877,
+        "trishift_pearson_delta": 0.2413716075612189,
+        "systema_pearson": 0.031170224054269984
+      },
+      "row_receipt_sha256": "59c8004c41941a66618fb6e8ca1c54f6e408f20e9bc7d6ef5376ceff3686b603",
+      "best_checkpoint_sha256": "7801a4e7fde7cd6e448d6d4a9e6ea572133103aa7fd1770873db19ad0b06530e"
+    },
+    "l5_ring_half_mask_quarter": {
+      "changed_factor": "local_anchor_mask_view_ratio=1/4",
+      "effective_node_budget": 1404,
+      "local_view_count": 4,
+      "effective_mask_view_count": 1,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.24760762214902163,
+        "trishift_pearson_delta": 0.24245102883325736,
+        "systema_pearson": 0.011459764643440127
+      },
+      "row_receipt_sha256": "b221df13b494c4cdd2241b73638935b423896c26b5d35ae962b1dae0a3ecc18d",
+      "best_checkpoint_sha256": "7c45bdd1678a1f1c09dc7253c0a8823cc0614ac7a21b3da45abeebd2e6824b6c"
+    }
+  },
+  "interpretation": "Single-seed descriptive direct comparisons only. L1 has higher point estimates than retained A0 on all three metrics and is the highest L row on TxPert and TriShift; L2 is the highest L row on Systema. No equivalence, superiority, or default-change claim is made."
+}
