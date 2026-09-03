@@ -61,5 +61,36 @@ shape/gradient/checkpoint tests, a bounded training-only capacity gate and a
 fresh clean local/GitHub/server source identity. Formal rows retain seed 1,
 batch 256, four RingInduced half-graph locals, 16,384 prototypes, exactly 10
 epochs/5,820 ordered steps/10 validations, no early stopping, one test
-evaluation from `best.pt`, three native metrics, `metrics_only`, zero persistent
-PKL and Trackio as non-authoritative telemetry only.
+evaluation from `best.pt`, three native metrics, `metrics_only` and zero
+persistent PKL. Trackio was explicitly disabled for this lineage; native
+receipts are authoritative.
+
+## Formal results
+
+Lineage `formal-vnext-decoder-75a2c2b-v2` completed all four rows at exact
+source `75a2c2b`. Every row passed 5,820 ordered steps, ten validations, one
+evaluation from `best.pt`, the exact three finite metrics, zero persistent PKL
+and best-only checkpoint retention.
+
+| Row | TxPert macro delta | TriShift delta | Systema Pearson | Mean step wall |
+|---|---:|---:|---:|---:|
+| D3 concat, p64 | 0.247715 | 0.247435 | 0.025971 | 2,599 ms |
+| D4 concat+T, p64 | 0.209731 | 0.272646 | 0.003092 | 2,616 ms |
+| D5 concat, p256 | 0.233277 | 0.197498 | 0.035529 | 2,573 ms |
+| D6 concat+T, p256 | 0.221367 | 0.201207 | 0.008773 | 2,768 ms |
+
+At p64, D4 minus D3 is `-0.037984/+0.025210/-0.022879` across the
+TxPert/TriShift/Systema metrics. At p256, D6 minus D5 is
+`-0.011910/+0.003709/-0.026756`. Width 256 versus 64 is also mixed under both
+fusion routes. No factor improves all three metrics consistently.
+
+The completed four-local additive A0 is contextual cross-commit evidence:
+`0.251406/0.245002/0.018933`. D3 is closest on the TxPert primary point
+estimate, while D4 leads TriShift and D5 leads Systema. Because these are
+single-seed estimates, no equivalence or superiority claim is made and A0
+remains the preregistered default. D5/D6 differ from A0 in both fusion and
+width, so they are not direct single-factor comparisons to it.
+
+Reviewed compact evidence is at
+`.byte-os/evidence/vnext-performance/formal-decoder-75a2c2b.json`; large
+scientific artifacts remain on `/data/yilangliu`.

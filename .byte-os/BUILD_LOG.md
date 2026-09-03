@@ -850,3 +850,22 @@
 - Post-result local gates pass 578 tests with two honest skips (frozen upstream
   evidence absent and CUDA unavailable), Ruff, format on 258 files, strict mypy
   on 76 source files, JSON/diff checks and an isolated wheel/sdist build.
+
+## 2026-09-03 — decoder fusion-width formal completion
+
+- Exact source `75a2c2b` completed D3--D6. Independent strict replay validated
+  5,820 contiguous steps, ten validations, no test truth during fit, one
+  hash-matched best-checkpoint evaluation, three finite metrics and the exact
+  2-by-2 fusion/width factors for every row.
+- All rows share canonical data SHA `f051343c...e845861`, split SHA
+  `ecb2099c...63cdd0`, condition-order SHA `3cfe9206...338b15`, ordered
+  300-control SHA `de102e67...dff0b8` and truth SHA `e410ef47...3c4ef`.
+- The lineage contains zero PKL, no surviving work directory and only
+  `best.pt` per row. Trackio was disabled by explicit user instruction.
+- Factorial point estimates are mixed; neither Transformer interaction nor
+  width 256 improves all three metrics consistently. Additive A0 remains the
+  preregistered default without an equivalence or superiority claim.
+- Post-result local gates passed 595 tests with two honest skips (frozen
+  upstream evidence absent and CUDA unavailable), Ruff, format on 262 files,
+  strict mypy on 76 source files, JSON/diff checks and an isolated wheel/sdist
+  build from the locked environment.

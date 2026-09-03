@@ -9,15 +9,25 @@ review_verdict: pass
 iteration_count: 1
 harness_status: ready
 hard_blocked: false
-updated_at: 2026-09-02T16:00:00+08:00
+updated_at: 2026-09-03T11:30:00+08:00
 ---
 
 # Status
 
-- Plan 035 is active and supersedes the remaining Plan 034 queue order. At the
-  user's request, active L1/L2 were stopped and sealed as user-interrupted;
-  L3--L5 and M1/M2/M4 did not start. Completed E and historical D evidence is
-  immutable. The next formal priority is a fresh decoder factorial D3--D6.
+- Plan 035 is complete. Exact source `75a2c2b` finished formal D3--D6; every
+  row passed 5,820 contiguous steps, ten validations, one best-checkpoint
+  evaluation, three finite metrics, identical canonical split/control/truth
+  identities, zero PKL and best-only retention. Neither Transformer fusion nor
+  perturbation width 256 improved all three metrics consistently, so additive
+  A0 remains the default without an equivalence claim.
+- The user reauthorized continuation of the prior ablation sequence. The next
+  module is a fresh L-only lineage for L1--L5; interrupted Plan 034 L roots stay
+  sealed and must never be resumed or relabeled. M remains behind the L module
+  barrier.
+- Plan 035 superseded the old Plan 034 queue and is now complete. The earlier
+  L1/L2 roots remain sealed as user-interrupted; L3--L5 and M1/M2/M4 did not
+  start in that lineage. Completed E and D evidence is immutable. The next
+  formal priority is the newly authorized fresh L1--L5 lineage.
 - D3/D4 use 64-wide perturbation states with direct `concat(b,p)` and
   `concat(b,p,T([b,p]))`; D5/D6 repeat those fusion choices with 256-wide
   perturbation states. For D6, only the Transformer token path applies learned

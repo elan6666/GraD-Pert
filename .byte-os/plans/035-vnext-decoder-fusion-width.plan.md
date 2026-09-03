@@ -1,7 +1,7 @@
 ---
 schema_version: 1
 plan_id: 035-vnext-decoder-fusion-width
-status: active
+status: complete
 owner: repository-owner
 created_at: 2026-09-02
 ---
@@ -42,8 +42,18 @@ learned 256-to-64 projection. Raw `p256` remains in the decoder input.
 - [x] Test shapes, token projection, gradients, Teacher EMA and checkpoint
   restoration at both widths.
 - [x] Pass full local pytest, Ruff, format, strict mypy and isolated build.
-- [ ] Commit/push and synchronize one clean exact source to the server.
-- [ ] Run bounded training-only capacity gates with no validation/test access.
-- [ ] Launch fresh formal D3--D6 only after capacity and identity gates pass.
-- [ ] Validate 5,820 ordered steps, ten validations, one best-checkpoint test,
+- [x] Commit/push and synchronize one clean exact source to the server.
+- [x] Run bounded training-only capacity gates with no validation/test access.
+- [x] Launch fresh formal D3--D6 only after capacity and identity gates pass.
+- [x] Validate 5,820 ordered steps, ten validations, one best-checkpoint test,
   exact three metrics, zero persistent PKL and final-only `best.pt` per row.
+
+## Completion
+
+- Exact source `75a2c2b` completed D3--D6 in lineage
+  `formal-vnext-decoder-75a2c2b-v2`.
+- All four rows passed strict replay of source, config, step, validation,
+  best-checkpoint evaluation, metric, canonical identity and zero-PKL gates.
+- Neither Transformer interaction nor width 256 improved all three metrics
+  consistently. A0 remains the preregistered default; comparisons are
+  single-seed descriptive evidence only.

@@ -126,6 +126,12 @@ mixed single-seed point estimates rather than a consistent gain, so A0 remains
 the preregistered default and no equivalence claim is made. See
 [the H result table](docs/experiments/VNEXT_GRAPH_SCALE_AND_LOCAL_ABLATIONS.md#formal-h-results).
 
+The formal D3--D6 decoder fusion-width factorial is also complete. Direct
+concat versus concat plus a two-token Transformer was evaluated at
+perturbation widths 64 and 256. Neither factor improved all three metrics
+consistently, so the additive A0 remains the default. See
+[the decoder result table](docs/experiments/VNEXT_DECODER_FUSION_WIDTH.md#formal-results).
+
 GenePT E rows use the frozen GenePT-Seed `Seed-GO-ProteinPathway` master
 artifact (SHA-256
 `34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318`).

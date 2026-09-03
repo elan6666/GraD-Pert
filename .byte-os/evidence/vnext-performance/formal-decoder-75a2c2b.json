@@ -1,0 +1,113 @@
+{
+  "schema_version": "formal-vnext-decoder-final-validation-v1",
+  "lineage": "formal-vnext-decoder-75a2c2b-v2",
+  "source_commit": "75a2c2b723ad2ac874789688a2de6261df00658b",
+  "source_tree_sha256": "38fec539fd21e9147bdfa2a0e6a8beb8065a82876126df0b2f7a1035b5cf5064",
+  "source_publication_receipt_sha256": "c563a3266c7a67c3dfa8f978f8ebeb848bcc0cf5602e05d6efcc9cf06ddab889",
+  "scientific_validation": {
+    "status": "passed",
+    "canonical_data_sha256": "f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861",
+    "split_content_sha256": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0",
+    "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+    "condition_count": 592,
+    "condition_order_sha256": "3cfe920623437df9a43867e0033359199d68dfced76fee33acfa5de044338b15",
+    "ordered_300_control_rows_sha256": "de102e670d8c8eb54d814a6ba9e2f57262b0f8d0f664e8476a5e9e847edff0b8",
+    "ordered_truth_rows_sha256": "e410ef47db09af9b0da46430d6b95971faeedcbd778801cf5a0eb0471af3c4ef",
+    "queue_gpu0_receipt_sha256": "4a4b3471a052753055ff0d1136f2ec06559813b979b3b3d66965461f4425a7b1",
+    "queue_gpu1_receipt_sha256": "84ecc884a9de038d32a495d827215abc8f4602539fd862a13dac2dcebd1c0397",
+    "persistent_pkl_count": 0,
+    "checks": [
+      "exact clean source and publication identity",
+      "5820 contiguous ordered optimizer steps per row",
+      "10 ordered validations per row",
+      "canonical test truth absent during fit",
+      "one evaluation from the retained best checkpoint",
+      "exactly three finite headline metrics",
+      "identical canonical split and ordered control/truth row identities",
+      "metrics_only null PKL fields and no surviving work directory",
+      "zero PKL across the whole lineage and only best.pt per row",
+      "exact 2x2 decoder fusion and perturbation-width factors",
+      "four RingInduced half-graph locals and CPU-vectorized sparse union"
+    ]
+  },
+  "contextual_a0": {
+    "source_commit": "845c10a19b71a6f74fa88a048ea09443f00b9509",
+    "decoder_mode": "additive",
+    "perturbation_width": 64,
+    "metrics": {
+      "txpert_macro_pearson_delta": 0.2514060568017894,
+      "trishift_pearson_delta": 0.24500225425749936,
+      "systema_pearson": 0.018932562289451206
+    },
+    "comparison_boundary": "cross-commit contextual evidence; D5 and D6 change two factors relative to A0"
+  },
+  "rows": {
+    "d3_concat_p64": {
+      "decoder_mode": "concat",
+      "perturbation_width": 64,
+      "optimizer_steps": 5820,
+      "validations": 10,
+      "test_evaluations": 1,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.24771540112610846,
+        "trishift_pearson_delta": 0.24743514523106,
+        "systema_pearson": 0.025970578763221428
+      },
+      "mean_step_wall_ms": 2599.123564530757,
+      "peak_allocated_gpu_bytes": 10201180672,
+      "row_receipt_sha256": "8f8c151b1bc3ce3ea9bac27cb825fcb21308f890a2ee6cebcf36989620e3ebc4"
+    },
+    "d4_concat_transformer_p64": {
+      "decoder_mode": "concat_transformer",
+      "perturbation_width": 64,
+      "optimizer_steps": 5820,
+      "validations": 10,
+      "test_evaluations": 1,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.20973118420405543,
+        "trishift_pearson_delta": 0.2726456349305592,
+        "systema_pearson": 0.003091786153548872
+      },
+      "mean_step_wall_ms": 2615.517645192344,
+      "peak_allocated_gpu_bytes": 10205534720,
+      "row_receipt_sha256": "98fedc899bc8a39ebcae878f9bad91a83366c0ecba00ec21dc60393d44e5bcc6"
+    },
+    "d5_concat_p256": {
+      "decoder_mode": "concat",
+      "perturbation_width": 256,
+      "optimizer_steps": 5820,
+      "validations": 10,
+      "test_evaluations": 1,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.2332767788518206,
+        "trishift_pearson_delta": 0.1974976824472958,
+        "systema_pearson": 0.035528747328955855
+      },
+      "mean_step_wall_ms": 2572.632620787479,
+      "peak_allocated_gpu_bytes": 10248272896,
+      "row_receipt_sha256": "28239acf879de17c9c2f17c1fa8c1fd8245e2b813b048839408d0e2d8eae424a"
+    },
+    "d6_concat_transformer_p256": {
+      "decoder_mode": "concat_transformer",
+      "perturbation_width": 256,
+      "optimizer_steps": 5820,
+      "validations": 10,
+      "test_evaluations": 1,
+      "metrics": {
+        "txpert_macro_pearson_delta": 0.22136687212448944,
+        "trishift_pearson_delta": 0.20120682438965176,
+        "systema_pearson": 0.00877286989710037
+      },
+      "mean_step_wall_ms": 2768.1528911439354,
+      "peak_allocated_gpu_bytes": 10253153280,
+      "row_receipt_sha256": "44a7659a5bf9c8b4789442b9ccadd1bb3372c0756494adfc0ecb64fac7e52f94"
+    }
+  },
+  "factorial_contrasts": {
+    "transformer_at_p64_d4_minus_d3": [-0.03798421692205303, 0.02521048969949921, -0.022878792609672557],
+    "transformer_at_p256_d6_minus_d5": [-0.011909906727331165, 0.00370914194235597, -0.026755877431855486],
+    "width_at_direct_concat_d5_minus_d3": [-0.014438622274287854, -0.04993746278376421, 0.009558168565734427],
+    "width_at_transformer_concat_d6_minus_d4": [0.011635687920434012, -0.07143881054090745, 0.005681083743551498]
+  },
+  "interpretation": "Single-seed descriptive comparisons only. Neither Transformer interaction nor width 256 improves all three metrics consistently; A0 remains the preregistered default without an equivalence or superiority claim."
+}
