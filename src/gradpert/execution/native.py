@@ -845,6 +845,7 @@ def run_native_experiment(
             "runtime_graph_gene_count": len(training_data.graph_gene_ids),
             "runtime_graph_gene_order_sha256": sha256_json(list(training_data.graph_gene_ids)),
             "systems_optimizations": system_options.payload(),
+            "gradient_schedule_implementation": engine.gradient_schedule_implementation,
         }
         write_training_data_receipt(training_data, small_root / "training_data.json")
         trainer = GraDPertTrainer(

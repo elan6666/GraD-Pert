@@ -467,6 +467,17 @@ class GraDPertStepEngine:
         )
         if self.ring_induced_implementation not in {"reference", "indexed"}:
             raise ValueError("GRADPERT_RING_INDUCED_IMPL must be reference or indexed")
+        self.gradient_schedule_implementation = os.environ.get(
+            "GRADPERT_GRADIENT_SCHEDULE_IMPL",
+            "reference",
+        )
+        if self.gradient_schedule_implementation not in {
+            "reference",
+            "staged_auxiliary",
+        }:
+            raise ValueError(
+                "GRADPERT_GRADIENT_SCHEDULE_IMPL must be reference or staged_auxiliary"
+            )
         self.incoming_neighbors = (
             build_incoming_neighbor_index(topology) if resident_graph_tensors else None
         )
@@ -819,6 +830,32 @@ class GraDPertStepEngine:
             + self.loss_weights.spread * spread_loss
         )
 
+        trainable_parameters = tuple(
+            parameter for parameter in self.model.parameters() if parameter.requires_grad
+        )
+        auxiliary_gradients: tuple[Tensor | None, ...] | None = None
+        if self.gradient_schedule_implementation == "staged_auxiliary":
+            with self._observe_stage("auxiliary_grad", global_step=global_step):
+                auxiliary_gradients = torch.autograd.grad(
+                    auxiliary_loss,
+                    trainable_parameters,
+                    allow_unused=True,
+                )
+            # autograd.grad has released the auxiliary branch's saved tensors.
+            # Drop the remaining large encoder outputs before prediction so the
+            # two branches do not overlap at their memory peaks.
+            del (
+                student_encoded,
+                teacher_encoded,
+                student_view_logits,
+                student_global_states,
+                teacher_condition_states,
+                spread_terms,
+                student_masked_states,
+                student_masked_logits,
+                teacher_masked_states,
+            )
+
         mark("prediction_start")
         with self._observe_stage("prediction_forward", global_step=global_step):
             prediction = self.model.predict_expression_batch(
@@ -850,15 +887,13 @@ class GraDPertStepEngine:
             masked_entropy, masked_used = _distribution_health(masked_probabilities)
 
         mark("backward_start")
-        trainable_parameters = tuple(
-            parameter for parameter in self.model.parameters() if parameter.requires_grad
-        )
-        with self._observe_stage("auxiliary_grad", global_step=global_step):
-            auxiliary_gradients = torch.autograd.grad(
-                auxiliary_loss,
-                trainable_parameters,
-                allow_unused=True,
-            )
+        if auxiliary_gradients is None:
+            with self._observe_stage("auxiliary_grad", global_step=global_step):
+                auxiliary_gradients = torch.autograd.grad(
+                    auxiliary_loss,
+                    trainable_parameters,
+                    allow_unused=True,
+                )
         with self._observe_stage("prediction_backward", global_step=global_step):
             self.optimizer.zero_grad(set_to_none=True)
             weighted_prediction_loss.backward()  # type: ignore[no-untyped-call]
