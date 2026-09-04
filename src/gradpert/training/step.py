@@ -478,6 +478,20 @@ class GraDPertStepEngine:
             raise ValueError(
                 "GRADPERT_GRADIENT_SCHEDULE_IMPL must be reference or staged_auxiliary"
             )
+        global_checkpointing = os.environ.get(
+            "GRADPERT_GLOBAL_ACTIVATION_CHECKPOINTING",
+            "disabled",
+        )
+        if global_checkpointing not in {"disabled", "enabled"}:
+            raise ValueError("GRADPERT_GLOBAL_ACTIVATION_CHECKPOINTING must be disabled or enabled")
+        self.checkpoint_student_global_activations = global_checkpointing == "enabled"
+        if self.checkpoint_student_global_activations and not isinstance(
+            self.model.student_encoder,
+            ConfigurableGeneGraphEncoder,
+        ):
+            raise ValueError(
+                "global activation checkpointing requires the configurable graph encoder"
+            )
         self.incoming_neighbors = (
             build_incoming_neighbor_index(topology) if resident_graph_tensors else None
         )
@@ -734,7 +748,14 @@ class GraDPertStepEngine:
 
         mark("student_global_start")
         with self._observe_stage("student_global_forward", global_step=global_step):
-            student_encoded = self.model.student_encoder.forward_many(views.globals)
+            if self.checkpoint_student_global_activations:
+                if not isinstance(self.model.student_encoder, ConfigurableGeneGraphEncoder):
+                    raise AssertionError("global checkpointing encoder guard was bypassed")
+                student_encoded = self.model.student_encoder.forward_many_checkpointed(
+                    views.globals
+                )
+            else:
+                student_encoded = self.model.student_encoder.forward_many(views.globals)
         student_global_states_list: list[Tensor] = []
         for global_view_index, encoded in enumerate(student_encoded):
             with self._observe_stage(

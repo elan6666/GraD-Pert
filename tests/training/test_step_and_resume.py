@@ -705,6 +705,7 @@ def test_staged_auxiliary_gradient_schedule_preserves_complete_first_step_trajec
     )
 
     monkeypatch.setenv("GRADPERT_GRADIENT_SCHEDULE_IMPL", "reference")
+    monkeypatch.setenv("GRADPERT_GLOBAL_ACTIVATION_CHECKPOINTING", "disabled")
     _seed_all(20260904)
     reference_model, reference_optimizer, reference_centers, reference = _vnext_components(
         checkpoint_student_local_activations=True,
@@ -725,6 +726,7 @@ def test_staged_auxiliary_gradient_schedule_preserves_complete_first_step_trajec
     reference_masked_center = reference_centers.masked_node.detach().clone()
 
     monkeypatch.setenv("GRADPERT_GRADIENT_SCHEDULE_IMPL", "staged_auxiliary")
+    monkeypatch.setenv("GRADPERT_GLOBAL_ACTIVATION_CHECKPOINTING", "enabled")
     _seed_all(20260904)
     optimized_model, optimized_optimizer, optimized_centers, optimized = _vnext_components(
         checkpoint_student_local_activations=True,
@@ -757,6 +759,17 @@ def test_gradient_schedule_selector_fails_closed(monkeypatch: pytest.MonkeyPatch
     with pytest.raises(
         ValueError,
         match="GRADPERT_GRADIENT_SCHEDULE_IMPL must be reference or staged_auxiliary",
+    ):
+        _vnext_components()
+
+
+def test_global_activation_checkpointing_selector_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GRADPERT_GLOBAL_ACTIVATION_CHECKPOINTING", "invented")
+    with pytest.raises(
+        ValueError,
+        match="GRADPERT_GLOBAL_ACTIVATION_CHECKPOINTING must be disabled or enabled",
     ):
         _vnext_components()
 
