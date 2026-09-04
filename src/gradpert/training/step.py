@@ -814,6 +814,7 @@ class GraDPertStepEngine:
             student_masked_logits = self.model.student_projector(student_masked_states)
             with torch.no_grad():
                 teacher_masked_logits = self.model.teacher_projector(teacher_masked_states)
+            masked_center_input = teacher_masked_logits
             masked_loss = masked_node_consistency_loss(
                 student_logits=student_masked_logits,
                 teacher_logits=teacher_masked_logits,
@@ -834,6 +835,8 @@ class GraDPertStepEngine:
             parameter for parameter in self.model.parameters() if parameter.requires_grad
         )
         auxiliary_gradients: tuple[Tensor | None, ...] | None = None
+        masked_entropy: float | None = None
+        masked_used = 0
         if self.gradient_schedule_implementation == "staged_auxiliary":
             with self._observe_stage("auxiliary_grad", global_step=global_step):
                 auxiliary_gradients = torch.autograd.grad(
@@ -841,6 +844,14 @@ class GraDPertStepEngine:
                     trainable_parameters,
                     allow_unused=True,
                 )
+            if masked_node_ids:
+                masked_probabilities = centered_teacher_probabilities(
+                    teacher_masked_logits,
+                    self.centers.masked_node,
+                )
+                masked_entropy, masked_used = _distribution_health(masked_probabilities)
+                masked_center_input = teacher_masked_logits.detach().mean(dim=0, keepdim=True)
+                del masked_probabilities, teacher_masked_logits
             # autograd.grad has released the auxiliary branch's saved tensors.
             # Drop the remaining large encoder outputs before prediction so the
             # two branches do not overlap at their memory peaks.
@@ -877,9 +888,7 @@ class GraDPertStepEngine:
             ]
         )
         condition_entropy, condition_used = _distribution_health(condition_probabilities)
-        masked_entropy: float | None = None
-        masked_used = 0
-        if masked_node_ids:
+        if masked_node_ids and masked_entropy is None:
             masked_probabilities = centered_teacher_probabilities(
                 teacher_masked_logits,
                 self.centers.masked_node,
@@ -965,7 +974,7 @@ class GraDPertStepEngine:
                 torch.cat(teacher_condition_logits),
             )
             if masked_node_ids:
-                update_center(self.centers.masked_node, teacher_masked_logits)
+                update_center(self.centers.masked_node, masked_center_input)
         if capture_health:
             update_order.append("center_update")
         mark("backward_end")
