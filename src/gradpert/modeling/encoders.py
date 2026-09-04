@@ -575,6 +575,25 @@ class _SparseGraphTransformerLayer(nn.Module):
         self.feed_forward_2 = nn.Linear(hidden_dim * 2, hidden_dim)
         self.feed_forward_norm = nn.BatchNorm1d(hidden_dim)
 
+    def _normalize(self, values: Tensor, norm: nn.BatchNorm1d) -> Tensor:
+        if self.training and values.shape[0] == 1:
+            # A STRING-only perturbation anchor can be isolated, yielding a
+            # valid one-node local graph. BatchNorm cannot estimate variance
+            # from that graph, so preserve its accumulated running statistics
+            # without coupling this view to another independently normalized
+            # view or inventing duplicate nodes.
+            return F.batch_norm(
+                values,
+                norm.running_mean,
+                norm.running_var,
+                norm.weight,
+                norm.bias,
+                training=False,
+                momentum=0.0,
+                eps=norm.eps,
+            )
+        return cast(Tensor, norm(values))
+
     def forward(
         self,
         node_states: Tensor,
@@ -606,7 +625,7 @@ class _SparseGraphTransformerLayer(nn.Module):
         attention = weighted_value / normalizer.clamp_min(1e-6).unsqueeze(-1)
         attention = attention.reshape(node_count, self.hidden_dim)
         attention = F.dropout(attention, p=self.dropout, training=self.training)
-        state = self.attention_norm(node_states + attention)
+        state = self._normalize(node_states + attention, self.attention_norm)
         if self.local_layer is not None:
             local = self.local_layer(node_states, local_edge_index, None)
             state = state + local
@@ -618,7 +637,7 @@ class _SparseGraphTransformerLayer(nn.Module):
             )
         )
         feed_forward = F.dropout(feed_forward, p=self.dropout, training=self.training)
-        return cast(Tensor, self.feed_forward_norm(state + feed_forward))
+        return self._normalize(state + feed_forward, self.feed_forward_norm)
 
 
 class SparseGraphTransformerEncoder(NativeGraphEncoder):

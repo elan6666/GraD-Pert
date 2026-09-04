@@ -115,3 +115,19 @@
 - Prevention: before a multi-row capacity launch, test every exact variant ID
   through the same preclaim predicate used by the worker, plus negative tests
   proving non-authorized rows and all timing/profile stages remain rejected.
+
+## One-step capacity probes must include degenerate graph views
+
+- Mistake: the sparse Transformer capacity probe completed its first batch,
+  but a later STRING-only condition produced a valid isolated-anchor local
+  graph with one node. Training BatchNorm then failed because a singleton view
+  has no estimable batch variance.
+- Correct boundary: independent graph views keep their own normalization order.
+  A singleton view uses the BatchNorm layer's existing running statistics
+  without updating them; ordinary views with two or more nodes retain the
+  original BatchNorm path exactly. Do not merge views or duplicate nodes merely
+  to manufacture normalization samples.
+- Prevention: graph-encoder integration gates must include connected,
+  disconnected and isolated perturbation anchors beyond the first frozen
+  batch. Test singleton forward/backward finiteness and unchanged running
+  means, variances and batch counters.

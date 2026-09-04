@@ -293,6 +293,55 @@ def test_sparse_transformer_keeps_fixed_channel_semantics_for_undirected_source(
     assert output.shape == (2, 3)
 
 
+def test_sparse_transformer_singleton_graph_preserves_batchnorm_state() -> None:
+    isolated = GraphSourceTensors(
+        name="string",
+        edge_index=torch.empty((2, 0), dtype=torch.long),
+        edge_weight=torch.empty((0,), dtype=torch.float32),
+    )
+    model = SparseGraphTransformerEncoder(
+        source_names=("string",),
+        input_dim=4,
+        hidden_dim=4,
+        output_dim=3,
+        layer_count=1,
+        head_count=1,
+        dropout=0.0,
+        expander_degree=0,
+        add_local_message_passing=False,
+    ).train()
+    layer = model.layers[0]
+    before = {
+        "attention_mean": layer.attention_norm.running_mean.detach().clone(),
+        "attention_var": layer.attention_norm.running_var.detach().clone(),
+        "attention_batches": layer.attention_norm.num_batches_tracked.detach().clone(),
+        "feed_forward_mean": layer.feed_forward_norm.running_mean.detach().clone(),
+        "feed_forward_var": layer.feed_forward_norm.running_var.detach().clone(),
+        "feed_forward_batches": layer.feed_forward_norm.num_batches_tracked.detach().clone(),
+    }
+    inputs = torch.randn(1, 4, requires_grad=True)
+
+    output = model(inputs, (isolated,))
+    output.sum().backward()
+
+    assert output.shape == (1, 3)
+    assert torch.isfinite(output).all()
+    assert inputs.grad is not None
+    assert torch.isfinite(inputs.grad).all()
+    torch.testing.assert_close(layer.attention_norm.running_mean, before["attention_mean"])
+    torch.testing.assert_close(layer.attention_norm.running_var, before["attention_var"])
+    torch.testing.assert_close(
+        layer.attention_norm.num_batches_tracked,
+        before["attention_batches"],
+    )
+    torch.testing.assert_close(layer.feed_forward_norm.running_mean, before["feed_forward_mean"])
+    torch.testing.assert_close(layer.feed_forward_norm.running_var, before["feed_forward_var"])
+    torch.testing.assert_close(
+        layer.feed_forward_norm.num_batches_tracked,
+        before["feed_forward_batches"],
+    )
+
+
 def test_all_encoders_fail_closed_on_wrong_source_order() -> None:
     string, go = _graphs()
     inputs = torch.randn(5, 8)
