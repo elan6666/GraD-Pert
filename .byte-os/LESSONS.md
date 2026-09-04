@@ -101,3 +101,17 @@
   a hash-pinned launch preflight, test proxy loss between rows, and defer the
   live Bucket operation until post-row archival. Never replay this completed
   lineage to manufacture missing telemetry.
+
+## Capacity policy must enumerate every authorized non-sentinel row
+
+- Mistake: a fresh M capacity queue used the bounded performance worker, but
+  only H4 was registered as capacity-only. M4 ran because it belonged to the
+  frozen sentinel; M1 then failed before claiming an attempt because it was
+  absent from both allowlists.
+- Correct boundary: keep the eight-row sentinel immutable and maintain a
+  separate explicit allowlist for user-authorized M, W, O, and H4 capacity
+  probes. These additional rows may run only `p1_capacity`, never timing or
+  profiling stages, and remain `scientific_completion=false`.
+- Prevention: before a multi-row capacity launch, test every exact variant ID
+  through the same preclaim predicate used by the worker, plus negative tests
+  proving non-authorized rows and all timing/profile stages remain rejected.

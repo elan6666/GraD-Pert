@@ -2075,7 +2075,7 @@ def test_preclaim_rejects_non_sentinel_variant_before_other_prerequisites(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     args = _args(tmp_path, stage_id="p1_capacity")
-    args.variant_id = "o2_no_masked_node"
+    args.variant_id = "e1_frozen_genept"
     binding = SimpleNamespace(variant_id=args.variant_id)
     monkeypatch.setattr(worker, "_validate_args", lambda _args: None)
     monkeypatch.setattr(worker.census, "bind_matrix_variant", lambda *_args, **_kwargs: binding)
@@ -2084,13 +2084,28 @@ def test_preclaim_rejects_non_sentinel_variant_before_other_prerequisites(
         worker._resolve_preclaim_inputs(args)
 
 
-def test_preclaim_allows_h4_only_for_capacity(
+@pytest.mark.parametrize(
+    "variant_id",
+    [
+        "h4_txpert_candidate_ratio_half",
+        "m1_single_string_gat",
+        "m2_single_string_transformer",
+        "w2_string_fixed_prior",
+        "w3_string_prior_residual",
+        "ws_string_weight_shuffle",
+        "o1_no_condition",
+        "o2_no_masked_node",
+        "o3_no_spread",
+    ],
+)
+def test_preclaim_allows_explicit_capacity_only_rows_only_for_capacity(
     worker: ModuleType,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    variant_id: str,
 ) -> None:
     binding = SimpleNamespace(
-        variant_id="h4_txpert_candidate_ratio_half",
+        variant_id=variant_id,
         matrix_sha256="a" * 64,
         config_sha256="b" * 64,
     )

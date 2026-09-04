@@ -49,7 +49,17 @@ PERFORMANCE_SENTINEL_VARIANT_IDS = (
     "d2_control_transformer",
     "e2_genept_id_residual",
 )
-PERFORMANCE_CAPACITY_ONLY_VARIANT_IDS = ("h4_txpert_candidate_ratio_half",)
+PERFORMANCE_CAPACITY_ONLY_VARIANT_IDS = (
+    "h4_txpert_candidate_ratio_half",
+    "m1_single_string_gat",
+    "m2_single_string_transformer",
+    "w2_string_fixed_prior",
+    "w3_string_prior_residual",
+    "ws_string_weight_shuffle",
+    "o1_no_condition",
+    "o2_no_masked_node",
+    "o3_no_spread",
+)
 PERFORMANCE_SENTINEL_ROLES = {
     A0_VARIANT_ID: "reference_ring_induced_half",
     "h3_hvg5000_ratio_half": "maximum_hvg_graph_axis_capacity",
