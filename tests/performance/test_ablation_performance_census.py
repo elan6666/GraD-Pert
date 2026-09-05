@@ -167,7 +167,7 @@ def _repository_identity_payload() -> dict[str, object]:
         "head_tree": "b" * 40,
         "source_tree_sha256": "c" * 64,
         "remote_url": "https://github.com/elan6666/GraD-Pert.git",
-        "remote_ref": "refs/heads/codex/vnext-performance",
+        "remote_ref": "refs/heads/main",
         "published_commit": "a" * 40,
         "formal_eligible": True,
         "status_porcelain": "",

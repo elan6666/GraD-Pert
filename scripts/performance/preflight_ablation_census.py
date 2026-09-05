@@ -43,7 +43,7 @@ from gradpert.pilots import (  # noqa: E402
 
 SUPPORTED_HVG_COUNTS = (512, 1024, 2048, 5000)
 EXPECTED_REPOSITORY = "https://github.com/elan6666/GraD-Pert"
-SOURCE_REMOTE_REF = "refs/heads/codex/vnext-performance"
+SOURCE_REMOTE_REF = "refs/heads/main"
 
 
 class PreflightError(RuntimeError):

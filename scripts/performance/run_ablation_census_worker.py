@@ -290,7 +290,7 @@ def _resolve_p0_preflight(
         or any(character not in "0123456789abcdef" for character in source_tree_sha256)
         or not isinstance(source.get("remote_url"), str)
         or not source.get("remote_url")
-        or source.get("remote_ref") != "refs/heads/codex/vnext-performance"
+        or source.get("remote_ref") != "refs/heads/main"
         or source.get("published_commit") != args.development_commit
         or source.get("formal_eligible") is not True
         or source.get("publication_receipt_path") != publication_receipt["path"]
@@ -1025,7 +1025,7 @@ def _repository_identity_evidence(
             formal=True,
             expected_repository="https://github.com/elan6666/GraD-Pert",
             development_commit=args.development_commit,
-            remote_ref="refs/heads/codex/vnext-performance",
+            remote_ref="refs/heads/main",
             publication_receipt=Path(str(publication_receipt["path"])),
             expected_publication_receipt_sha256=args.source_publication_receipt_sha256,
         )
