@@ -122,7 +122,7 @@ def test_genept_rows_bind_seed_go_protein_pathway_master_and_unfiltered_graph() 
             "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318"
         )
         assert parameters["genept_artifact_path"].value == (
-            "/data/yilangliu/GenePT-Seed/data/embeddings/seed-go-protein-pathway-master-aligned.npz"
+            "/data/yilangliu/DinoGenePT/data/embeddings/seed-go-protein-pathway-master-aligned.npz"
         )
         assert parameters["runtime_graph_root"].value.endswith("hvg512_plus_targets")
 

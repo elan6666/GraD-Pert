@@ -20,7 +20,7 @@ DECODER_FACTORIAL_REFERENCE = "docs/experiments/VNEXT_DECODER_FUSION_WIDTH.md"
 # GenePT-Seed names this exact artifact ``Seed-GO-ProteinPathway``.  Its
 # scientific factor is Protein+Reactome+SIGNOR; no second file is implied.
 GENEPT_PROTEIN_REACTOME_SIGNOR_PATH = (
-    "/data/yilangliu/GenePT-Seed/data/embeddings/seed-go-protein-pathway-master-aligned.npz"
+    "/data/yilangliu/DinoGenePT/data/embeddings/seed-go-protein-pathway-master-aligned.npz"
 )
 GENEPT_PROTEIN_REACTOME_SIGNOR_SHA256 = (
     "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318"
