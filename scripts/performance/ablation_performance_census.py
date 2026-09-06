@@ -92,7 +92,7 @@ EXACT_NATIVE_IDENTITY_FILES = frozenset(
 )
 EXACT_GENEPT_NATIVE_IDENTITY_FILES = frozenset({"genept_preflight.json", "genept_feature.json"})
 
-StageId = Literal["p1_capacity", "p2_timing", "p3_timing", "diagnostic_profile"]
+StageId = Literal["p1_capacity", "p2_timing", "p3_timing", "diagnostic_profile", "m2_regression"]
 RowState = Literal[
     "not_selected_performance_sentinel",
     "unavailable_preflight",
@@ -129,6 +129,14 @@ class StageProtocol:
 
 
 STAGE_PROTOCOLS: dict[StageId, StageProtocol] = {
+    "m2_regression": StageProtocol(
+        stage_id="m2_regression",
+        warmup_steps=0,
+        measured_steps=32,
+        timing_acceptance=False,
+        heavy_capacity_instrumentation=True,
+        torch_profiler_enabled=False,
+    ),
     "p1_capacity": StageProtocol(
         stage_id="p1_capacity",
         warmup_steps=0,
@@ -530,6 +538,10 @@ def require_performance_sentinel_variant(variant_id: str) -> None:
 def require_performance_worker_variant(variant_id: str, *, stage_id: StageId) -> None:
     """Keep the sentinel frozen while permitting explicit capacity-only probes."""
 
+    if stage_id == "m2_regression":
+        if variant_id != "m2_single_string_transformer":
+            raise ValueError("M2 regression accepts only the single-STRING Transformer row")
+        return
     if variant_id in PERFORMANCE_SENTINEL_VARIANT_IDS:
         return
     if stage_id == "p1_capacity" and variant_id in PERFORMANCE_CAPACITY_ONLY_VARIANT_IDS:

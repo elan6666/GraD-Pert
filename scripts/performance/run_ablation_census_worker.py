@@ -43,7 +43,7 @@ from gradpert.pilots.txpert_candidate_graph_axis import (  # noqa: E402
 )
 
 GIB = 1024**3
-SUPPORTED_STAGES = ("p1_capacity", "p2_timing", "diagnostic_profile")
+SUPPORTED_STAGES = ("p1_capacity", "p2_timing", "diagnostic_profile", "m2_regression")
 
 
 class BoundedCensusComplete(RuntimeError):
@@ -63,10 +63,12 @@ class RuntimeModules:
     torch: Any
     native_execution: Any
     engine_class: type[Any]
+    sparse_transformer_layer_class: type[Any] | None = None
 
 
 @dataclass
 class WorkerState:
+    singleton_normalization_steps: list[int] = field(default_factory=list)
     batches: list[Any] = field(default_factory=list)
     steps: list[dict[str, object]] = field(default_factory=list)
     timing_samples_ms: list[float] = field(default_factory=list)
@@ -396,7 +398,7 @@ def _resolve_stage_prerequisite(
     batch_manifest: Any,
     p0_preflight: Mapping[str, object],
 ) -> dict[str, object] | None:
-    required = args.stage_id in {"p2_timing", "diagnostic_profile"}
+    required = args.stage_id in {"p2_timing", "diagnostic_profile", "m2_regression"}
     if not required:
         if args.p1_receipt is not None or args.p1_receipt_sha256 is not None:
             raise WorkerGateError("P1 capacity stage cannot accept a P1 prerequisite")
@@ -1567,6 +1569,17 @@ def _execute_bounded_native(
     original_train_step = runtime.engine_class.train_step
     original_evaluator = runtime.native_execution.CanonicalEvaluationData
     original_validation = runtime.native_execution.evaluate_validation_macro_delta
+    layer_class = runtime.sparse_transformer_layer_class
+    original_normalize = None
+    if args.stage_id == "m2_regression" and layer_class is not None:
+        original_normalize = layer_class._normalize
+
+        def observed_normalize(layer: Any, values: Any, norm: Any) -> Any:
+            result = original_normalize(layer, values, norm)
+            if layer.training and values.shape[0] == 1:
+                state.singleton_normalization_steps.append(len(state.steps))
+            return result
+
     atomic_observer: Any | None = None
     if protocol.heavy_capacity_instrumentation:
         atomic_observer = census.AtomicStageObserver(
@@ -1696,6 +1709,8 @@ def _execute_bounded_native(
     runtime.native_execution.CanonicalEvaluationData = _evaluation_guard_factory(state.evaluation)
     runtime.native_execution.evaluate_validation_macro_delta = reject_validation
     try:
+        if original_normalize is not None:
+            layer_class._normalize = observed_normalize
         runtime.native_execution.run_native_experiment(
             config_path=Path(binding.config_path),
             data_root=args.data_root,
@@ -1727,10 +1742,20 @@ def _execute_bounded_native(
                 )
                 profiler_stopped = True
         finally:
+            if original_normalize is not None:
+                layer_class._normalize = original_normalize
             runtime.engine_class.train_step = original_train_step
             runtime.native_execution.CanonicalEvaluationData = original_evaluator
             runtime.native_execution.evaluate_validation_macro_delta = original_validation
 
+    if (
+        args.stage_id == "m2_regression"
+        and state.primary_failure is None
+        and not state.singleton_normalization_steps
+    ):
+        state.primary_failure = WorkerGateError(
+            "M2 regression did not exercise singleton normalization"
+        )
     try:
         state.native_identity_receipts = _collect_native_identity_receipts(attempt_root)
         _require_native_identity_receipts(
@@ -1958,6 +1983,11 @@ def _build_stage_receipt(
         "steps": state.steps,
         "resource_preflight": dict(resource_preflight),
         "capacity_evidence": capacity,
+        "singleton_normalization_evidence": {
+            "successful_call_count": len(state.singleton_normalization_steps),
+            "ordered_global_steps": state.singleton_normalization_steps,
+            "required": args.stage_id == "m2_regression",
+        },
         "stage_evidence": {
             "atomic_progress_receipt": (
                 str(attempt_root / "stage-progress.json")
@@ -1982,12 +2012,14 @@ def _load_runtime() -> RuntimeModules:
     import torch
 
     import gradpert.execution.native as native_execution
+    from gradpert.modeling.encoders import _SparseGraphTransformerLayer
     from gradpert.training.step import GraDPertStepEngine
 
     return RuntimeModules(
         torch=torch,
         native_execution=native_execution,
         engine_class=GraDPertStepEngine,
+        sparse_transformer_layer_class=_SparseGraphTransformerLayer,
     )
 
 
@@ -2012,7 +2044,10 @@ def _validate_args(args: argparse.Namespace) -> None:
         raise WorkerGateError("P1 receipt path/SHA must be supplied together")
     if args.stage_id == "p1_capacity" and p1_pair_present:
         raise WorkerGateError("P1 capacity stage cannot accept a P1 prerequisite")
-    if args.stage_id in {"p2_timing", "diagnostic_profile"} and not p1_pair_present:
+    if (
+        args.stage_id in {"p2_timing", "diagnostic_profile", "m2_regression"}
+        and not p1_pair_present
+    ):
         raise WorkerGateError(f"{args.stage_id} requires a P1 prerequisite")
 
 

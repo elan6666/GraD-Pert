@@ -585,10 +585,26 @@ def _immutable_inputs_fixture(worker: ModuleType, tmp_path: Path):
 def test_worker_cli_excludes_p3(worker: ModuleType) -> None:
     actions = {action.dest: action for action in worker._parser()._actions}
     choices = actions["stage_id"].choices
-    assert set(choices) == {"p1_capacity", "p2_timing", "diagnostic_profile"}
+    assert set(choices) == {"p1_capacity", "p2_timing", "diagnostic_profile", "m2_regression"}
     assert "p3_timing" not in choices
     assert actions["source_publication_receipt"].required is True
     assert actions["source_publication_receipt_sha256"].required is True
+
+
+def test_m2_regression_is_bounded_and_scoped(worker: ModuleType, tmp_path: Path) -> None:
+    protocol = worker.census.STAGE_PROTOCOLS["m2_regression"]
+    assert protocol.total_steps == 32
+    assert protocol.timing_acceptance is False
+    assert protocol.heavy_capacity_instrumentation is True
+    worker.census.require_performance_worker_variant(
+        "m2_single_string_transformer", stage_id="m2_regression"
+    )
+    for row in ("a0_ratio_ring_half", "m4_adaptive_source_gat", "h4_txpert_candidate_ratio_half"):
+        with pytest.raises(ValueError, match="M2 regression accepts only"):
+            worker.census.require_performance_worker_variant(row, stage_id="m2_regression")
+    args = _args(tmp_path, stage_id="m2_regression")
+    with pytest.raises(worker.WorkerGateError, match="requires a P1"):
+        worker._validate_args(args)
 
 
 def test_p2_and_profile_require_paired_p1_prerequisite(worker: ModuleType, tmp_path: Path) -> None:
@@ -1002,7 +1018,7 @@ def test_ordered_batch_identity_fails_on_anchor_axis_or_condition_mismatch(
 
 @pytest.mark.parametrize(
     ("stage_id", "expected_steps", "expected_timings"),
-    [("p1_capacity", 1, 0), ("p2_timing", 25, 20)],
+    [("p1_capacity", 1, 0), ("p2_timing", 25, 20), ("m2_regression", 32, 0)],
 )
 def test_bounded_worker_reuses_native_path_and_never_reaches_validation(
     worker: ModuleType,
@@ -1030,7 +1046,10 @@ def test_bounded_worker_reuses_native_path_and_never_reaches_validation(
         batch_manifest=_batch_manifest(worker, tmp_path),
         p0_preflight=_p0_binding(),
     )
-    assert state.primary_failure is None
+    if stage_id == "m2_regression":
+        assert "did not exercise singleton" in str(state.primary_failure)
+    else:
+        assert state.primary_failure is None
     assert len(state.steps) == expected_steps
     assert len(state.batches) == expected_steps
     assert len(state.timing_samples_ms) == expected_timings
@@ -1039,12 +1058,53 @@ def test_bounded_worker_reuses_native_path_and_never_reaches_validation(
     assert state.evaluation["validation_callback_count"] == 0
     assert state.evaluation["truth_access_attempts"] == []
     assert _Engine.train_step.__name__ == "train_step"
-    if stage_id == "p1_capacity":
+    if stage_id in {"p1_capacity", "m2_regression"}:
         progress = attempt_root / "stage-progress.json"
         assert progress.is_file()
-        assert '"status": "complete"' in progress.read_text(encoding="utf-8")
+        expected_status = "failed" if stage_id == "m2_regression" else "complete"
+        assert f'"status": "{expected_status}"' in progress.read_text(encoding="utf-8")
     else:
         assert not (attempt_root / "stage-progress.json").exists()
+
+
+def test_m2_singleton_observer_counts_and_restores(worker: ModuleType, tmp_path: Path) -> None:
+    class Layer:
+        training = True
+
+        def _normalize(self, values, norm):
+            return values
+
+    original = Layer._normalize
+
+    class Engine(_Engine):
+        def train_step(self, batch, *, global_step):
+            values = SimpleNamespace(shape=(1 if global_step == 28 else 2, 128))
+            assert Layer()._normalize(values, None) is values
+            return super().train_step(batch, global_step=global_step)
+
+    args = _args(tmp_path, stage_id="m2_regression")
+    attempt = tmp_path / "attempt-001"
+    attempt.mkdir()
+    state = worker._execute_bounded_native(
+        args,
+        binding=_binding(tmp_path),
+        attempt_root=attempt,
+        runtime=worker.RuntimeModules(
+            torch=_Torch(),
+            native_execution=_Native(engine_class=Engine),
+            engine_class=Engine,
+            sparse_transformer_layer_class=Layer,
+        ),
+        resource_preflight=_preflight(),
+        repository_identity=_repository_identity(worker, args),
+        genept_preflight=(None, None),
+        batch_manifest=_batch_manifest(worker, tmp_path),
+        p0_preflight=_p0_binding(),
+    )
+    assert state.primary_failure is None
+    assert state.singleton_normalization_steps == [28]
+    assert len(state.steps) == 32
+    assert Layer._normalize is original
 
 
 def test_frozen_batch_mismatch_fails_before_optimizer_step(
