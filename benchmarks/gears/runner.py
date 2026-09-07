@@ -112,6 +112,8 @@ def run_one_epoch(
     development_commit: str | None,
     smoke: bool = False,
     smoke_run_root: Path | None = None,
+    source_publication_receipt: Path | None = None,
+    source_publication_receipt_sha256: str | None = None,
 ) -> dict[str, object]:
     config_file = config_path.resolve(strict=True)
     config = load_experiment_config(config_file)
@@ -133,6 +135,8 @@ def run_one_epoch(
         formal=formal,
         expected_repository=PROJECT_REPOSITORY,
         development_commit=development_commit,
+        publication_receipt=source_publication_receipt,
+        expected_publication_receipt_sha256=source_publication_receipt_sha256,
     )
     environment = inspect_environment(
         repository_root,
@@ -403,6 +407,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--smoke-run-root", type=Path)
+    parser.add_argument("--source-publication-receipt", type=Path)
+    parser.add_argument("--source-publication-receipt-sha256")
     parser.add_argument("--receipt", type=Path)
     parser.add_argument("--data-root", type=Path)
     parser.add_argument("--official-data-root", type=Path)
@@ -441,6 +447,8 @@ def main(argv: list[str] | None = None) -> None:
             development_commit=args.development_commit,
             smoke=args.smoke,
             smoke_run_root=args.smoke_run_root,
+            source_publication_receipt=args.source_publication_receipt,
+            source_publication_receipt_sha256=args.source_publication_receipt_sha256,
         )
     rendered = json.dumps(payload, indent=2, sort_keys=True)
     if args.receipt:
