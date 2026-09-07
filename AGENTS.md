@@ -72,8 +72,25 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   `result.pkl`, never separate prediction/evaluation PKLs.
 - The default zero-PKL postcondition applies to the whole successful run root,
   including isolated official-runner adapter and checkpoint metadata.
-- After launching long-running training, stop continuous goal execution and use
-  the scheduled monitor for periodic receipt/process checks. Do not busy-poll.
+- Use adaptive scheduled queries instead of Pursue Goal / continuous goal
+  execution for long-running work. Do not create or reactivate a goal to keep
+  a download, preparation job, or training run moving.
+- Choose each monitor's scope, next action, and interval from the current task
+  stage and observed progress. Intervals are adjustable, not fixed for the
+  lifetime of an experiment: for example, check a dataset download every
+  20 minutes, then update the same monitor to hourly when training begins.
+  Use a suitable interval for other stages based on expected duration, risk,
+  resource cost, and the user's explicit instructions.
+- On a stage transition or meaningful state change, update the existing
+  automation's prompt and interval; do not create duplicate monitors. Inspect
+  bounded logs/processes/receipts, perform authorized next steps when their
+  prerequisites pass, then end the turn. Never busy-poll or replace scheduled
+  queries with repeated sleeps or a continuous execution loop.
+- Keep routine healthy/unchanged checks quiet. Notify only for meaningful
+  progress, completion, failure, or a required user decision, unless the user
+  explicitly requests regular updates. Preserve pauses, stop requests, and
+  notification preferences; delete obsolete or completed monitors. A monitor
+  never expands the user's authorized scope.
 - Every native CUDA capacity/smoke/full process must start with
   `PYTORCH_ALLOC_CONF=expandable_segments:True`; the runner fails closed when
   this allocator contract is missing or changed.
