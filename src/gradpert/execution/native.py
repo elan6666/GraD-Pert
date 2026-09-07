@@ -783,6 +783,9 @@ def run_native_experiment(
             model,
             learning_rate=float(config.training.learning_rate.value),
             weight_decay=float(config.training.weight_decay.value),
+            allow_combination_learning_rate=(
+                config.training.formal_run_policy == "vnext_combination_100"
+            ),
         )
         centers = CenterState.zeros(prototype_count=prototype_count, device=device)
         heldout_ids = tuple(

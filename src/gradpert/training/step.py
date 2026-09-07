@@ -224,9 +224,12 @@ def build_native_optimizer(
     *,
     learning_rate: float = 0.001,
     weight_decay: float = 0.0,
+    allow_combination_learning_rate: bool = False,
 ) -> torch.optim.AdamW:
-    if learning_rate != 0.001 or weight_decay != 0.0:
+    if weight_decay != 0.0 or (learning_rate != 0.001 and not allow_combination_learning_rate):
         raise ValueError("v1 AdamW learning rate/weight decay are frozen to 1e-3/0")
+    if not 0.0 < learning_rate < float("inf"):
+        raise ValueError("learning rate must be finite and positive")
     return torch.optim.AdamW(
         (parameter for parameter in model.parameters() if parameter.requires_grad),
         lr=learning_rate,
