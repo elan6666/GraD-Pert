@@ -1,0 +1,1122 @@
+{
+  "schema_version": "remaining-ablation-audit-v1",
+  "reference": "/data/yilangliu/GraD-Pert/runs/formal-vnext-m-1bb0068-v1/m1_single_string_gat/gradpert_b2/nadig_jurkat/seed-1/small_results",
+  "rows": [
+    {
+      "variant": "o1_no_condition",
+      "lineage": "formal-vnext-o-51e922f-v1",
+      "source_commit": "51e922f2a74494151b5ddf3839eaf79bb6243117",
+      "config_sha256": "61839bced8e800cac3d0100ca5f10d8fce426eeae2ffbe854edecd1e5d34fb36",
+      "metrics": [
+        {
+          "available": true,
+          "finite_condition_count": 592,
+          "macro_mean": 0.2567266208407176,
+          "metric_id": "txpert_macro_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.2594602151137059,
+          "metric_id": "trishift_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.04262363746179516,
+          "metric_id": "systema_pearson",
+          "reason": null,
+          "total_condition_count": 592
+        }
+      ],
+      "architecture_config_keys_checked": [
+        "decoder_mode",
+        "gene_feature_mode",
+        "global_view_count",
+        "graph_add_reverse_edges",
+        "graph_add_self_loops",
+        "graph_axis_policy",
+        "graph_encoder_family",
+        "graph_expander_degree",
+        "graph_first_source_local_branch",
+        "graph_hvg_count",
+        "local_view_builder",
+        "local_view_count",
+        "string_weight_mode"
+      ],
+      "architecture": {
+        "decoder_mode": "additive",
+        "gene_feature_mode": "learned_id",
+        "genept_expected_sha256": null,
+        "global_view_count": 2,
+        "graph_add_reverse_edges": true,
+        "graph_add_self_loops": true,
+        "graph_axis_policy": "recomputed_hvg_union_candidate_targets",
+        "graph_axis_source_sha256": null,
+        "graph_dropout": 0.1,
+        "graph_encoder_family": "multi_source_sparse_transformer",
+        "graph_expander_degree": 3,
+        "graph_first_source_local_branch": true,
+        "graph_head_count": 2,
+        "graph_hidden_dim": 128,
+        "graph_hvg_count": 512,
+        "graph_input_dim": 128,
+        "graph_layer_count": 4,
+        "graph_output_dim": 64,
+        "graph_sources": [
+          "string",
+          "go"
+        ],
+        "legacy_local_anchor_mask_count": null,
+        "legacy_local_view_node_budget": null,
+        "local_anchor_mask_view_ratio_denominator": 1,
+        "local_anchor_mask_view_ratio_numerator": 0,
+        "local_view_builder": "ring_induced",
+        "local_view_count": 4,
+        "local_view_fanout": [
+          20,
+          10,
+          5,
+          5
+        ],
+        "local_view_node_budget_ratio_denominator": 2,
+        "local_view_node_budget_ratio_numerator": 1,
+        "schema_version": "native-architecture-vnext-2",
+        "string_weight_mode": "selection_only"
+      },
+      "resolved_locals": {
+        "derivation_mode": "ratio",
+        "effective_mask_view_count": 0,
+        "effective_node_budget": 1404,
+        "graph_node_count": 2809,
+        "local_view_count": 4,
+        "mask_view_ratio": "0/1",
+        "node_budget_ratio": "1/2",
+        "node_budget_remainder": 1,
+        "requested_fixed_mask_view_count": null,
+        "requested_fixed_node_budget": null,
+        "schema_version": "resolved-local-view-contract-v1"
+      },
+      "file_sha256": {
+        "run_manifest.json": "29e5c364239323404c3b1fa408d91aac6d3917fe43eab725245ed0be8e083dac",
+        "training_receipt.json": "e338f03669e35c62dbdcb631f3d8171bbbd4c27e47cfca9d2757396ab2f0ce0e",
+        "run_meta.json": "bbd9b36525e4e23e95133a7adbc99083fb7b4339fb1fba3af912419d21fc7a97",
+        "systems_runtime.json": "f5eb3a0d2eb63d0a18379ef1d4715198a04331e5048e122b7495cd72c0b48d29",
+        "prediction_manifest.json": "599de3acc6ec5183415c4729c5854aa7e2b5dcd7129c9fb3abeeeb6bcff933bb",
+        "evaluation_manifest.json": "5856e85eea2b3dac4b8160adc48e293e86225cd77ba9f69c1db1a3e8796cd135",
+        "metrics_summary.json": "37fa64b6478dd527404669e8943f70fe241343aceef7aa384aef08160e6b1feb"
+      },
+      "core_and_fairness_checks": "passed",
+      "wrapper_status": "reported_complete"
+    },
+    {
+      "variant": "o2_no_masked_node",
+      "lineage": "formal-vnext-o-51e922f-v1",
+      "source_commit": "51e922f2a74494151b5ddf3839eaf79bb6243117",
+      "config_sha256": "f1e491ebfbfdc88155e1708b7bab26da66a5fd0033ac425e46960fd1f7b9d232",
+      "metrics": [
+        {
+          "available": true,
+          "finite_condition_count": 592,
+          "macro_mean": 0.24799328114686964,
+          "metric_id": "txpert_macro_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.22689223831160227,
+          "metric_id": "trishift_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.026272021763862292,
+          "metric_id": "systema_pearson",
+          "reason": null,
+          "total_condition_count": 592
+        }
+      ],
+      "architecture_config_keys_checked": [
+        "decoder_mode",
+        "gene_feature_mode",
+        "global_view_count",
+        "graph_add_reverse_edges",
+        "graph_add_self_loops",
+        "graph_axis_policy",
+        "graph_encoder_family",
+        "graph_expander_degree",
+        "graph_first_source_local_branch",
+        "graph_hvg_count",
+        "local_view_builder",
+        "local_view_count",
+        "string_weight_mode"
+      ],
+      "architecture": {
+        "decoder_mode": "additive",
+        "gene_feature_mode": "learned_id",
+        "genept_expected_sha256": null,
+        "global_view_count": 2,
+        "graph_add_reverse_edges": true,
+        "graph_add_self_loops": true,
+        "graph_axis_policy": "recomputed_hvg_union_candidate_targets",
+        "graph_axis_source_sha256": null,
+        "graph_dropout": 0.1,
+        "graph_encoder_family": "multi_source_sparse_transformer",
+        "graph_expander_degree": 3,
+        "graph_first_source_local_branch": true,
+        "graph_head_count": 2,
+        "graph_hidden_dim": 128,
+        "graph_hvg_count": 512,
+        "graph_input_dim": 128,
+        "graph_layer_count": 4,
+        "graph_output_dim": 64,
+        "graph_sources": [
+          "string",
+          "go"
+        ],
+        "legacy_local_anchor_mask_count": null,
+        "legacy_local_view_node_budget": null,
+        "local_anchor_mask_view_ratio_denominator": 1,
+        "local_anchor_mask_view_ratio_numerator": 0,
+        "local_view_builder": "ring_induced",
+        "local_view_count": 4,
+        "local_view_fanout": [
+          20,
+          10,
+          5,
+          5
+        ],
+        "local_view_node_budget_ratio_denominator": 2,
+        "local_view_node_budget_ratio_numerator": 1,
+        "schema_version": "native-architecture-vnext-2",
+        "string_weight_mode": "selection_only"
+      },
+      "resolved_locals": {
+        "derivation_mode": "ratio",
+        "effective_mask_view_count": 0,
+        "effective_node_budget": 1404,
+        "graph_node_count": 2809,
+        "local_view_count": 4,
+        "mask_view_ratio": "0/1",
+        "node_budget_ratio": "1/2",
+        "node_budget_remainder": 1,
+        "requested_fixed_mask_view_count": null,
+        "requested_fixed_node_budget": null,
+        "schema_version": "resolved-local-view-contract-v1"
+      },
+      "file_sha256": {
+        "run_manifest.json": "cabe71c1019357e2242736626099a802f6736ec0695de614d7bff51c3250e0ab",
+        "training_receipt.json": "ec8d6bea439259e1a2afa3aa764e1adcb285578406382789b865acf31a3c8ed7",
+        "run_meta.json": "ba89325a4929302dcfe9e09a2bb2b596c043eafe120f17dee2faaedd2cbeb3c0",
+        "systems_runtime.json": "f5eb3a0d2eb63d0a18379ef1d4715198a04331e5048e122b7495cd72c0b48d29",
+        "prediction_manifest.json": "7058e986836e1432712368dbf2429451e43a37fea036a5f79096842ca7667c69",
+        "evaluation_manifest.json": "2881875adca995d685220c8855553648958bdfab17b4948ada7be44a93d335d5",
+        "metrics_summary.json": "c3ebf71cf4c5c6374a824c675f08de59f22c76f61bbf23b8a13d299c1b47ed05"
+      },
+      "core_and_fairness_checks": "passed",
+      "wrapper_status": "reported_complete"
+    },
+    {
+      "variant": "o3_no_spread",
+      "lineage": "formal-vnext-o-51e922f-v1",
+      "source_commit": "51e922f2a74494151b5ddf3839eaf79bb6243117",
+      "config_sha256": "6b12759e62c64960b5ef4e74426bc12da79434e5a454dda4358e4749daad16ff",
+      "metrics": [
+        {
+          "available": true,
+          "finite_condition_count": 592,
+          "macro_mean": 0.25266491791247014,
+          "metric_id": "txpert_macro_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.23441394222435244,
+          "metric_id": "trishift_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.020035339600240936,
+          "metric_id": "systema_pearson",
+          "reason": null,
+          "total_condition_count": 592
+        }
+      ],
+      "architecture_config_keys_checked": [
+        "decoder_mode",
+        "gene_feature_mode",
+        "global_view_count",
+        "graph_add_reverse_edges",
+        "graph_add_self_loops",
+        "graph_axis_policy",
+        "graph_encoder_family",
+        "graph_expander_degree",
+        "graph_first_source_local_branch",
+        "graph_hvg_count",
+        "local_view_builder",
+        "local_view_count",
+        "string_weight_mode"
+      ],
+      "architecture": {
+        "decoder_mode": "additive",
+        "gene_feature_mode": "learned_id",
+        "genept_expected_sha256": null,
+        "global_view_count": 2,
+        "graph_add_reverse_edges": true,
+        "graph_add_self_loops": true,
+        "graph_axis_policy": "recomputed_hvg_union_candidate_targets",
+        "graph_axis_source_sha256": null,
+        "graph_dropout": 0.1,
+        "graph_encoder_family": "multi_source_sparse_transformer",
+        "graph_expander_degree": 3,
+        "graph_first_source_local_branch": true,
+        "graph_head_count": 2,
+        "graph_hidden_dim": 128,
+        "graph_hvg_count": 512,
+        "graph_input_dim": 128,
+        "graph_layer_count": 4,
+        "graph_output_dim": 64,
+        "graph_sources": [
+          "string",
+          "go"
+        ],
+        "legacy_local_anchor_mask_count": null,
+        "legacy_local_view_node_budget": null,
+        "local_anchor_mask_view_ratio_denominator": 1,
+        "local_anchor_mask_view_ratio_numerator": 0,
+        "local_view_builder": "ring_induced",
+        "local_view_count": 4,
+        "local_view_fanout": [
+          20,
+          10,
+          5,
+          5
+        ],
+        "local_view_node_budget_ratio_denominator": 2,
+        "local_view_node_budget_ratio_numerator": 1,
+        "schema_version": "native-architecture-vnext-2",
+        "string_weight_mode": "selection_only"
+      },
+      "resolved_locals": {
+        "derivation_mode": "ratio",
+        "effective_mask_view_count": 0,
+        "effective_node_budget": 1404,
+        "graph_node_count": 2809,
+        "local_view_count": 4,
+        "mask_view_ratio": "0/1",
+        "node_budget_ratio": "1/2",
+        "node_budget_remainder": 1,
+        "requested_fixed_mask_view_count": null,
+        "requested_fixed_node_budget": null,
+        "schema_version": "resolved-local-view-contract-v1"
+      },
+      "file_sha256": {
+        "run_manifest.json": "991a448a5bac8cb0e6e03a509e390eee0720db74fc1324796a53d43b5b391519",
+        "training_receipt.json": "ba593acae5eb3a60608e7912a4eff157c0e2c2b1d6b8fe653572db3ddcb33b0b",
+        "run_meta.json": "4018ebd0a03d29ccec62b2a9ea7c18af20e3411064691b9a396875749a914d9c",
+        "systems_runtime.json": "f5eb3a0d2eb63d0a18379ef1d4715198a04331e5048e122b7495cd72c0b48d29",
+        "prediction_manifest.json": "8c84fe317fe89c156197a165c088a66e6db65039e4fbb243900670e918f8d9dc",
+        "evaluation_manifest.json": "645342b25bc590c4144ca3b76ba6bb102498a5135ef02d38729645c5c210dcc3",
+        "metrics_summary.json": "15908ee4d3a1ec5c023cb3e308498c6346c0fbc87f865a1b354e0a16dd2b1baf"
+      },
+      "core_and_fairness_checks": "passed",
+      "wrapper_status": "reported_complete"
+    },
+    {
+      "variant": "w1_string_edge_feature",
+      "lineage": "formal-vnext-w-51e922f-v1",
+      "source_commit": "51e922f2a74494151b5ddf3839eaf79bb6243117",
+      "config_sha256": "b0ee6bbcf2fffe1ad62f2aaed87eb93fbb944551ab3e607379fa25b6a93138e1",
+      "metrics": [
+        {
+          "available": true,
+          "finite_condition_count": 592,
+          "macro_mean": 0.27426565825889926,
+          "metric_id": "txpert_macro_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.2934444272829353,
+          "metric_id": "trishift_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.05069762438744176,
+          "metric_id": "systema_pearson",
+          "reason": null,
+          "total_condition_count": 592
+        }
+      ],
+      "architecture_config_keys_checked": [
+        "decoder_mode",
+        "gene_feature_mode",
+        "global_view_count",
+        "graph_add_reverse_edges",
+        "graph_add_self_loops",
+        "graph_axis_policy",
+        "graph_encoder_family",
+        "graph_expander_degree",
+        "graph_first_source_local_branch",
+        "graph_hvg_count",
+        "local_view_builder",
+        "local_view_count",
+        "string_weight_mode"
+      ],
+      "architecture": {
+        "decoder_mode": "additive",
+        "gene_feature_mode": "learned_id",
+        "genept_expected_sha256": null,
+        "global_view_count": 2,
+        "graph_add_reverse_edges": true,
+        "graph_add_self_loops": true,
+        "graph_axis_policy": "recomputed_hvg_union_candidate_targets",
+        "graph_axis_source_sha256": null,
+        "graph_dropout": 0.2,
+        "graph_encoder_family": "single_source_gat",
+        "graph_expander_degree": 3,
+        "graph_first_source_local_branch": true,
+        "graph_head_count": 2,
+        "graph_hidden_dim": 128,
+        "graph_hvg_count": 512,
+        "graph_input_dim": 128,
+        "graph_layer_count": 4,
+        "graph_output_dim": 64,
+        "graph_sources": [
+          "string"
+        ],
+        "legacy_local_anchor_mask_count": null,
+        "legacy_local_view_node_budget": null,
+        "local_anchor_mask_view_ratio_denominator": 1,
+        "local_anchor_mask_view_ratio_numerator": 0,
+        "local_view_builder": "ring_induced",
+        "local_view_count": 4,
+        "local_view_fanout": [
+          20,
+          10,
+          5,
+          5
+        ],
+        "local_view_node_budget_ratio_denominator": 2,
+        "local_view_node_budget_ratio_numerator": 1,
+        "schema_version": "native-architecture-vnext-2",
+        "string_weight_mode": "edge_feature"
+      },
+      "resolved_locals": {
+        "derivation_mode": "ratio",
+        "effective_mask_view_count": 0,
+        "effective_node_budget": 1404,
+        "graph_node_count": 2809,
+        "local_view_count": 4,
+        "mask_view_ratio": "0/1",
+        "node_budget_ratio": "1/2",
+        "node_budget_remainder": 1,
+        "requested_fixed_mask_view_count": null,
+        "requested_fixed_node_budget": null,
+        "schema_version": "resolved-local-view-contract-v1"
+      },
+      "file_sha256": {
+        "run_manifest.json": "90ccb77708587ef31772d0348c7cfa40a5a5948ec08565bfddc55f316eb7da60",
+        "training_receipt.json": "f7fbe81465d3c4105c6ac7ddd363c321c062e8d0a5d8788b00c99a657107edf9",
+        "run_meta.json": "eb631a2b8f946fae7082c510ca808a2cbba10831ac79b8ad99f6cedf3febfc7b",
+        "systems_runtime.json": "9c7f4ac5d44ffefc705eadd2bdabf43ce74b1fba82ebd5899f113e46ee51673d",
+        "prediction_manifest.json": "487ad2386a7a18034d9eb3d3f4d622afe39abdeb34b0ce5dd7b457cdea91d1b0",
+        "evaluation_manifest.json": "0caa1a42545ab1747ae7e47a03eb49307054b569f5bc2679823206d498f0cc0f",
+        "metrics_summary.json": "8db2f2e83c8ecc64e74b6422c9e57819bf5d3353157bb52dd4f57f20c9165114"
+      },
+      "core_and_fairness_checks": "passed",
+      "wrapper_status": "reported_complete"
+    },
+    {
+      "variant": "w2_string_fixed_prior",
+      "lineage": "formal-vnext-w-51e922f-v1",
+      "source_commit": "51e922f2a74494151b5ddf3839eaf79bb6243117",
+      "config_sha256": "222e041d2f5ab10ada07408eac3638da9a2fb5730995cb96dec9fc96172976a0",
+      "metrics": [
+        {
+          "available": true,
+          "finite_condition_count": 592,
+          "macro_mean": 0.2665917787155085,
+          "metric_id": "txpert_macro_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.26259793635532613,
+          "metric_id": "trishift_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.03839613713880471,
+          "metric_id": "systema_pearson",
+          "reason": null,
+          "total_condition_count": 592
+        }
+      ],
+      "architecture_config_keys_checked": [
+        "decoder_mode",
+        "gene_feature_mode",
+        "global_view_count",
+        "graph_add_reverse_edges",
+        "graph_add_self_loops",
+        "graph_axis_policy",
+        "graph_encoder_family",
+        "graph_expander_degree",
+        "graph_first_source_local_branch",
+        "graph_hvg_count",
+        "local_view_builder",
+        "local_view_count",
+        "string_weight_mode"
+      ],
+      "architecture": {
+        "decoder_mode": "additive",
+        "gene_feature_mode": "learned_id",
+        "genept_expected_sha256": null,
+        "global_view_count": 2,
+        "graph_add_reverse_edges": true,
+        "graph_add_self_loops": true,
+        "graph_axis_policy": "recomputed_hvg_union_candidate_targets",
+        "graph_axis_source_sha256": null,
+        "graph_dropout": 0.2,
+        "graph_encoder_family": "single_source_gat",
+        "graph_expander_degree": 3,
+        "graph_first_source_local_branch": true,
+        "graph_head_count": 2,
+        "graph_hidden_dim": 128,
+        "graph_hvg_count": 512,
+        "graph_input_dim": 128,
+        "graph_layer_count": 4,
+        "graph_output_dim": 64,
+        "graph_sources": [
+          "string"
+        ],
+        "legacy_local_anchor_mask_count": null,
+        "legacy_local_view_node_budget": null,
+        "local_anchor_mask_view_ratio_denominator": 1,
+        "local_anchor_mask_view_ratio_numerator": 0,
+        "local_view_builder": "ring_induced",
+        "local_view_count": 4,
+        "local_view_fanout": [
+          20,
+          10,
+          5,
+          5
+        ],
+        "local_view_node_budget_ratio_denominator": 2,
+        "local_view_node_budget_ratio_numerator": 1,
+        "schema_version": "native-architecture-vnext-2",
+        "string_weight_mode": "fixed_prior"
+      },
+      "resolved_locals": {
+        "derivation_mode": "ratio",
+        "effective_mask_view_count": 0,
+        "effective_node_budget": 1404,
+        "graph_node_count": 2809,
+        "local_view_count": 4,
+        "mask_view_ratio": "0/1",
+        "node_budget_ratio": "1/2",
+        "node_budget_remainder": 1,
+        "requested_fixed_mask_view_count": null,
+        "requested_fixed_node_budget": null,
+        "schema_version": "resolved-local-view-contract-v1"
+      },
+      "file_sha256": {
+        "run_manifest.json": "3d2732279309aad039e72f05a439c5f84c457633f5e0fe442b82a429e27d73b6",
+        "training_receipt.json": "28b9654e75f132dbfa79b63564f85f37f2523b175e03036926fd02c1f11b4760",
+        "run_meta.json": "0f5bbe564ce9ce89b1fcf0db0ce31be268ff31515536850d11c7400142a6ad0a",
+        "systems_runtime.json": "9c7f4ac5d44ffefc705eadd2bdabf43ce74b1fba82ebd5899f113e46ee51673d",
+        "prediction_manifest.json": "a50b10a9d23fba08e44982bf11bafa3265db9fa7c84d62639d172d0e4f62b841",
+        "evaluation_manifest.json": "a93a66088c5f6ea91fcfbebe4e7d664d632862644f29b8bf3f11d485d45f11a0",
+        "metrics_summary.json": "8c918376fa789dcdefb127200c99fde897ef34ce2837b06d61f35c3709b963d9"
+      },
+      "core_and_fairness_checks": "passed",
+      "wrapper_status": "reported_complete"
+    },
+    {
+      "variant": "w3_string_prior_residual",
+      "lineage": "formal-vnext-w-51e922f-v1",
+      "source_commit": "51e922f2a74494151b5ddf3839eaf79bb6243117",
+      "config_sha256": "0beacc27edd6824d833d874840ca40e232e954d24d3577589ac3bcbc9a11efcb",
+      "metrics": [
+        {
+          "available": true,
+          "finite_condition_count": 592,
+          "macro_mean": 0.2696765795278604,
+          "metric_id": "txpert_macro_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.28649354452104236,
+          "metric_id": "trishift_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.03903429033316739,
+          "metric_id": "systema_pearson",
+          "reason": null,
+          "total_condition_count": 592
+        }
+      ],
+      "architecture_config_keys_checked": [
+        "decoder_mode",
+        "gene_feature_mode",
+        "global_view_count",
+        "graph_add_reverse_edges",
+        "graph_add_self_loops",
+        "graph_axis_policy",
+        "graph_encoder_family",
+        "graph_expander_degree",
+        "graph_first_source_local_branch",
+        "graph_hvg_count",
+        "local_view_builder",
+        "local_view_count",
+        "string_weight_mode"
+      ],
+      "architecture": {
+        "decoder_mode": "additive",
+        "gene_feature_mode": "learned_id",
+        "genept_expected_sha256": null,
+        "global_view_count": 2,
+        "graph_add_reverse_edges": true,
+        "graph_add_self_loops": true,
+        "graph_axis_policy": "recomputed_hvg_union_candidate_targets",
+        "graph_axis_source_sha256": null,
+        "graph_dropout": 0.2,
+        "graph_encoder_family": "single_source_gat",
+        "graph_expander_degree": 3,
+        "graph_first_source_local_branch": true,
+        "graph_head_count": 2,
+        "graph_hidden_dim": 128,
+        "graph_hvg_count": 512,
+        "graph_input_dim": 128,
+        "graph_layer_count": 4,
+        "graph_output_dim": 64,
+        "graph_sources": [
+          "string"
+        ],
+        "legacy_local_anchor_mask_count": null,
+        "legacy_local_view_node_budget": null,
+        "local_anchor_mask_view_ratio_denominator": 1,
+        "local_anchor_mask_view_ratio_numerator": 0,
+        "local_view_builder": "ring_induced",
+        "local_view_count": 4,
+        "local_view_fanout": [
+          20,
+          10,
+          5,
+          5
+        ],
+        "local_view_node_budget_ratio_denominator": 2,
+        "local_view_node_budget_ratio_numerator": 1,
+        "schema_version": "native-architecture-vnext-2",
+        "string_weight_mode": "prior_residual"
+      },
+      "resolved_locals": {
+        "derivation_mode": "ratio",
+        "effective_mask_view_count": 0,
+        "effective_node_budget": 1404,
+        "graph_node_count": 2809,
+        "local_view_count": 4,
+        "mask_view_ratio": "0/1",
+        "node_budget_ratio": "1/2",
+        "node_budget_remainder": 1,
+        "requested_fixed_mask_view_count": null,
+        "requested_fixed_node_budget": null,
+        "schema_version": "resolved-local-view-contract-v1"
+      },
+      "file_sha256": {
+        "run_manifest.json": "6457eed5607dda8073a3711450bb430c98eb5ccf38120b35ac168679787122b9",
+        "training_receipt.json": "b0ab032b232267e2d12f25c9434e6c102a3ad50ec67594f940ac9951d6e18f6a",
+        "run_meta.json": "615967cc513dd1f3def649cfbda047dee52a2da3fc400625bc4230a15a98885a",
+        "systems_runtime.json": "9c7f4ac5d44ffefc705eadd2bdabf43ce74b1fba82ebd5899f113e46ee51673d",
+        "prediction_manifest.json": "d1dd9ca8bb8628b1ba8489c723bc875df8a56fd449845c2b2ebbd60ce1be2461",
+        "evaluation_manifest.json": "560484ea0f18e290bb3ba762adb27232607229277b4ce33ce83d13882c00ae6a",
+        "metrics_summary.json": "fb7e6ef8f5ae9cb359565607ed5c6981d277db2a134c2f2a242e4fa8652cdf69"
+      },
+      "core_and_fairness_checks": "passed",
+      "wrapper_status": "reported_complete"
+    },
+    {
+      "variant": "ws_string_weight_shuffle",
+      "lineage": "formal-vnext-w-51e922f-v1",
+      "source_commit": "51e922f2a74494151b5ddf3839eaf79bb6243117",
+      "config_sha256": "6c05aca6c97203f3da73ed699bcdaf97a750814e4dad74fbcf5b236c1a9e4e6e",
+      "metrics": [
+        {
+          "available": true,
+          "finite_condition_count": 592,
+          "macro_mean": 0.26136274755472677,
+          "metric_id": "txpert_macro_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.2809791729116318,
+          "metric_id": "trishift_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.023189833944817412,
+          "metric_id": "systema_pearson",
+          "reason": null,
+          "total_condition_count": 592
+        }
+      ],
+      "architecture_config_keys_checked": [
+        "decoder_mode",
+        "gene_feature_mode",
+        "global_view_count",
+        "graph_add_reverse_edges",
+        "graph_add_self_loops",
+        "graph_axis_policy",
+        "graph_encoder_family",
+        "graph_expander_degree",
+        "graph_first_source_local_branch",
+        "graph_hvg_count",
+        "local_view_builder",
+        "local_view_count",
+        "string_weight_mode"
+      ],
+      "architecture": {
+        "decoder_mode": "additive",
+        "gene_feature_mode": "learned_id",
+        "genept_expected_sha256": null,
+        "global_view_count": 2,
+        "graph_add_reverse_edges": true,
+        "graph_add_self_loops": true,
+        "graph_axis_policy": "recomputed_hvg_union_candidate_targets",
+        "graph_axis_source_sha256": null,
+        "graph_dropout": 0.2,
+        "graph_encoder_family": "single_source_gat",
+        "graph_expander_degree": 3,
+        "graph_first_source_local_branch": true,
+        "graph_head_count": 2,
+        "graph_hidden_dim": 128,
+        "graph_hvg_count": 512,
+        "graph_input_dim": 128,
+        "graph_layer_count": 4,
+        "graph_output_dim": 64,
+        "graph_sources": [
+          "string"
+        ],
+        "legacy_local_anchor_mask_count": null,
+        "legacy_local_view_node_budget": null,
+        "local_anchor_mask_view_ratio_denominator": 1,
+        "local_anchor_mask_view_ratio_numerator": 0,
+        "local_view_builder": "ring_induced",
+        "local_view_count": 4,
+        "local_view_fanout": [
+          20,
+          10,
+          5,
+          5
+        ],
+        "local_view_node_budget_ratio_denominator": 2,
+        "local_view_node_budget_ratio_numerator": 1,
+        "schema_version": "native-architecture-vnext-2",
+        "string_weight_mode": "shuffled_edge_feature"
+      },
+      "resolved_locals": {
+        "derivation_mode": "ratio",
+        "effective_mask_view_count": 0,
+        "effective_node_budget": 1404,
+        "graph_node_count": 2809,
+        "local_view_count": 4,
+        "mask_view_ratio": "0/1",
+        "node_budget_ratio": "1/2",
+        "node_budget_remainder": 1,
+        "requested_fixed_mask_view_count": null,
+        "requested_fixed_node_budget": null,
+        "schema_version": "resolved-local-view-contract-v1"
+      },
+      "file_sha256": {
+        "run_manifest.json": "1bee925344028e0bccd5bbe9b9246281ef59feb4b4556bcd4fb839e8b0044492",
+        "training_receipt.json": "b7df28e09ecfa5f67b7d095db30ee4746b9b97792ab4f681c924bcad509c031e",
+        "run_meta.json": "6d99370bb0ff0bca77834140f737a0b0c01cd167ec9fe3ea428de1b13b158a24",
+        "systems_runtime.json": "9c7f4ac5d44ffefc705eadd2bdabf43ce74b1fba82ebd5899f113e46ee51673d",
+        "prediction_manifest.json": "8dbf79c9c9080f49418c0e04f66ed855f8858e49f9d2284685c1ecd3d2ac66c3",
+        "evaluation_manifest.json": "7c2cde2352837c78554363e7ffe709975caa069b3cf2c333f11ee3790ee159c4",
+        "metrics_summary.json": "23abe09d6611178156f506da26b3ad3ec888d704356bedb382dbc5695060e30c"
+      },
+      "core_and_fairness_checks": "passed",
+      "wrapper_status": "reported_complete"
+    },
+    {
+      "variant": "m2_single_string_transformer",
+      "lineage": "formal-vnext-m-51e922f-v1",
+      "source_commit": "51e922f2a74494151b5ddf3839eaf79bb6243117",
+      "config_sha256": "e9893e81315e46723f73741d720426c09e91aefa48c9d1bbe118d624d0142dec",
+      "metrics": [
+        {
+          "available": true,
+          "finite_condition_count": 592,
+          "macro_mean": 0.2473466549649808,
+          "metric_id": "txpert_macro_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.2304720472231288,
+          "metric_id": "trishift_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.023007195634735782,
+          "metric_id": "systema_pearson",
+          "reason": null,
+          "total_condition_count": 592
+        }
+      ],
+      "architecture_config_keys_checked": [
+        "decoder_mode",
+        "gene_feature_mode",
+        "global_view_count",
+        "graph_add_reverse_edges",
+        "graph_add_self_loops",
+        "graph_axis_policy",
+        "graph_encoder_family",
+        "graph_expander_degree",
+        "graph_first_source_local_branch",
+        "graph_hvg_count",
+        "local_view_builder",
+        "local_view_count",
+        "string_weight_mode"
+      ],
+      "architecture": {
+        "decoder_mode": "additive",
+        "gene_feature_mode": "learned_id",
+        "genept_expected_sha256": null,
+        "global_view_count": 2,
+        "graph_add_reverse_edges": true,
+        "graph_add_self_loops": true,
+        "graph_axis_policy": "recomputed_hvg_union_candidate_targets",
+        "graph_axis_source_sha256": null,
+        "graph_dropout": 0.1,
+        "graph_encoder_family": "single_source_sparse_transformer",
+        "graph_expander_degree": 3,
+        "graph_first_source_local_branch": true,
+        "graph_head_count": 2,
+        "graph_hidden_dim": 128,
+        "graph_hvg_count": 512,
+        "graph_input_dim": 128,
+        "graph_layer_count": 4,
+        "graph_output_dim": 64,
+        "graph_sources": [
+          "string"
+        ],
+        "legacy_local_anchor_mask_count": null,
+        "legacy_local_view_node_budget": null,
+        "local_anchor_mask_view_ratio_denominator": 1,
+        "local_anchor_mask_view_ratio_numerator": 0,
+        "local_view_builder": "ring_induced",
+        "local_view_count": 4,
+        "local_view_fanout": [
+          20,
+          10,
+          5,
+          5
+        ],
+        "local_view_node_budget_ratio_denominator": 2,
+        "local_view_node_budget_ratio_numerator": 1,
+        "schema_version": "native-architecture-vnext-2",
+        "string_weight_mode": "selection_only"
+      },
+      "resolved_locals": {
+        "derivation_mode": "ratio",
+        "effective_mask_view_count": 0,
+        "effective_node_budget": 1404,
+        "graph_node_count": 2809,
+        "local_view_count": 4,
+        "mask_view_ratio": "0/1",
+        "node_budget_ratio": "1/2",
+        "node_budget_remainder": 1,
+        "requested_fixed_mask_view_count": null,
+        "requested_fixed_node_budget": null,
+        "schema_version": "resolved-local-view-contract-v1"
+      },
+      "file_sha256": {
+        "run_manifest.json": "03a698562779de7122eaeed6a30ed0a1dc3ba37888cf0c59d0bc4d9f1fb64765",
+        "training_receipt.json": "174c1ec2d38f6449ca089963cd334141d474278c51c7f65017251d097d2bac78",
+        "run_meta.json": "095e5fd860307491c928b31426a9b051ef4abd6b18bfdf58a638f14fef9a461c",
+        "systems_runtime.json": "5dbd22f74773b72bdac7d025512985f5a09f9761aa0b2542c226bdd94246f7b5",
+        "prediction_manifest.json": "118134401b6f51f5c9b2a221c8d9ebc7be65ab2455c677259a0b754e33d140ea",
+        "evaluation_manifest.json": "ef9cd581f6fa838125cac3cb5a513df5a917846ef9cfc003a6cdf997d4229b27",
+        "metrics_summary.json": "b1454698a023630f6f384f013047a5337d0495d1b65e77c99a7c2ba491e611ee"
+      },
+      "core_and_fairness_checks": "passed",
+      "wrapper_status": "reported_complete"
+    },
+    {
+      "variant": "m4_adaptive_source_gat",
+      "lineage": "formal-vnext-m-51e922f-v1",
+      "source_commit": "51e922f2a74494151b5ddf3839eaf79bb6243117",
+      "config_sha256": "32bbf22c376fea49426930570bfd653f37d27249d829c56daac70cac2ec7dca0",
+      "metrics": [
+        {
+          "available": true,
+          "finite_condition_count": 592,
+          "macro_mean": 0.2535384605232218,
+          "metric_id": "txpert_macro_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.24141027945422372,
+          "metric_id": "trishift_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.04492936176196414,
+          "metric_id": "systema_pearson",
+          "reason": null,
+          "total_condition_count": 592
+        }
+      ],
+      "architecture_config_keys_checked": [
+        "decoder_mode",
+        "gene_feature_mode",
+        "global_view_count",
+        "graph_add_reverse_edges",
+        "graph_add_self_loops",
+        "graph_axis_policy",
+        "graph_encoder_family",
+        "graph_expander_degree",
+        "graph_first_source_local_branch",
+        "graph_hvg_count",
+        "local_view_builder",
+        "local_view_count",
+        "string_weight_mode"
+      ],
+      "architecture": {
+        "decoder_mode": "additive",
+        "gene_feature_mode": "learned_id",
+        "genept_expected_sha256": null,
+        "global_view_count": 2,
+        "graph_add_reverse_edges": true,
+        "graph_add_self_loops": true,
+        "graph_axis_policy": "recomputed_hvg_union_candidate_targets",
+        "graph_axis_source_sha256": null,
+        "graph_dropout": 0.2,
+        "graph_encoder_family": "adaptive_source_gat_fusion",
+        "graph_expander_degree": 3,
+        "graph_first_source_local_branch": true,
+        "graph_head_count": 2,
+        "graph_hidden_dim": 128,
+        "graph_hvg_count": 512,
+        "graph_input_dim": 128,
+        "graph_layer_count": 4,
+        "graph_output_dim": 64,
+        "graph_sources": [
+          "string",
+          "go"
+        ],
+        "legacy_local_anchor_mask_count": null,
+        "legacy_local_view_node_budget": null,
+        "local_anchor_mask_view_ratio_denominator": 1,
+        "local_anchor_mask_view_ratio_numerator": 0,
+        "local_view_builder": "ring_induced",
+        "local_view_count": 4,
+        "local_view_fanout": [
+          20,
+          10,
+          5,
+          5
+        ],
+        "local_view_node_budget_ratio_denominator": 2,
+        "local_view_node_budget_ratio_numerator": 1,
+        "schema_version": "native-architecture-vnext-2",
+        "string_weight_mode": "selection_only"
+      },
+      "resolved_locals": {
+        "derivation_mode": "ratio",
+        "effective_mask_view_count": 0,
+        "effective_node_budget": 1404,
+        "graph_node_count": 2809,
+        "local_view_count": 4,
+        "mask_view_ratio": "0/1",
+        "node_budget_ratio": "1/2",
+        "node_budget_remainder": 1,
+        "requested_fixed_mask_view_count": null,
+        "requested_fixed_node_budget": null,
+        "schema_version": "resolved-local-view-contract-v1"
+      },
+      "file_sha256": {
+        "run_manifest.json": "15994b2f03bc316f8b850c2f4bb76ad202eb9efde50153d4d845904ce321c71e",
+        "training_receipt.json": "09b6976b9e32e88192393fb4f13d365c0ebd95a0cc2b4fa565079b8399625332",
+        "run_meta.json": "dcb5b3074cf18e6f3076d824fdbe74e7219753bf2234ca0df8b445b1f197fbba",
+        "systems_runtime.json": "26a8c4b7bb291a421c43069181518da0108b4037335dbcd83232d24490f318fb",
+        "prediction_manifest.json": "6ea60d0095dc1b0786d1a89583c444fb509adb8cf2400465e52cc0c358f93cba",
+        "evaluation_manifest.json": "7dd664f5a625fc5f636d43e645869e62449959f64c0b8e1fc4392125378e52f2",
+        "metrics_summary.json": "383fda2120e45b3d82497770bd8b390483c614d88c751ef1466762036c0be191"
+      },
+      "core_and_fairness_checks": "passed",
+      "wrapper_status": "reported_complete"
+    },
+    {
+      "variant": "h4_txpert_candidate_ratio_half",
+      "lineage": "formal-vnext-h4-2ca755f-v1",
+      "source_commit": "2ca755fda35b57ea03ad3c54913298449e4c7a0f",
+      "config_sha256": "b27d8d05ce2e7d325104ae486ac7d2d8ce1f293fec383d33e68c0d7a850c111b",
+      "metrics": [
+        {
+          "available": true,
+          "finite_condition_count": 592,
+          "macro_mean": 0.2478604499077588,
+          "metric_id": "txpert_macro_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.2263195250825711,
+          "metric_id": "trishift_pearson_delta",
+          "reason": null,
+          "total_condition_count": 592
+        },
+        {
+          "available": true,
+          "finite_condition_count": 590,
+          "macro_mean": 0.04412528761710767,
+          "metric_id": "systema_pearson",
+          "reason": null,
+          "total_condition_count": 592
+        }
+      ],
+      "architecture_config_keys_checked": [
+        "decoder_mode",
+        "gene_feature_mode",
+        "global_view_count",
+        "graph_add_reverse_edges",
+        "graph_add_self_loops",
+        "graph_axis_policy",
+        "graph_axis_source_sha256",
+        "graph_encoder_family",
+        "graph_expander_degree",
+        "graph_first_source_local_branch",
+        "graph_hvg_count",
+        "local_view_builder",
+        "local_view_count",
+        "string_weight_mode"
+      ],
+      "architecture": {
+        "decoder_mode": "additive",
+        "gene_feature_mode": "learned_id",
+        "genept_expected_sha256": null,
+        "global_view_count": 2,
+        "graph_add_reverse_edges": true,
+        "graph_add_self_loops": true,
+        "graph_axis_policy": "txpert_candidate_gene_universe",
+        "graph_axis_source_sha256": "7e2be69a204b72349b793cc6723a5f88419f1ca6472ea5e28c5f7d623ee8e23d",
+        "graph_dropout": 0.1,
+        "graph_encoder_family": "multi_source_sparse_transformer",
+        "graph_expander_degree": 3,
+        "graph_first_source_local_branch": true,
+        "graph_head_count": 2,
+        "graph_hidden_dim": 128,
+        "graph_hvg_count": 9853,
+        "graph_input_dim": 128,
+        "graph_layer_count": 4,
+        "graph_output_dim": 64,
+        "graph_sources": [
+          "string",
+          "go"
+        ],
+        "legacy_local_anchor_mask_count": null,
+        "legacy_local_view_node_budget": null,
+        "local_anchor_mask_view_ratio_denominator": 1,
+        "local_anchor_mask_view_ratio_numerator": 0,
+        "local_view_builder": "ring_induced",
+        "local_view_count": 4,
+        "local_view_fanout": [
+          20,
+          10,
+          5,
+          5
+        ],
+        "local_view_node_budget_ratio_denominator": 2,
+        "local_view_node_budget_ratio_numerator": 1,
+        "schema_version": "native-architecture-vnext-2",
+        "string_weight_mode": "selection_only"
+      },
+      "resolved_locals": {
+        "derivation_mode": "ratio",
+        "effective_mask_view_count": 0,
+        "effective_node_budget": 4926,
+        "graph_node_count": 9853,
+        "local_view_count": 4,
+        "mask_view_ratio": "0/1",
+        "node_budget_ratio": "1/2",
+        "node_budget_remainder": 1,
+        "requested_fixed_mask_view_count": null,
+        "requested_fixed_node_budget": null,
+        "schema_version": "resolved-local-view-contract-v1"
+      },
+      "file_sha256": {
+        "run_manifest.json": "061d0021e7f947646e6a344a5a64321922db6d0553ff2927c1ebbc192e165628",
+        "training_receipt.json": "37ed4f383fe00aa7d11ab957ef08cabe39de225945b3df711f85ea132c2f5521",
+        "run_meta.json": "b53e7e534e29143767fdf666af4e94adde2c00985484eebd965edbef675af784",
+        "systems_runtime.json": "cf09100fcecdc9e2f6a9e1e2cdb28d907beb1dbbb9ab2b6e3f6701c809254d9c",
+        "prediction_manifest.json": "3dc191a6b2b7b6547076c7d6828d79101d0ca6503f2151fbc7ac01f2541df417",
+        "evaluation_manifest.json": "39438e36822f16f5d4246f75d48a85a6152f526854d68d8d3a04234d188177e4",
+        "metrics_summary.json": "77f0325492475c4bf0cf077ade06031d334b7e139b4cc4a09a458ed92459af14"
+      },
+      "core_and_fairness_checks": "passed",
+      "wrapper_status": "failed_rc80_preserved"
+    }
+  ],
+  "limitations": [
+    "single seed; cross-commit retained references; no equivalence claims",
+    "H4 native completion does not relabel failed wrapper",
+    "architecture resolved with source51e config parser; retained rows remain cross-commit evidence"
+  ],
+  "additional_checks": [
+    "All10 complete architecture payloads and hashes equal config-resolved NativeArchitectureOptions",
+    "All5820 steps per row match configured four-term loss decomposition within1e-4absolute",
+    "Retained A0 and M1 ordered control/truth/topDE identities separately matched"
+  ]
+}

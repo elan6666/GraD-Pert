@@ -502,7 +502,10 @@ def run_native_experiment(
         raise ValueError("the one-epoch integration gate uses the first configured seed")
     if mode == "pilot" and config.training.formal_run_policy != "fixed_epoch_pilot":
         raise ValueError("native pilot mode requires formal_run_policy=fixed_epoch_pilot")
-    if mode == "full" and config.training.formal_run_policy != "smoke_then_full":
+    if mode == "full" and config.training.formal_run_policy not in {
+        "smoke_then_full",
+        "vnext_combination_100",
+    }:
         raise ValueError("native full mode requires formal_run_policy=smoke_then_full")
     destination = Path(run_root).resolve()
     if resume:

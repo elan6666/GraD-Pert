@@ -14,6 +14,16 @@ updated_at: 2026-09-04T00:25:00+08:00
 
 # Status
 
+- 2026-09-07: remaining H4 native/M/W/O training and evaluation are complete.
+  Ten recent rows passed ordered-step/validation/checkpoint/zero-PKL and
+  fairness identity audits, complete architecture resolution and per-step
+  weighted-loss checks. See
+  `docs/experiments/VNEXT_REMAINING_RESULTS_20260907.md`. H4's old wrapper RC80
+  remains a recorded failure, not queue success. No default change or new
+  training is authorized by these point estimates. Final publication gates
+  and source synchronization are pending; earlier next-run notes below are
+  historical and must not trigger reruns.
+
 - The fresh L-only lineage `formal-vnext-l-881862d-v5` is complete. L1--L5
   each passed 5,820 contiguous steps, ten validations, one best-checkpoint
   evaluation, exactly three finite metrics, zero PKL and best-only retention.

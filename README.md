@@ -11,6 +11,7 @@ The repository is under active implementation. Current authoritative material:
 
 - [active model design](docs/design/GRADPERT_V1.md)
 - [B2-vNext ablation design](docs/design/GRADPERT_VNEXT_ABLATIONS.md)
+- [completed remaining ablations and audit status](docs/experiments/VNEXT_REMAINING_RESULTS_20260907.md)
 - [data and evaluation contract](docs/design/DATA_AND_EVALUATION.md)
 - [server execution contract](docs/design/SERVER_EXECUTION.md)
 - [reference alignment and licenses](docs/provenance/REFERENCE_ALIGNMENT.md)

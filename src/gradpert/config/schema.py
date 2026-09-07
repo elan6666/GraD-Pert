@@ -90,7 +90,11 @@ class TrainingConfig(StrictModel):
     learned: bool
     smoke_epochs: SourcedValue
     formal_run_policy: Literal[
-        "smoke_then_full", "smoke_only", "fixed_epoch_pilot", "inference_only"
+        "smoke_then_full",
+        "smoke_only",
+        "fixed_epoch_pilot",
+        "inference_only",
+        "vnext_combination_100",
     ]
     max_epochs: SourcedValue
     early_stopping: bool
@@ -134,6 +138,13 @@ class TrainingConfig(StrictModel):
                     raise ValueError("one-epoch external smoke uses monitor=none")
                 if self.run_seeds != [1]:
                     raise ValueError("external smoke-only runs use the shared seed 1")
+            elif self.formal_run_policy == "vnext_combination_100":
+                if self.max_epochs.value != 100 or self.run_seeds != [1]:
+                    raise ValueError("vNext combination requires max_epochs=100 and seed1")
+                if not self.early_stopping or self.early_stopping_patience.value != 10:
+                    raise ValueError("vNext combination requires early-stopping patience=10")
+                if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
+                    raise ValueError("vNext combination requires the common validation monitor")
             elif self.formal_run_policy == "fixed_epoch_pilot":
                 if self.max_epochs.value != 10:
                     raise ValueError("fixed-epoch native pilots require max_epochs=10")
@@ -230,7 +241,7 @@ class ExperimentConfig(StrictModel):
         if self.training.learned != expected_learned:
             raise ValueError("training.learned does not match model family")
         allowed_policies = {
-            "native_learned": {"smoke_then_full", "fixed_epoch_pilot"},
+            "native_learned": {"smoke_then_full", "fixed_epoch_pilot", "vnext_combination_100"},
             "external_learned": {"smoke_only"},
             "nonlearned": {"inference_only"},
         }[self.model.family]
