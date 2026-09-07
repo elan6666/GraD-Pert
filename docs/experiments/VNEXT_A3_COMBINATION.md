@@ -10,10 +10,10 @@ The gene prior is the same hash-pinned Protein+Reactome+SIGNOR initialized
 trainable embedding. No Fanout, single-source GAT, or D5 is added.
 
 The self-contained config is
-`configs/combinations/a3_a0_e3_lr1e5_batch128/gradpert_b2/nadig_jurkat.yaml`.
-Training learning rate is explicitly 1e-5, training batch128, evaluation
+`configs/combinations/a3_a0_e3_lr5e5_batch128/gradpert_b2/nadig_jurkat.yaml`.
+Training learning rate is explicitly 5e-5, training batch128, evaluation
 batch256 unchanged, seed1, AdamW without weight decay or scheduler.
-The user-selected rate is 100 times below A1/A2; this joint rate/batch
+The user-selected rate is 20 times below A1/A2; this joint rate/batch
 comparison is not a single-factor ablation and is not selected from test scores.
 
 The combination budget is max100epochs with validation-only patience10,
@@ -38,3 +38,12 @@ The A3 process and GPU allocation were confirmed absent; GEARS, TxPert and
 Scouter remained active. The revised A3 is configured but not relaunched.
 A future launch requires a fresh clean source and run root, not in-place
 learning-rate mutation or resumption of the old optimizer state.
+
+### Latest revision: 5e-5
+
+The user subsequently requested 5e-5 and immediate training. The 1e-5
+attempt `a3-e4d680a-lr1e5-full-v1` is stopped and preserved, not completed.
+The new configuration changes only the learning rate and artifact-root label;
+batch128, model, split, seed, optimizer and max100/patience10 remain fixed.
+Launch from scratch in a fresh published checkout and run root on GPU0,
+alongside GEARS. TxPert and Scouter remain untouched on GPU1.
