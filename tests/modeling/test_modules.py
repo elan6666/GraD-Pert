@@ -450,6 +450,31 @@ def test_vnext_genept_modes_are_explicit_shape_safe_routes(feature_mode: str) ->
     assert model.teacher_encoder._full_node_inputs().shape == (7, 128)
 
 
+def test_single_string_gat_concat_256_forward_backward() -> None:
+    options = _vnext_options(
+        graph_sources="string",
+        graph_encoder_family="single_source_gat",
+        graph_encoder_dropout=0.2,
+        graph_tower_output_dim=256,
+        decoder_mode="concat",
+    )
+    model = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=options,
+    )
+    assert model.expression_decoder.network[0].in_features == 320
+    assert model.student_projector.mlp[0].in_features == 256
+    view = _views().prediction
+    nodes = model.student_encoder(view)
+    assert nodes.shape == (7, 256)
+    prediction = model.decode_expression(torch.randn(4, 5), nodes[:4])
+    prediction.square().mean().backward()
+    assert any(p.grad is not None for p in model.student_encoder.parameters())
+    assert torch.isfinite(prediction).all()
+
+
 def test_control_condition_mlp_is_parameter_matched_within_one_percent() -> None:
     transformer = ControlConditionTransformer()
     mlp = ControlConditionMLP()

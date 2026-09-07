@@ -251,11 +251,13 @@ class NativeArchitectureOptions:
             "concat_transformer",
         }:
             raise ValueError("256-wide perturbation states require a concat decoder ablation")
-        if (
-            self.graph_output_dim == 256
-            and self.graph_encoder_family != "multi_source_sparse_transformer"
-        ):
-            raise ValueError("256-wide perturbation states require the A0 sparse graph Transformer")
+        if self.graph_output_dim == 256 and self.graph_encoder_family not in {
+            "multi_source_sparse_transformer",
+            "single_source_gat",
+        }:
+            raise ValueError(
+                "256-wide perturbation states require sparse multi-source or single GAT"
+            )
         expected_dropout = {
             "adaptive_relation_gat": 0.1,
             "single_source_gat": 0.2,
