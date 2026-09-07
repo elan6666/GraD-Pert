@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
+import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -33,6 +35,16 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="gradpert", description="GraD-Pert research CLI")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command")
+
+    benchmark = subparsers.add_parser("benchmark", help="Dispatch an isolated official runner")
+    benchmark.add_argument(
+        "--model", required=True, choices=["scouter_genept_seed", "gears", "txpert_public"]
+    )
+    benchmark.add_argument(
+        "--python", required=True, type=Path, help="Dedicated environment Python"
+    )
+    benchmark.add_argument("--repository-root", required=True, type=Path)
+    benchmark.add_argument("runner_args", nargs=argparse.REMAINDER)
 
     doctor = subparsers.add_parser("doctor", help="Report the local runtime without changing it")
     doctor.add_argument("--json", action="store_true", dest="as_json")
@@ -408,6 +420,23 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     parser = _parser()
     args = parser.parse_args(argv)
+    if args.command == "benchmark":
+        root = args.repository_root.resolve(strict=True)
+        executable = args.python.absolute()
+        if not executable.is_file():
+            raise ValueError("isolated Python does not exist")
+        modules = {"scouter_genept_seed": "scouter", "gears": "gears", "txpert_public": "txpert"}
+        forwarded = list(args.runner_args)
+        if forwarded[:1] == ["--"]:
+            forwarded.pop(0)
+        environment = os.environ.copy()
+        environment["PYTHONPATH"] = os.pathsep.join([str(root / "src"), str(root)])
+        return subprocess.run(
+            [str(executable), "-m", f"benchmarks.{modules[args.model]}.runner", *forwarded],
+            cwd=root,
+            env=environment,
+            check=False,
+        ).returncode
     if args.command == "doctor":
         return _doctor(args.as_json)
     if args.command == "source" and args.source_command == "publication-receipt":

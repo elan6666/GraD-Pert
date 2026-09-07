@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
     "relative_path,fit_marker",
     [
         ("benchmarks/gears/runner.py", "model = api.fit_one_epoch("),
-        ("benchmarks/txpert/runner.py", "trainer = api.fit_one_epoch("),
+        ("benchmarks/txpert/runner.py", "trainer = fit("),
+        ("benchmarks/scouter/runner.py", "receipt = fit_official("),
     ],
 )
 def test_canonical_test_reader_is_constructed_only_after_official_fit(

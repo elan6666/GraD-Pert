@@ -261,6 +261,105 @@ class OfficialPublicAPI:
         trainer.save_checkpoint(str(Path(checkpoint_path)))
         return trainer
 
+    def fit_with_validation(
+        self,
+        *,
+        model: Any,
+        training_only_data_module: Any,
+        checkpoint_path: str | Path,
+        accelerator: str,
+        epochs: int,
+        progress_path: Path,
+    ) -> Any:
+        """Official training/optimizer and official val metric, with no test hook.
+
+        Upstream's validation hook evaluates both val and test. Disable that
+        hook by keeping Lightning validation disabled, then call only its
+        official validation evaluator from an epoch-end callback. The adapted
+        data module is not re-setup by Lightning. This preserves its fixed
+        split and never constructs a canonical test reader during fit.
+        """
+        from gradpert.data._io import atomic_json
+
+        if epochs not in {1, 100}:
+            raise ValueError("external integration requires one or100 epochs")
+        official = self.modules.predictor
+        torch = self.modules.torch
+        data = training_only_data_module
+
+        class ValidationOnly(self.modules.lightning.Callback):
+            def __init__(self):
+                self.history = []
+                self.best = -float("inf")
+                self.bad = 0
+                self.best_epoch = None
+
+            def on_train_epoch_end(self, trainer, pl_module):
+                was_training = pl_module.training
+                try:
+                    with torch.no_grad():
+                        results = official.evaluate(
+                            data.val_dataloader(),
+                            pl_module,
+                            pl_module.device,
+                            data.adata,
+                            data.id2pert,
+                        )
+                        metrics, _ = official.compute_metrics(
+                            results, data.adata, official.cs.FAST, match_cntr=True
+                        )
+                    value = float(metrics["pearson_delta"])
+                    if not np.isfinite(value):
+                        raise RuntimeError("nonfinite official TxPert validation metric")
+                    improved = value > self.best
+                    epoch = int(trainer.current_epoch) + 1
+                    if improved:
+                        self.best, self.bad, self.best_epoch = value, 0, epoch
+                        trainer.save_checkpoint(str(checkpoint_path))
+                    else:
+                        self.bad += 1
+                    self.history.append(
+                        {
+                            "epoch": epoch,
+                            "val_pearson_delta": value,
+                            "best": improved,
+                            "steps": int(trainer.global_step),
+                        }
+                    )
+                    atomic_json(
+                        progress_path,
+                        {
+                            "validation": self.history,
+                            "best_epoch": self.best_epoch,
+                            "canonical_test_truth_during_fit": False,
+                        },
+                    )
+                    if self.bad >= 10:
+                        trainer.should_stop = True
+                finally:
+                    pl_module.train(was_training)
+
+        callback = ValidationOnly()
+        trainer = self.modules.lightning.Trainer(
+            accelerator=accelerator,
+            devices=1,
+            max_epochs=epochs,
+            logger=False,
+            enable_checkpointing=False,
+            enable_model_summary=False,
+            num_sanity_val_steps=0,
+            limit_val_batches=0,
+            callbacks=[callback],
+        )
+        trainer.fit(model, train_dataloaders=data.train_dataloader())
+        if not callback.history or callback.best_epoch is None:
+            raise RuntimeError("TxPert did not produce a validation-selected checkpoint")
+        saved = torch.load(str(checkpoint_path), map_location="cpu", weights_only=False)
+        model.load_state_dict(saved["state_dict"], strict=True)
+        trainer.gradpert_validation_history = callback.history
+        trainer.gradpert_best_epoch = callback.best_epoch
+        return trainer
+
     @staticmethod
     def restore_post_fit_device(model: Any, device: str) -> dict[str, object]:
         """Restore parameters moved to CPU by Lightning's fit teardown."""

@@ -20,6 +20,7 @@ from benchmarks.common import (
     write_adapter_receipt,
     write_pickle,
 )
+from benchmarks.common.full_gate import require_completed_smoke
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
 from benchmarks.txpert.runtime import inspect_cuda_runtime, load_runtime_contract
 from gradpert.artifacts import PredictionConditionArrays
@@ -123,7 +124,10 @@ def _official_config(
 
 def preflight(config_path: Path, checkout_root: Path) -> dict[str, object]:
     config = load_experiment_config(config_path)
-    if config.model_id != "txpert_public" or config.training.formal_run_policy != "smoke_only":
+    if config.model_id != "txpert_public" or config.training.formal_run_policy not in {
+        "smoke_only",
+        "external_full_100",
+    }:
         raise ValueError("TxPert runner requires a txpert_public smoke-only experiment config")
     official_config_path, _ = _official_config(config, checkout_root)
     with official_module_session(
@@ -257,10 +261,13 @@ def run_one_epoch(
     repository_root: Path,
     formal: bool,
     development_commit: str | None,
+    smoke: bool = False,
+    smoke_run_root: Path | None = None,
 ) -> dict[str, object]:
     config_file = config_path.resolve(strict=True)
     config = load_experiment_config(config_file)
-    if config.model_id != "txpert_public" or config.training.max_epochs.value != 1:
+    requested_epochs = 1 if smoke else int(config.training.max_epochs.value)
+    if config.model_id != "txpert_public" or config.training.max_epochs.value not in {1, 100}:
         raise ValueError("TxPert execution requires a one-epoch TxPert config")
     official_config_path, official_config = _official_config(config, checkout_root)
     destination = run_root.resolve()
@@ -306,6 +313,17 @@ def run_one_epoch(
             split_policy=config.data.split_policy,
         )
         write_training_data_receipt(training_data, small_root / "training_data.json")
+        if requested_epochs == 100:
+            atomic_json(
+                small_root / "smoke_gate.json",
+                require_completed_smoke(
+                    smoke_run_root,
+                    config=config,
+                    config_sha256=config_sha256,
+                    training_data=training_data,
+                    source_commit=source.commit,
+                ),
+            )
         adapted = build_training_validation_adata(training_data, axis="expression")
         cell_types = tuple(sorted(adapted.adata.obs["cell_type"].astype(str).unique()))
         if len(cell_types) != 1:
@@ -363,18 +381,37 @@ def run_one_epoch(
                 device=device,
                 match_control_for_eval=True,
             )
-            checkpoint_path = destination / "checkpoints" / "epoch-001.ckpt"
+            full_policy = config.training.formal_run_policy == "external_full_100"
+            checkpoint_path = (
+                destination / "checkpoints" / ("best.ckpt" if full_policy else "epoch-001.ckpt")
+            )
             checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-            trainer = api.fit_one_epoch(
+            fit = api.fit_with_validation if full_policy else api.fit_one_epoch
+            trainer = fit(
                 model=model,
                 training_only_data_module=data_module,
                 checkpoint_path=checkpoint_path,
                 accelerator="gpu" if device.startswith("cuda") else "cpu",
+                **(
+                    {
+                        "epochs": requested_epochs,
+                        "progress_path": small_root / "validation_progress.json",
+                    }
+                    if full_policy
+                    else {}
+                ),
             )
             post_fit_device_restore = api.restore_post_fit_device(model, device)
-            completed_epochs = int(trainer.current_epoch)
+            completed_epochs = (
+                len(trainer.gradpert_validation_history)
+                if full_policy
+                else int(trainer.current_epoch)
+            )
             optimizer_steps = int(trainer.global_step)
-            if completed_epochs != 1 or optimizer_steps <= 0:
+            if (
+                not 1 <= completed_epochs <= int(config.training.max_epochs.value)
+                or optimizer_steps <= 0
+            ):
                 raise RuntimeError(
                     "official TxPert smoke did not complete exactly one optimizer epoch"
                 )
@@ -385,7 +422,8 @@ def run_one_epoch(
                     "schema_version": "official-training-receipt-v1",
                     "model_id": config.model_id,
                     "dataset_id": config.dataset_id,
-                    "epochs_requested": 1,
+                    "epochs_requested": requested_epochs,
+                    "phase": "smoke" if requested_epochs == 1 else "full",
                     "epochs_completed": completed_epochs,
                     "optimizer_steps": optimizer_steps,
                     "official_training_api": (
@@ -399,7 +437,11 @@ def run_one_epoch(
                     "learning_rate": float(config.training.learning_rate.value),
                     "weight_decay": float(config.training.weight_decay.value),
                     "scheduler": str(config.training.scheduler.value),
-                    "validation_batches_during_fit": 0,
+                    "validation_history": getattr(trainer, "gradpert_validation_history", []),
+                    "best_epoch": getattr(trainer, "gradpert_best_epoch", 1),
+                    "validation_strategy": "official_val_only_epoch_callback"
+                    if full_policy
+                    else "disabled_legacy_smoke",
                     "canonical_test_truth_present_during_fit": False,
                     "post_fit_device_restore": post_fit_device_restore,
                     "checkpoint_sha256": checkpoint_sha256,
@@ -475,6 +517,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--official-checkout", type=Path, required=True)
     parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--smoke-run-root", type=Path)
     parser.add_argument("--receipt", type=Path)
     parser.add_argument("--data-root", type=Path)
     parser.add_argument("--run-root", type=Path)
@@ -508,6 +552,8 @@ def main(argv: list[str] | None = None) -> None:
             repository_root=args.repository_root,
             formal=args.formal,
             development_commit=args.development_commit,
+            smoke=args.smoke,
+            smoke_run_root=args.smoke_run_root,
         )
     rendered = json.dumps(payload, indent=2, sort_keys=True)
     if args.receipt:

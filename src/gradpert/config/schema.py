@@ -19,6 +19,7 @@ ModelId = Literal[
     "gradpert_b2",
     "gears",
     "txpert_public",
+    "scouter_genept_seed",
     "matched_control_mean",
     "global_train_delta",
     "general_train_delta",
@@ -95,12 +96,13 @@ class TrainingConfig(StrictModel):
         "fixed_epoch_pilot",
         "inference_only",
         "vnext_combination_100",
+        "external_full_100",
     ]
     max_epochs: SourcedValue
     early_stopping: bool
     early_stopping_patience: SourcedValue
     monitor: str
-    monitor_mode: Literal["max", "none"]
+    monitor_mode: Literal["max", "min", "none"]
     min_delta: float
     train_batch_size: SourcedValue
     eval_batch_size: SourcedValue
@@ -138,6 +140,15 @@ class TrainingConfig(StrictModel):
                     raise ValueError("one-epoch external smoke uses monitor=none")
                 if self.run_seeds != [1]:
                     raise ValueError("external smoke-only runs use the shared seed 1")
+            elif self.formal_run_policy == "external_full_100":
+                if self.max_epochs.value != 100 or self.run_seeds != [1]:
+                    raise ValueError("external full runs require max_epochs=100 and seed1")
+                if not self.early_stopping or self.early_stopping_patience.value != 10:
+                    raise ValueError("external full runs require early-stopping patience=10")
+                if not self.monitor.startswith("val/") or self.monitor_mode not in {"min", "max"}:
+                    raise ValueError("external full runs require an explicit validation monitor")
+                if self.min_delta < 0:
+                    raise ValueError("external min_delta must be nonnegative")
             elif self.formal_run_policy == "vnext_combination_100":
                 if self.max_epochs.value != 100 or self.run_seeds != [1]:
                     raise ValueError("vNext combination requires max_epochs=100 and seed1")
@@ -158,7 +169,7 @@ class TrainingConfig(StrictModel):
                     raise ValueError("fixed-epoch native pilots use only seed 1")
             else:
                 raise ValueError("learned models require a learned formal_run_policy")
-            if self.min_delta != 0.0:
+            if self.min_delta != 0.0 and self.formal_run_policy != "external_full_100":
                 raise ValueError("learned models require min_delta=0")
         else:
             if self.smoke_epochs.value != 0 or self.max_epochs.value != 0:
@@ -242,7 +253,7 @@ class ExperimentConfig(StrictModel):
             raise ValueError("training.learned does not match model family")
         allowed_policies = {
             "native_learned": {"smoke_then_full", "fixed_epoch_pilot", "vnext_combination_100"},
-            "external_learned": {"smoke_only"},
+            "external_learned": {"smoke_only", "external_full_100"},
             "nonlearned": {"inference_only"},
         }[self.model.family]
         if self.training.formal_run_policy not in allowed_policies:
@@ -288,6 +299,11 @@ class ExperimentConfig(StrictModel):
                     "semantics-preserving systems optimizations"
                 )
         external_contracts = {
+            "scouter_genept_seed": (
+                "https://github.com/PancakeZoy/scouter.git",
+                "0cfddd000e19b72ff033ba67c8315f7bc3304932",
+                "benchmarks.scouter.runner",
+            ),
             "gears": (
                 "https://github.com/snap-stanford/GEARS.git",
                 "f374e43e197b295016d80395d7a54ddb81cc6769",

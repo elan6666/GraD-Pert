@@ -18,6 +18,7 @@ from benchmarks.common import (
     write_adapter_receipt,
     write_pickle,
 )
+from benchmarks.common.full_gate import require_completed_smoke
 from benchmarks.gears.official_api import (
     GearsModelParameters,
     GearsOfficialModules,
@@ -66,7 +67,10 @@ def _training(config: ExperimentConfig, name: str, expected: type) -> Any:
 
 def preflight(config_path: Path, checkout_root: Path) -> dict[str, object]:
     config = load_experiment_config(config_path)
-    if config.model_id != "gears" or config.training.formal_run_policy != "smoke_only":
+    if config.model_id != "gears" or config.training.formal_run_policy not in {
+        "smoke_only",
+        "external_full_100",
+    }:
         raise ValueError("GEARS runner requires a gears smoke-only experiment config")
     with official_module_session(
         checkout_root=checkout_root,
@@ -106,10 +110,13 @@ def run_one_epoch(
     repository_root: Path,
     formal: bool,
     development_commit: str | None,
+    smoke: bool = False,
+    smoke_run_root: Path | None = None,
 ) -> dict[str, object]:
     config_file = config_path.resolve(strict=True)
     config = load_experiment_config(config_file)
-    if config.model_id != "gears" or config.training.max_epochs.value != 1:
+    requested_epochs = 1 if smoke else int(config.training.max_epochs.value)
+    if config.model_id != "gears" or config.training.max_epochs.value not in {1, 100}:
         raise ValueError("GEARS execution requires a one-epoch GEARS config")
     destination = run_root.resolve()
     if destination.exists() and any(destination.iterdir()):
@@ -152,6 +159,17 @@ def run_one_epoch(
             split_policy=config.data.split_policy,
         )
         write_training_data_receipt(training_data, small_root / "training_data.json")
+        if requested_epochs == 100:
+            atomic_json(
+                small_root / "smoke_gate.json",
+                require_completed_smoke(
+                    smoke_run_root,
+                    config=config,
+                    config_sha256=config_sha256,
+                    training_data=training_data,
+                    source_commit=source.commit,
+                ),
+            )
         adapted = build_training_validation_adata(training_data, axis="graph")
         storage_receipt = _ensure_official_sparse_expression(adapted.adata)
         split_path = destination / "official_adapter" / "custom_split.pkl"
@@ -242,6 +260,15 @@ def run_one_epoch(
                 checkpoint_dir=destination / "checkpoints" / "best",
                 device=device,
                 experiment_name=run_id,
+                **(
+                    {
+                        "epochs": requested_epochs,
+                        "patience": 10,
+                        "progress_path": small_root / "validation_progress.json",
+                    }
+                    if config.training.formal_run_policy == "external_full_100" and not smoke
+                    else {}
+                ),
             )
             checkpoint_path = destination / "checkpoints" / "best" / "model.pt"
             checkpoint_sha256 = sha256_file(checkpoint_path)
@@ -268,8 +295,10 @@ def run_one_epoch(
                     "schema_version": "official-training-receipt-v1",
                     "model_id": config.model_id,
                     "dataset_id": config.dataset_id,
-                    "epochs_requested": 1,
-                    "epochs_completed": 1,
+                    "epochs_requested": requested_epochs,
+                    "phase": "smoke" if requested_epochs == 1 else "full",
+                    "epochs_completed": len(getattr(model, "gradpert_validation_history", [None])),
+                    "validation_history": getattr(model, "gradpert_validation_history", []),
                     "official_training_api": "gears.GEARS.train",
                     "train_batch_size": _training(config, "train_batch_size", int),
                     "eval_batch_size": _training(config, "eval_batch_size", int),
@@ -371,6 +400,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--official-checkout", type=Path, required=True)
     parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--smoke-run-root", type=Path)
     parser.add_argument("--receipt", type=Path)
     parser.add_argument("--data-root", type=Path)
     parser.add_argument("--official-data-root", type=Path)
@@ -407,6 +438,8 @@ def main(argv: list[str] | None = None) -> None:
             repository_root=args.repository_root,
             formal=args.formal,
             development_commit=args.development_commit,
+            smoke=args.smoke,
+            smoke_run_root=args.smoke_run_root,
         )
     rendered = json.dumps(payload, indent=2, sort_keys=True)
     if args.receipt:
