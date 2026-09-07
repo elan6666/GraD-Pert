@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pickle
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -16,6 +17,28 @@ from gradpert.hashing import sha256_json
 
 SHA = "a" * 64
 COMMIT = "b" * 40
+
+
+@pytest.mark.parametrize(
+    "model_id", ["gradpert_b2", "gears", "txpert_public", "scouter_genept_seed"]
+)
+def test_every_learned_model_requires_and_accepts_a_checkpoint(tmp_path, model_id):
+    provenance = replace(_provenance(("A", "B", "C")), model_id=model_id)
+    artifact = seal_prediction_artifact(
+        tmp_path / "valid.pkl",
+        provenance=provenance,
+        gene_ids=("A", "B", "C"),
+        conditions=[_condition("PERT_A")],
+    )
+    assert artifact.manifest.model_id == model_id
+    assert artifact.manifest.checkpoint_sha256 == SHA
+    with pytest.raises(ValueError, match="learned artifacts require a checkpoint"):
+        seal_prediction_artifact(
+            tmp_path / "invalid.pkl",
+            provenance=replace(provenance, checkpoint_sha256=None),
+            gene_ids=("A", "B", "C"),
+            conditions=[_condition("PERT_A")],
+        )
 
 
 def _provenance(gene_ids: tuple[str, ...]) -> PredictionProvenance:

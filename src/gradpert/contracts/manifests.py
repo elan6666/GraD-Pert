@@ -339,7 +339,7 @@ class PredictionArtifactManifest(StrictManifest):
         if not self.conditions:
             raise ValueError("prediction artifact must contain conditions")
         _require_unique([item.condition_id for item in self.conditions], "prediction conditions")
-        learned = self.model_id in {"gradpert_b2", "gears", "txpert_public"}
+        learned = self.model_id in {"gradpert_b2", "gears", "txpert_public", "scouter_genept_seed"}
         if learned != (self.checkpoint_sha256 is not None):
             raise ValueError(
                 "learned artifacts require a checkpoint; nonlearned artifacts forbid it"
