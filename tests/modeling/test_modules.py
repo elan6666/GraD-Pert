@@ -467,7 +467,7 @@ def test_single_string_gat_concat_256_forward_backward() -> None:
     assert model.expression_decoder.network[0].in_features == 320
     assert model.student_projector.mlp[0].in_features == 256
     view = _views().prediction
-    nodes = model.student_encoder(view)
+    nodes = model.student_encoder(view).node_states
     assert nodes.shape == (7, 256)
     prediction = model.decode_expression(torch.randn(4, 5), nodes[:4])
     prediction.square().mean().backward()
