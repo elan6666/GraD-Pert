@@ -100,15 +100,15 @@ def test_256_wide_perturbation_state_is_limited_to_concat_factorial() -> None:
         NativeArchitectureOptions.from_parameters(_vnext(graph_tower_output_dim=256))
 
 
-def test_256_wide_perturbation_state_keeps_the_a0_graph_encoder() -> None:
-    with pytest.raises(ValueError, match="require the A0 sparse graph Transformer"):
+def test_256_wide_perturbation_state_rejects_unapproved_encoder() -> None:
+    with pytest.raises(ValueError, match="require sparse multi-source or single GAT"):
         NativeArchitectureOptions.from_parameters(
             _vnext(
                 decoder_mode="concat",
                 graph_tower_output_dim=256,
                 graph_sources="string",
-                graph_encoder_family="single_source_gat",
-                graph_encoder_dropout=0.2,
+                graph_encoder_family="single_source_sparse_transformer",
+                graph_encoder_dropout=0.1,
             )
         )
 
