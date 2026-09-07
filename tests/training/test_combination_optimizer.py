@@ -6,9 +6,7 @@ from gradpert.training.step import build_native_optimizer
 
 
 def test_combination_rate_is_explicit_and_preserves_v1_guard():
-    model = GraDPertJointModel(
-        graph_gene_count=7, expression_gene_count=5, prototype_count=8192
-    )
+    model = GraDPertJointModel(graph_gene_count=7, expression_gene_count=5, prototype_count=8192)
     with pytest.raises(ValueError, match="frozen"):
         build_native_optimizer(model, learning_rate=1e-7)
     optimizer = build_native_optimizer(
