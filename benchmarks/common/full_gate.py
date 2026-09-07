@@ -30,10 +30,16 @@ def require_completed_smoke(root, *, config, config_sha256, training_data, sourc
         raise ValueError("one-epoch smoke source/config/data/status identity mismatch")
     if training.get("epochs_requested") != 1 or training.get("epochs_completed") != 1:
         raise ValueError("external smoke must complete exactly one epoch")
+    if training.get("canonical_test_truth_present_during_fit") is not False:
+        raise ValueError("smoke must explicitly exclude canonical test truth during fitting")
     checkpoints = [*root.rglob("*.pt"), *root.rglob("*.ckpt")]
     if len(checkpoints) != 1 or sha256_file(checkpoints[0]) != manifest["best_checkpoint_sha256"]:
         raise ValueError("smoke best checkpoint is absent, changed or not unique")
-    if list(root.rglob("*.pkl")) or list(root.glob(".result-work-*")):
+    if (
+        list(root.rglob("*.pkl"))
+        or list(root.rglob("*.pickle"))
+        or list(root.glob(".result-work-*"))
+    ):
         raise ValueError("smoke zero-PKL/work-directory postcondition failed")
     return {
         "smoke_root": str(root),

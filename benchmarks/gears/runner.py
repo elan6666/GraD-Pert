@@ -75,7 +75,7 @@ def preflight(config_path: Path, checkout_root: Path) -> dict[str, object]:
     with official_module_session(
         checkout_root=checkout_root,
         expected_commit=config.source_code.commit,
-        module_names=("gears", "gears.utils"),
+        module_names=("gears", "gears.utils", "gears.data_utils"),
     ) as (modules, receipt):
         modules["torch"] = importlib.import_module("torch")
         modules["torch_geometric.loader"] = importlib.import_module("torch_geometric.loader")
@@ -307,6 +307,7 @@ def run_one_epoch(
                     "weight_decay": _training(config, "weight_decay", float),
                     "scheduler": _training(config, "scheduler", str),
                     "canonical_test_loader_present_during_fit": False,
+                    "canonical_test_truth_present_during_fit": False,
                     "checkpoint_sha256": checkpoint_sha256,
                     "checkpoint_format": "official_state_dict_pt",
                     "checkpoint_configuration_reconstruction": (
