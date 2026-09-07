@@ -10,10 +10,10 @@ The gene prior is the same hash-pinned Protein+Reactome+SIGNOR initialized
 trainable embedding. No Fanout, single-source GAT, or D5 is added.
 
 The self-contained config is
-`configs/combinations/a3_a0_e3_lr1e7_batch128/gradpert_b2/nadig_jurkat.yaml`.
-Training learning rate is explicitly 1e-7, training batch128, evaluation
+`configs/combinations/a3_a0_e3_lr1e5_batch128/gradpert_b2/nadig_jurkat.yaml`.
+Training learning rate is explicitly 1e-5, training batch128, evaluation
 batch256 unchanged, seed1, AdamW without weight decay or scheduler.
-The user-selected rate is 10,000 times below A1/A2; this joint rate/batch
+The user-selected rate is 100 times below A1/A2; this joint rate/batch
 comparison is not a single-factor ablation and is not selected from test scores.
 
 The combination budget is max100epochs with validation-only patience10,
@@ -26,3 +26,15 @@ one evaluation from best.pt, and retain zero PKL with metrics_only.
 A2's active checkout is immutable. Publish a separate clean source checkout
 and gate it before CUDA. Smoke and formal completion remain unclaimed until
 their exact receipts pass verification.
+
+## Learning-rate revision and stop (2026-09-07)
+
+The user stopped A3 and changed its learning rate from 1e-7 to 1e-5.
+The old config remains immutable historical evidence; it is superseded for
+future A3 launches. The full run `a3-5dd683a-full-v1` was terminated by
+targeted process-group SIGTERM, with 576 persisted steps (epoch0, last
+global_step575). Its files remain on the server and are not a completed run.
+The A3 process and GPU allocation were confirmed absent; GEARS, TxPert and
+Scouter remained active. The revised A3 is configured but not relaunched.
+A future launch requires a fresh clean source and run root, not in-place
+learning-rate mutation or resumption of the old optimizer state.
