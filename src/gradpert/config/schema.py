@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from gradpert.config.lr_schedule import EpochWarmupCosineRestarts
 from gradpert.config.native import NativeArchitectureOptions
 
 DatasetId = Literal[
@@ -49,6 +50,12 @@ class SourcedValue(StrictModel):
     """A scalar experiment value with explicit provenance."""
 
     value: Scalar
+    source: ProvenanceKind
+    reference: str = Field(min_length=1)
+
+
+class SourcedSchedulerValue(StrictModel):
+    value: Scalar | dict[str, Scalar]
     source: ProvenanceKind
     reference: str = Field(min_length=1)
 
@@ -109,11 +116,17 @@ class TrainingConfig(StrictModel):
     optimizer: SourcedValue
     learning_rate: SourcedValue
     weight_decay: SourcedValue
-    scheduler: SourcedValue
+    scheduler: SourcedSchedulerValue
     run_seeds: list[int]
 
     @model_validator(mode="after")
     def enforce_budget(self) -> TrainingConfig:
+        if isinstance(self.scheduler.value, dict):
+            schedule = EpochWarmupCosineRestarts.from_config(self.scheduler.value)
+            if self.formal_run_policy != "vnext_combination_100":
+                raise ValueError("native restart schedule is restricted to explicit combinations")
+            if schedule is None or self.learning_rate.value != schedule.max_lr:
+                raise ValueError("learning_rate must equal the configured restart peak")
         if self.learned:
             if self.smoke_epochs.value != 1:
                 raise ValueError("learned models require a one-epoch integration smoke")

@@ -10,10 +10,10 @@ The gene prior is the same hash-pinned Protein+Reactome+SIGNOR initialized
 trainable embedding. No Fanout, single-source GAT, or D5 is added.
 
 The self-contained config is
-`configs/combinations/a3_a0_e3_lr5e5_batch128/gradpert_b2/nadig_jurkat.yaml`.
-Training learning rate is explicitly 5e-5, training batch128, evaluation
-batch256 unchanged, seed1, AdamW without weight decay or scheduler.
-The user-selected rate is 20 times below A1/A2; this joint rate/batch
+`configs/combinations/a3_a0_e3_sclong_schedule_batch128/gradpert_b2/nadig_jurkat.yaml`.
+Training peak learning rate is 1e-4 with the epoch scheduler below, training
+batch128, evaluation batch256 unchanged, seed1, AdamW without weight decay.
+The initial peak is 10 times below A1/A2; this joint schedule/batch
 comparison is not a single-factor ablation and is not selected from test scores.
 
 The combination budget is max100epochs with validation-only patience10,
@@ -47,3 +47,30 @@ The new configuration changes only the learning rate and artifact-root label;
 batch128, model, split, seed, optimizer and max100/patience10 remain fixed.
 Launch from scratch in a fresh published checkout and run root on GPU0,
 alongside GEARS. TxPert and Scouter remain untouched on GPU1.
+
+### Authoritative latest schedule: scLong code-aligned, peak 1e-4
+
+The user superseded fixed 5e-5 with the official scLong scheduling behavior,
+then asked to prioritize code and allow a higher peak. The official default
+`--learning_rate=1e-4` is used as the first peak. This aligns the scheduler,
+not the entire optimizer/model: A3 keeps AdamW; scLong pretraining uses Adam.
+
+Reference: https://github.com/BaiDing1234/scLong/tree/41b72021540918e4386c4f2264351d7a6cbeed99
+`pretrain_dual_4096_all_1b_mix.py` lines49,318-327,444 and `utils.py`
+`CosineAnnealingWarmupRestarts.step(epoch=None)` were inspected directly.
+One interval is one epoch, updated after training and before validation.
+Use min_lr=1e-6, max_lr=1e-4, warmup_steps=5, first_cycle_steps=15,
+cycle_mult=2 and gamma=0.9. Cycle lengths are15/25/45/85; warmup stays5.
+Training epoch1 (zero-based0) uses1e-6; epoch6 uses1e-4; epoch16 resets
+to1e-6; epoch21 peaks at9e-5; epoch41 resets; epoch46 peaks at8.1e-5.
+Discrete cosine steps approach but do not reach the floor before restart.
+Do not use upstream's explicit `step(epoch=...)` branch: its cycle formula
+differs from the sequential branch actually used by the reference script.
+
+The native scheduler independently computes the same sequential rates from
+completed epochs. Checkpoint config identity plus completed_epochs and saved
+optimizer LR preserve resume state. `learning_rate.csv` records rates before
+each epoch and rejects differing resumed records. Default unscheduled runs
+remain unchanged. The fixed5e-5 attempt is stopped with its files preserved.
+This new scheduler implementation requires a fresh one-epoch smoke before
+the separate max100/patience10 run; no old smoke substitutes for this change.

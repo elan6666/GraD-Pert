@@ -18,6 +18,7 @@ from typing import Any, Literal
 import numpy as np
 
 from gradpert.config import ExperimentConfig, NativeArchitectureOptions, load_experiment_config
+from gradpert.config.lr_schedule import EpochWarmupCosineRestarts
 from gradpert.contracts import RunManifest, ServerArtifactPointer
 from gradpert.data._io import atomic_json, atomic_text
 from gradpert.evaluation import CanonicalEvaluationData
@@ -856,6 +857,7 @@ def run_native_experiment(
         }
         write_training_data_receipt(training_data, small_root / "training_data.json")
         trainer = GraDPertTrainer(
+            lr_schedule=EpochWarmupCosineRestarts.from_config(config.training.scheduler.value),
             engine=engine,
             checkpoint_identity=checkpoint_identity,
             run_root=destination,
@@ -936,6 +938,7 @@ def run_native_experiment(
                 "early_stopping_patience": int(config.training.early_stopping_patience.value),
                 "validation_monitor": config.training.monitor,
                 "canonical_test_truth_present_during_fit": False,
+                "learning_rate_schedule": config.training.scheduler.model_dump(),
                 "checkpoint_sha256": best_checkpoint_sha256,
                 "resolved_local_view_contract": local_view_contract.payload(),
                 "local_view_realization_sha256": sha256_json(local_view_realization),

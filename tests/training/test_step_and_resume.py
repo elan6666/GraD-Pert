@@ -1108,6 +1108,66 @@ def test_ring_induced_implementation_selector_fails_closed(
         _components()
 
 
+def test_restart_schedule_epoch_boundary_resume_is_exact(tmp_path: Path) -> None:
+    from gradpert.config.lr_schedule import EpochWarmupCosineRestarts
+
+    schedule = EpochWarmupCosineRestarts(15, 2, 1e-4, 1e-6, 5, 0.9)
+
+    class TinyEngine:
+        total_schedule_steps = 100
+
+        def __init__(self):
+            self.model = torch.nn.Linear(1, 1, bias=False)
+            with torch.no_grad():
+                self.model.weight.fill_(1.0)
+            self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=1e-4)
+            self.centers = CenterState.zeros(prototype_count=1, device=torch.device("cpu"))
+            self.rates = []
+
+        def train_step(self, batch, *, global_step):
+            self.rates.append(self.optimizer.param_groups[0]["lr"])
+            self.optimizer.zero_grad()
+            self.model(torch.ones(1, 1)).sum().backward()
+            self.optimizer.step()
+            return _step_metrics()
+
+    def make(root):
+        return GraDPertTrainer(
+            engine=TinyEngine(),
+            checkpoint_identity=_identity(),
+            run_root=root,
+            steps_per_epoch=1,
+            max_epochs=100,
+            run_meta={"run_id": "schedule-test"},
+            lr_schedule=schedule,
+        )
+
+    def run_until(trainer, stop):
+        def batches(epoch):
+            if epoch == stop:
+                raise RuntimeError("intentional boundary stop")
+            return ("batch",)
+
+        with pytest.raises(RuntimeError, match="intentional boundary stop"):
+            trainer.fit(
+                mode="full", train_epoch_factory=batches, validate=lambda model, epoch: float(epoch)
+            )
+
+    uninterrupted = make(tmp_path / "uninterrupted")
+    run_until(uninterrupted, 22)
+    interrupted = make(tmp_path / "resumed")
+    run_until(interrupted, 7)
+    resumed = make(tmp_path / "resumed")
+    resumed.resume()
+    assert resumed.engine.optimizer.param_groups[0]["lr"] == schedule.at_epoch(7)["learning_rate"]
+    run_until(resumed, 22)
+    assert uninterrupted.engine.rates == interrupted.engine.rates + resumed.engine.rates
+    _assert_nested_exact(uninterrupted.engine.model.state_dict(), resumed.engine.model.state_dict())
+    _assert_nested_exact(
+        uninterrupted.engine.optimizer.state_dict(), resumed.engine.optimizer.state_dict()
+    )
+
+
 def test_trainer_serializes_once_then_materializes_best_peer(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     digest = "a" * 64
     serialized: list[Path] = []

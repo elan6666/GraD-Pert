@@ -99,6 +99,21 @@ class TrainingReceiptWriter:
             return
         _atomic_json(self.root / "run_meta.json", payload)
 
+    def write_schedule(self, payload: Mapping[str, Any]) -> None:
+        """Persist the actual epoch rate before training, including restart position."""
+        path = self.root / "learning_rate.csv"
+        if path.exists():
+            with path.open(encoding="utf-8", newline="") as stream:
+                rows = list(csv.DictReader(stream))
+            matching = [r for r in rows if int(r["epoch"]) == payload["epoch"]]
+            if matching:
+                if len(matching) != 1 or any(
+                    float(matching[0][k]) != float(v) for k, v in payload.items()
+                ):
+                    raise ValueError("resumed learning-rate receipt differs")
+                return
+        self._append(path, payload)
+
     def write_step(self, *, epoch: int, global_step: int, metrics: GraDPertStepMetrics) -> None:
         expected = 0 if self._last_step is None else self._last_step + 1
         if global_step != expected:

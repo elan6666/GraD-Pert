@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from gradpert.config.lr_schedule import EpochWarmupCosineRestarts
 from gradpert.modeling import GraDPertJointModel
 from gradpert.training.batch import GraDPertTrainingBatch
 from gradpert.training.checkpoint import (
@@ -74,6 +75,7 @@ class GraDPertTrainer:
         run_meta: Mapping[str, Any],
         log_buffer_steps: int = 1,
         single_checkpoint_serialization: bool = False,
+        lr_schedule: EpochWarmupCosineRestarts | None = None,
     ) -> None:
         if steps_per_epoch <= 0:
             raise ValueError("steps_per_epoch must be positive")
@@ -85,6 +87,7 @@ class GraDPertTrainer:
         if engine.total_schedule_steps != max_epochs * steps_per_epoch:
             raise ValueError("Teacher schedule must span the configured native budget")
         self.engine = engine
+        self.lr_schedule = lr_schedule
         self.identity = checkpoint_identity
         self.run_root = Path(run_root)
         self.steps_per_epoch = steps_per_epoch
@@ -149,6 +152,11 @@ class GraDPertTrainer:
         if self.progress.completed_epochs > target_epochs:
             raise ValueError("checkpoint is beyond the requested run mode")
         for epoch in range(self.progress.completed_epochs, target_epochs):
+            if self.lr_schedule is not None:
+                schedule_row = self.lr_schedule.at_epoch(epoch)
+                for group in self.engine.optimizer.param_groups:
+                    group["lr"] = schedule_row["learning_rate"]
+                self.receipts.write_schedule(schedule_row)
             training_started = time.perf_counter()
             observed_steps = 0
             try:
@@ -175,6 +183,10 @@ class GraDPertTrainer:
                 )
             self.training_wall_ms += (time.perf_counter() - training_started) * 1000.0
             self.progress.completed_epochs = epoch + 1
+            if self.lr_schedule is not None:
+                next_lr = self.lr_schedule.at_epoch(epoch + 1)["learning_rate"]
+                for group in self.engine.optimizer.param_groups:
+                    group["lr"] = next_lr
             validation_started = time.perf_counter()
             validation_metric = float(validate(self.engine.model, epoch))
             self.validation_wall_ms += (time.perf_counter() - validation_started) * 1000.0
