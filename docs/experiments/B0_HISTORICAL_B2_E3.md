@@ -41,6 +41,13 @@ This changes several factors and is not a single-variable ablation of B2.
 
 ## Launch preparation
 
+The user also authorized B1: identical to B0 except `gene_feature_mode=learned_id`
+and no prior artifact. Use the independent `b1_historical_b2_schedule_batch128`
+config/root; this is not the historical performance pilot B1. Both experiments
+may share the two GPUs with existing DinoGenePT, one GraD-Pert run per GPU.
+Validate shared capacity first and never terminate DinoGenePT or silently
+reduce graph size, locals, precision, batch size, or prototypes to fit.
+
 The first runtime audit found that the historical adaptive-relation GAT branch
 ignored feature-mode selection. B0 now applies the existing E3 seeded random
 projection (seed20260828) to initialize its 128-wide student embeddings, then

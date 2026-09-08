@@ -47,3 +47,19 @@ def test_b0_preserves_historical_b2_geometry_and_requested_overrides():
         "gamma": 0.9,
     }
     assert config.artifacts.result_mode == "metrics_only"
+
+
+def test_b1_changes_only_gene_prior_and_artifact_root():
+    root = Path(__file__).resolve().parents[2] / "configs/combinations"
+    b0 = load_experiment_config(
+        root / "b0_historical_b2_e3_schedule_batch128/gradpert_b2/nadig_jurkat.yaml"
+    ).model_dump()
+    b1 = load_experiment_config(
+        root / "b1_historical_b2_schedule_batch128/gradpert_b2/nadig_jurkat.yaml"
+    ).model_dump()
+    assert b1["model"]["parameters"]["gene_feature_mode"]["value"] == "learned_id"
+    b0["model"]["parameters"]["gene_feature_mode"]["value"] = "learned_id"
+    for name in ("genept_expected_sha256", "genept_artifact_path"):
+        del b0["model"]["parameters"][name]
+    b0["artifacts"]["root"] = b1["artifacts"]["root"]
+    assert b0 == b1
