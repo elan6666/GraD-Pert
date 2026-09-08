@@ -627,6 +627,10 @@ def run_native_experiment(
         architecture.gene_feature_mode != "learned_id"
         and configured_prior_path is not None
         and Path(configured_prior_path).suffix == ".npz"
+        # Canonical full graphs are verified directly against the live ordered
+        # canonical axis below. A reduced-graph availability receipt cannot
+        # certify that different axis, and must not be accepted as one.
+        and graph_axis_policy != "canonical_full"
     )
     if uses_seed_npz:
         if genept_preflight_receipt is None or genept_preflight_receipt_sha256 is None:

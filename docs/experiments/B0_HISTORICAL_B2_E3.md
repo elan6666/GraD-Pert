@@ -56,6 +56,11 @@ Learned-ID behavior is unchanged; unsupported historical GAT prior modes fail
 closed. A CPU server regression checks exact initialization, Teacher equality,
 trainability and rejection of a missing prior matrix.
 
+Canonical-full GenePT loading verifies the sealed NPZ SHA and live ordered
+canonical graph genes/perturbation targets through `verify_text_prior_npz`,
+and emits its actual prior receipt before fitting. It does not accept the
+2,809-node A3 availability receipt as proof for the 6,506-node B2 axis.
+
 At preparation time both GPUs were occupied by DinoGenePT (about23--24GiB
 each). No safe B0 shared-capacity result exists. Preserve those jobs and wait
 for sufficient capacity; available memory is not a successful capacity gate.
