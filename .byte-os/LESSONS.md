@@ -1,5 +1,16 @@
 # Lessons
 
+## Instantiate the complete model before claiming a capacity ratio
+
+- Correction (2026-09-09): the proposed 128-embedding, two-layer/two-head128
+  graph, projector256/32, basal/decoder128 design was incorrectly estimated
+  at 3.82M parameters. CPU module instantiation counted 6,338,568 (49.417:1
+  against 128,266 training perturbed cells), including both graph sources
+  and both Student and Teacher. It does not satisfy the agreed 20--30:1.
+- Prevention: count every instantiated parameter, show component subtotals,
+  include frozen Teacher parameters, and distinguish budget estimates from
+  verified counts before changing configs or claiming a design fits.
+
 ## A changed baseline must reverse dependent ablations where necessary
 
 - Requirement correction: the successor A0 changed from eight to four local

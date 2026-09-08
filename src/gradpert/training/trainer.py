@@ -167,6 +167,11 @@ class GraDPertTrainer:
                         epoch=epoch,
                         global_step=self.progress.global_step,
                         metrics=metrics,
+                        learning_rate=(
+                            float(self.engine.optimizer.param_groups[0]["lr"])
+                            if getattr(self.engine, "step_schedule", None) is not None
+                            else None
+                        ),
                     )
                     self.logging_wall_ms += (time.perf_counter() - logging_started) * 1000.0
                     self.progress.global_step += 1

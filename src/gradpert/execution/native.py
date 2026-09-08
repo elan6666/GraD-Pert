@@ -19,6 +19,7 @@ import numpy as np
 
 from gradpert.config import ExperimentConfig, NativeArchitectureOptions, load_experiment_config
 from gradpert.config.lr_schedule import EpochWarmupCosineRestarts
+from gradpert.config.step_schedule import StepWarmupCosine, load_training_schedule
 from gradpert.contracts import RunManifest, ServerArtifactPointer
 from gradpert.data._io import atomic_json, atomic_text
 from gradpert.evaluation import CanonicalEvaluationData
@@ -506,6 +507,7 @@ def run_native_experiment(
     if mode == "full" and config.training.formal_run_policy not in {
         "smoke_then_full",
         "vnext_combination_100",
+        "vnext_combination_200",
     }:
         raise ValueError("native full mode requires formal_run_policy=smoke_then_full")
     destination = Path(run_root).resolve()
@@ -784,12 +786,41 @@ def run_native_experiment(
             architecture=architecture,
             genept_matrix=genept_tensor,
         ).to(device)
+        if architecture.capacity_profile == "compact128_v1":
+            train_cells = len(training_data.train_row_indices)
+            total_parameters = sum(p.numel() for p in model.parameters())
+            trainable_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+            if (
+                train_cells != 128266
+                or topology.n_nodes != 6506
+                or training_data.manifest.n_expression_genes != 5000
+                or prototype_count != 16384
+                or total_parameters != 6338568
+            ):
+                raise ValueError(
+                    "compact128 parameter/data budget differs from its Jurkat contract"
+                )
+            _write_or_require_json(
+                small_root / "model_capacity.json",
+                {
+                    "profile": "compact128_v1",
+                    "total_parameters": total_parameters,
+                    "trainable_parameters": trainable_parameters,
+                    "teacher_parameters": total_parameters - trainable_parameters,
+                    "train_perturbed_cells": train_cells,
+                    "total_parameters_per_training_cell": total_parameters / train_cells,
+                    "expected_total_parameters": 6338568,
+                    "includes_teacher_and_all_heads": True,
+                },
+                resume=resume,
+            )
         optimizer = build_native_optimizer(
             model,
             learning_rate=float(config.training.learning_rate.value),
             weight_decay=float(config.training.weight_decay.value),
             allow_combination_learning_rate=(
-                config.training.formal_run_policy == "vnext_combination_100"
+                config.training.formal_run_policy
+                in {"vnext_combination_100", "vnext_combination_200"}
             ),
         )
         centers = CenterState.zeros(prototype_count=prototype_count, device=device)
@@ -805,7 +836,11 @@ def run_native_experiment(
                 }
             )
         )
+        training_schedule = load_training_schedule(config.training.scheduler.value)
         engine = GraDPertStepEngine(
+            step_schedule=(
+                training_schedule if isinstance(training_schedule, StepWarmupCosine) else None
+            ),
             model=model,
             topology=topology,
             optimizer=optimizer,
@@ -861,7 +896,11 @@ def run_native_experiment(
         }
         write_training_data_receipt(training_data, small_root / "training_data.json")
         trainer = GraDPertTrainer(
-            lr_schedule=EpochWarmupCosineRestarts.from_config(config.training.scheduler.value),
+            lr_schedule=(
+                training_schedule
+                if isinstance(training_schedule, EpochWarmupCosineRestarts)
+                else None
+            ),
             engine=engine,
             checkpoint_identity=checkpoint_identity,
             run_root=destination,

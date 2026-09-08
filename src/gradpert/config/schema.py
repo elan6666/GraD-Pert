@@ -6,8 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from gradpert.config.lr_schedule import EpochWarmupCosineRestarts
 from gradpert.config.native import NativeArchitectureOptions
+from gradpert.config.step_schedule import StepWarmupCosine, load_training_schedule
 
 DatasetId = Literal[
     "replogle_k562_essential",
@@ -103,6 +103,7 @@ class TrainingConfig(StrictModel):
         "fixed_epoch_pilot",
         "inference_only",
         "vnext_combination_100",
+        "vnext_combination_200",
         "external_full_100",
     ]
     max_epochs: SourcedValue
@@ -122,11 +123,16 @@ class TrainingConfig(StrictModel):
     @model_validator(mode="after")
     def enforce_budget(self) -> TrainingConfig:
         if isinstance(self.scheduler.value, dict):
-            schedule = EpochWarmupCosineRestarts.from_config(self.scheduler.value)
-            if self.formal_run_policy != "vnext_combination_100":
+            schedule = load_training_schedule(self.scheduler.value)
+            if self.formal_run_policy not in {"vnext_combination_100", "vnext_combination_200"}:
                 raise ValueError("native restart schedule is restricted to explicit combinations")
             if schedule is None or self.learning_rate.value != schedule.max_lr:
                 raise ValueError("learning_rate must equal the configured restart peak")
+            if (
+                isinstance(schedule, StepWarmupCosine)
+                and schedule.global_batch_size != self.train_batch_size.value
+            ):
+                raise ValueError("native single-process global batch must equal train batch")
         if self.learned:
             if self.smoke_epochs.value != 1:
                 raise ValueError("learned models require a one-epoch integration smoke")
@@ -162,9 +168,12 @@ class TrainingConfig(StrictModel):
                     raise ValueError("external full runs require an explicit validation monitor")
                 if self.min_delta < 0:
                     raise ValueError("external min_delta must be nonnegative")
-            elif self.formal_run_policy == "vnext_combination_100":
-                if self.max_epochs.value != 100 or self.run_seeds != [1]:
-                    raise ValueError("vNext combination requires max_epochs=100 and seed1")
+            elif self.formal_run_policy in {"vnext_combination_100", "vnext_combination_200"}:
+                expected_epochs = 200 if self.formal_run_policy == "vnext_combination_200" else 100
+                if self.max_epochs.value != expected_epochs or self.run_seeds != [1]:
+                    raise ValueError(
+                        f"vNext combination requires max_epochs={expected_epochs} and seed1"
+                    )
                 if not self.early_stopping or self.early_stopping_patience.value != 10:
                     raise ValueError("vNext combination requires early-stopping patience=10")
                 if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
@@ -265,7 +274,12 @@ class ExperimentConfig(StrictModel):
         if self.training.learned != expected_learned:
             raise ValueError("training.learned does not match model family")
         allowed_policies = {
-            "native_learned": {"smoke_then_full", "fixed_epoch_pilot", "vnext_combination_100"},
+            "native_learned": {
+                "smoke_then_full",
+                "fixed_epoch_pilot",
+                "vnext_combination_100",
+                "vnext_combination_200",
+            },
             "external_learned": {"smoke_only", "external_full_100"},
             "nonlearned": {"inference_only"},
         }[self.model.family]

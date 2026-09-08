@@ -114,13 +114,23 @@ class TrainingReceiptWriter:
                 return
         self._append(path, payload)
 
-    def write_step(self, *, epoch: int, global_step: int, metrics: GraDPertStepMetrics) -> None:
+    def write_step(
+        self,
+        *,
+        epoch: int,
+        global_step: int,
+        metrics: GraDPertStepMetrics,
+        learning_rate: float | None = None,
+    ) -> None:
         expected = 0 if self._last_step is None else self._last_step + 1
         if global_step != expected:
             raise RuntimeError(
                 f"refusing duplicate or discontinuous train step {global_step}; expected {expected}"
             )
-        self._pending_steps.append({"epoch": epoch, "global_step": global_step, **asdict(metrics)})
+        payload = {"epoch": epoch, "global_step": global_step, **asdict(metrics)}
+        if learning_rate is not None:
+            payload["learning_rate"] = learning_rate
+        self._pending_steps.append(payload)
         if len(self._pending_steps) >= self._buffer_steps:
             self.flush_steps()
         self._last_step = global_step

@@ -178,6 +178,7 @@ class NativeArchitectureOptions:
     decoder_mode: DecoderMode
     genept_expected_sha256: str | None
     graph_axis_source_sha256: str | None
+    capacity_profile: str = "historical"
 
     def __post_init__(self) -> None:
         if self.graph_axis_policy == "recomputed_hvg_union_candidate_targets":
@@ -235,7 +236,19 @@ class NativeArchitectureOptions:
         if self.local_view_builder == "fanout" and self.local_view_fanout != (20, 10, 5, 5):
             raise ValueError("B2-vNext Fanout requires the frozen 20_10_5_5 schedule")
 
-        expected_dimensions = (128, 4, 2, 128)
+        if self.capacity_profile not in {"historical", "compact128_v1"}:
+            raise ValueError("unknown native capacity profile")
+        compact = self.capacity_profile == "compact128_v1"
+        if compact and (
+            self.graph_encoder_family != "adaptive_relation_gat"
+            or self.graph_axis_policy != "canonical_full"
+            or self.graph_sources != ("string", "go")
+            or self.decoder_mode != "additive"
+            or self.graph_output_dim != 64
+            or self.gene_feature_mode not in {"learned_id", "genept_initialized"}
+        ):
+            raise ValueError("compact128_v1 is restricted to the B0/B1 GAT additive coordinate")
+        expected_dimensions = (128, 2, 2, 128) if compact else (128, 4, 2, 128)
         observed_dimensions = (
             self.graph_input_dim,
             self.graph_layer_count,
@@ -402,7 +415,23 @@ class NativeArchitectureOptions:
             _integer(parameters, "local_anchor_mask_count", 4) if legacy_ratio_factors else None
         )
 
+        capacity_profile = _string(parameters, "capacity_profile", "historical")
+        if capacity_profile == "compact128_v1":
+            for key, expected in {
+                "gene_embedding_dim": 128,
+                "graph_tower_layers": 2,
+                "graph_tower_heads": 2,
+                "graph_head_dim": 128,
+                "graph_tower_output_dim": 64,
+                "projector_hidden_dim": 256,
+                "projector_bottleneck_dim": 32,
+                "basal_hidden_dim": 128,
+                "decoder_hidden_dim": 128,
+            }.items():
+                if key not in parameters or _integer(parameters, key, expected) != expected:
+                    raise ValueError(f"compact128_v1 requires explicit {key}={expected}")
         return cls(
+            capacity_profile=capacity_profile,
             graph_axis_policy=cast(GraphAxisPolicy, graph_axis_policy),
             graph_hvg_count=_integer(parameters, "graph_hvg_count", default_hvg_count),
             graph_sources=sources,
@@ -438,6 +467,14 @@ class NativeArchitectureOptions:
 
     def payload(self) -> dict[str, object]:
         payload = asdict(self)
+        if self.capacity_profile == "historical":
+            # Preserve every sealed legacy architecture hash.
+            del payload["capacity_profile"]
+        else:
+            payload["projector_hidden_dim"] = 256
+            payload["projector_bottleneck_dim"] = 32
+            payload["basal_hidden_dim"] = 128
+            payload["decoder_hidden_dim"] = 128
         payload["schema_version"] = "native-architecture-vnext-2"
         payload["graph_sources"] = list(self.graph_sources)
         payload["local_view_fanout"] = list(self.local_view_fanout)

@@ -77,16 +77,11 @@ class _GraphAttentionTower(nn.Module):
         head_dim: int = 128,
         output_dim: int = 64,
         dropout: float = 0.1,
+        compact: bool = False,
     ) -> None:
         super().__init__()
-        if (input_dim, layer_count, head_count, head_dim, output_dim, dropout) != (
-            128,
-            4,
-            2,
-            128,
-            64,
-            0.1,
-        ):
+        expected = (128, 2, 2, 128, 64, 0.1) if compact else (128, 4, 2, 128, 64, 0.1)
+        if (input_dim, layer_count, head_count, head_dim, output_dim, dropout) != expected:
             raise ValueError("v1 graph tower dimensions/dropout are frozen")
         self.dropout = dropout
         self.layers = nn.ModuleList()
@@ -124,17 +119,22 @@ class _GraphAttentionTower(nn.Module):
 class AdaptiveGeneGraphEncoder(nn.Module):
     """Two source-specific towers with node-adaptive one-head fusion."""
 
-    def __init__(self, n_genes: int) -> None:
+    def __init__(self, n_genes: int, *, compact: bool = False) -> None:
         super().__init__()
         if n_genes <= 0:
             raise ValueError("n_genes must be positive")
         self.n_genes = n_genes
-        self.gene_embeddings = nn.Parameter(torch.empty(n_genes, 128))
-        self.mask_token = nn.Parameter(torch.empty(1, 128))
+        width = 128
+        self.gene_embeddings = nn.Parameter(torch.empty(n_genes, width))
+        self.mask_token = nn.Parameter(torch.empty(1, width))
         self.towers = nn.ModuleDict(
             {
-                "go": _GraphAttentionTower(),
-                "string": _GraphAttentionTower(),
+                "go": _GraphAttentionTower(
+                    input_dim=width, layer_count=2 if compact else 4, compact=compact
+                ),
+                "string": _GraphAttentionTower(
+                    input_dim=width, layer_count=2 if compact else 4, compact=compact
+                ),
             }
         )
         self.relation_queries = nn.ParameterDict(
@@ -858,21 +858,24 @@ class ControlConditionMLP(nn.Module):
 
 
 class ConsistencyProjector(nn.Module):
-    def __init__(self, prototype_count: int, *, input_dim: int = 64) -> None:
+    def __init__(self, prototype_count: int, *, input_dim: int = 64, compact: bool = False) -> None:
         super().__init__()
         if prototype_count not in {65536, 32768, 16384, 8192}:
             raise ValueError("prototype_count must come from the frozen server-fit candidates")
         if input_dim not in {64, 256}:
             raise ValueError("projector input_dim must be 64 or 256")
         self.prototype_count = prototype_count
+        hidden, bottleneck = (256, 32) if compact else (2048, 256)
         self.mlp = nn.Sequential(
-            nn.Linear(input_dim, 2048),
+            nn.Linear(input_dim, hidden),
             nn.GELU(),
-            nn.Linear(2048, 2048),
+            nn.Linear(hidden, hidden),
             nn.GELU(),
-            nn.Linear(2048, 256),
+            nn.Linear(hidden, bottleneck),
         )
-        self.prototype_layer = nn.utils.weight_norm(nn.Linear(256, prototype_count, bias=False))
+        self.prototype_layer = nn.utils.weight_norm(
+            nn.Linear(bottleneck, prototype_count, bias=False)
+        )
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
@@ -892,16 +895,17 @@ class ConsistencyProjector(nn.Module):
 
 
 class BasalStateEncoder(nn.Module):
-    def __init__(self, gene_count: int) -> None:
+    def __init__(self, gene_count: int, *, compact: bool = False) -> None:
         super().__init__()
         if gene_count <= 0:
             raise ValueError("gene_count must be positive")
+        hidden = 128 if compact else 512
         self.network = nn.Sequential(
-            nn.Linear(gene_count, 512),
-            nn.BatchNorm1d(512),
+            nn.Linear(gene_count, hidden),
+            nn.BatchNorm1d(hidden),
             nn.LeakyReLU(),
             nn.Dropout(0.2),
-            nn.Linear(512, 64),
+            nn.Linear(hidden, 64),
         )
 
     def forward(self, control_expression: Tensor) -> Tensor:
@@ -909,18 +913,19 @@ class BasalStateEncoder(nn.Module):
 
 
 class ExpressionDecoder(nn.Module):
-    def __init__(self, gene_count: int, *, input_dim: int = 64) -> None:
+    def __init__(self, gene_count: int, *, input_dim: int = 64, compact: bool = False) -> None:
         super().__init__()
         if gene_count <= 0:
             raise ValueError("gene_count must be positive")
         if input_dim <= 0:
             raise ValueError("decoder input_dim must be positive")
+        hidden = 128 if compact else 512
         self.network = nn.Sequential(
-            nn.Linear(input_dim, 512),
-            nn.BatchNorm1d(512),
+            nn.Linear(input_dim, hidden),
+            nn.BatchNorm1d(hidden),
             nn.LeakyReLU(),
             nn.Dropout(0.2),
-            nn.Linear(512, gene_count),
+            nn.Linear(hidden, gene_count),
         )
 
     def forward(self, latent: Tensor) -> Tensor:
@@ -945,6 +950,7 @@ class GraDPertJointModel(nn.Module):
         self.graph_gene_count = graph_gene_count
         self.expression_gene_count = expression_gene_count
         self.architecture = architecture or NativeArchitectureOptions.from_parameters({})
+        compact = self.architecture.capacity_profile == "compact128_v1"
         configurable = self.architecture.graph_encoder_family != "adaptive_relation_gat"
         self.student_encoder = (
             ConfigurableGeneGraphEncoder(
@@ -953,7 +959,7 @@ class GraDPertJointModel(nn.Module):
                 genept_matrix=genept_matrix,
             )
             if configurable
-            else AdaptiveGeneGraphEncoder(graph_gene_count)
+            else AdaptiveGeneGraphEncoder(graph_gene_count, compact=compact)
         )
         perturbation_dim = self.architecture.graph_output_dim
         if not configurable and self.architecture.gene_feature_mode != "learned_id":
@@ -971,7 +977,10 @@ class GraDPertJointModel(nn.Module):
             generator = torch.Generator(device="cpu")
             generator.manual_seed(20260828)
             projection = torch.randn(
-                int(matrix.shape[1]), 128, generator=generator, dtype=torch.float32
+                int(matrix.shape[1]),
+                self.architecture.graph_input_dim,
+                generator=generator,
+                dtype=torch.float32,
             ) / (float(matrix.shape[1]) ** 0.5)
             with torch.no_grad():
                 self.student_encoder.gene_embeddings.copy_(
@@ -980,8 +989,9 @@ class GraDPertJointModel(nn.Module):
         self.student_projector = ConsistencyProjector(
             prototype_count,
             input_dim=perturbation_dim,
+            compact=compact,
         )
-        self.basal_encoder = BasalStateEncoder(expression_gene_count)
+        self.basal_encoder = BasalStateEncoder(expression_gene_count, compact=compact)
         decoder_input_dim = {
             "additive": 64,
             "parameter_matched_mlp": 64,
@@ -992,6 +1002,7 @@ class GraDPertJointModel(nn.Module):
         self.expression_decoder = ExpressionDecoder(
             expression_gene_count,
             input_dim=decoder_input_dim,
+            compact=compact,
         )
         # Construct teacher modules independently, then copy the exact student state.
         # Weight-normalized prototype layers expose computed tensors that cannot
@@ -1003,7 +1014,7 @@ class GraDPertJointModel(nn.Module):
                 genept_matrix=genept_matrix,
             )
             if configurable
-            else AdaptiveGeneGraphEncoder(graph_gene_count)
+            else AdaptiveGeneGraphEncoder(graph_gene_count, compact=compact)
         )
         self.control_condition_fusion: nn.Module | None
         if self.architecture.decoder_mode in {"additive", "concat"}:
@@ -1017,6 +1028,7 @@ class GraDPertJointModel(nn.Module):
         self.teacher_projector = ConsistencyProjector(
             prototype_count,
             input_dim=perturbation_dim,
+            compact=compact,
         )
         self.teacher_encoder.load_state_dict(self.student_encoder.state_dict())
         self.teacher_projector.load_state_dict(self.student_projector.state_dict())

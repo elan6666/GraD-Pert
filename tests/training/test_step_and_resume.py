@@ -78,18 +78,48 @@ def _components(
     *,
     capture_equivalence_health: bool = False,
     stage_observer: GraDPertStageObserver | None = None,
+    compact: bool = False,
+    genept: bool = False,
 ):  # type: ignore[no-untyped-def]
     target_device = device or torch.device("cpu")
     model = GraDPertJointModel(
         graph_gene_count=7,
         expression_gene_count=5,
         prototype_count=8192,
+        genept_matrix=torch.ones(7, 8) if genept else None,
+        architecture=(
+            NativeArchitectureOptions.from_parameters(
+                {
+                    "capacity_profile": "compact128_v1",
+                    "gene_embedding_dim": 128,
+                    "graph_tower_layers": 2,
+                    "graph_tower_heads": 2,
+                    "graph_head_dim": 128,
+                    "graph_tower_output_dim": 64,
+                    "projector_hidden_dim": 256,
+                    "projector_bottleneck_dim": 32,
+                    "basal_hidden_dim": 128,
+                    "decoder_hidden_dim": 128,
+                    **(
+                        {
+                            "gene_feature_mode": "genept_initialized",
+                            "genept_expected_sha256": GENEPT_EMB_B_SHA256,
+                        }
+                        if genept
+                        else {}
+                    ),
+                }
+            )
+            if compact
+            else None
+        ),
     ).to(target_device)
     optimizer = build_native_optimizer(model)
     centers = CenterState.zeros(prototype_count=8192, device=target_device)
     engine = GraDPertStepEngine(
         model=model,
         topology=_topology(),
+        architecture=model.architecture if compact else None,
         optimizer=optimizer,
         centers=centers,
         run_seed=1,
@@ -99,6 +129,24 @@ def _components(
         stage_observer=stage_observer,
     )
     return model, optimizer, centers, engine
+
+
+def test_step_schedule_reaches_optimizer_and_teacher():
+    from gradpert.config.step_schedule import StepWarmupCosine
+
+    model, optimizer, _, engine = _components()
+    engine.step_schedule = StepWarmupCosine(2e-4, 1e-6, 1024, 0.16, 0.994, 1.0)
+    batch = _batch()
+    student_parameters = [p for p in model.parameters() if p.requires_grad]
+    before = [p.detach().clone() for p in student_parameters]
+    metrics = engine.train_step(batch, global_step=0)
+    assert optimizer.param_groups[0]["lr"] == 0
+    assert metrics.teacher_momentum == 0.994
+    assert all(torch.equal(a, b) for a, b in zip(before, student_parameters, strict=True))
+    metrics = engine.train_step(batch, global_step=1)
+    expected = engine.step_schedule.at_step(1, 400)
+    assert optimizer.param_groups[0]["lr"] == expected["learning_rate"]
+    assert metrics.teacher_momentum == expected["teacher_momentum"]
 
 
 def _vnext_architecture(
@@ -860,10 +908,18 @@ def test_loss_weights_reject_invalid_values() -> None:
         LossWeights(prediction=0.0)
 
 
-def test_checkpoint_resume_reproduces_the_next_step(tmp_path: Path) -> None:
+@pytest.mark.parametrize("use_step_schedule", [False, True])
+@pytest.mark.parametrize(("compact", "genept"), [(False, False), (True, False), (True, True)])
+def test_checkpoint_resume_reproduces_the_next_step(
+    tmp_path: Path, use_step_schedule: bool, compact: bool, genept: bool
+) -> None:
+    from gradpert.config.step_schedule import StepWarmupCosine
+
     torch.manual_seed(123)
     batch = _batch()
-    _, optimizer, centers, engine = _components()
+    _, optimizer, centers, engine = _components(compact=compact, genept=genept)
+    if use_step_schedule:
+        engine.step_schedule = StepWarmupCosine(2e-4, 1e-6, 1024, 0.16, 0.994, 1.0)
     engine.train_step(batch, global_step=0)
     checkpoint = tmp_path / "epoch.pt"
     save_training_checkpoint(
@@ -879,7 +935,10 @@ def test_checkpoint_resume_reproduces_the_next_step(tmp_path: Path) -> None:
         name: value.detach().clone() for name, value in engine.model.state_dict().items()
     }
 
-    _, resumed_optimizer, resumed_centers, resumed_engine = _components()
+    _, resumed_optimizer, resumed_centers, resumed_engine = _components(
+        compact=compact, genept=genept
+    )
+    resumed_engine.step_schedule = engine.step_schedule
     progress = load_training_checkpoint(
         checkpoint,
         model=resumed_engine.model,
@@ -889,6 +948,8 @@ def test_checkpoint_resume_reproduces_the_next_step(tmp_path: Path) -> None:
     )
     assert progress == {"completed_epochs": 1, "global_step": 1}
     resumed = resumed_engine.train_step(batch, global_step=1)
+    assert resumed_optimizer.param_groups[0]["lr"] == optimizer.param_groups[0]["lr"]
+    assert resumed.teacher_momentum == uninterrupted.teacher_momentum
     assert resumed.total_loss == pytest.approx(uninterrupted.total_loss, rel=0, abs=1e-7)
     for name, value in resumed_engine.model.state_dict().items():
         assert torch.equal(value, uninterrupted_state[name]), name

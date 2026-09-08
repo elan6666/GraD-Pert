@@ -19,6 +19,7 @@ from torch import Tensor
 from torch.nn import functional as F
 
 from gradpert.config.native import NativeArchitectureOptions
+from gradpert.config.step_schedule import StepWarmupCosine
 from gradpert.graphs import (
     GraDPertTrainingViews,
     GraphTopology,
@@ -422,6 +423,7 @@ class GraDPertStepEngine:
         checkpoint_student_local_activation_count: int | None = None,
         capture_equivalence_health: bool = False,
         stage_observer: GraDPertStageObserver | None = None,
+        step_schedule: StepWarmupCosine | None = None,
     ) -> None:
         if topology.n_nodes != model.graph_gene_count:
             raise ValueError("topology and model graph-gene counts differ")
@@ -437,6 +439,7 @@ class GraDPertStepEngine:
         self.centers = centers
         self.run_seed = run_seed
         self.total_schedule_steps = total_schedule_steps
+        self.step_schedule = step_schedule
         self.heldout_target_ids = heldout_target_ids
         default_architecture = NativeArchitectureOptions.from_parameters({})
         if architecture is None:
@@ -636,6 +639,10 @@ class GraDPertStepEngine:
     ) -> GraDPertStepMetrics:
         if not 0 <= global_step < self.total_schedule_steps:
             raise ValueError("global_step is outside the frozen maximum schedule")
+        if self.step_schedule is not None:
+            scheduled = self.step_schedule.at_step(global_step, self.total_schedule_steps)
+            for group in self.optimizer.param_groups:
+                group["lr"] = scheduled["learning_rate"]
         if batch.control_expression.shape[1] != self.model.expression_gene_count:
             raise ValueError("batch and model expression-gene counts differ")
         capture_health = self.capture_equivalence_health and global_step == 0
@@ -979,6 +986,10 @@ class GraDPertStepEngine:
             global_step=global_step,
             total_steps=schedule_last_step,
         )
+        if self.step_schedule is not None:
+            momentum = self.step_schedule.at_step(global_step, self.total_schedule_steps)[
+                "teacher_momentum"
+            ]
         with self._observe_stage("ema", global_step=global_step):
             update_teacher_ema(
                 self.model.student_encoder,

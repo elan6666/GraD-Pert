@@ -14,6 +14,36 @@ updated_at: 2026-09-04T00:25:00+08:00
 
 # Status
 
+- 2026-09-09 authorized next job: compact128 B0/GPU0 and B1/GPU1,
+  each one-epoch smoke then fresh max200 full fit with patience10. New explicit
+  epoch200 configs and phase runner are prepared; old100 configs preserved.
+  Publish/synchronize this source and pass final gates before launch. Planned
+  run namespace `b01-compact200-<commit>-v1`, two tmux sessions, hourly existing
+  monitor after preparation goal completion. See B01_COMPACT128 execution handoff.
+
+- 2026-09-09 compact128: user explicitly selected embedding128, two-layer
+  two-head128 graph, projector256/32, basal/decoder128 after the count correction;
+  the prior20--30:1 budget is superseded. B0/B1 standalone compact128 configs
+  and native capacity profile are implemented. Complete count6,338,568,
+  ratio49.417367; historical30,252,744 unchanged. See
+  `docs/experiments/B01_COMPACT128.md`. CPU full-shape counts and both E3/ID
+  training/checkpoint-resume tests pass in isolated server directory
+  `/data/yilangliu/GraD-Pert/development/b01-compact128-cpu-hFD4Wm`.
+  No CUDA started; publication/clean synchronization and CUDA integration are
+  pending. Monitor `grad-pert-h4-formal-monitor` stays PAUSED. Superseded
+  compact20 code/config is removed; old scientific evidence is untouched.
+  Final CPU suite661 passed/4 explicit skips; Ruff/format/mypy79/build pass.
+  Implementation stage complete; no scheduled wait is needed until a real
+  authorized job is launched after publication and CUDA preflight.
+
+- 2026-09-09: future B0/B1 now use the new `*_step_batch1024` standalone
+  configs, not the retained `*_schedule_batch128` configs. Native per-step
+  square-root-scaled LR (peak2e-4 at1024),16% linear warmup then cosine to1e-6,
+  and Teacher EMA0.994 toward1 are implemented. See
+  `docs/experiments/B01_BATCH1024_STEP_SCHEDULE.md`. CPU verification passed;
+  publication, clean server synchronization and fresh CUDA integration remain
+  pending. No new full run or monitor was started. Do not resume old capacity roots.
+
 - 2026-09-07: remaining H4 native/M/W/O training and evaluation are complete.
   Ten recent rows passed ordered-step/validation/checkpoint/zero-PKL and
   fairness identity audits, complete architecture resolution and per-step
