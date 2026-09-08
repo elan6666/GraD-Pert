@@ -956,6 +956,27 @@ class GraDPertJointModel(nn.Module):
             else AdaptiveGeneGraphEncoder(graph_gene_count)
         )
         perturbation_dim = self.architecture.graph_output_dim
+        if not configurable and self.architecture.gene_feature_mode != "learned_id":
+            if self.architecture.gene_feature_mode != "genept_initialized":
+                raise ValueError("historical GAT supports learned_id or genept_initialized only")
+            if (
+                genept_matrix is None
+                or genept_matrix.ndim != 2
+                or genept_matrix.shape[0] != graph_gene_count
+                or genept_matrix.shape[1] < 1
+                or not bool(torch.isfinite(genept_matrix).all().item())
+            ):
+                raise ValueError("GenePT initialization requires an ordered finite [N,D] matrix")
+            matrix = genept_matrix.detach().to(device="cpu", dtype=torch.float32).contiguous()
+            generator = torch.Generator(device="cpu")
+            generator.manual_seed(20260828)
+            projection = torch.randn(
+                int(matrix.shape[1]), 128, generator=generator, dtype=torch.float32
+            ) / (float(matrix.shape[1]) ** 0.5)
+            with torch.no_grad():
+                self.student_encoder.gene_embeddings.copy_(
+                    matrix.matmul(projection).to(self.student_encoder.gene_embeddings.device)
+                )
         self.student_projector = ConsistencyProjector(
             prototype_count,
             input_dim=perturbation_dim,
