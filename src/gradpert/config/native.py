@@ -10,6 +10,14 @@ from typing import Literal, cast
 
 from gradpert.hashing import sha256_json
 
+# Depth, projector hidden/bottleneck, complete parameter count at Jurkat dimensions.
+CAPACITY_PROFILES: dict[str, tuple[int, int, int, int]] = {
+    "compact128_v1": (2, 256, 32, 6338568),
+    "capacity65_v1": (3, 512, 32, 8359944),
+    "capacity82_v1": (3, 512, 96, 10522760),
+    "capacity100_v1": (4, 768, 96, 12839048),
+}
+
 GraphAxisPolicy = Literal[
     "canonical_full",
     "recomputed_top500_union_candidate_targets",
@@ -236,9 +244,9 @@ class NativeArchitectureOptions:
         if self.local_view_builder == "fanout" and self.local_view_fanout != (20, 10, 5, 5):
             raise ValueError("B2-vNext Fanout requires the frozen 20_10_5_5 schedule")
 
-        if self.capacity_profile not in {"historical", "compact128_v1"}:
+        if self.capacity_profile != "historical" and self.capacity_profile not in CAPACITY_PROFILES:
             raise ValueError("unknown native capacity profile")
-        compact = self.capacity_profile == "compact128_v1"
+        compact = self.capacity_profile in CAPACITY_PROFILES
         if compact and (
             self.graph_encoder_family != "adaptive_relation_gat"
             or self.graph_axis_policy != "canonical_full"
@@ -248,7 +256,8 @@ class NativeArchitectureOptions:
             or self.gene_feature_mode not in {"learned_id", "genept_initialized"}
         ):
             raise ValueError("compact128_v1 is restricted to the B0/B1 GAT additive coordinate")
-        expected_dimensions = (128, 2, 2, 128) if compact else (128, 4, 2, 128)
+        depth = CAPACITY_PROFILES[self.capacity_profile][0] if compact else 4
+        expected_dimensions = (128, depth, 2, 128)
         observed_dimensions = (
             self.graph_input_dim,
             self.graph_layer_count,
@@ -416,20 +425,21 @@ class NativeArchitectureOptions:
         )
 
         capacity_profile = _string(parameters, "capacity_profile", "historical")
-        if capacity_profile == "compact128_v1":
+        if capacity_profile in CAPACITY_PROFILES:
+            depth, hidden, bottleneck, _ = CAPACITY_PROFILES[capacity_profile]
             for key, expected in {
                 "gene_embedding_dim": 128,
-                "graph_tower_layers": 2,
+                "graph_tower_layers": depth,
                 "graph_tower_heads": 2,
                 "graph_head_dim": 128,
                 "graph_tower_output_dim": 64,
-                "projector_hidden_dim": 256,
-                "projector_bottleneck_dim": 32,
+                "projector_hidden_dim": hidden,
+                "projector_bottleneck_dim": bottleneck,
                 "basal_hidden_dim": 128,
                 "decoder_hidden_dim": 128,
             }.items():
                 if key not in parameters or _integer(parameters, key, expected) != expected:
-                    raise ValueError(f"compact128_v1 requires explicit {key}={expected}")
+                    raise ValueError(f"{capacity_profile} requires explicit {key}={expected}")
         return cls(
             capacity_profile=capacity_profile,
             graph_axis_policy=cast(GraphAxisPolicy, graph_axis_policy),
@@ -471,8 +481,8 @@ class NativeArchitectureOptions:
             # Preserve every sealed legacy architecture hash.
             del payload["capacity_profile"]
         else:
-            payload["projector_hidden_dim"] = 256
-            payload["projector_bottleneck_dim"] = 32
+            payload["projector_hidden_dim"] = CAPACITY_PROFILES[self.capacity_profile][1]
+            payload["projector_bottleneck_dim"] = CAPACITY_PROFILES[self.capacity_profile][2]
             payload["basal_hidden_dim"] = 128
             payload["decoder_hidden_dim"] = 128
         payload["schema_version"] = "native-architecture-vnext-2"

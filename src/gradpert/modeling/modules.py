@@ -15,7 +15,7 @@ from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint
 from torch_geometric.nn import GATv2Conv  # type: ignore[import-untyped]
 
-from gradpert.config.native import NativeArchitectureOptions
+from gradpert.config.native import CAPACITY_PROFILES, NativeArchitectureOptions
 from gradpert.graphs import GraphView
 from gradpert.modeling.encoders import (
     AdaptiveSourceGATEncoder,
@@ -80,7 +80,9 @@ class _GraphAttentionTower(nn.Module):
         compact: bool = False,
     ) -> None:
         super().__init__()
-        expected = (128, 2, 2, 128, 64, 0.1) if compact else (128, 4, 2, 128, 64, 0.1)
+        if compact and layer_count not in {2, 3, 4}:
+            raise ValueError("unsupported capacity depth")
+        expected = (128, layer_count if compact else 4, 2, 128, 64, 0.1)
         if (input_dim, layer_count, head_count, head_dim, output_dim, dropout) != expected:
             raise ValueError("v1 graph tower dimensions/dropout are frozen")
         self.dropout = dropout
@@ -119,7 +121,9 @@ class _GraphAttentionTower(nn.Module):
 class AdaptiveGeneGraphEncoder(nn.Module):
     """Two source-specific towers with node-adaptive one-head fusion."""
 
-    def __init__(self, n_genes: int, *, compact: bool = False) -> None:
+    def __init__(
+        self, n_genes: int, *, compact: bool = False, capacity_profile: str = "compact128_v1"
+    ) -> None:
         super().__init__()
         if n_genes <= 0:
             raise ValueError("n_genes must be positive")
@@ -130,10 +134,14 @@ class AdaptiveGeneGraphEncoder(nn.Module):
         self.towers = nn.ModuleDict(
             {
                 "go": _GraphAttentionTower(
-                    input_dim=width, layer_count=2 if compact else 4, compact=compact
+                    input_dim=width,
+                    layer_count=CAPACITY_PROFILES[capacity_profile][0] if compact else 4,
+                    compact=compact,
                 ),
                 "string": _GraphAttentionTower(
-                    input_dim=width, layer_count=2 if compact else 4, compact=compact
+                    input_dim=width,
+                    layer_count=CAPACITY_PROFILES[capacity_profile][0] if compact else 4,
+                    compact=compact,
                 ),
             }
         )
@@ -858,14 +866,21 @@ class ControlConditionMLP(nn.Module):
 
 
 class ConsistencyProjector(nn.Module):
-    def __init__(self, prototype_count: int, *, input_dim: int = 64, compact: bool = False) -> None:
+    def __init__(
+        self,
+        prototype_count: int,
+        *,
+        input_dim: int = 64,
+        compact: bool = False,
+        capacity_profile: str = "compact128_v1",
+    ) -> None:
         super().__init__()
         if prototype_count not in {65536, 32768, 16384, 8192}:
             raise ValueError("prototype_count must come from the frozen server-fit candidates")
         if input_dim not in {64, 256}:
             raise ValueError("projector input_dim must be 64 or 256")
         self.prototype_count = prototype_count
-        hidden, bottleneck = (256, 32) if compact else (2048, 256)
+        hidden, bottleneck = CAPACITY_PROFILES[capacity_profile][1:3] if compact else (2048, 256)
         self.mlp = nn.Sequential(
             nn.Linear(input_dim, hidden),
             nn.GELU(),
@@ -950,7 +965,7 @@ class GraDPertJointModel(nn.Module):
         self.graph_gene_count = graph_gene_count
         self.expression_gene_count = expression_gene_count
         self.architecture = architecture or NativeArchitectureOptions.from_parameters({})
-        compact = self.architecture.capacity_profile == "compact128_v1"
+        compact = self.architecture.capacity_profile in CAPACITY_PROFILES
         configurable = self.architecture.graph_encoder_family != "adaptive_relation_gat"
         self.student_encoder = (
             ConfigurableGeneGraphEncoder(
@@ -959,7 +974,11 @@ class GraDPertJointModel(nn.Module):
                 genept_matrix=genept_matrix,
             )
             if configurable
-            else AdaptiveGeneGraphEncoder(graph_gene_count, compact=compact)
+            else AdaptiveGeneGraphEncoder(
+                graph_gene_count,
+                compact=compact,
+                capacity_profile=self.architecture.capacity_profile,
+            )
         )
         perturbation_dim = self.architecture.graph_output_dim
         if not configurable and self.architecture.gene_feature_mode != "learned_id":
@@ -990,6 +1009,7 @@ class GraDPertJointModel(nn.Module):
             prototype_count,
             input_dim=perturbation_dim,
             compact=compact,
+            capacity_profile=self.architecture.capacity_profile,
         )
         self.basal_encoder = BasalStateEncoder(expression_gene_count, compact=compact)
         decoder_input_dim = {
@@ -1014,7 +1034,11 @@ class GraDPertJointModel(nn.Module):
                 genept_matrix=genept_matrix,
             )
             if configurable
-            else AdaptiveGeneGraphEncoder(graph_gene_count, compact=compact)
+            else AdaptiveGeneGraphEncoder(
+                graph_gene_count,
+                compact=compact,
+                capacity_profile=self.architecture.capacity_profile,
+            )
         )
         self.control_condition_fusion: nn.Module | None
         if self.architecture.decoder_mode in {"additive", "concat"}:
@@ -1029,6 +1053,7 @@ class GraDPertJointModel(nn.Module):
             prototype_count,
             input_dim=perturbation_dim,
             compact=compact,
+            capacity_profile=self.architecture.capacity_profile,
         )
         self.teacher_encoder.load_state_dict(self.student_encoder.state_dict())
         self.teacher_projector.load_state_dict(self.student_projector.state_dict())

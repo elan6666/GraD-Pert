@@ -14,6 +14,14 @@ updated_at: 2026-09-04T00:25:00+08:00
 
 # Status
 
+- 2026-09-09 authorized capacity successors C1/C2/C3, E3 only,200 ceiling with
+  patience10. Counts8,359,944/10,522,760/12,839,048, ratios65.18/82.04/100.10.
+  Embedding128 and basal/decoder128 stay fixed; only depth/projector change.
+  See `docs/experiments/B0_CAPACITY_C1_C3.md`. Running224475e B0/B1 untouched;
+  queue GPU0 B0->C1->C3 and GPU1 B1->C2 after verified completion/GPU release.
+  No same-GPU overlap without actual capacity evidence. New source publication,
+  gates and queue-contract registration precede C-series launch.
+
 - 2026-09-09 authorized next job: compact128 B0/GPU0 and B1/GPU1,
   each one-epoch smoke then fresh max200 full fit with patience10. New explicit
   epoch200 configs and phase runner are prepared; old100 configs preserved.

@@ -19,6 +19,7 @@ import numpy as np
 
 from gradpert.config import ExperimentConfig, NativeArchitectureOptions, load_experiment_config
 from gradpert.config.lr_schedule import EpochWarmupCosineRestarts
+from gradpert.config.native import CAPACITY_PROFILES
 from gradpert.config.step_schedule import StepWarmupCosine, load_training_schedule
 from gradpert.contracts import RunManifest, ServerArtifactPointer
 from gradpert.data._io import atomic_json, atomic_text
@@ -786,7 +787,8 @@ def run_native_experiment(
             architecture=architecture,
             genept_matrix=genept_tensor,
         ).to(device)
-        if architecture.capacity_profile == "compact128_v1":
+        if architecture.capacity_profile in CAPACITY_PROFILES:
+            expected_parameters = CAPACITY_PROFILES[architecture.capacity_profile][3]
             train_cells = len(training_data.train_row_indices)
             total_parameters = sum(p.numel() for p in model.parameters())
             trainable_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -795,7 +797,7 @@ def run_native_experiment(
                 or topology.n_nodes != 6506
                 or training_data.manifest.n_expression_genes != 5000
                 or prototype_count != 16384
-                or total_parameters != 6338568
+                or total_parameters != expected_parameters
             ):
                 raise ValueError(
                     "compact128 parameter/data budget differs from its Jurkat contract"
@@ -803,13 +805,13 @@ def run_native_experiment(
             _write_or_require_json(
                 small_root / "model_capacity.json",
                 {
-                    "profile": "compact128_v1",
+                    "profile": architecture.capacity_profile,
                     "total_parameters": total_parameters,
                     "trainable_parameters": trainable_parameters,
                     "teacher_parameters": total_parameters - trainable_parameters,
                     "train_perturbed_cells": train_cells,
                     "total_parameters_per_training_cell": total_parameters / train_cells,
-                    "expected_total_parameters": 6338568,
+                    "expected_total_parameters": expected_parameters,
                     "includes_teacher_and_all_heads": True,
                 },
                 resume=resume,

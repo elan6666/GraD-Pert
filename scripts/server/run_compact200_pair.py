@@ -11,7 +11,7 @@ from pathlib import Path
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--row", choices=("b0", "b1"), required=True)
+    parser.add_argument("--row", choices=("b0", "b1", "c1", "c2", "c3"), required=True)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--publication", type=Path, required=True)
@@ -19,11 +19,12 @@ def main():
     parser.add_argument("--root", type=Path, required=True)
     args = parser.parse_args()
     source = args.source.resolve(strict=True)
-    config = (
-        source
-        / f"configs/combinations/{args.row}_compact128_step_batch1024_epoch200"
-        / "gradpert_b2/nadig_jurkat.yaml"
+    config_name = (
+        f"{args.row}_b0_capacity_step_batch1024_epoch200"
+        if args.row.startswith("c")
+        else f"{args.row}_compact128_step_batch1024_epoch200"
     )
+    config = source / f"configs/combinations/{config_name}" / "gradpert_b2/nadig_jurkat.yaml"
 
     def identity():
         assert (

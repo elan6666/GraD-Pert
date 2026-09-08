@@ -9,7 +9,7 @@ import pytest
 torch = pytest.importorskip("torch")
 pytest.importorskip("torch_geometric")
 
-from gradpert.config.native import NativeArchitectureOptions  # noqa: E402
+from gradpert.config.native import CAPACITY_PROFILES, NativeArchitectureOptions  # noqa: E402
 from gradpert.features import GENEPT_EMB_B_SHA256  # noqa: E402
 from gradpert.graphs import (  # noqa: E402
     GraphTopology,
@@ -80,6 +80,7 @@ def _components(
     stage_observer: GraDPertStageObserver | None = None,
     compact: bool = False,
     genept: bool = False,
+    capacity_profile: str = "compact128_v1",
 ):  # type: ignore[no-untyped-def]
     target_device = device or torch.device("cpu")
     model = GraDPertJointModel(
@@ -90,14 +91,14 @@ def _components(
         architecture=(
             NativeArchitectureOptions.from_parameters(
                 {
-                    "capacity_profile": "compact128_v1",
+                    "capacity_profile": capacity_profile,
                     "gene_embedding_dim": 128,
-                    "graph_tower_layers": 2,
+                    "graph_tower_layers": CAPACITY_PROFILES[capacity_profile][0],
                     "graph_tower_heads": 2,
                     "graph_head_dim": 128,
                     "graph_tower_output_dim": 64,
-                    "projector_hidden_dim": 256,
-                    "projector_bottleneck_dim": 32,
+                    "projector_hidden_dim": CAPACITY_PROFILES[capacity_profile][1],
+                    "projector_bottleneck_dim": CAPACITY_PROFILES[capacity_profile][2],
                     "basal_hidden_dim": 128,
                     "decoder_hidden_dim": 128,
                     **(
@@ -909,15 +910,27 @@ def test_loss_weights_reject_invalid_values() -> None:
 
 
 @pytest.mark.parametrize("use_step_schedule", [False, True])
-@pytest.mark.parametrize(("compact", "genept"), [(False, False), (True, False), (True, True)])
+@pytest.mark.parametrize(
+    ("compact", "genept", "capacity_profile"),
+    [
+        (False, False, "compact128_v1"),
+        (True, False, "compact128_v1"),
+        (True, True, "compact128_v1"),
+        (True, True, "capacity65_v1"),
+        (True, True, "capacity82_v1"),
+        (True, True, "capacity100_v1"),
+    ],
+)
 def test_checkpoint_resume_reproduces_the_next_step(
-    tmp_path: Path, use_step_schedule: bool, compact: bool, genept: bool
+    tmp_path: Path, use_step_schedule: bool, compact: bool, genept: bool, capacity_profile: str
 ) -> None:
     from gradpert.config.step_schedule import StepWarmupCosine
 
     torch.manual_seed(123)
     batch = _batch()
-    _, optimizer, centers, engine = _components(compact=compact, genept=genept)
+    _, optimizer, centers, engine = _components(
+        compact=compact, genept=genept, capacity_profile=capacity_profile
+    )
     if use_step_schedule:
         engine.step_schedule = StepWarmupCosine(2e-4, 1e-6, 1024, 0.16, 0.994, 1.0)
     engine.train_step(batch, global_step=0)
@@ -936,7 +949,7 @@ def test_checkpoint_resume_reproduces_the_next_step(
     }
 
     _, resumed_optimizer, resumed_centers, resumed_engine = _components(
-        compact=compact, genept=genept
+        compact=compact, genept=genept, capacity_profile=capacity_profile
     )
     resumed_engine.step_schedule = engine.step_schedule
     progress = load_training_checkpoint(
