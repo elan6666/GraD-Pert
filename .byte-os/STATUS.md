@@ -14,6 +14,11 @@ updated_at: 2026-09-04T00:25:00+08:00
 
 # Status
 
+- 2026-09-09 A0-step1024-100 authorized: retain original A0 architecture and
+  loss; adopt current step LR/EMA and batch1024, max100/patience10. See
+  docs/experiments/A0_STEP_BATCH1024.md. Preparation/gates/publication precede
+  one-GPU smoke then full; previous B0/B1/C1-C3 finished and monitor deleted.
+
 - 2026-09-09 authorized capacity successors C1/C2/C3, E3 only,200 ceiling with
   patience10. Counts8,359,944/10,522,760/12,839,048, ratios65.18/82.04/100.10.
   Embedding128 and basal/decoder128 stay fixed; only depth/projector change.

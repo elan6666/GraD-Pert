@@ -11,7 +11,7 @@ from pathlib import Path
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--row", choices=("b0", "b1", "c1", "c2", "c3"), required=True)
+    parser.add_argument("--row", choices=("a0", "b0", "b1", "c1", "c2", "c3"), required=True)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--publication", type=Path, required=True)
@@ -24,6 +24,8 @@ def main():
         if args.row.startswith("c")
         else f"{args.row}_compact128_step_batch1024_epoch200"
     )
+    if args.row == "a0":
+        config_name = "a0_step_batch1024_epoch100"
     config = source / f"configs/combinations/{config_name}" / "gradpert_b2/nadig_jurkat.yaml"
 
     def identity():
@@ -92,7 +94,7 @@ def main():
         assert (
             receipt["epochs_completed"] == 1
             if phase == "smoke"
-            else 1 <= receipt["epochs_completed"] <= 200
+            else 1 <= receipt["epochs_completed"] <= (100 if args.row == "a0" else 200)
         )
         assert [p.name for p in root.rglob("*.pt")] == ["best.pt"]
         identity()
