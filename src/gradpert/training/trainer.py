@@ -79,14 +79,15 @@ class GraDPertTrainer:
     ) -> None:
         if steps_per_epoch <= 0:
             raise ValueError("steps_per_epoch must be positive")
-        if max_epochs not in {10, 100, 200}:
+        if max_epochs not in {10, 50, 100, 200}:
             raise ValueError(
-                "native budget must be an exact 10-epoch pilot, sealed legacy "
+                "native budget must be an exact 10-epoch pilot, 50-epoch selection, sealed legacy "
                 "100-epoch schedule, or 200-epoch full run"
             )
         if engine.total_schedule_steps != max_epochs * steps_per_epoch:
             raise ValueError("Teacher schedule must span the configured native budget")
         self.engine = engine
+        self.log_selection_learning_rate = run_meta.get("formal_run_policy") == "r50_selection"
         self.lr_schedule = lr_schedule
         self.identity = checkpoint_identity
         self.run_root = Path(run_root)
@@ -170,7 +171,8 @@ class GraDPertTrainer:
                         metrics=metrics,
                         learning_rate=(
                             float(self.engine.optimizer.param_groups[0]["lr"])
-                            if getattr(self.engine, "step_schedule", None) is not None
+                            if self.log_selection_learning_rate
+                            or getattr(self.engine, "step_schedule", None) is not None
                             else None
                         ),
                     )

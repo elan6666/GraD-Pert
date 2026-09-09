@@ -881,6 +881,7 @@ def run_native_experiment(
             split_content_sha256=training_data.split.split_content_sha256,
         )
         run_meta = {
+            "formal_run_policy": config.training.formal_run_policy,
             "schema_version": "native-run-meta-v1",
             "run_id": run_id,
             "mode": mode,
