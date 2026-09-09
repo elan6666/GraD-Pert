@@ -1,5 +1,9 @@
 # A0 with the current step-based training recipe
 
+**Cancelled before CUDA:** user corrected the target to A1 on2026-09-09.
+This file records unlaunched preparation, not a result or launch authorization.
+Use A1_STEP_BATCH1024.md instead.
+
 User authorization: 2026-09-09. Independent single-seed run, not a replacement
 of any sealed A0/B/C result. Identifier: A0-step1024-100.
 

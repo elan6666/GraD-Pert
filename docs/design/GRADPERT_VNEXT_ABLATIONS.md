@@ -3,6 +3,12 @@
 Status: active design for the 2026-08-28 config-driven ablation program.
 Historical v1 runs and `docs/design/GRADPERT_V1.md` remain immutable evidence.
 
+Forward training-default override (2026-09-09): future native experiments use
+explicit batch512, square-root-scaled step LR, EMA .994 toward1 and loss
+1/1/1/.1 as specified in `docs/experiments/TRAINING_DEFAULTS_20260909.md`.
+Do not rewrite sealed historical configs/results or official baseline settings.
+Architecture-specific ablations below retain their own structural factors.
+
 ## 1. Product boundary
 
 The native package remains `gradpert`. Every variant uses the existing native

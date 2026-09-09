@@ -14,6 +14,17 @@ updated_at: 2026-09-04T00:25:00+08:00
 
 # Status
 
+- 2026-09-09 latest decision supersedes A0/A1 batch1024 preparation: original
+  large B0/B1 and original A1 get standalone batch512, step LR/EMA and loss
+  1/1/1/.1 configs, max100/patience10. Future native experiments explicitly
+  materialize this training recipe; historical configs remain sealed. See
+  docs/experiments/TRAINING_DEFAULTS_20260909.md. No new CUDA launched.
+
+- 2026-09-09 correction: prepare A1-step1024-100, NOT A0. No A0 CUDA was
+  launched. A1 retains E3+Fanout+single-STRING GAT; change only LR/EMA/batch.
+  See docs/experiments/A1_STEP_BATCH1024.md. Previous A0 preparation below
+  is cancelled and must never trigger a launch.
+
 - 2026-09-09 A0-step1024-100 authorized: retain original A0 architecture and
   loss; adopt current step LR/EMA and batch1024, max100/patience10. See
   docs/experiments/A0_STEP_BATCH1024.md. Preparation/gates/publication precede
