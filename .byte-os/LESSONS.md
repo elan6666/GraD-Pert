@@ -1,5 +1,18 @@
 # Lessons
 
+## Loss coefficients require a normalization and gradient rationale
+
+- User correction (2026-09-09): the redesigned experiment program should not
+  begin with arbitrary coefficients or a blanket remove-one-loss matrix.
+  Preserve the original E3 prediction/condition/masked/spread weights1/.8/.4/.1
+  for training-recipe selection. MSE, soft-target CE and log-distance penalties
+  have different scales and reductions; equal coefficients do not imply equal
+  influence, and raw loss magnitudes do not measure gradient contribution.
+- Before proposing changed weights, inspect reductions and training-only
+  weighted gradients on shared parameters, state the hypothesis, and freeze
+  the comparison before validation results. Do not claim optimality from an
+  old test ranking or a single batch. See R50_E3_REDESIGN.md.
+
 ## Instantiate the complete model before claiming a capacity ratio
 
 - Correction (2026-09-09): the proposed 128-embedding, two-layer/two-head128

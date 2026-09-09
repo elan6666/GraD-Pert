@@ -286,7 +286,7 @@ training:
   max_epochs:
     value: 50
     source: user_locked
-    reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
+    reference: docs/experiments/R50_E3_REDESIGN.md
   early_stopping_patience:
     value: 10
     source: user_locked
@@ -305,8 +305,8 @@ training:
     reference: ref_txpert_public:gspp/predictor.py:configure_optimizers
   learning_rate:
     value: 0.001
-    source: official
-    reference: ref_txpert_public:gspp/predictor.py:PertPredictor.__init__
+    source: project_preregistered
+    reference: docs/experiments/R50_E3_REDESIGN.md
   weight_decay:
     value: 0
     source: official
