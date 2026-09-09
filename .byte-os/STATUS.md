@@ -14,6 +14,15 @@ updated_at: 2026-09-04T00:25:00+08:00
 
 # Status
 
+- 2026-09-09 R50 redesign supersedes old pending queues. Worktree
+  /tmp/gradpert-r50-e3 isolates unfinished A4/A5 code in /tmp/gradpert-m2-fix.
+  Original E3 source1b75b53 and resolved-config SHA9bb31234 were checked on
+  server:10 epochs/5820 steps. R50 REF/LR-low/LR-mid retain original E3 and
+  loss1/.8/.4/.1, batch256, fixed LR .001/.0001/.0003, exact50 epochs.
+  Native validation-only lifecycle and tests are in preparation; no CUDA
+  launched, no monitor registered. Full gates, publication, sealed GenePT
+  preflight and launch contract remain required. See R50_E3_REDESIGN.md.
+
 - 2026-09-09 latest decision supersedes A0/A1 batch1024 preparation: original
   large B0/B1 and original A1 get standalone batch512, step LR/EMA and loss
   1/1/1/.1 configs, max100/patience10. Future native experiments explicitly

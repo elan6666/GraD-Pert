@@ -1300,8 +1300,9 @@ def test_trainer_serializes_once_then_materializes_best_peer(tmp_path: Path, mon
     assert trainer.checkpoint_peer_method == "copy"
 
 
+@pytest.mark.parametrize("epochs,mode,stopping", [(10, "pilot", True), (50, "full", False)])
 def test_fixed_epoch_pilot_runs_exactly_ten_epochs_without_early_stop(
-    tmp_path: Path, monkeypatch
+    tmp_path: Path, monkeypatch, epochs, mode, stopping
 ) -> None:  # type: ignore[no-untyped-def]
     digest = "b" * 64
 
@@ -1314,7 +1315,7 @@ def test_fixed_epoch_pilot_runs_exactly_ten_epochs_without_early_stop(
     monkeypatch.setattr("gradpert.training.trainer.save_training_checkpoint", fake_save)
 
     class FakeEngine:
-        total_schedule_steps = 10
+        total_schedule_steps = epochs
         model = object()
         optimizer = object()
         centers = object()
@@ -1328,18 +1329,19 @@ def test_fixed_epoch_pilot_runs_exactly_ten_epochs_without_early_stop(
         checkpoint_identity=_identity(),
         run_root=tmp_path,
         steps_per_epoch=1,
-        max_epochs=10,
+        max_epochs=epochs,
         run_meta={"run_id": "fixed-ten-epoch-pilot"},
     )
     progress = trainer.fit(
-        mode="pilot",
+        mode=mode,
+        early_stopping_enabled=stopping,
         train_epoch_factory=lambda epoch: (f"batch-{epoch}",),
         validate=lambda model, epoch: 1.0,
     )
-    assert progress.completed_epochs == 10
-    assert progress.global_step == 10
+    assert progress.completed_epochs == epochs
+    assert progress.global_step == epochs
     assert progress.early_stopping is not None
-    assert progress.early_stopping.consecutive_non_improvements == 9
+    assert progress.early_stopping.consecutive_non_improvements == epochs - 1
 
 
 def test_full_200_epoch_budget_stops_after_ten_non_improving_validations(

@@ -10,7 +10,7 @@ import random
 import resource
 import sys
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -74,6 +74,17 @@ class NativeRunResult:
     run_manifest: RunManifest
     source: SourceIdentity
     environment: EnvironmentIdentity
+
+
+def _final_test_for_policy(
+    policy: str, trainer: GraDPertTrainer, callback: Callable[[GraDPertJointModel], None]
+) -> None:
+    """R50 screening never enters the final-test callback or claims test access."""
+    if policy == "r50_selection":
+        if trainer.progress.test_evaluations != 0:
+            raise RuntimeError("R50 selection cannot resume a test-consumed lifecycle")
+        return
+    trainer.test_best_once(callback)
 
 
 def _ordered_perturbation_target_gene_ids(
@@ -486,7 +497,7 @@ def run_native_experiment(
     genept_preflight_receipt_sha256: str | None = None,
     resume: bool = False,
 ) -> NativeRunResult:
-    """Run one isolated smoke/pilot/full lifecycle with exactly one final test access."""
+    """Run fitting and validation; R50 selection explicitly defers all test access."""
 
     if (
         device_name.startswith("cuda:")
@@ -507,6 +518,7 @@ def run_native_experiment(
         raise ValueError("native pilot mode requires formal_run_policy=fixed_epoch_pilot")
     if mode == "full" and config.training.formal_run_policy not in {
         "smoke_then_full",
+        "r50_selection",
         "vnext_combination_100",
         "vnext_combination_200",
     }:
@@ -822,7 +834,7 @@ def run_native_experiment(
             weight_decay=float(config.training.weight_decay.value),
             allow_combination_learning_rate=(
                 config.training.formal_run_policy
-                in {"vnext_combination_100", "vnext_combination_200"}
+                in {"vnext_combination_100", "vnext_combination_200", "r50_selection"}
             ),
         )
         centers = CenterState.zeros(prototype_count=prototype_count, device=device)
@@ -953,6 +965,7 @@ def run_native_experiment(
                 max_unique_conditions=max_unique_conditions,
             ),
             validate=validate,
+            early_stopping_enabled=config.training.early_stopping,
         )
         if system_options.enabled:
             if engine.first_step_health is None:
@@ -1028,7 +1041,8 @@ def run_native_experiment(
                     checkpoint_sha256=best_checkpoint_sha256,
                 )
 
-        trainer.test_best_once(evaluate_test_once)
+        selection_only = config.training.formal_run_policy == "r50_selection"
+        _final_test_for_policy(config.training.formal_run_policy, trainer, evaluate_test_once)
         timing_rows = _read_step_timings(small_root / "train_steps.csv")
         warmup_steps = min(10, max(0, len(timing_rows) - 1))
         measured = timing_rows[warmup_steps:]
@@ -1047,8 +1061,10 @@ def run_native_experiment(
             "backward_update_ms",
             "step_wall_ms",
         )
-        metrics_summary = json.loads(
-            (small_root / "metrics_summary.json").read_text(encoding="utf-8")
+        metrics_summary = (
+            {"metrics": []}
+            if selection_only
+            else json.loads((small_root / "metrics_summary.json").read_text(encoding="utf-8"))
         )
         atomic_json(
             small_root / "performance_receipt.json",
@@ -1057,7 +1073,9 @@ def run_native_experiment(
                 "run_mode": mode,
                 "epochs_completed": progress.completed_epochs,
                 "selection_policy": (
-                    "validation_selected_best_checkpoint_test_once"
+                    "validation_only_test_deferred"
+                    if selection_only
+                    else "validation_selected_best_checkpoint_test_once"
                     if mode == "full"
                     else "speed_only_one_epoch_metrics_non_decisional"
                 ),
@@ -1129,6 +1147,68 @@ def run_native_experiment(
                 ),
             },
         )
+
+    if selection_only:
+        expected_epochs = 1 if mode == "smoke" else max_epochs
+        if progress.completed_epochs != expected_epochs or progress.global_step != (
+            expected_epochs * steps_per_epoch
+        ):
+            raise RuntimeError("R50 selection did not complete the exact training budget")
+        if trainer.progress.test_evaluations != 0 or test_control_manifest_sha256 is not None:
+            raise RuntimeError("R50 selection must never invoke the test callback")
+        if list(destination.rglob("*.pkl")) or (destination / "work").exists():
+            raise RuntimeError("R50 selection requires zero PKL and no evaluation work directory")
+        run_manifest = RunManifest(
+            schema_version="run-manifest-v1",
+            run_id=run_id,
+            model_id=config.model_id,
+            dataset_id=config.dataset_id,
+            protocol_id=config.data.protocol_id,
+            run_seed=run_seed,
+            source_commit=source.commit,
+            source_dirty=source.dirty,
+            formal_eligible=source.formal_eligible,
+            config_sha256=config_sha256,
+            environment_sha256=environment.payload_sha256,
+            canonical_data_sha256=training_data.manifest.canonical_adata_sha256,
+            split_content_sha256=training_data.split.split_content_sha256,
+            control_manifest_sha256=validation_data.control_manifest_file_sha256,
+            status="trained",
+            best_checkpoint_sha256=best_checkpoint_sha256,
+            test_evaluations=0,
+        )
+        _write_contract(small_root / "run_manifest.json", run_manifest)
+        atomic_json(
+            small_root / "selection_receipt.json",
+            {
+                "schema_version": "native-r50-selection-v1",
+                "status": "complete",
+                "scientific_completion": False,
+                "control_manifest_scope": "validation",
+                "epochs_completed": progress.completed_epochs,
+                "optimizer_steps": progress.global_step,
+                "test_evaluations": 0,
+                "test_deferred": True,
+                "checkpoint_sha256": best_checkpoint_sha256,
+                "source_tree_sha256": source.tree_sha256,
+                "run_manifest_sha256": sha256_json(run_manifest.model_dump(mode="json")),
+                "best_validation": trainer.progress.early_stopping.best_metric
+                if trainer.progress.early_stopping is not None
+                else None,
+            },
+        )
+        trainer.last_checkpoint.unlink(missing_ok=True)
+        atomic_json(
+            small_root / "checkpoint_retention.json",
+            {
+                "schema_version": "checkpoint-retention-v1",
+                "policy": "best_only_after_successful_validation_selection",
+                "best_checkpoint_path": str(trainer.best_checkpoint),
+                "best_checkpoint_sha256": best_checkpoint_sha256,
+                "last_checkpoint_removed": True,
+            },
+        )
+        return NativeRunResult(run_id, destination, run_manifest, source, environment)
 
     if test_control_manifest_sha256 is None:
         raise RuntimeError("test callback did not record its control manifest hash")

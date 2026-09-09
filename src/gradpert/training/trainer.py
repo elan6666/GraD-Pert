@@ -146,6 +146,7 @@ class GraDPertTrainer:
         mode: Literal["smoke", "pilot", "full"],
         train_epoch_factory: TrainEpochFactory,
         validate: ValidationFunction,
+        early_stopping_enabled: bool = True,
     ) -> GraDPertTrainingProgress:
         fit_started = time.perf_counter()
         target_epochs = 1 if mode == "smoke" else self.max_epochs
@@ -224,7 +225,7 @@ class GraDPertTrainer:
                 if improved:
                     self._save(self.best_checkpoint)
                 self._save(self.last_checkpoint)
-            if mode == "full" and should_stop:
+            if mode == "full" and early_stopping_enabled and should_stop:
                 break
         self.fit_wall_ms += (time.perf_counter() - fit_started) * 1000.0
         return self.progress

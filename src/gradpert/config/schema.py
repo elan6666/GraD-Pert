@@ -101,6 +101,7 @@ class TrainingConfig(StrictModel):
         "smoke_then_full",
         "smoke_only",
         "fixed_epoch_pilot",
+        "r50_selection",
         "inference_only",
         "vnext_combination_100",
         "vnext_combination_200",
@@ -178,6 +179,15 @@ class TrainingConfig(StrictModel):
                     raise ValueError("vNext combination requires early-stopping patience=10")
                 if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
                     raise ValueError("vNext combination requires the common validation monitor")
+            elif self.formal_run_policy == "r50_selection":
+                if self.max_epochs.value != 50 or self.early_stopping:
+                    raise ValueError(
+                        "R50 selection requires exactly 50 epochs without early stopping"
+                    )
+                if self.run_seeds != [1] or self.early_stopping_patience.value != 10:
+                    raise ValueError("R50 screening requires seed1 and retained patience10 state")
+                if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
+                    raise ValueError("R50 selection requires the common validation monitor")
             elif self.formal_run_policy == "fixed_epoch_pilot":
                 if self.max_epochs.value != 10:
                     raise ValueError("fixed-epoch native pilots require max_epochs=10")
@@ -276,6 +286,7 @@ class ExperimentConfig(StrictModel):
         allowed_policies = {
             "native_learned": {
                 "smoke_then_full",
+                "r50_selection",
                 "fixed_epoch_pilot",
                 "vnext_combination_100",
                 "vnext_combination_200",
@@ -287,6 +298,10 @@ class ExperimentConfig(StrictModel):
             expected = ",".join(sorted(allowed_policies))
             raise ValueError(f"{self.model.family} requires formal_run_policy in {{{expected}}}")
         is_legacy_performance_pilot = "performance_pilot_variant" in self.model.parameters
+        if self.training.formal_run_policy == "r50_selection" and (
+            self.artifacts.result_mode != "metrics_only" or self.model_id != "gradpert_b2"
+        ):
+            raise ValueError("R50 selection requires native GraD-Pert metrics_only")
         if self.model_id == "gradpert_b2":
             NativeArchitectureOptions.from_parameters(self.model.parameters)
         if (

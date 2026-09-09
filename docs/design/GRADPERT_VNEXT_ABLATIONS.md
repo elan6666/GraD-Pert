@@ -1,5 +1,10 @@
 # GraD-Pert B2-vNext and ablation contract
 
+2026-09-09 execution supersession: the new E3-anchored R50 program is defined
+in docs/experiments/R50_E3_REDESIGN.md. Pending old A1/A3/A4/A5 launches are
+not authorized. Historical rows below remain evidence, not the new queue.
+R50 uses fixed50 validation-only selection and original1/.8/.4/.1 losses.
+
 Status: active design for the 2026-08-28 config-driven ablation program.
 Historical v1 runs and `docs/design/GRADPERT_V1.md` remain immutable evidence.
 
