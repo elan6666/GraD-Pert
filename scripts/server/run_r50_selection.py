@@ -34,7 +34,7 @@ def command(args: argparse.Namespace, phase: str) -> list[str]:
         "--run-root",
         str(args.root / phase),
         "--run-id",
-        f"{args.root.name}/{phase}/seed-1",
+        f"{args.root.parent.name}/{args.row}/{phase}/seed-1",
         "--run-seed",
         "1",
         "--device",
