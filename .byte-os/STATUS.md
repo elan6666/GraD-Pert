@@ -14,6 +14,17 @@ updated_at: 2026-09-04T00:25:00+08:00
 
 # Status
 
+- 2026-09-10 R50 post-fit update in preparation: REF and LR-low completed50;
+  LR-mid active in immutable f4bad63 server checkout. User requests automatic
+  best/final canonical-test reports and restores scheduled supervision.
+  LR-low final is explicitly unavailable (no rerun); REF final equals best.
+  New source preserves both checkpoints and adds standalone post-fit evaluation
+  and legacy LR-mid archival sidecar. See docs/experiments/R50_POSTFIT_TEST.md.
+  Do not alter active source. Gate/publish, complete goal, then launch archive
+  plus tests on idle GPU1 and register hourly quiet monitor. Next-stage
+  preparation/capacity probes may use idle resources after these gates.
+
+
 - 2026-09-09 R50 redesign supersedes old pending queues. Worktree
   /tmp/gradpert-r50-e3 isolates unfinished A4/A5 code in /tmp/gradpert-m2-fix.
   Original E3 source1b75b53 and resolved-config SHA9bb31234 were checked on

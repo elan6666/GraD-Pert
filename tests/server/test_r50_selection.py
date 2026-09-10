@@ -87,3 +87,21 @@ def test_r50_rejects_hidden_pkl(tmp_path):
     (tmp_path / "unexpected.pkl").write_bytes(b"bad")
     with pytest.raises(ValueError, match="zero persistent PKL"):
         validate(tmp_path, epochs=50, commit="a" * 40, config_sha="b" * 64)
+
+
+def test_r50_accepts_hash_bound_last_retention(tmp_path):
+    small = fixture(tmp_path)
+    last = tmp_path / "checkpoints/last.pt"
+    last.write_bytes(b"final epoch checkpoint")
+    (small / "checkpoint_retention.json").write_text(
+        json.dumps(
+            {
+                "policy": "best_and_last_for_postfit_test",
+                "last_checkpoint_sha256": sha(last),
+            }
+        )
+    )
+    validate(tmp_path, epochs=50, commit="a" * 40, config_sha="b" * 64)
+    last.write_bytes(b"changed")
+    with pytest.raises(ValueError, match="last checkpoint hash"):
+        validate(tmp_path, epochs=50, commit="a" * 40, config_sha="b" * 64)

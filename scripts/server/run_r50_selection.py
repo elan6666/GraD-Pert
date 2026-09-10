@@ -89,9 +89,16 @@ def validate(root: Path, *, epochs: int, commit: str, config_sha: str) -> dict:
     ):
         raise ValueError("R50 step order differs")
     checkpoints = list(root.rglob("*.pt"))
-    if len(checkpoints) != 1 or checkpoints[0].name != "best.pt":
-        raise ValueError("R50 must retain only best.pt")
-    if sha(checkpoints[0]) != manifest["best_checkpoint_sha256"]:
+    retention_path = small / "checkpoint_retention.json"
+    retention = json.loads(retention_path.read_text()) if retention_path.exists() else {}
+    expected_names = {"best.pt"}
+    if retention.get("policy") == "best_and_last_for_postfit_test":
+        expected_names.add("last.pt")
+        if sha(root / "checkpoints/last.pt") != retention["last_checkpoint_sha256"]:
+            raise ValueError("R50 last checkpoint hash differs")
+    if len(checkpoints) != len(expected_names) or {p.name for p in checkpoints} != expected_names:
+        raise ValueError("R50 checkpoint retention differs")
+    if sha(root / "checkpoints/best.pt") != manifest["best_checkpoint_sha256"]:
         raise ValueError("R50 checkpoint hash differs")
     if list(root.rglob("*.pkl")) or (root / "work").exists():
         raise ValueError("R50 requires zero persistent PKL and no evaluation work")
@@ -175,6 +182,19 @@ def main() -> None:
             f,
         )
     print(f"R50_COMPLETE {args.row}", flush=True)
+    # Full training is sealed before test; the smoke remains validation-only.
+    from gradpert.execution.postfit import evaluate_best_last
+
+    evaluate_best_last(
+        training_root=args.root / "full",
+        output_root=args.root.parent.parent / (args.root.parent.name + "-test") / args.row,
+        data_root=args.data_root,
+        repository_root=args.source,
+        publication=args.publication,
+        publication_sha256=args.publication_sha,
+        device_name="cuda:0",
+    )
+    print(f"R50_TEST_COMPLETE {args.row}", flush=True)
 
 
 if __name__ == "__main__":

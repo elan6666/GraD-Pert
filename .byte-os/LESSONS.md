@@ -1,5 +1,14 @@
 # Lessons
 
+## Final-epoch reporting needs the actual final checkpoint
+
+- User correction 2026-09-10: automatically report both best-validation and
+  final-epoch test results for R50. Best-only cleanup made historical LR-low
+  final unavailable. Never fabricate it, relabel an intermediate archive, or
+  silently rerun training. Preserve best/last before test loading or cleanup,
+  bind each role to epoch/step/source/config/checkpoint hashes, and explicitly
+  alias identical final/best checkpoints. Smoke remains validation-only.
+
 ## Loss coefficients require a normalization and gradient rationale
 
 - User correction (2026-09-09): the redesigned experiment program should not

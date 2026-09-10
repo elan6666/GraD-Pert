@@ -1198,15 +1198,16 @@ def run_native_experiment(
                 else None,
             },
         )
-        trainer.last_checkpoint.unlink(missing_ok=True)
         atomic_json(
             small_root / "checkpoint_retention.json",
             {
                 "schema_version": "checkpoint-retention-v1",
-                "policy": "best_only_after_successful_validation_selection",
+                "policy": "best_and_last_for_postfit_test",
                 "best_checkpoint_path": str(trainer.best_checkpoint),
                 "best_checkpoint_sha256": best_checkpoint_sha256,
-                "last_checkpoint_removed": True,
+                "last_checkpoint_path": str(trainer.last_checkpoint),
+                "last_checkpoint_sha256": sha256_file(trainer.last_checkpoint),
+                "last_checkpoint_removed": False,
             },
         )
         return NativeRunResult(run_id, destination, run_manifest, source, environment)

@@ -1,5 +1,10 @@
 # R50: E3-anchored validation-only experiment program
 
+2026-09-10 delivery update: see R50_POSTFIT_TEST.md. Every full coordinate now
+gets automatic best/final test reports after training; validation still alone
+selects configurations. Preserve both checkpoints. Historical evidence below
+describes the original selection-only contract, not the updated delivery policy.
+
 Decision 2026-09-09. Supersedes pending A1/A3/A4/A5 launch plans, not their
 historical evidence. Only R50 REF/LR-low/LR-mid are initially dispatchable.
 All formal comparisons run exactly 50 epochs without early stopping. A distinct
