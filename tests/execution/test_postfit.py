@@ -1,11 +1,12 @@
 import json
+from pathlib import Path
 from copy import deepcopy
 
 import pytest
 
 pytest.importorskip("torch")
 
-from gradpert.execution.postfit import checkpoint_progress, verify_existing
+from gradpert.execution.postfit import checkpoint_progress, load_frozen_config, verify_existing
 from gradpert.hashing import sha256_file
 
 
@@ -93,3 +94,21 @@ def test_complete_with_pkl_rejected(tmp_path):
     (tmp_path / "test.pkl").write_bytes(b"not allowed")
     with pytest.raises(ValueError, match="zero persistent"):
         verify_existing(tmp_path)
+
+
+def test_postfit_loads_original_config_with_resolved_copy(tmp_path):
+    original = tmp_path / "configs/gradpert_b2/nadig_jurkat.yaml"
+    original.parent.mkdir(parents=True)
+    original.write_text(
+        (Path(__file__).parents[2] / "configs/r50/ref/gradpert_b2/nadig_jurkat.yaml").read_text()
+    )
+    small = tmp_path / "small_results"
+    small.mkdir()
+    resolved = small / "config.resolved.yaml"
+    resolved.write_bytes(original.read_bytes())
+    (small / "run_meta.json").write_text(json.dumps({"config_path": str(original)}))
+    (small / "run_manifest.json").write_text(json.dumps({"config_sha256": sha256_file(original)}))
+    assert load_frozen_config(small).training.formal_run_policy == "r50_selection"
+    resolved.write_text("changed")
+    with pytest.raises(ValueError, match="config hash"):
+        load_frozen_config(small)

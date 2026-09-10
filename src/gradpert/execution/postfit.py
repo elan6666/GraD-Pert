@@ -9,7 +9,7 @@ from typing import Any
 
 import torch
 
-from gradpert.config import NativeArchitectureOptions, load_experiment_config
+from gradpert.config import ExperimentConfig, NativeArchitectureOptions, load_experiment_config
 from gradpert.data._io import atomic_json
 from gradpert.evaluation import CanonicalEvaluationData
 from gradpert.execution.artifact_run import seal_evaluation_outputs
@@ -27,6 +27,17 @@ def read_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"expected object: {path}")
     return value
+
+
+def load_frozen_config(small: Path) -> ExperimentConfig:
+    """Use the original self-contained path; require its sealed copy to match."""
+    meta = read_json(small / "run_meta.json")
+    manifest = read_json(small / "run_manifest.json")
+    original = Path(meta["config_path"]).resolve(strict=True)
+    expected = manifest["config_sha256"]
+    if sha256_file(original) != expected or sha256_file(small / "config.resolved.yaml") != expected:
+        raise ValueError("original/resolved config hash differs from the sealed training config")
+    return load_experiment_config(original)
 
 
 def checkpoint_progress(
@@ -90,7 +101,7 @@ def evaluate_best_last(
     output_root = output_root.resolve()
     small = training_root / "small_results"
     config_path = small / "config.resolved.yaml"
-    config = load_experiment_config(config_path)
+    config = load_frozen_config(small)
     manifest = read_json(small / "run_manifest.json")
     meta = read_json(small / "run_meta.json")
     selection = read_json(small / "selection_receipt.json")
