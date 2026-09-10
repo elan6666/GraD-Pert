@@ -23,7 +23,14 @@ def preserve(source: Path, archive: Path) -> bool:
         raise ValueError("checkpoint source must be a regular file")
     temporary = archive.with_name(".last-link.tmp")
     if temporary.exists():
-        raise FileExistsError("stale archival link; preserve and inspect")
+        if archive.exists() and os.path.samefile(temporary, archive):
+            # rename(old, new) is a no-op when both names refer to one inode.
+            # Remove only the redundant temporary name, never checkpoint data.
+            temporary.unlink()
+        else:
+            raise FileExistsError("unknown stale archival link; preserve and inspect")
+    if archive.exists() and os.path.samefile(source, archive):
+        return False
     try:
         os.link(source, temporary)
     except FileNotFoundError:
@@ -36,12 +43,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--training-root", type=Path, required=True)
     parser.add_argument("--archive-root", type=Path, required=True)
+    parser.add_argument("--resume-archive", action="store_true")
     args = parser.parse_args()
     root = args.training_root.resolve(strict=True)
     archive = args.archive_root.resolve()
     if archive.is_relative_to(root) or root.is_relative_to(archive):
         raise ValueError("archive must be outside training evidence")
-    archive.mkdir(parents=True, exist_ok=False)
+    if args.resume_archive and not (archive / "last.pt").is_file():
+        raise ValueError("resume requires the existing archival checkpoint")
+    archive.mkdir(parents=True, exist_ok=args.resume_archive)
     source = root / "checkpoints/last.pt"
     libc = ctypes.CDLL(None, use_errno=True)
     fd = libc.inotify_init1(os.O_CLOEXEC | os.O_NONBLOCK)

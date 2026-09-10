@@ -27,3 +27,16 @@ def test_symlink_rejected(tmp_path):
     link.symlink_to(real)
     with pytest.raises(ValueError):
         preserve(link, tmp_path / "archive.pt")
+
+
+def test_repeated_inode_does_not_leave_temporary_link(tmp_path):
+    source = tmp_path / "last.pt"
+    archive = tmp_path / "archive.pt"
+    source.write_bytes(b"epoch1")
+    assert preserve(source, archive)
+    assert not preserve(source, archive)
+    assert not (tmp_path / ".last-link.tmp").exists()
+    os.link(archive, tmp_path / ".last-link.tmp")
+    assert not preserve(source, archive)
+    assert archive.read_bytes() == b"epoch1"
+    assert not (tmp_path / ".last-link.tmp").exists()
