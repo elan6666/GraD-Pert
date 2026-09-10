@@ -2,9 +2,22 @@
 
 from __future__ import annotations
 
+import math
 import os
 import sys
 from pathlib import Path
+
+
+def shared_gpu_budget(free: int, total: int, reserve: int, fraction: float | None = None) -> int:
+    """Cap allocations independently of the peer's initialization timing."""
+    if fraction is not None and (not math.isfinite(fraction) or not 0 < fraction <= 1):
+        raise ValueError("GPU memory fraction must be finite and in (0, 1]")
+    budget = free - reserve
+    if fraction is not None:
+        budget = min(budget, int(total * fraction))
+    if budget < 1024**3:
+        raise RuntimeError("insufficient free GPU memory for shared allocation budget")
+    return budget
 
 
 def _linux_mem_available_bytes(meminfo_path: Path) -> int | None:

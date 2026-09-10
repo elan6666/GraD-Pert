@@ -23,6 +23,11 @@ def command(args: argparse.Namespace, phase: str) -> list[str]:
         str(args.source / "scripts/server/run_shared_gpu_native.py"),
         "--reserve-mib",
         "4096",
+        *(
+            ["--memory-fraction", str(args.memory_fraction)]
+            if getattr(args, "memory_fraction", None) is not None
+            else []
+        ),
         "model",
         phase,
         "--config",
@@ -114,7 +119,10 @@ def validate(root: Path, *, epochs: int, commit: str, config_sha: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--row", choices=("ref", "lr_low", "lr_mid"), required=True)
+    parser.add_argument(
+        "--row", choices=("ref", "lr_low", "lr_mid", "batch128", "batch512"), required=True
+    )
+    parser.add_argument("--memory-fraction", type=float)
     for flag in ("source", "data-root", "publication", "genept-receipt", "root"):
         parser.add_argument("--" + flag, type=Path, required=True)
     for flag in ("commit", "publication-sha", "genept-sha", "config-sha"):
@@ -193,6 +201,7 @@ def main() -> None:
         publication=args.publication,
         publication_sha256=args.publication_sha,
         device_name="cuda:0",
+        memory_fraction=args.memory_fraction,
     )
     print(f"R50_TEST_COMPLETE {args.row}", flush=True)
 

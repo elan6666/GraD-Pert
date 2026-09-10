@@ -90,6 +90,7 @@ def evaluate_best_last(
     publication_sha256: str,
     device_name: str,
     archived_last: Path | None = None,
+    memory_fraction: float | None = None,
 ) -> dict[str, Any]:
     """Evaluate frozen checkpoints on the canonical test split in separate roots.
 
@@ -144,11 +145,12 @@ def evaluate_best_last(
     )
     environment = inspect_environment(repository_root, device_name=device_name)
     if device_name.startswith("cuda"):
+        from gradpert.execution.system_resources import shared_gpu_budget
+
         free, total = torch.cuda.mem_get_info(torch.device(device_name))
         reserve = 4096 * 1024**2
-        if free < reserve + 1024**3:
-            raise RuntimeError("insufficient free GPU memory for post-fit evaluation")
-        torch.cuda.set_per_process_memory_fraction((free - reserve) / total)
+        budget = shared_gpu_budget(free, total, reserve, memory_fraction)
+        torch.cuda.set_per_process_memory_fraction(budget / total)
     architecture = NativeArchitectureOptions.from_parameters(config.model.parameters)
     if architecture.graph_axis_policy != "recomputed_hvg_union_candidate_targets":
         raise ValueError("post-fit R50 currently requires the sealed vNext HVG graph")
