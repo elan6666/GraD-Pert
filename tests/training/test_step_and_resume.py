@@ -740,6 +740,18 @@ def test_cpu_vectorized_sparse_union_preserves_complete_first_step_trajectory(
     assert torch.equal(optimized_centers.masked_node, reference_masked_center)
 
 
+def test_profile_checkpoint_roundtrip_restores_corrupted_state(tmp_path: Path) -> None:
+    from scripts.performance.profile_native_a0 import _checkpoint_roundtrip, _exact_engine_state
+
+    _seed_all(912)
+    _, _, _, engine = _vnext_components(gene_feature_mode="genept_initialized")
+    engine.train_step(_batch(), global_step=0)
+    expected = _exact_engine_state(engine)
+    digest = _checkpoint_roundtrip(engine, tmp_path / "roundtrip.pt", _identity(), 0)
+    assert len(digest) == 64
+    assert _exact_engine_state(engine) == expected
+
+
 @pytest.mark.parametrize("resume_after_first", [False, True])
 def test_array_union_multistep_and_resume_exact(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, resume_after_first: bool

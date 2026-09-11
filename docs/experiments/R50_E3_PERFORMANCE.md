@@ -106,3 +106,27 @@ and vectorizes bounds/self-edge preparation. It leaves union sorting,
 membership, expander generation and model forwards unchanged. Candidate remains
 unaccepted until full edge/gradient/state/resume gates, three-epoch comparison
 and serial same-GPU ABBA pass. No scientific row may select it yet.
+
+### Next CUDA contract (must be published and sealed before launch)
+
+Run serial on physical GPU0 with three fresh roots: `cpu_vectorized`,
+`cpu_array`, and `cpu_array` with an in-place checkpoint serialization roundtrip
+after zero-based step 2. Each is six training steps (capacity phase),
+deterministic algorithms, `--capture-exact-state`, identical frozen E3 config,
+seed, prior, batches and original 50-epoch schedule. No validation/test access.
+Capture initial and every post-step model/Teacher, every gradient, optimizer,
+both centers and Python/NumPy/CPU/CUDA RNG hashes. Require initial equality,
+all six ordered non-timing metrics and state hashes exactly equal; require
+complete receipts, resource predicates and zero PKL. First-step health remains
+required. Roundtrip deliberately zeros persistent model/center tensors and
+clears optimizer state before loading, then demands exact restoration. It is
+explicitly not a fresh-process restart; fresh-engine resume is separately
+covered by the synthetic multistep test and must not be misrepresented.
+
+Full-state hashing/checkpoint I/O invalidates timing acceptance. Following
+these gates, prepare the original-horizon three-epoch matched comparison and
+isolated ABBA (5 warmup +20 measured per arm, A/B/B/A), without state hashing.
+Acceptance requires >=10% and >=100 ms median wall reduction, p90 and peak
+memory no more than 5% worse, no allocator retry/OOM and exact-effect gates
+still passed. Current profiler's default timing length (2+10) is not that ABBA
+contract and must not be silently substituted. Preserve all failed attempts.

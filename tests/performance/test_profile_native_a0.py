@@ -27,6 +27,44 @@ def profiler_script() -> ModuleType:
     return _load_script()
 
 
+@pytest.mark.parametrize("phase,deterministic", [("timing", True), ("capacity", False)])
+def test_exact_capture_rejects_timing_or_nondeterminism(
+    profiler_script: ModuleType, monkeypatch: pytest.MonkeyPatch, phase: str, deterministic: bool
+) -> None:
+    args = SimpleNamespace(
+        capture_exact_state=True,
+        phase=phase,
+        deterministic_algorithms=deterministic,
+        checkpoint_roundtrip_after_step=None,
+    )
+    monkeypatch.setattr(
+        profiler_script, "_parser", lambda: SimpleNamespace(parse_args=lambda _: args)
+    )
+    with pytest.raises(profiler_script.ProfileGateError, match="deterministic capacity"):
+        profiler_script.main([])
+
+
+def test_exact_engine_capture_includes_all_state_surfaces(
+    profiler_script: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import gradpert.training.step as step
+
+    names = ("model", "teacher", "gradient", "optimizer", "centers", "rng")
+    for name in names:
+        monkeypatch.setattr(step, f"_{name}_state_sha256", lambda *_, name=name: name)
+    result = profiler_script._exact_engine_state(
+        SimpleNamespace(model=object(), optimizer=object(), centers=object())
+    )
+    assert result == {
+        "model": "model",
+        "teacher": "teacher",
+        "gradients": "gradient",
+        "optimizer": "optimizer",
+        "centers": "centers",
+        "rng": "rng",
+    }
+
+
 def test_r50_coordinate_pins_complete_parent_config(profiler_script: ModuleType) -> None:
     from gradpert.hashing import sha256_file
 

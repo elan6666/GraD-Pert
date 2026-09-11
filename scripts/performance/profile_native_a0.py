@@ -82,6 +82,8 @@ def _parser() -> argparse.ArgumentParser:
         choices=range(5),
     )
     parser.add_argument("--deterministic-algorithms", action="store_true")
+    parser.add_argument("--capture-exact-state", action="store_true")
+    parser.add_argument("--checkpoint-roundtrip-after-step", type=int, choices=(2,))
     parser.add_argument("--minimum-gpu-headroom-fraction", type=float, default=0.15)
     parser.add_argument("--minimum-gpu-free-bytes", type=int, default=4 * GIB)
     parser.add_argument("--maximum-idle-gpu-utilization-percent", type=float, default=5.0)
@@ -650,6 +652,62 @@ def _native_coordinate_arguments(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def _exact_engine_state(engine: Any) -> dict[str, str]:
+    """Expensive full-state digests: diagnostic only, never timing acceptance."""
+    from gradpert.training.step import (
+        _centers_state_sha256,
+        _gradient_state_sha256,
+        _model_state_sha256,
+        _optimizer_state_sha256,
+        _rng_state_sha256,
+        _teacher_state_sha256,
+    )
+
+    return {
+        "model": _model_state_sha256(engine.model),
+        "teacher": _teacher_state_sha256(engine.model),
+        "gradients": _gradient_state_sha256(engine.model),
+        "optimizer": _optimizer_state_sha256(engine.optimizer),
+        "centers": _centers_state_sha256(engine.centers),
+        "rng": _rng_state_sha256(),
+    }
+
+
+def _checkpoint_roundtrip(engine: Any, checkpoint: Path, identity: Any, step: int) -> str:
+    """Exercise serialization in place; fresh-engine resume is a separate gate."""
+    import torch
+
+    from gradpert.training.checkpoint import load_training_checkpoint, save_training_checkpoint
+
+    expected = _exact_engine_state(engine)
+    progress = {"global_step": step + 1}
+    checkpoint_sha = save_training_checkpoint(
+        checkpoint,
+        model=engine.model,
+        optimizer=engine.optimizer,
+        centers=engine.centers,
+        progress=progress,
+        identity=identity,
+    )
+    with torch.no_grad():
+        for tensor in engine.model.state_dict().values():
+            tensor.zero_()
+        engine.centers.condition.zero_()
+        engine.centers.masked_node.zero_()
+    engine.optimizer.state.clear()
+    torch.manual_seed(912)
+    restored = load_training_checkpoint(
+        checkpoint,
+        model=engine.model,
+        optimizer=engine.optimizer,
+        centers=engine.centers,
+        expected_identity=identity,
+    )
+    if restored != progress or _exact_engine_state(engine) != expected:
+        raise ProfileGateError("checkpoint roundtrip changed exact engine state")
+    return checkpoint_sha
+
+
 def _profile_run(
     args: argparse.Namespace,
     *,
@@ -673,6 +731,7 @@ def _profile_run(
     }[args.phase]
     total_steps = warmup_steps + measured_steps
     observed: list[dict[str, object]] = []
+    initial_exact_state: dict[str, str] | None = None
     profiler: Any | None = None
     profiler_stopped = False
     evaluation_state: dict[str, object] = {
@@ -714,9 +773,11 @@ def _profile_run(
             teardown_failures.append({"stage": "profiler.export", **_failure_payload(error)})
 
     def before_step(engine: Any) -> None:
-        nonlocal profiler
+        nonlocal profiler, initial_exact_state
         if observed:
             return
+        if getattr(args, "capture_exact_state", False):
+            initial_exact_state = _exact_engine_state(engine)
         contract = engine.local_view_contract
         if (
             contract.graph_node_count != EXACT_A0_GRAPH_NODE_COUNT
@@ -768,6 +829,31 @@ def _profile_run(
                 },
             }
         )
+        if getattr(args, "capture_exact_state", False):
+            observed[-1]["exact_state"] = _exact_engine_state(engine)
+        if getattr(args, "checkpoint_roundtrip_after_step", None) == global_step:
+            from gradpert.training.checkpoint import CheckpointIdentity
+
+            source_identity = json.loads(
+                (run_root / "small_results/source_identity.json").read_text()
+            )
+            environment = json.loads((run_root / "small_results/environment.json").read_text())
+            identity = CheckpointIdentity(
+                source_commit=args.development_commit,
+                source_tree_sha256=source_identity["tree_sha256"],
+                config_sha256=args.expected_config_sha256,
+                environment_sha256=environment["payload_sha256"],
+                canonical_data_sha256=args.expected_canonical_data_sha256,
+                split_content_sha256=args.expected_split_content_sha256,
+            )
+            checkpoint = run_root / "profile_evidence/roundtrip.pt"
+            checkpoint.parent.mkdir(parents=True, exist_ok=True)
+            checkpoint_sha = _checkpoint_roundtrip(engine, checkpoint, identity, global_step)
+            observed[-1]["checkpoint_roundtrip"] = {
+                "kind": "in_place_serialization_roundtrip_not_process_restart",
+                "sha256": checkpoint_sha,
+                "exact": True,
+            }
         if len(observed) == total_steps:
             stop_profiler()
 
@@ -831,6 +917,7 @@ def _profile_run(
         "warmup_steps": warmup_steps,
         "measured_steps": measured_steps,
         "observed_step_count": len(observed),
+        "initial_exact_state": initial_exact_state,
         "steps": observed,
         "measured_step_wall_ms": measured_wall,
         "measured_step_wall_ms_percentiles": _percentiles(measured_wall),
@@ -894,6 +981,10 @@ def _validate_thresholds(args: argparse.Namespace) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    if args.checkpoint_roundtrip_after_step is not None and not args.capture_exact_state:
+        raise ProfileGateError("checkpoint roundtrip requires exact-state capture")
+    if args.capture_exact_state and (not args.deterministic_algorithms or args.phase != "capacity"):
+        raise ProfileGateError("exact-state capture requires deterministic capacity phase")
     run_root = args.run_root.resolve()
     accepted_root = False
     teardown_failures: list[dict[str, str]] = []
@@ -906,6 +997,10 @@ def main(argv: list[str] | None = None) -> int:
         "device": args.device,
         "source_commit": args.development_commit,
         "coordinate": args.coordinate,
+        "capture_exact_state": args.capture_exact_state,
+        "sparse_union_implementation": os.environ.get(
+            "GRADPERT_SPARSE_UNION_IMPL", "cpu_vectorized"
+        ),
         "thresholds": _threshold_payload(args),
         "expected_hashes": {
             "config_sha256": args.expected_config_sha256,

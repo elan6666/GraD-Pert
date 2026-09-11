@@ -15,7 +15,11 @@ import numpy as np
 import torch
 
 from gradpert.graphs import build_induced_edge_index, build_training_graph_views
-from gradpert.modeling.encoders import _expander_pairs, _is_undirected
+from gradpert.modeling.encoders import (
+    _expander_pairs,
+    _is_undirected,
+    build_sparse_union_from_ordered_pairs,
+)
 from gradpert.pilots.vnext_graph_axis import load_vnext_graph_topology
 from gradpert.training.data import CanonicalTrainingData
 
@@ -59,6 +63,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--verify-complete-union", action="store_true")
     args = parser.parse_args()
     if args.output.exists():
         raise SystemExit("refusing to overwrite evidence")
@@ -126,12 +131,33 @@ def main() -> None:
             groups.append(group)
     frozen_sha = hashlib.sha256(repr(groups).encode()).hexdigest()
     rng = torch.get_rng_state().clone()
+    union_digest = hashlib.sha256()
     for group in groups:
         for n, pairs in group:
             a, b = prepare(n, pairs, array_native=False), prepare(n, pairs, array_native=True)
             assert a[0] == b[0]
             np.testing.assert_array_equal(a[1], b[1])
             np.testing.assert_array_equal(a[2], b[2])
+            if args.verify_complete_union:
+                union_args = dict(
+                    node_count=n,
+                    sources=pairs,
+                    expected_names=topology.active_sources,
+                    device=torch.device("cpu"),
+                )
+                reference_union = build_sparse_union_from_ordered_pairs(**union_args)
+                candidate_union = build_sparse_union_from_ordered_pairs(
+                    **union_args, array_native_preparation=True
+                )
+                assert reference_union.channel_names == candidate_union.channel_names
+                union_digest.update(repr(reference_union.channel_names).encode())
+                for key in ("edge_index", "edge_membership", "local_edge_index"):
+                    ref = getattr(reference_union, key)
+                    assert torch.equal(ref, getattr(candidate_union, key)), key
+                    union_digest.update(key.encode())
+                    union_digest.update(str(tuple(ref.shape)).encode())
+                    union_digest.update(str(ref.dtype).encode())
+                    union_digest.update(ref.contiguous().numpy().tobytes())
     assert torch.equal(rng, torch.get_rng_state())
     timings: dict[str, list[float]] = {"reference": [], "array_native": []}
     for repeat in range(6):
@@ -163,6 +189,8 @@ def main() -> None:
         "view_counts": [len(g) for g in groups],
         "channel_arrays_exact": True,
         "global_torch_rng_exact": True,
+        "complete_union_exact": args.verify_complete_union,
+        "complete_union_sha256": union_digest.hexdigest() if args.verify_complete_union else None,
         "milliseconds_per_batch": timings,
         "medians_ms": {k: statistics.median(v) for k, v in timings.items()},
     }
