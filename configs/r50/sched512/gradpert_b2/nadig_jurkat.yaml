@@ -294,7 +294,7 @@ training:
   train_batch_size:
     value: 512
     source: user_locked
-    reference: 'user requirement 2026-08-25: batch size 256'
+    reference: docs/experiments/R50_BATCH_PARALLEL.md
   eval_batch_size:
     value: 256
     source: user_locked
@@ -352,5 +352,4 @@ artifacts:
   - .csv
   - .md
   sync_requires_dry_run: true
-
 
