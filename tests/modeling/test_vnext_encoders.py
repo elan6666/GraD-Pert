@@ -93,8 +93,34 @@ def test_sparse_union_matches_the_frozen_official_multihot_fixture() -> None:
     ] == golden["ordered_by_edge"]
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("loops", [False, True])
+@pytest.mark.parametrize("degree", [0, 3])
+@pytest.mark.parametrize("pairs", [(), ((0, 1),), ((0, 1), (1, 0)), ((2, 2), (0, 1), (0, 1))])
+def test_array_union_channel_boundaries(reverse, loops, degree, pairs) -> None:
+    args = dict(
+        node_count=3,
+        sources=(("string", pairs), ("go", ((2, 0),))),
+        expected_names=("string", "go"),
+        device=torch.device("cpu"),
+        add_reverse_edges=reverse,
+        add_self_loops=loops,
+        expander_degree=degree,
+    )
+    rng = torch.get_rng_state().clone()
+    old = build_sparse_union_from_ordered_pairs(**args)
+    new = build_sparse_union_from_ordered_pairs(**args, array_native_preparation=True)
+    assert old.channel_names == new.channel_names
+    for name in ("edge_index", "edge_membership", "local_edge_index"):
+        assert torch.equal(getattr(old, name), getattr(new, name)), name
+    assert torch.equal(rng, torch.get_rng_state())
+
+
 @pytest.mark.parametrize("expander_degree", [0, 3])
-def test_cpu_pair_sparse_union_is_bitwise_reference_exact(expander_degree: int) -> None:
+@pytest.mark.parametrize("array_native", [False, True])
+def test_cpu_pair_sparse_union_is_bitwise_reference_exact(
+    expander_degree: int, array_native: bool
+) -> None:
     string, go = _graphs()
     reference = build_sparse_union(
         node_count=5,
@@ -130,6 +156,7 @@ def test_cpu_pair_sparse_union_is_bitwise_reference_exact(expander_degree: int) 
         ),
         expected_names=("string", "go"),
         device=string.edge_index.device,
+        array_native_preparation=array_native,
         add_reverse_edges=True,
         add_self_loops=True,
         expander_degree=expander_degree,

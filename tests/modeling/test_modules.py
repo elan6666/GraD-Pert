@@ -210,8 +210,10 @@ def test_sparse_union_implementation_selector_fails_closed(monkeypatch: pytest.M
         )
 
 
+@pytest.mark.parametrize("implementation", ["cpu_vectorized", "cpu_array"])
 def test_cpu_vectorized_sparse_union_is_exact_for_training_state_and_gradients(
     monkeypatch: pytest.MonkeyPatch,
+    implementation: str,
 ) -> None:
     options = _vnext_options()
     monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", "reference")
@@ -221,7 +223,7 @@ def test_cpu_vectorized_sparse_union_is_exact_for_training_state_and_gradients(
         prototype_count=8192,
         architecture=options,
     )
-    monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", "cpu_vectorized")
+    monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", implementation)
     optimized_model = GraDPertJointModel(
         graph_gene_count=7,
         expression_gene_count=5,

@@ -418,8 +418,10 @@ class ConfigurableGeneGraphEncoder(nn.Module):
             "GRADPERT_SPARSE_UNION_IMPL",
             "cpu_vectorized",
         )
-        if self.sparse_union_implementation not in {"reference", "cpu_vectorized"}:
-            raise ValueError("GRADPERT_SPARSE_UNION_IMPL must be reference or cpu_vectorized")
+        if self.sparse_union_implementation not in {"reference", "cpu_vectorized", "cpu_array"}:
+            raise ValueError(
+                "GRADPERT_SPARSE_UNION_IMPL must be reference or cpu_vectorized or cpu_array"
+            )
         self._resident_prediction_view: GraphView | None = None
         self._resident_source_tensors: tuple[GraphSourceTensors, ...] | None = None
         self._resident_sparse_union: SparseUnionTensors | None = None
@@ -693,6 +695,7 @@ class ConfigurableGeneGraphEncoder(nn.Module):
             add_reverse_edges=backend.add_reverse_edges,
             add_self_loops=backend.add_self_loops,
             expander_degree=backend.expander_degree,
+            array_native_preparation=self.sparse_union_implementation == "cpu_array",
         )
 
     def forward_many(self, views: Sequence[GraphView]) -> tuple[EncodedGraphView, ...]:

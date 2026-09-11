@@ -68,3 +68,41 @@ worker, preserving all configuration and guards, to separate cumulative Python
 view/union/encoder preparation costs. Retain the initial attempt untouched.
 Python/Torch instrumentation changes overhead, so this second run is also
 attribution only. Select an optimization only after narrower evidence exists.
+
+## Measured channel preparation target (not accepted optimization)
+
+Python diagnostic source `ac279f81283f87f0377078bc0036580d4217b061`, receipt
+`057b6cf885127134cdb9a032fc84837b5fb4d4c20dd2fb18a833e32d1be1557f`,
+completed five steps without evaluation. Across that instrumented run,
+182 ordered-pair union calls accumulated 7.325 seconds. Startup, profiler
+export and nested cumulative times are not steady-state training timings.
+
+A separate CPU-only preparation benchmark was committed/pushed before use at
+`526ab594192a4c5557e5dd7c704831121e04c405`. Eight synthetic tests passed both
+locally and on the server. It reconstructed the first three actual epoch-0
+batch512 schedules, with 34 distinct global/local views each, preserving their
+ordered source pairs. Frozen input SHA256:
+`7f9bd01561646717397bffeef741402088718f0286605970e4e4d7ba36e3e368`.
+Evidence remains at
+`/data/yilangliu/GraD-Pert/development/r50-union-526ab59-v1/preparation.json`.
+Independently read-back SHA256:
+`d47aa05246e8cd2770314039f3a01f99b6b10deba1aa1178b3a8904013c22533`.
+The preceding Python pstats SHA256 is
+`340b9ccbf38994f3e17dfc43f996bfd3f4dd979b62a9b9c6ba2acb9a43554d4c`.
+
+Warmup-excluded alternating preparation timings, milliseconds per batch:
+
+- Original: 602.070, 601.684, 601.289, 600.118, 599.726.
+- Array-native: 265.785, 265.629, 266.213, 266.671, 265.825.
+
+Medians 601.289 versus 265.825 ms justify testing this narrow target. The
+benchmark checks all concatenated pair/channel arrays and Torch global RNG;
+it does not establish full union, training-state or end-to-end speed parity.
+GPU1 was concurrently training; isolated acceptance timing is still required.
+
+Candidate `cpu_array` retains the `cpu_vectorized` default and reference path.
+It converts each source once, constructs reverse channels as array views,
+and vectorizes bounds/self-edge preparation. It leaves union sorting,
+membership, expander generation and model forwards unchanged. Candidate remains
+unaccepted until full edge/gradient/state/resume gates, three-epoch comparison
+and serial same-GPU ABBA pass. No scientific row may select it yet.

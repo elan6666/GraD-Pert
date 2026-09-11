@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import random
 from pathlib import Path
 
@@ -673,8 +674,10 @@ def test_selective_local_activation_checkpoint_count_fails_closed() -> None:
         )
 
 
+@pytest.mark.parametrize("implementation", ["cpu_vectorized", "cpu_array"])
 def test_cpu_vectorized_sparse_union_preserves_complete_first_step_trajectory(
     monkeypatch: pytest.MonkeyPatch,
+    implementation: str,
 ) -> None:
     batch = GraDPertTrainingBatch(
         control_expression=torch.arange(10, dtype=torch.float32).reshape(2, 5) / 10,
@@ -709,7 +712,7 @@ def test_cpu_vectorized_sparse_union_preserves_complete_first_step_trajectory(
     reference_condition_center = reference_centers.condition.detach().clone()
     reference_masked_center = reference_centers.masked_node.detach().clone()
 
-    monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", "cpu_vectorized")
+    monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", implementation)
     _seed_all(20260830)
     optimized_model, optimized_optimizer, optimized_centers, optimized = _vnext_components(
         checkpoint_student_local_activations=True,
@@ -735,6 +738,71 @@ def test_cpu_vectorized_sparse_union_preserves_complete_first_step_trajectory(
     _assert_nested_exact(optimized_optimizer.state_dict(), reference_optimizer_state)
     assert torch.equal(optimized_centers.condition, reference_condition_center)
     assert torch.equal(optimized_centers.masked_node, reference_masked_center)
+
+
+@pytest.mark.parametrize("resume_after_first", [False, True])
+def test_array_union_multistep_and_resume_exact(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, resume_after_first: bool
+) -> None:
+    _seed_all(912)
+    batches = [_batch() for _ in range(3)]
+
+    def trajectory(implementation: str):  # type: ignore[no-untyped-def]
+        monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", implementation)
+        _seed_all(123)
+        model, optimizer, centers, engine = _vnext_components(
+            gene_feature_mode="genept_initialized",
+            checkpoint_student_local_activations=True,
+        )
+        states = []
+        for step, batch in enumerate(batches):
+            metrics = engine.train_step(batch, global_step=step)
+            states.append(
+                copy.deepcopy(
+                    {
+                        "metrics": {
+                            name: getattr(metrics, name)
+                            for name in metrics.__dataclass_fields__
+                            if not name.endswith("_ms")
+                        },
+                        "model_teacher": model.state_dict(),
+                        "optimizer": optimizer.state_dict(),
+                        "centers": (centers.condition, centers.masked_node),
+                        "gradients": {
+                            name: parameter.grad for name, parameter in model.named_parameters()
+                        },
+                        "torch_rng": torch.get_rng_state(),
+                        "python_rng": random.getstate(),
+                        "numpy_rng": repr(np.random.get_state()),
+                    }
+                )
+            )
+            if step == 0 and resume_after_first and implementation == "cpu_array":
+                path = tmp_path / "resume.pt"
+                save_training_checkpoint(
+                    path,
+                    model=model,
+                    optimizer=optimizer,
+                    centers=centers,
+                    progress={"global_step": 1},
+                    identity=_identity(),
+                )
+                model, optimizer, centers, engine = _vnext_components(
+                    gene_feature_mode="genept_initialized",
+                    checkpoint_student_local_activations=True,
+                )
+                assert load_training_checkpoint(
+                    path,
+                    model=model,
+                    optimizer=optimizer,
+                    centers=centers,
+                    expected_identity=_identity(),
+                ) == {"global_step": 1}
+        return states
+
+    reference = trajectory("cpu_vectorized")
+    candidate = trajectory("cpu_array")
+    _assert_nested_exact(candidate, reference)
 
 
 def test_staged_auxiliary_gradient_schedule_preserves_complete_first_step_trajectory(

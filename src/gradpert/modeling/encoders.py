@@ -470,6 +470,7 @@ def build_sparse_union_from_ordered_pairs(
     add_reverse_edges: bool = True,
     add_self_loops: bool = True,
     expander_degree: int = 3,
+    array_native_preparation: bool = False,
 ) -> SparseUnionTensors:
     """Build the exact sparse union without a device-to-host edge round trip."""
 
@@ -482,20 +483,34 @@ def build_sparse_union_from_ordered_pairs(
         raise ValueError("graph source names must be unique")
     if not sources:
         raise ValueError("sparse graph Transformer requires at least one source")
-    for source_name, pairs in sources:
+    for source_name, pairs in () if array_native_preparation else sources:
         if any(
             source < 0 or source >= node_count or target < 0 or target >= node_count
             for source, target in pairs
         ):
             raise ValueError(f"{source_name} edge index is outside the shared node axis")
 
-    channels: list[tuple[str, tuple[tuple[int, int], ...]]] = []
+    channels: list[
+        tuple[str, tuple[tuple[int, int], ...] | np.ndarray[Any, np.dtype[np.int64]]]
+    ] = []
     for source_name, pairs in sources:
+        if array_native_preparation:
+            pair_array = np.asarray(pairs, dtype=np.int64).reshape(-1, 2)
+            if pair_array.size and (pair_array.min() < 0 or pair_array.max() >= node_count):
+                raise ValueError(f"{source_name} edge index is outside the shared node axis")
+            channels.append((source_name, pair_array))
+            if add_reverse_edges and not _is_undirected(pairs):
+                channels.append((f"{source_name}:reverse", pair_array[:, ::-1]))
+            continue
         channels.append((source_name, pairs))
         if add_reverse_edges and not _is_undirected(pairs):
             channels.append((f"{source_name}:reverse", tuple((b, a) for a, b in pairs)))
     if add_self_loops:
-        channels.append(("self", tuple((node, node) for node in range(node_count))))
+        if array_native_preparation:
+            nodes = np.arange(node_count, dtype=np.int64)
+            channels.append(("self", np.column_stack((nodes, nodes))))
+        else:
+            channels.append(("self", tuple((node, node) for node in range(node_count))))
     if expander_degree > 0:
         channels.append(("expander", _expander_pairs(node_count, expander_degree)))
     if not channels:
@@ -503,8 +518,8 @@ def build_sparse_union_from_ordered_pairs(
 
     pair_arrays: list[np.ndarray[Any, np.dtype[np.int64]]] = []
     channel_arrays: list[np.ndarray[Any, np.dtype[np.int64]]] = []
-    for channel_index, (_, pairs) in enumerate(channels):
-        pair_array = np.asarray(pairs, dtype=np.int64).reshape(-1, 2)
+    for channel_index, (_, channel_pairs) in enumerate(channels):
+        pair_array = np.asarray(channel_pairs, dtype=np.int64).reshape(-1, 2)
         pair_arrays.append(pair_array)
         channel_arrays.append(np.full(pair_array.shape[0], channel_index, dtype=np.int64))
     all_pairs = np.concatenate(pair_arrays, axis=0)
@@ -520,7 +535,11 @@ def build_sparse_union_from_ordered_pairs(
     ordered_edges = np.ascontiguousarray(sorted_pairs[unique_start])
     membership = np.zeros((ordered_edges.shape[0], len(channels)), dtype=np.float32)
     membership[group_ids, sorted_channels] = 1.0
-    first_source_pairs = np.asarray(sources[0][1], dtype=np.int64).reshape(-1, 2)
+    first_source_pairs = (
+        pair_arrays[0]
+        if array_native_preparation
+        else np.asarray(sources[0][1], dtype=np.int64).reshape(-1, 2)
+    )
 
     edge_index = torch.as_tensor(ordered_edges, device=device, dtype=torch.long).t().contiguous()
     membership_tensor = torch.as_tensor(membership, device=device, dtype=torch.float32)
