@@ -1,4 +1,4 @@
-"""Post-fit migration queue on one idle GPU; never train or relaunch a row."""
+"""Test immediately after training; retain evaluator memory safety checks."""
 
 from __future__ import annotations
 
@@ -42,14 +42,6 @@ def main() -> None:
     for row in ("ref", "lr_low", "lr_mid"):
         while not (args.training_root / row / "COMPLETE.json").exists():
             time.sleep(60)
-        while True:
-            apps = subprocess.check_output(
-                ["nvidia-smi", "--query-compute-apps=gpu_uuid,pid", "--format=csv,noheader"],
-                text=True,
-            )
-            if args.gpu_uuid not in apps:
-                break
-            time.sleep(300)
         print(f"TEST_START {row}", flush=True)
         with (args.output_root / f"{row}.log").open("x") as log:
             env = dict(os.environ, CUDA_VISIBLE_DEVICES=args.gpu_uuid)

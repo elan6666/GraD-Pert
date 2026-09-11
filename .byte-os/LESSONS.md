@@ -164,3 +164,9 @@
   disconnected and isolated perturbation anchors beyond the first frozen
   batch. Test singleton forward/backward finiteness and unchanged running
   means, variances and batch counters.
+# Post-fit scheduling
+
+- User correction (2026-09-11): do not require an entirely idle fixed GPU for
+  post-fit testing. The legacy R50 queue delayed LR-mid despite free GPU0.
+  Chain tests directly after successful training, retain memory safety checks,
+  and use an explicit nonduplicate handoff for already-waiting evaluations.
