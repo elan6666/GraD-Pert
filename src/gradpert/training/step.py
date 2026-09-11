@@ -19,7 +19,7 @@ from torch import Tensor
 from torch.nn import functional as F
 
 from gradpert.config.native import NativeArchitectureOptions
-from gradpert.config.step_schedule import StepWarmupCosine
+from gradpert.config.step_schedule import LRWarmupCosine, StepWarmupCosine
 from gradpert.graphs import (
     GraDPertTrainingViews,
     GraphTopology,
@@ -423,7 +423,7 @@ class GraDPertStepEngine:
         checkpoint_student_local_activation_count: int | None = None,
         capture_equivalence_health: bool = False,
         stage_observer: GraDPertStageObserver | None = None,
-        step_schedule: StepWarmupCosine | None = None,
+        step_schedule: StepWarmupCosine | LRWarmupCosine | None = None,
     ) -> None:
         if topology.n_nodes != model.graph_gene_count:
             raise ValueError("topology and model graph-gene counts differ")
@@ -986,7 +986,7 @@ class GraDPertStepEngine:
             global_step=global_step,
             total_steps=schedule_last_step,
         )
-        if self.step_schedule is not None:
+        if isinstance(self.step_schedule, StepWarmupCosine):
             momentum = self.step_schedule.at_step(global_step, self.total_schedule_steps)[
                 "teacher_momentum"
             ]

@@ -20,7 +20,7 @@ import numpy as np
 from gradpert.config import ExperimentConfig, NativeArchitectureOptions, load_experiment_config
 from gradpert.config.lr_schedule import EpochWarmupCosineRestarts
 from gradpert.config.native import CAPACITY_PROFILES
-from gradpert.config.step_schedule import StepWarmupCosine, load_training_schedule
+from gradpert.config.step_schedule import LRWarmupCosine, StepWarmupCosine, load_training_schedule
 from gradpert.contracts import RunManifest, ServerArtifactPointer
 from gradpert.data._io import atomic_json, atomic_text
 from gradpert.evaluation import CanonicalEvaluationData
@@ -853,7 +853,9 @@ def run_native_experiment(
         training_schedule = load_training_schedule(config.training.scheduler.value)
         engine = GraDPertStepEngine(
             step_schedule=(
-                training_schedule if isinstance(training_schedule, StepWarmupCosine) else None
+                training_schedule
+                if isinstance(training_schedule, (StepWarmupCosine, LRWarmupCosine))
+                else None
             ),
             model=model,
             topology=topology,

@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from gradpert.config.native import NativeArchitectureOptions
-from gradpert.config.step_schedule import StepWarmupCosine, load_training_schedule
+from gradpert.config.step_schedule import LRWarmupCosine, StepWarmupCosine, load_training_schedule
 
 DatasetId = Literal[
     "replogle_k562_essential",
@@ -125,7 +125,10 @@ class TrainingConfig(StrictModel):
     def enforce_budget(self) -> TrainingConfig:
         if isinstance(self.scheduler.value, dict):
             schedule = load_training_schedule(self.scheduler.value)
-            if self.formal_run_policy not in {"vnext_combination_100", "vnext_combination_200"}:
+            if isinstance(schedule, LRWarmupCosine):
+                if self.formal_run_policy != "r50_selection":
+                    raise ValueError("LR-only schedule requires R50 policy")
+            elif self.formal_run_policy not in {"vnext_combination_100", "vnext_combination_200"}:
                 raise ValueError("native restart schedule is restricted to explicit combinations")
             if schedule is None or self.learning_rate.value != schedule.max_lr:
                 raise ValueError("learning_rate must equal the configured restart peak")

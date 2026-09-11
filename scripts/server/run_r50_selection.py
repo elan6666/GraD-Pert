@@ -120,7 +120,7 @@ def validate(root: Path, *, epochs: int, commit: str, config_sha: str) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--row", choices=("ref", "lr_low", "lr_mid", "batch128", "batch512"), required=True
+        "--row", choices=("ref", "lr_low", "lr_mid", "batch128", "batch512", "sched"), required=True
     )
     parser.add_argument("--memory-fraction", type=float)
     for flag in ("source", "data-root", "publication", "genept-receipt", "root"):
