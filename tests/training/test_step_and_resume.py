@@ -740,6 +740,69 @@ def test_cpu_vectorized_sparse_union_preserves_complete_first_step_trajectory(
     assert torch.equal(optimized_centers.masked_node, reference_masked_center)
 
 
+def test_bounded_real_trainer_validates_saves_and_resumes(tmp_path: Path) -> None:
+    from scripts.performance.bounded_epochs import (
+        BoundedEpochComplete,
+        audit_trainer_boundary,
+        bounded_epoch_factory,
+    )
+
+    _seed_all(913)
+    batch = _batch()
+
+    def make_trainer():  # type: ignore[no-untyped-def]
+        _, _, _, engine = _vnext_components()
+        engine.total_schedule_steps = 50  # synthetic one-step epochs, original 50-epoch horizon
+        return GraDPertTrainer(
+            engine=engine,
+            checkpoint_identity=_identity(),
+            run_root=tmp_path,
+            steps_per_epoch=1,
+            max_epochs=50,
+            run_meta={},
+        )
+
+    trainer = make_trainer()
+    boundaries = []
+    factory = bounded_epoch_factory(
+        lambda _: [batch],
+        stop_before_epoch=1,
+        on_boundary=lambda e: boundaries.append(audit_trainer_boundary(trainer, e)),
+    )
+    with pytest.raises(BoundedEpochComplete):
+        trainer.fit(
+            mode="full",
+            train_epoch_factory=factory,
+            validate=lambda *_: 0.5,
+            early_stopping_enabled=False,
+        )
+    assert boundaries[-1]["global_step"] == 1
+    trainer = make_trainer()
+    trainer.resume()
+    seen_epochs = []
+
+    def remaining(epoch):  # type: ignore[no-untyped-def]
+        seen_epochs.append(epoch)
+        return [batch]
+
+    factory = bounded_epoch_factory(
+        remaining,
+        stop_before_epoch=3,
+        on_boundary=lambda e: boundaries.append(audit_trainer_boundary(trainer, e)),
+    )
+    with pytest.raises(BoundedEpochComplete):
+        trainer.fit(
+            mode="full",
+            train_epoch_factory=factory,
+            validate=lambda *_: 0.5,
+            early_stopping_enabled=False,
+        )
+    assert seen_epochs == [1, 2]
+    assert boundaries[-1]["global_step"] == 3
+    assert trainer.engine.total_schedule_steps == 50
+    assert not trainer.receipts.test_gate_path.exists()
+
+
 def test_profile_checkpoint_roundtrip_restores_corrupted_state(tmp_path: Path) -> None:
     from scripts.performance.profile_native_a0 import _checkpoint_roundtrip, _exact_engine_state
 

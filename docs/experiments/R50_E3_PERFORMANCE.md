@@ -130,3 +130,30 @@ Acceptance requires >=10% and >=100 ms median wall reduction, p90 and peak
 memory no more than 5% worse, no allocator retry/OOM and exact-effect gates
 still passed. Current profiler's default timing length (2+10) is not that ABBA
 contract and must not be silently substituted. Preserve all failed attempts.
+
+## Six-step CUDA result (2026-09-12)
+
+Source `0f0c08eb7829d4cf7988b58ad954dd598ce097df`, server root
+`/data/yilangliu/GraD-Pert/development/r50-array-0f0c08e-cuda-v1`.
+All three arms finished with six ordered steps, complete predicates, queue RC0,
+no evaluation access and zero PKL. Independent comparison checked initial and
+every step's six full-state hashes, non-time metrics, view stats and first-step
+health; all matched exactly. The roundtrip arm also passed its explicit
+serialization-restoration check. Receipt SHA256 values:
+
+- reference: `06b5f0e7c5b5ed66ce660eb53c650669404322f6c4ab8dd26d729eb2d59d18d3`
+- candidate: `8dc6349af8b36a4f7df31283c12d61b7a57bb6866ef7302da6fd7d674a48d65f`
+- roundtrip: `ffdbc71b732af8f23aa0de37b264c4adf3415b2ba917bfefc9aea0d7ac352899`
+
+This proves the bounded deterministic trajectory, not three-epoch equivalence,
+fresh-process CUDA resume, or accepted end-to-end speedup. Default remains
+`cpu_vectorized`. GPU1 batch128 remained active during these diagnostics.
+
+Next bounded execution must stop at the next epoch's data-factory entry,
+after the preceding validation/logging/checkpoint transaction. Keep trainer
+max_epochs=50 and total_schedule_steps unchanged. An independent third arm
+stops after epoch1 and resumes in a new process to epoch3; no epoch replay and
+no test access. Validation and checkpoint identity must be audited at each
+boundary before a stop can be declared successful. First-epoch and final
+state digests must match the uninterrupted paths, with configuration and
+ordered data identities bound separately from run-specific paths.
