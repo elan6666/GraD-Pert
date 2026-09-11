@@ -1,5 +1,21 @@
 # R50 schedule coordinate
 
+Latest user decision 2026-09-11: use LR .001 and batch512 provisionally for the
+next stages. New row `sched512` directly compares with completed `batch512`;
+only the LR schedule changes. This is a user-chosen parent, not a claim that
+batch512 won the still-incomplete batch comparison. Evaluation batch stays256.
+The old `sched` batch256 contract at 3c30d1b was not confirmed launched and is
+superseded: do not execute its launcher. Preserve it as unlaunched evidence.
+Expected full budget is50*335=16750 steps; warmup8*335=2680 steps. Runtime meta
+must confirm the actual steps_per_epoch. Original EMA is unchanged.
+Network currently reports Can't assign requested address. On recovery first
+check old session/root/log for unexpected activity, then create a fresh clean
+published sched512 server checkout, run full gates, make a new hash-pinned
+contract and launch on GPU0 only after preparation goal ends. GPU1 batch128
+continues untouched. Do not reuse 3c30d1b config/publication hashes for sched512.
+
+The following paragraph records the prior batch256 design, superseded above.
+
 2026-09-11: LR-stage best validation scores REF .4069091270569533,
 low .3428432147008625, mid .34808985119780694 select REF at .001.
 The difference exceeds the preregistered .002 practical tie threshold.

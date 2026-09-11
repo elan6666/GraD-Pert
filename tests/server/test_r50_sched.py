@@ -10,9 +10,10 @@ from gradpert.config.step_schedule import LRWarmupCosine, load_training_schedule
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_only_scheduler_changes():
-    base = ROOT / "configs/r50/ref/gradpert_b2/nadig_jurkat.yaml"
-    new = ROOT / "configs/r50/sched/gradpert_b2/nadig_jurkat.yaml"
+@pytest.mark.parametrize("parent,row", [("ref", "sched"), ("batch512", "sched512")])
+def test_only_scheduler_changes(parent, row):
+    base = ROOT / f"configs/r50/{parent}/gradpert_b2/nadig_jurkat.yaml"
+    new = ROOT / f"configs/r50/{row}/gradpert_b2/nadig_jurkat.yaml"
     cfg = load_experiment_config(new)
     a, b = yaml.safe_load(base.read_text()), yaml.safe_load(new.read_text())
     b["training"]["scheduler"] = a["training"]["scheduler"]
