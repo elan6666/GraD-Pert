@@ -1,6 +1,6 @@
 # R50 E3 bounded performance diagnosis
 
-Preparation in progress, 2026-09-12. No optimization accepted or CUDA launched.
+Initial diagnosis completed, 2026-09-12. No optimization accepted.
 Pre-edit clean local/GitHub main baseline verified:
 `bf938adc2465adda9697387882b87f420683297d`.
 
@@ -41,3 +41,30 @@ optimizer, Teacher, centers and RNG. Require exactness and three-epoch matched
 old/new comparison using the original 50-epoch schedule, then isolated same-GPU
 ABBA timing under low shared host load. Only accepted changes become defaults;
 this preparation does not establish a performance improvement.
+
+## Sealed initial evidence and next diagnostic
+
+Source c492547ca897f964dbef52abaca4669154da5f15 ran on physical GPU0;
+GPU1 concurrently trained batch128. Receipt SHA256
+e68d6e3388c4b452489c0a0e7ce9aea39dd9a44ccaeea2b4e8e057653aa4c7d4,
+server root `/data/yilangliu/GraD-Pert/development/r50-perf-c492547-v1`.
+All five steps completed, all resource/runtime predicates passed, zero PKL,
+no evaluation access. Trace/table hashes were independently checked.
+
+Measured steps 2/3/4 wall: 2723.847/3033.376/2737.653 ms;
+student-local: 1368.704/1495.332/1364.597 ms;
+view-build: 350.046/515.249/355.830 ms. These are instrumented attribution
+measurements, not accepted timing comparisons.
+
+Across three active steps the trace records 105236 cudaLaunchKernel calls
+(399.18 ms inclusive runtime time), 4799 cudaLaunchKernelExC (16.17 ms),
+11157 cudaMemcpyAsync (77.05 ms), and 1530 cudaStreamSynchronize (31.29 ms).
+CPU operator totals are nested and must not be added: e.g. NativeDropoutBackward0
+and its autograd wrapper overlap. Counts suggest launch overhead, but do not
+establish a specific implementation target or expected speedup.
+
+Next: a fresh five-step E3 diagnostic with cProfile around the same bounded
+worker, preserving all configuration and guards, to separate cumulative Python
+view/union/encoder preparation costs. Retain the initial attempt untouched.
+Python/Torch instrumentation changes overhead, so this second run is also
+attribution only. Select an optimization only after narrower evidence exists.
