@@ -121,7 +121,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--row",
-        choices=("ref", "lr_low", "lr_mid", "batch128", "batch512", "sched", "sched512"),
+        choices=(
+            "ref",
+            "lr_low",
+            "lr_mid",
+            "batch128",
+            "batch512",
+            "batch1024",
+            "sched",
+            "sched512",
+        ),
         required=True,
     )
     parser.add_argument("--memory-fraction", type=float)

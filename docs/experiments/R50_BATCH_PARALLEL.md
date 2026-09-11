@@ -1,5 +1,16 @@
 # R50 fixed-REF batch comparisons
 
+2026-09-11 additional user-authorized coordinate: batch1024, fixed LR .001,
+50 epochs, no scheduler, eval batch256, no accumulation/DDP. Only training
+batch and artifact label differ from REF. This is not sched512 plus a batch
+change. Preserve original E3 model/EMA/loss and canonical data. Run one-epoch
+integration/capacity check in a fresh root before fresh50, then automatic
+best/last tests. Do not infer safety from historical B0 batch1024 capacity.
+Select GPU placement from live resources without interrupting active jobs.
+Never lower batch or precision to recover OOM silently; preserve failure.
+Network restoration, new clean publication/full server gates and hash-pinned
+contract remain prerequisites; this entry does not claim training has started.
+
 2026-09-10 user explicitly chooses LR=1e-3 and parallel batch128/batch512,
 each50 epochs, without another full-epoch capacity experiment. This supersedes
 waiting for LR-mid to select the parent for these two coordinates only. REF

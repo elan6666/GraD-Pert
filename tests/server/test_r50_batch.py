@@ -12,7 +12,7 @@ from scripts.server.run_r50_selection import command
 ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.parametrize("batch", [128, 512])
+@pytest.mark.parametrize("batch", [128, 512, 1024])
 def test_only_training_batch_and_artifact_label_change(batch):
     path = ROOT / f"configs/r50/batch{batch}/gradpert_b2/nadig_jurkat.yaml"
     config = load_experiment_config(path)
