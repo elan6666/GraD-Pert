@@ -27,6 +27,75 @@ def profiler_script() -> ModuleType:
     return _load_script()
 
 
+def test_r50_coordinate_pins_complete_parent_config(profiler_script: ModuleType) -> None:
+    from gradpert.hashing import sha256_file
+
+    parent = PROJECT_ROOT / "configs/r50/batch512/gradpert_b2/nadig_jurkat.yaml"
+    assert sha256_file(parent) == profiler_script.R50_E3_CONFIG_SHA256
+
+
+@pytest.mark.parametrize("coordinate", ["a0", "r50_e3_batch512"])
+def test_coordinate_prior_arguments_fail_closed(
+    profiler_script: ModuleType, coordinate: str, tmp_path: Path
+) -> None:
+    args = SimpleNamespace(
+        coordinate=coordinate,
+        genept_preflight_receipt=None if coordinate != "a0" else tmp_path / "prior.json",
+        genept_preflight_receipt_sha256=None,
+    )
+    with pytest.raises(profiler_script.ProfileGateError):
+        profiler_script._coordinate_preflight(args)
+
+
+def test_coordinate_checks_prior_hash(profiler_script: ModuleType, tmp_path: Path) -> None:
+    from gradpert.hashing import sha256_file
+
+    prior = tmp_path / "prior.json"
+    prior.write_text("{}")
+    args = SimpleNamespace(
+        coordinate="r50_e3_batch512",
+        genept_preflight_receipt=prior,
+        genept_preflight_receipt_sha256=sha256_file(prior),
+    )
+    profiler_script._coordinate_preflight(args)
+    prior.write_text('{"changed": true}')
+    with pytest.raises(profiler_script.ProfileGateError, match="SHA-256"):
+        profiler_script._coordinate_preflight(args)
+
+
+@pytest.mark.parametrize("coordinate,mode", [("a0", "pilot"), ("r50_e3_batch512", "full")])
+def test_native_dispatch_keeps_full_r50_horizon_and_prior(
+    profiler_script: ModuleType, coordinate: str, mode: str, tmp_path: Path
+) -> None:
+    prior = tmp_path / "prior.json" if coordinate != "a0" else None
+    digest = "a" * 64 if prior is not None else None
+    args = SimpleNamespace(
+        coordinate=coordinate,
+        genept_preflight_receipt=prior,
+        genept_preflight_receipt_sha256=digest,
+    )
+    assert profiler_script._native_coordinate_arguments(args) == {
+        "mode": mode,
+        "genept_preflight_receipt": prior,
+        "genept_preflight_receipt_sha256": digest,
+    }
+
+
+def test_r50_rejects_changed_config_even_when_launcher_hash_matches(
+    profiler_script: ModuleType, tmp_path: Path
+) -> None:
+    from gradpert.hashing import sha256_file
+
+    parent = PROJECT_ROOT / "configs/r50/batch512/gradpert_b2/nadig_jurkat.yaml"
+    changed = tmp_path / "changed.yaml"
+    changed.write_text(parent.read_text() + "\n# changed coordinate\n")
+    args = SimpleNamespace(
+        coordinate="r50_e3_batch512", expected_config_sha256=sha256_file(changed)
+    )
+    with pytest.raises(profiler_script.ProfileGateError, match="sealed bf938ad"):
+        profiler_script._require_reference_a0(args, changed)
+
+
 def test_training_only_guard_never_constructs_or_materializes_evaluation_data(
     profiler_script: ModuleType,
 ) -> None:

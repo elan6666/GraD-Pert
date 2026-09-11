@@ -31,6 +31,7 @@ EXACT_A0_GRAPH_NODE_COUNT = 2809
 EXACT_A0_LOCAL_NODE_BUDGET = 1404
 EXACT_A0_PROTOCOL_ID = "within_cell_unseen_single"
 EXACT_A0_RUNTIME_GRAPH_ROOT = "vnext/graph_axes/nadig_jurkat/hvg512_plus_targets"
+R50_E3_CONFIG_SHA256 = "839c7518d79bafd592ca3587d07442179590976da2bd5405ba4af3541ba78505"
 
 
 class ProfileComplete(RuntimeError):
@@ -56,6 +57,9 @@ def _sha256_argument(value: str) -> str:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--coordinate", choices=("a0", "r50_e3_batch512"), default="a0")
+    parser.add_argument("--genept-preflight-receipt", type=Path)
+    parser.add_argument("--genept-preflight-receipt-sha256", type=_sha256_argument)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--run-root", type=Path, required=True)
@@ -95,6 +99,21 @@ def _parameter(config: Any, name: str) -> object:
         raise ValueError(f"A0 config lacks required parameter: {name}") from error
 
 
+def _coordinate_preflight(args: argparse.Namespace) -> None:
+    """Reject missing or mismatched prior evidence before GPU initialization."""
+    from gradpert.hashing import sha256_file
+
+    path = args.genept_preflight_receipt
+    digest = args.genept_preflight_receipt_sha256
+    if args.coordinate == "r50_e3_batch512":
+        if path is None or digest is None:
+            raise ProfileGateError("R50 E3 requires a sealed GenePT preflight receipt")
+        if sha256_file(path) != digest:
+            raise ProfileGateError("GenePT preflight receipt SHA-256 differs")
+    elif path is not None or digest is not None:
+        raise ProfileGateError("learned-ID A0 does not accept GenePT preflight arguments")
+
+
 def _resolved_local_activation_checkpoint_count(config: Any, architecture: Any) -> int:
     parameter = config.model.parameters.get("systems_local_activation_checkpoint_count")
     if parameter is None:
@@ -124,6 +143,9 @@ def _require_reference_a0(
     observed_config_sha = sha256_file(config_path)
     if observed_config_sha != args.expected_config_sha256:
         raise ProfileGateError("A0 config SHA-256 differs from the launch contract")
+    r50_e3 = getattr(args, "coordinate", "a0") == "r50_e3_batch512"
+    if r50_e3 and observed_config_sha != R50_E3_CONFIG_SHA256:
+        raise ProfileGateError("R50 E3 requires the sealed bf938ad batch512 config")
     config = load_experiment_config(config_path)
     if (
         config.model_id != "gradpert_b2"
@@ -145,7 +167,7 @@ def _require_reference_a0(
         "local_view_node_budget_ratio_denominator": 2,
         "local_anchor_mask_view_ratio_numerator": 0,
         "local_anchor_mask_view_ratio_denominator": 1,
-        "gene_feature_mode": "learned_id",
+        "gene_feature_mode": "genept_initialized" if r50_e3 else "learned_id",
         "decoder_mode": "additive",
     }
     observed_architecture = {name: getattr(architecture, name) for name in expected_architecture}
@@ -156,7 +178,7 @@ def _require_reference_a0(
         raise ProfileGateError("performance profiling architecture differs from exact A0")
     expected_parameters: dict[str, object] = {
         "runtime_graph_root": EXACT_A0_RUNTIME_GRAPH_ROOT,
-        "performance_pilot_variant": "vnext_a0_ratio_ring_half",
+        "performance_pilot_variant": "r50_ref" if r50_e3 else "vnext_a0_ratio_ring_half",
         "prototype_count": 16384,
         "max_unique_conditions_per_batch": 8,
         "prediction_loss_weight": 1.0,
@@ -205,11 +227,11 @@ def _require_reference_a0(
         "result_mode": config.artifacts.result_mode,
     }
     expected_training_identity = {
-        "formal_run_policy": "fixed_epoch_pilot",
-        "max_epochs": 10,
+        "formal_run_policy": "r50_selection" if r50_e3 else "fixed_epoch_pilot",
+        "max_epochs": 50 if r50_e3 else 10,
         "run_seeds": [1],
         "early_stopping": False,
-        "train_batch_size": 256,
+        "train_batch_size": 512 if r50_e3 else 256,
         "eval_batch_size": 256,
         "optimizer": "AdamW",
         "learning_rate": 0.001,
@@ -261,6 +283,7 @@ def _require_reference_a0(
     ):
         raise ProfileGateError("A0 graph manifest/runtime topology identity differs")
     return architecture, {
+        "coordinate": getattr(args, "coordinate", "a0"),
         "config_sha256": observed_config_sha,
         "dataset_id": config.dataset_id,
         "protocol_id": config.data.protocol_id,
@@ -618,6 +641,15 @@ def _make_bounded_train_step(
     return bounded_train_step
 
 
+def _native_coordinate_arguments(args: argparse.Namespace) -> dict[str, Any]:
+    """Keep the parent's schedule horizon and prior provenance in bounded runs."""
+    return {
+        "mode": "full" if args.coordinate == "r50_e3_batch512" else "pilot",
+        "genept_preflight_receipt": args.genept_preflight_receipt,
+        "genept_preflight_receipt_sha256": args.genept_preflight_receipt_sha256,
+    }
+
+
 def _profile_run(
     args: argparse.Namespace,
     *,
@@ -763,11 +795,11 @@ def _profile_run(
             run_root=run_root,
             run_id=args.run_id,
             run_seed=args.run_seed,
-            mode="pilot",
             device_name=args.device,
             repository_root=args.repository_root,
             formal=False,
             development_commit=args.development_commit,
+            **_native_coordinate_arguments(args),
         )
         primary_failure = RuntimeError("profile unexpectedly reached validation/test lifecycle")
     except ProfileComplete:
@@ -867,11 +899,13 @@ def main(argv: list[str] | None = None) -> int:
     teardown_failures: list[dict[str, str]] = []
     receipt: dict[str, object] = {
         "schema_version": "native-a0-bounded-profile-v2",
+        "scientific_completion": False,
         "phase": args.phase,
         "run_id": args.run_id,
         "run_seed": args.run_seed,
         "device": args.device,
         "source_commit": args.development_commit,
+        "coordinate": args.coordinate,
         "thresholds": _threshold_payload(args),
         "expected_hashes": {
             "config_sha256": args.expected_config_sha256,
@@ -898,6 +932,19 @@ def main(argv: list[str] | None = None) -> int:
             raise ProfileGateError("profile requires CUBLAS_WORKSPACE_CONFIG=:4096:8")
         config = args.config.resolve(strict=True)
         args.repository_root = args.repository_root.resolve(strict=True)
+        _coordinate_preflight(args)
+        if args.coordinate == "r50_e3_batch512":
+            from gradpert.execution.identity import inspect_source_identity
+
+            source = inspect_source_identity(
+                args.repository_root,
+                formal=False,
+                expected_repository="https://github.com/elan6666/GraD-Pert.git",
+                development_commit=args.development_commit,
+            )
+            if source.dirty:
+                raise ProfileGateError("R50 E3 profiling requires a clean source checkout")
+            receipt["source_identity"] = source.payload()
         architecture, exact_identity = _require_reference_a0(args, config)
         receipt["config_path"] = str(config)
         receipt["native_architecture"] = architecture.payload()
