@@ -2,8 +2,32 @@
 
 User decision 2026-09-12 supersedes sequential full-run launch order:
 finish authorized ablation code/configuration and tests first, then fresh
-one-epoch integration gates; no new 50-epoch run before the build/smoke
+one-step integration gates; no new 50-epoch run before the build/smoke
 campaign is reviewed. Existing results and failed roots remain immutable.
+
+Latest user override: one real optimizer step per concrete row replaces the
+one-epoch server smoke budget. Do not launch the older one-epoch launchers.
+One-step evidence records completed_steps=1 and completed_epochs=0, never a
+fabricated completed epoch or validation-selected best. It checks forward,
+finite loss/gradients/state, optimizer/Teacher/center update where applicable,
+resource headroom, checkpoint save/load and cleanup; no full validation/test.
+Keep the configured full50 LR/EMA horizon and real scientific batch/graph.
+Best/last selection and dual test lifecycle remain covered by synthetic
+regressions and by the eventual formal50 run, not claimed by a one-step test.
+Historical implementation notes below describe the retained one-epoch paths;
+they are not current launch instructions. External one-step CLI/gates are pending.
+
+Native one-step entrypoint: `python -m scripts.server.native_step_smoke`.
+It delegates to the normal native full-horizon initialization and epoch
+scheduler, intercepting the first completed engine update before any epoch
+completion/validation. It saves an explicitly diagnostic step checkpoint and
+verifies exact model/Teacher/gradient/optimizer/center/RNG save/load identity
+using the existing checkpoint roundtrip helper. The validation reader is
+replaced by a truth-denying guard; real failures propagate and all temporary
+method bindings are restored in finally. Synthetic boundary tests cover one
+step only, zero completed epochs, preserved horizon, no validation/test and
+failure cleanup. These are not full-size CUDA capacity passes. Current native
+entry still needs reviewed resource/launch receipt preparation before CUDA.
 
 ## Explicit pending rows
 
@@ -19,7 +43,7 @@ campaign is reviewed. Existing results and failed roots remain immutable.
 
 For every concrete row, record config hash, parent/diff, full source SHA,
 unit/integration gates, upstream version when applicable, fresh smoke root,
-actual train/validation completion, finite state, checkpoint role/hash,
+actual single-step completion, finite state, diagnostic checkpoint role/hash,
 resume behavior, resources and PKL cleanup. Missing evidence is pending,
 never a pass. Smoke preserves the 50-epoch schedule horizon and accesses no
 test truth. Verify dual-checkpoint evaluator wiring through synthetic tests;
@@ -28,7 +52,7 @@ actual best/last canonical test evaluation follows formal training.
 The initial exact scope is eight already registered rows, not eight new
 control runs. A row blocked by an official adapter or failed smoke remains
 blocked while independent code work continues. No optimizer reset from
-repeated one-epoch train calls. Official packages remain isolated runners.
+repeated one-step train calls. Official packages remain isolated runners.
 
 Implementation uses bounded goals; they end before any CUDA smoke. Only
 then launch capacity-safe smoke queues and restore the existing 30-minute
