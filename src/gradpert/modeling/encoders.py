@@ -569,6 +569,8 @@ class _SparseGraphTransformerLayer(nn.Module):
         self.hidden_dim = hidden_dim
         self.head_count = head_count
         self.head_dim = hidden_dim // head_count
+        self.capture_attention_health = False
+        self.attention_health: dict[str, Any] | None = None
         self.dropout = dropout
         self.query = nn.Linear(hidden_dim, hidden_dim, bias=False)
         self.key = nn.Linear(hidden_dim, hidden_dim, bias=False)
@@ -631,6 +633,9 @@ class _SparseGraphTransformerLayer(nn.Module):
         score = (key.index_select(0, source) * query.index_select(0, target) * edge).sum(
             dim=-1
         ) / sqrt(self.head_dim)
+        raw_health = (
+            (score.detach() + edge_bias.detach()) if self.capture_attention_health else None
+        )
         score = (score + edge_bias).clamp(-5.0, 5.0).exp()
         messages = value.index_select(0, source) * score.unsqueeze(-1)
         weighted_value = torch.zeros_like(value)
@@ -641,6 +646,30 @@ class _SparseGraphTransformerLayer(nn.Module):
             dtype=node_states.dtype,
         )
         normalizer.index_add_(0, target, score)
+        if raw_health is not None:
+            with torch.no_grad():
+                probabilities = score.detach() / normalizer.detach().index_select(
+                    0, target
+                ).clamp_min(1e-6)
+                entropy = torch.zeros_like(normalizer)
+                entropy.index_add_(
+                    0, target, -(probabilities * probabilities.clamp_min(1e-30).log())
+                )
+                active = normalizer.detach() > 0
+                self.attention_health = {
+                    "edge_count": int(score.shape[0]),
+                    "finite": bool(torch.isfinite(raw_health).all().item()),
+                    "raw_logit_abs_max": float(raw_health.abs().max().item())
+                    if raw_health.numel()
+                    else 0.0,
+                    "clipped_fraction": float((raw_health.abs() > 5).float().mean().item())
+                    if raw_health.numel()
+                    else 0.0,
+                    "mean_target_head_entropy": float(entropy[active].mean().item())
+                    if bool(active.any().item())
+                    else 0.0,
+                }
+                self.capture_attention_health = False
         attention = weighted_value / normalizer.clamp_min(1e-6).unsqueeze(-1)
         attention = attention.reshape(node_count, self.hidden_dim)
         attention = F.dropout(attention, p=self.dropout, training=self.training)

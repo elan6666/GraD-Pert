@@ -7,6 +7,7 @@ is a project transfer choice, not an assertion about GLM's unpublished code.
 from __future__ import annotations
 
 import math
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -70,9 +71,13 @@ class SplitMatrixAdamW(torch.optim.Optimizer):
     Teacher parameters never enter either child optimizer.
     """
 
-    def __init__(self, model: nn.Module, *, lr: float) -> None:
+    def __init__(self, model: nn.Module, *, lr: float, health_interval: int = 0) -> None:
         if not math.isfinite(lr) or lr <= 0:
             raise ValueError("base LR must be finite and positive")
+        if type(health_interval) is not int or health_interval < 0:
+            raise ValueError("health interval must be a nonnegative integer")
+        self.health_interval = health_interval
+        self.update_health: list[dict[str, Any]] = []
         self.routes = parameter_routes(model)
         named = dict(model.named_parameters())
         parameters = [named[r["name"]] for r in self.routes]
@@ -114,6 +119,10 @@ class SplitMatrixAdamW(torch.optim.Optimizer):
         lr = float(self.param_groups[0]["lr"])
         if not math.isfinite(lr) or lr < 0:
             raise ValueError("scheduled LR must be finite and nonnegative")
+        sampled = self.health_interval > 0 and self.step_count % self.health_interval == 0
+        parameters = self.param_groups[0]["params"]
+        before = [p.detach().clone() for p in parameters] if sampled else []
+        started = time.perf_counter()
         for parameter, views in self._views:
             if parameter.grad is None:
                 for view in views:
@@ -127,6 +136,32 @@ class SplitMatrixAdamW(torch.optim.Optimizer):
             for group in optimizer.param_groups:
                 group["lr"] = lr
             optimizer.step()  # type: ignore[no-untyped-call]
+        if sampled:
+            # Monotonic host dispatch wall, NOT synchronized CUDA kernel time.
+            dispatch_ms = (time.perf_counter() - started) * 1000.0
+            groups: dict[str, dict[str, float]] = {}
+            for route, parameter, previous in zip(self.routes, parameters, before, strict=True):
+                group = groups.setdefault(
+                    route["optimizer"], {"weight_squared": 0.0, "update_squared": 0.0}
+                )
+                group["weight_squared"] += float(previous.double().square().sum().item())
+                group["update_squared"] += float(
+                    (parameter.detach() - previous).double().square().sum().item()
+                )
+            self.update_health.append(
+                {
+                    "optimizer_step": self.step_count,
+                    "base_lr": lr,
+                    "host_dispatch_ms": dispatch_ms,
+                    "groups": {
+                        name: {
+                            "weight_l2": math.sqrt(values["weight_squared"]),
+                            "update_l2": math.sqrt(values["update_squared"]),
+                        }
+                        for name, values in groups.items()
+                    },
+                }
+            )
         self.step_count += 1
         return loss
 

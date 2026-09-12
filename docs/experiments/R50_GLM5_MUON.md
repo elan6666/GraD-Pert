@@ -202,3 +202,23 @@ differences respectively; all architecture/data/evaluation fields equal the
 batch512 parent. This is build progress, not a completed one-epoch smoke.
 The newer R50_BUILD_ALL_GATE.md policy blocks full runs until the authorized
 build/smoke campaign is reviewed.
+
+### Bounded health instrumentation
+
+The split optimizer optionally samples first-step and epoch-boundary Muon and
+AdamW weight/update L2 norms. The native runner enables one sample per epoch;
+historical optimizer behavior defaults to no sampling. Timing is explicitly
+host dispatch wall, not synchronized CUDA kernel time. No extra model pass or
+random draw is used. Each sparse Transformer layer additionally observes its
+first forward's raw logit magnitude/clipping and target-head normalized entropy
+for G1/G2/G3. The resulting receipt is first-forward health only, not evidence
+of stability across all epochs. Separate tests compare parameters, optimizer
+state, outputs, gradients and RNG with diagnostics enabled/disabled. Sampling
+memory overhead still needs the real capacity/smoke gate. G2 AdamW update norms
+and server publication/launch contracts remain outstanding preparation items.
+
+Health-instrumentation publication gates: 869 tests passed, four explicit
+environment/reference/CUDA skips; Ruff, format349, strict mypy82 and isolated
+wheel/sdist build passed. Pre-change clean published baseline:
+`cee5b62bfb6723bd0a4bfe3bfc63ac96cbec60ad`. No server smoke or full run is
+implied by these local tests. Latest build-all policy still blocks full launches.

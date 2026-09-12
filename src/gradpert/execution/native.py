@@ -20,7 +20,12 @@ import numpy as np
 from gradpert.config import ExperimentConfig, NativeArchitectureOptions, load_experiment_config
 from gradpert.config.lr_schedule import EpochWarmupCosineRestarts
 from gradpert.config.native import CAPACITY_PROFILES
-from gradpert.config.step_schedule import LRWarmupCosine, StepWarmupCosine, load_training_schedule
+from gradpert.config.step_schedule import (
+    EndpointLRWarmupCosine,
+    LRWarmupCosine,
+    StepWarmupCosine,
+    load_training_schedule,
+)
 from gradpert.contracts import RunManifest, ServerArtifactPointer
 from gradpert.data._io import atomic_json, atomic_text
 from gradpert.evaluation import CanonicalEvaluationData
@@ -41,6 +46,7 @@ from gradpert.features import (
 from gradpert.graphs import GraphTopology, ResolvedLocalViewContract, load_dataset_graph_topology
 from gradpert.hashing import sha256_file, sha256_json
 from gradpert.modeling import CenterState, GraDPertJointModel
+from gradpert.modeling.encoders import _SparseGraphTransformerLayer
 from gradpert.pilots import (
     GenePTSeedAvailabilityReceipt,
     ReducedGraphManifest,
@@ -840,6 +846,7 @@ def run_native_experiment(
             ),
         )
         if isinstance(optimizer, SplitMatrixAdamW):
+            optimizer.health_interval = steps_per_epoch
             _write_or_require_json(
                 small_root / "optimizer_recipe.json",
                 {
@@ -875,6 +882,13 @@ def run_native_experiment(
             )
         )
         training_schedule = load_training_schedule(config.training.scheduler.value)
+        capture_optimizer_health = isinstance(optimizer, SplitMatrixAdamW) or isinstance(
+            training_schedule, EndpointLRWarmupCosine
+        )
+        if capture_optimizer_health:
+            for module in model.modules():
+                if isinstance(module, _SparseGraphTransformerLayer):
+                    module.capture_attention_health = True
         engine = GraDPertStepEngine(
             prediction_reduction=(
                 _optional_string_parameter(config, "prediction_reduction") or "cell_mean"
@@ -997,6 +1011,29 @@ def run_native_experiment(
             validate=validate,
             early_stopping_enabled=config.training.early_stopping,
         )
+        if isinstance(optimizer, SplitMatrixAdamW):
+            atomic_json(
+                small_root / "optimizer_update_health.json",
+                {
+                    "schema": "native-optimizer-update-health-v1",
+                    "interval_steps": optimizer.health_interval,
+                    "timing_kind": "host_dispatch_not_cuda_kernel_time",
+                    "samples": optimizer.update_health,
+                },
+            )
+        if capture_optimizer_health:
+            atomic_json(
+                small_root / "attention_health.json",
+                {
+                    "schema": "native-first-forward-attention-health-v1",
+                    "scope": "first_forward_per_layer_not_whole_training",
+                    "layers": {
+                        name: module.attention_health
+                        for name, module in model.named_modules()
+                        if isinstance(module, _SparseGraphTransformerLayer)
+                    },
+                },
+            )
         if system_options.enabled:
             if engine.first_step_health is None:
                 raise RuntimeError("enabled systems did not capture first-step equivalence health")

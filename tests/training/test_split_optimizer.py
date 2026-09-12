@@ -117,3 +117,52 @@ def test_zero_and_rank_deficient_gradients_are_finite(fill):
     assert all(torch.isfinite(p).all() for p in net.parameters())
     if fill == 0:
         assert_tree(before, net.state_dict())
+
+
+def test_update_health_does_not_change_state_or_rng():
+    plain = model()
+    observed = model()
+    observed.load_state_dict(plain.state_dict())
+    a = SplitMatrixAdamW(plain, lr=0.001)
+    b = SplitMatrixAdamW(observed, lr=0.001, health_interval=2)
+    for step in range(3):
+        gradients(plain, step + 1)
+        gradients(observed, step + 1)
+        rng = torch.get_rng_state().clone()
+        a.step()
+        b.step()
+        assert torch.equal(rng, torch.get_rng_state())
+        assert_tree(plain.state_dict(), observed.state_dict())
+        assert_tree(a.state_dict(), b.state_dict())
+    assert [s["optimizer_step"] for s in b.update_health] == [0, 2]
+    assert a.update_health == []
+    for sample in b.update_health:
+        assert sample["host_dispatch_ms"] >= 0
+        for values in sample["groups"].values():
+            assert values["weight_l2"] > 0
+            assert values["update_l2"] > 0
+
+
+def test_attention_health_preserves_forward_backward_rng_and_is_bounded():
+    layer = model().student_encoder
+    layer.dropout = 0.2
+    observed = deepcopy(layer)
+    observed.capture_attention_health = True
+    x = torch.randn(4, 8)
+    edges = torch.tensor([[0, 1, 2, 3], [1, 2, 3, 0]])
+    features = torch.randn(4, 8)
+    rng = torch.get_rng_state().clone()
+    expected = layer(x, edges, features, edges)
+    expected.square().sum().backward()
+    state_after = torch.get_rng_state().clone()
+    torch.set_rng_state(rng)
+    actual = observed(x, edges, features, edges)
+    actual.square().sum().backward()
+    assert torch.equal(actual, expected)
+    assert torch.equal(state_after, torch.get_rng_state())
+    for a, b in zip(layer.parameters(), observed.parameters(), strict=True):
+        assert_tree(a.grad, b.grad)
+    assert observed.attention_health["finite"]
+    assert observed.attention_health["mean_target_head_entropy"] == 0
+    assert observed.capture_attention_health is False
+    assert layer.attention_health is None
