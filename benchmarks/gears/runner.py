@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import os
 import random
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,7 @@ from benchmarks.common import (
     write_pickle,
 )
 from benchmarks.common.full_gate import require_completed_smoke
+from benchmarks.common.r50_gate import require_r50_smoke, seal_r50_smoke
 from benchmarks.gears.official_api import (
     GearsModelParameters,
     GearsOfficialModules,
@@ -70,6 +72,7 @@ def preflight(config_path: Path, checkout_root: Path) -> dict[str, object]:
     if config.model_id != "gears" or config.training.formal_run_policy not in {
         "smoke_only",
         "external_full_100",
+        "external_fixed_50",
     }:
         raise ValueError("GEARS runner requires a gears smoke-only experiment config")
     with official_module_session(
@@ -118,7 +121,14 @@ def run_one_epoch(
     config_file = config_path.resolve(strict=True)
     config = load_experiment_config(config_file)
     requested_epochs = 1 if smoke else int(config.training.max_epochs.value)
-    if config.model_id != "gears" or config.training.max_epochs.value not in {1, 100}:
+    r50 = config.training.formal_run_policy == "external_fixed_50"
+    if (
+        r50
+        and device.startswith("cuda")
+        and os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True"
+    ):
+        raise ValueError("R50 CUDA allocator contract missing")
+    if config.model_id != "gears" or config.training.max_epochs.value not in {1, 50, 100}:
         raise ValueError("GEARS execution requires a one-epoch GEARS config")
     destination = run_root.resolve()
     if destination.exists() and any(destination.iterdir()):
@@ -143,6 +153,8 @@ def run_one_epoch(
         device_name=device,
         lock_file=repository_root / "benchmarks" / "environments" / "gears.uv.lock",
     )
+    if r50 and (source.dirty or not source.formal_eligible):
+        raise ValueError("R50 requires clean published source before fitting")
     config_sha256 = sha256_file(config_file)
     small_root = destination / "small_results"
     atomic_text(small_root / "config.resolved.yaml", config_file.read_text(encoding="utf-8"))
@@ -163,15 +175,16 @@ def run_one_epoch(
             split_policy=config.data.split_policy,
         )
         write_training_data_receipt(training_data, small_root / "training_data.json")
-        if requested_epochs == 100:
+        if requested_epochs == 100 or (r50 and not smoke):
             atomic_json(
                 small_root / "smoke_gate.json",
-                require_completed_smoke(
+                (require_r50_smoke if r50 else require_completed_smoke)(
                     smoke_run_root,
                     config=config,
                     config_sha256=config_sha256,
                     training_data=training_data,
                     source_commit=source.commit,
+                    **({"environment_sha256": environment.payload_sha256} if r50 else {}),
                 ),
             )
         adapted = build_training_validation_adata(training_data, axis="graph")
@@ -270,7 +283,13 @@ def run_one_epoch(
                         "patience": 10,
                         "progress_path": small_root / "validation_progress.json",
                     }
-                    if config.training.formal_run_policy == "external_full_100" and not smoke
+                    if r50
+                    or (config.training.formal_run_policy == "external_full_100" and not smoke)
+                    else {}
+                ),
+                **(
+                    {"r50": True, "last_checkpoint_path": destination / "checkpoints/last.pt"}
+                    if r50
                     else {}
                 ),
             )
@@ -323,62 +342,133 @@ def run_one_epoch(
                 small_root / "checkpoint_retention.json",
                 {
                     "schema_version": "checkpoint-retention-v1",
-                    "policy": "model_pt_only_after_official_fit",
+                    "policy": "best_and_last" if r50 else "model_pt_only_after_official_fit",
                     "checkpoint_path": str(checkpoint_path),
                     "checkpoint_sha256": checkpoint_sha256,
                     "removed_framework_pickle_sha256": removed_framework_pickle_sha256,
                     "persistent_pkl_count": 0,
                 },
             )
-            # Construct the canonical test reader only after fit and checkpoint
-            # sealing. It does not exist anywhere in the training lifecycle.
-            with CanonicalEvaluationData(
-                dataset_id=config.dataset_id,
-                protocol_id=config.data.protocol_id,
-                split_name="test",
-                data_root=data_root,
-            ) as test_data:
-                predictions: list[PredictionConditionArrays] = []
-                for draw in test_data.control_manifest.draws:
-                    controls = test_data.load_control_rows(tuple(draw.ordered_row_ids))
-                    targets = tuple(part for part in draw.condition_id.split("+") if part != "ctrl")
-                    graph_prediction = api.predict_exact_controls(
-                        trained_model=model,
-                        perturbation_genes=targets,
-                        input_controls=np.pad(
-                            controls.expression,
-                            (
-                                (0, 0),
-                                (
-                                    0,
-                                    training_data.manifest.n_graph_genes
-                                    - training_data.manifest.n_expression_genes,
-                                ),
-                            ),
-                        ),
-                        batch_size=_training(config, "eval_batch_size", int),
-                    )
-                    predictions.append(
-                        PredictionConditionArrays(
-                            condition_id=draw.condition_id,
-                            prediction=graph_prediction[:, : adapted.expression_gene_count],
-                            input_control=controls.expression,
-                            input_control_row_ids=controls.ordered_row_ids,
-                        )
-                    )
-                sealed = seal_evaluated_run(
-                    destination=destination,
+            if r50 and smoke:
+                atomic_json(small_root / "official_checkout.json", checkout_receipt.payload())
+                seal_r50_smoke(
+                    destination,
                     config=config,
                     config_sha256=config_sha256,
-                    run_id=run_id,
-                    run_seed=1,
-                    source=source,
-                    environment=environment,
                     training_data=training_data,
-                    test_data=test_data,
-                    predictions=predictions,
-                    checkpoint_sha256=checkpoint_sha256,
+                    source=source,
+                    environment_sha256=environment.payload_sha256,
+                    best_checkpoint=checkpoint_path,
+                    last_checkpoint=destination / "checkpoints/last.pt",
+                    validation_value=model.gradpert_validation_history[0]["val_mse_de"],
                 )
+                return {
+                    "run_id": run_id,
+                    "run_root": str(destination),
+                    "status": "trained_validation_only",
+                    "scientific_completion": False,
+                    "epochs_completed": 1,
+                    "formal_eligible": source.formal_eligible,
+                }
+            evaluations = {}
+            for role in ("best", "last") if r50 else ("best",):
+                role_destination = destination / "evaluations" / role if r50 else destination
+                if r50:
+                    role_destination.mkdir(parents=True, exist_ok=False)
+                    role_checkpoint = (
+                        checkpoint_path if role == "best" else destination / "checkpoints/last.pt"
+                    )
+                    # The official inference adapter forwards best_model, not model.
+                    model.best_model.load_state_dict(
+                        torch.load(role_checkpoint, map_location=device, weights_only=True)
+                    )
+                    checkpoint_sha256 = sha256_file(role_checkpoint)
+                    random.seed(1)
+                    np.random.seed(1)
+                    torch.manual_seed(1)
+                    torch.cuda.manual_seed_all(1)
+                # Construct the canonical test reader only after fit and checkpoint
+                # sealing. It does not exist anywhere in the training lifecycle.
+                with CanonicalEvaluationData(
+                    dataset_id=config.dataset_id,
+                    protocol_id=config.data.protocol_id,
+                    split_name="test",
+                    data_root=data_root,
+                ) as test_data:
+                    predictions: list[PredictionConditionArrays] = []
+                    for draw in test_data.control_manifest.draws:
+                        controls = test_data.load_control_rows(tuple(draw.ordered_row_ids))
+                        targets = tuple(
+                            part for part in draw.condition_id.split("+") if part != "ctrl"
+                        )
+                        graph_prediction = api.predict_exact_controls(
+                            trained_model=model,
+                            perturbation_genes=targets,
+                            input_controls=np.pad(
+                                controls.expression,
+                                (
+                                    (0, 0),
+                                    (
+                                        0,
+                                        training_data.manifest.n_graph_genes
+                                        - training_data.manifest.n_expression_genes,
+                                    ),
+                                ),
+                            ),
+                            batch_size=_training(config, "eval_batch_size", int),
+                        )
+                        predictions.append(
+                            PredictionConditionArrays(
+                                condition_id=draw.condition_id,
+                                prediction=graph_prediction[:, : adapted.expression_gene_count],
+                                input_control=controls.expression,
+                                input_control_row_ids=controls.ordered_row_ids,
+                            )
+                        )
+                    sealed = seal_evaluated_run(
+                        destination=role_destination,
+                        config=config,
+                        config_sha256=config_sha256,
+                        run_id=f"{run_id}-{role}" if r50 else run_id,
+                        run_seed=1,
+                        source=source,
+                        environment=environment,
+                        training_data=training_data,
+                        test_data=test_data,
+                        predictions=predictions,
+                        checkpoint_sha256=checkpoint_sha256,
+                    )
+                if r50:
+                    best_epoch = [
+                        row["epoch"] for row in model.gradpert_validation_history if row["best"]
+                    ][-1]
+                    record = {
+                        "checkpoint_role": role,
+                        "checkpoint_epoch": best_epoch
+                        if role == "best"
+                        else model.gradpert_last_epoch,
+                        "checkpoint_sha256": checkpoint_sha256,
+                        "training_git_sha": source.commit,
+                        "evaluation_git_sha": source.commit,
+                        "source_dirty": source.dirty,
+                        "upstream_commit": config.source_code.commit,
+                        "config_sha256": config_sha256,
+                        "environment_sha256": environment.payload_sha256,
+                        "run_manifest_sha256": sha256_file(
+                            role_destination / "small_results/run_manifest.json"
+                        ),
+                        "prediction_manifest_sha256": sha256_file(sealed.prediction_manifest_path),
+                        "evaluation_manifest_sha256": sha256_file(sealed.evaluation_manifest_path),
+                    }
+                    atomic_json(role_destination / "small_results/checkpoint_role.json", record)
+                    evaluations[role] = record
+            if r50:
+                if any(
+                    p.suffix.lower() in {".pkl", ".pickle"} or p.name.startswith(".result-work-")
+                    for p in destination.rglob("*")
+                ):
+                    raise RuntimeError("external R50 whole-root zero-PKL/work postcondition failed")
+                atomic_json(small_root / "best_last_tests.json", evaluations)
         atomic_json(
             small_root / "official_checkout.json",
             {

@@ -177,3 +177,23 @@ environment, upstream, test scope, epoch/validation and checkpoint/artifact
 drift. These are not real-data training results. GEARS and TxPert runner
 wiring, frozen-package/server smoke and the overall launch review remain
 pending; no new formal run is authorized by this partial integration alone.
+
+## GEARS runner integration
+
+Pre-change published baseline `d30f14835eb404b44df8734e010144a9845e6348`.
+GEARS accepts the distinct fixed50 policy and supplies its official API with
+one continuous one/50-epoch fit, validation history and a true-last target.
+Clean published source and CUDA allocator are required before R50 fitting.
+Smoke cleans the two exact reconstructible framework PKLs and returns through
+the validation-only two-checkpoint gate without constructing test data.
+Full R50 requires that gate, then loads each checkpoint into `best_model`,
+the module actually used by the frozen inference adapter. Loading only
+`model` would silently evaluate best twice and is explicitly avoided.
+Best/last tests have separate role roots and version/hash/epoch records;
+whole-root zero-PKL/work is checked before publishing the paired summary.
+
+Synthetic runner regression asserts one fit call, no smoke test reader,
+distinct best=1/last=50 weight values at evaluation, true epoch metadata and
+temporary PKL cleanup. Official-package and real-data one-epoch acceptance
+remain pending. TxPert runner wiring is still pending; this stage does not
+authorize a new formal50 run or declare any scientific result complete.
