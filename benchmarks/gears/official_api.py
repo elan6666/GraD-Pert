@@ -254,7 +254,15 @@ class OfficialGearsAPI:
         epochs: int = 1,
         patience: int = 10,
         progress_path: Path | None = None,
+        r50: bool = False,
+        last_checkpoint_path: Path | None = None,
     ) -> Any:
+        if r50 and (epochs not in {1, 50} or last_checkpoint_path is None or progress_path is None):
+            raise ValueError("R50 GEARS requires one or50 epochs, progress and last checkpoint")
+        if not r50 and last_checkpoint_path is not None:
+            raise ValueError("last capture requires explicit R50 policy")
+        if last_checkpoint_path is not None and last_checkpoint_path.exists():
+            raise FileExistsError("last checkpoint must be a fresh artifact")
         model = self.modules.package.GEARS(
             pert_data,
             device=device,
@@ -263,22 +271,30 @@ class OfficialGearsAPI:
             exp_name=experiment_name,
         )
         model.model_initialize(**parameters.official_kwargs())
-        if epochs == 1:
+        if epochs == 1 and not r50:
             model.train(epochs=1, lr=float(learning_rate), weight_decay=float(weight_decay))
         else:
             from benchmarks.gears.early_stopping import train_with_patience
             from gradpert.data._io import atomic_json
 
-            if epochs != 100 or patience != 10 or progress_path is None:
+            if not r50 and (epochs != 100 or patience != 10 or progress_path is None):
                 raise ValueError("full GEARS requires 100 epochs/patience10 and progress receipt")
             model.gradpert_validation_history = train_with_patience(
                 model,
                 epochs=epochs,
                 lr=float(learning_rate),
                 weight_decay=float(weight_decay),
-                patience=patience,
+                patience=epochs + 1 if r50 else patience,
                 on_epoch=lambda history: atomic_json(progress_path, {"validation": history}),
             )
+        if r50:
+            if len(model.gradpert_validation_history) != epochs:
+                raise RuntimeError("R50 GEARS did not complete its exact epoch budget")
+            assert last_checkpoint_path is not None
+            last_checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+            # Audited GEARS keeps final in model and validation best in best_model.
+            self.modules.torch.save(model.model.state_dict(), str(last_checkpoint_path))
+            model.gradpert_last_epoch = epochs
         checkpoint = Path(checkpoint_dir)
         checkpoint.parent.mkdir(parents=True, exist_ok=True)
         model.save_model(str(checkpoint))

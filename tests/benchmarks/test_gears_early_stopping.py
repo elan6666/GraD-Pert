@@ -60,3 +60,15 @@ def test_nonfinite_validation_and_test_loader_fail_closed():
         train_with_patience(
             model, epochs=1, lr=0.001, weight_decay=0.0005, patience=10, on_epoch=lambda _: None
         )
+
+
+def test_fifty_epoch_r50_boundary_preserves_best_and_actual_final():
+    model = OfficialShape([1] * 50)
+    history = train_with_patience(
+        model, epochs=50, lr=0.001, weight_decay=0.0005, patience=51, on_epoch=lambda _: None
+    )
+    assert len(history) == 50
+    assert model.optimizer_creations == 1
+    assert model.optimizer_steps == 50
+    assert model.best_model == [0]
+    assert model.model == [49]

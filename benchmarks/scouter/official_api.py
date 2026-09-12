@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -15,12 +16,22 @@ from gradpert.data._io import atomic_json
 
 
 @contextmanager
-def independent_best_snapshot(network: Any):
+def independent_best_snapshot(network: Any, *, before_restore: Any = None):
     """Fix upstream's shallow state_dict alias without modifying its checkout."""
     original = network.state_dict
     had_override = "state_dict" in network.__dict__
     previous = network.__dict__.get("state_dict")
+    original_load = network.load_state_dict
+    had_load_override = "load_state_dict" in network.__dict__
+    previous_load = network.__dict__.get("load_state_dict")
     network.state_dict = lambda *args, **kwargs: deepcopy(original(*args, **kwargs))
+
+    def load(state, *args, **kwargs):
+        before_restore(deepcopy(original()))
+        return original_load(state, *args, **kwargs)
+
+    if before_restore is not None:
+        network.load_state_dict = load
     try:
         yield
     finally:
@@ -28,6 +39,11 @@ def independent_best_snapshot(network: Any):
             network.state_dict = previous
         else:
             del network.state_dict
+        if before_restore is not None:
+            if had_load_override:
+                network.load_state_dict = previous_load
+            else:
+                del network.load_state_dict
 
 
 def prepare_data(package: Any, adapted: AdaptedCanonicalData, prior: Any) -> Any:
@@ -70,8 +86,33 @@ def prepare_data(package: Any, adapted: AdaptedCanonicalData, prior: Any) -> Any
     return data
 
 
-def fit_official(model: Any, config: Any, *, epochs: int, progress_path: Any) -> dict:
+def fit_official(
+    model: Any,
+    config: Any,
+    *,
+    epochs: int,
+    progress_path: Any,
+    r50: bool = False,
+    last_checkpoint_path: Path | None = None,
+) -> dict:
     """Call one continuous official train invocation, including its scheduler."""
+    if r50 and (epochs not in {1, 50} or last_checkpoint_path is None):
+        raise ValueError("R50 Scouter requires one or50 epochs and an explicit last path")
+    if not r50 and last_checkpoint_path is not None:
+        raise ValueError("dual checkpoint capture requires explicit R50 policy")
+    if last_checkpoint_path is not None and last_checkpoint_path.exists():
+        raise FileExistsError("last checkpoint must be a fresh artifact")
+    captures = 0
+
+    def capture_last(state):
+        import torch
+
+        nonlocal captures
+        if captures or last_checkpoint_path is None:
+            raise RuntimeError("unexpected repeated official best restoration")
+        last_checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(state, last_checkpoint_path)
+        captures += 1
 
     def p(name):
         return config.model.parameters[name].value
@@ -103,7 +144,7 @@ def fit_official(model: Any, config: Any, *, epochs: int, progress_path: Any) ->
 
     handle = model.network.register_forward_hook(count_forward)
     try:
-        with independent_best_snapshot(model.network):
+        with independent_best_snapshot(model.network, before_restore=capture_last if r50 else None):
             model.train(
                 batch_size=int(config.training.train_batch_size.value),
                 loss_gamma=float(p("loss_gamma")),
@@ -111,7 +152,7 @@ def fit_official(model: Any, config: Any, *, epochs: int, progress_path: Any) ->
                 lr=float(config.training.learning_rate.value),
                 sched_gamma=float(p("scheduler_gamma")),
                 n_epochs=epochs,
-                patience=int(config.training.early_stopping_patience.value),
+                patience=epochs + 1 if r50 else int(config.training.early_stopping_patience.value),
             )
     finally:
         handle.remove()
@@ -119,6 +160,8 @@ def fit_official(model: Any, config: Any, *, epochs: int, progress_path: Any) ->
     val = losses["val_loss"]
     if not val or len(val) != len(losses["train_loss"]) or not np.isfinite(val).all():
         raise RuntimeError("official Scouter validation is absent or nonfinite")
+    if r50 and (len(val) != epochs or captures != 1):
+        raise RuntimeError("R50 Scouter did not preserve exact epochs and actual final state")
     best, best_epoch = float("inf"), None
     for epoch, value in enumerate(val, 1):
         if best - value > 0.001:
@@ -138,6 +181,18 @@ def fit_official(model: Any, config: Any, *, epochs: int, progress_path: Any) ->
         "official_training_api": "scouter.Scouter.train",
         "canonical_test_truth_present_during_fit": False,
     }
+    if r50:
+        from gradpert.hashing import sha256_file
+
+        assert last_checkpoint_path is not None
+        receipt.update(
+            r50=True,
+            early_stopping=False,
+            patience=epochs + 1,
+            last_epoch=epochs,
+            last_checkpoint_sha256=sha256_file(last_checkpoint_path),
+            last_capture="before_official_best_restore",
+        )
     atomic_json(progress_path, {"stage": "fit_complete", **receipt})
     return receipt
 

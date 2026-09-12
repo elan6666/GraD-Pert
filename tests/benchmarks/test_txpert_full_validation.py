@@ -3,10 +3,13 @@
 from contextlib import nullcontext
 from types import SimpleNamespace
 
+import pytest
+
 from benchmarks.txpert.official_api import OfficialPublicAPI
 
 
-def test_full_validation_never_calls_test_or_resets_optimizer(tmp_path):
+@pytest.mark.parametrize("epochs,r50,completed", [(100, False, 11), (50, True, 50), (1, True, 1)])
+def test_full_validation_never_calls_test_or_resets_optimizer(tmp_path, epochs, r50, completed):
     events = []
     snapshots = {}
 
@@ -32,11 +35,12 @@ def test_full_validation_never_calls_test_or_resets_optimizer(tmp_path):
             self.current_epoch = 0
             self.global_step = 0
             self.should_stop = False
+            self.max_epochs = kwargs["max_epochs"]
 
         def fit(self, model, *, train_dataloaders):
             events.append("one_continuous_fit")
             self.model = model
-            for epoch in range(100):
+            for epoch in range(self.max_epochs):
                 self.current_epoch = epoch
                 self.global_step += 5
                 model.state = epoch
@@ -82,12 +86,17 @@ def test_full_validation_never_calls_test_or_resets_optimizer(tmp_path):
         training_only_data_module=data,
         checkpoint_path=tmp_path / "best.ckpt",
         accelerator="cpu",
-        epochs=100,
+        epochs=epochs,
         progress_path=tmp_path / "progress.json",
+        r50=r50,
+        last_checkpoint_path=tmp_path / "last.pt" if r50 else None,
     )
     assert events.count("one_continuous_fit") == 1
-    assert events.count("validation") == 11
+    assert events.count("validation") == completed
     assert trainer.gradpert_best_epoch == 1
     assert model.state == 0
     assert model.training
-    assert len(snapshots) == 1
+    assert len(snapshots) == (2 if r50 else 1)
+    if r50:
+        assert snapshots[str(tmp_path / "last.pt")]["state_dict"]["value"] == completed - 1
+        assert trainer.gradpert_last_epoch == completed

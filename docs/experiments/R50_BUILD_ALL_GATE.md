@@ -101,3 +101,34 @@ best in best_model; save_model serializes best_model only. A new R50 adapter
 can preserve those distinct states without rewriting training. Its optional
 test_loader path must remain absent during fit. These observations do not
 constitute completed adapter implementations or integration passes.
+
+## External lifecycle implementation, first stage
+
+Pre-change published baseline `a70d24cf769575704069fd81b480fa377381fef0`.
+The three official API adapters now expose an explicit R50-only path with
+one or50 requested epochs, no early stop and a fresh last-checkpoint target.
+Scouter captures last immediately before its official best-state restoration;
+TxPert saves the final Lightning checkpoint before loading best; GEARS saves
+model (actual last), independently of best_model saved by official save_model.
+Each still invokes the official training method exactly once. Old default
+one/100-epoch behavior remains unchanged. No official source was modified.
+
+Synthetic adapter tests verify first-epoch best versus fiftieth-epoch last,
+non-aliased Scouter snapshots, validation-only TxPert callbacks and continuous
+GEARS epoch traversal. The common runner/CLI/config wiring and dual-checkpoint
+evaluation receipts are NOT yet complete. These APIs do not authorize a run;
+all R2/R3/R4 smokes remain pending until that integration is implemented and
+verified against the frozen official installations.
+
+Next integration boundary found in `benchmarks/common/full_gate.py`: the old
+external100 gate requires an evaluated smoke with one test call and exactly
+one checkpoint. That contract must remain unchanged for historical paths.
+New external R50 needs a distinct validation-only one-epoch/two-checkpoint
+gate, explicit self-contained 50-epoch config policy, and per-role postfit
+evaluation. Reusing the old gate would either read test truth during smoke
+or incorrectly reject the new checkpoint retention. Merely changing epochs
+in existing external-full YAML is not sufficient.
+
+Lifecycle API gate: 882 tests passed, four explicit reference/CUDA skips;
+Ruff, format350, strict mypy83 and isolated build passed. This is local
+synthetic/regression evidence, not a frozen-package or server smoke pass.

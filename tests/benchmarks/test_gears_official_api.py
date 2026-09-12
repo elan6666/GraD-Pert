@@ -317,6 +317,37 @@ def test_exact_control_forward_preserves_all_300_rows() -> None:
     assert model.best_model.eval_called
 
 
+def test_r50_api_saves_actual_model_not_best_model(tmp_path, monkeypatch):
+    modules = _modules()
+    saved = []
+    modules.torch.save = lambda state, path: saved.append((state, path))
+
+    def continuous(model, **kwargs):
+        assert kwargs["epochs"] == 50 and kwargs["patience"] == 51
+        model.model = SimpleNamespace(state_dict=lambda: {"weight": 49})
+        model.best_model = SimpleNamespace(state_dict=lambda: {"weight": 0})
+        return [{"epoch": i + 1} for i in range(50)]
+
+    monkeypatch.setattr("benchmarks.gears.early_stopping.train_with_patience", continuous)
+    api = OfficialGearsAPI(modules)
+    result = api.fit_one_epoch(
+        pert_data=FakePertData("fixture"),
+        parameters=_parameters(),
+        learning_rate=0.001,
+        weight_decay=0.0005,
+        checkpoint_dir=tmp_path / "best",
+        device="cpu",
+        experiment_name="r50-fixture",
+        epochs=50,
+        r50=True,
+        progress_path=tmp_path / "progress.json",
+        last_checkpoint_path=tmp_path / "last.pt",
+    )
+    assert saved == [({"weight": 49}, str(tmp_path / "last.pt"))]
+    assert result.saved_path == str(tmp_path / "best")
+    assert result.gradpert_last_epoch == 50
+
+
 def test_adapter_rejects_pre_ranking_one_index_graphs(tmp_path: Path) -> None:
     modules = _modules()
     modules = GearsOfficialModules(

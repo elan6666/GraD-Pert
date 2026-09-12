@@ -270,6 +270,8 @@ class OfficialPublicAPI:
         accelerator: str,
         epochs: int,
         progress_path: Path,
+        r50: bool = False,
+        last_checkpoint_path: str | Path | None = None,
     ) -> Any:
         """Official training/optimizer and official val metric, with no test hook.
 
@@ -281,8 +283,12 @@ class OfficialPublicAPI:
         """
         from gradpert.data._io import atomic_json
 
-        if epochs not in {1, 100}:
+        if r50 and (epochs not in {1, 50} or last_checkpoint_path is None):
+            raise ValueError("R50 TxPert requires one or50 epochs and explicit last checkpoint")
+        if not r50 and (epochs not in {1, 100} or last_checkpoint_path is not None):
             raise ValueError("external integration requires one or100 epochs")
+        if last_checkpoint_path is not None and Path(last_checkpoint_path).exists():
+            raise FileExistsError("last checkpoint must be a fresh artifact")
         official = self.modules.predictor
         torch = self.modules.torch
         data = training_only_data_module
@@ -334,7 +340,7 @@ class OfficialPublicAPI:
                             "canonical_test_truth_during_fit": False,
                         },
                     )
-                    if self.bad >= 10:
+                    if not r50 and self.bad >= 10:
                         trainer.should_stop = True
                 finally:
                     pl_module.train(was_training)
@@ -354,6 +360,15 @@ class OfficialPublicAPI:
         trainer.fit(model, train_dataloaders=data.train_dataloader())
         if not callback.history or callback.best_epoch is None:
             raise RuntimeError("TxPert did not produce a validation-selected checkpoint")
+        if r50:
+            if len(callback.history) != epochs:
+                raise RuntimeError("R50 TxPert did not complete its exact epoch budget")
+            assert last_checkpoint_path is not None
+            Path(last_checkpoint_path).parent.mkdir(parents=True, exist_ok=True)
+            # Lightning still holds the actual final model here. Save BEFORE
+            # restoring the validation-selected state into that same model.
+            trainer.save_checkpoint(str(last_checkpoint_path))
+            trainer.gradpert_last_epoch = callback.history[-1]["epoch"]
         saved = torch.load(str(checkpoint_path), map_location="cpu", weights_only=False)
         model.load_state_dict(saved["state_dict"], strict=True)
         trainer.gradpert_validation_history = callback.history

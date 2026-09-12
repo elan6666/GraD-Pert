@@ -34,6 +34,75 @@ def test_snapshot_scope_restores_on_error():
     assert "state_dict" not in layer.__dict__
 
 
+def test_final_capture_is_before_best_restore_and_independent():
+    torch = pytest.importorskip("torch")
+    layer = torch.nn.Linear(1, 1, bias=False)
+    captured = []
+    with independent_best_snapshot(layer, before_restore=captured.append):
+        with torch.no_grad():
+            layer.weight.fill_(1)
+        best = layer.state_dict()
+        with torch.no_grad():
+            layer.weight.fill_(50)
+        layer.load_state_dict(best)
+    assert layer.weight.item() == 1
+    assert captured[0]["weight"].item() == 50
+    assert "load_state_dict" not in layer.__dict__
+    with torch.no_grad():
+        layer.weight.fill_(99)
+    assert captured[0]["weight"].item() == 50
+
+
+@pytest.mark.parametrize("epochs,r50", [(1, True), (50, True), (3, False)])
+def test_continuous_scouter_policy_keeps_true_last(tmp_path, epochs, r50):
+    torch = pytest.importorskip("torch")
+    from benchmarks.scouter.official_api import fit_official
+
+    class FakeOfficial:
+        calls = 0
+
+        def model_init(self, **kwargs):
+            self.network = torch.nn.Linear(1, 1, bias=False)
+            self.loss_history = {"train_loss": [], "val_loss": []}
+
+        def train(self, **kwargs):
+            self.calls += 1
+            self.patience = kwargs["patience"]
+            for index in range(kwargs["n_epochs"]):
+                with torch.no_grad():
+                    self.network.weight.fill_(index + 1)
+                self.network(torch.ones(1, 1))
+                if index == 0:
+                    best = self.network.state_dict()
+                self.loss_history["train_loss"].append(float(index + 1))
+                self.loss_history["val_loss"].append(float(index + 1))
+            self.best_val_loss = 1.0
+            self.network.load_state_dict(best)
+
+    config = load_experiment_config("configs/external-full/scouter_genept_seed/nadig_jurkat.yaml")
+    model = FakeOfficial()
+    path = tmp_path / "last.pt"
+    receipt = fit_official(
+        model,
+        config,
+        epochs=epochs,
+        progress_path=tmp_path / "progress.json",
+        r50=r50,
+        last_checkpoint_path=path if r50 else None,
+    )
+    assert model.calls == 1
+    assert model.network.weight.item() == 1
+    assert receipt["epochs_completed"] == epochs
+    if r50:
+        assert model.patience == epochs + 1
+        assert torch.load(path, weights_only=True)["weight"].item() == epochs
+        assert receipt["last_epoch"] == epochs
+        assert receipt["early_stopping"] is False
+    else:
+        assert model.patience == 10
+        assert not path.exists()
+
+
 def test_prediction_preserves_all_300_rows_in_order():
     torch = pytest.importorskip("torch")
 
