@@ -132,3 +132,22 @@ in existing external-full YAML is not sufficient.
 Lifecycle API gate: 882 tests passed, four explicit reference/CUDA skips;
 Ruff, format350, strict mypy83 and isolated build passed. This is local
 synthetic/regression evidence, not a frozen-package or server smoke pass.
+
+## External fixed50 configuration boundary
+
+Pre-change published baseline `3b47bf07b4b6614163463314250afb22145a060c`.
+Three self-contained configs now live under `configs/r50-rerun/` for Scouter,
+GEARS and TxPert public. The new `external_fixed_50` policy is restricted to
+these Jurkat metrics-only integrations: exactly50 epochs, seed1, early stopping
+disabled. The historical patience10 value is retained as inactive metadata;
+the continuous-fit adapters use a non-triggering patience for this path.
+Model, prior, data, split, evaluation, optimizer, LR, batch and scheduler values
+are unchanged from each frozen external-full config. Config model/dataset IDs
+remain schema-canonical; artifact roots and future run IDs distinguish reruns.
+
+Sixteen config regressions check preserved scientific fields and reject
+early stopping, changed seeds, invalid thresholds and non50 budgets. The old
+external100 configurations remain unmodified. Runner integration is still
+pending: current CLIs deliberately reject the new policy, so these configs
+must not be treated as launch-ready. The distinct validation-only smoke gate
+and per-role best/last evaluations remain the next implementation step.

@@ -106,6 +106,7 @@ class TrainingConfig(StrictModel):
         "vnext_combination_100",
         "vnext_combination_200",
         "external_full_100",
+        "external_fixed_50",
     ]
     max_epochs: SourcedValue
     early_stopping: bool
@@ -172,6 +173,15 @@ class TrainingConfig(StrictModel):
                     raise ValueError("external full runs require an explicit validation monitor")
                 if self.min_delta < 0:
                     raise ValueError("external min_delta must be nonnegative")
+            elif self.formal_run_policy == "external_fixed_50":
+                if self.max_epochs.value != 50 or self.run_seeds != [1] or self.early_stopping:
+                    raise ValueError("external R50 requires exactly50 epochs, seed1, no early stop")
+                if self.early_stopping_patience.value != 10:
+                    raise ValueError("external R50 retains inactive patience10 metadata")
+                if not self.monitor.startswith("val/") or self.monitor_mode not in {"min", "max"}:
+                    raise ValueError("external R50 requires an explicit validation monitor")
+                if self.min_delta < 0:
+                    raise ValueError("external min_delta must be nonnegative")
             elif self.formal_run_policy in {"vnext_combination_100", "vnext_combination_200"}:
                 expected_epochs = 200 if self.formal_run_policy == "vnext_combination_200" else 100
                 if self.max_epochs.value != expected_epochs or self.run_seeds != [1]:
@@ -204,7 +214,10 @@ class TrainingConfig(StrictModel):
                     raise ValueError("fixed-epoch native pilots use only seed 1")
             else:
                 raise ValueError("learned models require a learned formal_run_policy")
-            if self.min_delta != 0.0 and self.formal_run_policy != "external_full_100":
+            if self.min_delta != 0.0 and self.formal_run_policy not in {
+                "external_full_100",
+                "external_fixed_50",
+            }:
                 raise ValueError("learned models require min_delta=0")
         else:
             if self.smoke_epochs.value != 0 or self.max_epochs.value != 0:
@@ -294,12 +307,18 @@ class ExperimentConfig(StrictModel):
                 "vnext_combination_100",
                 "vnext_combination_200",
             },
-            "external_learned": {"smoke_only", "external_full_100"},
+            "external_learned": {"smoke_only", "external_full_100", "external_fixed_50"},
             "nonlearned": {"inference_only"},
         }[self.model.family]
         if self.training.formal_run_policy not in allowed_policies:
             expected = ",".join(sorted(allowed_policies))
             raise ValueError(f"{self.model.family} requires formal_run_policy in {{{expected}}}")
+        if self.training.formal_run_policy == "external_fixed_50" and (
+            self.model_id not in {"scouter_genept_seed", "gears", "txpert_public"}
+            or self.dataset_id != "nadig_jurkat"
+            or self.artifacts.result_mode != "metrics_only"
+        ):
+            raise ValueError("external R50 is restricted to registered Jurkat metrics_only rows")
         is_legacy_performance_pilot = "performance_pilot_variant" in self.model.parameters
         if self.training.formal_run_policy == "r50_selection" and (
             self.artifacts.result_mode != "metrics_only" or self.model_id != "gradpert_b2"

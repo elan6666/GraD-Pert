@@ -1,0 +1,135 @@
+schema_version: 1
+experiment_id: scouter_genept_seed__nadig_jurkat
+model_id: scouter_genept_seed
+dataset_id: nadig_jurkat
+source_code:
+  repository: "https://github.com/PancakeZoy/scouter.git"
+  commit: "0cfddd000e19b72ff033ba67c8315f7bc3304932"
+  license_boundary: "isolated_MIT_upstream_with_attribution"
+  execution: isolated
+data:
+  dataset_id: nadig_jurkat
+  protocol_id: within_cell_unseen_single
+  registry_version: "datasets-v2"
+  canonical_data_root: "data/nadig_jurkat/within_cell_unseen_single/canonical"
+  preprocessing_id: txpert_within_cell_v1
+  split_policy: grouped_0.5625_0.1875_0.25__gears_default_graph_intersection_v1
+  split_seed: 42
+  expected_split_hash: from_canonical_manifest
+  expected_expression_gene_order_hash: from_canonical_manifest
+  expected_graph_gene_order_hash: from_canonical_manifest
+  expected_control_manifest_hash: from_canonical_manifest
+model:
+  model_id: scouter_genept_seed
+  family: external_learned
+  implementation: "benchmarks.scouter.runner"
+  parameters:
+    official_profile:
+      value: replogle_k562_rpe1
+      source: official
+      reference: "PancakeZoy/scouter_misc:code/Scouter/run_scouter_k562.py"
+    genept_seed_sha256:
+      value: "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318"
+      source: user_locked
+      reference: "GenePT-Seed Protein+Reactome+SIGNOR; modified Scouter prior"
+    encoder:
+      value: "2048,512"
+      source: official
+      reference: "Scouter.model_init"
+    bottleneck:
+      value: 64
+      source: official
+      reference: "Scouter.model_init"
+    generator:
+      value: "2048"
+      source: official
+      reference: "Scouter.model_init"
+    batch_norm:
+      value: true
+      source: official
+      reference: "Scouter.model_init"
+    layer_norm:
+      value: false
+      source: official
+      reference: "Scouter.model_init"
+    dropout:
+      value: 0.0
+      source: official
+      reference: "Scouter.model_init"
+    loss_gamma:
+      value: 0.0
+      source: official
+      reference: "Scouter.train"
+    loss_lambda:
+      value: 0.5
+      source: official
+      reference: "scouter_misc K562 and RPE1"
+    scheduler_gamma:
+      value: 0.9
+      source: official
+      reference: "Scouter.train"
+training:
+  learned: true
+  smoke_epochs:
+    value: 1
+    source: user_locked
+    reference: "user requirement: learned integration gate is exactly one epoch"
+  formal_run_policy: external_fixed_50
+  max_epochs:
+    value: 50
+    source: user_locked
+    reference: "R50 rerun: exactly50 epochs; retain best and true-last checkpoints"
+  early_stopping_patience:
+    value: 10
+    source: user_locked
+    reference: "Historical patience10 metadata retained but inactive in fixed50"
+  train_batch_size:
+    value: 256
+    source: official
+    reference: "Scouter.train"
+  eval_batch_size:
+    value: 256
+    source: official
+    reference: "Scouter.train"
+  optimizer:
+    value: "Adam"
+    source: official
+    reference: "Scouter.train"
+  learning_rate:
+    value: 0.001
+    source: official
+    reference: "Scouter.train"
+  weight_decay:
+    value: 0
+    source: official
+    reference: "Scouter.train"
+  scheduler:
+    value: "ExponentialLR"
+    source: official
+    reference: "Scouter.train"
+  early_stopping: false
+  monitor: "val/scouter_loss"
+  monitor_mode: min
+  min_delta: 0.001
+  run_seeds: [1]
+evaluation:
+  evaluator_version: "gradpert-evaluator-v1"
+  prediction_schema_version: "prediction-artifact-v1"
+  bundle_schema_version: "evaluation-bundle-v1"
+  evaluation_seed: 20260824
+  n_controls_per_condition: 300
+  sample_controls_with_replacement: true
+  control_context_policy: truth_cell_context_resampling
+  truth_access: evaluator_only
+  headline_metrics:
+    - txpert_macro_pearson_delta
+    - trishift_pearson_delta
+    - systema_pearson
+artifacts:
+  root: "runs/r50-rerun/scouter_genept_seed/nadig_jurkat"
+  large_artifacts_server_only: true
+  result_mode: metrics_only
+  result_pkl_name: "result.pkl"
+  inference_recipe_schema_version: "inference-recipe-v1"
+  small_sync_extensions: [".txt", ".json", ".jsonl", ".csv", ".md"]
+  sync_requires_dry_run: true
