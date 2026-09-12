@@ -333,6 +333,21 @@ class ExperimentConfig(StrictModel):
             ):
                 raise ValueError("split optimizer is restricted to zero-decay R50")
             reduction = self.model.parameters.get("prediction_reduction")
+            ema_start = self.model.parameters.get("teacher_ema_start")
+            if ema_start is not None and (
+                not isinstance(ema_start.value, (int, float)) or not 0 < ema_start.value < 1
+            ):
+                raise ValueError("EMA start requires a value between zero and one")
+            local_policy = self.model.parameters.get("local_node_policy")
+            if local_policy is not None and (
+                local_policy.value not in {"essential_only", "essential_size_ring"}
+                or self.training.formal_run_policy != "r50_selection"
+                or "local_anchor_mask_view_ratio" not in self.model.parameters
+                or self.model.parameters["local_anchor_mask_view_ratio"].value != "0/1"
+                or "essential_gene_list_path" not in self.model.parameters
+                or "essential_gene_list_sha256" not in self.model.parameters
+            ):
+                raise ValueError("essential local policy requires unmasked R50")
             spread_pool = self.model.parameters.get("spread_pool")
             if spread_pool is not None and (
                 spread_pool.value not in {"unique_condition", "batch_cell"}

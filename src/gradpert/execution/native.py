@@ -365,6 +365,7 @@ def _read_local_view_realization_receipt(
     path: Path,
     *,
     contract: ResolvedLocalViewContract,
+    node_count_upper_bound: int | None = None,
 ) -> dict[str, object]:
     """Validate compact per-step evidence and reduce it to a small final receipt."""
 
@@ -404,7 +405,7 @@ def _read_local_view_realization_receipt(
             or unique_condition_count <= 0
             or step_count != unique_condition_count * contract.local_view_count
             or step_min <= 0
-            or step_max > contract.effective_node_budget
+            or step_max > (node_count_upper_bound or contract.effective_node_budget)
             or step_min > step_max
             or not step_min * step_count <= step_sum <= step_max * step_count
             or not 0 <= step_budget_hits <= step_count
@@ -888,7 +889,35 @@ def run_native_experiment(
             for module in model.modules():
                 if isinstance(module, _SparseGraphTransformerLayer):
                     module.capture_attention_health = True
+        local_node_policy = _optional_string_parameter(config, "local_node_policy") or "default"
+        essential_ids: tuple[int, ...] = ()
+        if local_node_policy != "default":
+            from gradpert.graphs.essential_local import load_essential_ids
+
+            essential_path = _optional_string_parameter(config, "essential_gene_list_path")
+            essential_sha = _optional_string_parameter(config, "essential_gene_list_sha256")
+            if essential_path is None or essential_sha is None:
+                raise ValueError("essential local policy requires a pinned annotation")
+            essential_ids = load_essential_ids(
+                Path(essential_path), essential_sha, topology.gene_ids
+            )
+            _write_or_require_json(
+                small_root / "essential_annotation.json",
+                {
+                    "sha256": essential_sha,
+                    "path": essential_path,
+                    "policy": local_node_policy,
+                    "runtime_node_ids": list(essential_ids),
+                    "count": len(essential_ids),
+                    "budget": "condition-wise essential union anchors",
+                    "complement": "not listed, not proven nonessential",
+                },
+                resume=resume,
+            )
         engine = GraDPertStepEngine(
+            essential_node_ids=essential_ids,
+            teacher_ema_start=_optional_float_parameter(config, "teacher_ema_start", default=0.996),
+            local_node_policy=local_node_policy,
             optimizer_health_interval=steps_per_epoch if capture_optimizer_health else 0,
             prediction_reduction=(
                 _optional_string_parameter(config, "prediction_reduction") or "cell_mean"
@@ -1045,6 +1074,7 @@ def run_native_experiment(
         local_view_realization = _read_local_view_realization_receipt(
             small_root / "train_steps.csv",
             contract=local_view_contract,
+            node_count_upper_bound=topology.n_nodes if essential_ids else None,
         )
         _write_if_absent_or_equal_json(
             small_root / "local_view_realization.json",

@@ -138,7 +138,15 @@ def main():
     for name in ("run-id", "source-publication-receipt-sha256", "genept-preflight-receipt-sha256"):
         parser.add_argument(f"--{name}", required=True)
     parser.add_argument("--device-name", default="cuda:0")
+    parser.add_argument("--memory-fraction", type=float)
     args = vars(parser.parse_args())
+    fraction = args.pop("memory_fraction")
+    if fraction is not None:
+        if not 0 < fraction <= 0.4:
+            raise ValueError("shared one-step budget must be at most 40 percent")
+        import torch
+
+        torch.cuda.set_per_process_memory_fraction(fraction, 0)
     print(
         json.dumps(
             run_native_step_smoke(

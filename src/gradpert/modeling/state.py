@@ -63,8 +63,8 @@ def cosine_teacher_momentum(
     total_steps: int,
     start: float = 0.996,
 ) -> float:
-    if start != 0.996:
-        raise ValueError("teacher momentum start is frozen at 0.996")
+    if not 0.0 < start < 1.0:
+        raise ValueError("teacher momentum start must be between zero and one")
     if total_steps <= 0 or not 0 <= global_step <= total_steps:
         raise ValueError("global_step must be within the positive schedule")
     progress = global_step / total_steps

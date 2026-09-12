@@ -32,6 +32,7 @@ from gradpert.graphs import (
     resolve_legacy_local_view_contract,
     resolve_local_view_contract,
 )
+from gradpert.graphs.essential_local import essential_local_views
 from gradpert.hashing import sha256_json
 from gradpert.modeling import (
     CenterState,
@@ -436,6 +437,9 @@ class GraDPertStepEngine:
         step_schedule: StepWarmupCosine | LRWarmupCosine | None = None,
         prediction_reduction: str = "cell_mean",
         spread_pool: str = "unique_condition",
+        essential_node_ids: tuple[int, ...] = (),
+        teacher_ema_start: float = 0.996,
+        local_node_policy: str = "default",
         optimizer_health_interval: int = 0,
     ) -> None:
         if topology.n_nodes != model.graph_gene_count:
@@ -459,6 +463,9 @@ class GraDPertStepEngine:
         if spread_pool not in {"unique_condition", "batch_cell"}:
             raise ValueError("unknown spread sample pool")
         self.spread_pool = spread_pool
+        self.essential_node_ids = essential_node_ids
+        self.teacher_ema_start = teacher_ema_start
+        self.local_node_policy = local_node_policy
         self.spread_pool_health: list[dict[str, Any]] = []
         if type(optimizer_health_interval) is not int or optimizer_health_interval < 0:
             raise ValueError("optimizer health interval must be a nonnegative integer")
@@ -692,6 +699,15 @@ class GraDPertStepEngine:
                 local_builder=self.architecture.local_view_builder,
                 local_fanouts=self.architecture.local_view_fanout,
                 local_anchor_mask_count=self.local_view_contract.effective_mask_view_count,
+            )
+        if self.local_node_policy != "default":
+            views = essential_local_views(
+                views,
+                self.topology,
+                ids=self.essential_node_ids,
+                policy=self.local_node_policy,
+                run_seed=self.run_seed,
+                global_step=global_step,
             )
         local_views = tuple(
             view
@@ -1039,6 +1055,7 @@ class GraDPertStepEngine:
         momentum = cosine_teacher_momentum(
             global_step=global_step,
             total_steps=schedule_last_step,
+            start=self.teacher_ema_start,
         )
         if isinstance(self.step_schedule, StepWarmupCosine):
             momentum = self.step_schedule.at_step(global_step, self.total_schedule_steps)[

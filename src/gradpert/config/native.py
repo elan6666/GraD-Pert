@@ -257,6 +257,10 @@ class NativeArchitectureOptions:
         ):
             raise ValueError("compact128_v1 is restricted to the B0/B1 GAT additive coordinate")
         depth = CAPACITY_PROFILES[self.capacity_profile][0] if compact else 4
+        if not compact and self.graph_encoder_family == "multi_source_sparse_transformer":
+            if self.graph_layer_count not in {2, 4}:
+                raise ValueError("Exphormer depth ablation supports only two or four layers")
+            depth = self.graph_layer_count
         expected_dimensions = (128, depth, 2, 128)
         observed_dimensions = (
             self.graph_input_dim,
