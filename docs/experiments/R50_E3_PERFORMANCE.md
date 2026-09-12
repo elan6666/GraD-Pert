@@ -195,3 +195,20 @@ and reserved peak memory ratios must be <=1.05. Resource/identity/evaluation
 gates are prerequisites, not substitutes for timing acceptance. Candidate
 remains opt-in until all gates and review pass; no new scientific run is
 authorized by a timing-only receipt.
+
+## ABBA identity instrumentation repair
+
+The four arms at source `3b5a21a81b805b0352f98df0f3f55cf3d8baa246`
+finished with RC0, but strict acceptance failed: native batch metadata caches
+row-ID hashes only for the first step, so steps 1–24 recorded null hashes.
+Preserve `development/r50-abba-3b5a21a-v1` unchanged. These timings are not
+accepted performance evidence; the strict validator is not relaxed.
+
+The repair hashes actual ordered perturbation/control row IDs for every batch
+outside the native step timer, identically in both arms. Any present cached
+hash must match the actual rows; missing or misaligned rows fail closed.
+No model, data selection, precision, forward order, RNG, loss, optimizer,
+schedule or default implementation changes. Regression coverage exercises
+25 batches through the real materialization/conversion path using synthetic
+expression reads, including changed row order and first-step-only caches.
+A fresh published source and fresh serial ABBA lineage are required.

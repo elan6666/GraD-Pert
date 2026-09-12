@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from types import MethodType
 
 import numpy as np
@@ -78,6 +79,40 @@ def test_merged_read_and_control_cache_preserve_exact_values_and_order() -> None
         assert np.array_equal(observed.control_expression, baseline.control_expression)
         assert np.array_equal(observed.target_expression, baseline.target_expression)
         assert observed.spec == baseline.spec
+
+
+def test_abba_identity_uses_actual_rows_after_first_batch() -> None:
+    import torch
+
+    from gradpert.hashing import sha256_json
+    from scripts.performance.profile_native_a0 import _ordered_batch_identity
+
+    data = _fake_data(np.arange(18, dtype=np.float32).reshape(6, 3))
+    spec = _spec()
+    for step in range(25):
+        if step % 2:
+            spec = replace(
+                spec,
+                perturbed_indices=tuple(reversed(spec.perturbed_indices)),
+                perturbed_row_ids=tuple(reversed(spec.perturbed_row_ids)),
+                condition_ids=tuple(reversed(spec.condition_ids)),
+            )
+        batch = data._to_training_batch(
+            data._materialize_cpu_batch(spec), device=torch.device("cpu")
+        )
+        if step:
+            assert batch.perturbed_row_ids_sha256 is None
+            assert batch.control_row_ids_sha256 is None
+        before = torch.get_rng_state().clone()
+        identity = _ordered_batch_identity(batch, step)
+        assert torch.equal(before, torch.get_rng_state())
+        assert identity == {
+            "global_step": step,
+            "perturbed_row_ids_sha256": sha256_json(list(spec.perturbed_row_ids)),
+            "control_row_ids_sha256": sha256_json(list(spec.control_row_ids)),
+        }
+        assert batch.control_row_ids == spec.control_row_ids
+    assert data.pipeline_stats.yielded_batches == 25
 
 
 def test_prefetch_startup_failure_falls_back_without_row_loss(monkeypatch) -> None:  # type: ignore[no-untyped-def]

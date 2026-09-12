@@ -106,6 +106,22 @@ def _step_budget(args: argparse.Namespace) -> tuple[int, int]:
     return {"capacity": (3, 3), "profile": (2, 3), "timing": (2, 10)}[args.phase]
 
 
+def _ordered_batch_identity(batch: Any, global_step: int) -> dict[str, Any]:
+    from gradpert.hashing import sha256_json
+
+    result: dict[str, Any] = {"global_step": global_step}
+    for name in ("perturbed", "control"):
+        rows = getattr(batch, f"{name}_row_ids")
+        if not rows or len(rows) != len(batch.condition_ids):
+            raise ProfileGateError("missing or misaligned actual batch row IDs")
+        digest = sha256_json(list(rows))
+        cached = getattr(batch, f"{name}_row_ids_sha256")
+        if cached is not None and cached != digest:
+            raise ProfileGateError("cached batch identity differs from actual rows")
+        result[f"{name}_row_ids_sha256"] = digest
+    return result
+
+
 def _parameter(config: Any, name: str) -> object:
     try:
         return config.model.parameters[name].value
@@ -896,13 +912,7 @@ def _profile_run(
 
     def identified_train_step(engine: Any, batch: Any, *, global_step: int) -> Any:
         if getattr(args, "timing_protocol", "legacy") == "abba_5_20":
-            batch_identities.append(
-                {
-                    "global_step": global_step,
-                    "perturbed_row_ids_sha256": batch.perturbed_row_ids_sha256,
-                    "control_row_ids_sha256": batch.control_row_ids_sha256,
-                }
-            )
+            batch_identities.append(_ordered_batch_identity(batch, global_step))
         return original_train_step(engine, batch, global_step=global_step)
 
     bounded_train_step = _make_bounded_train_step(
