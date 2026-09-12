@@ -11,11 +11,12 @@ from scripts.server.run_r50_selection import command, sha, validate
 ROWS = tuple(
     "r1024_" + x for x in ("s1", "s2", "u1", "t1", "t2", "p1", "p2", "c1", "l1", "l2", "l3")
 )
+LOSS_ROWS = tuple("r1024_loss_" + x + "_v1" for x in ("t2", "p1", "p2", "c1", "l1", "l2", "l3"))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--row", choices=ROWS, required=True)
+    parser.add_argument("--row", choices=ROWS + LOSS_ROWS, required=True)
     for key in ("source", "root", "data-root", "publication", "genept-receipt", "step-receipt"):
         parser.add_argument("--" + key, type=Path, required=True)
     for key in ("commit", "config-sha", "publication-sha", "genept-sha", "step-sha"):
@@ -70,7 +71,11 @@ def main():
     (a.root / "fit_exit.json").write_text(json.dumps({"rc": rc, "source_commit": a.commit}))
     if rc:
         raise RuntimeError("fit failed; preserve and do not relaunch")
-    result = validate(a.root / "full", epochs=50, commit=a.commit, config_sha=a.config_sha)
+    selection = json.loads((a.root / "full/small_results/selection_receipt.json").read_text())
+    epochs = selection["epochs_completed"]
+    if epochs != 50:
+        raise ValueError("R1024 requires exactly 50 completed epochs")
+    result = validate(a.root / "full", epochs=epochs, commit=a.commit, config_sha=a.config_sha)
     from gradpert.execution.postfit import evaluate_best_last
 
     evaluate_best_last(

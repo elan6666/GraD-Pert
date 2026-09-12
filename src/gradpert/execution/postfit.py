@@ -106,6 +106,8 @@ def evaluate_best_last(
     manifest = read_json(small / "run_manifest.json")
     meta = read_json(small / "run_meta.json")
     selection = read_json(small / "selection_receipt.json")
+    completed_epochs = selection["epochs_completed"]
+    valid_termination = completed_epochs == 50
     if (
         config.training.formal_run_policy != "r50_selection"
         or config.artifacts.result_mode != "metrics_only"
@@ -115,9 +117,9 @@ def evaluate_best_last(
         or manifest["source_dirty"]
         or manifest["config_sha256"] != sha256_file(config_path)
         or selection["status"] != "complete"
-        or selection["epochs_completed"] != 50
+        or not valid_termination
         or meta["max_epochs"] != 50
-        or selection["optimizer_steps"] != 50 * meta["steps_per_epoch"]
+        or selection["optimizer_steps"] != completed_epochs * meta["steps_per_epoch"]
         or selection["test_evaluations"] != 0
         or selection["run_manifest_sha256"] != sha256_json(manifest)
     ):
@@ -206,7 +208,7 @@ def evaluate_best_last(
             digest = sha256_file(path)
             payload = torch.load(path, map_location="cpu", weights_only=False)
             epoch = checkpoint_progress(payload, manifest, meta)
-            if role == "last" and epoch != 50:
+            if role == "last" and epoch != completed_epochs:
                 raise ValueError(
                     "archived last is not the final epoch; never label partial as last"
                 )
@@ -291,10 +293,10 @@ def evaluate_best_last(
             {
                 "status": "alias",
                 "alias_of": "best",
-                "epoch": 50,
+                "epoch": completed_epochs,
                 "checkpoint_sha256": roles["best"]["checkpoint_sha256"],
             }
-            if best_epoch == 50
+            if best_epoch == completed_epochs
             else {"status": "unavailable", "reason": "historical_final_checkpoint_not_retained"}
         )
     if list(output_root.rglob("*.pkl")) or list(output_root.rglob(".result-work-*")):

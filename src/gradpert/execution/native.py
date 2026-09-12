@@ -740,6 +740,16 @@ def run_native_experiment(
             enabled=system_options.validation_expression_cache
         )
         cache_build_ms = training_cache_ms + validation_cache_ms
+        validation_metric_state = None
+        if config.training.monitor == "val/prediction_loss":
+            from gradpert.evaluation.state import load_evaluation_state
+
+            validation_metric_state = load_evaluation_state(
+                dataset_id=config.dataset_id,
+                protocol_id=config.data.protocol_id,
+                data_root=data_root,
+                validation_only=True,
+            )
         steps_per_epoch = training_data.steps_per_epoch(
             batch_size=train_batch_size,
             max_unique_conditions=max_unique_conditions,
@@ -1016,16 +1026,36 @@ def run_native_experiment(
                 device=device,
                 decode_batch_size=eval_batch_size,
                 prediction_view=engine.prediction_view,
+                evaluation_state=validation_metric_state,
             )
             atomic_json(
                 small_root / f"validation.epoch-{epoch:03d}.json",
                 {
                     "schema_version": "native-validation-v1",
                     "epoch": epoch,
+                    "global_step": trainer.progress.global_step,
+                    "run_id": run_id,
+                    "source_commit": source.commit,
                     **result.__dict__,
+                    "prediction_loss_definition": (
+                        "condition_macro_mean_expression_mse_all_genes_v1"
+                    ),
+                    "selection_metric": config.training.monitor,
+                    "selection_mode": config.training.monitor_mode,
                 },
             )
-            return float(result.txpert_macro_pearson_delta)
+            trainer.validation_pearson = float(result.txpert_macro_pearson_delta)
+            print(
+                f"VALIDATION epoch={epoch + 1} loss={result.prediction_loss} "
+                f"txpert={result.txpert_macro_pearson_delta} "
+                f"trishift={result.trishift_pearson_delta} systema={result.systema_pearson}",
+                flush=True,
+            )
+            return float(
+                result.prediction_loss
+                if config.training.monitor == "val/prediction_loss"
+                else result.txpert_macro_pearson_delta
+            )
 
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(device)
@@ -1041,6 +1071,10 @@ def run_native_experiment(
             validate=validate,
             early_stopping_enabled=config.training.early_stopping,
         )
+        if config.training.monitor == "val/prediction_loss":
+            from gradpert.training.curves import render_curves
+
+            render_curves(small_root)
         if capture_optimizer_health:
             atomic_json(
                 small_root / "optimizer_update_health.json",
@@ -1280,6 +1314,17 @@ def run_native_experiment(
             small_root / "selection_receipt.json",
             {
                 "schema_version": "native-r50-selection-v1",
+                "selection_metric": config.training.monitor,
+                "selection_mode": config.training.monitor_mode,
+                "early_stopping_enabled": config.training.early_stopping,
+                "consecutive_non_improvements": (
+                    trainer.progress.early_stopping.consecutive_non_improvements
+                    if trainer.progress.early_stopping is not None
+                    else 0
+                ),
+                "stopping_reason": "validation_patience"
+                if progress.completed_epochs < max_epochs
+                else "max_epochs",
                 "status": "complete",
                 "scientific_completion": False,
                 "control_manifest_scope": "validation",

@@ -30,6 +30,7 @@ class EvaluationStateLayout:
     data_root: Path
     dataset_id: str
     protocol_id: str
+    validation_only: bool = False
 
     @property
     def dataset(self) -> DatasetLayout:
@@ -37,7 +38,9 @@ class EvaluationStateLayout:
 
     @property
     def root(self) -> Path:
-        return self.dataset.root / "evaluation"
+        return self.dataset.root / (
+            "validation_evaluation_v1" if self.validation_only else "evaluation"
+        )
 
     @property
     def manifest(self) -> Path:
@@ -108,15 +111,17 @@ def prepare_evaluation_state(
     dataset_id: str,
     protocol_id: str,
     data_root: str | Path,
+    validation_only: bool = False,
 ) -> EvaluationStateManifest:
     """Materialize one model-independent evaluation state from canonical data."""
 
-    layout = EvaluationStateLayout(Path(data_root), dataset_id, protocol_id)
+    layout = EvaluationStateLayout(Path(data_root), dataset_id, protocol_id, validation_only)
     if layout.manifest.is_file():
         return load_evaluation_state(
             dataset_id=dataset_id,
             protocol_id=protocol_id,
             data_root=data_root,
+            validation_only=validation_only,
         ).manifest
     canonical = CanonicalDataManifest.model_validate(
         read_json(layout.dataset.manifests / "canonical.json")
@@ -147,7 +152,14 @@ def prepare_evaluation_state(
         raise RuntimeError("anndata and scanpy are required for evaluation-state build") from error
     backed = ad.read_h5ad(layout.dataset.canonical_adata, backed="r")
     try:
-        adata = backed[:, : canonical.n_expression_genes].to_memory()
+        if validation_only:
+            allowed = {*split.train_conditions, *split.val_conditions, split.control_condition_id}
+            selected = np.flatnonzero(
+                np.isin(np.asarray(backed.obs["condition"], dtype=str), list(allowed))
+            )
+            adata = backed[selected, : canonical.n_expression_genes].to_memory()
+        else:
+            adata = backed[:, : canonical.n_expression_genes].to_memory()
     finally:
         backed.file.close()
     adata.var_names = list(expression_genes)
@@ -166,7 +178,11 @@ def prepare_evaluation_state(
     control_mask = conditions == split.control_condition_id
     if not bool(control_mask.any()):
         raise ValueError("evaluation-state build has no controls")
-    evaluation_conditions = [*split.val_conditions, *split.test_conditions]
+    evaluation_conditions = (
+        list(split.val_conditions)
+        if validation_only
+        else [*split.val_conditions, *split.test_conditions]
+    )
     evaluation_counts = {
         condition: int(np.count_nonzero(conditions == condition))
         for condition in evaluation_conditions
@@ -226,7 +242,11 @@ def prepare_evaluation_state(
             raise ValueError(f"condition has no DE genes after target exclusion: {condition}")
         de_by_condition[condition] = final
 
-    reference_conditions = [*split.train_conditions, *split.val_conditions]
+    reference_conditions = (
+        list(split.train_conditions)
+        if validation_only
+        else [*split.train_conditions, *split.val_conditions]
+    )
     reference_sum = np.zeros(canonical.n_expression_genes, dtype=np.float64)
     for condition in reference_conditions:
         reference_sum += _mean_rows(adata, np.flatnonzero(conditions == condition))
@@ -261,7 +281,7 @@ def prepare_evaluation_state(
         metric_control_means=metric_control_means,
     )
     conventional_arrays_path = str(
-        Path("data") / dataset_id / protocol_id / "evaluation" / "state_arrays.npz"
+        Path("data") / dataset_id / protocol_id / layout.root.name / "state_arrays.npz"
     )
     manifest = EvaluationStateManifest(
         schema_version="evaluation-state-v1",
@@ -293,6 +313,7 @@ def prepare_evaluation_state(
         dataset_id=dataset_id,
         protocol_id=protocol_id,
         data_root=data_root,
+        validation_only=validation_only,
     ).manifest
 
 
@@ -301,10 +322,11 @@ def load_evaluation_state(
     dataset_id: str,
     protocol_id: str,
     data_root: str | Path,
+    validation_only: bool = False,
 ) -> LoadedEvaluationState:
     """Verify and load an existing frozen evaluation state."""
 
-    layout = EvaluationStateLayout(Path(data_root), dataset_id, protocol_id)
+    layout = EvaluationStateLayout(Path(data_root), dataset_id, protocol_id, validation_only)
     manifest = EvaluationStateManifest.model_validate(read_json(layout.manifest))
     canonical = CanonicalDataManifest.model_validate(
         read_json(layout.dataset.manifests / "canonical.json")
@@ -316,7 +338,13 @@ def load_evaluation_state(
         raise ValueError("evaluation state and canonical data hashes differ")
     if manifest.split_content_sha256 != split.split_content_sha256:
         raise ValueError("evaluation state and split hashes differ")
-    expected_conditions = [*split.val_conditions, *split.test_conditions]
+    expected_conditions = (
+        list(split.val_conditions)
+        if validation_only
+        else [*split.val_conditions, *split.test_conditions]
+    )
+    if validation_only and manifest.systema_reference_condition_ids != list(split.train_conditions):
+        raise ValueError("validation Systema reference must contain training conditions only")
     if manifest.condition_ids != expected_conditions:
         raise ValueError("evaluation-state conditions differ from the split")
     if sha256_file(layout.arrays) != manifest.arrays_sha256:

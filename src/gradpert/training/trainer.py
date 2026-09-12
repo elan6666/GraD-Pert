@@ -98,6 +98,10 @@ class GraDPertTrainer:
         )
         self.receipts.write_run_meta(run_meta)
         self.progress = GraDPertTrainingProgress()
+        self.validation_loss_selection = run_meta.get("validation_monitor") == "val/prediction_loss"
+        self.validation_pearson: float | None = None
+        if self.validation_loss_selection:
+            self.progress.early_stopping = EarlyStoppingState(mode="min")
         self.fit_wall_ms = 0.0
         self.training_wall_ms = 0.0
         self.validation_wall_ms = 0.0
@@ -125,6 +129,9 @@ class GraDPertTrainer:
         progress = GraDPertTrainingProgress.from_payload(payload)
         if progress.global_step != progress.completed_epochs * self.steps_per_epoch:
             raise ValueError("only exact epoch-boundary native checkpoints are resumable")
+        expected_mode = "min" if self.validation_loss_selection else "max"
+        if progress.early_stopping is None or progress.early_stopping.mode != expected_mode:
+            raise ValueError("checkpoint selection direction differs from the run")
         self.progress = progress
 
     def _save(self, path: Path) -> str:
@@ -208,7 +215,10 @@ class GraDPertTrainer:
             self.receipts.write_validation(
                 epoch=epoch,
                 global_step=self.progress.global_step,
-                txpert_macro_pearson_delta=validation_metric,
+                txpert_macro_pearson_delta=(
+                    self.validation_pearson if self.validation_loss_selection else validation_metric
+                ),
+                prediction_loss=validation_metric if self.validation_loss_selection else None,
                 improved=improved,
                 consecutive_non_improvements=early.consecutive_non_improvements,
             )

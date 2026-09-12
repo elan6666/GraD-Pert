@@ -140,9 +140,10 @@ class TrainingReceiptWriter:
         *,
         epoch: int,
         global_step: int,
-        txpert_macro_pearson_delta: float,
+        txpert_macro_pearson_delta: float | None,
         improved: bool,
         consecutive_non_improvements: int,
+        prediction_loss: float | None = None,
     ) -> None:
         self.flush_steps()
         expected_epoch = (
@@ -159,6 +160,7 @@ class TrainingReceiptWriter:
                 "epoch": epoch,
                 "global_step": global_step,
                 "val_txpert_macro_pearson_delta": txpert_macro_pearson_delta,
+                **({"val_prediction_loss": prediction_loss} if prediction_loss is not None else {}),
                 "improved": improved,
                 "consecutive_non_improvements": consecutive_non_improvements,
             },

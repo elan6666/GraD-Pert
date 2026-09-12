@@ -13,8 +13,11 @@ class EarlyStoppingState:
     best_metric: float | None = None
     best_epoch: int | None = None
     consecutive_non_improvements: int = 0
+    mode: str = "max"
 
     def __post_init__(self) -> None:
+        if self.mode not in {"min", "max"}:
+            raise ValueError("selection mode must be min or max")
         if self.patience != 10 or self.min_delta != 0.0:
             raise ValueError("v1 early stopping is frozen to patience=10 and min_delta=0")
 
@@ -23,7 +26,11 @@ class EarlyStoppingState:
 
         if epoch < 0 or not math.isfinite(validation_metric):
             raise ValueError("validation epoch/metric must be nonnegative and finite")
-        improved = self.best_metric is None or validation_metric > self.best_metric + self.min_delta
+        improved = self.best_metric is None or (
+            validation_metric < self.best_metric - self.min_delta
+            if self.mode == "min"
+            else validation_metric > self.best_metric + self.min_delta
+        )
         if improved:
             self.best_metric = validation_metric
             self.best_epoch = epoch

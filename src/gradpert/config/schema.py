@@ -193,13 +193,18 @@ class TrainingConfig(StrictModel):
                 if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
                     raise ValueError("vNext combination requires the common validation monitor")
             elif self.formal_run_policy == "r50_selection":
+                loss_selection = (
+                    self.monitor == "val/prediction_loss" and self.monitor_mode == "min"
+                )
                 if self.max_epochs.value != 50 or self.early_stopping:
                     raise ValueError(
                         "R50 selection requires exactly 50 epochs without early stopping"
                     )
                 if self.run_seeds != [1] or self.early_stopping_patience.value != 10:
                     raise ValueError("R50 screening requires seed1 and retained patience10 state")
-                if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
+                if not loss_selection and (
+                    self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max"
+                ):
                     raise ValueError("R50 selection requires the common validation monitor")
             elif self.formal_run_policy == "fixed_epoch_pilot":
                 if self.max_epochs.value != 10:
