@@ -21,6 +21,7 @@ from benchmarks.common import (
     write_pickle,
 )
 from benchmarks.common.full_gate import require_completed_smoke
+from benchmarks.common.r50_gate import require_r50_smoke, seal_r50_smoke
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
 from benchmarks.txpert.runtime import inspect_cuda_runtime, load_runtime_contract
 from gradpert.artifacts import PredictionConditionArrays
@@ -127,6 +128,7 @@ def preflight(config_path: Path, checkout_root: Path) -> dict[str, object]:
     if config.model_id != "txpert_public" or config.training.formal_run_policy not in {
         "smoke_only",
         "external_full_100",
+        "external_fixed_50",
     }:
         raise ValueError("TxPert runner requires a txpert_public smoke-only experiment config")
     official_config_path, _ = _official_config(config, checkout_root)
@@ -269,7 +271,8 @@ def run_one_epoch(
     config_file = config_path.resolve(strict=True)
     config = load_experiment_config(config_file)
     requested_epochs = 1 if smoke else int(config.training.max_epochs.value)
-    if config.model_id != "txpert_public" or config.training.max_epochs.value not in {1, 100}:
+    r50 = config.training.formal_run_policy == "external_fixed_50"
+    if config.model_id != "txpert_public" or config.training.max_epochs.value not in {1, 50, 100}:
         raise ValueError("TxPert execution requires a one-epoch TxPert config")
     official_config_path, official_config = _official_config(config, checkout_root)
     destination = run_root.resolve()
@@ -288,6 +291,8 @@ def run_one_epoch(
         repository_root=repository_root,
         checkout_root=checkout_root,
     )
+    if r50 and (source.dirty or not source.formal_eligible):
+        raise ValueError("R50 requires clean published source before fitting")
     environment = inspect_environment(
         repository_root,
         device_name=device,
@@ -317,15 +322,16 @@ def run_one_epoch(
             split_policy=config.data.split_policy,
         )
         write_training_data_receipt(training_data, small_root / "training_data.json")
-        if requested_epochs == 100:
+        if requested_epochs == 100 or (r50 and not smoke):
             atomic_json(
                 small_root / "smoke_gate.json",
-                require_completed_smoke(
+                (require_r50_smoke if r50 else require_completed_smoke)(
                     smoke_run_root,
                     config=config,
                     config_sha256=config_sha256,
                     training_data=training_data,
                     source_commit=source.commit,
+                    **({"environment_sha256": environment.payload_sha256} if r50 else {}),
                 ),
             )
         adapted = build_training_validation_adata(training_data, axis="expression")
@@ -385,7 +391,7 @@ def run_one_epoch(
                 device=device,
                 match_control_for_eval=True,
             )
-            full_policy = config.training.formal_run_policy == "external_full_100"
+            full_policy = r50 or config.training.formal_run_policy == "external_full_100"
             checkpoint_path = (
                 destination / "checkpoints" / ("best.ckpt" if full_policy else "epoch-001.ckpt")
             )
@@ -402,6 +408,11 @@ def run_one_epoch(
                         "progress_path": small_root / "validation_progress.json",
                     }
                     if full_policy
+                    else {}
+                ),
+                **(
+                    {"r50": True, "last_checkpoint_path": destination / "checkpoints/last.ckpt"}
+                    if r50
                     else {}
                 ),
             )
@@ -458,46 +469,113 @@ def run_one_epoch(
                     cache_receipts=cache_receipts,
                 ),
             )
-            # Canonical test Truth is not opened until official fit and
-            # checkpoint sealing have both completed.
-            with CanonicalEvaluationData(
-                dataset_id=config.dataset_id,
-                protocol_id=config.data.protocol_id,
-                split_name="test",
-                data_root=data_root,
-            ) as test_data:
-                predictions: list[PredictionConditionArrays] = []
-                for draw in test_data.control_manifest.draws:
-                    controls = test_data.load_control_rows(tuple(draw.ordered_row_ids))
-                    targets = tuple(part for part in draw.condition_id.split("+") if part != "ctrl")
-                    predicted = api.predict_exact_controls(
-                        trained_model=model,
-                        perturbation_genes=targets,
-                        perturbation_to_id=data_module.pert2id,
-                        input_controls=controls.expression,
-                        batch_size=int(config.training.eval_batch_size.value),
-                    )
-                    predictions.append(
-                        PredictionConditionArrays(
-                            condition_id=draw.condition_id,
-                            prediction=predicted,
-                            input_control=controls.expression,
-                            input_control_row_ids=controls.ordered_row_ids,
-                        )
-                    )
-                sealed = seal_evaluated_run(
-                    destination=destination,
+            if r50 and smoke:
+                atomic_json(small_root / "official_checkout.json", checkout_receipt.payload())
+                seal_r50_smoke(
+                    destination,
                     config=config,
                     config_sha256=config_sha256,
-                    run_id=run_id,
-                    run_seed=1,
-                    source=source,
-                    environment=environment,
                     training_data=training_data,
-                    test_data=test_data,
-                    predictions=predictions,
-                    checkpoint_sha256=checkpoint_sha256,
+                    source=source,
+                    environment_sha256=environment.payload_sha256,
+                    best_checkpoint=checkpoint_path,
+                    last_checkpoint=destination / "checkpoints/last.ckpt",
+                    validation_value=trainer.gradpert_validation_history[0]["val_pearson_delta"],
                 )
+                return {
+                    "run_id": run_id,
+                    "run_root": str(destination),
+                    "status": "trained_validation_only",
+                    "scientific_completion": False,
+                    "epochs_completed": 1,
+                    "formal_eligible": source.formal_eligible,
+                }
+            evaluations = {}
+            for role in ("best", "last") if r50 else ("best",):
+                role_destination = destination / "evaluations" / role if r50 else destination
+                if r50:
+                    role_destination.mkdir(parents=True, exist_ok=False)
+                    role_checkpoint = (
+                        checkpoint_path if role == "best" else destination / "checkpoints/last.ckpt"
+                    )
+                    saved = torch.load(role_checkpoint, map_location="cpu", weights_only=False)
+                    model.load_state_dict(saved["state_dict"], strict=True)
+                    api.restore_post_fit_device(model, device)
+                    checkpoint_sha256 = sha256_file(role_checkpoint)
+                    random.seed(1)
+                    np.random.seed(1)
+                    torch.manual_seed(1)
+                    torch.cuda.manual_seed_all(1)
+                # Canonical test Truth is not opened until official fit and
+                # checkpoint sealing have both completed.
+                with CanonicalEvaluationData(
+                    dataset_id=config.dataset_id,
+                    protocol_id=config.data.protocol_id,
+                    split_name="test",
+                    data_root=data_root,
+                ) as test_data:
+                    predictions: list[PredictionConditionArrays] = []
+                    for draw in test_data.control_manifest.draws:
+                        controls = test_data.load_control_rows(tuple(draw.ordered_row_ids))
+                        targets = tuple(
+                            part for part in draw.condition_id.split("+") if part != "ctrl"
+                        )
+                        predicted = api.predict_exact_controls(
+                            trained_model=model,
+                            perturbation_genes=targets,
+                            perturbation_to_id=data_module.pert2id,
+                            input_controls=controls.expression,
+                            batch_size=int(config.training.eval_batch_size.value),
+                        )
+                        predictions.append(
+                            PredictionConditionArrays(
+                                condition_id=draw.condition_id,
+                                prediction=predicted,
+                                input_control=controls.expression,
+                                input_control_row_ids=controls.ordered_row_ids,
+                            )
+                        )
+                    sealed = seal_evaluated_run(
+                        destination=role_destination,
+                        config=config,
+                        config_sha256=config_sha256,
+                        run_id=f"{run_id}-{role}" if r50 else run_id,
+                        run_seed=1,
+                        source=source,
+                        environment=environment,
+                        training_data=training_data,
+                        test_data=test_data,
+                        predictions=predictions,
+                        checkpoint_sha256=checkpoint_sha256,
+                    )
+                if r50:
+                    record = {
+                        "checkpoint_role": role,
+                        "checkpoint_epoch": trainer.gradpert_best_epoch
+                        if role == "best"
+                        else trainer.gradpert_last_epoch,
+                        "checkpoint_sha256": checkpoint_sha256,
+                        "training_git_sha": source.commit,
+                        "evaluation_git_sha": source.commit,
+                        "source_dirty": source.dirty,
+                        "upstream_commit": config.source_code.commit,
+                        "config_sha256": config_sha256,
+                        "environment_sha256": environment.payload_sha256,
+                        "run_manifest_sha256": sha256_file(
+                            role_destination / "small_results/run_manifest.json"
+                        ),
+                        "prediction_manifest_sha256": sha256_file(sealed.prediction_manifest_path),
+                        "evaluation_manifest_sha256": sha256_file(sealed.evaluation_manifest_path),
+                    }
+                    atomic_json(role_destination / "small_results/checkpoint_role.json", record)
+                    evaluations[role] = record
+            if r50:
+                if any(
+                    p.suffix.lower() in {".pkl", ".pickle"} or p.name.startswith(".result-work-")
+                    for p in destination.rglob("*")
+                ):
+                    raise RuntimeError("external R50 whole-root zero-PKL/work postcondition failed")
+                atomic_json(small_root / "best_last_tests.json", evaluations)
         atomic_json(
             small_root / "official_checkout.json",
             {

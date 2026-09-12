@@ -221,3 +221,23 @@ distinct best=1/last=50 weight values at evaluation, true epoch metadata and
 temporary PKL cleanup. Official-package and real-data one-epoch acceptance
 remain pending. TxPert runner wiring is still pending; this stage does not
 authorize a new formal50 run or declare any scientific result complete.
+
+## TxPert lifecycle and external one-update primitive
+
+TxPert R50 now routes through its existing official validation callback,
+captures true last before best restoration and evaluates both checkpoint
+state_dicts in separate role roots with version/hash/epoch receipts. Synthetic
+runner tests confirm first-best versus fiftieth-last weights and no smoke
+test reader. This completes the three external formal50 lifecycle adapters,
+not their real-data acceptance. The retained one-epoch paths are not to be
+launched under the user's newer one-step budget.
+
+`benchmarks/common/single_update.py` provides a separate diagnostic primitive:
+run the official optimizer normally, capture after its first real update,
+serialize/check model and optimizer state exactly, then unwind before another
+batch or validation. It reports one step and zero epochs, never a best model.
+Its process-global optimizer hook is removed on success and genuine failure;
+unexpected optimizers or absent/nonfinite gradients fail closed. A real Adam
+unit test verifies changed weights, serialized optimizer state, no next batch,
+and removal of the hook. This primitive still needs explicit runner/API
+wiring, identity/resource receipts and fresh server acceptance before launch.
