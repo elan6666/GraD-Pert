@@ -28,7 +28,33 @@ replaced by a truth-denying guard; real failures propagate and all temporary
 method bindings are restored in finally. Synthetic boundary tests cover one
 step only, zero completed epochs, preserved horizon, no validation/test and
 failure cleanup. These are not full-size CUDA capacity passes. Current native
-entry still needs reviewed resource/launch receipt preparation before CUDA.
+entry still needs reviewed launch receipt preparation before CUDA.
+
+## One-step resource boundary (latest engineering update)
+
+Pre-change published baseline: `94bc92e08fde4dd991ff67cf901f85881e563b8a`.
+Native and external single-update paths now capture a post-update resource
+snapshot before diagnostic serialization. CUDA requires the allocator contract,
+zero allocator retries/OOMs and conservative headroom of at least both 4 GiB
+and 15% of device memory. Headroom is the smaller of current device-free memory
+and total minus this process's peak reserved memory. Counters are not reset;
+the measurement includes initialization and the first update. Host available
+memory and output-filesystem free space are recorded, not inferred from GPU use.
+CPU fixture receipts explicitly carry cuda_acceptance=false. This bounded
+snapshot does not establish sustained capacity, later-step safety, throughput,
+or transient peer memory peaks; launch preflight must still check live peers.
+
+GEARS and TxPert runner regressions cover the explicit step-smoke branch,
+preserved full50 horizon, zero completed epochs, no test reader and zero PKL.
+This is mocked runner coverage, not an official-package CUDA pass. Real eight-row
+one-step execution and its hash-pinned launch contract remain pending.
+
+Local resource-boundary regression: 936 passed, four explicit frozen-reference/
+CUDA skips; Ruff and format (363 files), strict mypy (84 source files), wheel
+and sdist build passed. CUDA resource unit cases use mocked counters and are
+not GPU measurements. The earlier clean server source `6b7d443` independently
+passed 927 tests/four skips, Ruff, format361 and mypy83; those server gates do
+not qualify the newer resource-boundary code before publication/synchronization.
 
 ## Explicit pending rows
 

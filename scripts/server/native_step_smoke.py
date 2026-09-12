@@ -6,6 +6,7 @@ from pathlib import Path
 
 from gradpert.config import load_experiment_config
 from gradpert.data._io import atomic_json
+from gradpert.execution.step_resources import capture_step_resources
 from gradpert.hashing import sha256_file
 from scripts.performance.profile_native_a0 import (
     EvaluationAccessError,
@@ -64,6 +65,7 @@ def run_native_step_smoke(**kwargs):
                 parameter.grad is not None and not torch.isfinite(parameter.grad).all()
             ):
                 raise RuntimeError("nonfinite model or gradient")
+        resources = capture_step_resources(next(engine.model.parameters()).device, root)
         state = _exact_engine_state(engine)
         checkpoint = root / "checkpoints/step-000001.pt"
         checkpoint_sha = _checkpoint_roundtrip(engine, checkpoint, identity, global_step)
@@ -78,6 +80,7 @@ def run_native_step_smoke(**kwargs):
                 "checkpoint_sha256": checkpoint_sha,
                 "checkpoint_role": "diagnostic_after_step_not_validation_best",
                 "checkpoint_roundtrip_exact": True,
+                "resources": resources,
             }
         )
         raise ProfileComplete("one real native update completed")

@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from gradpert.execution.step_resources import capture_step_resources
+
 
 class SingleUpdateComplete(RuntimeError):
     """Internal control flow; never interpret an arbitrary training error as success."""
@@ -38,6 +40,7 @@ def capture_single_update(*, fit, model_supplier, checkpoint):
             ):
                 raise RuntimeError("nonfinite model or gradient after update")
         checkpoint.parent.mkdir(parents=True, exist_ok=True)
+        resources = capture_step_resources(parameters[0].device, checkpoint.parent)
         torch.save(
             {
                 "model": model.state_dict(),
@@ -71,7 +74,12 @@ def capture_single_update(*, fit, model_supplier, checkpoint):
         compare(model.state_dict(), loaded["model"])
         compare(optimizer.state_dict(), loaded["optimizer"])
         captured.append(
-            {"completed_steps": 1, "completed_epochs": 0, "checkpoint_serialization_exact": True}
+            {
+                "completed_steps": 1,
+                "completed_epochs": 0,
+                "checkpoint_serialization_exact": True,
+                "resources": resources,
+            }
         )
         raise SingleUpdateComplete("official optimizer completed exactly one update")
 
