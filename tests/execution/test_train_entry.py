@@ -87,8 +87,12 @@ def test_execute_uses_native_then_postfit(setup, monkeypatch):
     plan = entry.resolve_plan(setup)
     calls = []
     monkeypatch.setattr(entry.subprocess, "check_output", lambda *a, **kw: "0, GPU-abcd\n")
-    for key in ("CUDA_VISIBLE_DEVICES", "PYTORCH_ALLOC_CONF", "GRADPERT_SPARSE_UNION_IMPL"):
-        monkeypatch.setenv(key, "fixture")
+    for key, value in {
+        "CUDA_VISIBLE_DEVICES": "",
+        "PYTORCH_ALLOC_CONF": "expandable_segments:True",
+        "GRADPERT_SPARSE_UNION_IMPL": "cpu_array",
+    }.items():
+        monkeypatch.setenv(key, value)
     monkeypatch.setattr(
         "gradpert.evaluation.state.prepare_evaluation_state",
         lambda **kw: calls.append(("prepare", kw)),
