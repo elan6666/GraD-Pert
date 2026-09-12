@@ -14,6 +14,15 @@ updated_at: 2026-09-04T00:25:00+08:00
 
 # Status
 
+- 2026-09-12 R50 E3 performance: 242527d-v2 serial ABBA strictly passed;
+  retain opt-in cpu_array for explicit future R50 launch contracts. Paired
+  step-wall reduction 23.94%, but A2 backward drift limits generalization;
+  A1/B1 reduction 16.60%. Peak GPU memory unchanged. Six-step and three-epoch
+  fresh-resume exact gates previously passed. See R50_E3_PERFORMANCE.md and
+  its raw small acceptance record. Historical package default and sealed
+  source/checkpoints remain unchanged. Next bounded stage is GLM-5 G1/G2/G3
+  implementation/preflight/publication, not an immediate CUDA launch.
+
 - 2026-09-10 R50 post-fit update in preparation: REF and LR-low completed50;
   LR-mid active in immutable f4bad63 server checkout. User requests automatic
   best/final canonical-test reports and restores scheduled supervision.

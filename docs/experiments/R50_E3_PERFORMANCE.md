@@ -212,3 +212,44 @@ schedule or default implementation changes. Regression coverage exercises
 25 batches through the real materialization/conversion path using synthetic
 expression reads, including changed row order and first-step-only caches.
 A fresh published source and fresh serial ABBA lineage are required.
+
+## Accepted bounded timing, with baseline drift limitation
+
+At training source `242527d3b8d9eb2970640b19252a824d6a7be905`, fresh
+`development/r50-abba-242527d-v2` completed all four arms. The strict
+validator passed all identity/resource gates and timing thresholds. Raw
+20-step timings, p50/p90/p95/p99, peaks and immutable receipt hashes are in
+[the small acceptance record](r50-e3-abba-242527d-v2.json).
+
+| Arm | Implementation | Wall p50 ms | Backward/update p50 ms | Student local p50 ms |
+| --- | --- | ---: | ---: | ---: |
+| A1 | cpu_vectorized | 2855.588 | 605.46 | 1370.16 |
+| B1 | cpu_array | 2381.642 | 585.76 | 1009.93 |
+| B2 | cpu_array | 2353.093 | 590.71 | 992.58 |
+| A2 | cpu_vectorized | 3424.292 | 1175.79 | 1359.71 |
+
+The preregistered median paired ratio is 0.760603 (23.94% lower step wall).
+Both p90 pairs improve and peak allocated/reserved memory is identical.
+However, A2 has substantial backward/update drift; teacher/global/local
+forward medians remain close to A1. The sampled GPU clocks do not show a
+clock reduction (A1 median 2895 MHz, A2 2917 MHz); temperatures are 42/43 C.
+Host one-minute load ranges rise from 0.502–0.914 to 1.777–1.960, within the
+limit. These observations do not identify a causal source for the backward
+slowdown or exclude contention between samples. Do not represent 23.94% as
+a general stable speedup. A1/B1 alone gives 16.60% reduction (474 ms/step).
+
+Decision: retain the tested `cpu_array` implementation, with explicit selection
+in future reviewed R50 launch contracts. Keep the package's historical default
+unchanged to avoid silently changing old commands. This decision combines the
+earlier deterministic six-step and three-epoch/fresh-resume exact gates with
+this bounded timing evidence; it is not a scientific ablation result. No test
+metrics were used for selection. The v1 load-gate failure and older incomplete
+hash attempt remain immutable. End-to-end epoch speedup is not established.
+
+Next implementation stage: prepare only the authorized GLM-5 G1 optimizer,
+G2 schedule and G3 combined R50 rows, preserving the existing preregistered
+plan and best/last automatic testing. Audit and publish their currently
+uncommitted plan/code separately; do not include unrelated worktree changes.
+Subsequent authorized stages are the four best/last reruns, condition-balanced
+expression MSE, and remaining R50. No scientific CUDA launch is part of this
+performance evidence publication stage.
