@@ -13,6 +13,19 @@ from scripts.server.run_r50_selection import sha
 from scripts.server.run_r1024_full import ROWS
 
 
+def process_environment(source: Path, gpu: str) -> dict[str, str]:
+    return dict(
+        os.environ,
+        CUDA_VISIBLE_DEVICES=gpu,
+        PYTHONPATH=os.pathsep.join((str(source / "src"), str(source))),
+        PYTORCH_ALLOC_CONF="expandable_segments:True",
+        GRADPERT_SPARSE_UNION_IMPL="cpu_array",
+        OMP_NUM_THREADS="1",
+        MKL_NUM_THREADS="1",
+        OPENBLAS_NUM_THREADS="1",
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", type=Path, required=True)
@@ -49,16 +62,7 @@ def main():
 
     def lane(slot):
         gpu = plan["gpus"][slot // 2]
-        env = dict(
-            os.environ,
-            CUDA_VISIBLE_DEVICES=gpu,
-            PYTHONPATH=str(source),
-            PYTORCH_ALLOC_CONF="expandable_segments:True",
-            GRADPERT_SPARSE_UNION_IMPL="cpu_array",
-            OMP_NUM_THREADS="1",
-            MKL_NUM_THREADS="1",
-            OPENBLAS_NUM_THREADS="1",
-        )
+        env = process_environment(source, gpu)
         for row in ROWS[slot::4]:
             identity()
             started = time.time()
