@@ -151,3 +151,29 @@ external100 configurations remain unmodified. Runner integration is still
 pending: current CLIs deliberately reject the new policy, so these configs
 must not be treated as launch-ready. The distinct validation-only smoke gate
 and per-role best/last evaluations remain the next implementation step.
+
+## Scouter runner integration
+
+Pre-change published baseline `3466a8a01de54761df36c7dda1d98de970bd18df`.
+`benchmarks/common/r50_gate.py` now provides a separate validation-only smoke
+receipt/gate. It binds training source, upstream commit, config, canonical
+data/split and environment; requires one finite validation and two distinct
+best/last checkpoint files with exact hashes; rejects test access, extra
+checkpoints and whole-root PKL/work artifacts. Historical external100 gate
+semantics are unchanged.
+
+Scouter's R50 CLI now uses the continuous official API for one or50 epochs.
+Smoke returns before construction of CanonicalEvaluationData. Full mode
+requires the new smoke gate, reloads best and actual last independently,
+evaluates each into a separate role root, and binds checkpoint role/epoch/hash,
+training/evaluation Git SHAs, upstream/environment/config and common evaluation
+manifest hashes in best_last_tests.json. Both evaluations use the canonical
+common evaluator and ordered-control/truth manifests, without persistent PKL.
+
+New synthetic runner tests explicitly forbid test access in smoke and capture
+different first-best/fiftieth-last weight values in the two full evaluations;
+they also check the role/version records. Gate tampering tests cover source,
+environment, upstream, test scope, epoch/validation and checkpoint/artifact
+drift. These are not real-data training results. GEARS and TxPert runner
+wiring, frozen-package/server smoke and the overall launch review remain
+pending; no new formal run is authorized by this partial integration alone.
