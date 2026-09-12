@@ -14,6 +14,15 @@ updated_at: 2026-09-04T00:25:00+08:00
 
 # Status
 
+- 2026-09-12 user priority change: complete ALL registered R50 code/config
+  and test preparation before fresh one-epoch smoke runs; no new full50
+  launch until the build/smoke campaign is reviewed. See
+  docs/experiments/R50_BUILD_ALL_GATE.md. G1/G2/G3 and condition-balanced
+  MSE C1 are implemented locally with targeted tests; official R2/R3/R4
+  best/last adapters still need implementation. No new CUDA was launched.
+  The active preparation goal and paused monitor remain in effect; do not
+  mistake a unit-test pass for one-epoch server acceptance.
+
 - 2026-09-12 R50 E3 performance: 242527d-v2 serial ABBA strictly passed;
   retain opt-in cpu_array for explicit future R50 launch contracts. Paired
   step-wall reduction 23.94%, but A2 backward drift limits generalization;

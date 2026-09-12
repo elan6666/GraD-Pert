@@ -880,6 +880,72 @@ def test_array_union_multistep_and_resume_exact(
     _assert_nested_exact(candidate, reference)
 
 
+def test_split_optimizer_native_engine_checkpoint_resume(tmp_path, monkeypatch):
+    from gradpert.config.step_schedule import EndpointLRWarmupCosine
+    from gradpert.modeling.modules import ConsistencyProjector
+    from gradpert.training.optimizers import SplitMatrixAdamW
+
+    monkeypatch.setenv("GRADPERT_SPARSE_UNION_IMPL", "cpu_array")
+    _seed_all(912)
+    batch = _batch()
+
+    def construct():
+        # Small native fixture tests checkpoint semantics. Full E3 dimensions
+        # are a separate server smoke gate, not implied by this CPU test.
+        model, _, centers, engine = _vnext_components(gene_feature_mode="genept_initialized")
+        model.student_projector = ConsistencyProjector(8192, compact=True)
+        model.teacher_projector = ConsistencyProjector(8192, compact=True)
+        model.teacher_projector.load_state_dict(model.student_projector.state_dict())
+        model.teacher_projector.requires_grad_(False)
+        optimizer = SplitMatrixAdamW(model, lr=0.001)
+        engine.optimizer = optimizer
+        engine.step_schedule = EndpointLRWarmupCosine(0.001, 0.0002, 0.16)
+        return model, optimizer, centers, engine
+
+    _seed_all(123)
+    model, optimizer, centers, engine = construct()
+    engine.train_step(batch, global_step=0)
+    path = tmp_path / "split-resume.pt"
+    save_training_checkpoint(
+        path,
+        model=model,
+        optimizer=optimizer,
+        centers=centers,
+        progress={"global_step": 1},
+        identity=_identity(),
+    )
+    engine.train_step(batch, global_step=1)
+    expected = copy.deepcopy(
+        {
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "centers": (centers.condition, centers.masked_node),
+            "rng": torch.get_rng_state(),
+            "gradients": {n: p.grad for n, p in model.named_parameters()},
+        }
+    )
+    restored, resumed, restored_centers, restored_engine = construct()
+    assert load_training_checkpoint(
+        path,
+        model=restored,
+        optimizer=resumed,
+        centers=restored_centers,
+        expected_identity=_identity(),
+    ) == {"global_step": 1}
+    restored_engine.train_step(batch, global_step=1)
+    _assert_nested_exact(
+        {
+            "model": restored.state_dict(),
+            "optimizer": resumed.state_dict(),
+            "centers": (restored_centers.condition, restored_centers.masked_node),
+            "rng": torch.get_rng_state(),
+            "gradients": {n: p.grad for n, p in restored.named_parameters()},
+        },
+        expected,
+    )
+    assert resumed.step_count == 2
+
+
 def test_staged_auxiliary_gradient_schedule_preserves_complete_first_step_trajectory(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

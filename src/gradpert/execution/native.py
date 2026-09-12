@@ -53,6 +53,7 @@ from gradpert.pilots import (
 from gradpert.training.checkpoint import CheckpointIdentity
 from gradpert.training.data import CanonicalTrainingData, write_training_data_receipt
 from gradpert.training.inference import predict_frozen_controls
+from gradpert.training.optimizers import SplitMatrixAdamW
 from gradpert.training.step import (
     GraDPertStepEngine,
     LossWeights,
@@ -830,6 +831,7 @@ def run_native_experiment(
             )
         optimizer = build_native_optimizer(
             model,
+            optimizer_name=str(config.training.optimizer.value),
             learning_rate=float(config.training.learning_rate.value),
             weight_decay=float(config.training.weight_decay.value),
             allow_combination_learning_rate=(
@@ -837,6 +839,28 @@ def run_native_experiment(
                 in {"vnext_combination_100", "vnext_combination_200", "r50_selection"}
             ),
         )
+        if isinstance(optimizer, SplitMatrixAdamW):
+            _write_or_require_json(
+                small_root / "optimizer_recipe.json",
+                {
+                    "schema": "native-split-matrix-recipe-v1",
+                    "torch_version": torch.__version__,
+                    "torch_git_version": torch.version.git_version,
+                    "routes": optimizer.routes,
+                    "base_lr": float(config.training.learning_rate.value),
+                    "momentum": 0.95,
+                    "nesterov": True,
+                    "ns_coefficients": [3.4445, -4.7750, 2.0315],
+                    "ns_steps": 5,
+                    "ns_eps": 1e-7,
+                    "ns_precision": "bfloat16",
+                    "adjust_lr_fn": "match_rms_adamw",
+                    "adamw_betas": [0.9, 0.999],
+                    "adamw_eps": 1e-8,
+                    "weight_decay": 0,
+                },
+                resume=resume,
+            )
         centers = CenterState.zeros(prototype_count=prototype_count, device=device)
         heldout_ids = tuple(
             sorted(
@@ -852,6 +876,9 @@ def run_native_experiment(
         )
         training_schedule = load_training_schedule(config.training.scheduler.value)
         engine = GraDPertStepEngine(
+            prediction_reduction=(
+                _optional_string_parameter(config, "prediction_reduction") or "cell_mean"
+            ),
             step_schedule=(
                 training_schedule
                 if isinstance(training_schedule, (StepWarmupCosine, LRWarmupCosine))

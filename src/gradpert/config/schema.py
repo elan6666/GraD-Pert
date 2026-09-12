@@ -306,6 +306,20 @@ class ExperimentConfig(StrictModel):
         ):
             raise ValueError("R50 selection requires native GraD-Pert metrics_only")
         if self.model_id == "gradpert_b2":
+            if self.training.optimizer.value not in {"AdamW", "GLM5MuonSplit_v1"}:
+                raise ValueError("unsupported native optimizer")
+            if self.training.optimizer.value == "GLM5MuonSplit_v1" and (
+                self.training.formal_run_policy != "r50_selection"
+                or self.training.weight_decay.value != 0
+            ):
+                raise ValueError("split optimizer is restricted to zero-decay R50")
+            reduction = self.model.parameters.get("prediction_reduction")
+            if reduction is not None and (
+                reduction.value not in {"cell_mean", "condition_mean"}
+                or self.training.formal_run_policy != "r50_selection"
+            ):
+                raise ValueError("prediction reduction selection requires R50")
+        if self.model_id == "gradpert_b2":
             NativeArchitectureOptions.from_parameters(self.model.parameters)
         if (
             self.model_id == "gradpert_b2"

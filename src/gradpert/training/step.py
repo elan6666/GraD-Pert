@@ -16,7 +16,6 @@ from typing import Any, Literal, cast
 import numpy as np
 import torch
 from torch import Tensor
-from torch.nn import functional as F
 
 from gradpert.config.native import NativeArchitectureOptions
 from gradpert.config.step_schedule import LRWarmupCosine, StepWarmupCosine
@@ -48,6 +47,8 @@ from gradpert.modeling import (
 )
 from gradpert.modeling.modules import ConfigurableGeneGraphEncoder
 from gradpert.training.batch import GraDPertTrainingBatch
+from gradpert.training.optimizers import SplitMatrixAdamW
+from gradpert.training.prediction_loss import expression_loss
 
 
 @dataclass(frozen=True)
@@ -226,7 +227,14 @@ def build_native_optimizer(
     learning_rate: float = 0.001,
     weight_decay: float = 0.0,
     allow_combination_learning_rate: bool = False,
-) -> torch.optim.AdamW:
+    optimizer_name: str = "AdamW",
+) -> torch.optim.Optimizer:
+    if optimizer_name == "GLM5MuonSplit_v1":
+        if not allow_combination_learning_rate or weight_decay != 0:
+            raise ValueError("split optimizer requires explicit experimental policy and zero decay")
+        return SplitMatrixAdamW(model, lr=learning_rate)
+    if optimizer_name != "AdamW":
+        raise ValueError("unsupported native optimizer")
     if weight_decay != 0.0 or (learning_rate != 0.001 and not allow_combination_learning_rate):
         raise ValueError("v1 AdamW learning rate/weight decay are frozen to 1e-3/0")
     if not 0.0 < learning_rate < float("inf"):
@@ -424,6 +432,7 @@ class GraDPertStepEngine:
         capture_equivalence_health: bool = False,
         stage_observer: GraDPertStageObserver | None = None,
         step_schedule: StepWarmupCosine | LRWarmupCosine | None = None,
+        prediction_reduction: str = "cell_mean",
     ) -> None:
         if topology.n_nodes != model.graph_gene_count:
             raise ValueError("topology and model graph-gene counts differ")
@@ -440,6 +449,9 @@ class GraDPertStepEngine:
         self.run_seed = run_seed
         self.total_schedule_steps = total_schedule_steps
         self.step_schedule = step_schedule
+        if prediction_reduction not in {"cell_mean", "condition_mean"}:
+            raise ValueError("unknown prediction reduction")
+        self.prediction_reduction = prediction_reduction
         self.heldout_target_ids = heldout_target_ids
         default_architecture = NativeArchitectureOptions.from_parameters({})
         if architecture is None:
@@ -906,7 +918,12 @@ class GraDPertStepEngine:
                 batch.condition_ids,
                 views.anchors_by_condition,
             )
-            prediction_loss = F.mse_loss(prediction, batch.target_expression)
+            prediction_loss = expression_loss(
+                prediction,
+                batch.target_expression,
+                batch.condition_ids,
+                reduction=self.prediction_reduction,
+            )
             weighted_prediction_loss = self.loss_weights.prediction * prediction_loss
             total_loss = weighted_prediction_loss + auxiliary_loss
             prediction_sha256 = _tensor_sha256(prediction) if capture_health else None

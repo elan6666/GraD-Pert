@@ -166,3 +166,39 @@ output-row blocks of weight[out,in]. Its separate edge projection and the
 local GAT branch are not Q/K/V and must not be mislabeled as Muon Split.
 Complete parameter routing, numeric variant freeze, implementation and
 CUDA preflight are still pending; this document is not launch approval.
+
+## Numeric variant and native integration (implementation in progress)
+
+The native adapter calls the general-purpose `torch.optim.Muon` API; no
+upstream model checkout or Muon-author package is a runtime dependency.
+Audited PyTorch 2.13.0 source commit
+`cf30153c4c131c8164ee7798e5022d810682e2cb`, `torch/optim/_muon.py` SHA256
+`4d003aba2d0c7fcc24875845802e45edb4475a51a037e2caaa7b46c3944c0dae`.
+Server runtime must be checked separately before a launch claim.
+Reference: https://github.com/pytorch/pytorch/blob/cf30153c4c131c8164ee7798e5022d810682e2cb/torch/optim/_muon.py.
+
+Project-selected variant: momentum .95, Nesterov, five NS steps with the
+audited coefficients, BF16 only inside NS, normalization by max(norm,1e-7).
+Use `match_rms_adamw`: effective matrix LR is base LR times
+`0.2 * sqrt(max(rows, columns))`, applied to each Q/K/V head's shape, not the
+whole unsplit matrix. This differs from the author's original shape scaling
+and is NOT asserted to be GLM's exact private numerical recipe. Model forward
+precision is unchanged. Missing gradients are skipped as in PyTorch; zero
+gradients still update existing momentum. Auxiliary AdamW retains parent
+betas(.9,.999), eps1e-8, decay0. Its parameters are not converted to BF16.
+
+`SplitMatrixAdamW` presents one optimizer step and combined checkpoint to the
+existing engine. Detached head views share only their corresponding weight
+storage; copied gradients avoid mutation of model gradient buffers. All
+eligible hidden Linear weights use Muon; final expression output, prototype
+weight-normalization parameters, embeddings, norm/bias/scales remain AdamW.
+Teacher parameters are frozen and excluded. Q/K/V alone are split, edge
+projections and the local GAT branch remain whole matrices. Complete named
+routes and LR multipliers are available for sealing in run receipts.
+
+The three self-contained configs live under `configs/r50/g1_muon`,
+`g2_schedule`, `g3_combined`. Config tests require only optimizer/scheduler
+differences respectively; all architecture/data/evaluation fields equal the
+batch512 parent. This is build progress, not a completed one-epoch smoke.
+The newer R50_BUILD_ALL_GATE.md policy blocks full runs until the authorized
+build/smoke campaign is reviewed.
