@@ -94,9 +94,16 @@ def fit_official(
     progress_path: Any,
     r50: bool = False,
     last_checkpoint_path: Path | None = None,
+    step_checkpoint_path: Path | None = None,
 ) -> dict:
     """Call one continuous official train invocation, including its scheduler."""
-    if r50 and (epochs not in {1, 50} or last_checkpoint_path is None):
+    if step_checkpoint_path is not None and (
+        not r50 or epochs != 50 or last_checkpoint_path is not None
+    ):
+        raise ValueError("single-step requires R50 horizon and a separate diagnostic checkpoint")
+    if r50 and (
+        epochs not in {1, 50} or (last_checkpoint_path is None and step_checkpoint_path is None)
+    ):
         raise ValueError("R50 Scouter requires one or50 epochs and an explicit last path")
     if not r50 and last_checkpoint_path is not None:
         raise ValueError("dual checkpoint capture requires explicit R50 policy")
@@ -143,17 +150,29 @@ def fit_official(
                 )
 
     handle = model.network.register_forward_hook(count_forward)
+
+    def train():
+        model.train(
+            batch_size=int(config.training.train_batch_size.value),
+            loss_gamma=float(p("loss_gamma")),
+            loss_lambda=float(p("loss_lambda")),
+            lr=float(config.training.learning_rate.value),
+            sched_gamma=float(p("scheduler_gamma")),
+            n_epochs=epochs,
+            patience=epochs + 1 if r50 else int(config.training.early_stopping_patience.value),
+        )
+
     try:
-        with independent_best_snapshot(model.network, before_restore=capture_last if r50 else None):
-            model.train(
-                batch_size=int(config.training.train_batch_size.value),
-                loss_gamma=float(p("loss_gamma")),
-                loss_lambda=float(p("loss_lambda")),
-                lr=float(config.training.learning_rate.value),
-                sched_gamma=float(p("scheduler_gamma")),
-                n_epochs=epochs,
-                patience=epochs + 1 if r50 else int(config.training.early_stopping_patience.value),
+        if step_checkpoint_path is not None:
+            from benchmarks.common.single_update import capture_single_update
+
+            receipt = capture_single_update(
+                fit=train, model_supplier=lambda: model.network, checkpoint=step_checkpoint_path
             )
+            atomic_json(progress_path, {"stage": "single_update_complete", **receipt})
+            return receipt
+        with independent_best_snapshot(model.network, before_restore=capture_last if r50 else None):
+            train()
     finally:
         handle.remove()
     losses = model.loss_history

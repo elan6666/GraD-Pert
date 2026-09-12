@@ -112,9 +112,85 @@ def require_r50_smoke(
     if root is None:
         raise ValueError("external R50 requires --smoke-run-root")
     root = Path(root).resolve(strict=True)
+    if (root / "small_results/one_step_smoke.json").exists():
+        path = root / "small_results/one_step_smoke.json"
+        receipt = json.loads(path.read_text())
+        validate_external_step(
+            root,
+            receipt,
+            config=config,
+            config_sha256=config_sha256,
+            training_data=training_data,
+            source_commit=source_commit,
+            environment_sha256=environment_sha256,
+        )
+        return {"smoke_root": str(root), "receipt_sha256": sha256_file(path)}
     path = root / "small_results/r50_smoke.json"
     receipt = json.loads(path.read_text())
     _validate(
         root, receipt, config, config_sha256, training_data, source_commit, environment_sha256
     )
     return {"smoke_root": str(root), "receipt_sha256": sha256_file(path)}
+
+
+def validate_external_step(
+    root, receipt, *, config, config_sha256, training_data, source_commit, environment_sha256
+):
+    expected = _identity(config, config_sha256, training_data, source_commit)
+    expected.update(
+        schema="external-r50-one-step-v1",
+        status="single_update_complete",
+        environment_sha256=environment_sha256,
+    )
+    if config.training.formal_run_policy != "external_fixed_50" or any(
+        receipt.get(k) != v for k, v in expected.items()
+    ):
+        raise ValueError("single-step identity or scope mismatch")
+    if (
+        receipt.get("completed_steps") != 1
+        or receipt.get("completed_epochs") != 0
+        or receipt.get("checkpoint_serialization_exact") is not True
+    ):
+        raise ValueError("single-step update/checkpoint gate failed")
+    path = (root / receipt["checkpoint_path"]).resolve(strict=True)
+    checkpoints = {p.resolve() for p in root.rglob("*") if p.suffix in {".pt", ".ckpt"}}
+    if (
+        not path.is_relative_to(root)
+        or checkpoints != {path}
+        or sha256_file(path) != receipt["checkpoint_sha256"]
+    ):
+        raise ValueError("single-step diagnostic checkpoint changed")
+    if any(
+        p.suffix.lower() in {".pkl", ".pickle"} or p.name.startswith(".result-work-")
+        for p in root.rglob("*")
+    ):
+        raise ValueError("single-step zero-PKL/work gate failed")
+
+
+def seal_external_step(
+    root, *, config, config_sha256, training_data, source, environment_sha256, checkpoint, update
+):
+    root = Path(root).resolve(strict=True)
+    if source.dirty or not source.formal_eligible:
+        raise ValueError("single-step needs clean published source")
+    receipt = {
+        **_identity(config, config_sha256, training_data, source.commit),
+        **update,
+        "schema": "external-r50-one-step-v1",
+        "status": "single_update_complete",
+        "environment_sha256": environment_sha256,
+        "checkpoint_path": str(Path(checkpoint).resolve(strict=True).relative_to(root)),
+        "checkpoint_sha256": sha256_file(checkpoint),
+        "checkpoint_role": "diagnostic_after_step_not_best",
+    }
+    validate_external_step(
+        root,
+        receipt,
+        config=config,
+        config_sha256=config_sha256,
+        training_data=training_data,
+        source_commit=source.commit,
+        environment_sha256=environment_sha256,
+    )
+    atomic_json(root / "small_results/one_step_smoke.json", receipt)
+    return receipt

@@ -13,7 +13,7 @@ import numpy as np
 
 from benchmarks.common import build_training_validation_adata, official_module_session
 from benchmarks.common.full_gate import require_completed_smoke
-from benchmarks.common.r50_gate import require_r50_smoke, seal_r50_smoke
+from benchmarks.common.r50_gate import require_r50_smoke, seal_external_step, seal_r50_smoke
 from benchmarks.scouter.official_api import fit_official, predict_exact_controls, prepare_data
 from gradpert.artifacts import PredictionConditionArrays
 from gradpert.config import load_experiment_config
@@ -34,6 +34,9 @@ def run(args):
     }:
         raise ValueError("Scouter requires its explicit external-full config")
     r50 = config.training.formal_run_policy == "external_fixed_50"
+    step_smoke = getattr(args, "step_smoke", False)
+    if step_smoke and (not r50 or args.smoke):
+        raise ValueError("--step-smoke requires R50 and excludes --smoke")
     if (config.training.monitor, config.training.monitor_mode, config.training.min_delta) != (
         "val/scouter_loss",
         "min",
@@ -68,7 +71,7 @@ def run(args):
             registry_version=config.data.registry_version, split_policy=config.data.split_policy
         )
         write_training_data_receipt(training, small_root / "training_data.json")
-        if not args.smoke:
+        if not args.smoke and not step_smoke:
             atomic_json(
                 small_root / "smoke_gate.json",
                 (require_r50_smoke if r50 else require_completed_smoke)(
@@ -141,8 +144,27 @@ def run(args):
                 epochs=1 if args.smoke else int(config.training.max_epochs.value),
                 progress_path=small_root / "stage_progress.json",
                 r50=r50,
-                last_checkpoint_path=destination / "checkpoints/last.pt" if r50 else None,
+                last_checkpoint_path=destination / "checkpoints/last.pt"
+                if r50 and not step_smoke
+                else None,
+                **(
+                    {"step_checkpoint_path": destination / "checkpoints/step.pt"}
+                    if step_smoke
+                    else {}
+                ),
             )
+            if step_smoke:
+                atomic_json(small_root / "official_checkout.json", checkout.payload())
+                return seal_external_step(
+                    destination,
+                    config=config,
+                    config_sha256=sha256_file(args.config),
+                    training_data=training,
+                    source=source,
+                    environment_sha256=environment.payload_sha256,
+                    checkpoint=destination / "checkpoints/step.pt",
+                    update=receipt,
+                )
             checkpoint = destination / "checkpoints" / "best.pt"
             checkpoint.parent.mkdir(exist_ok=True)
             torch.save(model.network.state_dict(), checkpoint)
@@ -280,6 +302,7 @@ def main():
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--step-smoke", action="store_true")
     parser.add_argument("--smoke-run-root", type=Path)
     print(json.dumps(run(parser.parse_args()), sort_keys=True))
 

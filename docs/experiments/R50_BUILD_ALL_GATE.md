@@ -15,7 +15,8 @@ Keep the configured full50 LR/EMA horizon and real scientific batch/graph.
 Best/last selection and dual test lifecycle remain covered by synthetic
 regressions and by the eventual formal50 run, not claimed by a one-step test.
 Historical implementation notes below describe the retained one-epoch paths;
-they are not current launch instructions. External one-step CLI/gates are pending.
+they are not current launch instructions. External one-step CLIs are wired;
+reviewed launch/resource contracts and server acceptance are still pending.
 
 Native one-step entrypoint: `python -m scripts.server.native_step_smoke`.
 It delegates to the normal native full-horizon initialization and epoch
@@ -241,3 +242,22 @@ unexpected optimizers or absent/nonfinite gradients fail closed. A real Adam
 unit test verifies changed weights, serialized optimizer state, no next batch,
 and removal of the hook. This primitive still needs explicit runner/API
 wiring, identity/resource receipts and fresh server acceptance before launch.
+
+## Current one-step API wiring
+
+Pre-change published baseline `014fed9cf9b890bea24d62bdb34471f9f8ea60e0`.
+All three official APIs accept an explicit diagnostic step-checkpoint path
+only with R50 and its unchanged50-epoch horizon. They invoke their original
+training method once and return at the optimizer boundary, before validation,
+best selection/restoration, official best saving, or another batch. The three
+CLIs expose `--step-smoke`, mutually exclusive with old `--smoke`. Existing
+one/50/100-epoch paths retain their meanings.
+
+The new external one-step receipt binds source/upstream/config/data/split and
+environment, exactly one diagnostic checkpoint, one update and zero epochs;
+it rejects whole-root PKL/work artifacts. R50 full-run prerequisite recognizes
+this distinct receipt without calling it an epoch smoke. Scouter has a runner
+test that rejects any test reader or best checkpoint in step mode. All three
+API tests use real Adam updates and assert no next-batch/validation execution.
+GEARS/TxPert step-mode runner coverage and final resource/launch review still
+need completion; no CUDA launch is implied by these local checks.

@@ -3,7 +3,7 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from benchmarks.common.r50_gate import require_r50_smoke, seal_r50_smoke
+from benchmarks.common.r50_gate import require_r50_smoke, seal_external_step, seal_r50_smoke
 
 
 @pytest.fixture
@@ -74,3 +74,32 @@ def test_gate_rejects_checkpoint_tamper(gate):
     (root / "last.pt").write_bytes(b"changed")
     with pytest.raises(ValueError):
         require_r50_smoke(root, **kwargs)
+
+
+def test_one_step_receipt_is_not_an_epoch_smoke(tmp_path):
+    cfg = NS(
+        training=NS(formal_run_policy="external_fixed_50"),
+        source_code=NS(commit="upstream"),
+        model_id="gears",
+        dataset_id="nadig_jurkat",
+    )
+    data = NS(manifest=NS(canonical_adata_sha256="data"), split=NS(split_content_sha256="split"))
+    checkpoint = tmp_path / "step.pt"
+    checkpoint.write_bytes(b"synthetic checkpoint")
+    kwargs = dict(config=cfg, config_sha256="config", training_data=data, environment_sha256="env")
+    receipt = seal_external_step(
+        tmp_path,
+        **kwargs,
+        source=NS(commit="train", dirty=False, formal_eligible=True),
+        checkpoint=checkpoint,
+        update=dict(completed_steps=1, completed_epochs=0, checkpoint_serialization_exact=True),
+    )
+    assert receipt["completed_epochs"] == 0
+    assert receipt["test_evaluations"] == 0
+    assert not (tmp_path / "small_results/r50_smoke.json").exists()
+    assert require_r50_smoke(tmp_path, **kwargs, source_commit="train")["receipt_sha256"]
+    path = tmp_path / "small_results/one_step_smoke.json"
+    receipt["completed_epochs"] = 1
+    path.write_text(json.dumps(receipt))
+    with pytest.raises(ValueError):
+        require_r50_smoke(tmp_path, **kwargs, source_commit="train")

@@ -272,6 +272,7 @@ class OfficialPublicAPI:
         progress_path: Path,
         r50: bool = False,
         last_checkpoint_path: str | Path | None = None,
+        step_checkpoint_path: str | Path | None = None,
     ) -> Any:
         """Official training/optimizer and official val metric, with no test hook.
 
@@ -283,7 +284,13 @@ class OfficialPublicAPI:
         """
         from gradpert.data._io import atomic_json
 
-        if r50 and (epochs not in {1, 50} or last_checkpoint_path is None):
+        if step_checkpoint_path is not None and (
+            not r50 or epochs != 50 or last_checkpoint_path is not None
+        ):
+            raise ValueError("single-step requires R50 horizon and diagnostic checkpoint")
+        if r50 and (
+            epochs not in {1, 50} or (last_checkpoint_path is None and step_checkpoint_path is None)
+        ):
             raise ValueError("R50 TxPert requires one or50 epochs and explicit last checkpoint")
         if not r50 and (epochs not in {1, 100} or last_checkpoint_path is not None):
             raise ValueError("external integration requires one or100 epochs")
@@ -357,6 +364,18 @@ class OfficialPublicAPI:
             limit_val_batches=0,
             callbacks=[callback],
         )
+        if step_checkpoint_path is not None:
+            from benchmarks.common.single_update import capture_single_update
+
+            trainer.gradpert_step_smoke = capture_single_update(
+                fit=lambda: trainer.fit(model, train_dataloaders=data.train_dataloader()),
+                model_supplier=lambda: model,
+                checkpoint=step_checkpoint_path,
+            )
+            atomic_json(
+                progress_path, {"stage": "single_update_complete", **trainer.gradpert_step_smoke}
+            )
+            return trainer
         trainer.fit(model, train_dataloaders=data.train_dataloader())
         if not callback.history or callback.best_epoch is None:
             raise RuntimeError("TxPert did not produce a validation-selected checkpoint")

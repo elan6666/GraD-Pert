@@ -11,8 +11,10 @@ from benchmarks.scouter import runner
 ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.parametrize("smoke", [True, False])
-def test_runner_smoke_never_opens_test_and_full_loads_both_states(tmp_path, monkeypatch, smoke):
+@pytest.mark.parametrize("smoke,step_smoke", [(True, False), (False, False), (False, True)])
+def test_runner_smoke_never_opens_test_and_full_loads_both_states(
+    tmp_path, monkeypatch, smoke, step_smoke
+):
     monkeypatch.setenv("PYTORCH_ALLOC_CONF", "expandable_segments:True")
     source = NS(commit="training-sha", dirty=False, formal_eligible=True, payload=lambda: {})
     env = NS(payload_sha256="environment", payload=lambda: {})
@@ -56,9 +58,16 @@ def test_runner_smoke_never_opens_test_and_full_loads_both_states(tmp_path, monk
     monkeypatch.setattr(runner, "prepare_data", lambda *a: None)
     fit_calls = []
 
-    def fit(m, config, *, epochs, progress_path, r50, last_checkpoint_path):
+    def fit(
+        m, config, *, epochs, progress_path, r50, last_checkpoint_path, step_checkpoint_path=None
+    ):
         fit_calls.append(epochs)
         assert r50
+        if step_checkpoint_path is not None:
+            assert last_checkpoint_path is None
+            step_checkpoint_path.parent.mkdir(parents=True)
+            torch.save(m.network.state_dict(), step_checkpoint_path)
+            return dict(completed_steps=1, completed_epochs=0, checkpoint_serialization_exact=True)
         last_checkpoint_path.parent.mkdir(parents=True)
         with torch.no_grad():
             m.network.weight.fill_(50)
@@ -74,7 +83,7 @@ def test_runner_smoke_never_opens_test_and_full_loads_both_states(tmp_path, monk
 
     @contextmanager
     def test(**kwargs):
-        assert not smoke, "smoke must never open canonical test truth"
+        assert not (smoke or step_smoke), "smoke must never open canonical test truth"
         test_calls.append(1)
         yield NS(control_manifest=NS(draws=[]))
 
@@ -104,6 +113,7 @@ def test_runner_smoke_never_opens_test_and_full_loads_both_states(tmp_path, monk
         run_root=tmp_path / "run",
         data_root=tmp_path,
         smoke=smoke,
+        step_smoke=step_smoke,
         smoke_run_root=tmp_path / "smoke",
         genept_seed=tmp_path / "prior",
         official_checkout=tmp_path / "official",
@@ -111,6 +121,12 @@ def test_runner_smoke_never_opens_test_and_full_loads_both_states(tmp_path, monk
     )
     result = runner.run(args)
     assert fit_calls == [1 if smoke else 50]
+    if step_smoke:
+        assert not gate_calls and not test_calls and not captured
+        assert result["completed_steps"] == 1 and result["completed_epochs"] == 0
+        assert result["status"] == "single_update_complete"
+        assert not (args.run_root / "checkpoints/best.pt").exists()
+        return
     assert len(gate_calls) == (0 if smoke else 1)
     assert len(test_calls) == (0 if smoke else 2)
     assert captured == ([] if smoke else [1.0, 50.0])

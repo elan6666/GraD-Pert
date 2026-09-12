@@ -256,8 +256,17 @@ class OfficialGearsAPI:
         progress_path: Path | None = None,
         r50: bool = False,
         last_checkpoint_path: Path | None = None,
+        step_checkpoint_path: Path | None = None,
     ) -> Any:
-        if r50 and (epochs not in {1, 50} or last_checkpoint_path is None or progress_path is None):
+        if step_checkpoint_path is not None and (
+            not r50 or epochs != 50 or last_checkpoint_path is not None
+        ):
+            raise ValueError("single-step requires R50 horizon and diagnostic checkpoint")
+        if r50 and (
+            epochs not in {1, 50}
+            or (last_checkpoint_path is None and step_checkpoint_path is None)
+            or progress_path is None
+        ):
             raise ValueError("R50 GEARS requires one or50 epochs, progress and last checkpoint")
         if not r50 and last_checkpoint_path is not None:
             raise ValueError("last capture requires explicit R50 policy")
@@ -271,6 +280,23 @@ class OfficialGearsAPI:
             exp_name=experiment_name,
         )
         model.model_initialize(**parameters.official_kwargs())
+        if step_checkpoint_path is not None:
+            from benchmarks.common.single_update import capture_single_update
+            from gradpert.data._io import atomic_json
+
+            if "test_loader" in model.dataloader:
+                raise ValueError("single-step fitting forbids test loader")
+            model.gradpert_step_smoke = capture_single_update(
+                fit=lambda: model.train(
+                    epochs=epochs, lr=float(learning_rate), weight_decay=weight_decay
+                ),
+                model_supplier=lambda: model.model,
+                checkpoint=step_checkpoint_path,
+            )
+            atomic_json(
+                progress_path, {"stage": "single_update_complete", **model.gradpert_step_smoke}
+            )
+            return model
         if epochs == 1 and not r50:
             model.train(epochs=1, lr=float(learning_rate), weight_decay=float(weight_decay))
         else:

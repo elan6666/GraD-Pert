@@ -21,7 +21,7 @@ from benchmarks.common import (
     write_pickle,
 )
 from benchmarks.common.full_gate import require_completed_smoke
-from benchmarks.common.r50_gate import require_r50_smoke, seal_r50_smoke
+from benchmarks.common.r50_gate import require_r50_smoke, seal_external_step, seal_r50_smoke
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
 from benchmarks.txpert.runtime import inspect_cuda_runtime, load_runtime_contract
 from gradpert.artifacts import PredictionConditionArrays
@@ -264,6 +264,7 @@ def run_one_epoch(
     formal: bool,
     development_commit: str | None,
     smoke: bool = False,
+    step_smoke: bool = False,
     smoke_run_root: Path | None = None,
     source_publication_receipt: Path | None = None,
     source_publication_receipt_sha256: str | None = None,
@@ -272,6 +273,8 @@ def run_one_epoch(
     config = load_experiment_config(config_file)
     requested_epochs = 1 if smoke else int(config.training.max_epochs.value)
     r50 = config.training.formal_run_policy == "external_fixed_50"
+    if step_smoke and (not r50 or smoke):
+        raise ValueError("--step-smoke requires R50 and excludes --smoke")
     if config.model_id != "txpert_public" or config.training.max_epochs.value not in {1, 50, 100}:
         raise ValueError("TxPert execution requires a one-epoch TxPert config")
     official_config_path, official_config = _official_config(config, checkout_root)
@@ -322,7 +325,7 @@ def run_one_epoch(
             split_policy=config.data.split_policy,
         )
         write_training_data_receipt(training_data, small_root / "training_data.json")
-        if requested_epochs == 100 or (r50 and not smoke):
+        if requested_epochs == 100 or (r50 and not smoke and not step_smoke):
             atomic_json(
                 small_root / "smoke_gate.json",
                 (require_r50_smoke if r50 else require_completed_smoke)(
@@ -411,11 +414,34 @@ def run_one_epoch(
                     else {}
                 ),
                 **(
-                    {"r50": True, "last_checkpoint_path": destination / "checkpoints/last.ckpt"}
+                    {
+                        "r50": True,
+                        (
+                            "step_checkpoint_path" if step_smoke else "last_checkpoint_path"
+                        ): destination / "checkpoints" / ("step.pt" if step_smoke else "last.ckpt"),
+                    }
                     if r50
                     else {}
                 ),
             )
+            if step_smoke:
+                atomic_json(
+                    small_root / "adapter_cache_retention.json",
+                    _remove_official_split_pickles(
+                        cache_root=cache_root, cache_receipts=cache_receipts
+                    ),
+                )
+                atomic_json(small_root / "official_checkout.json", checkout_receipt.payload())
+                return seal_external_step(
+                    destination,
+                    config=config,
+                    config_sha256=config_sha256,
+                    training_data=training_data,
+                    source=source,
+                    environment_sha256=environment.payload_sha256,
+                    checkpoint=destination / "checkpoints/step.pt",
+                    update=trainer.gradpert_step_smoke,
+                )
             post_fit_device_restore = api.restore_post_fit_device(model, device)
             completed_epochs = (
                 len(trainer.gradpert_validation_history)
@@ -600,6 +626,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--official-checkout", type=Path, required=True)
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument("--step-smoke", action="store_true")
     parser.add_argument("--smoke-run-root", type=Path)
     parser.add_argument("--source-publication-receipt", type=Path)
     parser.add_argument("--source-publication-receipt-sha256")
@@ -637,6 +664,7 @@ def main(argv: list[str] | None = None) -> None:
             formal=args.formal,
             development_commit=args.development_commit,
             smoke=args.smoke,
+            step_smoke=args.step_smoke,
             smoke_run_root=args.smoke_run_root,
             source_publication_receipt=args.source_publication_receipt,
             source_publication_receipt_sha256=args.source_publication_receipt_sha256,
