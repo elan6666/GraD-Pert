@@ -58,6 +58,17 @@ not qualify the newer resource-boundary code before publication/synchronization.
 
 ## Explicit pending rows
 
+Latest official one-step loss observation, pre-change published baseline
+`353c9ee21a61de6283e8dd5507fa8ebf5483ac59`: frozen Scouter
+`scouter/Scouter.py:179` and GEARS `gears/gears.py:531` call scalar
+`loss.backward()`; TxPert `gspp/predictor.py:129` returns loss to Lightning.
+The diagnostic observes scalar autograd roots and delegates unchanged to
+the original backward. NaN/Inf fails before optimizer.step; at least one
+observed loss is required. This catches NaN additive constants whose
+derivatives remain finite. Lightning-normalized backward roots are labeled,
+not claimed as raw model loss. The process-scoped binding and optimizer hook
+are restored on success/failure. No loss formula, gradient or RNG is changed.
+
 - G1/G2/G3: optimizer-only, schedule-only, combined (R50_GLM5_MUON.md).
 - R1/R2/R3/R4: LR-low and official Scouter/GEARS/TxPert best/last reruns.
 - C1: batch-condition-balanced expression MSE, no direction term.

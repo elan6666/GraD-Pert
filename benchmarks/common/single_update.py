@@ -23,6 +23,24 @@ def capture_single_update(*, fit, model_supplier, checkpoint):
     if checkpoint.exists():
         raise FileExistsError("diagnostic checkpoint must be fresh")
     captured = []
+    backward_losses = []
+    original_backward = torch.autograd.backward
+
+    def observed_backward(tensors, *args, **kwargs):
+        # Observe the actual autograd roots; Lightning may normalize its loss.
+        # Do not claim these are unscaled model.loss outputs or change backward.
+        roots = (tensors,) if isinstance(tensors, torch.Tensor) else tuple(tensors)
+        if not roots:
+            raise RuntimeError("single-update diagnostic observed no backward loss")
+        values = []
+        for root in roots:
+            if not isinstance(root, torch.Tensor) or root.numel() != 1:
+                raise RuntimeError("single-update diagnostic requires scalar backward roots")
+            if not torch.isfinite(root).all():
+                raise RuntimeError("nonfinite backward loss before optimizer update")
+            values.append(float(root.detach().cpu().item()))
+        backward_losses.extend(values)
+        return original_backward(tensors, *args, **kwargs)
 
     def after_update(optimizer, args, kwargs):
         model = model_supplier()
@@ -32,6 +50,8 @@ def capture_single_update(*, fit, model_supplier, checkpoint):
             raise RuntimeError("unexpected optimizer in single-update diagnostic")
         if captured:
             raise RuntimeError("more than one optimizer update")
+        if not backward_losses:
+            raise RuntimeError("optimizer update without observed backward loss")
         if not any(p.grad is not None for p in parameters):
             raise RuntimeError("optimizer update had no gradients")
         for p in model.parameters():
@@ -79,11 +99,14 @@ def capture_single_update(*, fit, model_supplier, checkpoint):
                 "completed_epochs": 0,
                 "checkpoint_serialization_exact": True,
                 "resources": resources,
+                "backward_root_losses": list(backward_losses),
+                "backward_loss_scope": "actual_autograd_roots_may_be_framework_normalized",
             }
         )
         raise SingleUpdateComplete("official optimizer completed exactly one update")
 
     hook = register_optimizer_step_post_hook(after_update)
+    torch.autograd.backward = observed_backward
     try:
         try:
             fit()
@@ -93,5 +116,6 @@ def capture_single_update(*, fit, model_supplier, checkpoint):
         else:
             raise RuntimeError("official fit returned without its single-update boundary")
     finally:
+        torch.autograd.backward = original_backward
         hook.remove()
     return captured[0]
