@@ -157,3 +157,41 @@ no test access. Validation and checkpoint identity must be audited at each
 boundary before a stop can be declared successful. First-epoch and final
 state digests must match the uninterrupted paths, with configuration and
 ordered data identities bound separately from run-specific paths.
+
+## Original-horizon three-epoch result and ABBA protocol
+
+Source `b25825e2cf9ebc55f26f5b22db7e8789e92626a6` completed all three
+trajectories (reference, candidate, fresh-process resume) at 1005 steps and
+three validations, retaining the original 50-epoch schedule horizon. Queue
+RC0 and the independent comparison passed; no test access or PKL. Evidence
+remains at `development/r50-epochs-b25825e-v1` on the server. Terminal hashes:
+
+- reference: `208f13d371661aa29dcdf43ad3fec5ff8c0120bc84cc77e00ff35cf91ae11b13`
+- candidate: `e1050bb8343815871bc47d676d0388e1c1ae9f21eb91b8aa56d109f576f1ce9c`
+- resume prefix: `ced22ee68fd0a0a65240b2280d4d07c74e13194693766e6a5cd909450e101a69`
+- resume completion: `a78c9a26442aa6d781353a226b1fa5dff98eef8ca669e71748c3ef93a0085aeb`
+
+The separate batch128 run at training/evaluation commit
+`72d75463db2d93d531743cb7229419104c0b63f0` completed 50 epochs and its
+best/last postfit receipt passed `verify_existing`. These test results are
+not used to select this performance implementation.
+
+New timing uses explicit `--phase timing --timing-protocol abba_5_20`:
+five warmup plus twenty measured steps, serial A1/B1/B2/A2 on one physical
+GPU. Legacy timing remains 2+10. Each arm uses the same scientific config,
+schedule horizon and instrumentation, with ordered perturbation/control row
+hashes. Full-state hashing and Torch profiler are disabled. Resource snapshots
+are collected outside the native step timer before and after the run and
+after each step. No other compute process is permitted on either GPU; other
+GPU utilization must be <=5%, one-minute host load <=2. These sampled checks
+do not prove uninterrupted exclusivity between samples and that limitation
+must accompany timing evidence. Failed attempts are preserved, not retried
+in place.
+
+Report all raw times and p50/p90/p95/p99. Pair A1/B1 and A2/B2, take the median
+of optimized/reference median ratios and median absolute improvements.
+Require ratio <=0.9 and improvement >=100 ms; both pairs' p90 and allocated
+and reserved peak memory ratios must be <=1.05. Resource/identity/evaluation
+gates are prerequisites, not substitutes for timing acceptance. Candidate
+remains opt-in until all gates and review pass; no new scientific run is
+authorized by a timing-only receipt.

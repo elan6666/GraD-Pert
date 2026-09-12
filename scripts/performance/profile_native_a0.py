@@ -69,6 +69,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--repository-root", type=Path, required=True)
     parser.add_argument("--development-commit", required=True)
     parser.add_argument("--phase", choices=("capacity", "profile", "timing"), required=True)
+    parser.add_argument("--timing-protocol", choices=("legacy", "abba_5_20"), default="legacy")
     parser.add_argument("--expected-config-sha256", type=_sha256_argument, required=True)
     parser.add_argument("--expected-canonical-data-sha256", type=_sha256_argument, required=True)
     parser.add_argument("--expected-split-content-sha256", type=_sha256_argument, required=True)
@@ -92,6 +93,17 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--minimum-host-available-bytes", type=int, default=16 * GIB)
     parser.add_argument("--json", action="store_true", dest="as_json")
     return parser
+
+
+def _step_budget(args: argparse.Namespace) -> tuple[int, int]:
+    protocol = getattr(args, "timing_protocol", "legacy")
+    if protocol == "abba_5_20":
+        if args.phase != "timing" or args.capture_exact_state:
+            raise ProfileGateError("ABBA requires timing without full-state hashing")
+        return 5, 20
+    if protocol != "legacy":
+        raise ProfileGateError("unknown timing protocol")
+    return {"capacity": (3, 3), "profile": (2, 3), "timing": (2, 10)}[args.phase]
 
 
 def _parameter(config: Any, name: str) -> object:
@@ -380,6 +392,7 @@ def _host_snapshot(path: Path) -> dict[str, object]:
     )
     return {
         "platform": platform.platform(),
+        "process_id": os.getpid(),
         "python": platform.python_version(),
         "logical_cpu_count": os.cpu_count(),
         "cpu_affinity": (
@@ -481,6 +494,27 @@ def _preflight_predicates(
         "selected_physical_gpu": selected,
         "competing_compute_processes": competing_apps,
     }
+
+
+def _abba_isolation(snapshot: Mapping[str, Any], selected_uuid: str) -> None:
+    """Fail closed on sampled contention; snapshots cannot prove every instant."""
+    nvidia = snapshot["nvidia_smi"]
+    for query in ("gpus", "compute_apps"):
+        if nvidia[query]["returncode"] != 0:
+            raise ProfileGateError("ABBA isolation telemetry unavailable")
+    if not nvidia["gpus"]["rows"]:
+        raise ProfileGateError("ABBA GPU inventory absent")
+    if any(
+        str(row["pid"]) != str(snapshot.get("process_id", os.getpid()))
+        for row in nvidia["compute_apps"]["rows"]
+    ):
+        raise ProfileGateError("ABBA competing GPU process")
+    for gpu in nvidia["gpus"]["rows"]:
+        if gpu["uuid"] != selected_uuid and float(gpu["utilization.gpu"]) > 5:
+            raise ProfileGateError("ABBA other GPU is busy")
+    loads = snapshot.get("load_average")
+    if not loads or not math.isfinite(float(loads[0])) or float(loads[0]) > 2:
+        raise ProfileGateError("ABBA host load exceeds preregistered limit 2")
 
 
 def _percentiles(values: list[float]) -> dict[str, float] | None:
@@ -724,11 +758,7 @@ def _profile_run(
     previous_deterministic_algorithms = torch.are_deterministic_algorithms_enabled()
     torch.use_deterministic_algorithms(args.deterministic_algorithms)
 
-    warmup_steps, measured_steps = {
-        "capacity": (3, 3),
-        "profile": (2, 3),
-        "timing": (2, 10),
-    }[args.phase]
+    warmup_steps, measured_steps = _step_budget(args)
     total_steps = warmup_steps + measured_steps
     observed: list[dict[str, object]] = []
     initial_exact_state: dict[str, str] | None = None
@@ -831,6 +861,11 @@ def _profile_run(
         )
         if getattr(args, "capture_exact_state", False):
             observed[-1]["exact_state"] = _exact_engine_state(engine)
+        if getattr(args, "timing_protocol", "legacy") == "abba_5_20":
+            snapshot = _host_snapshot(run_root)
+            selected, _ = _selected_physical_gpu(snapshot, device_name=args.device)
+            observed[-1]["isolation_snapshot"] = snapshot
+            _abba_isolation(snapshot, selected["uuid"])
         if getattr(args, "checkpoint_roundtrip_after_step", None) == global_step:
             from gradpert.training.checkpoint import CheckpointIdentity
 
@@ -857,8 +892,21 @@ def _profile_run(
         if len(observed) == total_steps:
             stop_profiler()
 
+    batch_identities: list[dict[str, Any]] = []
+
+    def identified_train_step(engine: Any, batch: Any, *, global_step: int) -> Any:
+        if getattr(args, "timing_protocol", "legacy") == "abba_5_20":
+            batch_identities.append(
+                {
+                    "global_step": global_step,
+                    "perturbed_row_ids_sha256": batch.perturbed_row_ids_sha256,
+                    "control_row_ids_sha256": batch.control_row_ids_sha256,
+                }
+            )
+        return original_train_step(engine, batch, global_step=global_step)
+
     bounded_train_step = _make_bounded_train_step(
-        original_train_step,
+        identified_train_step,
         total_steps=total_steps,
         before_step=before_step,
         after_step=after_step,
@@ -919,6 +967,7 @@ def _profile_run(
         "observed_step_count": len(observed),
         "initial_exact_state": initial_exact_state,
         "steps": observed,
+        "ordered_batch_identities": batch_identities,
         "measured_step_wall_ms": measured_wall,
         "measured_step_wall_ms_percentiles": _percentiles(measured_wall),
         "peak_allocated_gpu_bytes": max(
@@ -933,6 +982,7 @@ def _profile_run(
         **access_summary,
         "instrumentation": {
             "phase": args.phase,
+            "timing_protocol": getattr(args, "timing_protocol", "legacy"),
             "deterministic_algorithms": args.deterministic_algorithms,
             "torch_profiler_enabled": args.phase == "profile",
             "torch_profiler_schedule": (
@@ -985,6 +1035,7 @@ def main(argv: list[str] | None = None) -> int:
         raise ProfileGateError("checkpoint roundtrip requires exact-state capture")
     if args.capture_exact_state and (not args.deterministic_algorithms or args.phase != "capacity"):
         raise ProfileGateError("exact-state capture requires deterministic capacity phase")
+    _step_budget(args)
     run_root = args.run_root.resolve()
     accepted_root = False
     teardown_failures: list[dict[str, str]] = []
@@ -992,6 +1043,7 @@ def main(argv: list[str] | None = None) -> int:
         "schema_version": "native-a0-bounded-profile-v2",
         "scientific_completion": False,
         "phase": args.phase,
+        "timing_protocol": getattr(args, "timing_protocol", "legacy"),
         "run_id": args.run_id,
         "run_seed": args.run_seed,
         "device": args.device,
@@ -1050,6 +1102,8 @@ def main(argv: list[str] | None = None) -> int:
         preflight_predicates, gpu_identity = _preflight_predicates(args, started_snapshot)
         receipt["preflight_predicates"] = preflight_predicates
         receipt["physical_gpu_identity"] = gpu_identity
+        if getattr(args, "timing_protocol", "legacy") == "abba_5_20":
+            _abba_isolation(started_snapshot, gpu_identity["selected_physical_gpu"]["uuid"])
         if not all(preflight_predicates.values()):
             failed = sorted(name for name, passed in preflight_predicates.items() if not passed)
             raise ProfileGateError("preflight resource predicates failed: " + ", ".join(failed))
