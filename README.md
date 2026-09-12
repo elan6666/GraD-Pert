@@ -9,6 +9,7 @@ weights explicit self-contained config choices.
 
 The repository is under active implementation. Current authoritative material:
 
+- [simple train entry: default batch1024, dry-run, best/last and curves](docs/TRAIN_CLI.md)
 - [active model design](docs/design/GRADPERT_V1.md)
 - [B2-vNext ablation design](docs/design/GRADPERT_VNEXT_ABLATIONS.md)
 - [completed remaining ablations and audit status](docs/experiments/VNEXT_REMAINING_RESULTS_20260907.md)

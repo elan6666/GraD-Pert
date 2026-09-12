@@ -504,6 +504,7 @@ def run_native_experiment(
     genept_preflight_receipt: str | Path | None = None,
     genept_preflight_receipt_sha256: str | None = None,
     resume: bool = False,
+    report_all_validation_metrics: bool = False,
 ) -> NativeRunResult:
     """Run fitting and validation; R50 selection explicitly defers all test access."""
 
@@ -741,7 +742,7 @@ def run_native_experiment(
         )
         cache_build_ms = training_cache_ms + validation_cache_ms
         validation_metric_state = None
-        if config.training.monitor == "val/prediction_loss":
+        if config.training.monitor == "val/prediction_loss" or report_all_validation_metrics:
             from gradpert.evaluation.state import load_evaluation_state
 
             validation_metric_state = load_evaluation_state(
@@ -980,6 +981,7 @@ def run_native_experiment(
             "max_epochs": 1 if mode == "smoke" else max_epochs,
             "early_stopping_patience": int(config.training.early_stopping_patience.value),
             "validation_monitor": config.training.monitor,
+            "report_all_validation_metrics": report_all_validation_metrics,
             "graph_axis_policy": graph_axis_policy,
             "native_architecture": architecture.payload(),
             "native_architecture_sha256": architecture.payload_sha256,
@@ -1071,7 +1073,7 @@ def run_native_experiment(
             validate=validate,
             early_stopping_enabled=config.training.early_stopping,
         )
-        if config.training.monitor == "val/prediction_loss":
+        if config.training.monitor == "val/prediction_loss" or report_all_validation_metrics:
             from gradpert.training.curves import render_curves
 
             render_curves(small_root)

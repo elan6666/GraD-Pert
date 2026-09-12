@@ -36,6 +36,14 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command")
 
+    train = subparsers.add_parser("train", help="Train, validate, plot, and test best/last")
+    train.add_argument("--config", type=Path)
+    train.add_argument("--gpu", default="0")
+    train.add_argument("--seed", type=int)
+    train.add_argument("--data-root", type=Path)
+    train.add_argument("--runtime", type=Path)
+    train.add_argument("--dry-run", action="store_true")
+
     benchmark = subparsers.add_parser("benchmark", help="Dispatch an isolated official runner")
     benchmark.add_argument(
         "--model", required=True, choices=["scouter_genept_seed", "gears", "txpert_public"]
@@ -420,6 +428,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     parser = _parser()
     args = parser.parse_args(argv)
+    if args.command == "train":
+        from gradpert.execution.train_entry import train_entry
+
+        return train_entry(args)
     if args.command == "benchmark":
         root = args.repository_root.resolve(strict=True)
         executable = args.python.absolute()
