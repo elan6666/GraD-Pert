@@ -81,6 +81,7 @@ def run_native_step_smoke(**kwargs):
                 "checkpoint_role": "diagnostic_after_step_not_validation_best",
                 "checkpoint_roundtrip_exact": True,
                 "resources": resources,
+                "spread_pool_health": getattr(engine, "spread_pool_health", []),
             }
         )
         raise ProfileComplete("one real native update completed")

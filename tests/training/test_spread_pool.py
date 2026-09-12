@@ -1,7 +1,9 @@
 import math
+from pathlib import Path
 
 import pytest
 import torch
+import yaml
 
 from gradpert.modeling.losses import embedding_spread_loss
 from gradpert.training.spread_pool import cell_spread_pool, diagnose_cell_spread
@@ -36,3 +38,19 @@ def test_unique_batch_retains_original_loss():
 def test_unknown_condition_fails_closed():
     with pytest.raises(ValueError, match="missing"):
         cell_spread_pool(torch.eye(2), ["a", "b"], ["ctrl"])
+
+
+def test_k1_changes_only_pool_and_artifact_destination():
+    from gradpert.config import load_experiment_config
+
+    root = Path(__file__).resolve().parents[2]
+    path = root / "configs/r50/k1_cell_pool/gradpert_b2/nadig_jurkat.yaml"
+    parent = yaml.safe_load(
+        (root / "configs/r50/batch512/gradpert_b2/nadig_jurkat.yaml").read_text()
+    )
+    candidate = yaml.safe_load(path.read_text())
+    assert candidate["model"]["parameters"].pop("spread_pool")["value"] == "batch_cell"
+    candidate["artifacts"]["root"] = parent["artifacts"]["root"]
+    assert candidate == parent
+    config = load_experiment_config(path)
+    assert config.model.parameters["spread_loss_weight"].value == 0.1

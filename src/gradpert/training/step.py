@@ -50,6 +50,7 @@ from gradpert.training.batch import GraDPertTrainingBatch
 from gradpert.training.optimizer_health import observe_optimizer_update
 from gradpert.training.optimizers import SplitMatrixAdamW
 from gradpert.training.prediction_loss import expression_loss
+from gradpert.training.spread_pool import cell_spread_pool, diagnose_cell_spread
 
 
 @dataclass(frozen=True)
@@ -434,6 +435,7 @@ class GraDPertStepEngine:
         stage_observer: GraDPertStageObserver | None = None,
         step_schedule: StepWarmupCosine | LRWarmupCosine | None = None,
         prediction_reduction: str = "cell_mean",
+        spread_pool: str = "unique_condition",
         optimizer_health_interval: int = 0,
     ) -> None:
         if topology.n_nodes != model.graph_gene_count:
@@ -454,6 +456,10 @@ class GraDPertStepEngine:
         if prediction_reduction not in {"cell_mean", "condition_mean"}:
             raise ValueError("unknown prediction reduction")
         self.prediction_reduction = prediction_reduction
+        if spread_pool not in {"unique_condition", "batch_cell"}:
+            raise ValueError("unknown spread sample pool")
+        self.spread_pool = spread_pool
+        self.spread_pool_health: list[dict[str, Any]] = []
         if type(optimizer_health_interval) is not int or optimizer_health_interval < 0:
             raise ValueError("optimizer health interval must be a nonnegative integer")
         self.optimizer_health_interval = optimizer_health_interval
@@ -871,7 +877,23 @@ class GraDPertStepEngine:
             )
 
         with self._observe_stage("spread_loss", global_step=global_step):
-            spread_terms = [embedding_spread_loss(states) for states in student_global_states]
+            spread_states = student_global_states
+            if self.spread_pool == "batch_cell":
+                order = tuple(views.anchors_by_condition)
+                spread_states = tuple(
+                    cell_spread_pool(states, order, batch.condition_ids)
+                    for states in student_global_states
+                )
+                if global_step == 0:
+                    self.spread_pool_health = [
+                        {
+                            "global_view_index": i,
+                            "spread_weight": self.loss_weights.spread,
+                            **diagnose_cell_spread(states, order, batch.condition_ids),
+                        }
+                        for i, states in enumerate(student_global_states)
+                    ]
+            spread_terms = [embedding_spread_loss(states) for states in spread_states]
             spread_available = all(available for _, available in spread_terms)
             spread_loss = torch.stack([value for value, _ in spread_terms]).mean()
         auxiliary_loss = (

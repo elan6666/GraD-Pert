@@ -1111,6 +1111,30 @@ def test_native_step_applies_explicit_loss_weights() -> None:
     assert metrics.total_loss == pytest.approx(expected, rel=1e-6)
 
 
+def test_cell_pool_native_step_records_duplicate_diagnostics() -> None:
+    _, _, _, engine = _components(compact=True)
+    assert engine.spread_pool == "unique_condition"
+    engine.spread_pool = "batch_cell"
+    batch = _batch()
+    repeated = GraDPertTrainingBatch(
+        control_expression=batch.control_expression.repeat(2, 1),
+        target_expression=batch.target_expression.repeat(2, 1),
+        condition_ids=batch.condition_ids * 2,
+        anchors_by_condition=batch.anchors_by_condition,
+        perturbed_row_ids=("p1", "p2", "p3", "p4"),
+        control_row_ids=("c1", "c2", "c3", "c4"),
+    )
+    metrics = engine.train_step(repeated, global_step=0)
+    assert metrics.spread_available
+    assert metrics.spread_loss == pytest.approx(18.42068074)
+    assert len(engine.spread_pool_health) == 2
+    for report in engine.spread_pool_health:
+        assert report["cell_count"] == 4
+        assert report["repeated_p_exactly_equal"]
+        assert report["zero_distance_nearest_fraction"] == 1
+        assert report["unweighted_unique_p_gradient_norm"] == 0
+
+
 def test_loss_weights_reject_invalid_values() -> None:
     with pytest.raises(ValueError, match="finite and non-negative"):
         LossWeights(spread=-0.1)

@@ -893,6 +893,7 @@ def run_native_experiment(
             prediction_reduction=(
                 _optional_string_parameter(config, "prediction_reduction") or "cell_mean"
             ),
+            spread_pool=_optional_string_parameter(config, "spread_pool") or "unique_condition",
             step_schedule=(
                 training_schedule
                 if isinstance(training_schedule, (StepWarmupCosine, LRWarmupCosine))

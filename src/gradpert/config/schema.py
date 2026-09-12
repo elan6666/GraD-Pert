@@ -333,6 +333,12 @@ class ExperimentConfig(StrictModel):
             ):
                 raise ValueError("split optimizer is restricted to zero-decay R50")
             reduction = self.model.parameters.get("prediction_reduction")
+            spread_pool = self.model.parameters.get("spread_pool")
+            if spread_pool is not None and (
+                spread_pool.value not in {"unique_condition", "batch_cell"}
+                or self.training.formal_run_policy != "r50_selection"
+            ):
+                raise ValueError("spread sample pool selection requires R50")
             if reduction is not None and (
                 reduction.value not in {"cell_mean", "condition_mean"}
                 or self.training.formal_run_policy != "r50_selection"
