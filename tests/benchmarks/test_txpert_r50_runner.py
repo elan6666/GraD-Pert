@@ -12,8 +12,10 @@ from benchmarks.txpert import runner
 ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.parametrize("smoke", [True, False])
-def test_txpert_r50_runner_checkpoint_roles_and_truth_scope(tmp_path, monkeypatch, smoke):
+@pytest.mark.parametrize("smoke,step_smoke", [(True, False), (False, False), (False, True)])
+def test_txpert_r50_runner_checkpoint_roles_and_truth_scope(
+    tmp_path, monkeypatch, smoke, step_smoke
+):
     source = NS(commit="train", dirty=False, formal_eligible=True, payload=lambda: {})
     env = NS(payload_sha256="env", payload=lambda: {})
     monkeypatch.setattr(runner, "inspect_source_identity", lambda *a, **k: source)
@@ -73,6 +75,14 @@ def test_txpert_r50_runner_checkpoint_roles_and_truth_scope(tmp_path, monkeypatc
             assert kwargs["r50"]
             epochs = kwargs["epochs"]
             calls.append(epochs)
+            if "step_checkpoint_path" in kwargs:
+                path = kwargs["step_checkpoint_path"]
+                torch.save(model.state_dict(), path)
+                return NS(
+                    gradpert_step_smoke=dict(
+                        completed_steps=1, completed_epochs=0, checkpoint_serialization_exact=True
+                    )
+                )
             with torch.no_grad():
                 model.weight.fill_(50)
             torch.save({"state_dict": model.state_dict()}, kwargs["last_checkpoint_path"])
@@ -108,7 +118,7 @@ def test_txpert_r50_runner_checkpoint_roles_and_truth_scope(tmp_path, monkeypatc
 
     @contextmanager
     def test(**kwargs):
-        assert not smoke, "smoke opened test truth"
+        assert not (smoke or step_smoke), "smoke opened test truth"
         yield NS(control_manifest=NS(draws=[]))
 
     monkeypatch.setattr(runner, "CanonicalEvaluationData", test)
@@ -138,9 +148,16 @@ def test_txpert_r50_runner_checkpoint_roles_and_truth_scope(tmp_path, monkeypatc
         formal=True,
         development_commit=None,
         smoke=smoke,
+        step_smoke=step_smoke,
         smoke_run_root=tmp_path / "smoke",
     )
     assert calls == [1 if smoke else 50]
+    if step_smoke:
+        assert not captured
+        assert result["completed_steps"] == 1 and result["completed_epochs"] == 0
+        assert result["status"] == "single_update_complete"
+        assert not list(root.rglob("*.pkl"))
+        return
     assert len(gates) == (0 if smoke else 1)
     assert captured == ([] if smoke else [1.0, 50.0])
     assert result["status"] == ("trained_validation_only" if smoke else "evaluated")

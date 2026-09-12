@@ -12,8 +12,8 @@ from gradpert.hashing import sha256_file
 ROOT = Path(__file__).resolve().parents[2]
 
 
-@pytest.mark.parametrize("smoke", [True, False])
-def test_gears_r50_real_last_and_no_smoke_test(tmp_path, monkeypatch, smoke):
+@pytest.mark.parametrize("smoke,step_smoke", [(True, False), (False, False), (False, True)])
+def test_gears_r50_real_last_and_no_smoke_test(tmp_path, monkeypatch, smoke, step_smoke):
     source = NS(commit="train", dirty=False, formal_eligible=True, payload=lambda: {})
     env = NS(payload_sha256="env", payload=lambda: {})
     monkeypatch.setattr(runner, "inspect_source_identity", lambda *a, **k: source)
@@ -70,6 +70,14 @@ def test_gears_r50_real_last_and_no_smoke_test(tmp_path, monkeypatch, smoke):
             assert kwargs["r50"]
             epochs = kwargs["epochs"]
             calls.append(epochs)
+            if "step_checkpoint_path" in kwargs:
+                path = kwargs["step_checkpoint_path"]
+                path.parent.mkdir(parents=True)
+                torch.save(model.best_model.state_dict(), path)
+                model.gradpert_step_smoke = dict(
+                    completed_steps=1, completed_epochs=0, checkpoint_serialization_exact=True
+                )
+                return model
             best_dir = kwargs["checkpoint_dir"]
             best_dir.mkdir(parents=True)
             with torch.no_grad():
@@ -105,7 +113,7 @@ def test_gears_r50_real_last_and_no_smoke_test(tmp_path, monkeypatch, smoke):
 
     @contextmanager
     def test(**kwargs):
-        assert not smoke
+        assert not (smoke or step_smoke)
         test_calls.append(1)
         yield NS(control_manifest=NS(draws=[]))
 
@@ -138,9 +146,16 @@ def test_gears_r50_real_last_and_no_smoke_test(tmp_path, monkeypatch, smoke):
         formal=True,
         development_commit=None,
         smoke=smoke,
+        step_smoke=step_smoke,
         smoke_run_root=tmp_path / "smoke",
     )
     assert calls == [1 if smoke else 50]
+    if step_smoke:
+        assert not captured
+        assert result["completed_steps"] == 1 and result["completed_epochs"] == 0
+        assert result["status"] == "single_update_complete"
+        assert not list(root.rglob("*.pkl"))
+        return
     assert len(gate_calls) == (0 if smoke else 1)
     assert len(test_calls) == (0 if smoke else 2)
     assert captured == ([] if smoke else [1.0, 50.0])
