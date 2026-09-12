@@ -73,16 +73,44 @@ class LRWarmupCosine:
         return {"learning_rate": lr}
 
 
+@dataclass(frozen=True)
+class EndpointLRWarmupCosine(LRWarmupCosine):
+    """R50 schedule-only variant with an exact final-step LR endpoint."""
+
+    def at_step(self, step: int, total_steps: int) -> dict[str, float]:
+        if type(step) is not int or type(total_steps) is not int or step < 0:
+            raise ValueError("invalid schedule step budget")
+        warmup = int(total_steps * self.warmup_fraction)
+        if warmup < 1 or total_steps - 1 <= warmup:
+            raise ValueError("schedule requires positive warmup and decay intervals")
+        if step >= total_steps - 1:
+            lr = self.min_lr
+        elif step < warmup:
+            lr = self.max_lr * step / warmup
+        else:
+            progress = (step - warmup) / (total_steps - 1 - warmup)
+            lr = self.min_lr + (self.max_lr - self.min_lr) * (1 + math.cos(math.pi * progress)) / 2
+        return {"learning_rate": lr}
+
+
 def load_training_schedule(
     value: Any,
 ) -> EpochWarmupCosineRestarts | StepWarmupCosine | LRWarmupCosine | None:
-    if isinstance(value, dict) and value.get("name") == "lr_warmup_cosine":
+    if isinstance(value, dict) and value.get("name") in {
+        "lr_warmup_cosine",
+        "lr_warmup_cosine_endpoint",
+    }:
         fields = {"max_lr", "min_lr", "warmup_fraction"}
         if set(value) != fields | {"name", "interval"} or value["interval"] != "step":
             raise ValueError("LR-only schedule requires complete explicit fields")
         if any(type(value[k]) not in (int, float) or not math.isfinite(value[k]) for k in fields):
             raise ValueError("LR-only schedule parameters must be finite")
-        result_lr = LRWarmupCosine(**{k: value[k] for k in fields})
+        schedule_type = (
+            EndpointLRWarmupCosine
+            if value["name"] == "lr_warmup_cosine_endpoint"
+            else LRWarmupCosine
+        )
+        result_lr = schedule_type(**{k: value[k] for k in fields})
         if not 0 < result_lr.min_lr <= result_lr.max_lr or not 0 < result_lr.warmup_fraction < 1:
             raise ValueError("invalid LR-only schedule bounds")
         return result_lr
