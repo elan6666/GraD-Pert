@@ -846,7 +846,6 @@ def run_native_experiment(
             ),
         )
         if isinstance(optimizer, SplitMatrixAdamW):
-            optimizer.health_interval = steps_per_epoch
             _write_or_require_json(
                 small_root / "optimizer_recipe.json",
                 {
@@ -890,6 +889,7 @@ def run_native_experiment(
                 if isinstance(module, _SparseGraphTransformerLayer):
                     module.capture_attention_health = True
         engine = GraDPertStepEngine(
+            optimizer_health_interval=steps_per_epoch if capture_optimizer_health else 0,
             prediction_reduction=(
                 _optional_string_parameter(config, "prediction_reduction") or "cell_mean"
             ),
@@ -1011,14 +1011,14 @@ def run_native_experiment(
             validate=validate,
             early_stopping_enabled=config.training.early_stopping,
         )
-        if isinstance(optimizer, SplitMatrixAdamW):
+        if capture_optimizer_health:
             atomic_json(
                 small_root / "optimizer_update_health.json",
                 {
                     "schema": "native-optimizer-update-health-v1",
-                    "interval_steps": optimizer.health_interval,
+                    "interval_steps": engine.optimizer_health_interval,
                     "timing_kind": "host_dispatch_not_cuda_kernel_time",
-                    "samples": optimizer.update_health,
+                    "samples": engine.optimizer_update_health,
                 },
             )
         if capture_optimizer_health:

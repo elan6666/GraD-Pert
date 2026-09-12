@@ -174,6 +174,10 @@ upstream model checkout or Muon-author package is a runtime dependency.
 Audited PyTorch 2.13.0 source commit
 `cf30153c4c131c8164ee7798e5022d810682e2cb`, `torch/optim/_muon.py` SHA256
 `4d003aba2d0c7fcc24875845802e45edb4475a51a037e2caaa7b46c3944c0dae`.
+
+Unified-observer/smoke-default gate: 874 passed/four explicit skips, Ruff,
+format350, mypy83 and isolated build passed. Pre-change published baseline
+`39a1b34be151b721890c9be8c5d973355a869acc`. No CUDA started.
 Server runtime must be checked separately before a launch claim.
 Reference: https://github.com/pytorch/pytorch/blob/cf30153c4c131c8164ee7798e5022d810682e2cb/torch/optim/_muon.py.
 
@@ -215,10 +219,23 @@ for G1/G2/G3. The resulting receipt is first-forward health only, not evidence
 of stability across all epochs. Separate tests compare parameters, optimizer
 state, outputs, gradients and RNG with diagnostics enabled/disabled. Sampling
 memory overhead still needs the real capacity/smoke gate. G2 AdamW update norms
-and server publication/launch contracts remain outstanding preparation items.
+are now captured by the same engine observer as G1/G3, sampled by the original
+global-step index across resume. Tests cover both optimizer types and prove
+unchanged weights, optimizer state and RNG. Server publication/launch contracts
+remain outstanding preparation items.
 
 Health-instrumentation publication gates: 869 tests passed, four explicit
 environment/reference/CUDA skips; Ruff, format349, strict mypy82 and isolated
 wheel/sdist build passed. Pre-change clean published baseline:
 `cee5b62bfb6723bd0a4bfe3bfc63ac96cbec60ad`. No server smoke or full run is
 implied by these local tests. Latest build-all policy still blocks full launches.
+
+The shared R50 queue now defaults to smoke-only and accepts G1/G2/G3/C1.
+`--full-after-smoke` is an explicit opt-in for a later reviewed formal campaign;
+it must NOT appear in build-all smoke contracts. Synthetic runner tests prove
+that the default launches smoke only and does not call the test evaluator,
+while opt-in retains smoke/full/automatic best-last sequencing. New coordinates
+also require explicit `GRADPERT_SPARSE_UNION_IMPL=cpu_array` before execution.
+Server torch2.13.0+cu130 was read-only verified against local2.13.0: torch Git
+`cf30153c4c131c8164ee7798e5022d810682e2cb`, Muon source file SHA
+`4d003aba2d0c7fcc24875845802e45edb4475a51a037e2caaa7b46c3944c0dae`.

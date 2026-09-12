@@ -1,4 +1,4 @@
-"""Run a fresh R50 coordinate: one validation-only integration, then fifty epochs."""
+"""Run fresh R50 integration; full training requires explicit opt-in."""
 
 from __future__ import annotations
 
@@ -14,6 +14,10 @@ from pathlib import Path
 
 def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def phases(*, full_after_smoke: bool) -> tuple[tuple[str, int], ...]:
+    return (("smoke", 1), ("full", 50)) if full_after_smoke else (("smoke", 1),)
 
 
 def command(args: argparse.Namespace, phase: str) -> list[str]:
@@ -130,6 +134,10 @@ def main() -> None:
             "batch1024",
             "sched",
             "sched512",
+            "g1_muon",
+            "g2_schedule",
+            "g3_combined",
+            "c1_condition_mse",
         ),
         required=True,
     )
@@ -139,6 +147,11 @@ def main() -> None:
     for flag in ("commit", "publication-sha", "genept-sha", "config-sha"):
         parser.add_argument("--" + flag, required=True)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--full-after-smoke",
+        action="store_true",
+        help="Explicit reviewed full-run opt-in; omit throughout build-all smoke campaign",
+    )
     args = parser.parse_args()
     args.source = args.source.resolve(strict=True)
     args.root = args.root.resolve()
@@ -167,14 +180,26 @@ def main() -> None:
         raise ValueError("R50 formal outputs belong under the server runs directory")
     if args.dry_run:
         print(
-            json.dumps({"row": args.row, "commands": [command(args, p) for p in ("smoke", "full")]})
+            json.dumps(
+                {
+                    "row": args.row,
+                    "commands": [
+                        command(args, p) for p, _ in phases(full_after_smoke=args.full_after_smoke)
+                    ],
+                    "full_after_smoke": args.full_after_smoke,
+                }
+            )
         )
         return
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         raise RuntimeError("R50 requires expandable_segments:True")
+    if args.row in {"g1_muon", "g2_schedule", "g3_combined", "c1_condition_mse"} and (
+        os.environ.get("GRADPERT_SPARSE_UNION_IMPL") != "cpu_array"
+    ):
+        raise RuntimeError("new R50 coordinates require explicit cpu_array")
     args.root.mkdir(parents=True, exist_ok=False)
     phase_receipts = []
-    for phase, epochs in (("smoke", 1), ("full", 50)):
+    for phase, epochs in phases(full_after_smoke=args.full_after_smoke):
         identity()
         print(f"START {args.row} {phase}", flush=True)
         with (args.root / f"{phase}.log").open("x") as log:
@@ -197,10 +222,15 @@ def main() -> None:
                 "source_commit": args.commit,
                 "phases": phase_receipts,
                 "test_evaluations": 0,
+                "full_after_smoke": args.full_after_smoke,
+                "scientific_completion": False,
             },
             f,
         )
     print(f"R50_COMPLETE {args.row}", flush=True)
+    if not args.full_after_smoke:
+        print(f"R50_SMOKE_ONLY_COMPLETE {args.row}", flush=True)
+        return
     # Full training is sealed before test; the smoke remains validation-only.
     from gradpert.execution.postfit import evaluate_best_last
 

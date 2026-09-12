@@ -47,6 +47,7 @@ from gradpert.modeling import (
 )
 from gradpert.modeling.modules import ConfigurableGeneGraphEncoder
 from gradpert.training.batch import GraDPertTrainingBatch
+from gradpert.training.optimizer_health import observe_optimizer_update
 from gradpert.training.optimizers import SplitMatrixAdamW
 from gradpert.training.prediction_loss import expression_loss
 
@@ -433,6 +434,7 @@ class GraDPertStepEngine:
         stage_observer: GraDPertStageObserver | None = None,
         step_schedule: StepWarmupCosine | LRWarmupCosine | None = None,
         prediction_reduction: str = "cell_mean",
+        optimizer_health_interval: int = 0,
     ) -> None:
         if topology.n_nodes != model.graph_gene_count:
             raise ValueError("topology and model graph-gene counts differ")
@@ -452,6 +454,10 @@ class GraDPertStepEngine:
         if prediction_reduction not in {"cell_mean", "condition_mean"}:
             raise ValueError("unknown prediction reduction")
         self.prediction_reduction = prediction_reduction
+        if type(optimizer_health_interval) is not int or optimizer_health_interval < 0:
+            raise ValueError("optimizer health interval must be a nonnegative integer")
+        self.optimizer_health_interval = optimizer_health_interval
+        self.optimizer_update_health: list[dict[str, Any]] = []
         self.heldout_target_ids = heldout_target_ids
         default_architecture = NativeArchitectureOptions.from_parameters({})
         if architecture is None:
@@ -994,7 +1000,16 @@ class GraDPertStepEngine:
                     parameter.grad = auxiliary_gradient.detach()
                 else:
                     parameter.grad.add_(auxiliary_gradient.detach())
-        with self._observe_stage("optimizer", global_step=global_step):
+        with (
+            self._observe_stage("optimizer", global_step=global_step),
+            observe_optimizer_update(
+                self.model,
+                self.optimizer,
+                global_step=global_step,
+                interval=self.optimizer_health_interval,
+                records=self.optimizer_update_health,
+            ),
+        ):
             self.optimizer.step()
         if capture_health:
             update_order.append("optimizer_step")

@@ -5,6 +5,7 @@ import torch
 from torch import nn
 
 from gradpert.modeling.encoders import _SparseGraphTransformerLayer
+from gradpert.training.optimizer_health import observe_optimizer_update
 from gradpert.training.optimizers import SplitMatrixAdamW, parameter_routes
 
 
@@ -166,3 +167,32 @@ def test_attention_health_preserves_forward_backward_rng_and_is_bounded():
     assert observed.attention_health["mean_target_head_entropy"] == 0
     assert observed.capture_attention_health is False
     assert layer.attention_health is None
+
+
+@pytest.mark.parametrize("split", [False, True])
+def test_common_update_observer_is_exact_and_uses_global_step(split):
+    plain = model()
+    observed = model()
+    observed.load_state_dict(plain.state_dict())
+
+    def optimizer(net):
+        if split:
+            return SplitMatrixAdamW(net, lr=0.001)
+        return torch.optim.AdamW([p for p in net.parameters() if p.requires_grad], lr=0.001)
+
+    a, b = optimizer(plain), optimizer(observed)
+    records = []
+    # A resumed segment must not start sampling at a new local step zero.
+    for step in (3, 4, 5):
+        gradients(plain, step)
+        gradients(observed, step)
+        rng = torch.get_rng_state().clone()
+        a.step()
+        with observe_optimizer_update(observed, b, global_step=step, interval=2, records=records):
+            b.step()
+        assert_tree(plain.state_dict(), observed.state_dict())
+        assert_tree(a.state_dict(), b.state_dict())
+        assert torch.equal(rng, torch.get_rng_state())
+    assert [record["global_step"] for record in records] == [4]
+    assert set(records[0]["groups"]) == ({"muon", "adamw"} if split else {"adamw"})
+    assert all(group["update_l2"] > 0 for group in records[0]["groups"].values())
