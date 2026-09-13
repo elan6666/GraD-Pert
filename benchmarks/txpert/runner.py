@@ -113,8 +113,22 @@ def _official_config(
     ):
         raise ValueError("TxPert official YAML lacks model/datamodule/graph mappings")
     datamodule = parsed["datamodule"]
+    official_batch_size = datamodule.get("batch_size")
+    requested_batch_size = config.training.train_batch_size.value
+    override = config.model.parameters.get("official_train_batch_override")
+    if override is None:
+        batch_matches_contract = official_batch_size == requested_batch_size
+    else:
+        batch_matches_contract = (
+            official_batch_size == 64
+            and requested_batch_size == 1024
+            and config.training.train_batch_size.source == "user_locked"
+            and override.value == requested_batch_size
+            and override.source == "user_locked"
+            and override.reference == "docs/experiments/R50_1024_FINISH_MATRIX.md"
+        )
     if (
-        datamodule.get("batch_size") != config.training.train_batch_size.value
+        not batch_matches_contract
         or datamodule.get("match_cntr") is not True
         or datamodule.get("avg_cntr") is not True
         or datamodule.get("obsm_key") != "raw"
@@ -131,7 +145,7 @@ def preflight(config_path: Path, checkout_root: Path) -> dict[str, object]:
         "external_fixed_50",
     }:
         raise ValueError("TxPert runner requires a txpert_public smoke-only experiment config")
-    official_config_path, _ = _official_config(config, checkout_root)
+    official_config_path, parsed = _official_config(config, checkout_root)
     with official_module_session(
         checkout_root=checkout_root,
         expected_commit=config.source_code.commit,
@@ -154,6 +168,13 @@ def preflight(config_path: Path, checkout_root: Path) -> dict[str, object]:
         "formal_run_policy": config.training.formal_run_policy,
         "official_config_path": str(official_config_path),
         "official_config_sha256": _sha256_file(official_config_path),
+        "official_train_batch_size": parsed["datamodule"]["batch_size"],
+        "effective_train_batch_size": config.training.train_batch_size.value,
+        "official_train_batch_override": (
+            config.model.parameters["official_train_batch_override"].value
+            if "official_train_batch_override" in config.model.parameters
+            else None
+        ),
         "official_symbols": [
             "gspp.predictor.PertPredictor",
             "gspp.data.datamodule.PertDataModule",
@@ -608,6 +629,13 @@ def run_one_epoch(
                 **checkout_receipt.payload(),
                 "official_config_path": str(official_config_path),
                 "official_config_sha256": _sha256_file(official_config_path),
+                "official_train_batch_size": official_config["datamodule"]["batch_size"],
+                "effective_train_batch_size": config.training.train_batch_size.value,
+                "official_train_batch_override": (
+                    config.model.parameters["official_train_batch_override"].value
+                    if "official_train_batch_override" in config.model.parameters
+                    else None
+                ),
                 "covered_target_count": len(covered_targets),
                 "covered_targets_sha256": sha256_json(list(covered_targets)),
             },

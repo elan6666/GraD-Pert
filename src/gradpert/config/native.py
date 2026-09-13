@@ -187,6 +187,7 @@ class NativeArchitectureOptions:
     genept_expected_sha256: str | None
     graph_axis_source_sha256: str | None
     capacity_profile: str = "historical"
+    projector_hidden_dim: int = 2048
 
     def __post_init__(self) -> None:
         if self.graph_axis_policy == "recomputed_hvg_union_candidate_targets":
@@ -247,6 +248,12 @@ class NativeArchitectureOptions:
         if self.capacity_profile != "historical" and self.capacity_profile not in CAPACITY_PROFILES:
             raise ValueError("unknown native capacity profile")
         compact = self.capacity_profile in CAPACITY_PROFILES
+        expected_projector_hidden = CAPACITY_PROFILES[self.capacity_profile][1] if compact else None
+        if compact:
+            if self.projector_hidden_dim != expected_projector_hidden:
+                raise ValueError("compact capacity profile freezes projector_hidden_dim")
+        elif self.projector_hidden_dim not in {1024, 2048, 4096}:
+            raise ValueError("historical projector_hidden_dim must be 1024, 2048 or 4096")
         if compact and (
             self.graph_encoder_family != "adaptive_relation_gat"
             or self.graph_axis_policy != "canonical_full"
@@ -258,8 +265,8 @@ class NativeArchitectureOptions:
             raise ValueError("compact128_v1 is restricted to the B0/B1 GAT additive coordinate")
         depth = CAPACITY_PROFILES[self.capacity_profile][0] if compact else 4
         if not compact and self.graph_encoder_family == "multi_source_sparse_transformer":
-            if self.graph_layer_count not in {2, 4}:
-                raise ValueError("Exphormer depth ablation supports only two or four layers")
+            if self.graph_layer_count not in {2, 4, 6}:
+                raise ValueError("Exphormer depth ablation supports only two, four or six layers")
             depth = self.graph_layer_count
         expected_dimensions = (128, depth, 2, 128)
         observed_dimensions = (
@@ -446,6 +453,13 @@ class NativeArchitectureOptions:
                     raise ValueError(f"{capacity_profile} requires explicit {key}={expected}")
         return cls(
             capacity_profile=capacity_profile,
+            projector_hidden_dim=_integer(
+                parameters,
+                "projector_hidden_dim",
+                CAPACITY_PROFILES[capacity_profile][1]
+                if capacity_profile in CAPACITY_PROFILES
+                else 2048,
+            ),
             graph_axis_policy=cast(GraphAxisPolicy, graph_axis_policy),
             graph_hvg_count=_integer(parameters, "graph_hvg_count", default_hvg_count),
             graph_sources=sources,
@@ -484,6 +498,8 @@ class NativeArchitectureOptions:
         if self.capacity_profile == "historical":
             # Preserve every sealed legacy architecture hash.
             del payload["capacity_profile"]
+            if self.projector_hidden_dim == 2048:
+                del payload["projector_hidden_dim"]
         else:
             payload["projector_hidden_dim"] = CAPACITY_PROFILES[self.capacity_profile][1]
             payload["projector_bottleneck_dim"] = CAPACITY_PROFILES[self.capacity_profile][2]

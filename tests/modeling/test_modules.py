@@ -143,6 +143,35 @@ def _vnext_options(**changes: object) -> NativeArchitectureOptions:
     return NativeArchitectureOptions.from_parameters(parameters)
 
 
+@pytest.mark.parametrize(
+    ("changed_parameter", "new_value"),
+    [("graph_tower_layers", 6), ("projector_hidden_dim", 4096)],
+)
+def test_single_axis_model_expansion_increases_trainable_parameters(
+    changed_parameter: str, new_value: int
+) -> None:
+    reference = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=_vnext_options(),
+    )
+    expanded = GraDPertJointModel(
+        graph_gene_count=7,
+        expression_gene_count=5,
+        prototype_count=8192,
+        architecture=_vnext_options(**{changed_parameter: new_value}),
+    )
+    reference_count = sum(p.numel() for p in reference.parameters() if p.requires_grad)
+    expanded_count = sum(p.numel() for p in expanded.parameters() if p.requires_grad)
+    assert expanded_count > reference_count
+    if changed_parameter == "graph_tower_layers":
+        assert len(expanded.student_encoder.backend.layers) == 6
+    else:
+        assert expanded.student_projector.mlp[0].out_features == 4096
+        assert expanded.teacher_projector.mlp[0].out_features == 4096
+
+
 def test_vnext_default_joint_model_uses_one_shared_native_architecture() -> None:
     options = _vnext_options()
     model = GraDPertJointModel(

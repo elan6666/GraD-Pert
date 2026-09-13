@@ -23,7 +23,9 @@ def test_txpert_r50_runner_checkpoint_roles_and_truth_scope(
     config_file = tmp_path / "official.yaml"
     config_file.write_text("{}")
     monkeypatch.setattr(
-        runner, "_official_config", lambda *a: (config_file, {"model": {}, "graph": {}})
+        runner,
+        "_official_config",
+        lambda *a: (config_file, {"model": {}, "graph": {}, "datamodule": {"batch_size": 64}}),
     )
     monkeypatch.setattr(runner, "load_runtime_contract", lambda **k: (config_file, {}))
     monkeypatch.setattr(runner, "inspect_cuda_runtime", lambda **k: {})

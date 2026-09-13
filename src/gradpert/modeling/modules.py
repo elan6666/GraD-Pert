@@ -876,6 +876,7 @@ class ConsistencyProjector(nn.Module):
         input_dim: int = 64,
         compact: bool = False,
         capacity_profile: str = "compact128_v1",
+        hidden_dim: int = 2048,
     ) -> None:
         super().__init__()
         if prototype_count not in {65536, 32768, 16384, 8192}:
@@ -883,7 +884,9 @@ class ConsistencyProjector(nn.Module):
         if input_dim not in {64, 256}:
             raise ValueError("projector input_dim must be 64 or 256")
         self.prototype_count = prototype_count
-        hidden, bottleneck = CAPACITY_PROFILES[capacity_profile][1:3] if compact else (2048, 256)
+        hidden, bottleneck = (
+            CAPACITY_PROFILES[capacity_profile][1:3] if compact else (hidden_dim, 256)
+        )
         self.mlp = nn.Sequential(
             nn.Linear(input_dim, hidden),
             nn.GELU(),
@@ -1013,6 +1016,7 @@ class GraDPertJointModel(nn.Module):
             input_dim=perturbation_dim,
             compact=compact,
             capacity_profile=self.architecture.capacity_profile,
+            hidden_dim=self.architecture.projector_hidden_dim,
         )
         self.basal_encoder = BasalStateEncoder(expression_gene_count, compact=compact)
         decoder_input_dim = {
@@ -1057,6 +1061,7 @@ class GraDPertJointModel(nn.Module):
             input_dim=perturbation_dim,
             compact=compact,
             capacity_profile=self.architecture.capacity_profile,
+            hidden_dim=self.architecture.projector_hidden_dim,
         )
         self.teacher_encoder.load_state_dict(self.student_encoder.state_dict())
         self.teacher_projector.load_state_dict(self.student_projector.state_dict())
