@@ -36,10 +36,6 @@ model:
       value: "2991e704496809979a47c4fade782698f9e465f593e0bc7fb87412f0c416df21"
       source: official
       reference: "sha256 of frozen official config at commit 08d82eea86746b044cf7531f4ec8c5f60e1cb73f"
-    official_train_batch_override:
-      value: 1024
-      source: user_locked
-      reference: docs/experiments/R50_1024_FINISH_MATRIX.md
     hidden_dim:
       value: 512
       source: official
@@ -108,9 +104,9 @@ training:
     source: user_locked
     reference: "Historical patience10 metadata retained but inactive in fixed50"
   train_batch_size:
-    value: 1024
-    source: user_locked
-    reference: docs/experiments/R50_1024_FINISH_MATRIX.md
+    value: 64
+    source: official
+    reference: "ref_txpert_public:gspp/data/datamodule.py"
   eval_batch_size:
     value: 64
     source: official

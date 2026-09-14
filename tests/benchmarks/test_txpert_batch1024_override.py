@@ -30,7 +30,7 @@ def _frozen_config(tmp_path: Path) -> Path:
     return path
 
 
-def test_original_official_batch_and_explicit_1024_override(tmp_path, monkeypatch) -> None:
+def test_pending_txpert_restores_official_batch64(tmp_path, monkeypatch) -> None:
     original = load_experiment_config(ROOT / "configs/r50-rerun/txpert_public/nadig_jurkat.yaml")
     override = load_experiment_config(
         ROOT / "configs/r50-r1024-finish/txpert_public/nadig_jurkat.yaml"
@@ -40,6 +40,9 @@ def test_original_official_batch_and_explicit_1024_override(tmp_path, monkeypatc
     monkeypatch.setattr(runner, "_sha256_file", lambda _: official_hash)
     assert runner._official_config(original, tmp_path)[0] == path
     assert runner._official_config(override, tmp_path)[0] == path
+    assert override.training.train_batch_size.value == 64
+    assert override.training.train_batch_size.source == "official"
+    assert "official_train_batch_override" not in override.model.parameters
 
     missing_declaration = SimpleNamespace(
         model=SimpleNamespace(
@@ -51,8 +54,7 @@ def test_original_official_batch_and_explicit_1024_override(tmp_path, monkeypatc
         ),
         training=override.training,
     )
-    with pytest.raises(ValueError, match="frozen official datamodule"):
-        runner._official_config(missing_declaration, tmp_path)
+    assert runner._official_config(missing_declaration, tmp_path)[0] == path
 
     wrong_batch = SimpleNamespace(
         model=override.model,

@@ -5,7 +5,7 @@ completed scientific result merely because its configuration or smoke passes.
 
 ## Scope and parent
 
-All **new** 50-epoch rows use train batch 1024, eval batch 256, seed 1,
+All **new native GraD-Pert** 50-epoch rows use train batch 1024, eval batch 256, seed 1,
 validation every epoch, no early stop, and automatic canonical test of both
 validation-selected best and true epoch-50 last checkpoints (native
 `best.pt`/`last.pt`, external runner's own checkpoint format). Test scores are
@@ -63,6 +63,12 @@ counts and model/data ratio before launch; keep embedding, basal/decoder,
 head dimensions and graph topology unchanged.
 
 ## External TxPert coordinate
+
+2026-09-14 user correction supersedes the batch-1024 proposal below: pending
+TxPert uses official train/eval batch **64**, with no batch override. Retain
+50 epochs and best/last testing. The existing configuration path is retained
+for compatibility; its name is not a batch setting. Never enqueue TxPert1024.
+The following paragraph describes the withdrawn proposal, not an active run.
 
 The previously completed official TxPert 50-epoch rerun used its frozen
 official batch 64 and stays labeled that way. A fresh batch-1024 TxPert row
