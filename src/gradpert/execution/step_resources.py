@@ -39,7 +39,13 @@ def capture_step_resources(device: Any, output_directory: Path) -> dict[str, Any
     if not required.issubset(stats):
         raise RuntimeError("CUDA resource counters unavailable")
     peak = int(stats["reserved_bytes.all.peak"])
-    minimum = max(4 * 1024**3, (int(total) * 15 + 99) // 100)
+    policy = os.environ.get("GRADPERT_STEP_HEADROOM_POLICY", "default_15pct_4gib")
+    if policy == "default_15pct_4gib":
+        minimum = max(4 * 1024**3, (int(total) * 15 + 99) // 100)
+    elif policy == "user_authorized_txpert_concurrent_10pct":
+        minimum = (int(total) * 10 + 99) // 100
+    else:
+        raise ValueError("unknown step headroom policy")
     headroom = min(int(free), int(total) - peak)
     result.update(
         cuda_free_bytes=int(free),
@@ -50,6 +56,7 @@ def capture_step_resources(device: Any, output_directory: Path) -> dict[str, Any
         allocator_ooms=int(stats["num_ooms"]),
         conservative_headroom_bytes=headroom,
         required_headroom_bytes=minimum,
+        headroom_policy=policy,
     )
     result["cuda_acceptance"] = (
         headroom >= minimum and result["allocator_retries"] == 0 and result["allocator_ooms"] == 0

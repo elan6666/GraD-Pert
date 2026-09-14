@@ -44,6 +44,16 @@ def test_cuda_gate_covers_free_peak_and_allocator_history(
         with pytest.raises(RuntimeError, match="resource gate failed"):
             capture_step_resources("cuda:0", tmp_path)
 
+    monkeypatch.setenv("GRADPERT_STEP_HEADROOM_POLICY", "user_authorized_txpert_concurrent_10pct")
+    relaxed_passed = min(free_gib, 32 - peak_gib) >= 3.2 and retries == 0 and ooms == 0
+    if relaxed_passed:
+        result = capture_step_resources("cuda:0", tmp_path)
+        assert result["cuda_acceptance"]
+        assert result["headroom_policy"] == "user_authorized_txpert_concurrent_10pct"
+    else:
+        with pytest.raises(RuntimeError, match="resource gate failed"):
+            capture_step_resources("cuda:0", tmp_path)
+
 
 def test_cuda_allocator_required_before_query(tmp_path, monkeypatch):
     monkeypatch.delenv("PYTORCH_ALLOC_CONF", raising=False)
