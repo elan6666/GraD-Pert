@@ -316,8 +316,8 @@ training:
     source: official
     reference: ref_txpert_public:gspp/predictor.py default lr_scheduler_args
   early_stopping: false
-  monitor: val/txpert_macro_pearson_delta
-  monitor_mode: max
+  monitor: val/prediction_loss
+  monitor_mode: min
   min_delta: 0.0
   run_seeds:
   - 1

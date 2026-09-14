@@ -4,8 +4,21 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from gradpert.config.schema import ExperimentConfig
+
+
+@pytest.mark.parametrize("row", ["weight_masked_double", "weight_spread_half", "scale_projector4096"])
+def test_pending_finish_rows_use_loss_selection(row):
+    root = Path(__file__).resolve().parents[2] / "configs/r50"
+    parsed = ExperimentConfig.model_validate(
+        yaml.safe_load((root / f"r1024_{row}/gradpert_b2/nadig_jurkat.yaml").read_text())
+    )
+    assert parsed.training.max_epochs.value == 50
+    assert parsed.training.early_stopping is False
+    assert parsed.training.monitor == "val/prediction_loss"
+    assert parsed.training.monitor_mode == "min"
 
 
 @pytest.mark.parametrize("row", ["t2", "p1", "p2", "c1", "l1", "l2", "l3"])
