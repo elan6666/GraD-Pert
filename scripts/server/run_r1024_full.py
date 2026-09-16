@@ -12,11 +12,15 @@ ROWS = tuple(
     "r1024_" + x for x in ("s1", "s2", "u1", "t1", "t2", "p1", "p2", "c1", "l1", "l2", "l3")
 )
 LOSS_ROWS = tuple("r1024_loss_" + x + "_v1" for x in ("t2", "p1", "p2", "c1", "l1", "l2", "l3"))
+NEW_ROWS = tuple(
+    "r50n_" + x
+    for x in ("t1_u1", "batch2048", "k32768", "k8192", "string", "source_gat", "prediction_only")
+)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--row", choices=ROWS + LOSS_ROWS, required=True)
+    parser.add_argument("--row", choices=ROWS + LOSS_ROWS + NEW_ROWS, required=True)
     for key in ("source", "root", "data-root", "publication", "genept-receipt", "step-receipt"):
         parser.add_argument("--" + key, type=Path, required=True)
     for key in ("commit", "config-sha", "publication-sha", "genept-sha", "step-sha"):

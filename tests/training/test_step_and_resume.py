@@ -133,6 +133,37 @@ def _components(
     return model, optimizer, centers, engine
 
 
+def test_prediction_only_skips_all_auxiliary_work(monkeypatch):
+    model, _, centers, engine = _components(compact=True)
+    engine.loss_weights = LossWeights(1.0, 0.0, 0.0, 0.0)
+    frozen = {
+        key: value.clone()
+        for key, value in model.state_dict().items()
+        if key.startswith(("teacher_", "student_projector"))
+    }
+    old_center = centers.condition.clone()
+    old_student = [p.detach().clone() for p in model.student_encoder.parameters()]
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("prediction-only executed auxiliary computation")
+
+    monkeypatch.setattr("gradpert.training.step.build_training_graph_views", forbidden)
+    monkeypatch.setattr("gradpert.training.step.update_teacher_ema", forbidden)
+    monkeypatch.setattr(model.teacher_encoder, "forward", forbidden)
+    monkeypatch.setattr(model.student_projector, "forward", forbidden)
+    metrics = engine.train_step(_batch(), global_step=0)
+    assert metrics.total_loss == metrics.prediction_loss
+    assert metrics.local_view_realization_count == 0
+    assert metrics.auxiliary_graph_gradient_norm == 0
+    assert metrics.prediction_graph_gradient_norm > 0
+    assert torch.equal(old_center, centers.condition)
+    assert all(torch.equal(value, model.state_dict()[key]) for key, value in frozen.items())
+    assert any(
+        not torch.equal(a, b)
+        for a, b in zip(old_student, model.student_encoder.parameters(), strict=True)
+    )
+
+
 def test_step_schedule_reaches_optimizer_and_teacher():
     from gradpert.config.step_schedule import StepWarmupCosine
 

@@ -662,6 +662,59 @@ class GraDPertStepEngine:
                 condition_id=condition_id,
             )
 
+    def _prediction_only_step(self, batch: GraDPertTrainingBatch) -> GraDPertStepMetrics:
+        """Supervised graph ablation: no augmented views, teacher, EMA or centers.
+
+        Dormant teacher/projector tensors remain in the checkpoint schema for
+        compatibility, but are never forwarded or updated by this route.
+        """
+        started = time.perf_counter()
+        self.model.train()
+        self.optimizer.zero_grad(set_to_none=True)
+        prediction = self.model.predict_expression_batch(
+            batch.control_expression,
+            self.prediction_view,
+            batch.condition_ids,
+            batch.anchors_by_condition,
+        )
+        loss = expression_loss(
+            prediction,
+            batch.target_expression,
+            batch.condition_ids,
+            reduction=self.prediction_reduction,
+        )
+        total = self.loss_weights.prediction * loss
+        if not torch.isfinite(total):
+            raise RuntimeError("nonfinite prediction-only loss")
+        total.backward()
+        norm = _gradient_norm(
+            tuple(p.grad for p in self.model.student_encoder.parameters()),
+            total,
+        )
+        self.optimizer.step()
+        # Explicit zeros identify disabled objectives, not measured SSL outcomes.
+        values = dict.fromkeys(GraDPertStepMetrics.__dataclass_fields__, 0)
+        values.update(
+            total_loss=float(total.detach()),
+            prediction_loss=float(loss.detach()),
+            spread_available=False,
+            teacher_momentum=1.0,
+            prediction_graph_gradient_norm=norm,
+            prediction_to_auxiliary_gradient_ratio=None,
+            masked_node_target_entropy=None,
+            condition_center_norm=float(self.centers.condition.norm()),
+            masked_node_center_norm=float(self.centers.masked_node.norm()),
+            unique_condition_count=len(batch.anchors_by_condition),
+            batch_cell_count=len(batch.condition_ids),
+            data_read_ms=batch.data_read_ms,
+            host_to_device_ms=batch.host_to_device_ms,
+            step_wall_ms=(time.perf_counter() - started) * 1000,
+            local_node_counts_sha256=sha256_json([]),
+            masked_local_index_counts_json="[]",
+            masked_local_assignments_sha256=sha256_json([]),
+        )
+        return GraDPertStepMetrics(**values)
+
     def train_step(
         self,
         batch: GraDPertTrainingBatch,
@@ -676,6 +729,12 @@ class GraDPertStepEngine:
                 group["lr"] = scheduled["learning_rate"]
         if batch.control_expression.shape[1] != self.model.expression_gene_count:
             raise ValueError("batch and model expression-gene counts differ")
+        if (
+            self.loss_weights.condition_consistency == 0
+            and self.loss_weights.masked_node == 0
+            and self.loss_weights.spread == 0
+        ):
+            return self._prediction_only_step(batch)
         capture_health = self.capture_equivalence_health and global_step == 0
         parameter_state_before_sha256 = _model_state_sha256(self.model) if capture_health else None
         rng_state_before_sha256 = _rng_state_sha256() if capture_health else None
