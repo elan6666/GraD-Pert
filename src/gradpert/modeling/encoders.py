@@ -941,7 +941,8 @@ class HybridBMPEncoder(NativeGraphEncoder):
         # Equation S2: A^G_ij = 1 iff the directed pair exists in any source,
         # so duplicate directed pairs must aggregate once, not per source.
         unique_pairs = torch.unique(stacked.t().contiguous(), dim=0)
-        return unique_pairs.t().contiguous()
+        union_index: Tensor = unique_pairs.t().contiguous()
+        return union_index
 
     def forward(
         self,
@@ -1011,9 +1012,9 @@ class GatMlgEncoder(NativeGraphEncoder):
         self.source_names = tuple(source_names)
         self.output_dim = output_dim
         self.dropout = dropout
-        self.layer_features = nn.ModuleList(
-            nn.Linear(input_dim, hidden_dim) for _ in self.source_names
-        )
+        layer_projections = [nn.Linear(input_dim, hidden_dim) for _ in self.source_names]
+        self.layer_feature_linears: list[nn.Linear] = layer_projections
+        self.layer_features = nn.ModuleList(layer_projections)
         self.layers = nn.ModuleList(
             _NativeGATv2Layer(
                 input_dim=hidden_dim,
@@ -1036,7 +1037,7 @@ class GatMlgEncoder(NativeGraphEncoder):
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
-        for projection in self.layer_features:
+        for projection in self.layer_feature_linears:
             nn.init.xavier_uniform_(projection.weight)
             nn.init.zeros_(projection.bias)
         nn.init.xavier_uniform_(self.structural_projection.weight)
