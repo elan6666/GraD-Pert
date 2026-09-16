@@ -910,11 +910,13 @@ class HybridBMPEncoder(NativeGraphEncoder):
         self.dropout = dropout
         self.role_in = nn.Linear(input_dim, hidden_dim)
         self.role_out = nn.Linear(input_dim, hidden_dim)
+        self.role_hidden = nn.Linear(hidden_dim, hidden_dim)
+        self.role_output = nn.Linear(hidden_dim, output_dim)
         self.mlp = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
+            self.role_hidden,
             nn.LeakyReLU(negative_slope=0.2),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, output_dim),
+            self.role_output,
         )
         self.reset_parameters()
 
@@ -923,10 +925,10 @@ class HybridBMPEncoder(NativeGraphEncoder):
         nn.init.xavier_uniform_(self.role_out.weight)
         nn.init.zeros_(self.role_in.bias)
         nn.init.zeros_(self.role_out.bias)
-        for module in self.mlp:
-            if isinstance(module, nn.Linear):
-                nn.init.xavier_uniform_(module.weight)
-                nn.init.zeros_(module.bias)
+        nn.init.xavier_uniform_(self.role_hidden.weight)
+        nn.init.zeros_(self.role_hidden.bias)
+        nn.init.xavier_uniform_(self.role_output.weight)
+        nn.init.zeros_(self.role_output.bias)
 
     def _binarized_union_edge_index(
         self,
@@ -966,7 +968,7 @@ class HybridBMPEncoder(NativeGraphEncoder):
             messages_in.index_add_(0, target_index, incoming.index_select(0, source_index))
             # A_out @ H0_out = A_in^T @ H0_out: the same edge contributes to its source.
             messages_out.index_add_(0, source_index, outgoing.index_select(0, target_index))
-        state = self.mlp(messages_in + messages_out)
+        state: Tensor = self.mlp(messages_in + messages_out)
         return F.dropout(state, p=self.dropout, training=self.training)
 
 
@@ -1074,7 +1076,8 @@ class GatMlgEncoder(NativeGraphEncoder):
             ),
             dim=-1,
         )
-        return self.structural_mlp(features)
+        embedded: Tensor = self.structural_mlp(features)
+        return embedded
 
     def _supra_graph(
         self,
