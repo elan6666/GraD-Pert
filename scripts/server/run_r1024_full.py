@@ -14,7 +14,17 @@ ROWS = tuple(
 LOSS_ROWS = tuple("r1024_loss_" + x + "_v1" for x in ("t2", "p1", "p2", "c1", "l1", "l2", "l3"))
 NEW_ROWS = tuple(
     "r50n_" + x
-    for x in ("t1_u1", "batch2048", "k32768", "k8192", "string", "source_gat", "prediction_only")
+    for x in (
+        "t1_u1",
+        "batch2048",
+        "k32768",
+        "k8192",
+        "string",
+        "source_gat",
+        "prediction_only",
+        "gat_mlg",
+        "hybrid_bmp",
+    )
 )
 
 

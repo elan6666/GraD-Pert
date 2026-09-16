@@ -196,7 +196,7 @@ def main():
                 "source_commit": plan["commit"],
                 "ended_unix": time.time(),
                 "exits": [json.loads(p.read_text()) for p in sorted(root.glob("*-exit.json"))],
-                "blocked_designs": ["gat_mlg", "hybrid_bmp"],
+                "blocked_designs": [],
                 "note": "queue terminal does not mean every scientific row succeeded",
             }
         )

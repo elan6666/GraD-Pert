@@ -868,3 +868,273 @@ class AdaptiveSourceGATEncoder(NativeGraphEncoder):
         stacked_states = torch.stack(states, dim=1)
         weights = torch.softmax(torch.stack(scores, dim=1), dim=1).unsqueeze(-1)
         return (stacked_states * weights).sum(dim=1)
+
+
+class HybridBMPEncoder(NativeGraphEncoder):
+    """GraD-Pert-native bi-directional message passing on the union graph.
+
+    Implements the published Hybrid-BMP equation (TxPert, Nature Biotechnology
+    2026, supplement section S1.3.2): ``Z = MLP(A_in @ H0_in + A_out @ H0_out)``
+    with ``A_out = A_in^T`` on the union adjacency, whose binarized form is the
+    paper's Equation S2 (an edge present in any source contributes once).  The
+    two role features are native linear projections of the shared
+    wrapper-provided embedding, and no self term is added: the equation is
+    applied exactly.  This route is a project-preregistered native
+    architecture; it does not claim parity with an external model, imports no
+    upstream code, and its remaining native decisions are recorded in
+    ``docs/experiments/R50_GRAPH_ENCODER_DEFS.md``.
+    """
+
+    def __init__(
+        self,
+        *,
+        source_names: tuple[str, ...],
+        input_dim: int = 128,
+        hidden_dim: int = 128,
+        output_dim: int = 64,
+        dropout: float = 0.1,
+        string_weight_mode: StringWeightMode | str = StringWeightMode.SELECTION_ONLY,
+    ) -> None:
+        super().__init__()
+        if len(source_names) < 2 or len(set(source_names)) != len(source_names):
+            raise ValueError(
+                "hybrid bidirectional message passing requires at least two unique sources"
+            )
+        if min(input_dim, hidden_dim, output_dim) <= 0:
+            raise ValueError("encoder dimensions must be positive")
+        if not 0.0 <= dropout < 1.0:
+            raise ValueError("dropout must be in [0, 1)")
+        del string_weight_mode  # the binarized union adjacency carries no edge weights
+        self.source_names = tuple(source_names)
+        self.output_dim = output_dim
+        self.dropout = dropout
+        self.role_in = nn.Linear(input_dim, hidden_dim)
+        self.role_out = nn.Linear(input_dim, hidden_dim)
+        self.mlp = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, output_dim),
+        )
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        nn.init.xavier_uniform_(self.role_in.weight)
+        nn.init.xavier_uniform_(self.role_out.weight)
+        nn.init.zeros_(self.role_in.bias)
+        nn.init.zeros_(self.role_out.bias)
+        for module in self.mlp:
+            if isinstance(module, nn.Linear):
+                nn.init.xavier_uniform_(module.weight)
+                nn.init.zeros_(module.bias)
+
+    def _binarized_union_edge_index(
+        self,
+        sources: tuple[GraphSourceTensors, ...],
+        device: torch.device,
+    ) -> Tensor:
+        stacked = torch.cat([source.edge_index.to(device=device) for source in sources], dim=1)
+        if stacked.shape[1] == 0:
+            return stacked
+        # Equation S2: A^G_ij = 1 iff the directed pair exists in any source,
+        # so duplicate directed pairs must aggregate once, not per source.
+        unique_pairs = torch.unique(stacked.t().contiguous(), dim=0)
+        return unique_pairs.t().contiguous()
+
+    def forward(
+        self,
+        node_inputs: Tensor,
+        sources: tuple[GraphSourceTensors, ...],
+    ) -> Tensor:
+        if node_inputs.ndim != 2:
+            raise ValueError("node_inputs must have shape [N, D]")
+        node_count = node_inputs.shape[0]
+        _validate_sources(node_count, sources, self.source_names)
+        edge_index = self._binarized_union_edge_index(sources, node_inputs.device)
+        incoming = self.role_in(node_inputs)
+        outgoing = self.role_out(node_inputs)
+        messages_in = torch.zeros(
+            (node_count, incoming.shape[1]),
+            device=node_inputs.device,
+            dtype=node_inputs.dtype,
+        )
+        messages_out = torch.zeros_like(messages_in)
+        if edge_index.shape[1] > 0:
+            source_index = edge_index[0]
+            target_index = edge_index[1]
+            # A_in @ H0_in: edge (src, dst) contributes to the target node.
+            messages_in.index_add_(0, target_index, incoming.index_select(0, source_index))
+            # A_out @ H0_out = A_in^T @ H0_out: the same edge contributes to its source.
+            messages_out.index_add_(0, source_index, outgoing.index_select(0, target_index))
+        state = self.mlp(messages_in + messages_out)
+        return F.dropout(state, p=self.dropout, training=self.training)
+
+
+class GatMlgEncoder(NativeGraphEncoder):
+    """GraD-Pert-native supra-adjacency GATv2 over the multilayer graph.
+
+    Implements the published GAT-MLG definition (TxPert supplement section
+    S1.3; preprint Appendix A cross-check): one GATv2 tower over the
+    supra-adjacency graph whose intra-layer blocks are the ordered sources and
+    whose inter-layer blocks are identity couplings between the same gene.
+    The paper leaves the structural module, per-layer input features, and
+    fusion gate unspecified; their native choices (log-degree structural
+    embedding from reference-source edge weights, per-layer linear feature
+    projections of the shared embedding, and a sigmoid gate) are recorded in
+    ``docs/experiments/R50_GRAPH_ENCODER_DEFS.md``.  The returned states are
+    the reference (first-source) layer, per the paper.  This route does not
+    claim parity with an external model and imports no upstream code.
+    """
+
+    def __init__(
+        self,
+        *,
+        source_names: tuple[str, ...],
+        input_dim: int = 128,
+        hidden_dim: int = 128,
+        output_dim: int = 64,
+        layer_count: int = 4,
+        head_count: int = 2,
+        dropout: float = 0.1,
+        string_weight_mode: StringWeightMode | str = StringWeightMode.SELECTION_ONLY,
+    ) -> None:
+        super().__init__()
+        if len(source_names) < 2 or len(set(source_names)) != len(source_names):
+            raise ValueError("multilayer graph attention requires at least two unique sources")
+        if min(input_dim, hidden_dim, output_dim, layer_count, head_count) <= 0:
+            raise ValueError("encoder dimensions, layers, and heads must be positive")
+        if not 0.0 <= dropout < 1.0:
+            raise ValueError("dropout must be in [0, 1)")
+        del string_weight_mode  # attention is learned; weights feed only the structural gate
+        self.source_names = tuple(source_names)
+        self.output_dim = output_dim
+        self.dropout = dropout
+        self.layer_features = nn.ModuleList(
+            nn.Linear(input_dim, hidden_dim) for _ in self.source_names
+        )
+        self.layers = nn.ModuleList(
+            _NativeGATv2Layer(
+                input_dim=hidden_dim,
+                head_dim=hidden_dim,
+                head_count=head_count,
+                concat=False,
+                dropout=dropout,
+                add_self_loops=True,
+                weight_mode=StringWeightMode.SELECTION_ONLY,
+            )
+            for _ in range(layer_count)
+        )
+        self.structural_mlp = nn.Sequential(
+            nn.Linear(4, hidden_dim),
+            nn.LeakyReLU(negative_slope=0.2),
+        )
+        self.structural_projection = nn.Linear(hidden_dim, hidden_dim)
+        self.gate = nn.Linear(2 * hidden_dim, hidden_dim)
+        self.output = nn.Linear(hidden_dim, output_dim)
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        for projection in self.layer_features:
+            nn.init.xavier_uniform_(projection.weight)
+            nn.init.zeros_(projection.bias)
+        nn.init.xavier_uniform_(self.structural_projection.weight)
+        nn.init.zeros_(self.structural_projection.bias)
+        nn.init.xavier_uniform_(self.gate.weight)
+        nn.init.zeros_(self.gate.bias)
+        nn.init.xavier_uniform_(self.output.weight)
+        nn.init.zeros_(self.output.bias)
+
+    def _structural_embedding(
+        self,
+        source: GraphSourceTensors,
+        node_count: int,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> Tensor:
+        edge_index = source.edge_index.to(device=device)
+        if source.edge_weight is not None:
+            weight = source.edge_weight.reshape(-1).to(device=device, dtype=dtype)
+        else:
+            weight = torch.ones(edge_index.shape[1], device=device, dtype=dtype)
+        weighted_in = torch.zeros(node_count, device=edge_index.device, dtype=dtype)
+        weighted_out = torch.zeros_like(weighted_in)
+        counts_in = torch.zeros_like(weighted_in)
+        counts_out = torch.zeros_like(weighted_in)
+        weighted_in.index_add_(0, edge_index[1], weight)
+        weighted_out.index_add_(0, edge_index[0], weight)
+        ones = torch.ones(edge_index.shape[1], device=edge_index.device, dtype=dtype)
+        counts_in.index_add_(0, edge_index[1], ones)
+        counts_out.index_add_(0, edge_index[0], ones)
+        features = torch.stack(
+            (
+                torch.log1p(weighted_in),
+                torch.log1p(weighted_out),
+                torch.log1p(counts_in),
+                torch.log1p(counts_out),
+            ),
+            dim=-1,
+        )
+        return self.structural_mlp(features)
+
+    def _supra_graph(
+        self,
+        sources: tuple[GraphSourceTensors, ...],
+        node_count: int,
+        device: torch.device,
+    ) -> tuple[Tensor, Tensor]:
+        intra_edges: list[Tensor] = []
+        intra_weights: list[Tensor] = []
+        for layer_index, source in enumerate(sources):
+            offset = layer_index * node_count
+            intra_edges.append(source.edge_index.to(device=device) + offset)
+            if source.edge_weight is not None:
+                intra_weights.append(source.edge_weight.reshape(-1).to(device=device))
+            else:
+                intra_weights.append(torch.ones(source.edge_index.shape[1], device=device))
+        genes = torch.arange(node_count, device=device)
+        inter_edges = [
+            torch.stack((genes + upper * node_count, genes + lower * node_count), dim=0)
+            for lower in range(len(sources))
+            for upper in range(lower + 1, len(sources))
+        ]
+        inter_edges.extend(
+            torch.stack((genes + lower * node_count, genes + upper * node_count), dim=0)
+            for lower in range(len(sources))
+            for upper in range(lower + 1, len(sources))
+        )
+        inter_count = sum(edge.shape[1] for edge in inter_edges)
+        edge_index = torch.cat([*intra_edges, *inter_edges], dim=1)
+        edge_weight = torch.cat(
+            [
+                *intra_weights,
+                torch.ones(inter_count, device=device),
+            ]
+        )
+        return edge_index, edge_weight
+
+    def forward(
+        self,
+        node_inputs: Tensor,
+        sources: tuple[GraphSourceTensors, ...],
+    ) -> Tensor:
+        if node_inputs.ndim != 2:
+            raise ValueError("node_inputs must have shape [N, D]")
+        node_count = node_inputs.shape[0]
+        _validate_sources(node_count, sources, self.source_names)
+        device = node_inputs.device
+        edge_index, edge_weight = self._supra_graph(sources, node_count, device)
+        states = torch.cat(
+            [projection(node_inputs) for projection in self.layer_features],
+            dim=0,
+        )
+        for layer in self.layers:
+            states = layer(states, edge_index, edge_weight)
+            states = F.leaky_relu(states, negative_slope=0.2)
+            states = F.dropout(states, p=self.dropout, training=self.training)
+        reference = states[:node_count]
+        structural = self._structural_embedding(sources[0], node_count, device, node_inputs.dtype)
+        gate = torch.sigmoid(self.gate(torch.cat((reference, structural), dim=-1)))
+        fused = gate * reference + (1.0 - gate) * self.structural_projection(structural)
+        output = self.output(fused)
+        output = F.leaky_relu(output, negative_slope=0.2)
+        return F.dropout(output, p=self.dropout, training=self.training)

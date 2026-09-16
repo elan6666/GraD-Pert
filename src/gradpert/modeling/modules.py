@@ -19,7 +19,9 @@ from gradpert.config.native import CAPACITY_PROFILES, NativeArchitectureOptions
 from gradpert.graphs import GraphView
 from gradpert.modeling.encoders import (
     AdaptiveSourceGATEncoder,
+    GatMlgEncoder,
     GraphSourceTensors,
+    HybridBMPEncoder,
     NativeGraphEncoder,
     SingleSourceGATEncoder,
     SparseGraphTransformerEncoder,
@@ -358,6 +360,26 @@ def _native_graph_backend(options: NativeArchitectureOptions) -> NativeGraphEnco
             output_dim=options.graph_output_dim,
             layer_count=options.graph_layer_count,
             head_count=options.graph_head_count,
+            dropout=options.graph_dropout,
+            string_weight_mode=string_weight_mode,
+        )
+    if options.graph_encoder_family == "gat_mlg":
+        return GatMlgEncoder(
+            source_names=options.graph_sources,
+            input_dim=options.graph_input_dim,
+            hidden_dim=options.graph_hidden_dim,
+            output_dim=options.graph_output_dim,
+            layer_count=options.graph_layer_count,
+            head_count=options.graph_head_count,
+            dropout=options.graph_dropout,
+            string_weight_mode=string_weight_mode,
+        )
+    if options.graph_encoder_family == "hybrid_bmp":
+        return HybridBMPEncoder(
+            source_names=options.graph_sources,
+            input_dim=options.graph_input_dim,
+            hidden_dim=options.graph_hidden_dim,
+            output_dim=options.graph_output_dim,
             dropout=options.graph_dropout,
             string_weight_mode=string_weight_mode,
         )

@@ -30,6 +30,8 @@ GraphEncoderFamily = Literal[
     "single_source_sparse_transformer",
     "multi_source_sparse_transformer",
     "adaptive_source_gat_fusion",
+    "gat_mlg",
+    "hybrid_bmp",
 ]
 StringWeightMode = Literal[
     "selection_only",
@@ -297,6 +299,8 @@ class NativeArchitectureOptions:
             "single_source_sparse_transformer": 0.1,
             "multi_source_sparse_transformer": 0.1,
             "adaptive_source_gat_fusion": 0.2,
+            "gat_mlg": 0.1,
+            "hybrid_bmp": 0.1,
         }[self.graph_encoder_family]
         if self.graph_dropout != expected_dropout:
             raise ValueError(
@@ -327,6 +331,8 @@ class NativeArchitectureOptions:
                 "adaptive_relation_gat",
                 "multi_source_sparse_transformer",
                 "adaptive_source_gat_fusion",
+                "gat_mlg",
+                "hybrid_bmp",
             }
             and not multi
         ):
@@ -392,6 +398,8 @@ class NativeArchitectureOptions:
             "single_source_sparse_transformer",
             "multi_source_sparse_transformer",
             "adaptive_source_gat_fusion",
+            "gat_mlg",
+            "hybrid_bmp",
         }:
             raise ValueError(f"unsupported graph_encoder_family: {family}")
         if weight_mode not in {

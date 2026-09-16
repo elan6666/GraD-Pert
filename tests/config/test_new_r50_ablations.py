@@ -33,6 +33,8 @@ def test_self_contained_factors(row):
         "r50n_k8192": {"prototype_count"},
         "r50n_string": {"graph_sources", "graph_encoder_family"},
         "r50n_source_gat": {"graph_encoder_family", "graph_encoder_dropout"},
+        "r50n_gat_mlg": {"graph_encoder_family"},
+        "r50n_hybrid_bmp": {"graph_encoder_family"},
         "r50n_prediction_only": {
             "condition_consistency_loss_weight",
             "masked_node_loss_weight",

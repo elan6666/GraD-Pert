@@ -21,8 +21,8 @@ These are paired configuration ablations, not independent statistical seeds.
 | r50n_string | STRING only, unchanged node axis and sparse Transformer | implemented |
 | r50n_source_gat | existing native adaptive_source_gat_fusion, dropout .2 | native architecture package, not official GAT-Hybrid parity |
 | r50n_prediction_only | auxiliary loss weights all zero, supervised graph prediction only | no teacher/projector forward, EMA, centers or augmented views |
-| gat_mlg | supra-graph GAT | blocked: public implementation/documented formula conflict; no guessed replacement |
-| hybrid_bmp | bidirectional message passing | blocked: no verified complete official definition/configuration |
+| r50n_gat_mlg | paper-defined supra-graph GAT (GAT-MLG) | implemented natively from the published supplement S1.3 definition; see `R50_GRAPH_ENCODER_DEFS.md`; queued after all existing lanes |
+| r50n_hybrid_bmp | paper-defined bidirectional message passing | implemented natively from the published supplement S1.3.2 definition; see `R50_GRAPH_ENCODER_DEFS.md`; queued after all existing lanes |
 
 The source-GAT row uses the existing preregistered native per-source towers and
 node-adaptive fusion, including its .2 dropout contract (baseline .1). It is an

@@ -9,7 +9,10 @@ import yaml
 from gradpert.config.schema import ExperimentConfig
 
 
-@pytest.mark.parametrize("row", ["weight_masked_double", "weight_spread_half", "scale_projector4096"])
+@pytest.mark.parametrize(
+    "row",
+    ["weight_masked_double", "weight_spread_half", "scale_projector4096"],
+)
 def test_pending_finish_rows_use_loss_selection(row):
     root = Path(__file__).resolve().parents[2] / "configs/r50"
     parsed = ExperimentConfig.model_validate(
