@@ -13,6 +13,7 @@ pytest.importorskip("torch_geometric")
 from gradpert.execution.native import (
     _ordered_perturbation_target_gene_ids,
     _read_local_view_realization_receipt,
+    _read_prediction_only_local_view_receipt,
     _text_prior_receipt,
 )
 from gradpert.features import TextPriorArtifact
@@ -152,3 +153,41 @@ def test_genept_target_union_uses_all_sealed_split_partitions() -> None:
     )
 
     assert _ordered_perturbation_target_gene_ids(training_data) == ("A", "B", "C", "D")
+
+
+def test_prediction_only_local_view_receipt_requires_truthful_zero_evidence(
+    tmp_path: Path,
+) -> None:
+    contract = _contract()
+    empty_sha = sha256_json([])
+    rows = [
+        {
+            "global_step": step,
+            "unique_condition_count": 2,
+            "local_view_realization_count": 0,
+            "local_node_count_sum": 0,
+            "local_node_count_min": 0,
+            "local_node_count_max": 0,
+            "local_budget_hit_count": 0,
+            "local_node_counts_sha256": empty_sha,
+            "masked_local_assignment_count": 0,
+            "masked_local_index_counts_json": "[]",
+            "masked_local_assignments_sha256": empty_sha,
+        }
+        for step in range(3)
+    ]
+    steps = tmp_path / "train_steps.csv"
+    _write_rows(steps, rows)
+    receipt = _read_prediction_only_local_view_receipt(steps, contract=contract)
+    assert receipt["route"] == "prediction_only"
+    assert receipt["schema_version"] == "native-local-view-realization-v1"
+    assert receipt["realized_local_view_count"] == 0
+    assert receipt["training_step_count"] == 3
+    assert receipt["masked_local_assignment_counts_by_index"] == [0, 0, 0, 0]
+
+    contaminated = [dict(row) for row in rows]
+    contaminated[1]["local_view_realization_count"] = 4
+    contaminated_path = tmp_path / "contaminated.csv"
+    _write_rows(contaminated_path, contaminated)
+    with pytest.raises(ValueError, match="prediction-only route must realize no local views"):
+        _read_prediction_only_local_view_receipt(contaminated_path, contract=contract)

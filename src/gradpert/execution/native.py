@@ -481,6 +481,83 @@ def _read_local_view_realization_receipt(
     }
 
 
+def _read_prediction_only_local_view_receipt(
+    path: Path,
+    *,
+    contract: ResolvedLocalViewContract,
+) -> dict[str, object]:
+    """Audit the all-zero local-view evidence that the prediction-only route
+    produces by design (no augmented views are built on this route).
+
+    The shared audit rejects zero realizations because for the full route that
+    would mean the local views silently failed; on this route zero is the
+    truthful outcome, so verify exactly that instead.
+    """
+
+    with path.open(encoding="utf-8", newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    if not rows:
+        raise ValueError("local-view receipt requires at least one training step")
+
+    empty_counts_sha256 = sha256_json([])
+    for expected_step, row in enumerate(rows):
+        try:
+            global_step = int(row["global_step"])
+            unique_condition_count = int(row["unique_condition_count"])
+            step_count = int(row["local_view_realization_count"])
+            step_sum = int(row["local_node_count_sum"])
+            step_budget_hits = int(row["local_budget_hit_count"])
+            step_mask_assignments = int(row["masked_local_assignment_count"])
+            raw_index_counts = json.loads(row["masked_local_index_counts_json"])
+            node_counts_sha256 = row["local_node_counts_sha256"]
+            mask_assignments_sha256 = row["masked_local_assignments_sha256"]
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+            raise ValueError("invalid local-view columns in train_steps.csv") from error
+        if global_step != expected_step:
+            raise ValueError("local-view receipt global steps must be contiguous from zero")
+        if unique_condition_count <= 0:
+            raise ValueError("invalid realized local-view count or budget evidence")
+        if (
+            step_count != 0
+            or step_sum != 0
+            or step_budget_hits != 0
+            or step_mask_assignments != 0
+            or raw_index_counts != []
+            or node_counts_sha256 != empty_counts_sha256
+            or mask_assignments_sha256 != empty_counts_sha256
+        ):
+            raise ValueError(
+                "prediction-only route must realize no local views or masked assignments"
+            )
+
+    step_evidence_digest = hashlib.sha256()
+    for row in rows:
+        step_evidence_digest.update(
+            sha256_json(
+                {
+                    "global_step": int(row["global_step"]),
+                    "realization_count": 0,
+                    "node_count_sum": 0,
+                }
+            ).encode("ascii")
+        )
+        step_evidence_digest.update(b"\n")
+    return {
+        "schema_version": "native-local-view-realization-v1",
+        "route": "prediction_only",
+        "resolved_contract": contract.payload(),
+        "training_step_count": len(rows),
+        "realized_local_view_count": 0,
+        "node_count": {"min": 0, "mean": 0.0, "max": 0, "sum": 0},
+        "graph_coverage": {"min": 0.0, "mean": 0.0, "max": 0.0},
+        "budget_hit_count": 0,
+        "budget_hit_rate": 0.0,
+        "masked_local_assignment_count": 0,
+        "masked_local_assignment_counts_by_index": [0] * contract.local_view_count,
+        "ordered_step_evidence_sha256": step_evidence_digest.hexdigest(),
+    }
+
+
 def _peak_cpu_ram_bytes() -> int:
     observed = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
     return observed if sys.platform == "darwin" else observed * 1024
@@ -1107,11 +1184,21 @@ def run_native_experiment(
                 small_root / "first_step_equivalence.json",
                 engine.first_step_health,
             )
-        local_view_realization = _read_local_view_realization_receipt(
-            small_root / "train_steps.csv",
-            contract=local_view_contract,
-            node_count_upper_bound=topology.n_nodes if essential_ids else None,
-        )
+        if (
+            engine.loss_weights.condition_consistency == 0
+            and engine.loss_weights.masked_node == 0
+            and engine.loss_weights.spread == 0
+        ):
+            local_view_realization = _read_prediction_only_local_view_receipt(
+                small_root / "train_steps.csv",
+                contract=local_view_contract,
+            )
+        else:
+            local_view_realization = _read_local_view_realization_receipt(
+                small_root / "train_steps.csv",
+                contract=local_view_contract,
+                node_count_upper_bound=topology.n_nodes if essential_ids else None,
+            )
         _write_if_absent_or_equal_json(
             small_root / "local_view_realization.json",
             local_view_realization,
