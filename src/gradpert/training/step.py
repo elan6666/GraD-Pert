@@ -662,7 +662,13 @@ class GraDPertStepEngine:
                 condition_id=condition_id,
             )
 
-    def _prediction_only_step(self, batch: GraDPertTrainingBatch) -> GraDPertStepMetrics:
+    def _prediction_only_step(
+        self,
+        batch: GraDPertTrainingBatch,
+        *,
+        global_step: int,
+        capture_health: bool,
+    ) -> GraDPertStepMetrics:
         """Supervised graph ablation: no augmented views, teacher, EMA or centers.
 
         Dormant teacher/projector tensors remain in the checkpoint schema for
@@ -670,6 +676,8 @@ class GraDPertStepEngine:
         """
         started = time.perf_counter()
         self.model.train()
+        parameter_state_before_sha256 = _model_state_sha256(self.model) if capture_health else None
+        rng_state_before_sha256 = _rng_state_sha256() if capture_health else None
         self.optimizer.zero_grad(set_to_none=True)
         prediction = self.model.predict_expression_batch(
             batch.control_expression,
@@ -677,6 +685,7 @@ class GraDPertStepEngine:
             batch.condition_ids,
             batch.anchors_by_condition,
         )
+        prediction_content_sha256 = _tensor_sha256(prediction) if capture_health else None
         loss = expression_loss(
             prediction,
             batch.target_expression,
@@ -713,7 +722,48 @@ class GraDPertStepEngine:
             masked_local_index_counts_json="[]",
             masked_local_assignments_sha256=sha256_json([]),
         )
-        return GraDPertStepMetrics(**values)
+        metrics = GraDPertStepMetrics(**values)
+        if capture_health:
+            # The systems contract requires first-step evidence on every
+            # formal route; this ablation route records only what it actually
+            # computes and marks the disabled objectives explicitly.
+            self.first_step_health = {
+                "schema_version": "native-first-step-equivalence-v2",
+                "route": "prediction_only",
+                "perturbed_row_ids_sha256": batch.perturbed_row_ids_sha256,
+                "control_row_ids_sha256": batch.control_row_ids_sha256,
+                "pretransfer_control_sha256": batch.pretransfer_control_sha256,
+                "pretransfer_target_sha256": batch.pretransfer_target_sha256,
+                "view_structure_sha256": None,
+                "rng_state_before_sha256": rng_state_before_sha256,
+                "rng_state_after_sha256": _rng_state_sha256(),
+                "parameter_state_before_sha256": parameter_state_before_sha256,
+                "parameter_state_after_sha256": _model_state_sha256(self.model),
+                "teacher_state_after_sha256": _teacher_state_sha256(self.model),
+                "gradient_state_after_sha256": _gradient_state_sha256(self.model),
+                "optimizer_state_after_sha256": _optimizer_state_sha256(self.optimizer),
+                "centers_state_after_sha256": _centers_state_sha256(self.centers),
+                "prediction_content_sha256": prediction_content_sha256,
+                "losses": {
+                    "total_loss": metrics.total_loss,
+                    "prediction_loss": metrics.prediction_loss,
+                    "condition_consistency_loss": 0.0,
+                    "masked_node_loss": 0.0,
+                    "spread_loss": 0.0,
+                },
+                "loss_weights": {
+                    "prediction": self.loss_weights.prediction,
+                    "condition_consistency": self.loss_weights.condition_consistency,
+                    "masked_node": self.loss_weights.masked_node,
+                    "spread": self.loss_weights.spread,
+                },
+                "native_architecture": (
+                    self.architecture.payload() if self.architecture is not None else None
+                ),
+                "resolved_local_view_contract": self.local_view_contract.payload(),
+                "update_order": ["optimizer_step"],
+            }
+        return metrics
 
     def train_step(
         self,
@@ -734,7 +784,11 @@ class GraDPertStepEngine:
             and self.loss_weights.masked_node == 0
             and self.loss_weights.spread == 0
         ):
-            return self._prediction_only_step(batch)
+            return self._prediction_only_step(
+                batch,
+                global_step=global_step,
+                capture_health=self.capture_equivalence_health and global_step == 0,
+            )
         capture_health = self.capture_equivalence_health and global_step == 0
         parameter_state_before_sha256 = _model_state_sha256(self.model) if capture_health else None
         rng_state_before_sha256 = _rng_state_sha256() if capture_health else None

@@ -164,6 +164,28 @@ def test_prediction_only_skips_all_auxiliary_work(monkeypatch):
     )
 
 
+def test_prediction_only_captures_first_step_health():
+    _, _, _, engine = _components(compact=True, capture_equivalence_health=True)
+    engine.loss_weights = LossWeights(1.0, 0.0, 0.0, 0.0)
+    assert engine.first_step_health is None
+    metrics = engine.train_step(_batch(), global_step=0)
+    record = engine.first_step_health
+    assert record is not None
+    assert record["schema_version"] == "native-first-step-equivalence-v2"
+    assert record["route"] == "prediction_only"
+    assert record["view_structure_sha256"] is None
+    assert record["update_order"] == ["optimizer_step"]
+    assert record["losses"]["condition_consistency_loss"] == 0.0
+    assert record["losses"]["prediction_loss"] == metrics.prediction_loss
+    assert len(str(record["parameter_state_after_sha256"])) == 64
+    assert len(str(record["teacher_state_after_sha256"])) == 64
+    assert len(str(record["prediction_content_sha256"])) == 64
+    # only the first step captures; later steps must not overwrite the record
+    second = engine.train_step(_batch(), global_step=1)
+    assert engine.first_step_health is record
+    assert second.prediction_loss > 0
+
+
 def test_step_schedule_reaches_optimizer_and_teacher():
     from gradpert.config.step_schedule import StepWarmupCosine
 
