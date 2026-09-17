@@ -196,9 +196,9 @@ class TrainingConfig(StrictModel):
                 loss_selection = (
                     self.monitor == "val/prediction_loss" and self.monitor_mode == "min"
                 )
-                if self.max_epochs.value != 50 or self.early_stopping:
+                if self.max_epochs.value not in {50, 100} or self.early_stopping:
                     raise ValueError(
-                        "R50 selection requires exactly 50 epochs without early stopping"
+                        "R50 selection requires 50 or 100 epochs without early stopping"
                     )
                 if self.run_seeds != [1] or self.early_stopping_patience.value != 10:
                     raise ValueError("R50 screening requires seed1 and retained patience10 state")

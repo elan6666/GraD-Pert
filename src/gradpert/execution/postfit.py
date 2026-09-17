@@ -107,7 +107,11 @@ def evaluate_best_last(
     meta = read_json(small / "run_meta.json")
     selection = read_json(small / "selection_receipt.json")
     completed_epochs = selection["epochs_completed"]
-    valid_termination = completed_epochs == 50
+    # The expected horizon is the run's own frozen configuration (50-epoch
+    # screening rows and the user-authorized 100-epoch extension rows both
+    # terminate exactly at their configured maximum).
+    expected_epochs = int(config.training.max_epochs.value)
+    valid_termination = completed_epochs == expected_epochs
     if (
         config.training.formal_run_policy != "r50_selection"
         or config.artifacts.result_mode != "metrics_only"
@@ -118,7 +122,7 @@ def evaluate_best_last(
         or manifest["config_sha256"] != sha256_file(config_path)
         or selection["status"] != "complete"
         or not valid_termination
-        or meta["max_epochs"] != 50
+        or meta["max_epochs"] != expected_epochs
         or selection["optimizer_steps"] != completed_epochs * meta["steps_per_epoch"]
         or selection["test_evaluations"] != 0
         or selection["run_manifest_sha256"] != sha256_json(manifest)

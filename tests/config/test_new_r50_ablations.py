@@ -51,3 +51,25 @@ def test_self_contained_factors(row):
             if old[key] != new[key]:
                 changed.add(key)
     assert changed == expected
+
+
+def test_r50_selection_schema_accepts_authorized_100_epoch_row():
+    from pydantic import ValidationError
+
+    from gradpert.config.schema import ExperimentConfig
+
+    path = ROOT / "configs/r50/r50n_t1_u1_batch2048/gradpert_b2/nadig_jurkat.yaml"
+    cfg = load_experiment_config(path)
+    assert cfg.training.max_epochs.value == 100
+    assert cfg.training.train_batch_size.value == 2048
+    assert cfg.training.monitor == "val/prediction_loss"
+    assert not cfg.training.early_stopping
+
+    payload = json.loads(path.read_text())
+    payload["training"]["max_epochs"] = {
+        "value": 200,
+        "source": "user_locked",
+        "reference": "probe",
+    }
+    with pytest.raises(ValidationError):
+        ExperimentConfig.model_validate(payload)
