@@ -479,8 +479,10 @@ LR消融将peak与floor同比缩放（1e-3→2e-4、1e-4→2e-5），所有组�
 
 ## Capacity probe settings
 
-`configs/v2/capacity/gradpert_v2/nadig_jurkat.yaml` 是双5090容量搜索的起始探针，
-不是正式消融batch选择：microbatch=2、accumulation=1、单进程；两卡分别测量。
+当前容量搜索使用 `configs/v2/capacity/ddp_m*/gradpert_v2/nadig_jurkat.yaml`，
+两张5090运行同一个同步分布式训练任务，world_size=2、accumulation=1，
+总batch=每卡microbatch×2。早期 `configs/v2/capacity/gradpert_v2/nadig_jurkat.yaml`
+及单卡探针仅保留为历史工程证据，不再决定正式消融的默认batch。
 完整d256、4层Cell+4层Response、双蒸馏、全部16384原型均保留。
 压力测试中明确固定的项目候选：expander degree=8/seed=1，图mask=.25，
 图edge dropout=.1；表达Global比例.7–1、Local比例.3–.7，2G+4L；
@@ -488,6 +490,9 @@ Global逐细胞mask概率.5，mask比例.1–.5。它们不是scDFM官方默认�
 推理使用显式1000基因有序块覆盖全部表达轴，eval cell batch=2；
 全基因上下文是另一个推理配方，需要独立容量证据。
 正式batch水平仍只能由完整链路实测收据生成。
+单步通过不能作为持续容量证明；每个候选需完成128次更新、中途保存/恢复与
+300-control推理。最高通过档还需重复验证，并报告已测失败档、显存余量和吞吐。
+有限压力测试确认的是该测试协议下的稳定容量，不保证50轮中绝不出现显存峰值。
 
 ### A1 逐基因 MLP 对照的确切定义
 
