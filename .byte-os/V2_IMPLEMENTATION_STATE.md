@@ -21,6 +21,9 @@ do not reset, merge, or commit them. Relay owner remains Codex in root coordinat
   v2 checkpoint with RNG restoration, single-process accumulated step.
 - Strict v2 architecture/options; model.version serialized only if present,
   distinct v2_fixed_50 policy. Legacy run dispatch still rejects v2: real runner pending.
+- Resumable epoch lifecycle implemented with atomic selection journal, best/last links,
+  exact replay after epoch interruption, and role-specific test receipts. Synthetic tests
+  verify uninterrupted/resumed parameter and RNG equality and test receipt reuse.
 - Ordered-query inference and common evaluation adapter implemented; not yet wired into lifecycle.
   Tests preserve full output coverage, control row order and cell-batch prediction parity;
   validation rejects a reference containing test conditions.
@@ -30,7 +33,7 @@ do not reset, merge, or commit them. Relay owner remains Codex in root coordinat
 
 ## Verified
 
-- 25 synthetic v2 tests pass (including ten inference/evaluation tests): recurrence/chunk outputs and gradients, sparse/dense
+- 27 synthetic v2 tests pass (including inference/evaluation and epoch lifecycle tests): recurrence/chunk outputs and gradients, sparse/dense
   graph parity, masked expression nonleakage, loss switches, Teacher/EMA,
   actual Muon+AdamW resume, accumulation gradient scaling.
 - 136 legacy modeling/native-step tests pass.
