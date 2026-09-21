@@ -318,3 +318,65 @@ def test_two_rank_lifecycle_resume_and_primary_only_best_last(tmp_path):
         nprocs=2,
         join=True,
     )
+
+
+def _unified_worker(rank, rendezvous, reference, strategy):
+    from gradpert.training.v2.engine import optimizer_step, slice_cells
+
+    dist.init_process_group(
+        "gloo",
+        init_method="file://" + rendezvous,
+        rank=rank,
+        world_size=2,
+        timeout=timedelta(seconds=45),
+    )
+    try:
+        model, batch = _three_row_batch()
+        objective = JointObjective(model, loss_reduction=strategy)
+        local = slice_cells(batch, 0, 1) if rank == 0 else slice_cells(batch, 1, 3)
+        metrics = optimizer_step(
+            objective,
+            _GradientCapture(model),
+            local,
+            microbatch=1,
+            lr=0.001,
+            momentum=0.99,
+            bf16=False,
+            global_condition_index=batch.condition_index,
+        )
+        expected = torch.load(reference, weights_only=True)
+        for name, parameter in model.named_parameters():
+            if expected["gradients"][name] is None:
+                assert parameter.grad is None
+            else:
+                torch.testing.assert_close(
+                    parameter.grad, expected["gradients"][name], atol=4e-6, rtol=2e-4
+                )
+        for key in ("prediction", "ssl1_condition", "ssl2_dino", "ssl2_ibot", "ssl2_koleo"):
+            assert metrics[key] == pytest.approx(expected["metrics"][key], abs=2e-5)
+        for key in ("ssl1_cls_center", "ssl1_node_center", "ssl2_cls_center", "ssl2_node_center"):
+            torch.testing.assert_close(getattr(objective, key), expected[key])
+    finally:
+        dist.destroy_process_group()
+
+
+@pytest.mark.parametrize("strategy", ["row_mean", "condition_mean"])
+def test_unified_full_step_cross_rank_koleo_and_accumulation(tmp_path, strategy):
+    from gradpert.training.v2.engine import optimizer_step
+
+    model, batch = _three_row_batch()
+    objective = JointObjective(model, loss_reduction=strategy)
+    metrics = optimizer_step(
+        objective, _GradientCapture(model), batch, microbatch=3, lr=0.001, momentum=0.99, bf16=False
+    )
+    expected = {"gradients": {n: p.grad for n, p in model.named_parameters()}, "metrics": metrics}
+    for key in ("ssl1_cls_center", "ssl1_node_center", "ssl2_cls_center", "ssl2_node_center"):
+        expected[key] = getattr(objective, key)
+    path = str(tmp_path / "unified.pt")
+    torch.save(expected, path)
+    mp.spawn(
+        _unified_worker,
+        args=(str(tmp_path / "unified-rendezvous"), path, strategy),
+        nprocs=2,
+        join=True,
+    )

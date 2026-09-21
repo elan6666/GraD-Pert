@@ -24,6 +24,14 @@ def collect(receipt_path: Path, config_path: Path) -> dict:
     exclusion = policy.get("exclude_test_target_expression", False)
     if exclusion is not config.model.excludes_test_target_expression:
         raise ValueError("capacity expression visibility protocol differs from config")
+    loss_protocol = receipt.get("data", {}).get("loss_protocol", {})
+    if (
+        loss_protocol.get("version") != "unified-global-population-v1"
+        or loss_protocol.get("reduction") != options.loss_reduction
+        or loss_protocol.get("koleo_population") != "complete_global_effective_batch"
+        or loss_protocol.get("ibot") != "masked_tokens_per_cell_then_valid_cell_population"
+    ):
+        raise ValueError("capacity unified loss protocol differs from config")
     if receipt.get("kind") != "capacity_only" or receipt.get("status") != "passed":
         raise ValueError("only completed engineering probes are eligible")
     if receipt.get("steps_completed", 0) < 128:
@@ -56,6 +64,7 @@ def collect(receipt_path: Path, config_path: Path) -> dict:
         "training_sha": source["commit"],
         "dataset": config.dataset_id,
         "exclude_test_target_expression": exclusion,
+        "loss_reduction": options.loss_reduction,
         "physical_gpus": receipt["gpu"],
         "world_size": options.world_size,
         "microbatch": options.microbatch,

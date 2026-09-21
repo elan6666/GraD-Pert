@@ -9,6 +9,7 @@ import torch
 
 from .objective import CellView, JointObjective, TrainingBatch
 from .optimizer import V2Optimizer
+from .reductions import gather_rows, nearest_neighbor_terms, population_weights
 
 
 def slice_cells(batch: TrainingBatch, start: int, end: int) -> TrainingBatch:
@@ -39,15 +40,20 @@ def optimizer_step(
 ) -> dict[str, float]:
     """Accumulate cell terms; count graph terms once per effective update.
 
-    KoLeo neighborhoods remain local to each microbatch and each global view.
-    The exact neighborhood size must be reported alongside effective batch.
+    Unified KoLeo collects all microbatch representations before cross-rank
+    neighbor selection. Graphs are retained until its backward pass; accumulation
+    therefore does not guarantee lower peak memory for this term.
+    The legacy objective route retains its historical local neighborhoods.
     Distributed callers provide the unsharded condition index; graph terms
     remain once per global update, cell means are weighted by actual rank rows.
     """
+    unified = objective.loss_reduction is not None
     distributed = torch.distributed.is_initialized()
     population_factor = 1.0
     if distributed:
-        if global_condition_index is None or objective.prediction_reduction != "cell_mean":
+        if global_condition_index is None or (
+            not unified and objective.prediction_reduction != "cell_mean"
+        ):
             raise ValueError("distributed steps require global condition IDs and cell_mean loss")
         count = torch.tensor(len(batch.control), device=batch.control.device)
         torch.distributed.all_reduce(count)
@@ -58,7 +64,11 @@ def optimizer_step(
         )
     if microbatch < 1:
         raise ValueError("microbatch must be positive")
-    if objective.prediction_reduction == "condition_mean" and microbatch < len(batch.control):
+    if (
+        not unified
+        and objective.prediction_reduction == "condition_mean"
+        and microbatch < len(batch.control)
+    ):
         raise ValueError("condition_mean accumulation requires global condition weights")
     objective.train()
     optimizer.zero_grad()
@@ -67,7 +77,7 @@ def optimizer_step(
     metrics: dict[str, float] = {}
     total = len(batch.control)
     ibot_population = None
-    if objective.lambda2 and objective.weights[1][1]:
+    if not unified and objective.lambda2 and objective.weights[1][1]:
         if len(batch.cell_views) < 2:
             raise ValueError("iBOT requires two global views")
         ibot_population = torch.stack(
@@ -80,20 +90,78 @@ def optimizer_step(
         if distributed:
             torch.distributed.all_reduce(ibot_population)
         ibot_population = ibot_population.float()
+    reduction_weights = None
+    deferred_koleo: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] | None = (
+        [] if unified and objective.lambda2 and objective.weights[1][2] else None
+    )
+    if unified:
+        ids = gather_rows(batch.condition_index)
+        if global_condition_index is not None and not torch.equal(ids, global_condition_index):
+            raise ValueError("global condition IDs differ from gathered rank order")
+        rank = torch.distributed.get_rank() if distributed else 0
+        sizes = gather_rows(torch.tensor([total], device=batch.control.device))
+        offset = int(sizes[:rank].sum())
+        world = torch.distributed.get_world_size() if distributed else 1
+        population_factor = float(world)
+        strategy = objective.loss_reduction or "row_mean"
+        row = population_weights(ids, torch.ones_like(ids, dtype=torch.bool), strategy)
+        valid_rows = [gather_rows(v.mask.any(-1)) for v in batch.cell_views[:2]]
+        active_views = max(1, sum(bool(v.any()) for v in valid_rows))
+        nodes = torch.stack(
+            [population_weights(ids, v, strategy) / active_views for v in valid_rows]
+        )
+        reduction_weights = (row[offset : offset + total], nodes[:, offset : offset + total])
     finite = True
     try:
         for start in range(0, total, microbatch):
             micro = slice_cells(batch, start, min(start + microbatch, total))
-            fraction = len(micro.control) / total
+            fraction = 1.0 if unified else len(micro.control) / total
             with torch.autocast(device_type=device, dtype=torch.bfloat16, enabled=bf16):
-                loss, terms = objective(micro, include_ssl1=False, ibot_population=ibot_population)
+                loss, terms = objective(
+                    micro,
+                    include_ssl1=False,
+                    ibot_population=ibot_population,
+                    reduction_weights=None
+                    if reduction_weights is None
+                    else (
+                        reduction_weights[0][start : start + len(micro.control)],
+                        reduction_weights[1][:, start : start + len(micro.control)],
+                    ),
+                    deferred_koleo=deferred_koleo,
+                )
             if not torch.isfinite(loss):
                 finite = False
                 if not distributed:
                     raise FloatingPointError("nonfinite v2 cell loss")
-            (loss * fraction * population_factor).backward()
+            (loss * fraction * population_factor).backward(retain_graph=deferred_koleo is not None)
             for name, value in terms.items():
                 metrics[name] = metrics.get(name, 0.0) + float(value.detach()) * fraction
+            # Keep only CLS ancestor graphs for the deferred global KoLeo pass,
+            # not projection-head losses or the main prediction graph.
+            del loss, terms, value
+        if deferred_koleo is not None:
+            local_ids = torch.cat([item[2] for item in deferred_koleo])
+            ids = gather_rows(local_ids)
+            sizes = gather_rows(torch.tensor([len(local_ids)], device=batch.control.device))
+            rank = torch.distributed.get_rank() if distributed else 0
+            offset = int(sizes[:rank].sum())
+            weights = population_weights(
+                ids, torch.ones_like(ids, dtype=torch.bool), objective.loss_reduction or "row_mean"
+            )
+            terms = []
+            for view in range(2):
+                values = gather_rows(torch.cat([item[view] for item in deferred_koleo]))
+                per_row = nearest_neighbor_terms(values)
+                terms.append(
+                    (
+                        per_row[offset : offset + len(local_ids)]
+                        * weights[offset : offset + len(local_ids)]
+                    ).sum()
+                )
+            koleo = torch.stack(terms).mean()
+            (koleo * population_factor * objective.lambda2 * objective.weights[1][2]).backward()  # type: ignore[no-untyped-call]
+            metrics["ssl2_koleo"] = float(koleo.detach())
+            deferred_koleo.clear()
         if objective.lambda1:
             with torch.autocast(device_type=device, dtype=torch.bfloat16, enabled=bf16):
                 graph_terms = objective.graph_loss(

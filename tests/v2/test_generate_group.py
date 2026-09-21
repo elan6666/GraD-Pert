@@ -24,7 +24,9 @@ def test_generated_groups_are_standalone_and_preserve_fixed_parent_contract(tmp_
         assert config["training"]["train_batch_size"] == original["training"]["train_batch_size"]
         assert config["training"]["max_epochs"] == original["training"]["max_epochs"]
         assert config["model"]["version"] == "v2"
-        assert set(config["model"]["parameters"]) == set(original["model"]["parameters"])
+        assert set(config["model"]["parameters"]) == (
+            set(original["model"]["parameters"]) | ({"loss_reduction"} if group == "S1" else set())
+        )
         for key, value in config["model"]["parameters"].items():
             if key not in row["overrides"]:
                 assert value == original["model"]["parameters"][key]

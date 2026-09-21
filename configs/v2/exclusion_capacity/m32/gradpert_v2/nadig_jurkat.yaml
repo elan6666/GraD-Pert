@@ -130,7 +130,7 @@ model:
       source: project_preregistered
       reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
     ssl1_reduction:
-      value: condition_mean
+      value: row_mean
       source: project_preregistered
       reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
     local_views:
@@ -209,6 +209,10 @@ model:
       value: cell_mean
       source: project_preregistered
       reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+    loss_reduction:
+      value: row_mean
+      source: user_locked
+      reference: docs/design/GRADPERT_V2.md#18
   exclude_test_target_expression: true
 training:
   learned: true

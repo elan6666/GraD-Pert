@@ -88,6 +88,7 @@ class V2Options:
     graph_manifest_sha256: str
     gene_initialization: str
     prediction_loss: str
+    loss_reduction: str = "row_mean"
     expression_holdout_path: str = ""
     expression_holdout_sha256: str = ""
 
@@ -95,7 +96,7 @@ class V2Options:
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
         arch_names = {f.name for f in fields(V2Architecture)}
         names = {f.name for f in fields(cls)}
-        optional = {"expression_holdout_path", "expression_holdout_sha256"}
+        optional = {"expression_holdout_path", "expression_holdout_sha256", "loss_reduction"}
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
             raise ValueError(
@@ -107,6 +108,8 @@ class V2Options:
         return arch, cls(**{name: plain[name] for name in names if name in plain})
 
     def __post_init__(self) -> None:
+        if self.loss_reduction not in ("row_mean", "condition_mean"):
+            raise ValueError("unknown unified loss reduction")
         if bool(self.expression_holdout_path) != bool(self.expression_holdout_sha256):
             raise ValueError("expression holdout manifest path and hash must be supplied together")
         if self.expression_holdout_sha256 and (

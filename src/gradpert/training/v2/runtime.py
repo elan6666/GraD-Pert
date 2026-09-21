@@ -187,6 +187,7 @@ def prepare_runtime(
             lambda2=options.lambda2,
             ssl1_weights=(options.ssl1_condition, options.ssl1_node, options.ssl1_spread),
             ssl2_weights=(options.ssl2_dino, options.ssl2_ibot, options.ssl2_koleo),
+            loss_reduction=options.loss_reduction,
             ssl1_reduction=options.ssl1_reduction,
             prediction_reduction=options.prediction_loss,
         ).to(device)
@@ -208,6 +209,13 @@ def prepare_runtime(
             "graph_manifest_sha256": options.graph_manifest_sha256,
             "genept_sha256": prior.source_sha256,
             "run_seed": run_seed,
+        }
+        identity["loss_protocol"] = {
+            "version": "unified-global-population-v1",
+            "reduction": options.loss_reduction,
+            "koleo_population": "complete_global_effective_batch",
+            "ibot": "masked_tokens_per_cell_then_valid_cell_population",
+            "exceptions": ["ssl1_node", "ssl1_spread", "teacher_centers"],
         }
         identity["training_expression_policy"] = expression_policy_receipt
         if allowed_expression_ids is not None:

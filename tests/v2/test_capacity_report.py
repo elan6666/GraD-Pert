@@ -17,7 +17,15 @@ def valid_receipt():
         "status": "passed",
         "steps_completed": 128,
         "config_sha256": sha256_file(CONFIG),
-        "data": {"training_expression_policy": {"exclude_test_target_expression": True}},
+        "data": {
+            "training_expression_policy": {"exclude_test_target_expression": True},
+            "loss_protocol": {
+                "version": "unified-global-population-v1",
+                "reduction": "row_mean",
+                "koleo_population": "complete_global_effective_batch",
+                "ibot": "masked_tokens_per_cell_then_valid_cell_population",
+            },
+        },
         "source": {
             "dirty": False,
             "commit": "a" * 40,
@@ -64,4 +72,22 @@ def test_report_rejects_incomplete_or_mismatched_evidence(tmp_path, field, value
     path = tmp_path / "receipt.json"
     path.write_text(json.dumps(data))
     with pytest.raises(ValueError):
+        collect(path, CONFIG)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("reduction", "condition_mean"),
+        ("koleo_population", "rank_local"),
+        ("ibot", "all_masked_tokens"),
+        ("version", "legacy"),
+    ],
+)
+def test_report_rejects_changed_loss_population(tmp_path, field, value):
+    data = valid_receipt()
+    data["data"]["loss_protocol"][field] = value
+    path = tmp_path / "receipt.json"
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="unified loss protocol"):
         collect(path, CONFIG)

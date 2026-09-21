@@ -106,7 +106,7 @@ def levels(
         "A2": ("attention", ("hybrid", "full_latent", "delta_full", "full")),
         "A3": ("streams", (4, 1)),
         "A4": ("gene_initialization", ("genept", "random")),
-        "S1": ("ssl1_reduction", ("condition_mean", "row_mean")),
+        "S1": ("loss_reduction", ("row_mean", "condition_mean")),
     }[group]
     return [(str(value), {key: value}) for value in values]
 

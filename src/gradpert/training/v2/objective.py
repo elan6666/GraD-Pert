@@ -12,6 +12,8 @@ from torch.nn import functional as F
 
 from gradpert.modeling.v2 import GraDPertV2
 
+from .reductions import nearest_neighbor_terms, population_weights
+
 
 @dataclass
 class GraphView:
@@ -46,9 +48,13 @@ class TrainingBatch:
 def cross_entropy(
     student: Tensor, teacher: Tensor, center: Tensor, weights: Tensor | None = None
 ) -> Tensor:
-    probabilities = ((teacher.detach().float() - center) / 0.04).softmax(-1)
-    terms = -(probabilities * (student.float() / 0.1).log_softmax(-1)).sum(-1)
+    terms = cross_entropy_terms(student, teacher, center)
     return terms.mean() if weights is None else (terms * weights).sum() / weights.sum()
+
+
+def cross_entropy_terms(student: Tensor, teacher: Tensor, center: Tensor) -> Tensor:
+    probabilities = ((teacher.detach().float() - center) / 0.04).softmax(-1)
+    return -(probabilities * (student.float() / 0.1).log_softmax(-1)).sum(-1)
 
 
 def nearest_spread(x: Tensor) -> Tensor:
@@ -84,6 +90,7 @@ class JointObjective(nn.Module):
         ssl2_weights: tuple[float, float, float] = (0.8, 0.4, 0.1),
         ssl1_reduction: str = "condition_mean",
         prediction_reduction: str = "cell_mean",
+        loss_reduction: str | None = None,
     ) -> None:
         super().__init__()
         if min(lambda1, lambda2, *ssl1_weights, *ssl2_weights) < 0:
@@ -92,6 +99,12 @@ class JointObjective(nn.Module):
         self.teacher = copy.deepcopy(student).requires_grad_(False).eval()
         self.lambda1, self.lambda2 = lambda1, lambda2
         self.weights = (ssl1_weights, ssl2_weights)
+        if loss_reduction not in (None, "row_mean", "condition_mean"):
+            raise ValueError("unknown unified loss reduction")
+        self.loss_reduction = loss_reduction
+        if loss_reduction is not None:
+            ssl1_reduction = loss_reduction
+            prediction_reduction = "cell_mean" if loss_reduction == "row_mean" else loss_reduction
         if ssl1_reduction not in ("condition_mean", "row_mean") or prediction_reduction not in (
             "cell_mean",
             "condition_mean",
@@ -130,13 +143,19 @@ class JointObjective(nn.Module):
         *,
         include_ssl1: bool = True,
         ibot_population: Tensor | None = None,
+        reduction_weights: tuple[Tensor, Tensor] | None = None,
+        deferred_koleo: list[tuple[Tensor, Tensor, Tensor]] | None = None,
     ) -> tuple[Tensor, dict[str, Tensor]]:
         model = self.student
         graph, conditions = self._graph(model, batch.graph, False)
         condition = conditions[batch.condition_index]
         response = model.encode_response(graph[batch.query_positions], batch.control, condition)
         errors = (response["prediction"].float() - batch.truth.float()).square().mean(-1)
-        if self.prediction_reduction == "condition_mean":
+        if self.loss_reduction is not None:
+            if reduction_weights is None:
+                reduction_weights = self.local_reduction_weights(batch)
+            loss = (errors * reduction_weights[0]).sum()
+        elif self.prediction_reduction == "condition_mean":
             unique_conditions = torch.unique(batch.condition_index)
             loss = torch.stack(
                 [errors[batch.condition_index == c].mean() for c in unique_conditions]
@@ -161,6 +180,8 @@ class JointObjective(nn.Module):
                 tg,
                 tc[batch.condition_index],
                 ibot_population=ibot_population,
+                reduction_weights=reduction_weights,
+                deferred_koleo=deferred_koleo,
             )
             metrics.update({f"ssl2_{k}": v for k, v in ssl2.items()})
             loss = loss + self.lambda2 * sum(
@@ -214,6 +235,15 @@ class JointObjective(nn.Module):
             ),
         }
 
+    def local_reduction_weights(self, batch: TrainingBatch) -> tuple[Tensor, Tensor]:
+        strategy = self.loss_reduction or "row_mean"
+        ids = batch.condition_index
+        row = population_weights(ids, torch.ones_like(ids, dtype=torch.bool), strategy)
+        valid = [v.mask.any(-1) for v in batch.cell_views[:2]]
+        active = max(1, sum(bool(v.any()) for v in valid))
+        nodes = torch.stack([population_weights(ids, v, strategy) / active for v in valid])
+        return row, nodes
+
     def cell_loss(
         self,
         batch: TrainingBatch,
@@ -223,6 +253,8 @@ class JointObjective(nn.Module):
         teacher_condition: Tensor,
         *,
         ibot_population: Tensor | None = None,
+        reduction_weights: tuple[Tensor, Tensor] | None = None,
+        deferred_koleo: list[tuple[Tensor, Tensor, Tensor]] | None = None,
     ) -> dict[str, Tensor]:
         if len(batch.cell_views) < 2:
             raise ValueError("SSL2 requires two globals")
@@ -257,7 +289,14 @@ class JointObjective(nn.Module):
             self._targets("ssl2_cls", target)
             for i, source in enumerate(source_logits):
                 if i != j:
-                    terms.append(cross_entropy(source, target, self.ssl2_cls_center))
+                    terms.append(
+                        cross_entropy(source, target, self.ssl2_cls_center)
+                        if reduction_weights is None
+                        else (
+                            cross_entropy_terms(source, target, self.ssl2_cls_center)
+                            * reduction_weights[0]
+                        ).sum()
+                    )
         for j in range(2):
             mask = batch.cell_views[j].mask
             if self.weights[1][1] and mask.any():
@@ -268,7 +307,13 @@ class JointObjective(nn.Module):
                     )
                 self._targets("ssl2_node", target_node)
                 node_loss = cross_entropy(source, target_node, self.ssl2_node_center)
-                if ibot_population is not None:
+                if reduction_weights is not None:
+                    token_terms = cross_entropy_terms(source, target_node, self.ssl2_node_center)
+                    rows = mask.nonzero(as_tuple=True)[0]
+                    per_row = token_terms.new_zeros(len(mask)).scatter_add(0, rows, token_terms)
+                    per_row = per_row / mask.sum(-1).clamp_min(1)
+                    node_loss = (per_row * reduction_weights[1][j]).sum()
+                elif ibot_population is not None:
                     # Return a cell-scaled contribution so the engine's row
                     # weighting cancels and yields the global masked-token mean.
                     node_loss = (
@@ -278,18 +323,42 @@ class JointObjective(nn.Module):
                     )
                 nodes.append(node_loss)
         zero = student_outputs[0]["response_cls"].sum() * 0
+        if self.weights[1][2] and self.loss_reduction is not None:
+            selected = batch.unique_cell_indices
+            values = [
+                o["response_cls"] if selected is None else o["response_cls"][selected]
+                for o in student_outputs[:2]
+            ]
+            ids = batch.condition_index if selected is None else batch.condition_index[selected]
+            if deferred_koleo is not None:
+                deferred_koleo.append((values[0], values[1], ids))
+                koleo = zero
+            else:
+                weights = population_weights(
+                    ids, torch.ones_like(ids, dtype=torch.bool), self.loss_reduction
+                )
+                koleo = torch.stack(
+                    [(nearest_neighbor_terms(v) * weights).sum() for v in values]
+                ).mean()
+        else:
+            koleo = None
         return {
             "dino": torch.stack(terms).mean() if terms else zero,
             "ibot": (
                 (
                     torch.stack(nodes).mean()
-                    if ibot_population is None
-                    else torch.stack(nodes).sum() / (ibot_population[:2] > 0).sum().clamp_min(1)
+                    if ibot_population is None and reduction_weights is None
+                    else torch.stack(nodes).sum()
+                    if reduction_weights is not None
+                    else torch.stack(nodes).sum()
+                    / (cast(Tensor, ibot_population)[:2] > 0).sum().clamp_min(1)
                 )
                 if nodes
                 else zero
             ),
-            "koleo": torch.stack(
+            "koleo": koleo
+            if koleo is not None
+            else torch.stack(
                 [
                     nearest_spread(
                         o["response_cls"]
