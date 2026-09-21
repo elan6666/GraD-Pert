@@ -46,7 +46,9 @@ def test_real_jurkat_capacity_cannot_authorize_another_dataset(api, tmp_path):
     with pytest.raises(ValueError, match="dataset"):
         api.prepare_initial("norman", config, receipt, sha256_file(receipt), tmp_path / "wrong")
     assert not (tmp_path / "wrong").exists()
-    with pytest.raises(ValueError, match="two-rank"):
+    # Historical full-axis evidence cannot authorize the new default protocol,
+    # even before checking its obsolete single-rank execution topology.
+    with pytest.raises(ValueError, match="expression visibility"):
         api.prepare_initial(
             "nadig_jurkat", config, receipt, sha256_file(receipt), tmp_path / "single_rank"
         )

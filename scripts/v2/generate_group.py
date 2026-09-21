@@ -143,6 +143,11 @@ def measured_batches(parent: Path, probes: list[dict]) -> list[int]:
         observed = collect(receipt, config)
         candidate = yaml.safe_load(config.read_text())
         if (
+            load_experiment_config(config).model.excludes_test_target_expression
+            != load_experiment_config(parent).model.excludes_test_target_expression
+        ):
+            raise ValueError("capacity expression visibility differs from parent")
+        if (
             observed["world_size"] != raw["model"]["parameters"]["world_size"]["value"]
             or observed["accumulation"] != 1
         ):

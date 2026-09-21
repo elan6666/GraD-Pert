@@ -50,6 +50,8 @@ def prepare_initial(
 ) -> dict:
     if sha256_file(receipt) != receipt_sha256:
         raise ValueError("capacity receipt checksum mismatch")
+    if load_experiment_config(config).dataset_id != dataset:
+        raise ValueError("capacity dataset differs from requested dataset")
     observed = collect(receipt, config)
     expected = yaml.safe_load(template(dataset).read_text())
     raw = yaml.safe_load(config.read_text())

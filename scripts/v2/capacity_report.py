@@ -20,6 +20,10 @@ def collect(receipt_path: Path, config_path: Path) -> dict:
     architecture, options = V2Options.parse_parameters(config.model.parameters)
     if receipt.get("config_sha256") != sha256_file(config_path):
         raise ValueError("capacity config checksum mismatch")
+    policy = receipt.get("data", {}).get("training_expression_policy", {})
+    exclusion = policy.get("exclude_test_target_expression", False)
+    if exclusion is not config.model.excludes_test_target_expression:
+        raise ValueError("capacity expression visibility protocol differs from config")
     if receipt.get("kind") != "capacity_only" or receipt.get("status") != "passed":
         raise ValueError("only completed engineering probes are eligible")
     if receipt.get("steps_completed", 0) < 128:
@@ -51,6 +55,7 @@ def collect(receipt_path: Path, config_path: Path) -> dict:
         "config_sha256": receipt["config_sha256"],
         "training_sha": source["commit"],
         "dataset": config.dataset_id,
+        "exclude_test_target_expression": exclusion,
         "physical_gpus": receipt["gpu"],
         "world_size": options.world_size,
         "microbatch": options.microbatch,

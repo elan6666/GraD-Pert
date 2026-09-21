@@ -17,6 +17,7 @@ def valid_receipt():
         "status": "passed",
         "steps_completed": 128,
         "config_sha256": sha256_file(CONFIG),
+        "data": {"training_expression_policy": {"exclude_test_target_expression": True}},
         "source": {
             "dirty": False,
             "commit": "a" * 40,
@@ -53,6 +54,8 @@ def test_report_preserves_microbatch_and_does_not_invent_missing_communication(t
         ("resume_checkpoint_sha256", None),
         ("measured_update_seconds", [2.0]),
         ("world_size", 2),
+        ("data", {}),
+        ("data", {"training_expression_policy": {"exclude_test_target_expression": False}}),
     ],
 )
 def test_report_rejects_incomplete_or_mismatched_evidence(tmp_path, field, value):
