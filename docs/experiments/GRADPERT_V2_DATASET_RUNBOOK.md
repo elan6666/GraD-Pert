@@ -135,6 +135,36 @@ and complete ordered output gene IDs. An OOM or parity failure produces a failed
 completed earlier points preserved. The formal inference batch remains pending
 these real measurements and final execution-config preflight.
 
+## Complete preregistered matrix
+
+After collecting the reference and two or three meaningful dual-rank capacity
+levels, use `scripts/v2/prepare_matrix.py` to materialize every training group:
+
+```bash
+PYTHONPATH=src python scripts/v2/prepare_matrix.py \
+  --dataset nadig_jurkat --capacity-config "$MEASURED_CONFIG" \
+  --receipt "$CAPACITY_RECEIPT" --receipt-sha256 "$CAPACITY_SHA256" \
+  --batch-probes "$MEASURED_BATCH_PROBES_JSON" \
+  --holdout "$SEALED_HOLDOUT_DESCRIPTOR_JSON" \
+  --output "$NEW_MATRIX_DIRECTORY"
+```
+
+The batch-probe list uses the existing `receipt`, `receipt_sha256`, `config`
+fields. The holdout descriptor contains `path` and `sha256`. Every input is
+checked before generation. The same command supports the other four dataset
+IDs with their own measurements and partition; Jurkat is the default.
+
+With three measured batch levels this produces47 nominal training rows across
+15 groups, plus G1-context/D1 evaluation entry references in `matrix.json`.
+B0/H1 remain pending exact-source/config/seed launch preflight. All other YAMLs
+are reviewable preregistered configurations with the measured reference parent;
+they are explicitly prospective and the queue rejects them. They do not assert
+that the nominal LR, weight decay or batch won validation. After each actual
+selection, `prepare_followup.py` regenerates the next group in a new directory
+from the sealed winner. This preserves both the original preregistration and
+the actual executed configurations. G1-context/D1 additionally need sealed
+dataset-specific evaluation protocols and the chosen frozen checkpoint.
+
 ## Existing external and nonlearned baselines
 
 `scripts/v2/run_external_baseline.py` is a dispatch wrapper, not a new trainer.
