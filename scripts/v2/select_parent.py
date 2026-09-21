@@ -48,6 +48,8 @@ def choose(verified: dict, runs: dict[str, list[str]], seeds: list[int]) -> dict
                 or journal["epoch"] != 50
                 or journal["budget"][0] != 50
                 or [h["epoch"] for h in history] != list(range(1, 51))
+                or journal["budget"][1] <= 0
+                or any(h["optimizer_steps"] != h["epoch"] * journal["budget"][1] for h in history)
             ):
                 raise ValueError("every candidate must finish all fifty committed epochs")
             validations = [h["validation"] for h in history]
@@ -60,13 +62,21 @@ def choose(verified: dict, runs: dict[str, list[str]], seeds: list[int]) -> dict
                 "data": {k: v for k, v in identity["data"].items() if k != "run_seed"},
                 "control_manifest_sha256": validations[0]["control_manifest_sha256"],
                 "reference_sha256": validations[0]["reference_sha256"],
+                "query_recipe": validations[0]["query_recipe"],
             }
             if any(
                 v["control_manifest_sha256"] != contract["control_manifest_sha256"]
                 or v["reference_sha256"] != contract["reference_sha256"]
+                or v["query_recipe"] != contract["query_recipe"]
                 for v in validations
             ):
                 raise ValueError("validation protocol changed within a run")
+            for validation in validations:
+                population = validation.get("population_receipt")
+                if population is not None:
+                    path = (root / population["file"]).resolve()
+                    if not path.is_relative_to(root) or sha256_file(path) != population["sha256"]:
+                        raise ValueError("validation population receipt differs from history")
             if common is None:
                 common = contract
             elif common != contract:

@@ -36,11 +36,13 @@ def candidates(tmp_path):
             history = [
                 {
                     "epoch": epoch,
+                    "optimizer_steps": epoch,
                     "validation": {
                         "split": "val",
                         "prediction_loss": 1.0 + index,
                         "control_manifest_sha256": "controls",
                         "reference_sha256": "reference",
+                        "query_recipe": {"query_count": 1000},
                     },
                 }
                 for epoch in range(1, 51)
@@ -100,5 +102,26 @@ def test_invalid_scientific_evidence_rejected(selector, candidates, mutation):
             "changed-" + mutation
         )
         atomic_json(path, value)
+    with pytest.raises(ValueError):
+        selector(verified, runs, [1, 2])
+
+
+@pytest.mark.parametrize("mutation", ["steps", "context", "population"])
+def test_selection_rejects_changed_execution_evidence(selector, candidates, mutation):
+    verified, runs = candidates
+    path = Path(runs["a"][0]) / "fit/history.json"
+    history = json.loads(path.read_text())
+    if mutation == "steps":
+        history[-1]["optimizer_steps"] -= 1
+    elif mutation == "context":
+        history[-1]["validation"]["query_recipe"]["query_count"] = 5000
+    else:
+        population = Path(runs["a"][0]) / "validation_population.json"
+        population.write_text("changed")
+        history[-1]["validation"]["population_receipt"] = {
+            "file": population.name,
+            "sha256": "original",
+        }
+    atomic_json(path, history)
     with pytest.raises(ValueError):
         selector(verified, runs, [1, 2])
