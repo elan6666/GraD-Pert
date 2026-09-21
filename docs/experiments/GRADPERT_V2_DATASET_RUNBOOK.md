@@ -111,3 +111,23 @@ reserves1000 of5000 genes (seed1); this is a project setting. Control expression
 is available at inference, so this measures training-column generalization,
 not imputation of missing control measurements. Other datasets generate their
 own partitions and protocols with the same scripts and their own canonical axis.
+
+
+### Inference batch engineering check
+
+`scripts/v2/inference_probe.py` loads a passed engineering checkpoint, including
+checkpoints trained with two ranks. It uses one frozen validation condition and
+its exact300controls, without reading truth expression. For a fixed query set,
+`--cell-batches 2 8 16 32` records end-to-end time, peak memory and maximum
+prediction difference against the first batch size. The explicit equivalence
+tolerance is atol=rtol=2e-5. No prediction matrix is persisted. Run on an idle
+GPU and use a new output path. Each point is one timed call, including graph
+encoding/transfers; the first point may include cold overhead. This is a
+throughput/parity probe, not a full validation result or a proven maximum.
+
+The required config/training-run/engineering-receipt/publication arguments match
+the independent engineering evaluation commands. Use `--query-count 1000` for
+the standard inference context; test the full expression-axis count separately
+for G1 larger contexts. An OOM or parity failure produces a failed receipt with
+completed earlier points preserved. The formal inference batch remains pending
+these real measurements and final execution-config preflight.
