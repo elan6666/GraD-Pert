@@ -32,3 +32,14 @@ completed, hash-matched 128-update probes with checkpoint continuation and
 300-control inference. It reports observed points, not an inferred maximum or a
 selected scientific batch. Preserve per-run source versions and KoLeo neighborhood
 sizes when comparing physical, accumulated and distributed batches.
+
+`PYTHONPATH=src python scripts/v2/collect_results.py --run SERVER_RUN_ROOT --output NEW_DIRECTORY`
+
+Repeat `--run` to collect multiple runs. Run this on the server so selected
+checkpoint hashes can be verified without transferring weights. Output is small
+JSON/CSV suitable for dry-run-reviewed retrieval. Both best/last roles are kept,
+even for identical checkpoint content. Missing manifests/checkpoints/tests and
+invalid evidence remain explicit. Completion requires fifty committed validation
+epochs, consistent minimum-loss selection, both test identities, checkpoint hashes,
+and the zero-PKL postcondition. The table records training and evaluation SHAs
+separately; it does not select hyperparameters from test scores.
