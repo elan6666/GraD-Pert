@@ -548,3 +548,12 @@ validation、test 和文件操作通过独立 Gloo CPU 控制组广播结果，�
 24 小时。其他 rank 不在长时间验证期间挂起 NCCL collective，避免把正常验证
 误判为梯度通信故障。超时仍是错误，不把超时当作阶段完成；实际多卡验证容量
 与耗时需要服务器证据。本地 Gloo 生命周期回归不能替代 NCCL 实测。
+
+### G1 固定评估轴的上下文接口
+
+`context_queries(evaluation_ids, gene_count, budget, seed)` 保留预先冻结的评估
+基因集合，以固定随机顺序补入其他基因，再按表达轴顺序排列。增加 budget
+得到嵌套上下文；清单不读取测试响应或测试 HVG。`predict_query_set` 对明确的
+context gene IDs 输出预测，比较时只取相同 evaluation IDs 对应位置。
+这与默认有序分块覆盖全表达轴的推理配方分别记录，不能混称同一 token 预算。
+该接口本身不证明训练表达列已被排除；表达列留出仍需训练侧清单及泄漏检查。

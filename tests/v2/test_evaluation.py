@@ -86,3 +86,40 @@ def test_validation_rejects_reference_including_test_conditions():
             cell_batch=2,
             query_count=4,
         )
+
+
+def test_context_budgets_are_nested_and_keep_evaluation_axis_fixed():
+    from gradpert.training.v2.evaluation import context_queries
+
+    evaluation = (2, 8)
+    contexts = [context_queries(evaluation, gene_count=10, budget=n, seed=17) for n in (3, 6, 10)]
+    assert set(contexts[0]) < set(contexts[1]) < set(contexts[2])
+    for context in contexts:
+        np.testing.assert_array_equal(context[np.searchsorted(context, evaluation)], evaluation)
+    np.testing.assert_array_equal(contexts[-1], np.arange(10))
+    with pytest.raises(ValueError):
+        context_queries(evaluation, gene_count=10, budget=1, seed=17)
+
+
+def test_explicit_noncontiguous_queries_preserve_gene_identity():
+    from gradpert.training.v2.evaluation import predict_query_set
+
+    model, _ = fixture()
+    for parameter in model.prediction.parameters():
+        parameter.data.zero_()
+    controls = np.arange(20, dtype=np.float32).reshape(5, 4)
+    queries = np.array([0, 3])
+    result = predict_query_set(
+        model, graph_index(), controls, (5,), queries, device=torch.device("cpu"), cell_batch=2
+    )
+    np.testing.assert_array_equal(result, controls[:, queries])
+    with pytest.raises(ValueError, match="increasing"):
+        predict_query_set(
+            model,
+            graph_index(),
+            controls,
+            (5,),
+            np.array([3, 0]),
+            device=torch.device("cpu"),
+            cell_batch=2,
+        )

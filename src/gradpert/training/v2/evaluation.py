@@ -18,6 +18,87 @@ from gradpert.training.validation import mean_expression_mse
 from .views import NeighborhoodIndex
 
 
+def context_queries(
+    evaluation_ids: tuple[int, ...], *, gene_count: int, budget: int, seed: int
+) -> np.ndarray[Any, Any]:
+    """Nested deterministic contexts containing one frozen evaluation gene set."""
+    if (
+        not evaluation_ids
+        or len(set(evaluation_ids)) != len(evaluation_ids)
+        or any(type(g) is not int or g < 0 or g >= gene_count for g in evaluation_ids)
+        or not len(evaluation_ids) <= budget <= gene_count
+    ):
+        raise ValueError("evaluation IDs must be unique, in-axis and fit the context budget")
+    remaining = np.array(sorted(set(range(gene_count)) - set(evaluation_ids)), dtype=np.int64)
+    np.random.default_rng(seed).shuffle(remaining)
+    return np.sort(
+        np.concatenate((np.asarray(evaluation_ids), remaining[: budget - len(evaluation_ids)]))
+    )
+
+
+@torch.no_grad()
+def predict_query_set(
+    model: GraDPertV2,
+    index: NeighborhoodIndex,
+    controls: np.ndarray[Any, Any],
+    targets: tuple[int, ...],
+    queries: np.ndarray[Any, Any],
+    *,
+    device: torch.device,
+    cell_batch: int,
+    block_response_cls_to_gene: bool = False,
+) -> np.ndarray[Any, Any]:
+    """Predict explicitly ordered expression columns in one shared context.
+
+    Outputs follow queries exactly. Callers compare the same evaluation IDs by
+    selecting their positions in each context, never by comparing different axes.
+    """
+    if (
+        controls.ndim != 2
+        or not controls.size
+        or not np.isfinite(controls).all()
+        or controls.shape[1] > index.n_nodes
+        or cell_batch < 1
+    ):
+        raise ValueError("finite aligned control matrix and positive cell batch required")
+    if (
+        queries.ndim != 1
+        or not len(queries)
+        or queries.dtype.kind not in "iu"
+        or (queries < 0).any()
+        or (queries >= controls.shape[1]).any()
+        or (np.diff(queries.astype(np.int64)) <= 0).any()
+    ):
+        raise ValueError("context query IDs must be unique increasing expression-axis indices")
+    if (
+        not targets
+        or len(set(targets)) != len(targets)
+        or any(t < 0 or t >= index.n_nodes for t in targets)
+    ):
+        raise ValueError("condition requires distinct in-graph target genes")
+    model.eval()
+    ids = np.union1d(queries, targets)
+    view = index.view(ids, [targets], rng=np.random.default_rng(0), device=device, induced=False)
+    gene = model.graph(view.ids, view.neighbors, view.valid, view.sources)
+    condition = model.aggregate_targets(gene, view.target_positions, view.target_valid)
+    positions = torch.tensor(np.searchsorted(ids, queries), device=device)
+    result = np.empty((len(controls), len(queries)), dtype=np.float32)
+    for row in range(0, len(controls), cell_batch):
+        chunk = torch.from_numpy(
+            np.ascontiguousarray(controls[row : row + cell_batch, queries])
+        ).to(device)
+        output = model.encode_response(
+            gene[positions],
+            chunk,
+            condition.expand(len(chunk), -1),
+            block_response_cls_to_gene=block_response_cls_to_gene,
+        )
+        result[row : row + len(chunk)] = output["prediction"].float().cpu().numpy()
+    if not np.isfinite(result).all():
+        raise FloatingPointError("nonfinite v2 query prediction")
+    return result
+
+
 @torch.no_grad()
 def predict_controls(
     model: GraDPertV2,
@@ -49,26 +130,16 @@ def predict_controls(
     for start in range(0, controls.shape[1], query_count):
         stop = min(start + query_count, controls.shape[1])
         queries = np.arange(start, stop)
-        ids = np.union1d(queries, targets)
-        view = index.view(
-            ids, [targets], rng=np.random.default_rng(0), device=device, induced=False
+        prediction[:, start:stop] = predict_query_set(
+            model,
+            index,
+            controls,
+            targets,
+            queries,
+            device=device,
+            cell_batch=cell_batch,
+            block_response_cls_to_gene=block_response_cls_to_gene,
         )
-        gene = model.graph(view.ids, view.neighbors, view.valid, view.sources)
-        condition = model.aggregate_targets(gene, view.target_positions, view.target_valid)
-        positions = torch.tensor(np.searchsorted(ids, queries), device=device)
-        for row in range(0, len(controls), cell_batch):
-            chunk = torch.from_numpy(
-                np.ascontiguousarray(controls[row : row + cell_batch, start:stop])
-            ).to(device)
-            output = model.encode_response(
-                gene[positions],
-                chunk,
-                condition.expand(len(chunk), -1),
-                block_response_cls_to_gene=block_response_cls_to_gene,
-            )
-            prediction[row : row + len(chunk), start:stop] = (
-                output["prediction"].float().cpu().numpy()
-            )
     if not np.isfinite(prediction).all():
         raise FloatingPointError("nonfinite v2 prediction")
     return prediction
