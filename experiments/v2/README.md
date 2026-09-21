@@ -158,3 +158,12 @@ are not incorrectly scored against the original condition's truth. The API does
 not claim arbitrary control cells are paired. Tests cover raw-control-residual
 separation, distinct CLS roles and unchanged-input zero sensitivity. Frozen
 population/checkpoint/source binding and real-server D1 execution remain pending.
+
+H3 generation now accepts `--batch-probes PROBES.json` in both group generation
+and `prepare_followup.py`. The JSON is an ordered list of two or three records
+with `receipt`, `config` and `receipt_sha256`. Every receipt must pass sustained
+capacity verification; probes must match the parent dataset/model/loss profile,
+use one rank and no accumulation, and provide unique increasing physical batch
+sizes. Generated rows change only microbatch and training batch; LR stays fixed.
+Verification rechecks original receipt/config hashes. This enables H3 tooling;
+it does not itself choose or freeze the final measured levels.

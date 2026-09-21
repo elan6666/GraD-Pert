@@ -11,7 +11,7 @@ API = runpy.run_path(str(ROOT / "scripts/v2/generate_group.py"))
 PARENT = ROOT / "configs/v2/capacity/m16/gradpert_v2/nadig_jurkat.yaml"
 
 
-@pytest.mark.parametrize("group", API["GROUPS"])
+@pytest.mark.parametrize("group", [g for g in API["GROUPS"] if g != "H3"])
 def test_generated_groups_are_standalone_and_preserve_fixed_parent_contract(tmp_path, group):
     original = yaml.safe_load(PARENT.read_text())
     manifest = API["generate"](PARENT, group, tmp_path / group)
@@ -65,3 +65,40 @@ def test_verifier_rejects_config_drift_and_resealed_confounds(tmp_path, mutation
     manifest_path.write_text(json.dumps(manifest))
     with pytest.raises(ValueError):
         API["verify_group"](manifest_path, PARENT)
+
+
+def test_h3_requires_measured_profiles_and_preserves_learning_rate(tmp_path, monkeypatch):
+    import json
+
+    from test_capacity_report import valid_receipt
+
+    monkeypatch.syspath_prepend(str(ROOT / "scripts/v2"))
+    probes = []
+    for batch in (8, 32):
+        config = ROOT / f"configs/v2/capacity/m{batch}/gradpert_v2/nadig_jurkat.yaml"
+        receipt = tmp_path / f"synthetic-probe-{batch}.json"
+        payload = valid_receipt()
+        payload["config_sha256"] = sha256_file(config)
+        receipt.write_text(json.dumps(payload))
+        probes.append(
+            {"receipt": str(receipt), "config": str(config), "receipt_sha256": sha256_file(receipt)}
+        )
+    output = tmp_path / "H3"
+    manifest = API["generate"](PARENT, "H3", output, batch_probes=probes)
+    assert [r["name"] for r in manifest["rows"]] == ["batch_8", "batch_32"]
+    assert API["verify_group"](output / "manifest.json", PARENT)["group"] == "H3"
+    for row in manifest["rows"]:
+        config = yaml.safe_load((output / row["config"]).read_text())
+        assert (
+            config["training"]["learning_rate"]
+            == yaml.safe_load(PARENT.read_text())["training"]["learning_rate"]
+        )
+    Path(probes[0]["receipt"]).write_text("changed")
+    with pytest.raises(ValueError, match="receipt changed"):
+        API["verify_group"](output / "manifest.json", PARENT)
+
+
+def test_h3_cannot_be_generated_from_unmeasured_defaults(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "scripts/v2"))
+    with pytest.raises(ValueError, match="measured"):
+        API["generate"](PARENT, "H3", tmp_path / "H3")

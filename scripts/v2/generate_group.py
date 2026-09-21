@@ -13,10 +13,19 @@ import yaml
 from gradpert.config import load_experiment_config
 from gradpert.hashing import sha256_file
 
-GROUPS = ("B0", "H1", "H2", "P1", "L0", "L1", "L2", "A1", "A2", "A3", "A4", "S1", "S2")
+GROUPS = ("B0", "H1", "H2", "H3", "P1", "L0", "L1", "L2", "A1", "A2", "A3", "A4", "S1", "S2")
 
 
-def levels(group: str) -> list[tuple[str, dict]]:
+def levels(group: str, batch_levels: list[int] | None = None) -> list[tuple[str, dict]]:
+    if group == "H3":
+        if (
+            batch_levels is None
+            or len(batch_levels) not in (2, 3)
+            or any(type(n) is not int or n < 1 for n in batch_levels)
+            or batch_levels != sorted(set(batch_levels))
+        ):
+            raise ValueError("H3 requires two or three distinct measured batch levels")
+        return [(f"batch_{n}", {"microbatch": n, "train_batch_size": n}) for n in batch_levels]
     if group == "B0":
         return [
             ("prediction_only", {"lambda1": 0, "lambda2": 0}),
@@ -71,7 +80,7 @@ def row_configuration(raw: dict, overrides: dict) -> dict:
     for key, value in overrides.items():
         owner = (
             config["training"]
-            if key in ("learning_rate", "weight_decay")
+            if key in ("learning_rate", "weight_decay", "train_batch_size")
             else config["model"]["parameters"]
         )
         owner[key] = {
@@ -86,7 +95,32 @@ def row_configuration(raw: dict, overrides: dict) -> dict:
     return config
 
 
-def generate(parent: Path, group: str, output: Path) -> dict:
+def measured_batches(parent: Path, probes: list[dict]) -> list[int]:
+    from capacity_report import collect
+
+    raw = yaml.safe_load(parent.read_text())
+    batches = []
+    for probe in probes:
+        receipt, config = Path(probe["receipt"]), Path(probe["config"])
+        if sha256_file(receipt) != probe["receipt_sha256"]:
+            raise ValueError("capacity receipt changed")
+        observed = collect(receipt, config)
+        candidate = yaml.safe_load(config.read_text())
+        if observed["world_size"] != 1 or observed["accumulation"] != 1:
+            raise ValueError("H3 physical batch levels require single-rank unaccumulated probes")
+        if candidate["dataset_id"] != raw["dataset_id"] or candidate["data"] != raw["data"]:
+            raise ValueError("capacity probe dataset differs from parent")
+        for key, value in raw["model"]["parameters"].items():
+            if key != "microbatch" and candidate["model"]["parameters"].get(key) != value:
+                raise ValueError("capacity model or loss profile differs from parent")
+        batches.append(observed["microbatch"])
+    levels("H3", batches)
+    return batches
+
+
+def generate(
+    parent: Path, group: str, output: Path, *, batch_probes: list[dict] | None = None
+) -> dict:
     load_experiment_config(parent)
     raw = yaml.safe_load(parent.read_text())
     if raw["model_id"] != "gradpert_v2" or group not in GROUPS:
@@ -97,7 +131,10 @@ def generate(parent: Path, group: str, output: Path) -> dict:
         raise FileExistsError("group output must be new; existing experiments are immutable")
     rows = []
     prepared = []
-    for name, overrides in levels(group):
+    batch_levels = measured_batches(parent, batch_probes or []) if group == "H3" else None
+    if group != "H3" and batch_probes:
+        raise ValueError("capacity batch probes apply only to H3")
+    for name, overrides in levels(group, batch_levels):
         config = row_configuration(raw, overrides)
         prepared.append((name, config, overrides))
     output.mkdir(parents=True)
@@ -124,6 +161,8 @@ def generate(parent: Path, group: str, output: Path) -> dict:
         "selection_rule": "validation prediction loss only; no within-group rolling parent",
         "rows": rows,
     }
+    if group == "H3":
+        manifest["batch_probes"] = batch_probes
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
@@ -136,7 +175,12 @@ def verify_group(manifest_path: Path, parent: Path) -> dict:
         raise ValueError("frozen group parent checksum mismatch")
     load_experiment_config(parent)
     raw = yaml.safe_load(parent.read_text())
-    expected = dict(levels(manifest["group"]))
+    batch_levels = (
+        measured_batches(parent, manifest.get("batch_probes", []))
+        if manifest["group"] == "H3"
+        else None
+    )
+    expected = dict(levels(manifest["group"], batch_levels))
     rows = manifest["rows"]
     if len(rows) != len(expected) or {r["name"] for r in rows} != set(expected):
         raise ValueError("group rows differ from the registered factor levels")
@@ -169,6 +213,7 @@ def main() -> None:
     parser.add_argument("--group", choices=GROUPS)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--verify-manifest", type=Path)
+    parser.add_argument("--batch-probes", type=Path)
     args = parser.parse_args()
     if args.verify_manifest:
         if args.group or args.output:
@@ -177,7 +222,12 @@ def main() -> None:
         return
     if not args.group or not args.output:
         parser.error("generation requires --group and --output")
-    result = generate(args.parent, args.group, args.output)
+    result = generate(
+        args.parent,
+        args.group,
+        args.output,
+        batch_probes=(json.loads(args.batch_probes.read_text()) if args.batch_probes else None),
+    )
     print(
         json.dumps({"group": args.group, "rows": len(result["rows"]), "status": result["status"]})
     )
