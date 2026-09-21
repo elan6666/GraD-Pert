@@ -176,6 +176,39 @@ def test_real_optimizer_checkpoint_resume(tmp_path):
         load_checkpoint(tmp_path / "old.pt", objective, optimizer, identity=identity, generator=rng)
 
 
+@pytest.mark.parametrize("lambda1,lambda2", [(0.0, 0.0), (1.0, 0.1)])
+def test_overfit_opposite_responses_for_identical_controls(lambda1, lambda2):
+    """A control-only shortcut cannot fit opposite condition-specific responses."""
+    from dataclasses import replace
+
+    from gradpert.training.v2.engine import optimizer_step
+    from gradpert.training.v2.optimizer import V2Optimizer
+
+    model, batch = fixture()
+    batch.control = batch.control[:1].repeat(2, 1)
+    offset = torch.tensor([[0.2, -0.1, 0.3, -0.4], [-0.2, 0.1, -0.3, 0.4]])
+    batch.truth = batch.control + offset
+    objective = JointObjective(model, lambda1, lambda2)
+    optimizer = V2Optimizer(model, 0.001, 0.0)
+    with torch.no_grad():
+        initial = float(objective(batch)[1]["prediction"])
+    for _ in range(160):
+        optimizer_step(
+            objective, optimizer, batch, microbatch=2, lr=0.001, momentum=0.99, bf16=False
+        )
+    objective.eval()
+    with torch.no_grad():
+        fitted = float(objective(batch)[1]["prediction"])
+        wrong_condition = float(
+            objective(replace(batch, condition_index=batch.condition_index.flip(0)))[1][
+                "prediction"
+            ]
+        )
+    unconditional_floor = float(offset.square().mean())
+    assert fitted < min(0.001, initial * 0.02, unconditional_floor * 0.02)
+    assert wrong_condition > max(unconditional_floor, fitted * 10)
+
+
 @pytest.mark.parametrize("length", [1, 7, 17, 33])
 def test_chunk_delta_matches_recurrence_full_gradients(length):
     from gradpert.modeling.v2.operators import chunk_delta_scan
