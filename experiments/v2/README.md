@@ -179,3 +179,13 @@ are written. Current runtime construction supports the single-rank training
 profiles; a distributed training config requires a later evaluation adapter.
 Entry guards and CLI are tested, but real completed-checkpoint execution is still
 unverified. Capacity checkpoints cannot masquerade as completed formal runs.
+
+`evaluate_diagnostics.py` shares the completed-run/source/config/checkpoint/data
+entry with G1. Its hash-pinned protocol has `query_gene_ids`, `condition_id`,
+`alternative_condition_id`, and `split`. Both distinct conditions must belong to
+the same frozen split. Their existing ordered control draws are loaded without
+resampling; query embeddings are fixed across interventions. The response receipt
+records both ordered control populations and the original condition's truth IDs,
+with separate basal/response CLS and prediction/delta distances. Cell inference
+is chunked with population-weighted aggregation. Real-server execution remains
+unverified until an eligible checkpoint and its sealed protocol are available.

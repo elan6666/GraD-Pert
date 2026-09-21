@@ -27,8 +27,14 @@ def selected_checkpoint(root: Path, role: str) -> tuple[dict, dict, Path]:
     return manifest, selected, checkpoint
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+def main(kind: str = "context") -> None:
+    parser = argparse.ArgumentParser(
+        description=(
+            __doc__
+            if kind == "context"
+            else "Run fixed-population D1 response diagnostics on a completed-run checkpoint."
+        )
+    )
     for name in ("config", "data-root", "training-run", "protocol", "publication", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--protocol-sha256", required=True)
@@ -57,9 +63,12 @@ def main() -> None:
     if sha256_file(args.protocol) != args.protocol_sha256:
         raise ValueError("evaluation protocol checksum mismatch")
     protocol = json.loads(args.protocol.read_text())
-    if set(protocol) != {"evaluation_gene_ids", "budgets", "context_seed", "split"} or protocol[
-        "split"
-    ] not in ("val", "test"):
+    fields = (
+        {"evaluation_gene_ids", "budgets", "context_seed", "split"}
+        if kind == "context"
+        else {"query_gene_ids", "condition_id", "alternative_condition_id", "split"}
+    )
+    if set(protocol) != fields or protocol["split"] not in ("val", "test"):
         raise ValueError("context protocol requires explicit fixed genes, budgets, seed and split")
     config = load_experiment_config(args.config)
     training, selected, checkpoint = selected_checkpoint(args.training_run, args.role)
@@ -89,27 +98,44 @@ def main() -> None:
             checkpoint_sha256=selected["sha256"],
         )
         gene_positions = {g: i for i, g in enumerate(runtime.data.expression_gene_ids)}
-        evaluation_ids = tuple(gene_positions[g] for g in protocol["evaluation_gene_ids"])
+
         with CanonicalEvaluationData(
             dataset_id=config.dataset_id,
             protocol_id=config.data.protocol_id,
             data_root=args.data_root,
             split_name=protocol["split"],
         ) as data:
-            result = evaluate_contexts(
-                runtime.objective.student,
-                runtime.index,
-                data,
-                evaluation_ids=evaluation_ids,
-                budgets=tuple(protocol["budgets"]),
-                context_seed=protocol["context_seed"],
-                expected_split=protocol["split"],
-                device=torch.device("cuda:0"),
-                cell_batch=int(config.training.eval_batch_size.value),
-            )
+            if kind == "context":
+                result = evaluate_contexts(
+                    runtime.objective.student,
+                    runtime.index,
+                    data,
+                    evaluation_ids=tuple(
+                        gene_positions[g] for g in protocol["evaluation_gene_ids"]
+                    ),
+                    budgets=tuple(protocol["budgets"]),
+                    context_seed=protocol["context_seed"],
+                    expected_split=protocol["split"],
+                    device=torch.device("cuda:0"),
+                    cell_batch=int(config.training.eval_batch_size.value),
+                )
+            else:
+                from gradpert.training.v2.diagnostics import evaluate_response_diagnostics
+
+                result = evaluate_response_diagnostics(
+                    runtime.objective.student,
+                    runtime.index,
+                    data,
+                    query_gene_ids=tuple(protocol["query_gene_ids"]),
+                    condition_id=protocol["condition_id"],
+                    alternative_condition_id=protocol["alternative_condition_id"],
+                    expected_split=protocol["split"],
+                    device=torch.device("cuda:0"),
+                    cell_batch=int(config.training.eval_batch_size.value),
+                )
         receipt = {
             "status": "passed",
-            "kind": "context_evaluation",
+            "kind": kind + "_evaluation",
             "training": training,
             "evaluation_source": source.payload(),
             "evaluation_environment": environment.payload(),
