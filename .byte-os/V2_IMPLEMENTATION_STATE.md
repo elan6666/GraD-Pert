@@ -66,3 +66,26 @@ do not reset, merge, or commit them. Relay owner remains Codex in root coordinat
 
 Plan: `.byte-os/plans/GRADPERT_V2_IMPLEMENTATION_AND_EXPERIMENTS.plan.md`.
 Current implementation is not a ready full v2 training release.
+
+## Later verified implementation and capacity progress
+
+- Canonical server runtime, independent v2 CLI dispatch, epoch lifecycle,
+  checkpoint resume, best/last test receipts, owned-run failure receipts and
+  `scripts/v2/resume.py` are implemented. Formal end-to-end integration remains
+  pending; these are not a claim that a 50-epoch run has completed.
+- Six-axis CSV/PNG/PDF curves now distinguish prediction, joint objective and
+  validation condition loss; three Pearson roles preserve missing values.
+  Two reporting tests and visual inspection pass using the existing root
+  `.venv` matplotlib. Core/entry suite excluding reporting: 65 tests pass.
+- Distributed center sums/counts and bucketed gradient averaging pass real
+  two-process Gloo tests, including empty local masks/missing local gradients.
+  The distributed training/runtime/checkpoint integration is STILL PENDING;
+  two independent GPU workers do not fulfill plan C2's DDP comparison.
+- Both real RTX5090 probes on immutable source aeee119 reached 112 updates,
+  including checkpoint save/load at 64, without errors. Completion and final
+  peak/throughput are not yet confirmed. Mutable handles are in root task state.
+- Next capacity search probes m8/m16 are standalone explicit configs, not
+  selected batch ablation levels. Evaluate them only after current probes finish
+  and after publication/clean server source checks. Preserve failed-run records.
+- Component switches now skip disabled heads/centers; per-gene MLP alternative
+  has a read-only pooled CLS and verified lack of cross-gene expression effects.

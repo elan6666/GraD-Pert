@@ -87,6 +87,17 @@ def optimizer_step(
         )
         optimizer.step(lr)
         objective.commit_statistics(momentum)
+        metrics["joint_loss"] = metrics["prediction"] + sum(
+            scale
+            * sum(
+                weight * metrics.get(f"ssl{stage}_{name}", 0.0)
+                for weight, name in zip(weights, names, strict=True)
+            )
+            for stage, scale, weights, names in (
+                (1, objective.lambda1, objective.weights[0], ("condition", "node", "spread")),
+                (2, objective.lambda2, objective.weights[1], ("dino", "ibot", "koleo")),
+            )
+        )
         metrics["gradient_norm"] = float(norm)
         metrics["learning_rate"] = lr
         metrics["teacher_momentum"] = momentum

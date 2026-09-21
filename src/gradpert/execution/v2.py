@@ -12,6 +12,8 @@ from gradpert.data._io import atomic_json, read_json
 from gradpert.execution.identity import inspect_environment, inspect_source_identity
 from gradpert.hashing import sha256_file, sha256_json
 
+SERVER_ROOT = Path("/data/yilangliu")
+
 
 class DatasetArgs(TypedDict):
     dataset_id: str
@@ -19,7 +21,7 @@ class DatasetArgs(TypedDict):
     data_root: Path
 
 
-def run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
+def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     """Run the sealed fifty-epoch lifecycle, then test both checkpoint roles."""
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         raise ValueError("v2 requires PYTORCH_ALLOC_CONF=expandable_segments:True")
@@ -28,9 +30,11 @@ def run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
         raise ValueError("v2 execution requires its explicit fixed-50 configuration")
     if sha256_file(Path(plan["config"])) != plan["config_sha256"]:
         raise ValueError("configuration changed after planning")
+    if Path(plan["repository_root"]).resolve() != Path(__file__).resolve().parents[3]:
+        raise ValueError("execution package differs from planned source checkout")
     root = Path(plan["run_root"]).resolve()
     data_root = Path(plan["data_root"]).resolve(strict=True)
-    if not all(p.is_relative_to("/data/yilangliu") for p in (root, data_root)):
+    if not all(p.is_relative_to(SERVER_ROOT) for p in (root, data_root)):
         raise ValueError("v2 scientific execution stays on the server")
     source = inspect_source_identity(
         plan["repository_root"],
@@ -51,10 +55,15 @@ def run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     from gradpert.evaluation.state import load_evaluation_state, prepare_evaluation_state
     from gradpert.training.v2.evaluation import evaluate
     from gradpert.training.v2.lifecycle import fit, test_selected
+    from gradpert.training.v2.reporting import export_curves
     from gradpert.training.v2.runtime import prepare_runtime
 
     device = torch.device("cuda:0")
+    if root.exists() and not resume:
+        raise FileExistsError("new v2 execution requires a new run root")
     root.mkdir(parents=True, exist_ok=True)
+    if not resume:
+        atomic_json(root / "launch.json", plan)
     with prepare_runtime(
         config, data_root=data_root, run_seed=plan["seed"], device=device
     ) as runtime:
@@ -109,6 +118,7 @@ def run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                 bf16=True,
                 resume=resume,
             )
+        export_curves(root / "fit")
         # Test references and truth are accessed only after all training and selection.
         prepare_evaluation_state(**common)
         reference = load_evaluation_state(**common)
@@ -141,3 +151,27 @@ def run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
         }
         atomic_json(root / "COMPLETE.json", complete)
         return complete
+
+
+def run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
+    """Persist failures only inside a run demonstrably owned by this launch."""
+    try:
+        return _run_v2(plan, resume=resume)
+    except BaseException as error:
+        root = Path(plan.get("run_root", ".")).resolve()
+        launch = root / "launch.json"
+        if root.is_relative_to(SERVER_ROOT) and launch.is_file() and read_json(launch) == plan:
+            manifest = root / "run_manifest.json"
+            atomic_json(
+                root / "FAILURE.json",
+                {
+                    "status": "interrupted" if isinstance(error, KeyboardInterrupt) else "failed",
+                    "error_type": type(error).__name__,
+                    "error": str(error),
+                    "resume_requested": resume,
+                    "identity": read_json(manifest) if manifest.is_file() else None,
+                    "planned_source_commit": plan.get("source_commit"),
+                    "provenance_note": "planned commit is not a substitute for run identity",
+                },
+            )
+        raise

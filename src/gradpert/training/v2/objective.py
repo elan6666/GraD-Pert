@@ -281,10 +281,18 @@ class JointObjective(nn.Module):
             self.teacher.parameters(), self.student.parameters(), strict=True
         ):
             teacher.lerp_(student, 1 - momentum)
-        for name, statistics in self.pending.items():
-            sums = torch.stack(statistics).sum(0)
+        # Every rank enters the same collectives, even when its masked-token
+        # population is empty. Aggregate sums/counts, not rank means.
+        for name in ("ssl1_cls", "ssl1_node", "ssl2_cls", "ssl2_node"):
+            center = getattr(self, name + "_center")
+            statistics = self.pending.get(name)
+            sums = (
+                torch.stack(statistics).sum(0)
+                if statistics
+                else center.new_zeros((2, center.numel()))
+            )
             if torch.distributed.is_initialized():
                 torch.distributed.all_reduce(sums)
-            center = getattr(self, name + "_center")
-            center.lerp_(sums[0] / sums[1].clamp_min(1), 0.1)
+            if sums[1, 0] > 0:
+                center.lerp_(sums[0] / sums[1], 0.1)
         self.pending.clear()
