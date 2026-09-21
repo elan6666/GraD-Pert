@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 from gradpert.config.native import NativeArchitectureOptions
 from gradpert.config.step_schedule import LRWarmupCosine, StepWarmupCosine, load_training_schedule
@@ -18,6 +18,7 @@ DatasetId = Literal[
 ]
 ModelId = Literal[
     "gradpert_b2",
+    "gradpert_v2",
     "gears",
     "txpert_public",
     "scouter_genept_seed",
@@ -82,6 +83,15 @@ class DataConfig(StrictModel):
 
 
 class ModelConfig(StrictModel):
+    version: Literal["v1", "v2"] | None = None
+
+    @model_serializer(mode="wrap")
+    def preserve_legacy_payload(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        if self.version is None:
+            payload.pop("version", None)
+        return cast(dict[str, Any], payload)
+
     model_id: ModelId
     family: Literal["native_learned", "external_learned", "nonlearned"]
     implementation: str
@@ -89,6 +99,11 @@ class ModelConfig(StrictModel):
 
     @model_validator(mode="after")
     def require_parameters(self) -> ModelConfig:
+        if self.model_id == "gradpert_v2":
+            if self.version != "v2":
+                raise ValueError("gradpert_v2 requires explicit model.version=v2")
+        elif self.version is not None and (self.model_id != "gradpert_b2" or self.version != "v1"):
+            raise ValueError("model ID/version mismatch")
         if not self.parameters:
             raise ValueError("model.parameters must be explicit and non-empty")
         return self
@@ -102,6 +117,7 @@ class TrainingConfig(StrictModel):
         "smoke_only",
         "fixed_epoch_pilot",
         "r50_selection",
+        "v2_fixed_50",
         "inference_only",
         "vnext_combination_100",
         "vnext_combination_200",
@@ -127,7 +143,7 @@ class TrainingConfig(StrictModel):
         if isinstance(self.scheduler.value, dict):
             schedule = load_training_schedule(self.scheduler.value)
             if isinstance(schedule, LRWarmupCosine):
-                if self.formal_run_policy != "r50_selection":
+                if self.formal_run_policy not in {"r50_selection", "v2_fixed_50"}:
                     raise ValueError("LR-only schedule requires R50 policy")
             elif self.formal_run_policy not in {"vnext_combination_100", "vnext_combination_200"}:
                 raise ValueError("native restart schedule is restricted to explicit combinations")
@@ -192,6 +208,17 @@ class TrainingConfig(StrictModel):
                     raise ValueError("vNext combination requires early-stopping patience=10")
                 if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
                     raise ValueError("vNext combination requires the common validation monitor")
+            elif self.formal_run_policy == "v2_fixed_50":
+                if self.max_epochs.value != 50 or self.early_stopping:
+                    raise ValueError("v2 requires exactly 50 epochs without early stopping")
+                if self.monitor != "val/prediction_loss" or self.monitor_mode != "min":
+                    raise ValueError("v2 selects best by validation prediction loss")
+                if (
+                    not self.run_seeds
+                    or len(self.run_seeds) != len(set(self.run_seeds))
+                    or any(s < 0 for s in self.run_seeds)
+                ):
+                    raise ValueError("v2 requires explicit unique nonnegative seeds")
             elif self.formal_run_policy == "r50_selection":
                 loss_selection = (
                     self.monitor == "val/prediction_loss" and self.monitor_mode == "min"
@@ -308,6 +335,7 @@ class ExperimentConfig(StrictModel):
             "native_learned": {
                 "smoke_then_full",
                 "r50_selection",
+                "v2_fixed_50",
                 "fixed_epoch_pilot",
                 "vnext_combination_100",
                 "vnext_combination_200",
@@ -324,11 +352,30 @@ class ExperimentConfig(StrictModel):
             or self.artifacts.result_mode != "metrics_only"
         ):
             raise ValueError("external R50 is restricted to registered Jurkat metrics_only rows")
+        if self.training.formal_run_policy == "v2_fixed_50" and self.model_id != "gradpert_v2":
+            raise ValueError("v2 policy cannot reinterpret a legacy model")
         is_legacy_performance_pilot = "performance_pilot_variant" in self.model.parameters
         if self.training.formal_run_policy == "r50_selection" and (
-            self.artifacts.result_mode != "metrics_only" or self.model_id != "gradpert_b2"
+            self.artifacts.result_mode != "metrics_only"
+            or self.model_id not in {"gradpert_b2", "gradpert_v2"}
         ):
             raise ValueError("R50 selection requires native GraD-Pert metrics_only")
+        if self.model_id == "gradpert_v2":
+            from gradpert.config.v2 import V2Options
+
+            _, options = V2Options.parse_parameters(self.model.parameters)
+            if (
+                self.training.formal_run_policy != "v2_fixed_50"
+                or self.training.max_epochs.value != 50
+            ):
+                raise ValueError("v2 uses the fixed 50 epoch best/last protocol")
+            if self.training.optimizer.value != "GLM5MuonSplit_v2":
+                raise ValueError("v2 requires its explicit parameter-route optimizer")
+            if (
+                self.training.train_batch_size.value
+                != options.microbatch * options.accumulation * options.world_size
+            ):
+                raise ValueError("effective batch differs from execution profile")
         if self.model_id == "gradpert_b2":
             if self.training.optimizer.value not in {"AdamW", "GLM5MuonSplit_v1"}:
                 raise ValueError("unsupported native optimizer")

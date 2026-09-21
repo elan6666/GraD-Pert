@@ -1,0 +1,26 @@
+{
+  "schema_version": "gradpert-v2-groups-1",
+  "status": "design_only_pending_capacity",
+  "order": ["B0", "H1", "H2", "H3", "P1", "L0", "L1", "L2", "A1", "A2", "A3", "A4", "S1", "S2", "G1", "D1"],
+  "groups": {
+    "B0": {"type": "baseline", "levels": ["prediction_only", "joint_ssl"], "depends_on": ["capacity"]},
+    "H1": {"type": "hyperparameter", "factor": "learning_rate", "levels": [0.001, 0.0001], "depends_on": ["B0"]},
+    "H2": {"type": "hyperparameter", "factor": "weight_decay", "levels": [0.0, 0.00001], "depends_on": ["H1_validation_selection"]},
+    "H3": {"type": "hyperparameter", "factor": "effective_batch", "levels": null, "level_source": "verified_capacity_receipt", "depends_on": ["H2_validation_selection", "capacity"]},
+    "P1": {"type": "model_size", "factor": "width", "levels": [256, 128], "fixed_heads": 4, "depends_on": ["H3_validation_selection"]},
+    "L0": {"type": "loss", "levels": [[0,0],[1,0],[0,0.1],[1,0.1]], "depends_on": ["hyperparameters_frozen"]},
+    "L1": {"type": "loss_component", "factor": "ssl1_three_binary_switches", "levels": "all_8", "other_ssl": "off", "depends_on": ["hyperparameters_frozen"]},
+    "L2": {"type": "loss_component", "factor": "ssl2_three_binary_switches", "levels": "all_8", "other_ssl": "off", "depends_on": ["hyperparameters_frozen"]},
+    "A1": {"type": "structure", "levels": ["full_token", "per_gene_mlp"], "depends_on": ["hyperparameters_frozen"]},
+    "A2": {"type": "structure", "factor": "attention", "levels": ["hybrid", "full_latent", "delta_full", "full"], "depends_on": ["hyperparameters_frozen"]},
+    "A3": {"type": "structure", "factor": "streams", "levels": [4, 1], "depends_on": ["hyperparameters_frozen"]},
+    "A4": {"type": "initialization", "factor": "gene_initialization", "levels": ["genept", "random"], "depends_on": ["hyperparameters_frozen"]},
+    "S1": {"type": "reduction", "factor": "ssl1_reduction", "levels": ["condition_mean", "row_mean"], "depends_on": ["hyperparameters_frozen"]},
+    "S2": {"type": "sampling", "levels": ["mixed_koleo_off", "single_koleo_off", "mixed_koleo_on"], "depends_on": ["hyperparameters_frozen"]},
+    "G1": {"type": "generalization", "levels": ["expression_holdout_at_fixed_token_budget", "context_scale_at_fixed_evaluation_axis"], "depends_on": ["frozen_checkpoint"]},
+    "D1": {"type": "diagnostic", "levels": ["change_control", "change_perturbation", "block_response_cls_to_gene"], "depends_on": ["frozen_checkpoint"]}
+  },
+  "fixed": {"dropout": 0.1, "cell_layers": 4, "response_layers": 4, "heads": 4, "ffn_multiplier": 4, "graph": "go+string+expander+self", "warmup_fraction": 0.16, "lr_floor_fraction": 0.2},
+  "batch_policy": "Never materialize batch levels before complete-path capacity evidence; fixed reference batch in other groups.",
+  "selection_policy": "validation prediction loss only; never read test metrics to select later groups"
+}
