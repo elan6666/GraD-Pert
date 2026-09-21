@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from time import perf_counter
 
 import torch
 
@@ -34,6 +35,7 @@ def optimizer_step(
     momentum: float,
     bf16: bool,
     global_condition_index: torch.Tensor | None = None,
+    timings: dict[str, float] | None = None,
 ) -> dict[str, float]:
     """Accumulate cell terms; count graph terms once per effective update.
 
@@ -124,7 +126,14 @@ def optimizer_step(
             torch.distributed.all_reduce(valid, op=torch.distributed.ReduceOp.MIN)
             if not valid.item():
                 raise FloatingPointError("nonfinite v2 loss on at least one rank")
+            if timings is not None and device == "cuda":
+                torch.cuda.synchronize(batch.control.device)
+            communication_started = perf_counter()
             average_gradients(objective.student)
+            if timings is not None:
+                if device == "cuda":
+                    torch.cuda.synchronize(batch.control.device)
+                timings["gradient_reduction_seconds"] = perf_counter() - communication_started
             names = sorted(metrics)
             values = torch.tensor(
                 [

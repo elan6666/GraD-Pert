@@ -123,6 +123,7 @@ def _step_worker(rank, rendezvous, reference, ssl2):
             model, lambda1=1, lambda2=0.1 if ssl2 else 0, ssl2_weights=(0.8, 0.4, 0)
         )
         local = slice_cells(batch, 0, 1) if rank == 0 else slice_cells(batch, 1, 3)
+        timings = {}
         metrics = optimizer_step(
             objective,
             _GradientCapture(model),
@@ -132,7 +133,9 @@ def _step_worker(rank, rendezvous, reference, ssl2):
             momentum=0.99,
             bf16=False,
             global_condition_index=batch.condition_index,
+            timings=timings,
         )
+        assert timings["gradient_reduction_seconds"] > 0
         expected = torch.load(reference, weights_only=True)
         for name, parameter in model.named_parameters():
             if expected["gradients"][name] is None:

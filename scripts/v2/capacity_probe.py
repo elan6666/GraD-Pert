@@ -8,6 +8,7 @@ import json
 import math
 import os
 import time
+from datetime import timedelta
 from pathlib import Path
 
 
@@ -16,7 +17,7 @@ def main() -> None:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--gpu", choices=("0", "1"), required=True)
+    parser.add_argument("--gpu", required=True, help="physical GPU list; use torchrun for two GPUs")
     parser.add_argument("--publication", type=Path, required=True)
     parser.add_argument("--publication-sha256", required=True)
     parser.add_argument("--steps", type=int, default=128)
@@ -25,7 +26,17 @@ def main() -> None:
         parser.error("capacity evidence requires at least 128 sustained updates")
     if not args.output.resolve().is_relative_to("/data/yilangliu"):
         parser.error("capacity artifacts stay on the server")
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+    world = int(os.environ.get("WORLD_SIZE", "1"))
+    rank = int(os.environ.get("LOCAL_RANK", "0"))
+    devices = args.gpu.split(",")
+    if (
+        len(devices) != world
+        or len(set(devices)) != world
+        or not set(devices) <= {"0", "1"}
+        or not 0 <= rank < world
+    ):
+        parser.error("GPU list must match torchrun world size, using distinct physical GPUs")
+    os.environ["CUDA_VISIBLE_DEVICES"] = devices[rank]
     os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
     import torch
 
@@ -36,7 +47,8 @@ def main() -> None:
     from gradpert.execution.identity import inspect_environment, inspect_source_identity
     from gradpert.hashing import sha256_file
     from gradpert.training.v2.checkpoint import load_checkpoint, save_checkpoint
-    from gradpert.training.v2.engine import optimizer_step
+    from gradpert.training.v2.distributed import primary_call
+    from gradpert.training.v2.engine import optimizer_step, slice_cells
     from gradpert.training.v2.evaluation import predict_controls
     from gradpert.training.v2.runtime import prepare_runtime
 
@@ -49,22 +61,26 @@ def main() -> None:
         expected_publication_receipt_sha256=args.publication_sha256,
     )
     environment = inspect_environment(Path(__file__).resolve().parents[2], device_name="cuda:0")
-    args.output.mkdir(parents=True, exist_ok=False)
+    free, total = torch.cuda.mem_get_info()
+    if total - free > 512 * 1024**2:
+        raise RuntimeError("capacity probe requires idle GPU; existing work is preserved")
+    if world > 1:
+        torch.cuda.set_device(0)
+        torch.distributed.init_process_group("nccl", timeout=timedelta(minutes=30))
+    primary_call(lambda: args.output.mkdir(parents=True, exist_ok=False))
     receipt = {
         "kind": "capacity_only",
         "source": source.payload(),
         "environment": environment.payload(),
         "config_sha256": sha256_file(args.config),
         "gpu": args.gpu,
+        "world_size": world,
         "steps_requested": args.steps,
         "steps_completed": 0,
         "status": "running",
     }
-    atomic_json(args.output / "receipt.json", receipt)
+    primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
     try:
-        free, total = torch.cuda.mem_get_info()
-        if total - free > 512 * 1024**2:
-            raise RuntimeError("capacity probe requires idle GPU; existing work is preserved")
         schedule = load_training_schedule(config.training.scheduler.value)
         if schedule is None:
             raise ValueError("probe requires the sealed training schedule")
@@ -78,13 +94,21 @@ def main() -> None:
             receipt["optimizer_routes"] = runtime.optimizer.routes
             durations = []
             cells = []
+            gradient_reduction_seconds = []
             torch.cuda.reset_peak_memory_stats()
             step = 0
             training_started = time.perf_counter()
             for epoch in itertools.count():
                 for batch in runtime.batches(epoch):
+                    global_cells = len(batch.control)
+                    global_conditions = batch.condition_index if world > 1 else None
+                    if world > 1:
+                        batch = slice_cells(
+                            batch, global_cells * rank // world, global_cells * (rank + 1) // world
+                        )
                     torch.cuda.synchronize()
                     started = time.perf_counter()
+                    timings = {}
                     terms = optimizer_step(
                         runtime.objective,
                         runtime.optimizer,
@@ -96,10 +120,15 @@ def main() -> None:
                         * (1 + math.cos(math.pi * step / (50 * runtime.steps_per_epoch - 1)))
                         / 2,
                         bf16=True,
+                        global_condition_index=global_conditions,
+                        timings=timings,
                     )
                     torch.cuda.synchronize()
                     durations.append(time.perf_counter() - started)
-                    cells.append(len(batch.control))
+                    cells.append(global_cells)
+                    gradient_reduction_seconds.append(
+                        timings.get("gradient_reduction_seconds", 0.0)
+                    )
                     step += 1
                     receipt["steps_completed"] = step
                     receipt["last_terms"] = terms
@@ -124,7 +153,7 @@ def main() -> None:
                             raise ValueError("capacity checkpoint resume progress mismatch")
                         receipt["resume_checkpoint_sha256"] = sha256_file(path)
                     if step % 8 == 0:
-                        atomic_json(args.output / "receipt.json", receipt)
+                        primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
                     if step >= args.steps:
                         break
                 if step >= args.steps:
@@ -133,56 +162,92 @@ def main() -> None:
             receipt["end_to_end_training_cells_per_second"] = (
                 sum(cells) / receipt["training_wall_seconds"]
             )
+
             # Exercise the identical 300-control inference path on one validation
             # condition. No test truth, scientific score or hyperparameter selection.
-            with CanonicalEvaluationData(
-                dataset_id=config.dataset_id,
-                protocol_id=config.data.protocol_id,
-                data_root=args.data_root,
-                split_name="val",
-            ) as evaluation:
-                draw = evaluation.control_manifest.draws[0]
-                controls = evaluation.load_control_rows(tuple(draw.ordered_row_ids))
-                genes = {g: i for i, g in enumerate(runtime.index.gene_ids)}
-                targets = tuple(
-                    genes[g]
-                    for g in draw.condition_id.split("+")
-                    if g != evaluation.split.control_condition_id
-                )
-                predicted = predict_controls(
-                    runtime.objective.student,
-                    runtime.index,
-                    controls.expression,
-                    targets,
-                    device=runtime.device,
-                    cell_batch=int(config.training.eval_batch_size.value),
-                    query_count=runtime.options.eval_query_count,
-                )
-                from gradpert.training.validation import mean_expression_mse
+            def validation_probe():
+                validation = {}
+                with CanonicalEvaluationData(
+                    dataset_id=config.dataset_id,
+                    protocol_id=config.data.protocol_id,
+                    data_root=args.data_root,
+                    split_name="val",
+                ) as evaluation:
+                    draw = evaluation.control_manifest.draws[0]
+                    controls = evaluation.load_control_rows(tuple(draw.ordered_row_ids))
+                    genes = {g: i for i, g in enumerate(runtime.index.gene_ids)}
+                    targets = tuple(
+                        genes[g]
+                        for g in draw.condition_id.split("+")
+                        if g != evaluation.split.control_condition_id
+                    )
+                    predicted = predict_controls(
+                        runtime.objective.student,
+                        runtime.index,
+                        controls.expression,
+                        targets,
+                        device=runtime.device,
+                        cell_batch=int(config.training.eval_batch_size.value),
+                        query_count=runtime.options.eval_query_count,
+                    )
+                    from gradpert.training.validation import mean_expression_mse
 
-                truth = evaluation.load_truth_rows(draw.condition_id)
-                receipt["validation_prediction_loss"] = mean_expression_mse(
-                    predicted, truth.expression
-                )
-                receipt["inference_shape"] = list(predicted.shape)
-                receipt["inference_condition"] = draw.condition_id
-                receipt["inference_control_manifest_sha256"] = (
-                    evaluation.control_manifest_file_sha256
-                )
+                    truth = evaluation.load_truth_rows(draw.condition_id)
+                    validation["validation_prediction_loss"] = mean_expression_mse(
+                        predicted, truth.expression
+                    )
+                    validation["inference_shape"] = list(predicted.shape)
+                    validation["inference_condition"] = draw.condition_id
+                    validation["inference_control_manifest_sha256"] = (
+                        evaluation.control_manifest_file_sha256
+                    )
+                return validation
+
+            receipt.update(primary_call(validation_probe))
+            local_measurement = {
+                "rank": rank,
+                "physical_gpu": devices[rank],
+                "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
+                "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
+                "training_wall_seconds": receipt["training_wall_seconds"],
+                "update_seconds": durations[8:],
+                "gradient_reduction_seconds": gradient_reduction_seconds[8:],
+            }
+            measurements = [local_measurement]
+            if world > 1:
+                measurements = [None] * world
+                torch.distributed.all_gather_object(measurements, local_measurement)
+            durations_measured = [
+                max(times)
+                for times in zip(*(m["update_seconds"] for m in measurements), strict=True)
+            ]
+            receipt["rank_measurements"] = measurements
+            receipt["communication_timing_scope"] = (
+                "synchronized gradient averaging only; excludes center/metric collectives; "
+                "includes reduction packing and rank wait"
+            )
+            receipt["end_to_end_training_cells_per_second"] = sum(cells) / max(
+                m["training_wall_seconds"] for m in measurements
+            )
             receipt.update(
                 status="passed",
-                peak_allocated_bytes=torch.cuda.max_memory_allocated(),
-                peak_reserved_bytes=torch.cuda.max_memory_reserved(),
-                measured_update_seconds=durations[8:],
-                cells_per_second=sum(cells[8:]) / sum(durations[8:]),
+                peak_allocated_bytes=max(m["peak_allocated_bytes"] for m in measurements),
+                peak_reserved_bytes=max(m["peak_reserved_bytes"] for m in measurements),
+                measured_update_seconds=durations_measured,
+                cells_per_second=sum(cells[8:]) / sum(durations_measured),
                 coverage="128+ updates; checkpoint continuation; single-condition validation",
             )
-    except Exception as error:
+    except BaseException as error:
         receipt.update(status="failed", error_type=type(error).__name__, error=str(error))
-        atomic_json(args.output / "receipt.json", receipt)
+        atomic_json(args.output / f"rank-{rank}-failure.json", receipt)
+        if rank == 0:
+            atomic_json(args.output / "receipt.json", receipt)
         raise
-    atomic_json(args.output / "receipt.json", receipt)
-    print(json.dumps(receipt, indent=2))
+    primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
+    if rank == 0:
+        print(json.dumps(receipt, indent=2))
+    if world > 1:
+        torch.distributed.destroy_process_group()
 
 
 if __name__ == "__main__":
