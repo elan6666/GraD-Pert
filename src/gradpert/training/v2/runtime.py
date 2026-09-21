@@ -6,6 +6,7 @@ import random
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +38,7 @@ class Runtime:
     batch_size: int
     identity: dict[str, Any]
 
-    @property
+    @cached_property
     def steps_per_epoch(self) -> int:
         return self.data.steps_per_epoch(
             batch_size=self.batch_size,

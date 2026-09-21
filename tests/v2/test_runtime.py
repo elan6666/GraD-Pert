@@ -22,4 +22,5 @@ def test_condition_cap_is_bounded_by_actual_probe_batch():
         identity={},
     )
     assert runtime.steps_per_epoch == 7
+    assert runtime.steps_per_epoch == 7
     assert calls == [{"batch_size": 2, "max_unique_conditions": 2}]

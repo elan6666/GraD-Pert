@@ -249,3 +249,19 @@ def test_accumulated_prediction_gradients_match_full_batch(monkeypatch):
         torch.testing.assert_close(gradients[0][name], gradients[1][name], atol=1e-7, rtol=1e-4)
     assert oa.steps == ob.steps == 1
     assert all(torch.isfinite(p).all() for p in model.parameters())
+
+
+def test_per_gene_ablation_has_no_cross_gene_expression_path():
+    from dataclasses import replace
+
+    base, batch = fixture()
+    model = GraDPertV2(torch.randn(6, 5), replace(base.options, attention="per_gene")).eval()
+    graph, condition = JointObjective(model)._graph(model, batch.graph, False)
+    first = model.encode_response(graph[:4], batch.control, condition)
+    changed = batch.control.clone()
+    changed[:, 0] += 2
+    second = model.encode_response(graph[:4], changed, condition)
+    torch.testing.assert_close(
+        first["response_tokens"][:, 1:], second["response_tokens"][:, 1:], rtol=0, atol=0
+    )
+    assert not torch.equal(first["response_cls"], second["response_cls"])

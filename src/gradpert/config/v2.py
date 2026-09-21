@@ -35,7 +35,7 @@ class V2Architecture:
                 raise ValueError(f"{name} must be a positive integer")
         if self.width % self.heads or not 0 <= self.dropout < 1:
             raise ValueError("invalid head width or dropout")
-        if self.attention not in ("hybrid", "full_latent", "delta_full", "full"):
+        if self.attention not in ("hybrid", "full_latent", "delta_full", "full", "per_gene"):
             raise ValueError("unknown attention variant")
         if type(self.checkpoint_layers) is not bool:
             raise ValueError("checkpoint_layers must be boolean")

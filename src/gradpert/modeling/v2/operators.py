@@ -210,10 +210,15 @@ class TokenEncoder(nn.Module):
     ) -> None:
         super().__init__()
         self.streams, self.checkpoint_layers = streams, checkpoint_layers
+        self.per_gene = attention == "per_gene"
         layers = []
         attention_layer: nn.Module
         for index in range(4):
-            if index < 3 and attention in ("hybrid", "delta_full"):
+            if self.per_gene:
+                attention_layer = nn.Sequential(
+                    nn.Linear(width, width), nn.GELU(), nn.Linear(width, width)
+                )
+            elif index < 3 and attention in ("hybrid", "delta_full"):
                 attention_layer = DeltaAttention(width, heads)
             elif index == 3 and attention in ("hybrid", "full_latent"):
                 attention_layer = LatentAttention(width, heads, rank, dropout)
@@ -243,4 +248,9 @@ class TokenEncoder(nn.Module):
                 x = checkpoint(layer, x, use_reentrant=False)
             else:
                 x = layer(x)
-        return cast(Tensor, self.norm(x.mean(-2)))
+        result = self.norm(x.mean(-2))
+        if self.per_gene:
+            # The final slot is a readout only: its pooled summary never feeds
+            # gene outputs. Distillation can still compare cell/response states.
+            result = torch.cat((result[:, :-1], result[:, :-1].mean(1, keepdim=True)), dim=1)
+        return cast(Tensor, result)
