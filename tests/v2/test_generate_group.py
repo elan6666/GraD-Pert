@@ -37,3 +37,31 @@ def test_generated_groups_are_standalone_and_preserve_fixed_parent_contract(tmp_
             assert config["model"]["parameters"]["lambda2"]["value"] == 0
     with pytest.raises(FileExistsError):
         API["generate"](PARENT, group, tmp_path / group)
+
+
+@pytest.mark.parametrize(
+    "mutation", ["unsealed_row", "resealed_confound", "factor_level", "parent"]
+)
+def test_verifier_rejects_config_drift_and_resealed_confounds(tmp_path, mutation):
+    import json
+
+    output = tmp_path / "H1"
+    API["generate"](PARENT, "H1", output)
+    manifest_path = output / "manifest.json"
+    assert API["verify_group"](manifest_path, PARENT)["group"] == "H1"
+    manifest = json.loads(manifest_path.read_text())
+    row = manifest["rows"][0]
+    path = output / row["config"]
+    if mutation in ("unsealed_row", "resealed_confound"):
+        config = yaml.safe_load(path.read_text())
+        config["model"]["parameters"]["dropout"]["value"] = 0.2
+        path.write_text(yaml.safe_dump(config, sort_keys=False))
+        if mutation == "resealed_confound":
+            row["sha256"] = sha256_file(path)
+    elif mutation == "factor_level":
+        row["overrides"]["width"] = 128
+    else:
+        manifest["parent_sha256"] = "wrong"
+    manifest_path.write_text(json.dumps(manifest))
+    with pytest.raises(ValueError):
+        API["verify_group"](manifest_path, PARENT)

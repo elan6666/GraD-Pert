@@ -43,3 +43,11 @@ invalid evidence remain explicit. Completion requires fifty committed validation
 epochs, consistent minimum-loss selection, both test identities, checkpoint hashes,
 and the zero-PKL postcondition. The table records training and evaluation SHAs
 separately; it does not select hyperparameters from test scores.
+
+`PYTHONPATH=src python scripts/v2/generate_group.py --parent PARENT.yaml --verify-manifest GROUP/manifest.json`
+
+Verification checks parent and row hashes, complete registered factor levels,
+owned config paths, strict schema, and the full configuration difference against
+the frozen parent. Updating a checksum does not authorize an undeclared extra
+factor. Supply the relocated parent path on the server; its hash must still match.
+This verifies group configuration integrity, not source/data/GPU launch admission.

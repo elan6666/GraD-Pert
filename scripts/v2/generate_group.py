@@ -66,6 +66,26 @@ def levels(group: str) -> list[tuple[str, dict]]:
     return [(str(value), {key: value}) for value in values]
 
 
+def row_configuration(raw: dict, overrides: dict) -> dict:
+    config = copy.deepcopy(raw)
+    for key, value in overrides.items():
+        owner = (
+            config["training"]
+            if key in ("learning_rate", "weight_decay")
+            else config["model"]["parameters"]
+        )
+        owner[key] = {
+            "value": value,
+            "source": "project_preregistered",
+            "reference": "docs/design/GRADPERT_V2.md",
+        }
+    if "learning_rate" in overrides:
+        schedule = config["training"]["scheduler"]["value"]
+        schedule["max_lr"] = overrides["learning_rate"]
+        schedule["min_lr"] = 0.2 * overrides["learning_rate"]
+    return config
+
+
 def generate(parent: Path, group: str, output: Path) -> dict:
     load_experiment_config(parent)
     raw = yaml.safe_load(parent.read_text())
@@ -78,22 +98,7 @@ def generate(parent: Path, group: str, output: Path) -> dict:
     rows = []
     prepared = []
     for name, overrides in levels(group):
-        config = copy.deepcopy(raw)
-        for key, value in overrides.items():
-            owner = (
-                config["training"]
-                if key in ("learning_rate", "weight_decay")
-                else config["model"]["parameters"]
-            )
-            owner[key] = {
-                "value": value,
-                "source": "project_preregistered",
-                "reference": "docs/design/GRADPERT_V2.md",
-            }
-        if "learning_rate" in overrides:
-            schedule = config["training"]["scheduler"]["value"]
-            schedule["max_lr"] = overrides["learning_rate"]
-            schedule["min_lr"] = 0.2 * overrides["learning_rate"]
+        config = row_configuration(raw, overrides)
         prepared.append((name, config, overrides))
     output.mkdir(parents=True)
     for name, config, overrides in prepared:
@@ -123,12 +128,55 @@ def generate(parent: Path, group: str, output: Path) -> dict:
     return manifest
 
 
+def verify_group(manifest_path: Path, parent: Path) -> dict:
+    manifest = json.loads(manifest_path.read_text())
+    if manifest.get("schema_version") != "gradpert-v2-group-configs-1":
+        raise ValueError("unknown group manifest schema")
+    if sha256_file(parent) != manifest["parent_sha256"]:
+        raise ValueError("frozen group parent checksum mismatch")
+    load_experiment_config(parent)
+    raw = yaml.safe_load(parent.read_text())
+    expected = dict(levels(manifest["group"]))
+    rows = manifest["rows"]
+    if len(rows) != len(expected) or {r["name"] for r in rows} != set(expected):
+        raise ValueError("group rows differ from the registered factor levels")
+    root = manifest_path.parent.resolve()
+    verified = []
+    for row in rows:
+        path = (root / row["config"]).resolve(strict=True)
+        if not path.is_relative_to(root):
+            raise ValueError("row config escapes its group directory")
+        if row["overrides"] != expected[row["name"]]:
+            raise ValueError("row overrides differ from registered factor levels")
+        if sha256_file(path) != row["sha256"]:
+            raise ValueError("row config changed after group generation")
+        load_experiment_config(path)
+        if yaml.safe_load(path.read_text()) != row_configuration(raw, row["overrides"]):
+            raise ValueError("row changes fields outside its declared factor")
+        verified.append({"name": row["name"], "config": str(path), "sha256": row["sha256"]})
+    return {
+        "status": "group_config_verified_not_launch_preflight",
+        "manifest_sha256": sha256_file(manifest_path),
+        "group": manifest["group"],
+        "parent_sha256": manifest["parent_sha256"],
+        "rows": verified,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--parent", type=Path, required=True)
-    parser.add_argument("--group", choices=GROUPS, required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--group", choices=GROUPS)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--verify-manifest", type=Path)
     args = parser.parse_args()
+    if args.verify_manifest:
+        if args.group or args.output:
+            parser.error("verification does not accept generation arguments")
+        print(json.dumps(verify_group(args.verify_manifest, args.parent), indent=2))
+        return
+    if not args.group or not args.output:
+        parser.error("generation requires --group and --output")
     result = generate(args.parent, args.group, args.output)
     print(
         json.dumps({"group": args.group, "rows": len(result["rows"]), "status": result["status"]})
