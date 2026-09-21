@@ -1,0 +1,56 @@
+{
+  "activation": "Regenerate in a new directory with prepare_followup.py",
+  "batch_probes": [
+    {
+      "config": "/data/yilangliu/GraD-Pert/development/source-v2-levels-7c17d3a/configs/v2/capacity/ddp_m32_eval128/gradpert_v2/nadig_jurkat.yaml",
+      "receipt": "/data/yilangliu/GraD-Pert/development/v2-ddp-levels32-64-eval128-7c17d3a/micro32/receipt.json",
+      "receipt_sha256": "1de50a09c7655458c8fc9984f290b4e32da18b2029f300f10a088e14856b4b82"
+    },
+    {
+      "config": "/data/yilangliu/GraD-Pert/development/source-v2-levels-7c17d3a/configs/v2/capacity/ddp_m64_eval128/gradpert_v2/nadig_jurkat.yaml",
+      "receipt": "/data/yilangliu/GraD-Pert/development/v2-ddp-levels32-64-eval128-7c17d3a/micro64/receipt.json",
+      "receipt_sha256": "4306c6d422f58b27458bf7920a112681bab6a802966f3a3178efb41809c9201b"
+    },
+    {
+      "config": "/data/yilangliu/GraD-Pert/development/source-v2-repeat-afbed5a/configs/v2/capacity/ddp_m74_eval128/gradpert_v2/nadig_jurkat.yaml",
+      "receipt": "/data/yilangliu/GraD-Pert/development/v2-ddp-repeat74-eval128-afbed5a/micro74/receipt.json",
+      "receipt_sha256": "ac4c81bef280fac78d8bb5d4eae2e1d603d4611a379b6938aaca73e6f58e51d8"
+    }
+  ],
+  "generator_sha256": "e654ebf25c82bdf467b6df48f35996a6400dcac9e6bbaf9ce53b7f7331842a00",
+  "group": "H3",
+  "parent_config": "/data/yilangliu/GraD-Pert/development/v2-preregistered-jurkat-ffd94b9/parent/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "f56dc82ebce2466d73a138a4e099a7564a82375412ca997d8f7f56b5f4063483",
+  "rows": [
+    {
+      "config": "batch_64/gradpert_v2/nadig_jurkat.yaml",
+      "name": "batch_64",
+      "overrides": {
+        "microbatch": 32,
+        "train_batch_size": 64
+      },
+      "sha256": "986b5b569130e629022e9f40c4f27ab78bfc68fa36a6e5801fbe259216bbfeff"
+    },
+    {
+      "config": "batch_128/gradpert_v2/nadig_jurkat.yaml",
+      "name": "batch_128",
+      "overrides": {
+        "microbatch": 64,
+        "train_batch_size": 128
+      },
+      "sha256": "f56dc82ebce2466d73a138a4e099a7564a82375412ca997d8f7f56b5f4063483"
+    },
+    {
+      "config": "batch_148/gradpert_v2/nadig_jurkat.yaml",
+      "name": "batch_148",
+      "overrides": {
+        "microbatch": 74,
+        "train_batch_size": 148
+      },
+      "sha256": "0322dbff996d4a632e52cab9ae96228f2160b397fcc4afa11abe839fe06bb49d"
+    }
+  ],
+  "schema_version": "gradpert-v2-group-configs-1",
+  "selection_rule": "validation prediction loss only; no within-group rolling parent",
+  "status": "prospective_requires_validation_selected_parent"
+}

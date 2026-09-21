@@ -1,0 +1,48 @@
+{
+  "activation": "Regenerate in a new directory with prepare_followup.py",
+  "generator_sha256": "e654ebf25c82bdf467b6df48f35996a6400dcac9e6bbaf9ce53b7f7331842a00",
+  "group": "L0",
+  "parent_config": "/data/yilangliu/GraD-Pert/development/v2-preregistered-jurkat-ffd94b9/parent/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "f56dc82ebce2466d73a138a4e099a7564a82375412ca997d8f7f56b5f4063483",
+  "rows": [
+    {
+      "config": "ssl_00/gradpert_v2/nadig_jurkat.yaml",
+      "name": "ssl_00",
+      "overrides": {
+        "lambda1": 0,
+        "lambda2": 0.0
+      },
+      "sha256": "8b89f4b15a34264c0c1f09763d50f047f441042db6f9c3e0dfc19f95868f36a8"
+    },
+    {
+      "config": "ssl_01/gradpert_v2/nadig_jurkat.yaml",
+      "name": "ssl_01",
+      "overrides": {
+        "lambda1": 0,
+        "lambda2": 0.1
+      },
+      "sha256": "684de0d4b87428504a62a7456db386946ee5af85dfe18b5d01c28bff95f34ffb"
+    },
+    {
+      "config": "ssl_10/gradpert_v2/nadig_jurkat.yaml",
+      "name": "ssl_10",
+      "overrides": {
+        "lambda1": 1,
+        "lambda2": 0.0
+      },
+      "sha256": "8756beb814873788ba082551896f29ebb61f344f66a962bd654ee003b04ad977"
+    },
+    {
+      "config": "ssl_11/gradpert_v2/nadig_jurkat.yaml",
+      "name": "ssl_11",
+      "overrides": {
+        "lambda1": 1,
+        "lambda2": 0.1
+      },
+      "sha256": "40fade297054259976f1ea3906e4013a8f66362aaff11a74d6cf455f6351a56c"
+    }
+  ],
+  "schema_version": "gradpert-v2-group-configs-1",
+  "selection_rule": "validation prediction loss only; no within-group rolling parent",
+  "status": "prospective_requires_validation_selected_parent"
+}

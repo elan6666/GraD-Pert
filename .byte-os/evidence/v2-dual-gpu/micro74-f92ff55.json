@@ -1,0 +1,2869 @@
+{
+  "cells_per_second": 20.39962289026074,
+  "communication_timing_scope": "synchronized gradient averaging only; excludes center/metric collectives; includes reduction packing and rank wait",
+  "config_sha256": "f0d27c35b0d2472a2147331e6fb76f253defffffb4cb4726976b2f021e25cc41",
+  "coverage": "128+ updates; checkpoint continuation; single-condition validation",
+  "data": {
+    "canonical_sha256": "f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861",
+    "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+    "genept_sha256": "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318",
+    "graph_gene_order_sha256": "c1d0c76822d5c7ac1f561457010065fa3a195d27954f3c959d6732d107124e10",
+    "graph_manifest_sha256": "0de04502516318f835699683f0c95362386d7031cdefd99800ca3039eb392ae2",
+    "run_seed": 1,
+    "split_sha256": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0"
+  },
+  "data_root": "/data/yilangliu/GraD-Pert/data-vnext-a942114",
+  "end_to_end_training_cells_per_second": 17.024886827535923,
+  "environment": {
+    "cuda_runtime": "13.0",
+    "cudnn_version": 92000,
+    "device_name": "NVIDIA GeForce RTX 5090",
+    "lock_file": "/data/yilangliu/GraD-Pert/development/source-v2-refine-f92ff55/uv.lock",
+    "lock_file_sha256": "313e9dbbd63ab8405d77ae991a724081fe6fa4ed26b0ae8047321733e015375d",
+    "payload_sha256": "fa619db35711232f1eb75813a68ed43675049bc18444b3f2b7d799e79acbd9a0",
+    "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39",
+    "python_version": "3.12.3",
+    "torch_version": "2.13.0+cu130"
+  },
+  "evaluation_cell_batch": 2,
+  "gpu": "0,1",
+  "inference_condition": "SEC16A+ctrl",
+  "inference_control_manifest_sha256": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528",
+  "inference_exercised": true,
+  "inference_seconds": 141.09940309915692,
+  "inference_shape": [
+    300,
+    5000
+  ],
+  "kind": "capacity_only",
+  "last_terms": {
+    "gradient_norm": 0.9420068860054016,
+    "joint_loss": 12.927355277687312,
+    "learning_rate": 1.6763463569165786e-05,
+    "prediction": 0.08990421518683434,
+    "ssl1_condition": 9.672668933868408,
+    "ssl1_node": 9.735333442687988,
+    "ssl1_spread": 0.3760465085506439,
+    "ssl2_dino": 9.715845108032227,
+    "ssl2_ibot": 9.686452865600586,
+    "ssl2_koleo": 0.28521642088890076,
+    "teacher_momentum": 0.9900001775100735
+  },
+  "measured_update_seconds": [
+    7.268709233030677,
+    7.284979926422238,
+    7.353936749510467,
+    7.400176762603223,
+    7.247144237160683,
+    7.398115145042539,
+    6.996849309653044,
+    6.953768264502287,
+    7.7683152966201305,
+    6.818614922463894,
+    6.954793545417488,
+    6.926916460506618,
+    7.2596977623179555,
+    7.620923383161426,
+    6.987200507894158,
+    6.721465250477195,
+    7.431222226470709,
+    6.9436713717877865,
+    7.327953873202205,
+    7.594271422363818,
+    6.997541943565011,
+    7.268145743757486,
+    7.39795780275017,
+    7.254492832347751,
+    6.924329565837979,
+    6.841393035836518,
+    7.415822627954185,
+    6.942238261923194,
+    6.540473153814673,
+    7.285695152357221,
+    8.043483308516443,
+    7.20521604642272,
+    6.956660591065884,
+    7.175753016024828,
+    7.40036319475621,
+    7.519420684315264,
+    7.338592629879713,
+    7.095296622253954,
+    6.9365774262696505,
+    7.191930707544088,
+    7.586730998940766,
+    7.105421602725983,
+    6.998597165569663,
+    7.019926986657083,
+    6.881598491221666,
+    7.107058668509126,
+    7.352633444592357,
+    7.202666221186519,
+    6.737100916914642,
+    7.081835187971592,
+    7.090495772659779,
+    7.680410214699805,
+    6.831493808887899,
+    6.830936927348375,
+    8.390424693003297,
+    7.472274270839989,
+    6.869882332161069,
+    7.206729913130403,
+    7.640659203752875,
+    7.257274300791323,
+    7.149156888015568,
+    6.873083480633795,
+    7.585643908008933,
+    7.475895267911255,
+    7.1275380467996,
+    6.87139443308115,
+    7.181290068663657,
+    6.839477393776178,
+    7.427494787611067,
+    7.0852783201262355,
+    7.721959003247321,
+    7.225402279756963,
+    7.67473881598562,
+    7.385142230428755,
+    9.22037798538804,
+    7.069020790047944,
+    6.970657100901008,
+    7.045806146226823,
+    7.1090667163953185,
+    6.991655300371349,
+    7.965355937369168,
+    6.511974299326539,
+    6.764452502131462,
+    7.362068207003176,
+    7.334851653315127,
+    7.204927956685424,
+    7.133135728538036,
+    6.821854536421597,
+    7.367334662936628,
+    7.247673553414643,
+    6.913869203999639,
+    7.404914541170001,
+    7.3244257448241115,
+    7.046642662957311,
+    7.1528390953317285,
+    7.209324301220477,
+    7.009174912236631,
+    7.210111491382122,
+    7.662993047386408,
+    7.086122075095773,
+    7.0908764116466045,
+    7.188795176334679,
+    6.963318578898907,
+    7.104240763001144,
+    7.831155544146895,
+    7.624639880843461,
+    7.536822617053986,
+    7.714663705788553,
+    7.59798997733742,
+    7.13269317522645,
+    7.689491163007915,
+    7.2248991169035435,
+    7.496778187341988,
+    7.028282971121371,
+    7.432958897203207,
+    7.539719261229038,
+    7.545905074104667,
+    7.6721296943724155,
+    7.545942734926939,
+    7.544639960862696
+  ],
+  "optimizer_routes": [
+    {
+      "heads": 1,
+      "name": "expression_mask",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "control_cls",
+      "optimizer": "adamw",
+      "shape": [
+        1,
+        1,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response_cls",
+      "optimizer": "adamw",
+      "shape": [
+        1,
+        1,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.mask_token",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.embedding.weight",
+      "optimizer": "adamw",
+      "shape": [
+        6506,
+        2048
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.adapter.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        2048
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.adapter.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.norm.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.0.source_bias",
+      "optimizer": "adamw",
+      "shape": [
+        4,
+        4
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "graph.layers.0.query.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "graph.layers.0.key.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "graph.layers.0.value.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.0.output.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.0.norm1.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.0.norm1.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.0.norm2.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.0.norm2.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.0.ffn.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        1024,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.0.ffn.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.0.ffn.3.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.0.ffn.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.1.source_bias",
+      "optimizer": "adamw",
+      "shape": [
+        4,
+        4
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "graph.layers.1.query.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "graph.layers.1.key.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "graph.layers.1.value.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.1.output.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.1.norm1.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.1.norm1.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.1.norm2.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.1.norm2.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.1.ffn.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        1024,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.1.ffn.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.1.ffn.3.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "graph.layers.1.ffn.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "expression.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        1
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "expression.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "expression.2.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "expression.2.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "expression.3.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "expression.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.sublayer.log_rate",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.sublayer.decay_bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.0.sublayer.query.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.0.sublayer.key.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.0.sublayer.value.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.sublayer.decay_down.weight",
+      "optimizer": "muon",
+      "shape": [
+        64,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.sublayer.decay_up.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.sublayer.write.weight",
+      "optimizer": "muon",
+      "shape": [
+        4,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.sublayer.write.bias",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.sublayer.output_gate.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.sublayer.output_gate.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.sublayer.head_norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.sublayer.output.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.0.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.1.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.1.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.1.sublayer.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        1024,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.1.sublayer.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.1.sublayer.3.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.1.sublayer.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.1.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.1.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.sublayer.log_rate",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.sublayer.decay_bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.2.sublayer.query.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.2.sublayer.key.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.2.sublayer.value.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.sublayer.decay_down.weight",
+      "optimizer": "muon",
+      "shape": [
+        64,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.sublayer.decay_up.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.sublayer.write.weight",
+      "optimizer": "muon",
+      "shape": [
+        4,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.sublayer.write.bias",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.sublayer.output_gate.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.sublayer.output_gate.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.sublayer.head_norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.sublayer.output.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.2.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.3.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.3.sublayer.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        1024,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.3.sublayer.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.3.sublayer.3.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.3.sublayer.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.3.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.3.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.sublayer.log_rate",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.sublayer.decay_bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.4.sublayer.query.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.4.sublayer.key.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.4.sublayer.value.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.sublayer.decay_down.weight",
+      "optimizer": "muon",
+      "shape": [
+        64,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.sublayer.decay_up.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.sublayer.write.weight",
+      "optimizer": "muon",
+      "shape": [
+        4,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.sublayer.write.bias",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.sublayer.output_gate.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.sublayer.output_gate.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.sublayer.head_norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.sublayer.output.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.4.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.5.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.5.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.5.sublayer.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        1024,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.5.sublayer.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.5.sublayer.3.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.5.sublayer.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.5.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.5.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.6.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.6.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.6.sublayer.query.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.6.sublayer.compress.weight",
+      "optimizer": "muon",
+      "shape": [
+        64,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.6.sublayer.latent_norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        64
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.6.sublayer.key.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        64
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "cell.layers.6.sublayer.value.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.6.sublayer.output.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.6.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.6.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.7.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.7.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.7.sublayer.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        1024,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.7.sublayer.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.7.sublayer.3.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.7.sublayer.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.7.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.layers.7.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "cell.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "condition_fusion.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        512
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "condition_fusion.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.sublayer.log_rate",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.sublayer.decay_bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.0.sublayer.query.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.0.sublayer.key.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.0.sublayer.value.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.sublayer.decay_down.weight",
+      "optimizer": "muon",
+      "shape": [
+        64,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.sublayer.decay_up.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.sublayer.write.weight",
+      "optimizer": "muon",
+      "shape": [
+        4,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.sublayer.write.bias",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.sublayer.output_gate.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.sublayer.output_gate.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.sublayer.head_norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.sublayer.output.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.0.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.1.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.1.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.1.sublayer.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        1024,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.1.sublayer.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.1.sublayer.3.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.1.sublayer.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.1.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.1.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.sublayer.log_rate",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.sublayer.decay_bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.2.sublayer.query.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.2.sublayer.key.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.2.sublayer.value.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.sublayer.decay_down.weight",
+      "optimizer": "muon",
+      "shape": [
+        64,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.sublayer.decay_up.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.sublayer.write.weight",
+      "optimizer": "muon",
+      "shape": [
+        4,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.sublayer.write.bias",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.sublayer.output_gate.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.sublayer.output_gate.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.sublayer.head_norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.sublayer.output.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.2.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.3.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.3.sublayer.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        1024,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.3.sublayer.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.3.sublayer.3.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.3.sublayer.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.3.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.3.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.sublayer.log_rate",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.sublayer.decay_bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.4.sublayer.query.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.4.sublayer.key.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.4.sublayer.value.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.sublayer.decay_down.weight",
+      "optimizer": "muon",
+      "shape": [
+        64,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.sublayer.decay_up.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.sublayer.write.weight",
+      "optimizer": "muon",
+      "shape": [
+        4,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.sublayer.write.bias",
+      "optimizer": "adamw",
+      "shape": [
+        4
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.sublayer.output_gate.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.sublayer.output_gate.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.sublayer.head_norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.sublayer.output.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.4.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.5.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.5.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.5.sublayer.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        1024,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.5.sublayer.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.5.sublayer.3.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.5.sublayer.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.5.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.5.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.6.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.6.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.6.sublayer.query.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.6.sublayer.compress.weight",
+      "optimizer": "muon",
+      "shape": [
+        64,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.6.sublayer.latent_norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        64
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.6.sublayer.key.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        64
+      ]
+    },
+    {
+      "heads": 4,
+      "name": "response.layers.6.sublayer.value.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        64
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.6.sublayer.output.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.6.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.6.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.7.scales",
+      "optimizer": "adamw",
+      "shape": [
+        3
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.7.bias",
+      "optimizer": "adamw",
+      "shape": [
+        24
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.7.sublayer.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        1024,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.7.sublayer.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.7.sublayer.3.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.7.sublayer.3.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.7.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.layers.7.route.weight",
+      "optimizer": "adamw",
+      "shape": [
+        24,
+        1024
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "response.norm.weight",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "prediction.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "prediction.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "prediction.2.weight",
+      "optimizer": "adamw",
+      "shape": [
+        1,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "prediction.2.bias",
+      "optimizer": "adamw",
+      "shape": [
+        1
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl1_cls.features.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        2048,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl1_cls.features.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        2048
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl1_cls.features.2.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        2048
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl1_cls.features.2.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl1_cls.prototypes.weight",
+      "optimizer": "adamw",
+      "shape": [
+        16384,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl1_node.features.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        2048,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl1_node.features.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        2048
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl1_node.features.2.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        2048
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl1_node.features.2.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl1_node.prototypes.weight",
+      "optimizer": "adamw",
+      "shape": [
+        16384,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl2_cls.features.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        2048,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl2_cls.features.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        2048
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl2_cls.features.2.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        2048
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl2_cls.features.2.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl2_cls.prototypes.weight",
+      "optimizer": "adamw",
+      "shape": [
+        16384,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl2_node.features.0.weight",
+      "optimizer": "muon",
+      "shape": [
+        2048,
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl2_node.features.0.bias",
+      "optimizer": "adamw",
+      "shape": [
+        2048
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl2_node.features.2.weight",
+      "optimizer": "muon",
+      "shape": [
+        256,
+        2048
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl2_node.features.2.bias",
+      "optimizer": "adamw",
+      "shape": [
+        256
+      ]
+    },
+    {
+      "heads": 1,
+      "name": "ssl2_node.prototypes.weight",
+      "optimizer": "adamw",
+      "shape": [
+        16384,
+        256
+      ]
+    }
+  ],
+  "peak_allocated_bytes": 32396956672,
+  "peak_reserved_bytes": 32700891136,
+  "rank_measurements": [
+    {
+      "gradient_reduction_seconds": [
+        0.02072656713426113,
+        0.020468908362090588,
+        0.020237058401107788,
+        0.020464296452701092,
+        0.020549699664115906,
+        0.020472138188779354,
+        0.020520510151982307,
+        0.020418215543031693,
+        0.019982198253273964,
+        0.020102915354073048,
+        0.020665361545979977,
+        0.020252179354429245,
+        0.02031256165355444,
+        0.020538113079965115,
+        0.0206161355599761,
+        0.020209469832479954,
+        0.02030791062861681,
+        0.020437362603843212,
+        0.020335588604211807,
+        0.020172540098428726,
+        0.020539854653179646,
+        0.02055471111088991,
+        0.019998245872557163,
+        0.01995794102549553,
+        0.020495692268013954,
+        0.02069331519305706,
+        0.020526578649878502,
+        0.020861243829131126,
+        0.020513152703642845,
+        0.020758853293955326,
+        0.02078520879149437,
+        0.020441384986042976,
+        0.020400521345436573,
+        0.02027656976133585,
+        0.0205785958096385,
+        0.020261027850210667,
+        0.020400996319949627,
+        0.020123670808970928,
+        0.019918376579880714,
+        0.019991302862763405,
+        0.0204567089676857,
+        0.020836548879742622,
+        0.02039017342031002,
+        0.021284420043230057,
+        0.020281681790947914,
+        0.020071168430149555,
+        0.020573885180056095,
+        0.020826952531933784,
+        0.020181508734822273,
+        0.02088361792266369,
+        0.020427783019840717,
+        0.02010730281472206,
+        0.02031576167792082,
+        0.021136073395609856,
+        0.020506507717072964,
+        0.020425199531018734,
+        0.020318686962127686,
+        0.020676434971392155,
+        0.02019213791936636,
+        0.02046192716807127,
+        0.02029849775135517,
+        0.020505409687757492,
+        0.0202206214889884,
+        0.020202184095978737,
+        0.02005615644156933,
+        0.02003417629748583,
+        0.020393108017742634,
+        0.02037885319441557,
+        0.020328255370259285,
+        0.020323763601481915,
+        0.0203293114900589,
+        0.020635532215237617,
+        0.020371132530272007,
+        0.02043243497610092,
+        0.02040509320795536,
+        0.020580929704010487,
+        0.020134839229285717,
+        0.020331203937530518,
+        0.02003248780965805,
+        0.02016577310860157,
+        0.02045539952814579,
+        0.020341450348496437,
+        0.0200719079002738,
+        0.021060418337583542,
+        0.020250488072633743,
+        0.02020581066608429,
+        0.02009611390531063,
+        0.02013738453388214,
+        0.019832690246403217,
+        0.020192425698041916,
+        0.02019763831049204,
+        0.020506858825683594,
+        0.020279052667319775,
+        0.02021312341094017,
+        0.019949321635067463,
+        0.02037703897804022,
+        0.02005584165453911,
+        0.020353511907160282,
+        0.020311161875724792,
+        0.020280051045119762,
+        0.01999642699956894,
+        0.020010611973702908,
+        0.02012000512331724,
+        0.020347299054265022,
+        0.020285900682210922,
+        0.020610702224075794,
+        0.02010517381131649,
+        0.0202872883528471,
+        0.020523572340607643,
+        0.02057443093508482,
+        0.020255858078598976,
+        0.020237833261489868,
+        0.02004338428378105,
+        0.020307695493102074,
+        0.02058756072074175,
+        0.020352746360003948,
+        0.01986757107079029,
+        0.020621894858777523,
+        0.020713962614536285,
+        0.02099707815796137
+      ],
+      "peak_allocated_bytes": 32396956672,
+      "peak_reserved_bytes": 32700891136,
+      "physical_gpu": "0",
+      "rank": 0,
+      "training_wall_seconds": 1112.7239899979904,
+      "update_seconds": [
+        7.265128795057535,
+        7.284979926422238,
+        7.353936749510467,
+        7.400176762603223,
+        7.247144237160683,
+        7.398115145042539,
+        6.996849309653044,
+        6.953768264502287,
+        7.7683152966201305,
+        6.818614922463894,
+        6.954793545417488,
+        6.926916460506618,
+        7.2596977623179555,
+        7.620923383161426,
+        6.987200507894158,
+        6.721465250477195,
+        7.431222226470709,
+        6.9436713717877865,
+        7.327953873202205,
+        7.594271422363818,
+        6.997541943565011,
+        7.263962891884148,
+        7.39795780275017,
+        7.249784411862493,
+        6.924329565837979,
+        6.835501726716757,
+        7.405489595606923,
+        6.942238261923194,
+        6.537279305048287,
+        7.285695152357221,
+        8.043483308516443,
+        7.20521604642272,
+        6.956524298526347,
+        7.175753016024828,
+        7.40036319475621,
+        7.347225459292531,
+        7.338592629879713,
+        7.095296622253954,
+        6.8099113600328565,
+        7.191930707544088,
+        7.586730998940766,
+        7.105421602725983,
+        6.998597165569663,
+        7.019926986657083,
+        6.881598491221666,
+        7.107058668509126,
+        7.352633444592357,
+        7.202666221186519,
+        6.737100916914642,
+        7.081835187971592,
+        7.090495772659779,
+        7.680410214699805,
+        6.831493808887899,
+        6.6847760351374745,
+        7.612358961254358,
+        7.472274270839989,
+        6.869882332161069,
+        7.206729913130403,
+        7.640659203752875,
+        7.2474682200700045,
+        7.014519199728966,
+        6.873083480633795,
+        7.585144534707069,
+        7.475895267911255,
+        6.953170039691031,
+        6.866526325233281,
+        7.181290068663657,
+        6.839477393776178,
+        7.416649457998574,
+        7.0852783201262355,
+        7.721959003247321,
+        7.222362568601966,
+        7.67473881598562,
+        7.385142230428755,
+        8.989813289605081,
+        7.069020790047944,
+        6.970657100901008,
+        7.040650822222233,
+        7.1090667163953185,
+        6.991655300371349,
+        7.965355937369168,
+        6.511974299326539,
+        6.604230745695531,
+        7.362068207003176,
+        7.184782087802887,
+        7.204927956685424,
+        6.970827867276967,
+        6.821854536421597,
+        7.234067223966122,
+        7.247673553414643,
+        6.913869203999639,
+        7.404914541170001,
+        7.3244257448241115,
+        7.046642662957311,
+        7.1528390953317285,
+        7.209324301220477,
+        6.853857017122209,
+        7.210111491382122,
+        7.662993047386408,
+        7.086122075095773,
+        6.956257074140012,
+        7.188795176334679,
+        6.815282577648759,
+        7.104240763001144,
+        7.831155544146895,
+        7.624639880843461,
+        7.536822617053986,
+        7.714663705788553,
+        7.59798997733742,
+        7.13269317522645,
+        7.689491163007915,
+        7.2248991169035435,
+        7.496778187341988,
+        7.028282971121371,
+        7.432958897203207,
+        7.539719261229038,
+        7.545905074104667,
+        7.6721296943724155,
+        7.545942734926939,
+        7.544639960862696
+      ]
+    },
+    {
+      "gradient_reduction_seconds": [
+        0.020744778215885162,
+        0.020506148226559162,
+        0.020262488164007664,
+        0.020580969750881195,
+        0.020592305809259415,
+        0.02059805765748024,
+        0.020634667947888374,
+        0.02055175881832838,
+        0.0202092370018363,
+        0.0202466007322073,
+        0.0209210142493248,
+        0.020375588908791542,
+        0.020545409992337227,
+        0.02068926766514778,
+        0.020856324583292007,
+        0.020333170890808105,
+        0.020355074666440487,
+        0.02057139202952385,
+        0.020475718192756176,
+        0.020299553871154785,
+        0.0207150811329484,
+        0.0206047547981143,
+        0.020042363554239273,
+        0.020139237865805626,
+        0.02061859704554081,
+        0.02073937002569437,
+        0.020654143765568733,
+        0.02100775297731161,
+        0.020746239461004734,
+        0.020893605425953865,
+        0.020936344750225544,
+        0.020563079975545406,
+        0.020526470616459846,
+        0.02041029278188944,
+        0.020802396349608898,
+        0.020385488867759705,
+        0.020540431141853333,
+        0.02025800757110119,
+        0.020036693662405014,
+        0.0201334236189723,
+        0.020603627897799015,
+        0.021082756109535694,
+        0.020518941804766655,
+        0.02143050543963909,
+        0.02042311429977417,
+        0.020191043615341187,
+        0.020686128176748753,
+        0.02083501499146223,
+        0.020281312987208366,
+        0.021030070260167122,
+        0.02065423782914877,
+        0.0202534981071949,
+        0.02043812721967697,
+        0.02130212727934122,
+        0.020613412372767925,
+        0.020467836409807205,
+        0.020466125570237637,
+        0.02078212797641754,
+        0.020215285010635853,
+        0.02060577366501093,
+        0.02040952257812023,
+        0.020632950589060783,
+        0.020330707542598248,
+        0.020302983932197094,
+        0.020257677882909775,
+        0.020146995782852173,
+        0.020622060634195805,
+        0.02050565369427204,
+        0.020469355396926403,
+        0.020438439212739468,
+        0.0204601027071476,
+        0.020774436183273792,
+        0.02053031139075756,
+        0.02056114189326763,
+        0.020525256171822548,
+        0.020691873505711555,
+        0.020320330746471882,
+        0.020436745136976242,
+        0.020141908898949623,
+        0.020274913869798183,
+        0.020513001829385757,
+        0.020443148910999298,
+        0.02009690459817648,
+        0.021185866557061672,
+        0.02037288248538971,
+        0.020336192101240158,
+        0.020199837163090706,
+        0.02023322694003582,
+        0.019944765605032444,
+        0.02029221598058939,
+        0.020235182717442513,
+        0.020618313923478127,
+        0.02039534319192171,
+        0.02031080611050129,
+        0.02006941195577383,
+        0.02048802375793457,
+        0.02016710489988327,
+        0.020464087836444378,
+        0.020428222604095936,
+        0.020417438820004463,
+        0.02010523434728384,
+        0.02003791183233261,
+        0.020256553776562214,
+        0.020449554547667503,
+        0.02040187455713749,
+        0.020649253390729427,
+        0.020249529741704464,
+        0.02037670649588108,
+        0.02064310945570469,
+        0.02067873254418373,
+        0.020386544056236744,
+        0.020342345349490643,
+        0.020166696049273014,
+        0.020408370532095432,
+        0.020627137273550034,
+        0.02046521846204996,
+        0.0199832608923316,
+        0.020719111897051334,
+        0.02072859462350607,
+        0.021106304600834846
+      ],
+      "peak_allocated_bytes": 31851575808,
+      "peak_reserved_bytes": 32608616448,
+      "physical_gpu": "1",
+      "rank": 1,
+      "training_wall_seconds": 1110.8451297404245,
+      "update_seconds": [
+        7.268709233030677,
+        7.250305357389152,
+        7.329686168581247,
+        7.390789562836289,
+        7.218528570607305,
+        7.377414873801172,
+        6.99291633348912,
+        6.937622492201626,
+        7.750704005360603,
+        6.806176172569394,
+        6.9295479618012905,
+        6.910943158902228,
+        7.257850740104914,
+        7.613985997624695,
+        6.984422583132982,
+        6.70300661213696,
+        7.423889297991991,
+        6.9262209217995405,
+        7.314630462788045,
+        7.5760707929730415,
+        6.980434788390994,
+        7.268145743757486,
+        7.207076673395932,
+        7.254492832347751,
+        6.905266493558884,
+        6.841393035836518,
+        7.415822627954185,
+        6.939489791169763,
+        6.540473153814673,
+        7.2615157486870885,
+        7.876746571622789,
+        7.188969956710935,
+        6.956660591065884,
+        7.1729746563360095,
+        7.388534230180085,
+        7.519420684315264,
+        7.32227828912437,
+        7.047471951693296,
+        6.9365774262696505,
+        7.176314206793904,
+        7.406102063134313,
+        7.07615917082876,
+        6.9843209916725755,
+        6.997485421597958,
+        6.8743012538179755,
+        7.063444867730141,
+        7.31697288248688,
+        7.185673735104501,
+        6.71165017504245,
+        7.076367449015379,
+        7.051700091920793,
+        7.652335634455085,
+        6.811728377826512,
+        6.830936927348375,
+        8.390424693003297,
+        7.413421548902988,
+        6.8518616780638695,
+        7.170756481587887,
+        7.607626042328775,
+        7.257274300791323,
+        7.149156888015568,
+        6.861180295236409,
+        7.585643908008933,
+        7.467892689630389,
+        7.1275380467996,
+        6.87139443308115,
+        7.131368665024638,
+        6.830119353719056,
+        7.427494787611067,
+        7.063763706944883,
+        7.540461792610586,
+        7.225402279756963,
+        7.6339566158130765,
+        7.215787682682276,
+        9.22037798538804,
+        7.0648280112072825,
+        6.96510190423578,
+        7.045806146226823,
+        6.923333644866943,
+        6.9829231351614,
+        7.9229029677808285,
+        6.47716717608273,
+        6.764452502131462,
+        7.164144413545728,
+        7.334851653315127,
+        7.166794762946665,
+        7.133135728538036,
+        6.794067874550819,
+        7.367334662936628,
+        7.210185896605253,
+        6.891642153263092,
+        7.374173894524574,
+        7.29891287535429,
+        7.01340046338737,
+        7.109730157069862,
+        7.194190285168588,
+        7.009174912236631,
+        7.157268687151372,
+        7.305709020234644,
+        7.069467484019697,
+        7.0908764116466045,
+        7.18548100721091,
+        6.963318578898907,
+        7.074024775996804,
+        7.770436425693333,
+        7.5894328923895955,
+        7.366981892846525,
+        7.669773697853088,
+        7.594638085924089,
+        7.082652925513685,
+        7.482703807763755,
+        7.202806426212192,
+        7.463769545778632,
+        6.99992754124105,
+        7.419802342541516,
+        7.369061768986285,
+        7.512737708166242,
+        7.646042350679636,
+        7.3716725669801235,
+        7.507137179374695
+      ]
+    }
+  ],
+  "resume_checkpoint_sha256": "63de64e33469f2d509a942277fc9edaa02a57718af4335ccea8bcc19606bf4aa",
+  "source": {
+    "commit": "f92ff5564afac35c48976469dd1d0b4a980bd982",
+    "dirty": false,
+    "formal_eligibility_reason": null,
+    "formal_eligible": true,
+    "publication_receipt_sha256": "149e2b6c9f2061df6d9a9342e4941824144cc9147dc9c37d9d7e57d324caad1c",
+    "published_commit": "f92ff5564afac35c48976469dd1d0b4a980bd982",
+    "remote_ref": "refs/heads/main",
+    "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+    "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-refine-f92ff55",
+    "tree_sha256": "ce51c63d31a0339c953311b959be37866189bc9d0e6f260a6dfb0bbb0ccc9f4f"
+  },
+  "status": "passed",
+  "steps_completed": 128,
+  "steps_requested": 128,
+  "training_wall_seconds": 1112.7239899979904,
+  "validation_condition_count": 445,
+  "validation_prediction_loss": 0.003672046776552527,
+  "world_size": 2
+}

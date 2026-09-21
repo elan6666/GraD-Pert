@@ -1,31 +1,37 @@
 # GraD-Pert v2 acceptance ledger
 
-Scope remains the full implementation, two-5090 capacity testing, grouped runnable
-experiments and verified supervision handoff. This ledger does not reduce it.
-Source inspected: `f92ff5564afac35c48976469dd1d0b4a980bd982`.
+Scope: method and independent implementation, synchronous two-5090 capacity,
+measured grouped experiment configs/scripts, exact launch preflight and a verified
+ZCode supervision handoff. Formal50-epoch training results are downstream of this
+active implementation goal; the goal does not wait for their completion.
+Current implementation reviewed at4e30832. Original evidence SHAs remain attached
+to the executions that produced them, not relabeled as the latest publication.
 
-| Requirement | Current evidence | Acceptance gap |
+| Requirement | Verified evidence | Remaining acceptance work |
 | --- | --- | --- |
-| Config-selected v1/v2, historical v1 behavior | `config/v2.py`, `execution/train_entry.py`; combined v2 and shared step/resume regression221 passed,1 CUDA-only skipped at86488ff; reporting3 passed separately | Final combined regression on delivery source and real server entry |
-| V2 method | `modeling/v2`, `training/v2/objective.py`, native operator tests and joint-loss capacity probes | Final design-to-code audit; no scientific efficacy claim |
-| Reuse v1 infrastructure | Canonical data/evaluation, metrics, entry, source checks, selection, RNG restoration, curves and `training/epoch.py` are shared | Review outer lifecycle/postfit differences; preserve necessary teacher/rank-state adapters |
-| Small evaluation artifacts | Schema metrics_only, best/last retention, compact validation population, no-PKL completion check | Norman full11-condition engineering validation passed at35c6c1a; actual complete lifecycle with curves and best/last receipts on delivery source remains |
-| Two-GPU engineering evidence | Two-rank micro72/global144 completed128 updates, checkpoint reload and300-control/5000-gene inference at ac15422; training19.50884 cells/s; receipt SHA256 `00f3e1dd041fd2b8d545510adf3c8ce24246281b5b0d39985f42d23668b40cac` | Dual-rank micro76 and80 failed OOM after13 updates; adjacent boundary, repeatability, inference batch parity and final default remain. Single-rank defaults are superseded |
-| Hyperparameter-first groups | `experiments/v2/groups.json`; standalone generation, validation-only selection, follow-up dependency gates | H3 levels/configs depend on capacity; final complete generated matrix not frozen |
-| Execution/recovery/collection | `scripts/v2/run_group.py`, `resume.py`, `collect_results.py`; tests and source gates | Actual server queue dry-run, per-row integration checks and source parity |
-| Expression holdout/context generalization | Holdout manifest, training exclusion/poison tests, fixed-axis context-query API | Norman fixed1000-axis context1000/2000/5045 engineering check passed all11 validation conditions; Jurkat ID-only holdout manifest prepared; concrete selected-parent config and real holdout training check remain |
-| CLS diagnostics | Response CLS→gene intervention and tests | Norman engineering diagnostics passed (receipt5395b54084c2754e007c815e624d76d06e7a9f8af5d274799d311561a337720a); formal trained-checkpoint diagnostics remain downstream experiments |
-| Five datasets and baselines | Existing canonical/shared infrastructure preserved | Five dataset single-update/reload probes passed at35c6c1a; GEARS/TxPert preflights and Scouter official import passed; exact delivery-source startup checks and actual receipt parity remain |
-| ZCode supervision | Relay boundary remains Codex build/test first | Exact destination resolution and complete verified handoff package |
+| Config-selected v1/v2, historical compatibility | Explicit v2 schema/dispatch; unchanged legacy config serialization; combined v2 and historical step/resume regression230passed,1localCUDA-onlyskip atffd94b9; reporting3passed separately | Final exact-source server entry preflight |
+| Complete v2 method | Native graph, gene+expression sum, distinct basal/response CLS, KDA/MLA/mHC, independent SSL heads/centers, loss reductions and committed EMA; operator/gradient/masking tests; prediction-only and full-joint conditional overfit passed | Scientific efficacy remains a formal experiment, not an implementation claim |
+| Reuse v1 infrastructure | Canonical data/splits/evaluation manifests, shared epoch iterator, validation metrics, selection, RNG serialization and curves; version-specific teacher/rank checkpoint adapter documented in docs/design/GRADPERT_V2_REUSE.md | Exact final-config canonical-data checks in server preflight |
+| Small artifacts and lifecycle | Best by validation prediction loss, true last50, committed-epoch recovery and best/last receipt tests; metrics_only/zeroPKL guards; complete11-condition Norman engineering validation at35c6c1a | Final startup checks; formal50epoch curves/best/last outcomes remain explicitly unexecuted |
+| Dual-GPU capacity | Single synchronous world2 job, accumulation1. Micro74/global148 passed128updates+reload+300control5000gene inference twice; adjacent75OOM after20updates. Micro32/global64 and micro64/global128 passed the same protocol with eval128 at7c17d3a | Reference64/rank and H3global64/128/148 frozen;128steps is not proof of50epoch stability |
+| Inference execution profile | Fixed-input fp32 batch2/64/128 parity passed for full5000 axis in1000 blocks and single5000 context; receipts in evidence/v2-inference; candidate eval128 | Exact generated-config preflight; single-condition timing is not full Jurkat validation timing |
+| Grouped experiments | All15training-group generator paths,16group design includingD1; validation-only H1→H2→H3 selection and rejection of prospective parents tested; all5dataset scripts; actual47-row Jurkat matrix passed schema/hash/declared-factor checks | Publish independent configs; exact B0/H1 preflight and queue dry-run |
+| G1/D1 | Holdout training-exclusion tests; Norman all11-condition context and response engineering checks; sealed Jurkat1000-column holdout and validation/context/D1 protocols, ID-only selection | Actual Jurkat holdout-row CUDA integration check; formal trained-checkpoint diagnostics after training |
+| Five datasets and baselines | All5native datasets passed one-update/reload at35c6c1a. Existing official GEARS/TxPert/Scouter dispatch preserves model-specific settings; canonical contract equality dry-runs passed; GEARS frozen resource cache verified | Final-source native v1 and official baseline one-step preflights, result provenance audit and launch recipes |
+| Verification and publication | Scoped Ruff check,64-file format check,19-file native-v2 Mypy and wheel/sdist build passed; separate clean published worktree protects unrelated main-tree edits | Publish generated final configs/source, deploy new clean server checkout and verify identity before final preflights |
+| Relay | Codex remains build owner; scripts/handoff protocol are repository-mediated; exact candidate ZCode task recorded in session digest | Finish implementation/preflight package and resolve destination before supervision transfer |
 
-Do not use a single-condition capacity inference as evidence for full validation
-metrics or50-epoch lifecycle completion. Do not use a one-step integration pass
-as sustained memory evidence. Best/last test scores must never choose a parent.
-Actual training/evaluation SHAs remain attached to each original receipt; later
-code publication must not relabel historical evidence.
+The successful32 receipt and parameter census are in evidence/v2-dual-gpu.
+Jurkat protocol hashes/IDs are in evidence/v2-jurkat-protocols; these are sealed
+protocols, not executed scientific evaluations. Larger-context evaluation uses
+an unrestricted checkpoint; heldout-column evaluation is a separate fixed-budget
+comparison. Test metrics never select hyperparameters or parent configurations.
 
-The v1 R50 task described in `STATUS.md` is separate historical/parallel work;
-this ledger and the v2 plan track this implementation without rewriting its run
-state. Mutable active probe details remain in the task's implementation state log.
+Per-dataset single-update checks prove integration only, not transferable batch
+capacity. Other datasets retain their own canonical split/graph/control hashes
+and require their own capacity measurements before a formal distributed batch is
+chosen. Historical single-GPU32/64 results are superseded for the dual-GPU default.
 
-Engineering validation, G1 and D1 receipts use one-update Norman weights and are not scientific efficacy evidence. The dual-rank micro72 capacity receipt evaluates only one Jurkat validation condition; it does not establish full-validation duration or50-epoch stability. Formal configs remain gated on the measured dual-GPU batch and exact final-source preflight.
+The v1 R50 work in STATUS.md is separate. Current process/session handles and next
+actions remain in V2_IMPLEMENTATION_STATE.md in the shared project worktree.
+No formal50epoch baseline/ablation has been launched or delegated by this stage.

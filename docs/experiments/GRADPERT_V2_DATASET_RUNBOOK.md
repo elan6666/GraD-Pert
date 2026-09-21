@@ -1,8 +1,9 @@
 # V2 dataset-specific ablation workflow
 
 Execution uses both RTX5090 cards in one distributed job. Global batch equals
-per-rank microbatch ×2 with accumulation1. Initial batch is pending the dual-card
-capacity sweep; single-card64 is no longer the default.
+per-rank microbatch ×2 with accumulation1. Jurkat reference is64/rank, global128, selected from full dual-card capacity.
+The frozen H3 levels are global64/128/148. See
+`configs/v2/preregistered_jurkat/README.md` and its capacity receipts.
 
 Default ablation dataset: `nadig_jurkat`. The same scripts support
 `nadig_hepg2`, `replogle_k562_essential`, `replogle_rpe1_essential`, and `norman`.
@@ -40,8 +41,8 @@ python -m torch.distributed.run --standalone --nproc_per_node=2 \
 Only a passed128-update full-chain receipt can choose the initial dataset batch.
 One-step integration is insufficient. Compare measured profiles and reserve memory
 headroom. Jurkat micro74/rank has passed the full protocol twice and adjacent
-micro75/rank failed OOM; micro32/64 dual-rank probes remain in progress at this
-revision. Earlier single-rank32/64 evidence is superseded for choosing this
+micro75/rank failed OOM; micro32 and64/rank also passed128 updates, reload and
+inference with eval128. Earlier single-rank32/64 evidence is superseded for choosing this
 distributed default. None of these results establishes another dataset's capacity.
 
 ## Generate initial groups and exact-row preflight

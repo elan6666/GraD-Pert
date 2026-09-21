@@ -13,5 +13,7 @@ and buffers are excluded.
 
 Original source SHAs remain authoritative. `git diff` confirms no changes to
 `src/`, capacity_probe.py or inference_probe.py between afbed5a and858583d.
-The64/rank full probe is still pending at this revision; do not infer its result
-from the successful single-update check or from single-GPU evidence.
+The64/rank full probe passed at7c17d3a; reference-decision.json pins the
+original server receipts and selects64/rank as the engineering reference.
+Micro74 passed twice; adjacent75 failed OOM. These establish a measured boundary
+under the128-update protocol, not guaranteed50-epoch capacity.

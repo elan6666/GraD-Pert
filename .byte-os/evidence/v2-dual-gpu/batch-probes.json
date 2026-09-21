@@ -1,0 +1,17 @@
+[
+  {
+    "receipt": "/data/yilangliu/GraD-Pert/development/v2-ddp-levels32-64-eval128-7c17d3a/micro32/receipt.json",
+    "receipt_sha256": "1de50a09c7655458c8fc9984f290b4e32da18b2029f300f10a088e14856b4b82",
+    "config": "/data/yilangliu/GraD-Pert/development/source-v2-levels-7c17d3a/configs/v2/capacity/ddp_m32_eval128/gradpert_v2/nadig_jurkat.yaml"
+  },
+  {
+    "receipt": "/data/yilangliu/GraD-Pert/development/v2-ddp-levels32-64-eval128-7c17d3a/micro64/receipt.json",
+    "receipt_sha256": "4306c6d422f58b27458bf7920a112681bab6a802966f3a3178efb41809c9201b",
+    "config": "/data/yilangliu/GraD-Pert/development/source-v2-levels-7c17d3a/configs/v2/capacity/ddp_m64_eval128/gradpert_v2/nadig_jurkat.yaml"
+  },
+  {
+    "receipt": "/data/yilangliu/GraD-Pert/development/v2-ddp-repeat74-eval128-afbed5a/micro74/receipt.json",
+    "receipt_sha256": "ac4c81bef280fac78d8bb5d4eae2e1d603d4611a379b6938aaca73e6f58e51d8",
+    "config": "/data/yilangliu/GraD-Pert/development/source-v2-repeat-afbed5a/configs/v2/capacity/ddp_m74_eval128/gradpert_v2/nadig_jurkat.yaml"
+  }
+]

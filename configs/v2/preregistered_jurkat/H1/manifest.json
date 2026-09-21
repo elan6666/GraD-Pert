@@ -1,0 +1,27 @@
+{
+  "schema_version": "gradpert-v2-group-configs-1",
+  "group": "H1",
+  "parent_config": "/data/yilangliu/GraD-Pert/development/v2-preregistered-jurkat-ffd94b9/parent/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "f56dc82ebce2466d73a138a4e099a7564a82375412ca997d8f7f56b5f4063483",
+  "generator_sha256": "e654ebf25c82bdf467b6df48f35996a6400dcac9e6bbaf9ce53b7f7331842a00",
+  "status": "configs_valid_pending_capacity_and_launch_preflight",
+  "selection_rule": "validation prediction loss only; no within-group rolling parent",
+  "rows": [
+    {
+      "name": "lr_1e3",
+      "config": "lr_1e3/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "f40e2f9427cdae0ed7d4f0993787b413ac62a7c5c10e486da8c4400fca71f5b5",
+      "overrides": {
+        "learning_rate": 0.001
+      }
+    },
+    {
+      "name": "lr_1e4",
+      "config": "lr_1e4/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "3754291064a62f716604ddcf6fb0910c10bf8fd922527628ee0057b045165b0e",
+      "overrides": {
+        "learning_rate": 0.0001
+      }
+    }
+  ]
+}

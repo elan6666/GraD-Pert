@@ -1,0 +1,44 @@
+{
+  "activation": "Regenerate in a new directory with prepare_followup.py",
+  "generator_sha256": "e654ebf25c82bdf467b6df48f35996a6400dcac9e6bbaf9ce53b7f7331842a00",
+  "group": "A2",
+  "parent_config": "/data/yilangliu/GraD-Pert/development/v2-preregistered-jurkat-ffd94b9/parent/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "f56dc82ebce2466d73a138a4e099a7564a82375412ca997d8f7f56b5f4063483",
+  "rows": [
+    {
+      "config": "hybrid/gradpert_v2/nadig_jurkat.yaml",
+      "name": "hybrid",
+      "overrides": {
+        "attention": "hybrid"
+      },
+      "sha256": "58e09ee8be9ceb845b7cc1bbfbc63c535c97f4c2f8e98994d30668c231823e2b"
+    },
+    {
+      "config": "full_latent/gradpert_v2/nadig_jurkat.yaml",
+      "name": "full_latent",
+      "overrides": {
+        "attention": "full_latent"
+      },
+      "sha256": "6dc42e2207429639424152ce9d33705f5d65347bbbc011d7575d74e94f3927fb"
+    },
+    {
+      "config": "delta_full/gradpert_v2/nadig_jurkat.yaml",
+      "name": "delta_full",
+      "overrides": {
+        "attention": "delta_full"
+      },
+      "sha256": "84dfb8cff7ab614185c757965935ccac317c8d1aa152f576d24ed613d92e5ea4"
+    },
+    {
+      "config": "full/gradpert_v2/nadig_jurkat.yaml",
+      "name": "full",
+      "overrides": {
+        "attention": "full"
+      },
+      "sha256": "b201dd623bfd4fedff27fb7d3937d9a2218faeebe1ac3cb8d5c1257da5dc3cad"
+    }
+  ],
+  "schema_version": "gradpert-v2-group-configs-1",
+  "selection_rule": "validation prediction loss only; no within-group rolling parent",
+  "status": "prospective_requires_validation_selected_parent"
+}
