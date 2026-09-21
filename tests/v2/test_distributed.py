@@ -71,3 +71,86 @@ def _gradient_worker(rank, rendezvous):
 
 def test_two_rank_gradient_average_handles_missing_local_and_unused_global(tmp_path):
     mp.spawn(_gradient_worker, args=(str(tmp_path / "gradient-rendezvous"),), nprocs=2, join=True)
+
+
+def _three_row_batch():
+    from dataclasses import replace
+
+    from gradpert.training.v2.objective import CellView
+
+    model, batch = fixture()
+    rows = torch.tensor([0, 1, 0])
+    return model, replace(
+        batch,
+        control=batch.control[rows],
+        truth=batch.truth[rows],
+        condition_index=batch.condition_index[rows],
+        cell_views=tuple(CellView(v.positions, v.mask[rows]) for v in batch.cell_views),
+    )
+
+
+class _GradientCapture:
+    def __init__(self, model):
+        self.model = model
+
+    def zero_grad(self):
+        self.model.zero_grad(set_to_none=True)
+
+    def step(self, lr):
+        pass
+
+
+def _step_worker(rank, rendezvous, reference):
+    from gradpert.training.v2.engine import optimizer_step, slice_cells
+
+    dist.init_process_group(
+        "gloo",
+        init_method="file://" + rendezvous,
+        rank=rank,
+        world_size=2,
+        timeout=timedelta(seconds=30),
+    )
+    try:
+        model, batch = _three_row_batch()
+        objective = JointObjective(model, lambda1=1, lambda2=0)
+        local = slice_cells(batch, 0, 1) if rank == 0 else slice_cells(batch, 1, 3)
+        metrics = optimizer_step(
+            objective,
+            _GradientCapture(model),
+            local,
+            microbatch=1,
+            lr=0.001,
+            momentum=0.99,
+            bf16=False,
+            global_condition_index=batch.condition_index,
+        )
+        expected = torch.load(reference, weights_only=True)
+        for name, parameter in model.named_parameters():
+            if expected["gradients"][name] is None:
+                assert parameter.grad is None
+            else:
+                torch.testing.assert_close(
+                    parameter.grad, expected["gradients"][name], atol=3e-6, rtol=1e-4
+                )
+        assert abs(metrics["prediction"] - expected["prediction"]) < 1e-6
+    finally:
+        dist.destroy_process_group()
+
+
+def test_distributed_step_matches_global_additive_gradients_for_unequal_rows(tmp_path):
+    from gradpert.training.v2.engine import optimizer_step
+
+    model, batch = _three_row_batch()
+    objective = JointObjective(model, lambda1=1, lambda2=0)
+    metrics = optimizer_step(
+        objective, _GradientCapture(model), batch, microbatch=3, lr=0.001, momentum=0.99, bf16=False
+    )
+    reference = str(tmp_path / "reference.pt")
+    torch.save(
+        {
+            "gradients": {name: p.grad for name, p in model.named_parameters()},
+            "prediction": metrics["prediction"],
+        },
+        reference,
+    )
+    mp.spawn(_step_worker, args=(str(tmp_path / "step-rendezvous"), reference), nprocs=2, join=True)
