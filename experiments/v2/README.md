@@ -139,3 +139,12 @@ slicing remain adapter responsibilities. Together with common selection, RNG
 restoration, curves, data and metrics, this removes duplicated infrastructure
 without changing v1 checkpoint payloads. Outer epoch commit/recovery orchestration
 remains version-specific and still requires a final reuse audit.
+
+`training.v2.context_evaluation.evaluate_contexts` scores a fixed, explicitly
+ordered gene set under nested context budgets sampled from IDs alone. It reuses
+canonical controls, v2 query inference and native mean-expression MSE. Results
+contain context identities, row hashes and condition/macro MSE, never prediction
+matrices. This is a separate G1 fixed-axis metric, not a substitute for the three
+full-axis headline Pearson metrics. Tests perturb only unscored truth columns and
+verify unchanged scores. A source/checkpoint-bound server CLI and real-data
+acceptance remain pending; the API alone does not complete G1.
