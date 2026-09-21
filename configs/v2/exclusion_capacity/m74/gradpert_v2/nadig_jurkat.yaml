@@ -74,7 +74,7 @@ model:
       source: project_preregistered
       reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
     microbatch:
-      value: 32
+      value: 74
       source: project_preregistered
       reference: docs/design/GRADPERT_V2.md
     accumulation:
@@ -226,7 +226,7 @@ training:
     source: user_locked
     reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
   train_batch_size:
-    value: 64
+    value: 148
     source: project_preregistered
     reference: docs/design/GRADPERT_V2.md
   eval_batch_size:
