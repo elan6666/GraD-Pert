@@ -1,0 +1,143 @@
+"""Version-two server lifecycle; historical native execution remains independent."""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Any, TypedDict
+
+from gradpert.config import load_experiment_config
+from gradpert.config.step_schedule import EndpointLRWarmupCosine, load_training_schedule
+from gradpert.data._io import atomic_json, read_json
+from gradpert.execution.identity import inspect_environment, inspect_source_identity
+from gradpert.hashing import sha256_file, sha256_json
+
+
+class DatasetArgs(TypedDict):
+    dataset_id: str
+    protocol_id: str
+    data_root: Path
+
+
+def run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
+    """Run the sealed fifty-epoch lifecycle, then test both checkpoint roles."""
+    if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
+        raise ValueError("v2 requires PYTORCH_ALLOC_CONF=expandable_segments:True")
+    config = load_experiment_config(plan["config"])
+    if config.model_id != "gradpert_v2" or config.training.formal_run_policy != "v2_fixed_50":
+        raise ValueError("v2 execution requires its explicit fixed-50 configuration")
+    if sha256_file(Path(plan["config"])) != plan["config_sha256"]:
+        raise ValueError("configuration changed after planning")
+    root = Path(plan["run_root"]).resolve()
+    data_root = Path(plan["data_root"]).resolve(strict=True)
+    if not all(p.is_relative_to("/data/yilangliu") for p in (root, data_root)):
+        raise ValueError("v2 scientific execution stays on the server")
+    source = inspect_source_identity(
+        plan["repository_root"],
+        formal=True,
+        expected_repository=config.source_code.repository,
+        publication_receipt=plan["publication"],
+        expected_publication_receipt_sha256=plan["publication_sha256"],
+    )
+    if source.commit != plan["source_commit"]:
+        raise ValueError("source changed after planning")
+    environment = inspect_environment(plan["repository_root"], device_name="cuda:0")
+    schedule = load_training_schedule(config.training.scheduler.value)
+    if not isinstance(schedule, EndpointLRWarmupCosine):
+        raise ValueError("v2 requires the project endpoint warmup-cosine schedule")
+    import torch
+
+    from gradpert.evaluation.data import CanonicalEvaluationData
+    from gradpert.evaluation.state import load_evaluation_state, prepare_evaluation_state
+    from gradpert.training.v2.evaluation import evaluate
+    from gradpert.training.v2.lifecycle import fit, test_selected
+    from gradpert.training.v2.runtime import prepare_runtime
+
+    device = torch.device("cuda:0")
+    root.mkdir(parents=True, exist_ok=True)
+    with prepare_runtime(
+        config, data_root=data_root, run_seed=plan["seed"], device=device
+    ) as runtime:
+        identity = {
+            "source": source.payload(),
+            "environment": environment.payload(),
+            "data": runtime.identity,
+            "config_sha256": plan["config_sha256"],
+            "resolved_config_sha256": sha256_json(config.model_dump(mode="json")),
+            "run_id": plan["run_id"],
+        }
+        manifest_path = root / "run_manifest.json"
+        if manifest_path.exists() and read_json(manifest_path) != identity:
+            raise ValueError("existing run identity differs; results cannot be overwritten")
+        atomic_json(manifest_path, identity)
+        atomic_json(root / "resolved_config.json", config.model_dump(mode="json"))
+        common: DatasetArgs = {
+            "dataset_id": config.dataset_id,
+            "protocol_id": config.data.protocol_id,
+            "data_root": data_root,
+        }
+        prepare_evaluation_state(**common, validation_only=True)
+        reference = load_evaluation_state(**common, validation_only=True)
+        with CanonicalEvaluationData(**common, split_name="val") as data:
+
+            def validate() -> dict[str, Any]:
+                return evaluate(
+                    runtime.objective.student,
+                    runtime.index,
+                    data,
+                    reference,
+                    expected_split="val",
+                    device=device,
+                    cell_batch=int(config.training.eval_batch_size.value),
+                    query_count=runtime.options.eval_query_count,
+                )
+
+            journal = fit(
+                runtime.objective,
+                runtime.optimizer,
+                root=root / "fit",
+                identity=identity,
+                generator=runtime.generator,
+                epochs=int(config.training.max_epochs.value),
+                steps_per_epoch=runtime.steps_per_epoch,
+                batches=runtime.batches,
+                validate=validate,
+                schedule=schedule,
+                teacher_start=runtime.options.teacher_start,
+                teacher_end=runtime.options.teacher_end,
+                microbatch=runtime.options.microbatch,
+                bf16=True,
+                resume=resume,
+            )
+        # Test references and truth are accessed only after all training and selection.
+        prepare_evaluation_state(**common)
+        reference = load_evaluation_state(**common)
+        with CanonicalEvaluationData(**common, split_name="test") as data:
+
+            def test() -> dict[str, Any]:
+                return evaluate(
+                    runtime.objective.student,
+                    runtime.index,
+                    data,
+                    reference,
+                    expected_split="test",
+                    device=device,
+                    cell_batch=int(config.training.eval_batch_size.value),
+                    query_count=runtime.options.eval_query_count,
+                )
+
+            results = test_selected(
+                runtime.objective, root=root / "fit", evaluation_identity=identity, test=test
+            )
+        if any(root.rglob("*.pkl")):
+            raise ValueError("v2 successful run must contain zero PKL files")
+        complete = {
+            "identity": identity,
+            "epoch": journal["epoch"],
+            "best": journal["best"],
+            "last": journal["last"],
+            "test_roles": list(results),
+            "zero_pkl": True,
+        }
+        atomic_json(root / "COMPLETE.json", complete)
+        return complete

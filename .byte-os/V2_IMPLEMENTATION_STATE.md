@@ -20,11 +20,11 @@ do not reset, merge, or commit them. Relay owner remains Codex in root coordinat
 - Two weighted SSL paths, EMA/centers, scoped matrix/AdamW optimizer, atomic
   v2 checkpoint with RNG restoration, single-process accumulated step.
 - Strict v2 architecture/options; model.version serialized only if present,
-  distinct v2_fixed_50 policy. Legacy run dispatch still rejects v2: real runner pending.
+  distinct v2_fixed_50 policy. CLI now dispatches v2 to execution/v2.py; v1 branch is preserved.
 - Resumable epoch lifecycle implemented with atomic selection journal, best/last links,
   exact replay after epoch interruption, and role-specific test receipts. Synthetic tests
   verify uninterrupted/resumed parameter and RNG equality and test receipt reuse.
-- Ordered-query inference and common evaluation adapter implemented; not yet wired into lifecycle.
+- Ordered-query inference and common evaluation adapter implemented; wired into the canonical server lifecycle; server integration still unverified.
   Tests preserve full output coverage, control row order and cell-batch prediction parity;
   validation rejects a reference containing test conditions.
 - Deterministic views and 16-group design matrix; H3 batch levels deliberately null.
@@ -51,8 +51,9 @@ do not reset, merge, or commit them. Relay owner remains Codex in root coordinat
 
 1. Tests for view-builder invariants and strict version/config identity; audit
    exact loss reductions (row reduction currently applies to condition term only).
-2. Complete v2 data/runtime/validation/best-last path through existing train CLI;
-   new v2 callbacks must preserve identity/allocator/resource/evaluation gates.
+2. Canonical v2 runtime and CLI lifecycle now implemented and typechecked. Still require
+   full integration test/server run, curve artifacts, failure receipts, resource admission,
+   resume CLI and audit of explicit config/data identity checks before formal readiness.
 3. Implement and test missing ablation switches (per-gene MLP, holdout/diagnostics),
    accurate disabled-loss work skipping, full batch/KoLeo/DDP semantics and resumes.
 4. Run genuine CUDA numerical checks and complete-path capacity (128 sustained

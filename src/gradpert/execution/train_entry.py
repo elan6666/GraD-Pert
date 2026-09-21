@@ -35,7 +35,7 @@ def resolve_plan(args: argparse.Namespace) -> dict[str, Any]:
     root = repository_root()
     config_path = (args.config or root / DEFAULT_CONFIG).resolve(strict=True)
     config = load_experiment_config(config_path)
-    if config.training.formal_run_policy != "r50_selection":
+    if config.training.formal_run_policy not in {"r50_selection", "v2_fixed_50"}:
         raise ValueError("train currently supports the complete R50 best/last lifecycle only")
     if config.training.max_epochs.value != 50 or config.training.early_stopping:
         raise ValueError("train requires 50 epochs without early stopping")
@@ -119,6 +119,11 @@ def execute_plan(plan: dict[str, Any]) -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = plan["gpu"]
     os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
     os.environ["GRADPERT_SPARSE_UNION_IMPL"] = "cpu_array"
+    if load_experiment_config(plan["config"]).model_id == "gradpert_v2":
+        from gradpert.execution.v2 import run_v2
+
+        run_v2(plan)
+        return
     from gradpert.data._io import atomic_json
     from gradpert.evaluation.state import prepare_evaluation_state
     from gradpert.execution.native import run_native_experiment

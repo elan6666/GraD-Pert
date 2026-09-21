@@ -112,3 +112,29 @@ def test_execute_uses_native_then_postfit(setup, monkeypatch):
     assert (Path(plan["run_root"]) / "COMPLETE.json").is_file()
     with pytest.raises(FileExistsError):
         entry.execute_plan(plan)
+
+
+def test_v2_dispatch_does_not_use_v1_runner(setup, monkeypatch):
+    plan = entry.resolve_plan(setup)
+    calls = []
+    monkeypatch.setattr(entry.subprocess, "check_output", lambda *a, **kw: "0, GPU-abcd\n")
+    monkeypatch.setattr(
+        entry, "load_experiment_config", lambda _: SimpleNamespace(model_id="gradpert_v2")
+    )
+    monkeypatch.setattr("gradpert.execution.v2.run_v2", lambda p: calls.append(p))
+    monkeypatch.setattr(
+        "gradpert.execution.native.run_native_experiment",
+        lambda **kw: pytest.fail("v2 entered historical v1 runner"),
+    )
+    for key in ("CUDA_VISIBLE_DEVICES", "PYTORCH_ALLOC_CONF", "GRADPERT_SPARSE_UNION_IMPL"):
+        monkeypatch.setenv(key, "")
+    entry.execute_plan(plan)
+    assert calls == [plan]
+
+
+def test_v2_runner_rejects_missing_allocator_before_data(monkeypatch):
+    from gradpert.execution.v2 import run_v2
+
+    monkeypatch.delenv("PYTORCH_ALLOC_CONF", raising=False)
+    with pytest.raises(ValueError, match="PYTORCH_ALLOC_CONF"):
+        run_v2({})
