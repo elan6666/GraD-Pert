@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import timedelta
 from typing import Any, TypeVar, cast
 
 import torch
@@ -55,19 +56,39 @@ def average_gradients(model: nn.Module, *, bucket_bytes: int = 25 * 1024**2) -> 
 
 
 T = TypeVar("T")
+_PRIMARY_GROUP: Any = None
+_PRIMARY_OWNER: Any = None
+
+
+def _primary_control_group() -> Any:
+    """Keep long rank-zero validation waits outside NCCL gradient watchdogs.
+
+    Every rank enters primary_call in the same order. The auxiliary CPU group
+    permits up to one day for full validation/test work; NCCL retains the worker's
+    short timeout for actual tensor collectives. Reset if a process group changes.
+    """
+    global _PRIMARY_GROUP, _PRIMARY_OWNER
+    if torch.distributed.get_backend() != "nccl":
+        return None
+    owner = torch.distributed.group.WORLD
+    if _PRIMARY_OWNER is not owner:
+        _PRIMARY_GROUP = torch.distributed.new_group(backend="gloo", timeout=timedelta(days=1))
+        _PRIMARY_OWNER = owner
+    return _PRIMARY_GROUP
 
 
 def primary_call(operation: Callable[[], T]) -> T:
     """Run a filesystem/evaluation operation once and broadcast its outcome."""
     if not torch.distributed.is_initialized():
         return operation()
+    group = _primary_control_group()
     outcome: list[Any] = [None]
     if torch.distributed.get_rank() == 0:
         try:
             outcome[0] = {"value": operation(), "error": None}
         except Exception as error:
             outcome[0] = {"value": None, "error": f"{type(error).__name__}: {error}"}
-    torch.distributed.broadcast_object_list(outcome, src=0)
+    torch.distributed.broadcast_object_list(outcome, src=0, group=group)
     result = outcome[0]
     if result["error"] is not None:
         raise RuntimeError("primary rank operation failed: " + result["error"])
