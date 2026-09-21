@@ -7,6 +7,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -44,8 +45,16 @@ def resolve_plan(args: argparse.Namespace) -> dict[str, Any]:
     seed = config.training.run_seeds[0] if args.seed is None else args.seed
     if seed not in config.training.run_seeds:
         raise ValueError(f"seed {seed} is not allowed by config: {config.training.run_seeds}")
-    if not re.fullmatch(r"[0-9]+|GPU-[a-fA-F0-9-]+", args.gpu):
-        raise ValueError("--gpu requires one physical GPU index or UUID")
+    gpu_ids = args.gpu.split(",")
+    expected_world = (
+        int(config.model.parameters["world_size"].value) if config.model_id == "gradpert_v2" else 1
+    )
+    if (
+        len(gpu_ids) != expected_world
+        or len(set(gpu_ids)) != expected_world
+        or any(not re.fullmatch(r"[0-9]+|GPU-[a-fA-F0-9-]+", gpu) for gpu in gpu_ids)
+    ):
+        raise ValueError("--gpu physical selectors must match the configured world size")
     runtime_path = (
         args.runtime or Path(os.environ.get("GRADPERT_RUNTIME", str(DEFAULT_RUNTIME)))
     ).resolve(strict=True)
@@ -111,8 +120,16 @@ def execute_plan(plan: dict[str, Any]) -> None:
         ["nvidia-smi", "--query-gpu=index,uuid", "--format=csv,noheader"], text=True
     )
     available = {value.strip() for line in devices.splitlines() for value in line.split(",")}
-    if plan["gpu"] not in available:
+    gpu_ids = plan["gpu"].split(",")
+    if any(gpu not in available for gpu in gpu_ids):
         raise ValueError("requested physical GPU is not present")
+    aliases = {
+        value.strip(): line.split(",")[1].strip()
+        for line in devices.splitlines()
+        for value in line.split(",")
+    }
+    if len({aliases[gpu] for gpu in gpu_ids}) != len(gpu_ids):
+        raise ValueError("GPU selectors refer to the same physical device")
     for key, digest in (("config", "config_sha256"), ("runtime", "runtime_sha256")):
         if sha256_file(Path(plan[key])) != plan[digest]:
             raise ValueError(f"{key} changed after planning")
@@ -122,7 +139,30 @@ def execute_plan(plan: dict[str, Any]) -> None:
     if load_experiment_config(plan["config"]).model_id == "gradpert_v2":
         from gradpert.execution.v2 import run_v2
 
-        run_v2(plan)
+        if len(gpu_ids) == 1:
+            run_v2(plan)
+        else:
+            from gradpert.data._io import atomic_json
+
+            plan_path = Path(plan["run_root"]).parent / (plan["run_id"] + ".launch-plan.json")
+            if plan_path.exists():
+                raise FileExistsError(plan_path)
+            plan_path.parent.mkdir(parents=True, exist_ok=True)
+            atomic_json(plan_path, plan)
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "torch.distributed.run",
+                    "--standalone",
+                    "--nproc_per_node",
+                    str(len(gpu_ids)),
+                    str(Path(plan["repository_root"]) / "scripts/v2/distributed_train.py"),
+                    "--plan",
+                    str(plan_path),
+                ],
+                check=True,
+            )
         return
     from gradpert.data._io import atomic_json
     from gradpert.evaluation.state import prepare_evaluation_state

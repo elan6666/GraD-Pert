@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -19,6 +21,24 @@ def main() -> None:
         raise ValueError("no committed epoch state; inspect the startup failure before retrying")
     os.environ["CUDA_VISIBLE_DEVICES"] = plan["gpu"]
     os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
+    devices = plan["gpu"].split(",")
+    if len(devices) > 1:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "torch.distributed.run",
+                "--standalone",
+                "--nproc_per_node",
+                str(len(devices)),
+                str(Path(__file__).with_name("distributed_train.py")),
+                "--plan",
+                str(args.launch),
+                "--resume",
+            ],
+            check=True,
+        )
+        return
     from gradpert.execution.v2 import run_v2
 
     run_v2(plan, resume=True)

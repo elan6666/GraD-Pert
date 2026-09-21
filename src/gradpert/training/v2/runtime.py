@@ -67,8 +67,11 @@ def prepare_runtime(
     if config.model_id != "gradpert_v2" or config.model.version != "v2":
         raise ValueError("v2 runtime cannot execute a v1 configuration")
     arch, options = V2Options.parse_parameters(config.model.parameters)
-    if options.world_size != 1:
-        raise ValueError("distributed v2 execution is not yet verified")
+    world = torch.distributed.get_world_size() if torch.distributed.is_initialized() else 1
+    if options.world_size != world:
+        raise ValueError("configured world size differs from the process group")
+    if world > 1 and device.type == "cuda" and torch.cuda.device_count() != 1:
+        raise ValueError("each distributed worker must expose exactly one physical GPU")
     if run_seed not in config.training.run_seeds:
         raise ValueError("seed differs from sealed configuration")
     if not data_root.resolve().is_relative_to("/data/yilangliu"):
@@ -133,6 +136,11 @@ def prepare_runtime(
             lr=float(config.training.learning_rate.value),
             weight_decay=float(config.training.weight_decay.value),
         )
+        if world > 1:
+            # Model initialization is shared; dropout streams are rank-specific.
+            rank_seed = run_seed + torch.distributed.get_rank()
+            torch.manual_seed(rank_seed)
+            random.seed(rank_seed)
         identity = {
             "canonical_sha256": data.manifest.canonical_adata_sha256,
             "split_sha256": data.split.split_content_sha256,

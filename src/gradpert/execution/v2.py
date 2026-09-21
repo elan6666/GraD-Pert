@@ -53,17 +53,22 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
 
     from gradpert.evaluation.data import CanonicalEvaluationData
     from gradpert.evaluation.state import load_evaluation_state, prepare_evaluation_state
+    from gradpert.training.v2.distributed import primary_call
     from gradpert.training.v2.evaluation import evaluate
     from gradpert.training.v2.lifecycle import fit, test_selected
     from gradpert.training.v2.reporting import export_curves
     from gradpert.training.v2.runtime import prepare_runtime
 
     device = torch.device("cuda:0")
-    if root.exists() and not resume:
-        raise FileExistsError("new v2 execution requires a new run root")
-    root.mkdir(parents=True, exist_ok=True)
-    if not resume:
-        atomic_json(root / "launch.json", plan)
+
+    def initialize_root() -> None:
+        if root.exists() and not resume:
+            raise FileExistsError("new v2 execution requires a new run root")
+        root.mkdir(parents=True, exist_ok=True)
+        if not resume:
+            atomic_json(root / "launch.json", plan)
+
+    primary_call(initialize_root)
     with prepare_runtime(
         config, data_root=data_root, run_seed=plan["seed"], device=device
     ) as runtime:
@@ -78,14 +83,16 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
         manifest_path = root / "run_manifest.json"
         if manifest_path.exists() and read_json(manifest_path) != identity:
             raise ValueError("existing run identity differs; results cannot be overwritten")
-        atomic_json(manifest_path, identity)
-        atomic_json(root / "resolved_config.json", config.model_dump(mode="json"))
+        primary_call(lambda: atomic_json(manifest_path, identity))
+        primary_call(
+            lambda: atomic_json(root / "resolved_config.json", config.model_dump(mode="json"))
+        )
         common: DatasetArgs = {
             "dataset_id": config.dataset_id,
             "protocol_id": config.data.protocol_id,
             "data_root": data_root,
         }
-        prepare_evaluation_state(**common, validation_only=True)
+        primary_call(lambda: prepare_evaluation_state(**common, validation_only=True))
         reference = load_evaluation_state(**common, validation_only=True)
         with CanonicalEvaluationData(**common, split_name="val") as data:
 
@@ -118,9 +125,9 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                 bf16=True,
                 resume=resume,
             )
-        export_curves(root / "fit")
+        primary_call(lambda: export_curves(root / "fit"))
         # Test references and truth are accessed only after all training and selection.
-        prepare_evaluation_state(**common)
+        primary_call(lambda: prepare_evaluation_state(**common))
         reference = load_evaluation_state(**common)
         with CanonicalEvaluationData(**common, split_name="test") as data:
 
@@ -149,7 +156,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             "test_roles": list(results),
             "zero_pkl": True,
         }
-        atomic_json(root / "COMPLETE.json", complete)
+        primary_call(lambda: atomic_json(root / "COMPLETE.json", complete))
         return complete
 
 
@@ -158,6 +165,10 @@ def run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     try:
         return _run_v2(plan, resume=resume)
     except BaseException as error:
+        import torch
+
+        if torch.distributed.is_initialized() and torch.distributed.get_rank() != 0:
+            raise
         root = Path(plan.get("run_root", ".")).resolve()
         launch = root / "launch.json"
         if root.is_relative_to(SERVER_ROOT) and launch.is_file() and read_json(launch) == plan:

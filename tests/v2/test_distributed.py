@@ -227,3 +227,91 @@ def test_distributed_checkpoint_restores_each_ranks_distinct_rng(tmp_path):
         nprocs=2,
         join=True,
     )
+
+
+def _lifecycle_worker(rank, rendezvous, root):
+    from pathlib import Path
+
+    import numpy as np
+
+    from gradpert.config.step_schedule import EndpointLRWarmupCosine
+    from gradpert.training.v2.lifecycle import fit
+    from gradpert.training.v2.lifecycle import test_selected as evaluate_selected
+    from gradpert.training.v2.optimizer import V2Optimizer
+
+    dist.init_process_group(
+        "gloo",
+        init_method="file://" + rendezvous,
+        rank=rank,
+        world_size=2,
+        timeout=timedelta(seconds=30),
+    )
+    try:
+
+        def run(name, resume=False, interrupt=False):
+            model, batch = _three_row_batch()
+            objective = JointObjective(model, lambda1=0, lambda2=0)
+            optimizer = V2Optimizer(model, 0.001, 0.0)
+            generator = np.random.default_rng(17 + rank)
+            torch.manual_seed(30 + rank)
+
+            def batches(epoch):
+                for step in range(3):
+                    generator.random()
+                    if interrupt and epoch == 1 and step == 1:
+                        raise RuntimeError("interrupted epoch")
+                    yield batch
+
+            def validate():
+                assert rank == 0
+                return {"split": "val", "prediction_loss": 0.2 if optimizer.steps == 3 else 0.3}
+
+            path = Path(root) / name
+            journal = fit(
+                objective,
+                optimizer,
+                root=path,
+                identity={"world": 2},
+                generator=generator,
+                epochs=3,
+                steps_per_epoch=3,
+                batches=batches,
+                validate=validate,
+                schedule=EndpointLRWarmupCosine(0.001, 0.0002, 0.16),
+                teacher_start=0.99,
+                teacher_end=1.0,
+                microbatch=1,
+                bf16=False,
+                resume=resume,
+            )
+            state = {k: v.clone() for k, v in objective.state_dict().items()}
+
+            def test():
+                assert rank == 0
+                return {"split": "test", "value": 1.0}
+
+            results = evaluate_selected(
+                objective, root=path, evaluation_identity={"world": 2}, test=test
+            )
+            assert set(results) == {"best", "last"}
+            assert journal["best"]["epoch"] == 1 and journal["last"]["epoch"] == 3
+            return state, generator.random()
+
+        uninterrupted, rng_expected = run("full")
+        with pytest.raises(RuntimeError, match="interrupted epoch"):
+            run("resumed", interrupt=True)
+        resumed, rng_actual = run("resumed", resume=True)
+        for name in uninterrupted:
+            torch.testing.assert_close(uninterrupted[name], resumed[name], rtol=0, atol=0)
+        assert rng_actual == rng_expected
+    finally:
+        dist.destroy_process_group()
+
+
+def test_two_rank_lifecycle_resume_and_primary_only_best_last(tmp_path):
+    mp.spawn(
+        _lifecycle_worker,
+        args=(str(tmp_path / "lifecycle-rendezvous"), str(tmp_path)),
+        nprocs=2,
+        join=True,
+    )

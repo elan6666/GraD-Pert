@@ -509,3 +509,14 @@ SSL1、DINO与iBOT梯度与完整batch参考一致（dropout关闭，KoLeo关闭
 KoLeo邻居集合仍限定每个rank的真实microbatch，不宣称它与全batch近邻损失等价。
 分布式checkpoint收集每个rank独立的Python/Torch/NumPy Generator/CUDA RNG；
 只由rank0写入，写入失败广播给所有rank。恢复必须保持world size。
+
+### 同步双卡生命周期
+
+v2 的 `world_size=2` 配置使用 `--gpu 0,1`，由torchrun创建两个worker。
+每个worker在CUDA初始化前只暴露自己的物理GPU；各自完整持有模型和优化器。
+全局确定性batch在每个rank按连续行分片，实际细胞数校正可加loss的权重，
+梯度同步发生在全局clip和Muon/AdamW更新之前；图loss全局只计一次。
+主rank执行验证、曲线、best/last测试和文件提交，结果/错误广播到所有rank。
+checkpoint保存收集各rank RNG，恢复不能更改world size或已封存的执行配方。
+本地两进程Gloo的三epoch合成生命周期测试已验证中断重跑、精确参数/RNG恢复、
+主rank独占评估与best/last文件；这不是NCCL容量或50epoch科学实验的完成证据。

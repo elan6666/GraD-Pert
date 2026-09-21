@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
+
 import torch
 from torch import nn
 
@@ -49,3 +52,23 @@ def average_gradients(model: nn.Module, *, bucket_bytes: int = 25 * 1024**2) -> 
         bucket.append(p)
         size += p.numel() * p.element_size()
     flush()
+
+
+T = TypeVar("T")
+
+
+def primary_call(operation: Callable[[], T]) -> T:
+    """Run a filesystem/evaluation operation once and broadcast its outcome."""
+    if not torch.distributed.is_initialized():
+        return operation()
+    outcome: list[Any] = [None]
+    if torch.distributed.get_rank() == 0:
+        try:
+            outcome[0] = {"value": operation(), "error": None}
+        except Exception as error:
+            outcome[0] = {"value": None, "error": f"{type(error).__name__}: {error}"}
+    torch.distributed.broadcast_object_list(outcome, src=0)
+    result = outcome[0]
+    if result["error"] is not None:
+        raise RuntimeError("primary rank operation failed: " + result["error"])
+    return cast(T, result["value"])

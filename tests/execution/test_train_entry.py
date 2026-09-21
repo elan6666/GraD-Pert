@@ -138,3 +138,15 @@ def test_v2_runner_rejects_missing_allocator_before_data(monkeypatch):
     monkeypatch.delenv("PYTORCH_ALLOC_CONF", raising=False)
     with pytest.raises(ValueError, match="PYTORCH_ALLOC_CONF"):
         run_v2({})
+
+
+def test_v2_multi_gpu_plan_requires_matching_world_size(setup):
+    setup.config = (
+        Path(__file__).resolve().parents[2]
+        / "configs/v2/capacity/ddp_m8/gradpert_v2/nadig_jurkat.yaml"
+    )
+    setup.gpu = "0,1"
+    assert entry.resolve_plan(setup)["gpu"] == "0,1"
+    setup.gpu = "0"
+    with pytest.raises(ValueError, match="world size"):
+        entry.resolve_plan(setup)

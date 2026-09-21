@@ -11,17 +11,20 @@ import math
 import os
 from collections.abc import Callable, Iterable
 from dataclasses import asdict
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import torch
 
 from gradpert.config.step_schedule import EndpointLRWarmupCosine
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
 
 from .checkpoint import load_checkpoint, save_checkpoint
-from .engine import optimizer_step
+from .distributed import primary_call
+from .engine import optimizer_step, slice_cells
 from .objective import JointObjective, TrainingBatch
 from .optimizer import V2Optimizer
 
@@ -76,7 +79,10 @@ def fit(
         raise ValueError("new lifecycle requires an unstepped optimizer")
     total = epochs * steps_per_epoch
     schedule.at_step(0, total)  # Reject invalid timing before writing run state.
-    root.mkdir(parents=True, exist_ok=True)
+    distributed = torch.distributed.is_initialized()
+    world = torch.distributed.get_world_size() if distributed else 1
+    rank = torch.distributed.get_rank() if distributed else 0
+    primary_call(lambda: root.mkdir(parents=True, exist_ok=True))
     journal_path = root / "epoch_state.json"
     history: list[dict[str, Any]] = []
     journal: dict[str, Any] = {}
@@ -86,7 +92,7 @@ def fit(
             raise ValueError("resume identity or training budget differs")
         if journal.get("contract") != contract:
             raise ValueError("resume schedule or execution contract differs")
-        _role_links(root, journal)
+        primary_call(partial(_role_links, root, journal))
         progress = load_checkpoint(
             root / "last.pt", objective, optimizer, identity=identity, generator=generator
         )
@@ -118,8 +124,8 @@ def fit(
                 "prediction_loss": None,
             },
         }
-        atomic_json(journal_path, journal)
-    atomic_json(root / "history.json", history)
+        primary_call(partial(atomic_json, journal_path, journal))
+    primary_call(lambda: atomic_json(root / "history.json", history))
     for epoch in range(len(history), epochs):
         sums: dict[str, float] = {}
         count = 0
@@ -133,6 +139,12 @@ def fit(
                 * (1 + math.cos(math.pi * step / max(1, total - 1)))
                 / 2
             )
+            global_conditions = batch.condition_index if distributed else None
+            if distributed:
+                cells = len(batch.control)
+                if cells < world:
+                    raise ValueError("global batch must provide a row to every rank")
+                batch = slice_cells(batch, cells * rank // world, cells * (rank + 1) // world)
             terms = optimizer_step(
                 objective,
                 optimizer,
@@ -141,13 +153,14 @@ def fit(
                 lr=schedule.at_step(step, total)["learning_rate"],
                 momentum=momentum,
                 bf16=bf16,
+                global_condition_index=global_conditions,
             )
             for name, value in terms.items():
                 sums[name] = sums.get(name, 0.0) + value
             count += 1
         if count != steps_per_epoch:
             raise ValueError("epoch iterator shorter than sealed step budget")
-        validation = validate()
+        validation = primary_call(validate)
         if validation.get("split") != "val":
             raise ValueError("checkpoint selection requires validation-only results")
         loss = float(validation["prediction_loss"])
@@ -189,17 +202,21 @@ def fit(
         }
         # This rename is the commit point. A crash before it leaves an orphan,
         # which is ignored on resume; after it role links are safely recoverable.
-        atomic_json(journal_path, journal)
-        _role_links(root, journal)
-        atomic_json(root / "history.json", history)
-        retained = {best["file"], selected["file"]}
-        for old in root.glob("epoch-*.pt"):
-            if old.name not in retained:
-                old.unlink()
+        primary_call(partial(atomic_json, journal_path, journal))
+        primary_call(partial(_role_links, root, journal))
+        primary_call(lambda: atomic_json(root / "history.json", history))
+        retained = {str(best["file"]), str(selected["file"])}
+
+        def prune(retained_files: set[str] = retained) -> None:
+            for old in root.glob("epoch-*.pt"):
+                if old.name not in retained_files:
+                    old.unlink()
+
+        primary_call(prune)
     return journal
 
 
-def test_selected(
+def _test_selected(
     objective: JointObjective,
     *,
     root: Path,
@@ -248,3 +265,17 @@ def test_selected(
         receipts[role] = {"identity": identity, "result": result}
         atomic_json(output, receipts[role])
     return receipts
+
+
+def test_selected(
+    objective: JointObjective,
+    *,
+    root: Path,
+    evaluation_identity: dict[str, Any],
+    test: Callable[[], dict[str, Any]],
+) -> dict[str, Any]:
+    return primary_call(
+        lambda: _test_selected(
+            objective, root=root, evaluation_identity=evaluation_identity, test=test
+        )
+    )
