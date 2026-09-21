@@ -189,3 +189,15 @@ records both ordered control populations and the original condition's truth IDs,
 with separate basal/response CLS and prediction/delta distances. Cell inference
 is chunked with population-weighted aggregation. Real-server execution remains
 unverified until an eligible checkpoint and its sealed protocol are available.
+
+### Five-dataset integration candidates
+
+`configs/v2/integration/gradpert_v2/` contains five self-contained engineering
+configs. Each data section is copied exactly from its existing native v1 config,
+including Norman's `norman_combo_seen2`; no split is regenerated. Graph manifest
+hashes were read directly from the existing server `data-vnext-a942114` tree.
+The batch2/full-objective profile is for `capacity_probe.py --integration-only`
+(exactly one update plus checkpoint reload), not a formal reference batch or
+sustained capacity claim. All five configs pass schema/data-contract comparison;
+server integration receipts are still required before labeling them executable.
+Do not use these small-batch configs as substitutes for final measured ablations.
