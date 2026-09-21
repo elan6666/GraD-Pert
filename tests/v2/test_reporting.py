@@ -36,9 +36,9 @@ def test_curves_preserve_source_epoch_and_missing_metrics(tmp_path):
     assert [r["epoch"] for r in rows] == ["1", "2"]
     assert rows[0]["trishift_pearson_delta"] == ""
     assert rows[0]["source_commit"] == "a" * 40
-    assert len(receipt["outputs"]) == 3
-    assert (tmp_path / "epoch_curves.png").stat().st_size > 1000
-    assert (tmp_path / "epoch_curves.pdf").stat().st_size > 1000
+    assert len(receipt["outputs"]) == 7
+    assert (tmp_path / "curves" / "training_loss.png").stat().st_size > 1000
+    assert (tmp_path / "curves" / "validation_curves.pdf").stat().st_size > 1000
 
 
 def test_uncommitted_history_is_rejected(tmp_path):
@@ -46,3 +46,15 @@ def test_uncommitted_history_is_rejected(tmp_path):
     atomic_json(tmp_path / "history.json", [])
     with pytest.raises(ValueError, match="committed"):
         export_curves(tmp_path)
+
+
+def test_adapter_uses_native_curve_epoch_convention(tmp_path):
+    test_curves_preserve_source_epoch_and_missing_metrics(tmp_path)
+    with (tmp_path / "curves" / "validation_curves.csv").open() as stream:
+        rows = list(csv.DictReader(stream))
+    assert [r["epoch"] for r in rows] == ["0", "1"]
+    assert [r["global_step"] for r in rows] == ["5", "10"]
+    assert rows[0]["trishift_pearson_delta"] == ""
+    with (tmp_path / "curves" / "train_steps.csv").open() as stream:
+        training = list(csv.DictReader(stream))
+    assert float(training[0]["prediction_loss_update_mean"]) == 0.3

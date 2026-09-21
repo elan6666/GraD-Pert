@@ -53,6 +53,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
 
     from gradpert.evaluation.data import CanonicalEvaluationData
     from gradpert.evaluation.state import load_evaluation_state, prepare_evaluation_state
+    from gradpert.training.v2.artifacts import compact_validation
     from gradpert.training.v2.distributed import primary_call
     from gradpert.training.v2.evaluation import evaluate
     from gradpert.training.v2.lifecycle import fit, test_selected
@@ -97,7 +98,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
         with CanonicalEvaluationData(**common, split_name="val") as data:
 
             def validate() -> dict[str, Any]:
-                return evaluate(
+                result = evaluate(
                     runtime.objective.student,
                     runtime.index,
                     data,
@@ -107,6 +108,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                     cell_batch=int(config.training.eval_batch_size.value),
                     query_count=runtime.options.eval_query_count,
                 )
+                return compact_validation(result, root=root)
 
             journal = fit(
                 runtime.objective,

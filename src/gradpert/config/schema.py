@@ -364,6 +364,8 @@ class ExperimentConfig(StrictModel):
             from gradpert.config.v2 import V2Options
 
             _, options = V2Options.parse_parameters(self.model.parameters)
+            if self.artifacts.result_mode != "metrics_only":
+                raise ValueError("v2 requires metrics_only with server-side best/last checkpoints")
             if (
                 self.training.formal_run_policy != "v2_fixed_50"
                 or self.training.max_epochs.value != 50

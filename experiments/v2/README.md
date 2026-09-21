@@ -81,3 +81,25 @@ runner uses one task per selected GPU; it does not assume two tasks fit safely.
 Runtime and publication checks remain delegated to the existing train entry.
 Checkpoint weights stay on the server. A failed row stops this group, preserving
 its plan and logs for repair; invoking resume continues it before advancing.
+
+### Shared v1 infrastructure and small artifacts
+
+V2 reuses canonical training/evaluation data, frozen condition/control manifests,
+metric implementations, the public train entry and source identity checks. The
+curve adapter translates committed v2 epoch summaries to the existing native
+`training.curves.render_curves` interface. Its training inputs explicitly remain
+means over optimizer updates; they are not per-step observations. Native v1 code
+and historical output conventions are unchanged.
+
+V2 configurations require `metrics_only`. Best/last checkpoints remain on the
+server, with metrics, curves and reproducibility receipts; no prediction matrix
+or PKL is persisted. Exact ordered validation populations are stored once in
+`validation_population.json` at the run root; epoch history retains population
+hashes and a reference to this receipt. Curve outputs are under `fit/curves/`,
+with an additional source-bound `fit/epoch_curves.csv` and curve receipt.
+
+Remaining reuse audit: the v1 trainer and post-fit runner currently couple to
+v1 model, checkpoint and optimizer interfaces. V2 lifecycle duplication must
+still be reduced through compatible adapters/shared interfaces, preserving v1
+behavior and v2 distributed/teacher-state recovery. This is not yet a completed
+shared-lifecycle integration.

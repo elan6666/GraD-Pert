@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import csv
-import importlib
 from pathlib import Path
 from typing import Any
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
+from gradpert.training.curves import render_curves
 
 METRICS = ("txpert_macro_pearson_delta", "trishift_pearson_delta", "systema_pearson")
 
@@ -47,47 +47,46 @@ def export_curves(root: Path) -> dict[str, Any]:
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
-    mpl = importlib.import_module("matplotlib")
-    mpl.use("Agg")
-    plt = importlib.import_module("matplotlib.pyplot")
-    figure, axes = plt.subplots(2, 3, figsize=(15, 8))
-    epochs = [r["epoch"] for r in rows]
-    fields = [
-        ("train_prediction_step_mean", "Train prediction (mean over updates)"),
-        ("train_joint_step_mean", "Train joint objective (mean over updates)"),
-        ("validation_prediction_loss", "Validation (condition means)"),
-    ]
-    for axis, (field, label) in zip(list(axes.flat)[:3], fields, strict=True):
-        axis.plot(epochs, [r[field] for r in rows])
-        axis.set(xlabel="Epoch", ylabel="Loss", title=label)
-    for axis, metric in zip(list(axes.flat)[3:], METRICS, strict=True):
-        axis.plot(epochs, [r[metric] if r[metric] is not None else float("nan") for r in rows])
-        axis.set(xlabel="Epoch", ylabel="Pearson", title=metric)
-        if all(r[metric] is None for r in rows):
-            axis.text(
-                0.5,
-                0.5,
-                "No finite values\nSee history for reasons",
-                transform=axis.transAxes,
-                ha="center",
-                va="center",
+    # Adapt committed v2 epoch summaries to the existing native curve interface.
+    # These are update means, not invented per-step observations.
+    shared = root / "curves"
+    shared.mkdir(exist_ok=True)
+    training = shared / "train_steps.csv"
+    fields = ["global_step", "prediction_loss_update_mean", "joint_loss_update_mean"]
+    with training.open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {
+                    "global_step": row["optimizer_steps"],
+                    "prediction_loss_update_mean": row["train_prediction_step_mean"],
+                    "joint_loss_update_mean": row["train_joint_step_mean"],
+                }
             )
-    for axis in axes.flat:
-        axis.set_xlim(epochs[0] - 0.1, epochs[-1] + 0.1)
-        axis.xaxis.set_major_locator(mpl.ticker.MaxNLocator(integer=True))
-    figure.tight_layout()
-    outputs = [output]
-    for extension in ("png", "pdf"):
-        destination = root / f"epoch_curves.{extension}"
-        figure.savefig(destination)
-        outputs.append(destination)
-    plt.close(figure)
+            atomic_json(
+                shared / f"validation.epoch-{row['epoch'] - 1:04d}.json",
+                {
+                    "epoch": row["epoch"] - 1,
+                    "global_step": row["optimizer_steps"],
+                    "run_id": row["run_id"],
+                    "source_commit": source,
+                    "prediction_loss": row["validation_prediction_loss"],
+                    **{metric: row[metric] for metric in METRICS},
+                },
+            )
+    expected = {f"validation.epoch-{row['epoch'] - 1:04d}.json" for row in rows}
+    if {p.name for p in shared.glob("validation.epoch-*.json")} != expected:
+        raise ValueError("curve adapter contains validation epochs outside committed history")
+    render_curves(shared)
+    outputs = [output, shared / "curves_manifest.json"]
+    outputs.extend(shared / name for name in read_json(shared / "curves_manifest.json")["outputs"])
     receipt = {
         "source_commit": source,
         "run_id": identity["run_id"],
         "history_sha256": sha256_file(root / "history.json"),
         "journal_sha256": sha256_file(root / "epoch_state.json"),
-        "outputs": {p.name: sha256_file(p) for p in outputs},
+        "outputs": {str(p.relative_to(root)): sha256_file(p) for p in outputs},
         "training_reduction": "arithmetic_mean_over_optimizer_updates",
         "missing_metric_policy": "blank_csv_nan_plot_gap; reasons retained in history.json",
     }
