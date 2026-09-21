@@ -476,3 +476,15 @@ QK得分之后、Softmax之前；参考图箭头指向整个模块只是省略�
 warmup占总optimizer steps的0.16，cosine末值为peak LR的0.2，首步LR为0，
 末个使用步骤精确到达floor；不重启、不做warmup比例消融。
 LR消融将peak与floor同比缩放（1e-3→2e-4、1e-4→2e-5），所有组保持日程规则。
+
+## Capacity probe settings
+
+`configs/v2/capacity/gradpert_v2/nadig_jurkat.yaml` 是双5090容量搜索的起始探针，
+不是正式消融batch选择：microbatch=2、accumulation=1、单进程；两卡分别测量。
+完整d256、4层Cell+4层Response、双蒸馏、全部16384原型均保留。
+压力测试中明确固定的项目候选：expander degree=8/seed=1，图mask=.25，
+图edge dropout=.1；表达Global比例.7–1、Local比例.3–.7，2G+4L；
+Global逐细胞mask概率.5，mask比例.1–.5。它们不是scDFM官方默认的声明。
+推理使用显式1000基因有序块覆盖全部表达轴，eval cell batch=2；
+全基因上下文是另一个推理配方，需要独立容量证据。
+正式batch水平仍只能由完整链路实测收据生成。
