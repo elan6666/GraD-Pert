@@ -110,12 +110,24 @@ def assemble_batch(
     index: NeighborhoodIndex,
     options: V2Options,
     rng: np.random.Generator,
+    *,
+    allowed_expression_ids: np.ndarray | None = None,
 ) -> TrainingBatch:
     device = raw.control_expression.device
     n = raw.control_expression.shape[1]
-    if options.query_count > n:
-        raise ValueError("requested query count exceeds observed expression axis")
-    queries = np.sort(rng.choice(n, options.query_count, replace=False))
+    pool = np.arange(n) if allowed_expression_ids is None else allowed_expression_ids
+    if (
+        pool.ndim != 1
+        or pool.dtype.kind not in "iu"
+        or not len(pool)
+        or (pool < 0).any()
+        or (pool >= n).any()
+        or len(np.unique(pool)) != len(pool)
+    ):
+        raise ValueError("allowed expression IDs must be unique in-axis integers")
+    if options.query_count > len(pool):
+        raise ValueError("requested query count exceeds allowed expression axis")
+    queries = np.sort(rng.choice(pool, options.query_count, replace=False))
     conditions = sorted(raw.anchors_by_condition)
     targets = [raw.anchors_by_condition[c] for c in conditions]
     anchors = sorted({g for target in targets for g in target})

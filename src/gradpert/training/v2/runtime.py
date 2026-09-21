@@ -37,6 +37,7 @@ class Runtime:
     device: torch.device
     batch_size: int
     identity: dict[str, Any]
+    allowed_expression_ids: np.ndarray | None = None
 
     @cached_property
     def steps_per_epoch(self) -> int:
@@ -52,7 +53,13 @@ class Runtime:
             batch_size=self.batch_size,
             max_unique_conditions=min(self.options.max_conditions, self.batch_size),
         ):
-            yield assemble_batch(raw, self.index, self.options, self.generator)
+            yield assemble_batch(
+                raw,
+                self.index,
+                self.options,
+                self.generator,
+                allowed_expression_ids=self.allowed_expression_ids,
+            )
 
 
 @contextmanager
@@ -113,6 +120,18 @@ def prepare_runtime(
             raise ValueError("training and graph axes differ")
         if tuple(data.expression_gene_ids) != topology.gene_ids[: len(data.expression_gene_ids)]:
             raise ValueError("v2 expression axis must be the graph prefix")
+        allowed_expression_ids = None
+        if options.expression_holdout_path:
+            from .holdout import load_partition
+
+            holdout_path = Path(options.expression_holdout_path).resolve()
+            if not holdout_path.is_relative_to("/data/yilangliu"):
+                raise ValueError("expression partition must be sealed on the server")
+            allowed_expression_ids = load_partition(
+                holdout_path, options.expression_holdout_sha256, tuple(data.expression_gene_ids)
+            )
+            if len(allowed_expression_ids) < options.query_count:
+                raise ValueError("training expression partition smaller than query budget")
         random.seed(run_seed)
         np.random.seed(run_seed)
         torch.manual_seed(run_seed)
@@ -150,6 +169,8 @@ def prepare_runtime(
             "genept_sha256": prior.source_sha256,
             "run_seed": run_seed,
         }
+        if options.expression_holdout_path:
+            identity["expression_holdout_sha256"] = options.expression_holdout_sha256
         yield Runtime(
             data,
             options,
@@ -160,4 +181,5 @@ def prepare_runtime(
             device,
             int(config.training.train_batch_size.value),
             identity,
+            allowed_expression_ids,
         )

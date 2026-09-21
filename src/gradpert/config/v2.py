@@ -88,21 +88,33 @@ class V2Options:
     graph_manifest_sha256: str
     gene_initialization: str
     prediction_loss: str
+    expression_holdout_path: str = ""
+    expression_holdout_sha256: str = ""
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
         arch_names = {f.name for f in fields(V2Architecture)}
         names = {f.name for f in fields(cls)}
-        if set(values) != arch_names | names:
+        optional = {"expression_holdout_path", "expression_holdout_sha256"}
+        required = (arch_names | names) - optional
+        if not required <= set(values) or set(values) - (arch_names | names):
             raise ValueError(
-                f"v2 missing fields={sorted((arch_names | names) - set(values))}; "
+                f"v2 missing fields={sorted(required - set(values))}; "
                 f"unknown={sorted(set(values) - (arch_names | names))}"
             )
         plain = {name: value.value for name, value in values.items()}
         arch = V2Architecture.parse({name: plain[name] for name in arch_names})
-        return arch, cls(**{name: plain[name] for name in names})
+        return arch, cls(**{name: plain[name] for name in names if name in plain})
 
     def __post_init__(self) -> None:
+        if bool(self.expression_holdout_path) != bool(self.expression_holdout_sha256):
+            raise ValueError("expression holdout manifest path and hash must be supplied together")
+        if self.expression_holdout_sha256 and (
+            len(self.expression_holdout_sha256) != 64
+            or any(c not in "0123456789abcdef" for c in self.expression_holdout_sha256)
+        ):
+            raise ValueError("expression holdout requires a lowercase SHA256")
+
         for name in (
             "query_count",
             "microbatch",
