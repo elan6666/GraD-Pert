@@ -46,6 +46,7 @@ def test_report_preserves_microbatch_and_does_not_invent_missing_communication(t
     "field,value",
     [
         ("status", "running"),
+        ("kind", "integration_only"),
         ("steps_completed", 8),
         ("inference_shape", [2, 5000]),
         ("config_sha256", "wrong"),

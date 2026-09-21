@@ -51,3 +51,10 @@ owned config paths, strict schema, and the full configuration difference against
 the frozen parent. Updating a checksum does not authorize an undeclared extra
 factor. Supply the relocated parent path on the server; its hash must still match.
 This verifies group configuration integrity, not source/data/GPU launch admission.
+
+`capacity_probe.py --integration-only` is a distinct engineering mode: exactly one
+complete optimizer update and checkpoint reload, without inference or sustained
+capacity evidence. Its receipt kind is `integration_only`; the capacity report
+rejects it. The normal mode still requires at least 128 updates, midpoint
+continuation and 300-control inference. Use one-step receipts only for variant
+integration preflight after a suitable sustained execution profile is established.

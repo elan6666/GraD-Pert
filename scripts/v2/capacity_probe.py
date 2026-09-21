@@ -12,6 +12,17 @@ from datetime import timedelta
 from pathlib import Path
 
 
+def probe_policy(integration_only: bool, steps: int | None) -> tuple[int, int, str]:
+    if integration_only:
+        if steps not in (None, 1):
+            raise ValueError("integration-only mode requires exactly one optimizer update")
+        return 1, 0, "integration_only"
+    steps = 128 if steps is None else steps
+    if steps < 128:
+        raise ValueError("capacity evidence requires at least 128 sustained updates")
+    return steps, 8, "capacity_only"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
@@ -20,10 +31,13 @@ def main() -> None:
     parser.add_argument("--gpu", required=True, help="physical GPU list; use torchrun for two GPUs")
     parser.add_argument("--publication", type=Path, required=True)
     parser.add_argument("--publication-sha256", required=True)
-    parser.add_argument("--steps", type=int, default=128)
+    parser.add_argument("--steps", type=int)
+    parser.add_argument("--integration-only", action="store_true")
     args = parser.parse_args()
-    if args.steps < 128:
-        parser.error("capacity evidence requires at least 128 sustained updates")
+    try:
+        args.steps, warmup_steps, kind = probe_policy(args.integration_only, args.steps)
+    except ValueError as error:
+        parser.error(str(error))
     if not args.output.resolve().is_relative_to("/data/yilangliu"):
         parser.error("capacity artifacts stay on the server")
     world = int(os.environ.get("WORLD_SIZE", "1"))
@@ -69,7 +83,9 @@ def main() -> None:
         torch.distributed.init_process_group("nccl", timeout=timedelta(minutes=30))
     primary_call(lambda: args.output.mkdir(parents=True, exist_ok=False))
     receipt = {
-        "kind": "capacity_only",
+        "kind": kind,
+        "data_root": str(args.data_root.resolve()),
+        "inference_exercised": not args.integration_only,
         "source": source.payload(),
         "environment": environment.payload(),
         "config_sha256": sha256_file(args.config),
@@ -132,7 +148,7 @@ def main() -> None:
                     step += 1
                     receipt["steps_completed"] = step
                     receipt["last_terms"] = terms
-                    if step == args.steps // 2:
+                    if step == max(1, args.steps // 2):
                         path = args.output / "resume.pt"
                         save_checkpoint(
                             path,
@@ -203,15 +219,16 @@ def main() -> None:
                     )
                 return validation
 
-            receipt.update(primary_call(validation_probe))
+            if not args.integration_only:
+                receipt.update(primary_call(validation_probe))
             local_measurement = {
                 "rank": rank,
                 "physical_gpu": devices[rank],
                 "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
                 "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
                 "training_wall_seconds": receipt["training_wall_seconds"],
-                "update_seconds": durations[8:],
-                "gradient_reduction_seconds": gradient_reduction_seconds[8:],
+                "update_seconds": durations[warmup_steps:],
+                "gradient_reduction_seconds": gradient_reduction_seconds[warmup_steps:],
             }
             measurements = [local_measurement]
             if world > 1:
@@ -234,8 +251,13 @@ def main() -> None:
                 peak_allocated_bytes=max(m["peak_allocated_bytes"] for m in measurements),
                 peak_reserved_bytes=max(m["peak_reserved_bytes"] for m in measurements),
                 measured_update_seconds=durations_measured,
-                cells_per_second=sum(cells[8:]) / sum(durations_measured),
-                coverage="128+ updates; checkpoint continuation; single-condition validation",
+                cells_per_second=sum(cells[warmup_steps:]) / sum(durations_measured),
+                coverage=(
+                    "one optimizer update; checkpoint reload; "
+                    "no sustained-capacity or inference evidence"
+                    if args.integration_only
+                    else "128+ updates; checkpoint continuation; single-condition validation"
+                ),
             )
     except BaseException as error:
         receipt.update(status="failed", error_type=type(error).__name__, error=str(error))
