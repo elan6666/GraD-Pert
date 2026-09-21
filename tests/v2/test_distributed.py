@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+import pytest
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -80,12 +81,18 @@ def _three_row_batch():
 
     model, batch = fixture()
     rows = torch.tensor([0, 1, 0])
+    masks = [torch.zeros((3, 4), dtype=torch.bool) for _ in batch.cell_views]
+    masks[0][0, :2] = True
+    masks[0][2, 3] = True
+    masks[1][2, 2] = True
     return model, replace(
         batch,
         control=batch.control[rows],
         truth=batch.truth[rows],
         condition_index=batch.condition_index[rows],
-        cell_views=tuple(CellView(v.positions, v.mask[rows]) for v in batch.cell_views),
+        cell_views=tuple(
+            CellView(v.positions, mask) for v, mask in zip(batch.cell_views, masks, strict=True)
+        ),
     )
 
 
@@ -100,7 +107,7 @@ class _GradientCapture:
         pass
 
 
-def _step_worker(rank, rendezvous, reference):
+def _step_worker(rank, rendezvous, reference, ssl2):
     from gradpert.training.v2.engine import optimizer_step, slice_cells
 
     dist.init_process_group(
@@ -112,7 +119,9 @@ def _step_worker(rank, rendezvous, reference):
     )
     try:
         model, batch = _three_row_batch()
-        objective = JointObjective(model, lambda1=1, lambda2=0)
+        objective = JointObjective(
+            model, lambda1=1, lambda2=0.1 if ssl2 else 0, ssl2_weights=(0.8, 0.4, 0)
+        )
         local = slice_cells(batch, 0, 1) if rank == 0 else slice_cells(batch, 1, 3)
         metrics = optimizer_step(
             objective,
@@ -133,15 +142,20 @@ def _step_worker(rank, rendezvous, reference):
                     parameter.grad, expected["gradients"][name], atol=3e-6, rtol=1e-4
                 )
         assert abs(metrics["prediction"] - expected["prediction"]) < 1e-6
+        if ssl2:
+            assert abs(metrics["ssl2_ibot"] - expected["ibot"]) < 2e-6
     finally:
         dist.destroy_process_group()
 
 
-def test_distributed_step_matches_global_additive_gradients_for_unequal_rows(tmp_path):
+@pytest.mark.parametrize("ssl2", [False, True])
+def test_distributed_step_matches_global_additive_gradients_for_unequal_rows(tmp_path, ssl2):
     from gradpert.training.v2.engine import optimizer_step
 
     model, batch = _three_row_batch()
-    objective = JointObjective(model, lambda1=1, lambda2=0)
+    objective = JointObjective(
+        model, lambda1=1, lambda2=0.1 if ssl2 else 0, ssl2_weights=(0.8, 0.4, 0)
+    )
     metrics = optimizer_step(
         objective, _GradientCapture(model), batch, microbatch=3, lr=0.001, momentum=0.99, bf16=False
     )
@@ -150,7 +164,66 @@ def test_distributed_step_matches_global_additive_gradients_for_unequal_rows(tmp
         {
             "gradients": {name: p.grad for name, p in model.named_parameters()},
             "prediction": metrics["prediction"],
+            "ibot": metrics.get("ssl2_ibot"),
         },
         reference,
     )
-    mp.spawn(_step_worker, args=(str(tmp_path / "step-rendezvous"), reference), nprocs=2, join=True)
+    mp.spawn(
+        _step_worker, args=(str(tmp_path / "step-rendezvous"), reference, ssl2), nprocs=2, join=True
+    )
+
+
+def _checkpoint_worker(rank, rendezvous, checkpoint):
+    import random
+    from pathlib import Path
+
+    import numpy as np
+
+    from gradpert.training.v2.checkpoint import load_checkpoint, save_checkpoint
+    from gradpert.training.v2.optimizer import V2Optimizer
+
+    dist.init_process_group(
+        "gloo",
+        init_method="file://" + rendezvous,
+        rank=rank,
+        world_size=2,
+        timeout=timedelta(seconds=30),
+    )
+    try:
+        model, _ = fixture()
+        objective = JointObjective(model)
+        optimizer = V2Optimizer(model, 0.001, 0.0)
+        generator = np.random.default_rng(100 + rank)
+        torch.manual_seed(200 + rank)
+        random.seed(300 + rank)
+        identity = {"world_size": 2}
+        save_checkpoint(
+            Path(checkpoint),
+            objective,
+            optimizer,
+            identity=identity,
+            progress={"step": 0},
+            generator=generator,
+        )
+        expected = (torch.rand(4), generator.random(4), random.random())
+        torch.rand(12)
+        generator.random(12)
+        random.random()
+        progress = load_checkpoint(
+            Path(checkpoint), objective, optimizer, identity=identity, generator=generator
+        )
+        assert progress == {"step": 0}
+        torch.testing.assert_close(torch.rand(4), expected[0], rtol=0, atol=0)
+        np.testing.assert_array_equal(generator.random(4), expected[1])
+        assert random.random() == expected[2]
+    finally:
+        dist.destroy_process_group()
+
+
+def test_distributed_checkpoint_restores_each_ranks_distinct_rng(tmp_path):
+    mp.spawn(
+        _checkpoint_worker,
+        args=(str(tmp_path / "checkpoint-rendezvous"), str(tmp_path / "distributed.pt")),
+        nprocs=2,
+        join=True,
+    )

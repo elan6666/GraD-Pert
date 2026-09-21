@@ -125,7 +125,11 @@ class JointObjective(nn.Module):
         return graph, condition
 
     def forward(
-        self, batch: TrainingBatch, *, include_ssl1: bool = True
+        self,
+        batch: TrainingBatch,
+        *,
+        include_ssl1: bool = True,
+        ibot_population: Tensor | None = None,
     ) -> tuple[Tensor, dict[str, Tensor]]:
         model = self.student
         graph, conditions = self._graph(model, batch.graph, False)
@@ -150,7 +154,14 @@ class JointObjective(nn.Module):
             # Independent teacher graph; shared teacher parameters are EMA-updated once.
             with torch.no_grad():
                 tg, tc = self._graph(self.teacher, batch.graph, False)
-            ssl2 = self.cell_loss(batch, graph, condition, tg, tc[batch.condition_index])
+            ssl2 = self.cell_loss(
+                batch,
+                graph,
+                condition,
+                tg,
+                tc[batch.condition_index],
+                ibot_population=ibot_population,
+            )
             metrics.update({f"ssl2_{k}": v for k, v in ssl2.items()})
             loss = loss + self.lambda2 * sum(
                 w * v for w, v in zip(self.weights[1], ssl2.values(), strict=True)
@@ -210,6 +221,8 @@ class JointObjective(nn.Module):
         condition: Tensor,
         teacher_graph: Tensor,
         teacher_condition: Tensor,
+        *,
+        ibot_population: Tensor | None = None,
     ) -> dict[str, Tensor]:
         if len(batch.cell_views) < 2:
             raise ValueError("SSL2 requires two globals")
@@ -254,11 +267,28 @@ class JointObjective(nn.Module):
                         teacher_outputs[j]["response_tokens"][mask]
                     )
                 self._targets("ssl2_node", target_node)
-                nodes.append(cross_entropy(source, target_node, self.ssl2_node_center))
+                node_loss = cross_entropy(source, target_node, self.ssl2_node_center)
+                if ibot_population is not None:
+                    # Return a cell-scaled contribution so the engine's row
+                    # weighting cancels and yields the global masked-token mean.
+                    node_loss = (
+                        node_loss
+                        * (mask.sum() / ibot_population[j])
+                        * (ibot_population[2] / len(batch.control))
+                    )
+                nodes.append(node_loss)
         zero = student_outputs[0]["response_cls"].sum() * 0
         return {
             "dino": torch.stack(terms).mean() if terms else zero,
-            "ibot": torch.stack(nodes).mean() if nodes else zero,
+            "ibot": (
+                (
+                    torch.stack(nodes).mean()
+                    if ibot_population is None
+                    else torch.stack(nodes).sum() / (ibot_population[:2] > 0).sum().clamp_min(1)
+                )
+                if nodes
+                else zero
+            ),
             "koleo": torch.stack(
                 [
                     nearest_spread(

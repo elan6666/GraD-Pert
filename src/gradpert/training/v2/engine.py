@@ -64,13 +64,27 @@ def optimizer_step(
     device = batch.control.device.type
     metrics: dict[str, float] = {}
     total = len(batch.control)
+    ibot_population = None
+    if objective.lambda2 and objective.weights[1][1]:
+        if len(batch.cell_views) < 2:
+            raise ValueError("iBOT requires two global views")
+        ibot_population = torch.stack(
+            (
+                batch.cell_views[0].mask.sum(),
+                batch.cell_views[1].mask.sum(),
+                batch.control.new_tensor(total, dtype=torch.int64),
+            )
+        )
+        if distributed:
+            torch.distributed.all_reduce(ibot_population)
+        ibot_population = ibot_population.float()
     finite = True
     try:
         for start in range(0, total, microbatch):
             micro = slice_cells(batch, start, min(start + microbatch, total))
             fraction = len(micro.control) / total
             with torch.autocast(device_type=device, dtype=torch.bfloat16, enabled=bf16):
-                loss, terms = objective(micro, include_ssl1=False)
+                loss, terms = objective(micro, include_ssl1=False, ibot_population=ibot_population)
             if not torch.isfinite(loss):
                 finite = False
                 if not distributed:

@@ -497,3 +497,15 @@ Global逐细胞mask概率.5，mask比例.1–.5。它们不是scDFM官方默认�
 最后的CLS槽改为gene输出的均值只读汇总，供蒸馏使用；它不回流到gene预测。
 该组检验token交互的贡献，不是参数量严格匹配的对照，报告实际参数量和吞吐。
 测试要求单基因表达干预不改变其他gene token，而汇总CLS能够响应干预。
+
+### SSL2 遮蔽节点损失的全局分母
+
+累积或同步多卡时，每个Global视图v单独统计有效mask位置总数M_v（跨全部
+microbatch和rank），先按M_v平均CE，再对M_v>0的Global视图等权平均。
+不能把各microbatch的masked-token均值直接按细胞数平均，因为mask数量可不同。
+engine显式传入两个全局mask计数与全局细胞数，使cell行权重抵消后保留上述分母。
+双进程回归覆盖不等长分片、空mask microbatch、单rank无某视图mask；预测、
+SSL1、DINO与iBOT梯度与完整batch参考一致（dropout关闭，KoLeo关闭）。
+KoLeo邻居集合仍限定每个rank的真实microbatch，不宣称它与全batch近邻损失等价。
+分布式checkpoint收集每个rank独立的Python/Torch/NumPy Generator/CUDA RNG；
+只由rank0写入，写入失败广播给所有rank。恢复必须保持world size。
