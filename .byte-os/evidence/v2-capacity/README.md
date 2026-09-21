@@ -27,3 +27,13 @@ per-update timing, memory and checkpoint/inference evidence. Verify with
 Receipt SHA256:
 - m32: `3e237ba13df260e4bfe221869a6069e11cb82bf9360253fb92a40a270b2f153d`
 - m16accum2: `6870fc2810a1348183f2509a616b9bac7e387f65544e0c67c941493f4265f53b`
+
+## Batch64 completed point
+
+`m64-47de78f.json` records a passed128-update full-objective probe at published
+source `47de78fca4a557a2ec89867d239459e7be764adf`, including checkpoint continuation
+and300×5000 inference. Measured throughput9.499133 cells/s; peak allocated
+27991045120bytes and reserved29691478016bytes. The GPU0 process terminated.
+This is the largest completed tested point so far, not the hardware maximum;
+repeat validation and final profile selection remain outstanding. Its source
+version differs from the batch32 receipts and must remain separately labeled.
