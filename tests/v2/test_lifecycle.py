@@ -11,7 +11,8 @@ from gradpert.training.v2.objective import JointObjective
 from gradpert.training.v2.optimizer import V2Optimizer
 
 
-def test_interrupted_epoch_resume_matches_uninterrupted_and_keeps_best_last(tmp_path):
+@pytest.mark.parametrize("later_loss", [0.3, 0.2])
+def test_interrupted_epoch_resume_matches_uninterrupted_and_keeps_best_last(tmp_path, later_loss):
     model, batch = fixture()
     original = copy.deepcopy(model.state_dict())
 
@@ -31,7 +32,7 @@ def test_interrupted_epoch_resume_matches_uninterrupted_and_keeps_best_last(tmp_
 
         def validate():
             epoch = optimizer.steps // 3
-            return {"split": "val", "prediction_loss": 0.2 if epoch == 1 else 0.3}
+            return {"split": "val", "prediction_loss": 0.2 if epoch == 1 else later_loss}
 
         journal = fit(
             objective,

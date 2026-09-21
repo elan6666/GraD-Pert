@@ -103,3 +103,15 @@ v1 model, checkpoint and optimizer interfaces. V2 lifecycle duplication must
 still be reduced through compatible adapters/shared interfaces, preserving v1
 behavior and v2 distributed/teacher-state recovery. This is not yet a completed
 shared-lifecycle integration.
+
+V2 checkpoint selection now calls the existing native `EarlyStoppingState` in
+minimum-loss mode, including strict ties and replay on resume. Its stop signal
+is ignored for the fixed epoch budget. V1 selection implementation is unchanged.
+
+`select_parent.py` provides validation-only H1/H2/H3 parent selection from all
+registered candidates and explicitly paired seeds. It verifies fifty committed
+epochs, common source/data/reference identities and the best checkpoint hash;
+selection uses mean best validation loss and never reads test receipts. Its CLI
+requires `--manifest`, `--parent`, `--runs` (row-name to run-root lists), `--seeds`
+and a new `--output`. Automatic dependency admission of this selection receipt
+into subsequent groups is still pending; H3 also awaits measured batch levels.

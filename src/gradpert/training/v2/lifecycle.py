@@ -21,6 +21,7 @@ import torch
 from gradpert.config.step_schedule import EndpointLRWarmupCosine
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
+from gradpert.training.selection import EarlyStoppingState
 
 from .checkpoint import load_checkpoint, save_checkpoint
 from .distributed import primary_call
@@ -126,6 +127,13 @@ def fit(
         }
         primary_call(partial(atomic_json, journal_path, journal))
     primary_call(lambda: atomic_json(root / "history.json", history))
+    # Reuse native strict-improvement selection. Fixed-budget v2 deliberately
+    # ignores the early-stop signal, just like native R50 selection runs.
+    selection = EarlyStoppingState(mode="min")
+    for record in history:
+        selection.update(
+            epoch=record["epoch"], validation_metric=float(record["validation"]["prediction_loss"])
+        )
     for epoch in range(len(history), epochs):
         sums: dict[str, float] = {}
         count = 0
@@ -190,8 +198,11 @@ def fit(
             "prediction_loss": loss,
         }
         best = journal.get("best")
-        if best is None or loss < best["prediction_loss"]:
+        improved, _ = selection.update(epoch=epoch + 1, validation_metric=loss)
+        if improved:
             best = selected
+        if best is None:  # The first finite validation must select a checkpoint.
+            raise AssertionError("native selection did not select an initial checkpoint")
         journal = {
             "identity": identity,
             "budget": [epochs, steps_per_epoch],
