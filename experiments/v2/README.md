@@ -167,3 +167,15 @@ use one rank and no accumulation, and provide unique increasing physical batch
 sizes. Generated rows change only microbatch and training batch; LR stays fixed.
 Verification rechecks original receipt/config hashes. This enables H3 tooling;
 it does not itself choose or freeze the final measured levels.
+
+`evaluate_context.py` connects G1 evaluation to a completed fixed-50 run. Supply
+`--training-run`, `--role best|last`, original `--config`, `--data-root`, `--gpu`,
+`--publication`/`--publication-sha256`, and a new server `--output` JSON file.
+The hash-pinned `--protocol`/`--protocol-sha256` JSON has exactly
+`evaluation_gene_ids`, `budgets`, `context_seed`, and `split` (`val` or `test`).
+Training identity/config/data and selected checkpoint ownership/hash are verified;
+evaluation source/environment are recorded separately. No prediction matrices
+are written. Current runtime construction supports the single-rank training
+profiles; a distributed training config requires a later evaluation adapter.
+Entry guards and CLI are tested, but real completed-checkpoint execution is still
+unverified. Capacity checkpoints cannot masquerade as completed formal runs.
