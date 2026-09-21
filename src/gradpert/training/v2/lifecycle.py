@@ -24,7 +24,7 @@ from gradpert.hashing import sha256_file
 from gradpert.training.epoch import execute_epoch
 from gradpert.training.selection import EarlyStoppingState
 
-from .checkpoint import load_checkpoint, save_checkpoint
+from .checkpoint import load_checkpoint, load_evaluation_checkpoint, save_checkpoint
 from .distributed import primary_call
 from .engine import optimizer_step, slice_cells
 from .objective import JointObjective, TrainingBatch
@@ -246,8 +246,6 @@ def _test_selected(
     identities. The execution adapter supplies source/environment/data identities
     separately for training and evaluation. No optimizer or RNG is restored here.
     """
-    import torch
-
     journal = read_json(root / "epoch_state.json")
     if journal["epoch"] != journal["budget"][0]:
         raise ValueError("best/last test requires the complete training budget")
@@ -268,14 +266,12 @@ def _test_selected(
                 raise ValueError("existing test receipt belongs to another evaluation")
             receipts[role] = saved
             continue
-        payload = torch.load(root / selected["file"], map_location="cpu", weights_only=False)
-        if (
-            payload["model_version"] != "v2"
-            or payload["identity"] != journal["identity"]
-            or payload["architecture"] != objective.student.options.payload()
-        ):
-            raise ValueError("selected checkpoint identity or architecture mismatch")
-        objective.load_state_dict(payload["objective"])
+        load_evaluation_checkpoint(
+            root / selected["file"],
+            objective,
+            training_identity=journal["identity"],
+            checkpoint_sha256=selected["sha256"],
+        )
         result = test()
         if result.get("split") != "test":
             raise ValueError("postfit requires the frozen test split")

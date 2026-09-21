@@ -9,6 +9,7 @@ from typing import Any, cast
 import numpy as np
 import torch
 
+from gradpert.hashing import sha256_file
 from gradpert.training.checkpoint import _restore_rng_state, _rng_state
 
 from .objective import JointObjective
@@ -75,13 +76,8 @@ def _atomic_checkpoint(path: Path, payload: dict[str, Any]) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def load_checkpoint(
-    path: Path,
-    objective: JointObjective,
-    optimizer: V2Optimizer,
-    *,
-    identity: dict[str, Any],
-    generator: np.random.Generator,
+def _verified_payload(
+    path: Path, objective: JointObjective, *, identity: dict[str, Any]
 ) -> dict[str, Any]:
     payload = torch.load(path, map_location="cpu", weights_only=False)
     if (
@@ -94,6 +90,39 @@ def load_checkpoint(
         or payload["architecture"] != objective.student.options.payload()
     ):
         raise ValueError("checkpoint data/config/architecture identity mismatch")
+    return cast(dict[str, Any], payload)
+
+
+def load_evaluation_checkpoint(
+    path: Path,
+    objective: JointObjective,
+    *,
+    training_identity: dict[str, Any],
+    checkpoint_sha256: str,
+) -> dict[str, Any]:
+    """Load model/teacher state for evaluation without restoring optimizer or RNG.
+
+    The caller records evaluation source separately from the supplied immutable
+    training identity. Distributed training checkpoints can be evaluated on one
+    device; training resume still requires the original rank topology.
+    """
+    if sha256_file(path) != checkpoint_sha256:
+        raise ValueError("evaluation checkpoint checksum mismatch")
+    payload = _verified_payload(path, objective, identity=training_identity)
+    objective.load_state_dict(payload["objective"])
+    objective.pending.clear()
+    return cast(dict[str, Any], payload["progress"])
+
+
+def load_checkpoint(
+    path: Path,
+    objective: JointObjective,
+    optimizer: V2Optimizer,
+    *,
+    identity: dict[str, Any],
+    generator: np.random.Generator,
+) -> dict[str, Any]:
+    payload = _verified_payload(path, objective, identity=identity)
     rank_states = payload.get("rank_rng_states")
     if torch.distributed.is_initialized():
         if rank_states is None or len(rank_states) != torch.distributed.get_world_size():
