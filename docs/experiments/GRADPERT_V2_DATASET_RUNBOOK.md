@@ -134,3 +134,50 @@ this is different from a single5000gene context. The receipt records the recipe
 and complete ordered output gene IDs. An OOM or parity failure produces a failed receipt with
 completed earlier points preserved. The formal inference batch remains pending
 these real measurements and final execution-config preflight.
+
+## Existing external and nonlearned baselines
+
+`scripts/v2/run_external_baseline.py` is a dispatch wrapper, not a new trainer.
+It accepts an explicit self-contained baseline config, a v2 anchor config, the
+same publication/data runtime JSON, an isolated Python and official checkout.
+It rejects different canonical-data/evaluation contracts and anything other than
+the existing fixed50, metrics_only, seed1 external protocol. Actual canonical
+IDs/hashes and official commit/environment checks remain the runner's gate;
+config equality alone is not proof of materialized-data parity.
+
+For Jurkat use `configs/r50-rerun/{gears,txpert_public,scouter_genept_seed}/nadig_jurkat.yaml`.
+Do not copy v2's optimizer or physical batch to these configs. For other datasets,
+supply their own audited fixed50 baseline configs; this wrapper never changes
+datasets, training budgets or official defaults implicitly.
+
+```bash
+PYTHONPATH=src python scripts/v2/run_external_baseline.py \
+  --config configs/r50-rerun/gears/nadig_jurkat.yaml \
+  --anchor-config "$V2_PARENT" --runtime "$RUNTIME" \
+  --python /data/yilangliu/GraD-Pert/envs/gears/bin/python \
+  --official-checkout /data/yilangliu/GraD-Pert/upstreams/gears \
+  --official-data-root "$GEARS_DATA_ROOT" \
+  --run-root "$NEW_STEP_ROOT" --run-id "$NEW_STEP_ID" --gpu 0
+```
+
+The default mode is `step-smoke` and the default action only prints the plan.
+Add `--execute` only after the scheduled GPU is free. The wrapper shares v2 GPU
+and config/source/seed locks and rejects an occupied GPU. Full execution uses
+`--mode full --smoke-run-root "$PASSED_STEP_ROOT"` plus a **new** run root/ID;
+the existing runner verifies that preflight before fitting, then tests best and
+last automatically. Preserve failed roots; this wrapper does not silently retry
+or resume an official runner. Inspect final role receipts and zero-PKL status;
+process exit alone is not acceptance.
+
+TxPert uses its isolated Python and checkout and does not take
+`--official-data-root`. Scouter additionally requires `--genept-seed` and
+`--environment-lock`; these are forwarded to its existing isolated runner.
+The wrapper does not claim its dry-run is an official import or CUDA preflight.
+
+V1 continues through `python -m gradpert train` and its existing runtime and
+single-update gate. Nonlearned controls continue through `python -m gradpert
+baseline` with explicit `configs/experiments/matched_control_mean/` or
+`configs/experiments/general_train_delta/` dataset configs. They have no learned
+best/last checkpoint or50epoch budget; do not invent those roles. Use the same
+canonical data root and source-publication receipt, and compare final data,
+split and ordered-control hashes before adding results to the v2 table.
