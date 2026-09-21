@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import os
-import random
 from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
 import torch
+
+from gradpert.training.checkpoint import _restore_rng_state, _rng_state
 
 from .objective import JointObjective
 from .optimizer import V2Optimizer
@@ -26,11 +27,13 @@ def save_checkpoint(
     if objective.pending:
         raise ValueError("checkpoint only at completed optimizer-step boundaries")
     distributed = torch.distributed.is_initialized()
+    native_rng = _rng_state()
     rng = {
         "numpy_generator": generator.bit_generator.state,
-        "torch_rng": torch.get_rng_state(),
-        "python_rng": random.getstate(),
-        "cuda_rng": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else [],
+        "torch_rng": native_rng["torch_cpu"],
+        "python_rng": native_rng["python"],
+        "numpy_rng": native_rng["numpy"],
+        "cuda_rng": native_rng["torch_cuda"],
     }
     rank_states: list[Any] | None = None
     rank = 0
@@ -103,11 +106,16 @@ def load_checkpoint(
     objective.load_state_dict(payload["objective"])
     optimizer.load_state_dict(payload["optimizer"])
     generator.bit_generator.state = rng["numpy_generator"]
-    random.setstate(rng["python_rng"])
-    torch.set_rng_state(rng["torch_rng"])
-    if rng["cuda_rng"]:
-        if not torch.cuda.is_available():
-            raise ValueError("CUDA training resume requires CUDA RNG restoration")
-        torch.cuda.set_rng_state_all(rng["cuda_rng"])
+    # Preserve the v2 payload keys and older v2 checkpoints while delegating
+    # tensor/device validation to the existing native checkpoint implementation.
+    # Older v2 files did not record NumPy's global RNG; leave it unchanged.
+    _restore_rng_state(
+        {
+            "python": rng["python_rng"],
+            "numpy": rng.get("numpy_rng", np.random.get_state()),
+            "torch_cpu": rng["torch_rng"],
+            "torch_cuda": rng["cuda_rng"],
+        }
+    )
     objective.pending.clear()
     return cast(dict[str, Any], payload["progress"])

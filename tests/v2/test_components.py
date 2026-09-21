@@ -152,13 +152,25 @@ def test_real_optimizer_checkpoint_resume(tmp_path):
     save_checkpoint(
         path, objective, optimizer, identity=identity, progress={"step": 1}, generator=rng
     )
+    expected_numpy = np.random.random(3)
     expected = step()
     state = copy.deepcopy(objective.state_dict())
     load_checkpoint(path, objective, optimizer, identity=identity, generator=rng)
+    np.testing.assert_array_equal(np.random.random(3), expected_numpy)
     actual = step()
     torch.testing.assert_close(expected, actual)
     for name, tensor in objective.state_dict().items():
         torch.testing.assert_close(tensor, state[name])
+    legacy = torch.load(path, weights_only=False)
+    del legacy["numpy_rng"]
+    torch.save(legacy, tmp_path / "legacy-v2.pt")
+    before = np.random.get_state()
+    load_checkpoint(
+        tmp_path / "legacy-v2.pt", objective, optimizer, identity=identity, generator=rng
+    )
+    after = np.random.get_state()
+    np.testing.assert_array_equal(before[1], after[1])
+    assert before[2:] == after[2:]
     torch.save({"model_version": "v1"}, tmp_path / "old.pt")
     with pytest.raises(ValueError, match="v2 checkpoint"):
         load_checkpoint(tmp_path / "old.pt", objective, optimizer, identity=identity, generator=rng)
