@@ -520,3 +520,12 @@ v2 的 `world_size=2` 配置使用 `--gpu 0,1`，由torchrun创建两个worker�
 checkpoint保存收集各rank RNG，恢复不能更改world size或已封存的执行配方。
 本地两进程Gloo的三epoch合成生命周期测试已验证中断重跑、精确参数/RNG恢复、
 主rank独占评估与best/last文件；这不是NCCL容量或50epoch科学实验的完成证据。
+
+### S1 平均策略的作用范围
+
+默认 `condition_mean` 对 SSL1 的不同扰动条件 CE 等权平均。`row_mean`
+只把该项改为按全局 batch 中各条件的细胞行数加权；两者使用完全相同的图视图。
+图节点 iBOT 仍按各视图有效遮蔽节点平均，spread 仍在不同条件集合上计算，
+teacher center 仍按不同条件统计。这些项不随细胞行重复，以免混入节点采样、
+最近邻集合或 center 变化。S1 因而检验条件 CE 的频率加权，不声称比较整个
+SSL1 的所有项按细胞行重复；完整重复方案若另做实验需独立因子和规格。

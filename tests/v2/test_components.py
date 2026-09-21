@@ -294,3 +294,22 @@ def test_component_ablations_skip_disabled_heads_and_centers(stage, cls_on, node
         assert f"ssl{stage}_cls" not in objective.pending
     if not node_on:
         assert f"ssl{stage}_node" not in objective.pending
+
+
+def test_ssl1_row_reduction_weights_condition_ce_only():
+    model, batch = fixture()
+    objective = JointObjective(model, ssl1_reduction="row_mean")
+    first = objective.graph_loss(batch.graph_views, torch.tensor([0]))
+    second = objective.graph_loss(batch.graph_views, torch.tensor([1]))
+    weighted = objective.graph_loss(batch.graph_views, torch.tensor([0, 0, 0, 1]))
+    torch.testing.assert_close(
+        weighted["condition"], (3 * first["condition"] + second["condition"]) / 4
+    )
+    for name in ("node", "spread"):
+        torch.testing.assert_close(weighted[name], first[name])
+        torch.testing.assert_close(weighted[name], second[name])
+    objective.ssl1_reduction = "condition_mean"
+    distinct = objective.graph_loss(batch.graph_views, torch.tensor([0, 0, 0, 1]))
+    torch.testing.assert_close(
+        distinct["condition"], (first["condition"] + second["condition"]) / 2
+    )

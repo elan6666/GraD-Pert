@@ -15,7 +15,7 @@
     "A2": {"type": "structure", "factor": "attention", "levels": ["hybrid", "full_latent", "delta_full", "full"], "depends_on": ["hyperparameters_frozen"]},
     "A3": {"type": "structure", "factor": "streams", "levels": [4, 1], "depends_on": ["hyperparameters_frozen"]},
     "A4": {"type": "initialization", "factor": "gene_initialization", "levels": ["genept", "random"], "depends_on": ["hyperparameters_frozen"]},
-    "S1": {"type": "reduction", "factor": "ssl1_reduction", "levels": ["condition_mean", "row_mean"], "depends_on": ["hyperparameters_frozen"]},
+    "S1": {"type": "reduction", "factor": "ssl1_reduction", "scope": "condition_ce_only; node/spread/center use unchanged distinct graph population", "levels": ["condition_mean", "row_mean"], "depends_on": ["hyperparameters_frozen"]},
     "S2": {"type": "sampling", "levels": ["mixed_koleo_off", "single_koleo_off", "mixed_koleo_on"], "depends_on": ["hyperparameters_frozen"]},
     "G1": {"type": "generalization", "levels": ["expression_holdout_at_fixed_token_budget", "context_scale_at_fixed_evaluation_axis"], "depends_on": ["frozen_checkpoint"]},
     "D1": {"type": "diagnostic", "levels": ["change_control", "change_perturbation", "block_response_cls_to_gene"], "depends_on": ["frozen_checkpoint"]}
