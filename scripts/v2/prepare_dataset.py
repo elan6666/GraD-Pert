@@ -30,11 +30,13 @@ def template(dataset: str) -> Path:
     return ROOT / "configs/v2/integration/gradpert_v2" / f"{dataset}.yaml"
 
 
-def prepare_probe(dataset: str, batch: int, output: Path) -> Path:
-    if type(batch) is not int or batch < 1:
+def prepare_probe(dataset: str, batch: int, output: Path, world_size: int = 2) -> Path:
+    if type(batch) is not int or batch < 1 or world_size not in (1, 2):
         raise ValueError("batch must be positive")
     raw = yaml.safe_load(template(dataset).read_text())
-    config = row_configuration(raw, {"microbatch": batch, "train_batch_size": batch})
+    config = row_configuration(
+        raw, {"microbatch": batch, "train_batch_size": batch * world_size, "world_size": world_size}
+    )
     output.mkdir(parents=True, exist_ok=False)
     path = output / "gradpert_v2" / f"{dataset}.yaml"
     path.parent.mkdir()
@@ -53,14 +55,14 @@ def prepare_initial(
     raw = yaml.safe_load(config.read_text())
     if observed["dataset"] != dataset or raw["data"] != expected["data"]:
         raise ValueError("capacity dataset or canonical split differs")
-    if observed["world_size"] != 1 or observed["accumulation"] != 1:
-        raise ValueError("initial groups require measured single-rank physical batch")
+    if observed["world_size"] != 2 or observed["accumulation"] != 1:
+        raise ValueError("initial groups require measured two-rank physical batch")
     actual_parameters = raw["model"]["parameters"]
     expected_parameters = expected["model"]["parameters"]
     if set(actual_parameters) != set(expected_parameters) or any(
         actual_parameters[key]["value"] != value["value"]
         for key, value in expected_parameters.items()
-        if key != "microbatch"
+        if key not in ("microbatch", "world_size")
     ):
         raise ValueError("capacity method differs from the initial joint-SSL design")
     output.mkdir(parents=True, exist_ok=False)
@@ -87,14 +89,15 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     commands = parser.add_subparsers(dest="action", required=True)
     probe = commands.add_parser("probe")
-    probe.add_argument("--batch", type=int, required=True)
+    probe.add_argument("--batch", type=int, required=True, help="physical microbatch per rank")
+    probe.add_argument("--world-size", type=int, choices=(1, 2), default=2)
     initial = commands.add_parser("initial")
     initial.add_argument("--capacity-config", type=Path, required=True)
     initial.add_argument("--receipt", type=Path, required=True)
     initial.add_argument("--receipt-sha256", required=True)
     args = parser.parse_args()
     if args.action == "probe":
-        print(prepare_probe(args.dataset, args.batch, args.output))
+        print(prepare_probe(args.dataset, args.batch, args.output, args.world_size))
     else:
         result = prepare_initial(
             args.dataset, args.capacity_config, args.receipt, args.receipt_sha256, args.output

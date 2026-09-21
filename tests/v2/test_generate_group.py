@@ -102,3 +102,19 @@ def test_h3_cannot_be_generated_from_unmeasured_defaults(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / "scripts/v2"))
     with pytest.raises(ValueError, match="measured"):
         API["generate"](PARENT, "H3", tmp_path / "H3")
+
+
+def test_h3_global_batch_maps_to_per_rank_microbatch():
+    rows = dict(API["levels"]("H3", [64, 128], world_size=2))
+    assert rows["batch_64"] == {"microbatch": 32, "train_batch_size": 64}
+    assert rows["batch_128"] == {"microbatch": 64, "train_batch_size": 128}
+    with pytest.raises(ValueError):
+        API["levels"]("H3", [63, 128], world_size=2)
+
+
+def test_superseded_single_rank_initial_groups_are_not_launchable():
+    parent = ROOT / "configs/v2/initial_jurkat/parent/gradpert_v2/nadig_jurkat.yaml"
+    for group in ("B0", "H1"):
+        manifest = ROOT / f"configs/v2/initial_jurkat/{group}/manifest.json"
+        with pytest.raises(ValueError, match="superseded"):
+            API["verify_group"](manifest, parent)

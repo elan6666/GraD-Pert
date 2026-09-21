@@ -25,5 +25,6 @@
         "lambda2": 0.1
       }
     }
-  ]
+  ],
+  "superseded_reason": "User requires two-GPU distributed capacity-derived batch; single-rank initial plan is not launchable."
 }

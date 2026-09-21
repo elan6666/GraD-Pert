@@ -29,9 +29,10 @@ def test_probe_preserves_exact_dataset_split_and_graph(api, tmp_path, dataset):
     assert raw["data"] == parent["data"]
     assert raw["evaluation"] == parent["evaluation"]
     for key, value in parent["model"]["parameters"].items():
-        if key != "microbatch":
+        if key not in ("microbatch", "world_size"):
             assert raw["model"]["parameters"][key] == value
-    assert raw["training"]["train_batch_size"]["value"] == 32
+    assert raw["training"]["train_batch_size"]["value"] == 64
+    assert raw["model"]["parameters"]["world_size"]["value"] == 2
     assert raw["model"]["parameters"]["microbatch"]["value"] == 32
     with pytest.raises(FileExistsError):
         api.prepare_probe(dataset, 32, tmp_path / dataset)
@@ -45,8 +46,7 @@ def test_real_jurkat_capacity_cannot_authorize_another_dataset(api, tmp_path):
     with pytest.raises(ValueError, match="dataset"):
         api.prepare_initial("norman", config, receipt, sha256_file(receipt), tmp_path / "wrong")
     assert not (tmp_path / "wrong").exists()
-    result = api.prepare_initial(
-        "nadig_jurkat", config, receipt, sha256_file(receipt), tmp_path / "correct"
-    )
-    assert set(result["groups"]) == {"B0", "H1"}
-    assert result["capacity"]["microbatch"] == 64
+    with pytest.raises(ValueError, match="two-rank"):
+        api.prepare_initial(
+            "nadig_jurkat", config, receipt, sha256_file(receipt), tmp_path / "single_rank"
+        )

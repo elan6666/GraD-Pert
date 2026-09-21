@@ -1,3 +1,5 @@
+> Superseded: user requires two-GPU distributed training. These single-rank configs are retained for provenance only and blocked by group verification.
+
 # Initial Jurkat experiment groups
 
 B0 and H1 use physical batch64, accumulation1 and one GPU. The parent is an

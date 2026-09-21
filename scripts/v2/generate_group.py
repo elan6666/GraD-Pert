@@ -16,16 +16,23 @@ from gradpert.hashing import sha256_file
 GROUPS = ("B0", "H1", "H2", "H3", "P1", "L0", "L1", "L2", "A1", "A2", "A3", "A4", "S1", "S2")
 
 
-def levels(group: str, batch_levels: list[int] | None = None) -> list[tuple[str, dict]]:
+def levels(
+    group: str, batch_levels: list[int] | None = None, world_size: int = 1
+) -> list[tuple[str, dict]]:
     if group == "H3":
         if (
             batch_levels is None
             or len(batch_levels) not in (2, 3)
             or any(type(n) is not int or n < 1 for n in batch_levels)
             or batch_levels != sorted(set(batch_levels))
+            or world_size not in (1, 2)
+            or any(n % world_size for n in batch_levels)
         ):
             raise ValueError("H3 requires two or three distinct measured batch levels")
-        return [(f"batch_{n}", {"microbatch": n, "train_batch_size": n}) for n in batch_levels]
+        return [
+            (f"batch_{n}", {"microbatch": n // world_size, "train_batch_size": n})
+            for n in batch_levels
+        ]
     if group == "B0":
         return [
             ("prediction_only", {"lambda1": 0, "lambda2": 0}),
@@ -106,15 +113,18 @@ def measured_batches(parent: Path, probes: list[dict]) -> list[int]:
             raise ValueError("capacity receipt changed")
         observed = collect(receipt, config)
         candidate = yaml.safe_load(config.read_text())
-        if observed["world_size"] != 1 or observed["accumulation"] != 1:
-            raise ValueError("H3 physical batch levels require single-rank unaccumulated probes")
+        if (
+            observed["world_size"] != raw["model"]["parameters"]["world_size"]["value"]
+            or observed["accumulation"] != 1
+        ):
+            raise ValueError("H3 requires matching-world unaccumulated probes")
         if candidate["dataset_id"] != raw["dataset_id"] or candidate["data"] != raw["data"]:
             raise ValueError("capacity probe dataset differs from parent")
         for key, value in raw["model"]["parameters"].items():
             if key != "microbatch" and candidate["model"]["parameters"].get(key) != value:
                 raise ValueError("capacity model or loss profile differs from parent")
-        batches.append(observed["microbatch"])
-    levels("H3", batches)
+        batches.append(observed["effective_batch"])
+    levels("H3", batches, raw["model"]["parameters"]["world_size"]["value"])
     return batches
 
 
@@ -134,7 +144,9 @@ def generate(
     batch_levels = measured_batches(parent, batch_probes or []) if group == "H3" else None
     if group != "H3" and batch_probes:
         raise ValueError("capacity batch probes apply only to H3")
-    for name, overrides in levels(group, batch_levels):
+    for name, overrides in levels(
+        group, batch_levels, raw["model"]["parameters"]["world_size"]["value"]
+    ):
         config = row_configuration(raw, overrides)
         prepared.append((name, config, overrides))
     output.mkdir(parents=True)
@@ -169,6 +181,8 @@ def generate(
 
 def verify_group(manifest_path: Path, parent: Path) -> dict:
     manifest = json.loads(manifest_path.read_text())
+    if manifest.get("superseded_reason"):
+        raise ValueError("superseded group cannot be launched: " + manifest["superseded_reason"])
     if manifest.get("schema_version") != "gradpert-v2-group-configs-1":
         raise ValueError("unknown group manifest schema")
     if sha256_file(parent) != manifest["parent_sha256"]:
@@ -180,7 +194,9 @@ def verify_group(manifest_path: Path, parent: Path) -> dict:
         if manifest["group"] == "H3"
         else None
     )
-    expected = dict(levels(manifest["group"], batch_levels))
+    expected = dict(
+        levels(manifest["group"], batch_levels, raw["model"]["parameters"]["world_size"]["value"])
+    )
     rows = manifest["rows"]
     if len(rows) != len(expected) or {r["name"] for r in rows} != set(expected):
         raise ValueError("group rows differ from the registered factor levels")

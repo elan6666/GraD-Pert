@@ -1,5 +1,9 @@
 # V2 dataset-specific ablation workflow
 
+Execution uses both RTX5090 cards in one distributed job. Global batch equals
+per-rank microbatch ×2 with accumulation1. Initial batch is pending the dual-card
+capacity sweep; single-card64 is no longer the default.
+
 Default ablation dataset: `nadig_jurkat`. The same scripts support
 `nadig_hepg2`, `replogle_k562_essential`, `replogle_rpe1_essential`, and `norman`.
 This does not enqueue all five datasets. Jurkat is the default experimental
@@ -26,9 +30,10 @@ that published checkout and a new server run. GPU work stays under/data/yilangli
 
 ```bash
 PYTHONPATH=src OMP_NUM_THREADS=1 PYTORCH_ALLOC_CONF=expandable_segments:True \
-python scripts/v2/capacity_probe.py --config "$CONFIG" \
+python -m torch.distributed.run --standalone --nproc_per_node=2 \
+  scripts/v2/capacity_probe.py --config "$CONFIG" \
   --data-root /data/yilangliu/GraD-Pert/data-vnext-a942114 \
-  --gpu "$GPU" --publication "$PUBLICATION" \
+  --gpu 0,1 --publication "$PUBLICATION" \
   --publication-sha256 "$PUBLICATION_SHA" --output "$PROBE_RUN"
 ```
 
