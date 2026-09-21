@@ -162,16 +162,21 @@ class JointObjective(nn.Module):
     ) -> dict[str, Tensor]:
         if len(views) < 2:
             raise ValueError("SSL1 requires two globals")
-        student_states = [self._graph(self.student, v, True) for v in views]
+        active_views = views if self.weights[0][0] else views[:2]
+        student_states = [self._graph(self.student, v, True) for v in active_views]
         with torch.no_grad():
             teacher_states = [self._graph(self.teacher, v, False) for v in views[:2]]
-            teacher_logits = [self.teacher.ssl1_cls(c) for _, c in teacher_states]
-        student_logits = [self.student.ssl1_cls(c) for _, c in student_states]
+            teacher_logits = (
+                [self.teacher.ssl1_cls(c) for _, c in teacher_states] if self.weights[0][0] else []
+            )
+        student_logits = (
+            [self.student.ssl1_cls(c) for _, c in student_states] if self.weights[0][0] else []
+        )
         counts = None
         if self.ssl1_reduction == "row_mean":
             if condition_index is None:
                 raise ValueError("row reduction needs condition frequencies")
-            counts = torch.bincount(condition_index, minlength=len(student_logits[0])).float()
+            counts = torch.bincount(condition_index, minlength=len(student_states[0][1])).float()
         terms = []
         for j, target in enumerate(teacher_logits):
             self._targets("ssl1_cls", target)
@@ -181,17 +186,21 @@ class JointObjective(nn.Module):
         node_terms = []
         for i, view in enumerate(views[:2]):
             selected = view.masked_positions
-            if selected.numel():
+            if self.weights[0][1] and selected.numel():
                 source = self.student.ssl1_node(student_states[i][0][selected])
                 with torch.no_grad():
                     target = self.teacher.ssl1_node(teacher_states[i][0][selected])
                 self._targets("ssl1_node", target)
                 node_terms.append(cross_entropy(source, target, self.ssl1_node_center))
-        zero = student_logits[0].sum() * 0
+        zero = student_states[0][0].sum() * 0
         return {
-            "condition": torch.stack(terms).mean(),
+            "condition": torch.stack(terms).mean() if terms else zero,
             "node": torch.stack(node_terms).mean() if node_terms else zero,
-            "spread": torch.stack([nearest_spread(c) for _, c in student_states[:2]]).mean(),
+            "spread": (
+                torch.stack([nearest_spread(c) for _, c in student_states[:2]]).mean()
+                if self.weights[0][2]
+                else zero
+            ),
         }
 
     def cell_loss(
@@ -205,7 +214,8 @@ class JointObjective(nn.Module):
         if len(batch.cell_views) < 2:
             raise ValueError("SSL2 requires two globals")
         student_outputs, teacher_outputs = [], []
-        for i, view in enumerate(batch.cell_views):
+        active_views = batch.cell_views if self.weights[1][0] else batch.cell_views[:2]
+        for i, view in enumerate(active_views):
             p = view.positions
             args = (graph[batch.query_positions[p]], batch.control[:, p], condition, view.mask)
             student_outputs.append(self.student.encode_response(*args))
@@ -218,17 +228,26 @@ class JointObjective(nn.Module):
                             teacher_condition,
                         )
                     )
-        source_logits = [self.student.ssl2_cls(o["response_cls"]) for o in student_outputs]
+        source_logits = (
+            [self.student.ssl2_cls(o["response_cls"]) for o in student_outputs]
+            if self.weights[1][0]
+            else []
+        )
         with torch.no_grad():
-            target_logits = [self.teacher.ssl2_cls(o["response_cls"]) for o in teacher_outputs]
+            target_logits = (
+                [self.teacher.ssl2_cls(o["response_cls"]) for o in teacher_outputs]
+                if self.weights[1][0]
+                else []
+            )
         terms, nodes = [], []
         for j, target in enumerate(target_logits):
             self._targets("ssl2_cls", target)
             for i, source in enumerate(source_logits):
                 if i != j:
                     terms.append(cross_entropy(source, target, self.ssl2_cls_center))
+        for j in range(2):
             mask = batch.cell_views[j].mask
-            if mask.any():
+            if self.weights[1][1] and mask.any():
                 source = self.student.ssl2_node(student_outputs[j]["response_tokens"][mask])
                 with torch.no_grad():
                     target_node = self.teacher.ssl2_node(
@@ -236,9 +255,9 @@ class JointObjective(nn.Module):
                     )
                 self._targets("ssl2_node", target_node)
                 nodes.append(cross_entropy(source, target_node, self.ssl2_node_center))
-        zero = source_logits[0].sum() * 0
+        zero = student_outputs[0]["response_cls"].sum() * 0
         return {
-            "dino": torch.stack(terms).mean(),
+            "dino": torch.stack(terms).mean() if terms else zero,
             "ibot": torch.stack(nodes).mean() if nodes else zero,
             "koleo": torch.stack(
                 [
@@ -249,7 +268,9 @@ class JointObjective(nn.Module):
                     )
                     for o in student_outputs[:2]
                 ]
-            ).mean(),
+            ).mean()
+            if self.weights[1][2]
+            else zero,
         }
 
     @torch.no_grad()

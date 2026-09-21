@@ -265,3 +265,32 @@ def test_per_gene_ablation_has_no_cross_gene_expression_path():
         first["response_tokens"][:, 1:], second["response_tokens"][:, 1:], rtol=0, atol=0
     )
     assert not torch.equal(first["response_cls"], second["response_cls"])
+
+
+@pytest.mark.parametrize("stage", [1, 2])
+@pytest.mark.parametrize(
+    "cls_on,node_on,spread_on",
+    [(a, b, c) for a in (False, True) for b in (False, True) for c in (False, True)],
+)
+def test_component_ablations_skip_disabled_heads_and_centers(stage, cls_on, node_on, spread_on):
+    model, batch = fixture()
+    weights = (0.8 * cls_on, 0.4 * node_on, 0.1 * spread_on)
+    kwargs = {f"ssl{stage}_weights": weights}
+    objective = JointObjective(model, lambda1=int(stage == 1), lambda2=0.1 * (stage == 2), **kwargs)
+
+    def reject(*args):
+        raise AssertionError("disabled head executed")
+
+    for role in ("student", "teacher"):
+        module = getattr(objective, role)
+        if not cls_on:
+            getattr(module, f"ssl{stage}_cls").register_forward_pre_hook(reject)
+        if not node_on:
+            getattr(module, f"ssl{stage}_node").register_forward_pre_hook(reject)
+    loss, _ = objective(batch)
+    loss.backward()
+    assert torch.isfinite(loss)
+    if not cls_on:
+        assert f"ssl{stage}_cls" not in objective.pending
+    if not node_on:
+        assert f"ssl{stage}_node" not in objective.pending
