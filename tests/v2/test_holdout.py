@@ -76,3 +76,21 @@ def test_heldout_expression_cannot_change_prediction_or_either_distillation_grad
                     assert reference[1][name] is None
                 else:
                     torch.testing.assert_close(gradient, reference[1][name])
+
+
+def test_heldout_truth_does_not_influence_checkpoint_selection_loss():
+    from gradpert.training.v2.evaluation import prediction_selection_loss
+
+    prediction = np.zeros((3, 4), dtype=np.float32)
+    truth = np.ones((5, 4), dtype=np.float32)
+    poisoned = truth.copy()
+    poisoned[:, [1, 3]] = 1e7
+    assert prediction_selection_loss(prediction, truth, (0, 2)) == prediction_selection_loss(
+        prediction, poisoned, (0, 2)
+    )
+    assert prediction_selection_loss(prediction, truth) != prediction_selection_loss(
+        prediction, poisoned
+    )
+    for invalid in ((), (0, 0), (-1,), (4,)):
+        with pytest.raises(ValueError, match="selection gene"):
+            prediction_selection_loss(prediction, truth, invalid)

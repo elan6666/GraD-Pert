@@ -104,6 +104,11 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                     data,
                     reference,
                     expected_split="val",
+                    selection_gene_ids=(
+                        tuple(int(i) for i in runtime.allowed_expression_ids)
+                        if runtime.allowed_expression_ids is not None
+                        else None
+                    ),
                     device=device,
                     cell_batch=int(config.training.eval_batch_size.value),
                     query_count=runtime.options.eval_query_count,

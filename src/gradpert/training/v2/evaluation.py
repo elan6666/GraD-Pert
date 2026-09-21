@@ -145,6 +145,21 @@ def predict_controls(
     return prediction
 
 
+def prediction_selection_loss(
+    prediction: np.ndarray, truth: np.ndarray, gene_ids: tuple[int, ...] | None = None
+) -> float:
+    """Restrict G1 checkpoint selection to expression columns visible in training."""
+    if gene_ids is None:
+        return mean_expression_mse(prediction, truth)
+    if (
+        not gene_ids
+        or len(set(gene_ids)) != len(gene_ids)
+        or any(type(i) is not int or i < 0 or i >= prediction.shape[1] for i in gene_ids)
+    ):
+        raise ValueError("selection gene axis must be nonempty, unique and in range")
+    return mean_expression_mse(prediction[:, gene_ids], truth[:, gene_ids])
+
+
 def evaluate(
     model: GraDPertV2,
     index: NeighborhoodIndex,
@@ -156,6 +171,7 @@ def evaluate(
     cell_batch: int,
     query_count: int,
     block_response_cls_to_gene: bool = False,
+    selection_gene_ids: tuple[int, ...] | None = None,
 ) -> dict[str, Any]:
     if data.split_name != expected_split or data.control_manifest.split_name != expected_split:
         raise ValueError("evaluation split differs from requested lifecycle stage")
@@ -202,7 +218,7 @@ def evaluate(
             systema_reference=reference.systema_reference,
             de_unavailable_reason=reference.manifest.de_unavailable_reasons.get(condition),
         )
-        loss = mean_expression_mse(prediction, truth.expression)
+        loss = prediction_selection_loss(prediction, truth.expression, selection_gene_ids)
         metrics.append(metric)
         losses.append(loss)
         rows.append(
@@ -221,6 +237,11 @@ def evaluate(
     return {
         "split": expected_split,
         "prediction_loss": float(np.mean(losses)),
+        "selection_gene_ids": (
+            [data.expression_gene_ids[i] for i in selection_gene_ids]
+            if selection_gene_ids is not None
+            else None
+        ),
         "metrics": [asdict(m) for m in macro_summarize(metrics)],
         "conditions": rows,
         "control_manifest_sha256": data.control_manifest_file_sha256,
