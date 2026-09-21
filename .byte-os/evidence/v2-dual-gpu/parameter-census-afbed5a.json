@@ -1,0 +1,30 @@
+{
+  "schema_version": "gradpert-v2-parameter-census-1",
+  "receipt": "/data/yilangliu/GraD-Pert/development/v2-ddp-repeat74-eval128-afbed5a/micro74/receipt.json",
+  "receipt_sha256": "ac4c81bef280fac78d8bb5d4eae2e1d603d4611a379b6938aaca73e6f58e51d8",
+  "training_sha": "afbed5a69dd21f8a37f2111ee89fffd227ca89fd",
+  "config_sha256": "0322dbff996d4a632e52cab9ae96228f2160b397fcc4afa11abe839fe06bb49d",
+  "scope": "Student trainable parameters inferred from original optimizer route shapes; EMA copies and buffers excluded",
+  "components": {
+    "expression_mask": 256,
+    "control_cls": 256,
+    "response_cls": 256,
+    "graph": 15427104,
+    "expression": 66816,
+    "cell": 3567856,
+    "condition_fusion": 131328,
+    "response": 3567856,
+    "prediction": 66049,
+    "ssl1_cls": 5245184,
+    "ssl1_node": 5245184,
+    "ssl2_cls": 5245184,
+    "ssl2_node": 5245184
+  },
+  "optimizer_parameters": {
+    "adamw": 30531073,
+    "muon": 13277440
+  },
+  "total_student_parameters": 43808513,
+  "prediction_path_parameters": 22827777,
+  "distillation_head_parameters": 20980736
+}

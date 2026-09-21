@@ -1,0 +1,25 @@
+{
+  "source": {
+    "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-matrix-ffd94b9",
+    "commit": "ffd94b9494c6a42ba72551fff4265b8cf3223206",
+    "dirty": false,
+    "tree_sha256": "e556e86bafc9acb79b85ebe07fbd3208b98efeab31c0d3f0e4207e9cd05ca61c",
+    "formal_eligible": true,
+    "formal_eligibility_reason": null,
+    "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+    "remote_ref": "refs/heads/main",
+    "published_commit": "ffd94b9494c6a42ba72551fff4265b8cf3223206",
+    "publication_receipt_sha256": "ec83cd3888221e31120dabd5c5f774b5d7b23137cee9cf6ec9abbbc723b4c447"
+  },
+  "status": "sealed_protocols_only_no_evaluation",
+  "selection": "IDs only; existing uniform preregistered fixed1000 axis and first two ordered validation conditions; no expression or test scores",
+  "control_manifest_sha256": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528",
+  "condition_count": 445,
+  "source_axis_protocol_sha256": "9bed974cc35d8344445e967bd910580e32f41f3fa7f88f5f9ee64d98f44bb3f5",
+  "protocols": {
+    "validation.json": "ad5e0587404a1476dcfdcac3e8177dae0656541c521b27d45d1698d82f7a5048",
+    "context.json": "4eff50bff5834d8434b3a4e7906119e870d04fd31b399978fcf90b9c57dd79b9",
+    "response.json": "fb8d4ca2080710bfa1eeaf16f8decdde75eaf75b90282b345da20ce8b2ad89a8"
+  },
+  "context_checkpoint_requirement": "Unrestricted full-expression training checkpoint; expression-holdout fixed-budget comparisons remain separate"
+}
