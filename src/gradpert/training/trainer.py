@@ -17,6 +17,7 @@ from gradpert.training.checkpoint import (
     load_training_checkpoint,
     save_training_checkpoint,
 )
+from gradpert.training.epoch import execute_epoch
 from gradpert.training.logging import TrainingReceiptWriter
 from gradpert.training.selection import EarlyStoppingState
 from gradpert.training.step import GraDPertStepEngine
@@ -167,25 +168,28 @@ class GraDPertTrainer:
                     group["lr"] = schedule_row["learning_rate"]
                 self.receipts.write_schedule(schedule_row)
             training_started = time.perf_counter()
-            observed_steps = 0
+
+            def update(
+                batch: GraDPertTrainingBatch, step_index: int, *, current_epoch: int = epoch
+            ) -> None:
+                metrics = self.engine.train_step(batch, global_step=self.progress.global_step)
+                logging_started = time.perf_counter()
+                self.receipts.write_step(
+                    epoch=current_epoch,
+                    global_step=self.progress.global_step,
+                    metrics=metrics,
+                    learning_rate=(
+                        float(self.engine.optimizer.param_groups[0]["lr"])
+                        if self.log_selection_learning_rate
+                        or getattr(self.engine, "step_schedule", None) is not None
+                        else None
+                    ),
+                )
+                self.logging_wall_ms += (time.perf_counter() - logging_started) * 1000.0
+                self.progress.global_step += 1
+
             try:
-                for batch in train_epoch_factory(epoch):
-                    metrics = self.engine.train_step(batch, global_step=self.progress.global_step)
-                    logging_started = time.perf_counter()
-                    self.receipts.write_step(
-                        epoch=epoch,
-                        global_step=self.progress.global_step,
-                        metrics=metrics,
-                        learning_rate=(
-                            float(self.engine.optimizer.param_groups[0]["lr"])
-                            if self.log_selection_learning_rate
-                            or getattr(self.engine, "step_schedule", None) is not None
-                            else None
-                        ),
-                    )
-                    self.logging_wall_ms += (time.perf_counter() - logging_started) * 1000.0
-                    self.progress.global_step += 1
-                    observed_steps += 1
+                observed_steps = execute_epoch(train_epoch_factory(epoch), update)
             except BaseException:
                 self.receipts.flush_steps()
                 raise

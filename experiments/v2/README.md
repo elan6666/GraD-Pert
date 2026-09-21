@@ -130,3 +130,12 @@ The required progression is H1→H2→H3, then structural/loss/sampling groups f
 H3-selected configuration. H3 materialization still awaits measured batch levels;
 this does not make the later chain ready for execution. Upstream receipts and
 configs must remain accessible at their recorded paths on the server.
+
+Native v1 and v2 now share `training.epoch.execute_epoch` for batch iteration,
+completed-update counting and optional pre-update excess-batch rejection. V1's
+adapter retains its existing post-epoch count check and error-time receipt flush;
+v2 retains its sealed pre-update bound. Model updates and distributed cell
+slicing remain adapter responsibilities. Together with common selection, RNG
+restoration, curves, data and metrics, this removes duplicated infrastructure
+without changing v1 checkpoint payloads. Outer epoch commit/recovery orchestration
+remains version-specific and still requires a final reuse audit.

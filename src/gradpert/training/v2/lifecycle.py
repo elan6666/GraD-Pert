@@ -21,6 +21,7 @@ import torch
 from gradpert.config.step_schedule import EndpointLRWarmupCosine
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
+from gradpert.training.epoch import execute_epoch
 from gradpert.training.selection import EarlyStoppingState
 
 from .checkpoint import load_checkpoint, save_checkpoint
@@ -136,11 +137,15 @@ def fit(
         )
     for epoch in range(len(history), epochs):
         sums: dict[str, float] = {}
-        count = 0
-        for batch in batches(epoch):
-            if count >= steps_per_epoch:
-                raise ValueError("epoch iterator exceeds sealed step budget")
-            step = epoch * steps_per_epoch + count
+
+        def update(
+            batch: TrainingBatch,
+            count: int,
+            *,
+            current_epoch: int = epoch,
+            totals: dict[str, float] = sums,
+        ) -> None:
+            step = current_epoch * steps_per_epoch + count
             momentum = (
                 teacher_end
                 - (teacher_end - teacher_start)
@@ -164,8 +169,9 @@ def fit(
                 global_condition_index=global_conditions,
             )
             for name, value in terms.items():
-                sums[name] = sums.get(name, 0.0) + value
-            count += 1
+                totals[name] = totals.get(name, 0.0) + value
+
+        count = execute_epoch(batches(epoch), update, maximum_steps=steps_per_epoch)
         if count != steps_per_epoch:
             raise ValueError("epoch iterator shorter than sealed step budget")
         validation = primary_call(validate)
