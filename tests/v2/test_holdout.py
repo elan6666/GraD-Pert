@@ -54,6 +54,12 @@ def test_heldout_expression_cannot_change_prediction_or_either_distillation_grad
     changed_control[:, 3] = 1e7
     changed_truth[:, 3] = -1e7
     changed = replace(raw, control_expression=changed_control, target_expression=changed_truth)
+    from gradpert.training.expression_policy import expression_policy
+
+    allowed, receipt = expression_policy(
+        ("g0", "g1", "g2", "g3"), ("g3+ctrl",), "ctrl", enabled=True
+    )
+    assert receipt["excluded_expression_gene_ids"] == ["g3"]
     reference = None
     for source in (raw, changed):
         batch = assemble_batch(
@@ -61,7 +67,7 @@ def test_heldout_expression_cannot_change_prediction_or_either_distillation_grad
             graph_index(),
             options,
             np.random.default_rng(7),
-            allowed_expression_ids=np.array([0, 1, 2]),
+            allowed_expression_ids=allowed,
         )
         objective = JointObjective(copy.deepcopy(model))
         loss, _ = objective(batch)
@@ -94,3 +100,20 @@ def test_heldout_truth_does_not_influence_checkpoint_selection_loss():
     for invalid in ((), (0, 0), (-1,), (4,)):
         with pytest.raises(ValueError, match="selection gene"):
             prediction_selection_loss(prediction, truth, invalid)
+
+
+def test_test_target_policy_and_g1_are_independent(tmp_path):
+    from gradpert.training.expression_policy import expression_policy
+
+    genes = tuple(f"g{i}" for i in range(10))
+    allowed, receipt = expression_policy(genes, ("g1+g3", "outside+ctrl"), "ctrl", enabled=True)
+    assert set(allowed) == set(range(10)) - {1, 3}
+    assert receipt["test_target_gene_ids"] == ["g1", "g3", "outside"]
+    unrestricted, disabled = expression_policy(genes, ("g1+g3",), "ctrl", enabled=False)
+    assert unrestricted is None and disabled["excluded_expression_gene_ids"] == []
+    partition = make_partition(genes, heldout_count=3, seed=1, excluded_gene_ids=("g1", "g3"))
+    assert not set(partition["heldout_gene_ids"]) & {"g1", "g3"}
+    path = tmp_path / "g1.json"
+    path.write_text(json.dumps(partition))
+    g1 = load_partition(path, sha256_file(path), genes)
+    assert len(np.intersect1d(allowed, g1)) == 5

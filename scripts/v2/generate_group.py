@@ -31,7 +31,8 @@ def levels(
         partition = json.loads(path.read_text())
         training, hidden = partition["training_gene_ids"], partition["heldout_gene_ids"]
         if (
-            partition["schema_version"] != "gradpert-v2-expression-holdout-1"
+            partition["schema_version"]
+            not in {"gradpert-v2-expression-holdout-1", "gradpert-v2-expression-holdout-2"}
             or partition["selection"] != "preregistered_uniform_without_expression_values"
             or not training
             or not hidden

@@ -37,3 +37,26 @@ def test_v2_config_rejects_ambiguous_or_inconsistent_execution(change):
         }
     with pytest.raises(ValueError):
         ExperimentConfig.model_validate(payload)
+
+
+def test_expression_visibility_defaults_and_legacy_serialization():
+    from gradpert.config.schema import ModelConfig
+
+    v2 = load_experiment_config(PROBE).model
+    assert v2.excludes_test_target_expression
+    assert v2.model_dump()["exclude_test_target_expression"] is True
+    for model_id, version in (("gradpert_b2", None), ("gradpert_v2", "v2")):
+        payload = v2.model_dump()
+        payload.update(model_id=model_id, version=version)
+        payload.pop("exclude_test_target_expression")
+        model = ModelConfig.model_validate(payload)
+        assert model.excludes_test_target_expression == (model_id == "gradpert_v2")
+        if model_id == "gradpert_b2":
+            assert "exclude_test_target_expression" not in model.model_dump()
+        for value in (False, True):
+            changed = ModelConfig.model_validate(
+                {**payload, "exclude_test_target_expression": value}
+            )
+            assert changed.excludes_test_target_expression is value
+        with pytest.raises(ValueError):
+            ModelConfig.model_validate({**payload, "exclude_test_target_expression": "false"})

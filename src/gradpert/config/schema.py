@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_serializer, model_validator
 
 from gradpert.config.native import NativeArchitectureOptions
 from gradpert.config.step_schedule import LRWarmupCosine, StepWarmupCosine, load_training_schedule
@@ -84,12 +84,23 @@ class DataConfig(StrictModel):
 
 class ModelConfig(StrictModel):
     version: Literal["v1", "v2"] | None = None
+    exclude_test_target_expression: StrictBool | None = None
+
+    @property
+    def excludes_test_target_expression(self) -> bool:
+        if self.exclude_test_target_expression is not None:
+            return self.exclude_test_target_expression
+        return self.model_id == "gradpert_v2"
 
     @model_serializer(mode="wrap")
     def preserve_legacy_payload(self, handler: Any) -> dict[str, Any]:
         payload = handler(self)
         if self.version is None:
             payload.pop("version", None)
+        if self.exclude_test_target_expression is None and self.model_id != "gradpert_v2":
+            payload.pop("exclude_test_target_expression", None)
+        else:
+            payload["exclude_test_target_expression"] = self.excludes_test_target_expression
         return cast(dict[str, Any], payload)
 
     model_id: ModelId
@@ -99,6 +110,11 @@ class ModelConfig(StrictModel):
 
     @model_validator(mode="after")
     def require_parameters(self) -> ModelConfig:
+        if self.exclude_test_target_expression is not None and self.model_id not in {
+            "gradpert_b2",
+            "gradpert_v2",
+        }:
+            raise ValueError("expression exclusion is a native model training option")
         if self.model_id == "gradpert_v2":
             if self.version != "v2":
                 raise ValueError("gradpert_v2 requires explicit model.version=v2")

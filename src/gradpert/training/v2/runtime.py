@@ -20,6 +20,7 @@ from gradpert.graphs.materialization import DatasetGraphLayout, load_dataset_gra
 from gradpert.hashing import sha256_file, sha256_json
 from gradpert.modeling.v2 import GraDPertV2
 from gradpert.training.data import CanonicalTrainingData
+from gradpert.training.expression_policy import expression_policy
 
 from .objective import JointObjective, TrainingBatch
 from .optimizer import V2Optimizer
@@ -140,18 +141,37 @@ def prepare_runtime(
             raise ValueError("training and graph axes differ")
         if tuple(data.expression_gene_ids) != topology.gene_ids[: len(data.expression_gene_ids)]:
             raise ValueError("v2 expression axis must be the graph prefix")
-        allowed_expression_ids = None
+        allowed_expression_ids, expression_policy_receipt = expression_policy(
+            tuple(data.expression_gene_ids),
+            tuple(data.split.test_conditions),
+            data.split.control_condition_id,
+            enabled=config.model.excludes_test_target_expression,
+        )
         if options.expression_holdout_path:
             from .holdout import load_partition
 
             holdout_path = Path(options.expression_holdout_path).resolve()
             if not holdout_path.is_relative_to("/data/yilangliu"):
                 raise ValueError("expression partition must be sealed on the server")
-            allowed_expression_ids = load_partition(
+            g1_allowed = load_partition(
                 holdout_path, options.expression_holdout_sha256, tuple(data.expression_gene_ids)
             )
-            if len(allowed_expression_ids) < options.query_count:
-                raise ValueError("training expression partition smaller than query budget")
+            if allowed_expression_ids is not None:
+                axis = np.arange(len(data.expression_gene_ids))
+                if len(
+                    np.intersect1d(
+                        np.setdiff1d(axis, allowed_expression_ids),
+                        np.setdiff1d(axis, g1_allowed),
+                    )
+                ):
+                    raise ValueError("G1 must sample additional genes outside default exclusions")
+            allowed_expression_ids = (
+                g1_allowed
+                if allowed_expression_ids is None
+                else np.intersect1d(allowed_expression_ids, g1_allowed)
+            )
+        if allowed_expression_ids is not None and len(allowed_expression_ids) < options.query_count:
+            raise ValueError("training expression partition smaller than query budget")
         random.seed(run_seed)
         np.random.seed(run_seed)
         torch.manual_seed(run_seed)
@@ -180,7 +200,7 @@ def prepare_runtime(
             rank_seed = run_seed + torch.distributed.get_rank()
             torch.manual_seed(rank_seed)
             random.seed(rank_seed)
-        identity = {
+        identity: dict[str, Any] = {
             "canonical_sha256": data.manifest.canonical_adata_sha256,
             "split_sha256": data.split.split_content_sha256,
             "expression_gene_order_sha256": data.manifest.expression_gene_order_sha256,
@@ -189,6 +209,11 @@ def prepare_runtime(
             "genept_sha256": prior.source_sha256,
             "run_seed": run_seed,
         }
+        identity["training_expression_policy"] = expression_policy_receipt
+        if allowed_expression_ids is not None:
+            identity["effective_training_expression_ids_sha256"] = sha256_json(
+                [data.expression_gene_ids[int(i)] for i in allowed_expression_ids]
+            )
         if options.expression_holdout_path:
             identity["expression_holdout_sha256"] = options.expression_holdout_sha256
         yield Runtime(

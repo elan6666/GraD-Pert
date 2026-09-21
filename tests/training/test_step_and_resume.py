@@ -1688,3 +1688,40 @@ def test_sealed_test_gate_is_claimed_at_most_once(tmp_path: Path) -> None:
     writer.complete_test_once()
     with pytest.raises(RuntimeError, match="already been claimed"):
         TrainingReceiptWriter(tmp_path).claim_test_once()
+
+
+@pytest.mark.parametrize("prediction_only", [False, True])
+def test_explicit_expression_exclusion_prevents_input_and_loss_leakage(prediction_only):
+    from dataclasses import replace
+
+    torch.manual_seed(91)
+    raw = _batch()
+    poisoned = replace(
+        raw,
+        control_expression=raw.control_expression.clone(),
+        target_expression=raw.target_expression.clone(),
+    )
+    poisoned.control_expression[:, 4] = 1e7
+    poisoned.target_expression[:, 4] = -1e7
+    results = []
+    for batch in (raw, poisoned):
+        torch.manual_seed(71)
+        np.random.seed(71)
+        random.seed(71)
+        components = _components(compact=True)
+        engine = components[-1]
+        engine.allowed_expression_ids = (0, 1, 2, 3)
+        if prediction_only:
+            engine.loss_weights = LossWeights(
+                prediction=1, condition_consistency=0, masked_node=0, spread=0
+            )
+        metric = engine.train_step(batch, global_step=1)
+        results.append(
+            (
+                metric.prediction_loss,
+                {k: v.detach().clone() for k, v in engine.model.state_dict().items()},
+            )
+        )
+    assert results[0][0] == results[1][0]
+    for name in results[0][1]:
+        torch.testing.assert_close(results[0][1][name], results[1][1][name], rtol=0, atol=0)

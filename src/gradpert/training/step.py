@@ -48,6 +48,7 @@ from gradpert.modeling import (
 )
 from gradpert.modeling.modules import ConfigurableGeneGraphEncoder
 from gradpert.training.batch import GraDPertTrainingBatch
+from gradpert.training.expression_policy import restrict_control, select_expression
 from gradpert.training.optimizer_health import observe_optimizer_update
 from gradpert.training.optimizers import SplitMatrixAdamW
 from gradpert.training.prediction_loss import expression_loss
@@ -436,6 +437,7 @@ class GraDPertStepEngine:
         stage_observer: GraDPertStageObserver | None = None,
         step_schedule: StepWarmupCosine | LRWarmupCosine | None = None,
         prediction_reduction: str = "cell_mean",
+        allowed_expression_ids: tuple[int, ...] | None = None,
         spread_pool: str = "unique_condition",
         essential_node_ids: tuple[int, ...] = (),
         teacher_ema_start: float = 0.996,
@@ -460,6 +462,13 @@ class GraDPertStepEngine:
         if prediction_reduction not in {"cell_mean", "condition_mean"}:
             raise ValueError("unknown prediction reduction")
         self.prediction_reduction = prediction_reduction
+        if allowed_expression_ids is not None and (
+            not allowed_expression_ids
+            or len(set(allowed_expression_ids)) != len(allowed_expression_ids)
+            or any(i < 0 or i >= model.expression_gene_count for i in allowed_expression_ids)
+        ):
+            raise ValueError("invalid allowed expression indices")
+        self.allowed_expression_ids = allowed_expression_ids
         if spread_pool not in {"unique_condition", "batch_cell"}:
             raise ValueError("unknown spread sample pool")
         self.spread_pool = spread_pool
@@ -680,15 +689,15 @@ class GraDPertStepEngine:
         rng_state_before_sha256 = _rng_state_sha256() if capture_health else None
         self.optimizer.zero_grad(set_to_none=True)
         prediction = self.model.predict_expression_batch(
-            batch.control_expression,
+            restrict_control(batch.control_expression, self.allowed_expression_ids),
             self.prediction_view,
             batch.condition_ids,
             batch.anchors_by_condition,
         )
         prediction_content_sha256 = _tensor_sha256(prediction) if capture_health else None
         loss = expression_loss(
-            prediction,
-            batch.target_expression,
+            select_expression(prediction, self.allowed_expression_ids),
+            select_expression(batch.target_expression, self.allowed_expression_ids),
             batch.condition_ids,
             reduction=self.prediction_reduction,
         )
@@ -1070,14 +1079,14 @@ class GraDPertStepEngine:
         mark("prediction_start")
         with self._observe_stage("prediction_forward", global_step=global_step):
             prediction = self.model.predict_expression_batch(
-                batch.control_expression,
+                restrict_control(batch.control_expression, self.allowed_expression_ids),
                 views.prediction,
                 batch.condition_ids,
                 views.anchors_by_condition,
             )
             prediction_loss = expression_loss(
-                prediction,
-                batch.target_expression,
+                select_expression(prediction, self.allowed_expression_ids),
+                select_expression(batch.target_expression, self.allowed_expression_ids),
                 batch.condition_ids,
                 reduction=self.prediction_reduction,
             )

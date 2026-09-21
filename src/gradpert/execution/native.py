@@ -1002,7 +1002,24 @@ def run_native_experiment(
                 },
                 resume=resume,
             )
+        from gradpert.training.expression_policy import expression_policy
+
+        expression_ids, expression_policy_receipt = expression_policy(
+            tuple(training_data.expression_gene_ids),
+            tuple(training_data.split.test_conditions),
+            training_data.split.control_condition_id,
+            enabled=config.model.excludes_test_target_expression,
+        )
+        if config.model.exclude_test_target_expression is not None:
+            _write_or_require_json(
+                small_root / "training_expression_policy.json",
+                expression_policy_receipt,
+                resume=resume,
+            )
         engine = GraDPertStepEngine(
+            allowed_expression_ids=(
+                None if expression_ids is None else tuple(int(i) for i in expression_ids)
+            ),
             essential_node_ids=essential_ids,
             teacher_ema_start=_optional_float_parameter(config, "teacher_ema_start", default=0.996),
             local_node_policy=local_node_policy,
