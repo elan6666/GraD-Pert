@@ -77,7 +77,10 @@ def main() -> None:
         "checkpoint": checkpoint,
         "training_receipt_sha256": args.engineering_receipt_sha256,
         "config_sha256": training["config_sha256"],
-        "timing_scope": "one end-to-end call per batch, including graph encoding and transfers; first point may include cold overhead",
+        "timing_scope": (
+            "one end-to-end call per batch, including graph encoding and transfers; "
+            "first point may include cold overhead"
+        ),
         "query_count": args.query_count,
         "cell_batches": args.cell_batches,
         "equivalence_tolerance": {"atol": 2e-5, "rtol": 2e-5},
