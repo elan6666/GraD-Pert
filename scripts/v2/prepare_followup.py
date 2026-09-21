@@ -45,13 +45,14 @@ def prepare(
     output: Path,
     *,
     batch_probes: list[dict] | None = None,
+    holdout: dict | None = None,
 ) -> dict:
     required = "H1" if group == "H2" else "H2" if group == "H3" else "H3"
     if group in ("B0", "H1") or json.loads(manifest.read_text())["group"] != required:
         raise ValueError("follow-up group must follow the hyperparameter dependency order")
     verified = verify_selection(selection, manifest, parent)
     winner = Path(verified["winner"]["config"])
-    result = generate(winner, group, output, batch_probes=batch_probes)
+    result = generate(winner, group, output, batch_probes=batch_probes, holdout=holdout)
     result["validation_parent"] = {
         "selection": str(selection.resolve()),
         "selection_sha256": verified["selection_sha256"],
@@ -72,6 +73,7 @@ def main() -> None:
     parser.add_argument("--group", choices=GROUPS, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--batch-probes", type=Path)
+    parser.add_argument("--holdout", type=Path)
     args = parser.parse_args()
     result = prepare(
         args.selection,
@@ -80,6 +82,7 @@ def main() -> None:
         args.group,
         args.output,
         batch_probes=json.loads(args.batch_probes.read_text()) if args.batch_probes else None,
+        holdout=json.loads(args.holdout.read_text()) if args.holdout else None,
     )
     print(json.dumps({"group": result["group"], "parent_sha256": result["parent_sha256"]}))
 

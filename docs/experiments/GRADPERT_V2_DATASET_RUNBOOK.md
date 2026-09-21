@@ -87,3 +87,27 @@ and their checkpoints/configs must pass the existing identity checks. Norman
 engineering protocols are not reusable as Jurkat protocols. Engineering results
 are labeled separately from formal best/last tests. All datasets retain small
 metrics/curves/receipts locally and best/last checkpoints only on the server.
+
+### G1 training configuration
+
+The expression holdout is one additional training row, inherited from the actual
+H3 validation winner. Context-size evaluation reuses a frozen checkpoint and
+requires no separate training row. Store a small JSON descriptor with exactly
+`path` and `sha256` for the server partition, then generate:
+
+```bash
+PYTHONPATH=src python scripts/v2/prepare_followup.py \
+  --selection "$H3_SELECTION" --manifest "$H3_MANIFEST" --parent "$H3_PARENT" \
+  --group G1 --holdout "$HOLDOUT_DESCRIPTOR" --output "$G1_GROUP_ROOT"
+```
+
+G1 uses the existing run_group.py preflight/run/resume path. Its generated row
+changes only the expression-partition path/hash. Runtime checks the partition
+against the exact canonical gene order; all training views exclude heldout
+expression. Best-checkpoint selection uses only training-visible expression
+columns. Seen and heldout evaluation axes use equal token budgets, with gene
+selection fixed independently of expression values. The current Jurkat protocol
+reserves1000 of5000 genes (seed1); this is a project setting. Control expression
+is available at inference, so this measures training-column generalization,
+not imputation of missing control measurements. Other datasets generate their
+own partitions and protocols with the same scripts and their own canonical axis.

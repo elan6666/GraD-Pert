@@ -13,12 +13,40 @@ import yaml
 from gradpert.config import load_experiment_config
 from gradpert.hashing import sha256_file
 
-GROUPS = ("B0", "H1", "H2", "H3", "P1", "L0", "L1", "L2", "A1", "A2", "A3", "A4", "S1", "S2")
+GROUPS = ("B0", "H1", "H2", "H3", "P1", "L0", "L1", "L2", "A1", "A2", "A3", "A4", "S1", "S2", "G1")
 
 
 def levels(
-    group: str, batch_levels: list[int] | None = None, world_size: int = 1
+    group: str,
+    batch_levels: list[int] | None = None,
+    world_size: int = 1,
+    holdout: dict | None = None,
 ) -> list[tuple[str, dict]]:
+    if group == "G1":
+        if not holdout or set(holdout) != {"path", "sha256"}:
+            raise ValueError("G1 requires a sealed expression holdout")
+        path = Path(holdout["path"])
+        if sha256_file(path) != holdout["sha256"]:
+            raise ValueError("expression holdout checksum mismatch")
+        partition = json.loads(path.read_text())
+        training, hidden = partition["training_gene_ids"], partition["heldout_gene_ids"]
+        if (
+            partition["schema_version"] != "gradpert-v2-expression-holdout-1"
+            or partition["selection"] != "preregistered_uniform_without_expression_values"
+            or not training
+            or not hidden
+            or len(set(training + hidden)) != len(training) + len(hidden)
+        ):
+            raise ValueError("invalid expression holdout partition")
+        return [
+            (
+                "expression_holdout",
+                {
+                    "expression_holdout_path": str(path.resolve()),
+                    "expression_holdout_sha256": holdout["sha256"],
+                },
+            )
+        ]
     if group == "H3":
         if (
             batch_levels is None
@@ -129,7 +157,12 @@ def measured_batches(parent: Path, probes: list[dict]) -> list[int]:
 
 
 def generate(
-    parent: Path, group: str, output: Path, *, batch_probes: list[dict] | None = None
+    parent: Path,
+    group: str,
+    output: Path,
+    *,
+    batch_probes: list[dict] | None = None,
+    holdout: dict | None = None,
 ) -> dict:
     load_experiment_config(parent)
     raw = yaml.safe_load(parent.read_text())
@@ -144,8 +177,12 @@ def generate(
     batch_levels = measured_batches(parent, batch_probes or []) if group == "H3" else None
     if group != "H3" and batch_probes:
         raise ValueError("capacity batch probes apply only to H3")
+    if group != "G1" and holdout:
+        raise ValueError("expression holdout applies only to G1")
+    if group == "G1" and raw["model"]["parameters"].get("expression_holdout_path", {}).get("value"):
+        raise ValueError("G1 requires an unrestricted selected parent")
     for name, overrides in levels(
-        group, batch_levels, raw["model"]["parameters"]["world_size"]["value"]
+        group, batch_levels, raw["model"]["parameters"]["world_size"]["value"], holdout
     ):
         config = row_configuration(raw, overrides)
         prepared.append((name, config, overrides))
@@ -173,6 +210,8 @@ def generate(
         "selection_rule": "validation prediction loss only; no within-group rolling parent",
         "rows": rows,
     }
+    if group == "G1":
+        manifest["expression_holdout"] = holdout
     if group == "H3":
         manifest["batch_probes"] = batch_probes
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
@@ -195,7 +234,12 @@ def verify_group(manifest_path: Path, parent: Path) -> dict:
         else None
     )
     expected = dict(
-        levels(manifest["group"], batch_levels, raw["model"]["parameters"]["world_size"]["value"])
+        levels(
+            manifest["group"],
+            batch_levels,
+            raw["model"]["parameters"]["world_size"]["value"],
+            manifest.get("expression_holdout"),
+        )
     )
     rows = manifest["rows"]
     if len(rows) != len(expected) or {r["name"] for r in rows} != set(expected):
@@ -230,6 +274,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--verify-manifest", type=Path)
     parser.add_argument("--batch-probes", type=Path)
+    parser.add_argument("--holdout", type=Path, help="JSON with partition path and SHA256")
     args = parser.parse_args()
     if args.verify_manifest:
         if args.group or args.output:
@@ -243,6 +288,7 @@ def main() -> None:
         args.group,
         args.output,
         batch_probes=(json.loads(args.batch_probes.read_text()) if args.batch_probes else None),
+        holdout=json.loads(args.holdout.read_text()) if args.holdout else None,
     )
     print(
         json.dumps({"group": args.group, "rows": len(result["rows"]), "status": result["status"]})

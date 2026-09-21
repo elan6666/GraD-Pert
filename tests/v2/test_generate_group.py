@@ -11,7 +11,7 @@ API = runpy.run_path(str(ROOT / "scripts/v2/generate_group.py"))
 PARENT = ROOT / "configs/v2/capacity/m16/gradpert_v2/nadig_jurkat.yaml"
 
 
-@pytest.mark.parametrize("group", [g for g in API["GROUPS"] if g != "H3"])
+@pytest.mark.parametrize("group", [g for g in API["GROUPS"] if g not in ("H3", "G1")])
 def test_generated_groups_are_standalone_and_preserve_fixed_parent_contract(tmp_path, group):
     original = yaml.safe_load(PARENT.read_text())
     manifest = API["generate"](PARENT, group, tmp_path / group)
@@ -118,3 +118,28 @@ def test_superseded_single_rank_initial_groups_are_not_launchable():
         manifest = ROOT / f"configs/v2/initial_jurkat/{group}/manifest.json"
         with pytest.raises(ValueError, match="superseded"):
             API["verify_group"](manifest, parent)
+
+
+def test_g1_binds_partition_and_rejects_changed_holdout(tmp_path):
+    import json
+
+    from gradpert.training.v2.holdout import make_partition
+
+    path = tmp_path / "partition.json"
+    path.write_text(
+        json.dumps(make_partition(tuple(f"g{i}" for i in range(2000)), heldout_count=1000, seed=1))
+    )
+    sealed = {"path": str(path), "sha256": sha256_file(path)}
+    output = tmp_path / "G1"
+    result = API["generate"](PARENT, "G1", output, holdout=sealed)
+    assert len(result["rows"]) == 1
+    row = result["rows"][0]
+    assert set(row["overrides"]) == {"expression_holdout_path", "expression_holdout_sha256"}
+    assert API["verify_group"](output / "manifest.json", PARENT)["group"] == "G1"
+    before = yaml.safe_load(PARENT.read_text())
+    after = yaml.safe_load((output / row["config"]).read_text())
+    assert after["data"] == before["data"]
+    assert after["training"] == before["training"]
+    path.write_text(path.read_text() + " ")
+    with pytest.raises(ValueError, match="checksum"):
+        API["verify_group"](output / "manifest.json", PARENT)
