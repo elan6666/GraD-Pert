@@ -129,16 +129,43 @@ def choose(verified: dict, runs: dict[str, list[str]], seeds: list[int]) -> dict
     }
 
 
+def verify_selection(selection_path: Path, manifest: Path, parent: Path) -> dict:
+    """Recompute a frozen winner from its original evidence before using it."""
+    recorded = json.loads(selection_path.read_text())
+    runs = {
+        row["name"]: [entry["run_root"] for entry in row["evidence"]] for row in recorded["scores"]
+    }
+    if len(runs) != len(recorded["scores"]):
+        raise ValueError("selection receipt repeats a candidate")
+    actual = choose(verify_group(manifest, parent), runs, recorded["seeds"])
+    if actual != recorded:
+        raise ValueError("selection receipt differs from recomputed validation evidence")
+    winner = Path(actual["winner"]["config"])
+    if sha256_file(winner) != actual["winner"]["sha256"]:
+        raise ValueError("selected parent configuration changed")
+    return {
+        "selection_sha256": sha256_file(selection_path),
+        "manifest_sha256": sha256_file(manifest),
+        "winner": actual["winner"],
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--parent", type=Path, required=True)
-    parser.add_argument(
-        "--runs", type=Path, required=True, help="JSON mapping row names to run-root lists"
-    )
-    parser.add_argument("--seeds", type=int, nargs="+", required=True)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--runs", type=Path, help="JSON mapping row names to run-root lists")
+    parser.add_argument("--seeds", type=int, nargs="+")
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--verify-selection", type=Path)
     args = parser.parse_args()
+    if args.verify_selection:
+        if args.runs or args.seeds or args.output:
+            parser.error("selection verification does not accept generation arguments")
+        print(json.dumps(verify_selection(args.verify_selection, args.manifest, args.parent)))
+        return
+    if not args.runs or not args.seeds or not args.output:
+        parser.error("selection requires --runs, --seeds and --output")
     result = choose(
         verify_group(args.manifest, args.parent), json.loads(args.runs.read_text()), args.seeds
     )

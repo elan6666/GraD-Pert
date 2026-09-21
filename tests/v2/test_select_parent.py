@@ -125,3 +125,38 @@ def test_selection_rejects_changed_execution_evidence(selector, candidates, muta
     atomic_json(path, history)
     with pytest.raises(ValueError):
         selector(verified, runs, [1, 2])
+
+
+@pytest.mark.parametrize("tamper", [False, True])
+def test_frozen_selection_is_recomputed_before_reuse(monkeypatch, tmp_path, candidates, tamper):
+    monkeypatch.syspath_prepend(str(ROOT / "scripts/v2"))
+    api = runpy.run_path(str(ROOT / "scripts/v2/select_parent.py"))
+    verified, runs = candidates
+    for row in verified["rows"]:
+        config = tmp_path / (row["name"] + ".yaml")
+        config.write_text("synthetic configuration " + row["name"])
+        row["config"], row["sha256"] = str(config), sha256_file(config)
+        for root_name in runs[row["name"]]:
+            root = Path(root_name)
+            manifest = json.loads((root / "run_manifest.json").read_text())
+            manifest["config_sha256"] = row["sha256"]
+            atomic_json(root / "run_manifest.json", manifest)
+            journal = json.loads((root / "fit/epoch_state.json").read_text())
+            journal["identity"] = manifest
+            atomic_json(root / "fit/epoch_state.json", journal)
+    receipt = api["choose"](verified, runs, [1, 2])
+    path = tmp_path / "selection.json"
+    if tamper:
+        receipt["winner"] = receipt["scores"][1]
+    atomic_json(path, receipt)
+    upstream = tmp_path / "manifest.json"
+    upstream.write_text("synthetic manifest; verifier independently tested")
+    verify = api["verify_selection"]
+    monkeypatch.setitem(verify.__globals__, "verify_group", lambda *_: verified)
+    if tamper:
+        with pytest.raises(ValueError, match="recomputed"):
+            verify(path, upstream, tmp_path / "parent.yaml")
+    else:
+        result = verify(path, upstream, tmp_path / "parent.yaml")
+        assert result["winner"]["name"] == "a"
+        assert result["selection_sha256"] == sha256_file(path)
