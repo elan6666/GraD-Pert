@@ -313,3 +313,29 @@ def test_ssl1_row_reduction_weights_condition_ce_only():
     torch.testing.assert_close(
         distinct["condition"], (first["condition"] + second["condition"]) / 2
     )
+
+
+@pytest.mark.parametrize("attention", ["hybrid", "full_latent", "delta_full", "full"])
+def test_response_cls_edge_intervention_blocks_gene_sensitivity(attention):
+    from dataclasses import replace
+
+    original, batch = fixture()
+    model = GraDPertV2(torch.randn(6, 5), replace(original.options, attention=attention))
+    model.eval()
+    graph, condition = JointObjective(model)._graph(model, batch.graph, False)
+    with torch.no_grad():
+        before = model.encode_response(graph[:4], batch.control, condition)
+        blocked_before = model.encode_response(
+            graph[:4], batch.control, condition, block_response_cls_to_gene=True
+        )
+        model.response_cls.add_(torch.randn_like(model.response_cls) * 3)
+        after = model.encode_response(graph[:4], batch.control, condition)
+        blocked_after = model.encode_response(
+            graph[:4], batch.control, condition, block_response_cls_to_gene=True
+        )
+    torch.testing.assert_close(blocked_before["prediction"], blocked_after["prediction"])
+    assert not torch.allclose(before["prediction"], after["prediction"])
+    assert not torch.allclose(blocked_before["response_cls"], blocked_after["response_cls"])
+    model.train()
+    with pytest.raises(ValueError, match="evaluation-only"):
+        model.encode_response(graph[:4], batch.control, condition, block_response_cls_to_gene=True)

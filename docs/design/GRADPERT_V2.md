@@ -529,3 +529,14 @@ checkpoint保存收集各rank RNG，恢复不能更改world size或已封存的�
 teacher center 仍按不同条件统计。这些项不随细胞行重复，以免混入节点采样、
 最近邻集合或 center 变化。S1 因而检验条件 CE 的频率加权，不声称比较整个
 SSL1 的所有项按细胞行重复；完整重复方案若另做实验需独立因子和规格。
+
+### D1 response CLS→gene 边干预
+
+评估接口 `block_response_cls_to_gene=True` 保持同一 checkpoint、control、扰动
+与基因上下文，只在 Response 的第四个非因果注意力层让 gene queries 使用
+gene-only K/V；CLS query 仍读取原完整序列。前三层为因果序列且 CLS 位于尾部，
+本来不存在 CLS→前方 gene 的路径；FFN、归一化及 mHC 均逐 token 操作。
+该开关不改 Cell Encoder，不移除扰动条件向每个 gene 的注入。
+四种注意力组合均验证：改变 CLS 初始向量时，阻断后的 gene 预测保持不变，
+正常预测会变化，CLS 读出仍可变化。干预只允许 eval，重训消融需另立实验。
+评估收据的 query_recipe 记录该开关；是否改善/退化必须由真实评估决定。

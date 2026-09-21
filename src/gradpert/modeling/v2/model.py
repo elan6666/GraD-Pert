@@ -150,6 +150,8 @@ class GraDPertV2(nn.Module):
         control: Tensor,
         condition: Tensor,
         expression_mask: Tensor | None = None,
+        *,
+        block_response_cls_to_gene: bool = False,
     ) -> dict[str, Tensor]:
         if control.ndim != 2 or control.shape[1] != gene.shape[0]:
             raise ValueError("control expression must align with query gene IDs")
@@ -168,7 +170,8 @@ class GraDPertV2(nn.Module):
             torch.cat(
                 (self.condition_fusion(joint), self.response_cls.expand(len(control), -1, -1)),
                 dim=1,
-            )
+            ),
+            block_cls_to_gene=block_response_cls_to_gene,
         )
         delta = self.prediction(response[:, :-1]).squeeze(-1)
         return {

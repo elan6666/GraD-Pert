@@ -28,6 +28,7 @@ def predict_controls(
     device: torch.device,
     cell_batch: int,
     query_count: int,
+    block_response_cls_to_gene: bool = False,
 ) -> np.ndarray[Any, Any]:
     """Partition the complete expression axis into fixed ordered query blocks.
 
@@ -59,7 +60,12 @@ def predict_controls(
             chunk = torch.from_numpy(
                 np.ascontiguousarray(controls[row : row + cell_batch, start:stop])
             ).to(device)
-            output = model.encode_response(gene[positions], chunk, condition.expand(len(chunk), -1))
+            output = model.encode_response(
+                gene[positions],
+                chunk,
+                condition.expand(len(chunk), -1),
+                block_response_cls_to_gene=block_response_cls_to_gene,
+            )
             prediction[row : row + len(chunk), start:stop] = (
                 output["prediction"].float().cpu().numpy()
             )
@@ -78,6 +84,7 @@ def evaluate(
     device: torch.device,
     cell_batch: int,
     query_count: int,
+    block_response_cls_to_gene: bool = False,
 ) -> dict[str, Any]:
     if data.split_name != expected_split or data.control_manifest.split_name != expected_split:
         raise ValueError("evaluation split differs from requested lifecycle stage")
@@ -110,6 +117,7 @@ def evaluate(
             device=device,
             cell_batch=cell_batch,
             query_count=query_count,
+            block_response_cls_to_gene=block_response_cls_to_gene,
         )
         truth = data.load_truth_rows(condition)
         metric = compute_condition_metrics(
@@ -150,5 +158,6 @@ def evaluate(
             "name": "ordered_disjoint_blocks",
             "query_count": query_count,
             "expression_gene_count": len(data.expression_gene_ids),
+            "block_response_cls_to_gene": block_response_cls_to_gene,
         },
     }

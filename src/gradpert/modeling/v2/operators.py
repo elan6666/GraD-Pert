@@ -241,10 +241,19 @@ class TokenEncoder(nn.Module):
         self.layers = nn.ModuleList(layers)
         self.norm = nn.RMSNorm(width)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor, *, block_cls_to_gene: bool = False) -> Tensor:
+        if block_cls_to_gene and self.training:
+            raise ValueError("CLS edge intervention is an evaluation-only diagnostic")
         x = x.unsqueeze(-2).expand(*x.shape[:-1], self.streams, x.shape[-1])
-        for layer in self.layers:
-            if self.checkpoint_layers and self.training and torch.is_grad_enabled():
+        for index, layer in enumerate(self.layers):
+            if block_cls_to_gene and index == 6:
+                # Only the fourth attention layer is noncausal. Earlier causal
+                # layers cannot transmit the tail CLS to preceding gene slots.
+                # Retain the normal CLS readout, while genes attend to genes only.
+                full = layer(x)
+                genes = layer(x[:, :-1])
+                x = torch.cat((genes, full[:, -1:]), dim=1)
+            elif self.checkpoint_layers and self.training and torch.is_grad_enabled():
                 x = checkpoint(layer, x, use_reentrant=False)
             else:
                 x = layer(x)
