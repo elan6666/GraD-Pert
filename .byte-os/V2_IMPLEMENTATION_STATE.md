@@ -21,13 +21,16 @@ do not reset, merge, or commit them. Relay owner remains Codex in root coordinat
   v2 checkpoint with RNG restoration, single-process accumulated step.
 - Strict v2 architecture/options; model.version serialized only if present,
   distinct v2_fixed_50 policy. Legacy run dispatch still rejects v2: real runner pending.
+- Ordered-query inference and common evaluation adapter implemented; not yet wired into lifecycle.
+  Tests preserve full output coverage, control row order and cell-batch prediction parity;
+  validation rejects a reference containing test conditions.
 - Deterministic views and 16-group design matrix; H3 batch levels deliberately null.
 - User confirmed project warmup+cosine from g2_schedule: .16 warmup and .2 floor,
   endpoint schedule. This is project-preregistered, not official GLM5 timing.
 
 ## Verified
 
-- 15 synthetic v2 tests pass: recurrence/chunk outputs and gradients, sparse/dense
+- 25 synthetic v2 tests pass (including ten inference/evaluation tests): recurrence/chunk outputs and gradients, sparse/dense
   graph parity, masked expression nonleakage, loss switches, Teacher/EMA,
   actual Muon+AdamW resume, accumulation gradient scaling.
 - 136 legacy modeling/native-step tests pass.

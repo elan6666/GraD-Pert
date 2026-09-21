@@ -38,6 +38,7 @@ class NeighborhoodIndex:
         for query in range(n):
             add(query, query, 3)
         self.rows, self.n_nodes = rows, n
+        self.gene_ids = topology.gene_ids
 
     def view(
         self,

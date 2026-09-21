@@ -167,7 +167,7 @@ L_SSL1=.8 L_condition+.4 L_masked-node+.1 L_spread，以保留原权重。
 | 优化器 | split Muon + 辅助 AdamW | Embedding/norm/bias/output 不按 ndim 简单扔进 Muon |
 | 基础 peak LR | 1e-3 | 每组实际 LR/形状修正显式记录 |
 | weight decay | 0 | 已核实父配置值，建议继承 |
-| 默认 LR schedule | 按既定 GLM5 对齐方案冻结 | 移除 warmup-only/cosine-only；warmup比例不消融，具体配置须有来源 |
+| 默认 LR schedule | 项目既有 warmup+cosine 配方 | warmup 16%，floor/peak=0.2；不消融日程，来源见第15节 |
 | EMA | .99→1 cosine 候选 | 使用完整 50-epoch optimizer-step horizon |
 | Student / Teacher 温度 | .1 / .04 固定候选 | 不同时引入温度 warmup；非 DINOv2 全套默认复刻 |
 | expr mask | 50% Global 样本，选中者遮10%–50% | 与图裁剪独立；只对可观察表达轴 |
@@ -185,8 +185,8 @@ batch 累积不能自动等价于大批 KoLeo：最近邻实际在哪个 microba
 ## 6. LR 机制：按用户最新决定冻结
 
 peak LR 对比 1e-4 / 1e-3。移除 warmup-only、cosine-only；warmup 时长
-默认对齐既定 GLM5 方案，不再比较5%/10%/16%。具体 warmup步数、衰减末值
-实施前应引用冻结配置，不能把历史8/50方案或早期建议5%冒充已确认的 GLM5 官方值。
+沿用项目既有配方：warmup占总更新步数16%，cosine末值为peak LR的20%，
+不再比较5%/10%/16%。来源见第15节，明确标为项目设定，不是GLM5官方日程。
 断点恢复不能重新预热；容量 smoke 不压缩正式50轮日程。
 所有 Muon/AdamW 组应用统一 schedule 倍数，保留各自已审计的 LR 映射。
 
