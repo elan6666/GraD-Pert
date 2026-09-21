@@ -27,21 +27,50 @@ def selected_checkpoint(root: Path, role: str) -> tuple[dict, dict, Path]:
     return manifest, selected, checkpoint
 
 
+def engineering_checkpoint(root: Path, receipt_sha256: str) -> tuple[dict, dict, Path]:
+    from gradpert.hashing import sha256_file
+
+    receipt = root / "receipt.json"
+    if sha256_file(receipt) != receipt_sha256:
+        raise ValueError("engineering receipt checksum mismatch")
+    training = json.loads(receipt.read_text())
+    if training.get("status") != "passed" or training.get("kind") not in (
+        "capacity_only",
+        "integration_only",
+    ):
+        raise ValueError("engineering evaluation requires a passed probe")
+    source = training["source"]
+    if source["dirty"] or source["commit"] != source["published_commit"]:
+        raise ValueError("engineering training source must be clean and published")
+    checkpoint = root / "resume.pt"
+    selected = {"file": checkpoint.name, "sha256": training["resume_checkpoint_sha256"]}
+    if sha256_file(checkpoint) != selected["sha256"]:
+        raise ValueError("engineering checkpoint checksum mismatch")
+    return training, selected, checkpoint
+
+
 def main(kind: str = "context") -> None:
     parser = argparse.ArgumentParser(
         description=(
             __doc__
             if kind == "context"
-            else "Run fixed-population D1 response diagnostics on a completed-run checkpoint."
+            else (
+                "Run fixed-population D1 response diagnostics on a checkpoint."
+                if kind == "response"
+                else "Evaluate the complete frozen validation split."
+            )
         )
     )
     for name in ("config", "data-root", "training-run", "protocol", "publication", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--protocol-sha256", required=True)
     parser.add_argument("--publication-sha256", required=True)
-    parser.add_argument("--role", choices=("best", "last"), required=True)
+    parser.add_argument("--role", choices=("best", "last"))
+    parser.add_argument("--engineering-receipt-sha256")
     parser.add_argument("--gpu", choices=("0", "1"), required=True)
     args = parser.parse_args()
+    if bool(args.role) == bool(args.engineering_receipt_sha256):
+        parser.error("choose a formal checkpoint role OR an explicit engineering receipt hash")
     for path in (args.data_root, args.training_run, args.output):
         if not path.resolve().is_relative_to("/data/yilangliu"):
             parser.error("scientific data, checkpoints and evaluation outputs stay on the server")
@@ -66,12 +95,25 @@ def main(kind: str = "context") -> None:
     fields = (
         {"evaluation_gene_ids", "budgets", "context_seed", "split"}
         if kind == "context"
-        else {"query_gene_ids", "condition_id", "alternative_condition_id", "split"}
+        else (
+            {"query_gene_ids", "condition_id", "alternative_condition_id", "split"}
+            if kind == "response"
+            else {"split"}
+        )
     )
     if set(protocol) != fields or protocol["split"] not in ("val", "test"):
         raise ValueError("context protocol requires explicit fixed genes, budgets, seed and split")
+    if kind == "validation" and protocol["split"] != "val":
+        raise ValueError("validation entry requires the validation split")
     config = load_experiment_config(args.config)
-    training, selected, checkpoint = selected_checkpoint(args.training_run, args.role)
+    if args.engineering_receipt_sha256:
+        if protocol["split"] != "val":
+            raise ValueError("engineering evaluation cannot access test truth")
+        training, selected, checkpoint = engineering_checkpoint(
+            args.training_run, args.engineering_receipt_sha256
+        )
+    else:
+        training, selected, checkpoint = selected_checkpoint(args.training_run, args.role)
     if training["config_sha256"] != sha256_file(args.config):
         raise ValueError("evaluation config differs from checkpoint training config")
     repository = Path(__file__).resolve().parents[2]
@@ -94,7 +136,7 @@ def main(kind: str = "context") -> None:
         progress = load_evaluation_checkpoint(
             checkpoint,
             runtime.objective,
-            training_identity=training,
+            training_identity=training["data"] if args.engineering_receipt_sha256 else training,
             checkpoint_sha256=selected["sha256"],
         )
         gene_positions = {g: i for i, g in enumerate(runtime.data.expression_gene_ids)}
@@ -119,7 +161,7 @@ def main(kind: str = "context") -> None:
                     device=torch.device("cuda:0"),
                     cell_batch=int(config.training.eval_batch_size.value),
                 )
-            else:
+            elif kind == "response":
                 from gradpert.training.v2.diagnostics import evaluate_response_diagnostics
 
                 result = evaluate_response_diagnostics(
@@ -133,14 +175,44 @@ def main(kind: str = "context") -> None:
                     device=torch.device("cuda:0"),
                     cell_batch=int(config.training.eval_batch_size.value),
                 )
+            else:
+                from gradpert.evaluation.state import (
+                    load_evaluation_state,
+                    prepare_evaluation_state,
+                )
+                from gradpert.training.v2.evaluation import evaluate
+
+                shared = dict(
+                    dataset_id=config.dataset_id,
+                    protocol_id=config.data.protocol_id,
+                    data_root=args.data_root,
+                    validation_only=protocol["split"] == "val",
+                )
+                prepare_evaluation_state(**shared)
+                reference = load_evaluation_state(**shared)
+                result = evaluate(
+                    runtime.objective.student,
+                    runtime.index,
+                    data,
+                    reference,
+                    expected_split=protocol["split"],
+                    device=torch.device("cuda:0"),
+                    cell_batch=int(config.training.eval_batch_size.value),
+                    query_count=runtime.options.eval_query_count,
+                )
         receipt = {
             "status": "passed",
-            "kind": kind + "_evaluation",
+            "kind": ("engineering_" if args.engineering_receipt_sha256 else "")
+            + kind
+            + "_evaluation",
+            "scientific_result": not bool(args.engineering_receipt_sha256),
             "training": training,
             "evaluation_source": source.payload(),
             "evaluation_environment": environment.payload(),
             "checkpoint": selected,
-            "checkpoint_role": args.role,
+            "checkpoint_role": args.role or "engineering_resume",
+            "checkpoint_progress": progress if args.engineering_receipt_sha256 else None,
+            "engineering_training_receipt_sha256": args.engineering_receipt_sha256,
             "checkpoint_progress_sha256": sha256_json(progress),
             "protocol": protocol,
             "protocol_sha256": args.protocol_sha256,

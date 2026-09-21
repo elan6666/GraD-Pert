@@ -36,3 +36,27 @@ def test_context_entry_requires_committed_checkpoint_identity(tmp_path, mutation
     else:
         actual, role, path = API["selected_checkpoint"](tmp_path, "last")
         assert actual == identity and role == selected and path == checkpoint
+
+
+@pytest.mark.parametrize("passed", [True, False])
+def test_engineering_checkpoint_is_explicit_and_requires_terminal_evidence(tmp_path, passed):
+    checkpoint = tmp_path / "resume.pt"
+    checkpoint.write_bytes(b"synthetic engineering checkpoint")
+    receipt = tmp_path / "receipt.json"
+    atomic_json(
+        receipt,
+        {
+            "status": "passed" if passed else "running",
+            "kind": "integration_only",
+            "source": {"dirty": False, "commit": "a", "published_commit": "a"},
+            "resume_checkpoint_sha256": sha256_file(checkpoint),
+        },
+    )
+    if passed:
+        training, selected, path = API["engineering_checkpoint"](tmp_path, sha256_file(receipt))
+        assert training["kind"] == "integration_only"
+        assert "epoch" not in selected
+        assert path == checkpoint
+    else:
+        with pytest.raises(ValueError, match="passed probe"):
+            API["engineering_checkpoint"](tmp_path, sha256_file(receipt))

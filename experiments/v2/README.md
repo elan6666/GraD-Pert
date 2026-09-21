@@ -201,3 +201,16 @@ The batch2/full-objective profile is for `capacity_probe.py --integration-only`
 sustained capacity claim. All five configs pass schema/data-contract comparison;
 server integration receipts are still required before labeling them executable.
 Do not use these small-batch configs as substitutes for final measured ablations.
+
+For explicit engineering verification before formal training completes, all shared
+evaluation entries accept `--engineering-receipt-sha256` instead of `--role`.
+`--training-run` then names a passed capacity/integration probe root. The exact
+receipt and `resume.pt` hashes, source and runtime data are checked. Only validation
+truth is accessible; outputs are labeled `engineering_*`, `scientific_result:false`,
+and retain the checkpoint's actual saved progress (not the probe's final step).
+This does not satisfy formal50-epoch acceptance or provide scientific results.
+
+`evaluate_validation.py` reuses that entry and the full native validation/reference
+pipeline; its protocol is exactly `{"split":"val"}`. It evaluates every frozen
+validation condition and the three existing metrics, with no condition truncation.
+Real-server checks of these new engineering modes remain pending.
