@@ -128,6 +128,9 @@ throughput/parity probe, not a full validation result or a proven maximum.
 The required config/training-run/engineering-receipt/publication arguments match
 the independent engineering evaluation commands. Use `--query-count 1000` for
 the standard inference context; test the full expression-axis count separately
-for G1 larger contexts. An OOM or parity failure produces a failed receipt with
+for G1 larger contexts. Add `--partition-full-axis --query-count 1000` to test
+the actual default recipe covering every expression gene in ordered blocks;
+this is different from a single5000gene context. The receipt records the recipe
+and complete ordered output gene IDs. An OOM or parity failure produces a failed receipt with
 completed earlier points preserved. The formal inference batch remains pending
 these real measurements and final execution-config preflight.

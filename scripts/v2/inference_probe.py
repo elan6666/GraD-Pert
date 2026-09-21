@@ -19,6 +19,11 @@ def main() -> None:
     parser.add_argument("--publication-sha256", required=True)
     parser.add_argument("--gpu", choices=("0", "1"), required=True)
     parser.add_argument("--query-count", type=int, default=1000)
+    parser.add_argument(
+        "--partition-full-axis",
+        action="store_true",
+        help="Cover the full expression axis in query-count blocks, as in default evaluation",
+    )
     parser.add_argument("--cell-batches", type=int, nargs="+", default=[2, 8, 16, 32])
     args = parser.parse_args()
     if (
@@ -45,7 +50,7 @@ def main() -> None:
     from gradpert.execution.identity import inspect_environment, inspect_source_identity
     from gradpert.hashing import sha256_file, sha256_json
     from gradpert.training.v2.checkpoint import load_evaluation_checkpoint
-    from gradpert.training.v2.evaluation import predict_query_set
+    from gradpert.training.v2.evaluation import predict_controls, predict_query_set
     from gradpert.training.v2.runtime import prepare_runtime
 
     config = load_experiment_config(args.config)
@@ -82,6 +87,11 @@ def main() -> None:
             "first point may include cold overhead"
         ),
         "query_count": args.query_count,
+        "query_recipe": (
+            "ordered_blocks_covering_full_expression_axis"
+            if args.partition_full_axis
+            else "single_fixed_context"
+        ),
         "cell_batches": args.cell_batches,
         "equivalence_tolerance": {"atol": 2e-5, "rtol": 2e-5},
         "points": [],
@@ -128,7 +138,11 @@ def main() -> None:
                     condition_id=draw.condition_id,
                     ordered_control_row_ids=list(controls.ordered_row_ids),
                     control_manifest_sha256=data.control_manifest_file_sha256,
-                    query_gene_ids=list(data.expression_gene_ids[: args.query_count]),
+                    query_gene_ids=list(
+                        data.expression_gene_ids
+                        if args.partition_full_axis
+                        else data.expression_gene_ids[: args.query_count]
+                    ),
                     data_identity=runtime.identity,
                 )
                 reference = None
@@ -136,15 +150,26 @@ def main() -> None:
                     torch.cuda.synchronize()
                     torch.cuda.reset_peak_memory_stats()
                     start = time.perf_counter()
-                    prediction = predict_query_set(
-                        runtime.objective.student,
-                        runtime.index,
-                        controls.expression,
-                        targets,
-                        queries,
-                        device=device,
-                        cell_batch=batch,
-                    )
+                    if args.partition_full_axis:
+                        prediction = predict_controls(
+                            runtime.objective.student,
+                            runtime.index,
+                            controls.expression,
+                            targets,
+                            device=device,
+                            cell_batch=batch,
+                            query_count=args.query_count,
+                        )
+                    else:
+                        prediction = predict_query_set(
+                            runtime.objective.student,
+                            runtime.index,
+                            controls.expression,
+                            targets,
+                            queries,
+                            device=device,
+                            cell_batch=batch,
+                        )
                     torch.cuda.synchronize()
                     elapsed = time.perf_counter() - start
                     if reference is None:
