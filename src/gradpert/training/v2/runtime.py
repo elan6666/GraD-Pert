@@ -40,7 +40,8 @@ class Runtime:
     @property
     def steps_per_epoch(self) -> int:
         return self.data.steps_per_epoch(
-            batch_size=self.batch_size, max_unique_conditions=self.options.max_conditions
+            batch_size=self.batch_size,
+            max_unique_conditions=min(self.options.max_conditions, self.batch_size),
         )
 
     def batches(self, epoch: int) -> Iterator[TrainingBatch]:
@@ -48,7 +49,7 @@ class Runtime:
             epoch=epoch,
             device=self.device,
             batch_size=self.batch_size,
-            max_unique_conditions=self.options.max_conditions,
+            max_unique_conditions=min(self.options.max_conditions, self.batch_size),
         ):
             yield assemble_batch(raw, self.index, self.options, self.generator)
 
