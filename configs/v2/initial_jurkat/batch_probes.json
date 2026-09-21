@@ -1,0 +1,12 @@
+[
+  {
+    "receipt": ".byte-os/evidence/v2-capacity/m32-repeat-58da227.json",
+    "config": "configs/v2/capacity/m32/gradpert_v2/nadig_jurkat.yaml",
+    "receipt_sha256": "320350eab34d64f133fcc406bab48c47af181899c4f5df313ae82ec9cd33af15"
+  },
+  {
+    "receipt": ".byte-os/evidence/v2-capacity/m64-repeat-58da227.json",
+    "config": "configs/v2/capacity/m64/gradpert_v2/nadig_jurkat.yaml",
+    "receipt_sha256": "e9f388d4de61c9143fe0f7bdf9eb005806102ff84bfb63729a44d4d263ccc9c9"
+  }
+]
