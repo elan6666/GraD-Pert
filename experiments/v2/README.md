@@ -58,3 +58,26 @@ capacity evidence. Its receipt kind is `integration_only`; the capacity report
 rejects it. The normal mode still requires at least 128 updates, midpoint
 continuation and 300-control inference. Use one-step receipts only for variant
 integration preflight after a suitable sustained execution profile is established.
+
+## Group queue
+
+`PYTHONPATH=src python scripts/v2/run_group.py --manifest GROUP/manifest.json --parent PARENT.yaml --runtime SERVER_RUNTIME.json --gpu 0 --preflight-index PREFLIGHTS.json --queue-root NEW_SERVER_DIRECTORY`
+
+By default this prints a read-only queue plan. `--execute` seals it and executes
+rows sequentially in separate processes. `--resume --execute` uses the saved plans
+and original run roots; completed rows are verified before skipping, committed
+partial runs resume, and startup failures without an epoch commit require repair.
+A queue never chooses a new parent during its execution. Group dependencies and
+validation-only parent selection must be frozen before preparing the next group.
+
+The preflight index has a `rows` list whose entries contain `config_sha256`, `seed`,
+`receipt` (server path), and `sha256` (receipt hash). Every row needs an exact
+config/seed probe from the same published source and data root/topology. This is
+integration admission; the final execution profile must separately have sustained
+capacity evidence. Queue, physical-GPU, and config/source/seed leases prevent
+concurrent duplicate execution. Selected GPUs must be idle at launch. The current
+runner uses one task per selected GPU; it does not assume two tasks fit safely.
+
+Runtime and publication checks remain delegated to the existing train entry.
+Checkpoint weights stay on the server. A failed row stops this group, preserving
+its plan and logs for repair; invoking resume continues it before advancing.
