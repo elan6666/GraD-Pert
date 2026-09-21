@@ -20,6 +20,7 @@ def response_diagnostics(
     alternative_condition: Tensor,
     *,
     truth: Tensor | None = None,
+    cell_batch: int = 2,
 ) -> dict[str, Any]:
     """Compare fixed query embeddings; callers supply frozen population identities.
 
@@ -44,16 +45,35 @@ def response_diagnostics(
         or not torch.isfinite(truth).all()
     ):
         raise ValueError("diagnostic truth must be finite on the query gene axis")
+    if cell_batch < 1:
+        raise ValueError("diagnostic cell batch must be positive")
     training = model.training
     model.eval()
     try:
-        baseline = model.encode_response(gene, control, condition)
+
+        def population_mean(
+            cells: Tensor, perturbation: Tensor, *, blocked: bool = False
+        ) -> dict[str, Tensor]:
+            totals: dict[str, Tensor] = {}
+            for start in range(0, len(cells), cell_batch):
+                output = model.encode_response(
+                    gene,
+                    cells[start : start + cell_batch],
+                    perturbation[start : start + cell_batch],
+                    block_response_cls_to_gene=blocked,
+                )
+                for key in ("prediction", "delta", "control_cls", "response_cls"):
+                    value = output[key].double().sum(0, keepdim=True)
+                    if not torch.isfinite(value).all():
+                        raise FloatingPointError("nonfinite diagnostic model output")
+                    totals[key] = value if key not in totals else totals[key] + value
+            return {key: value / len(cells) for key, value in totals.items()}
+
+        baseline = population_mean(control, condition)
         variants = {
-            "change_control": model.encode_response(gene, alternative_control, condition),
-            "change_perturbation": model.encode_response(gene, control, alternative_condition),
-            "block_response_cls_to_gene": model.encode_response(
-                gene, control, condition, block_response_cls_to_gene=True
-            ),
+            "change_control": population_mean(alternative_control, condition),
+            "change_perturbation": population_mean(control, alternative_condition),
+            "block_response_cls_to_gene": population_mean(control, condition, blocked=True),
         }
 
         def distance(left: Tensor, right: Tensor) -> float:

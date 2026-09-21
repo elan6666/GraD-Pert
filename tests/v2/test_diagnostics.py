@@ -40,3 +40,16 @@ def test_identical_inputs_have_zero_swap_sensitivity():
     for name in ("change_control", "change_perturbation"):
         assert all(value == 0 for value in result["changes"][name].values())
     assert "fixed_truth_prediction_mse" not in result
+
+
+def test_chunked_diagnostics_match_full_population_with_unequal_last_chunk():
+    model, batch = fixture()
+    gene = torch.randn(4, model.options.width)
+    control = torch.cat((batch.control, batch.control[:1]), dim=0)
+    condition = torch.randn(3, model.options.width)
+    args = (model, gene, control, control + 1, condition, condition + 2)
+    whole = response_diagnostics(*args, cell_batch=3)
+    chunked = response_diagnostics(*args, cell_batch=2)
+    for name in whole["changes"]:
+        for field, value in whole["changes"][name].items():
+            assert abs(value - chunked["changes"][name][field]) < 2e-6
