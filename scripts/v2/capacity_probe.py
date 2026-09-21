@@ -197,6 +197,8 @@ def main() -> None:
                         for g in draw.condition_id.split("+")
                         if g != evaluation.split.control_condition_id
                     )
+                    torch.cuda.synchronize()
+                    inference_started = time.perf_counter()
                     predicted = predict_controls(
                         runtime.objective.student,
                         runtime.index,
@@ -205,6 +207,12 @@ def main() -> None:
                         device=runtime.device,
                         cell_batch=int(config.training.eval_batch_size.value),
                         query_count=runtime.options.eval_query_count,
+                    )
+                    torch.cuda.synchronize()
+                    validation["inference_seconds"] = time.perf_counter() - inference_started
+                    validation["evaluation_cell_batch"] = int(config.training.eval_batch_size.value)
+                    validation["validation_condition_count"] = len(
+                        evaluation.control_manifest.draws
                     )
                     from gradpert.training.validation import mean_expression_mse
 

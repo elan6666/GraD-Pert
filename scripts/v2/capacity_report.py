@@ -73,6 +73,9 @@ def collect(receipt_path: Path, config_path: Path) -> dict:
         ),
         "inference_control_count": shape[0],
         "inference_gene_count": shape[1],
+        "inference_seconds": receipt.get("inference_seconds"),
+        "evaluation_cell_batch": config.training.eval_batch_size.value,
+        "validation_condition_count": receipt.get("validation_condition_count"),
     }
 
 
