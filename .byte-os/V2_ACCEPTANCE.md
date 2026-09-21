@@ -10,12 +10,12 @@ Source inspected: `173f81b7cc7f083497d86398f94f10d658d7e049`.
 | V2 method | `modeling/v2`, `training/v2/objective.py`, native operator tests and joint-loss capacity probes | Final design-to-code audit; no scientific efficacy claim |
 | Reuse v1 infrastructure | Canonical data/evaluation, metrics, entry, source checks, selection, RNG restoration, curves and `training/epoch.py` are shared | Review outer lifecycle/postfit differences; preserve necessary teacher/rank-state adapters |
 | Small evaluation artifacts | Schema metrics_only, best/last retention, compact validation population, no-PKL completion check | Real complete-validation lifecycle with curves and best/last receipts on delivery source |
-| Two-GPU engineering evidence | micro2/8/16/32,16×accum2 and two-rank micro8 completed; original effective32 receipts in `evidence/v2-capacity/` | micro64 running; repeat/profile evidence and final measured batch decision |
+| Two-GPU engineering evidence | micro2/8/16/32,16×accum2 and two-rank micro8 completed; original effective32 receipts in `evidence/v2-capacity/` | micro64 and same-source micro32/micro64 repeats passed; final measured batch decision and per-variant checks remain |
 | Hyperparameter-first groups | `experiments/v2/groups.json`; standalone generation, validation-only selection, follow-up dependency gates | H3 levels/configs depend on capacity; final complete generated matrix not frozen |
 | Execution/recovery/collection | `scripts/v2/run_group.py`, `resume.py`, `collect_results.py`; tests and source gates | Actual server queue dry-run, per-row integration checks and source parity |
-| Expression holdout/context generalization | Holdout manifest, training exclusion/poison tests, fixed-axis context-query API | G1 concrete task configs, runner and real checks |
-| CLS diagnostics | Response CLS→gene intervention and tests | D1 runner for control/perturbation/intervention comparisons and receipts |
-| Five datasets and baselines | Existing canonical/shared infrastructure preserved | V2 per-dataset integration; official/v1 baseline startup preflight |
+| Expression holdout/context generalization | Holdout manifest, training exclusion/poison tests, fixed-axis context-query API | G1 canonical runner implemented and tested; concrete task configs and real checks remain |
+| CLS diagnostics | Response CLS→gene intervention and tests | D1 canonical runner implemented and tested; Norman server engineering check running |
+| Five datasets and baselines | Existing canonical/shared infrastructure preserved | Five dataset single-update/reload probes passed at35c6c1a; official/v1 baseline startup preflight remains |
 | ZCode supervision | Relay boundary remains Codex build/test first | Exact destination resolution and complete verified handoff package |
 
 Do not use a single-condition capacity inference as evidence for full validation

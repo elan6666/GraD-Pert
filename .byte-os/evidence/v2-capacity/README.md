@@ -37,3 +37,14 @@ and300×5000 inference. Measured throughput9.499133 cells/s; peak allocated
 This is the largest completed tested point so far, not the hardware maximum;
 repeat validation and final profile selection remain outstanding. Its source
 version differs from the batch32 receipts and must remain separately labeled.
+
+## Same-source32/64 repeat
+
+Both repeat receipts use source `58da2277ed924d0d8a121e4f3e32875a404fcf12`.
+The32-row GPU0 repeat passed at4.699452cells/s; the64-row GPU1 repeat passed at
+9.548563cells/s. Allocated/reserved peaks match their respective earlier probes:
+15080300544/16112418816bytes for32,27991045120/29691478016bytes for64. Both completed
+128 updates, checkpoint continuation and300×5000 inference. Batch64 has now passed
+on both cards. These tests support a Jurkat execution candidate, not unrestricted
+capacity for other datasets, contexts or architecture ablations. Original receipt
+hashes are retained in the files and can be independently recomputed.
