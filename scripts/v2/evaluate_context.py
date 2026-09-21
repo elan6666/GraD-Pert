@@ -130,6 +130,7 @@ def main(kind: str = "context") -> None:
         data_root=args.data_root,
         run_seed=training["data"]["run_seed"],
         device=torch.device("cuda:0"),
+        purpose="evaluation",
     ) as runtime:
         if runtime.identity != training["data"]:
             raise ValueError("evaluation canonical data/graph/GenePT differs from training")

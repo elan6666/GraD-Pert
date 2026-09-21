@@ -8,7 +8,7 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import torch
@@ -38,15 +38,20 @@ class Runtime:
     batch_size: int
     identity: dict[str, Any]
     allowed_expression_ids: np.ndarray | None = None
+    purpose: Literal["training", "evaluation"] = "training"
 
     @cached_property
     def steps_per_epoch(self) -> int:
+        if self.purpose != "training":
+            raise RuntimeError("evaluation runtime cannot enter training")
         return self.data.steps_per_epoch(
             batch_size=self.batch_size,
             max_unique_conditions=min(self.options.max_conditions, self.batch_size),
         )
 
     def batches(self, epoch: int) -> Iterator[TrainingBatch]:
+        if self.purpose != "training":
+            raise RuntimeError("evaluation runtime cannot enter training")
         for raw in self.data.iter_train_epoch(
             epoch=epoch,
             device=self.device,
@@ -62,9 +67,25 @@ class Runtime:
             )
 
 
+def validate_world(configured: int, observed: int, purpose: str) -> None:
+    if purpose == "training":
+        if configured != observed:
+            raise ValueError("configured world size differs from the process group")
+    elif purpose == "evaluation":
+        if observed != 1:
+            raise ValueError("standalone evaluation requires one process")
+    else:
+        raise ValueError("unknown runtime purpose")
+
+
 @contextmanager
 def prepare_runtime(
-    config: ExperimentConfig, *, data_root: Path, run_seed: int, device: torch.device
+    config: ExperimentConfig,
+    *,
+    data_root: Path,
+    run_seed: int,
+    device: torch.device,
+    purpose: Literal["training", "evaluation"] = "training",
 ) -> Iterator[Runtime]:
     """Verify sealed inputs before model allocation; close backed H5AD on all exits.
 
@@ -75,8 +96,7 @@ def prepare_runtime(
         raise ValueError("v2 runtime cannot execute a v1 configuration")
     arch, options = V2Options.parse_parameters(config.model.parameters)
     world = torch.distributed.get_world_size() if torch.distributed.is_initialized() else 1
-    if options.world_size != world:
-        raise ValueError("configured world size differs from the process group")
+    validate_world(options.world_size, world, purpose)
     if world > 1 and device.type == "cuda" and torch.cuda.device_count() != 1:
         raise ValueError("each distributed worker must expose exactly one physical GPU")
     if run_seed not in config.training.run_seeds:
@@ -182,4 +202,5 @@ def prepare_runtime(
             int(config.training.train_batch_size.value),
             identity,
             allowed_expression_ids,
+            purpose,
         )
