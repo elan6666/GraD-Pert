@@ -148,3 +148,13 @@ matrices. This is a separate G1 fixed-axis metric, not a substitute for the thre
 full-axis headline Pearson metrics. Tests perturb only unscored truth columns and
 verify unchanged scores. A source/checkpoint-bound server CLI and real-data
 acceptance remain pending; the API alone does not complete G1.
+
+`training.v2.diagnostics.response_diagnostics` compares fixed-query responses
+under control replacement, perturbation replacement and response CLS→gene
+blocking. It reports population-mean RMS differences separately for prediction,
+predicted delta, basal control CLS and response CLS. Optional fixed-truth MSE is
+computed only for baseline versus the blocked response; replacement conditions
+are not incorrectly scored against the original condition's truth. The API does
+not claim arbitrary control cells are paired. Tests cover raw-control-residual
+separation, distinct CLS roles and unchanged-input zero sensitivity. Frozen
+population/checkpoint/source binding and real-server D1 execution remain pending.
