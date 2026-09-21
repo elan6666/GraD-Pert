@@ -28,6 +28,7 @@ def test_condition_cap_is_bounded_by_actual_probe_batch():
 
 def test_evaluation_can_load_distributed_training_but_cannot_train():
     import pytest
+
     from gradpert.training.v2.runtime import validate_world
 
     validate_world(2, 1, "evaluation")
