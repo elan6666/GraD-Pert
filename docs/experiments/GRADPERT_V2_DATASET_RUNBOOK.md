@@ -39,8 +39,10 @@ python -m torch.distributed.run --standalone --nproc_per_node=2 \
 
 Only a passed128-update full-chain receipt can choose the initial dataset batch.
 One-step integration is insufficient. Compare measured profiles and reserve memory
-headroom. Jurkat currently has repeated32/64 evidence; that evidence does not
-establish another dataset's capacity.
+headroom. Jurkat micro74/rank has passed the full protocol twice and adjacent
+micro75/rank failed OOM; micro32/64 dual-rank probes remain in progress at this
+revision. Earlier single-rank32/64 evidence is superseded for choosing this
+distributed default. None of these results establishes another dataset's capacity.
 
 ## Generate initial groups and exact-row preflight
 
@@ -132,8 +134,10 @@ for G1 larger contexts. Add `--partition-full-axis --query-count 1000` to test
 the actual default recipe covering every expression gene in ordered blocks;
 this is different from a single5000gene context. The receipt records the recipe
 and complete ordered output gene IDs. An OOM or parity failure produces a failed receipt with
-completed earlier points preserved. The formal inference batch remains pending
-these real measurements and final execution-config preflight.
+completed earlier points preserved. The measured inference candidate is128 cells: both the complete axis via1000-gene
+blocks and single5000-gene context passed the fixed-input parity check. See
+`.byte-os/evidence/v2-inference/`. Final execution configs still require exact
+source/config preflight; this is not a complete Jurkat validation timing.
 
 ## Complete preregistered matrix
 
