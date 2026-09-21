@@ -13,6 +13,7 @@ from pathlib import Path
 
 from collect_results import collect_run
 from generate_group import verify_group
+from prepare_followup import validate_dependency
 
 from gradpert.data._io import atomic_json
 from gradpert.execution.train_entry import resolve_plan
@@ -63,6 +64,7 @@ def prepare_queue(
     resolver=resolve_plan,
 ) -> dict:
     verified = verify_group(manifest, parent)
+    validate_dependency(manifest, parent)
     entries = json.loads(preflight_index.read_text())["rows"]
     indexed = {(r["config_sha256"], r["seed"]): r for r in entries}
     if len(indexed) != len(entries):
@@ -221,6 +223,7 @@ def main() -> None:
     if args.resume:
         queue = json.loads((args.queue_root / "queue.json").read_text())
         verified = verify_group(args.manifest, args.parent)
+        validate_dependency(args.manifest, args.parent)
         if (
             verified["manifest_sha256"] != queue["manifest_sha256"]
             or sha256_file(args.preflight_index) != queue["preflight_index_sha256"]

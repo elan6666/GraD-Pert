@@ -115,3 +115,18 @@ selection uses mean best validation loss and never reads test receipts. Its CLI
 requires `--manifest`, `--parent`, `--runs` (row-name to run-root lists), `--seeds`
 and a new `--output`. Automatic dependency admission of this selection receipt
 into subsequent groups is still pending; H3 also awaits measured batch levels.
+
+### Validation-selected follow-up groups
+
+Use `prepare_followup.py --selection SELECTION.json --manifest UPSTREAM/manifest.json
+--parent UPSTREAM_PARENT.yaml --group H2 --output NEW_GROUP` after H1 completes.
+The script recomputes the selection from original evidence, uses the winning
+configuration as the actual generator parent, and seals the dependency paths and
+hashes in the new manifest. Queue preparation and resume recheck this dependency.
+Directly generated later-group configs remain useful for design review, but are
+not launchable without the dependency. B0/H1 remain initial groups.
+
+The required progression is H1→H2→H3, then structural/loss/sampling groups from the
+H3-selected configuration. H3 materialization still awaits measured batch levels;
+this does not make the later chain ready for execution. Upstream receipts and
+configs must remain accessible at their recorded paths on the server.
