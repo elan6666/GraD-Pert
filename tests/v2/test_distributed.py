@@ -380,3 +380,77 @@ def test_unified_full_step_cross_rank_koleo_and_accumulation(tmp_path, strategy)
         nprocs=2,
         join=True,
     )
+
+
+def _prediction_only_worker(rank, rendezvous, reference, strategy):
+    from dataclasses import replace
+
+    from gradpert.training.v2.engine import optimizer_step, slice_cells
+
+    dist.init_process_group(
+        "gloo",
+        init_method="file://" + rendezvous,
+        rank=rank,
+        world_size=2,
+        timeout=timedelta(seconds=45),
+    )
+    try:
+        model, batch = _three_row_batch()
+        batch = replace(batch, cell_views=(), graph_views=())
+        local = slice_cells(batch, 0, 1) if rank == 0 else slice_cells(batch, 1, 3)
+        objective = JointObjective(model, lambda1=0, lambda2=0, loss_reduction=strategy)
+        metrics = optimizer_step(
+            objective,
+            _GradientCapture(model),
+            local,
+            microbatch=2,
+            lr=0.001,
+            momentum=0.99,
+            bf16=False,
+            global_condition_index=batch.condition_index,
+        )
+        expected = torch.load(reference, weights_only=True)
+        assert metrics["prediction"] == pytest.approx(expected["prediction"], abs=1e-6)
+        for name, parameter in model.named_parameters():
+            if expected["gradients"][name] is None:
+                assert parameter.grad is None
+            else:
+                torch.testing.assert_close(
+                    parameter.grad, expected["gradients"][name], atol=4e-6, rtol=2e-4
+                )
+    finally:
+        dist.destroy_process_group()
+
+
+@pytest.mark.parametrize("strategy", ["row_mean", "condition_mean"])
+def test_unified_prediction_only_without_cell_views_matches_global_batch(tmp_path, strategy):
+    from dataclasses import replace
+
+    from gradpert.training.v2.engine import optimizer_step
+
+    model, batch = _three_row_batch()
+    batch = replace(batch, cell_views=(), graph_views=())
+    objective = JointObjective(model, lambda1=0, lambda2=0, loss_reduction=strategy)
+    metrics = optimizer_step(
+        objective,
+        _GradientCapture(model),
+        batch,
+        microbatch=3,
+        lr=0.001,
+        momentum=0.99,
+        bf16=False,
+    )
+    reference = tmp_path / "prediction-only.pt"
+    torch.save(
+        {
+            "gradients": {name: p.grad for name, p in model.named_parameters()},
+            "prediction": metrics["prediction"],
+        },
+        reference,
+    )
+    mp.spawn(
+        _prediction_only_worker,
+        args=(str(tmp_path / "prediction-only-rendezvous"), str(reference), strategy),
+        nprocs=2,
+        join=True,
+    )

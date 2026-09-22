@@ -108,8 +108,10 @@ def optimizer_step(
         row = population_weights(ids, torch.ones_like(ids, dtype=torch.bool), strategy)
         valid_rows = [gather_rows(v.mask.any(-1)) for v in batch.cell_views[:2]]
         active_views = max(1, sum(bool(v.any()) for v in valid_rows))
-        nodes = torch.stack(
-            [population_weights(ids, v, strategy) / active_views for v in valid_rows]
+        nodes = (
+            torch.stack([population_weights(ids, v, strategy) / active_views for v in valid_rows])
+            if valid_rows
+            else row.new_zeros((0, total))
         )
         reduction_weights = (row[offset : offset + total], nodes[:, offset : offset + total])
     finite = True
