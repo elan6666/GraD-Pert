@@ -1,0 +1,42 @@
+{
+  "activation": "Regenerate in a new directory with prepare_followup.py",
+  "batch_probes": [
+    {
+      "config": "/data/yilangliu/GraD-Pert/development/source-v2-memory-1d8c7d7/configs/v2/exclusion_capacity/m32/gradpert_v2/nadig_jurkat.yaml",
+      "receipt": "/data/yilangliu/GraD-Pert/development/v2-unified-h3batch64-1d8c7d7/micro32/receipt.json",
+      "receipt_sha256": "5f2295faa1fb2fe3bb449f05336625458eac999c2834807ae4f196a4cfd1f509"
+    },
+    {
+      "config": "/data/yilangliu/GraD-Pert/development/source-v2-memory-1d8c7d7/configs/v2/exclusion_capacity/m64/gradpert_v2/nadig_jurkat.yaml",
+      "receipt": "/data/yilangliu/GraD-Pert/development/v2-unified-default128-memory-1d8c7d7/micro64/receipt.json",
+      "receipt_sha256": "1a0e1eaf3158116a55364edab5a0ae2554f6f86a316a30d24a49eded2215a291"
+    }
+  ],
+  "generator_sha256": "82b9e295f581186f79799ac1a675257c6015de88b8b25890869abc0d1529851b",
+  "group": "H3",
+  "parent_config": "/data/yilangliu/GraD-Pert/development/v2-preregistered-jurkat-matrix-1d8c7d7/parent/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "c4b85b299614f015fd2b2c705bd172239468c1fbd35251166135ede04d7bb6a0",
+  "rows": [
+    {
+      "config": "batch_64/gradpert_v2/nadig_jurkat.yaml",
+      "name": "batch_64",
+      "overrides": {
+        "microbatch": 32,
+        "train_batch_size": 64
+      },
+      "sha256": "2342895a5e10372b22c39a49d5549ea2aa8aa911fdd1024ec2290b37413d8c51"
+    },
+    {
+      "config": "batch_128/gradpert_v2/nadig_jurkat.yaml",
+      "name": "batch_128",
+      "overrides": {
+        "microbatch": 64,
+        "train_batch_size": 128
+      },
+      "sha256": "c4b85b299614f015fd2b2c705bd172239468c1fbd35251166135ede04d7bb6a0"
+    }
+  ],
+  "schema_version": "gradpert-v2-group-configs-1",
+  "selection_rule": "validation prediction loss only; no within-group rolling parent",
+  "status": "prospective_requires_validation_selected_parent"
+}

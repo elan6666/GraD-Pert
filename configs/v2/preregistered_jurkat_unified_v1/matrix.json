@@ -1,0 +1,167 @@
+{
+  "activation_rule": "Initial rows still require exact source/config/seed CUDA preflight. Later YAML files are complete nominal configurations, not selected winners. Regenerate them from actual selection receipts; do not edit a prospective manifest to bypass the launch dependency gate.",
+  "dataset": "nadig_jurkat",
+  "diagnostics": {
+    "D1": {
+      "entry": "scripts/v2/evaluate_diagnostics.py",
+      "levels": [
+        "change_control",
+        "change_perturbation",
+        "block_response_cls_to_gene"
+      ],
+      "requires": "sealed condition/query protocol and frozen checkpoint"
+    },
+    "G1_context": {
+      "entry": "scripts/v2/evaluate_context.py",
+      "requires": "sealed fixed-axis/context protocol and frozen checkpoint"
+    }
+  },
+  "groups": {
+    "A1": {
+      "manifest": "A1/manifest.json",
+      "manifest_sha256": "6968514d618a185cbd8d7960f31145da2a56177d2a0b1e6976e82011b6037a32",
+      "required_selection": "H3",
+      "rows": 2,
+      "stage": "prospective"
+    },
+    "A2": {
+      "manifest": "A2/manifest.json",
+      "manifest_sha256": "a6525e72ba3ea8c781b163cc6b199c5718ec66dd25987c93ec01c18dab883727",
+      "required_selection": "H3",
+      "rows": 4,
+      "stage": "prospective"
+    },
+    "A3": {
+      "manifest": "A3/manifest.json",
+      "manifest_sha256": "3218a1ec1b05ad7fd6a44baa806258cf990067048e1f52abae7b6b77c63c033a",
+      "required_selection": "H3",
+      "rows": 2,
+      "stage": "prospective"
+    },
+    "A4": {
+      "manifest": "A4/manifest.json",
+      "manifest_sha256": "311a982e525711aadfad9987d34b505cd17eff5cf9daddaf8adc39d15d6c7ac8",
+      "required_selection": "H3",
+      "rows": 2,
+      "stage": "prospective"
+    },
+    "B0": {
+      "manifest": "B0/manifest.json",
+      "manifest_sha256": "3da333d5d5a8baa423e64758e10ac243a146872d23bdaf02a459cd60ef443f8d",
+      "required_selection": null,
+      "rows": 2,
+      "stage": "initial_preflight_pending"
+    },
+    "G1": {
+      "manifest": "G1/manifest.json",
+      "manifest_sha256": "88f0a96012a4509d8aae26bc610fb7f92adbabefbd86a16ded3ec201a7e77854",
+      "required_selection": "H3",
+      "rows": 1,
+      "stage": "prospective"
+    },
+    "H1": {
+      "manifest": "H1/manifest.json",
+      "manifest_sha256": "5a301a4fc887b781439cf5bf18d493283256aa66e8d887eece1e428adee20bfc",
+      "required_selection": null,
+      "rows": 2,
+      "stage": "initial_preflight_pending"
+    },
+    "H2": {
+      "manifest": "H2/manifest.json",
+      "manifest_sha256": "9bc5ae6efd973a0f9d40525a0d09178b60b3c80667bb01bca8e5156eb95ccaff",
+      "required_selection": "H1",
+      "rows": 2,
+      "stage": "prospective"
+    },
+    "H3": {
+      "manifest": "H3/manifest.json",
+      "manifest_sha256": "98c8ed28e289a08754ed97afec23c7514c26a5597254c512cd126090c48ab834",
+      "required_selection": "H2",
+      "rows": 2,
+      "stage": "prospective"
+    },
+    "L0": {
+      "manifest": "L0/manifest.json",
+      "manifest_sha256": "555ee775b640edf40ca8bed37bfb709b91f6f3a997e402a460edd7e6aa323b61",
+      "required_selection": "H3",
+      "rows": 4,
+      "stage": "prospective"
+    },
+    "L1": {
+      "manifest": "L1/manifest.json",
+      "manifest_sha256": "aec831f35e3131a1347e3ca94afb02e0d88e479be97da1f92e75c300c8f2ec2c",
+      "required_selection": "H3",
+      "rows": 8,
+      "stage": "prospective"
+    },
+    "L2": {
+      "manifest": "L2/manifest.json",
+      "manifest_sha256": "53671f317563f35eb1215285f4ffcda8b4f3c0e7b706e8558ab01d12c8726192",
+      "required_selection": "H3",
+      "rows": 8,
+      "stage": "prospective"
+    },
+    "P1": {
+      "manifest": "P1/manifest.json",
+      "manifest_sha256": "9ed9b18d1ac5714be41ebf93b72079a6f7f4516081158032f043eecebdd6cede",
+      "required_selection": "H3",
+      "rows": 2,
+      "stage": "prospective"
+    },
+    "S1": {
+      "manifest": "S1/manifest.json",
+      "manifest_sha256": "df5575a7e84f474e399f9a1ed48ba6694c5aa13d662b34469010dc797414b0cb",
+      "required_selection": "H3",
+      "rows": 2,
+      "stage": "prospective"
+    },
+    "S2": {
+      "manifest": "S2/manifest.json",
+      "manifest_sha256": "518bfb182cddabe53753d279fb49083a80b4908550d72a2549e9492007217112",
+      "required_selection": "H3",
+      "rows": 3,
+      "stage": "prospective"
+    }
+  },
+  "measured_global_batches": [
+    64,
+    128
+  ],
+  "parent": "parent/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "c4b85b299614f015fd2b2c705bd172239468c1fbd35251166135ede04d7bb6a0",
+  "reference_capacity": {
+    "accumulation": 1,
+    "cells_per_second": 17.67148870525151,
+    "config": "/data/yilangliu/GraD-Pert/development/source-v2-memory-1d8c7d7/configs/v2/exclusion_capacity/m64/gradpert_v2/nadig_jurkat.yaml",
+    "config_sha256": "c4b85b299614f015fd2b2c705bd172239468c1fbd35251166135ede04d7bb6a0",
+    "dataset": "nadig_jurkat",
+    "effective_batch": 128,
+    "end_to_end_cells_per_second": 14.818046397909928,
+    "evaluation_cell_batch": 128,
+    "exclude_test_target_expression": true,
+    "gradient_reduction_mean_seconds": 0.020295364658037822,
+    "inference_control_count": 300,
+    "inference_gene_count": 5000,
+    "inference_seconds": 4.207974357530475,
+    "lambda1": 1.0,
+    "lambda2": 0.1,
+    "loss_reduction": "row_mean",
+    "microbatch": 64,
+    "peak_allocated_bytes_per_gpu": 29949462528,
+    "peak_reserved_bytes_per_gpu": 32210157568,
+    "physical_gpus": "0,1",
+    "receipt": "/data/yilangliu/GraD-Pert/development/v2-unified-default128-memory-1d8c7d7/micro64/receipt.json",
+    "receipt_sha256": "1a0e1eaf3158116a55364edab5a0ae2554f6f86a316a30d24a49eded2215a291",
+    "step_max_seconds": 8.0924271941185,
+    "step_median_seconds": 7.256193776149303,
+    "steps_completed": 128,
+    "training_sha": "1d8c7d7a2359d4388ecb93dbb8f052678306f063",
+    "validation_condition_count": 445,
+    "width": 256,
+    "world_size": 2
+  },
+  "schema_version": "gradpert-v2-preregistered-matrix-1",
+  "selection_rule": "H1 -> H2 -> H3 uses validation prediction loss only, never test scores",
+  "status": "initial_preflight_pending_later_groups_prospective",
+  "total_training_rows": 46
+}

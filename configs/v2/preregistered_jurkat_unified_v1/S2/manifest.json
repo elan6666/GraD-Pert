@@ -1,0 +1,37 @@
+{
+  "activation": "Regenerate in a new directory with prepare_followup.py",
+  "generator_sha256": "82b9e295f581186f79799ac1a675257c6015de88b8b25890869abc0d1529851b",
+  "group": "S2",
+  "parent_config": "/data/yilangliu/GraD-Pert/development/v2-preregistered-jurkat-matrix-1d8c7d7/parent/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "c4b85b299614f015fd2b2c705bd172239468c1fbd35251166135ede04d7bb6a0",
+  "rows": [
+    {
+      "config": "mixed_koleo_off/gradpert_v2/nadig_jurkat.yaml",
+      "name": "mixed_koleo_off",
+      "overrides": {
+        "ssl2_koleo": 0
+      },
+      "sha256": "50003c3631eaa4357762883b752265e6159657beb9abd3715e4d576eaa57cb9d"
+    },
+    {
+      "config": "single_koleo_off/gradpert_v2/nadig_jurkat.yaml",
+      "name": "single_koleo_off",
+      "overrides": {
+        "max_conditions": 1,
+        "ssl2_koleo": 0
+      },
+      "sha256": "824828b63aedce9a485cda0e50a406e8a8a8a4e9291845e73b910ae9cd0f0c24"
+    },
+    {
+      "config": "mixed_koleo_on/gradpert_v2/nadig_jurkat.yaml",
+      "name": "mixed_koleo_on",
+      "overrides": {
+        "ssl2_koleo": 0.1
+      },
+      "sha256": "107b7cf123153cbe7be81ccb0e4609046e5fec7601383648cb9f319a8b858130"
+    }
+  ],
+  "schema_version": "gradpert-v2-group-configs-1",
+  "selection_rule": "validation prediction loss only; no within-group rolling parent",
+  "status": "prospective_requires_validation_selected_parent"
+}

@@ -1,0 +1,25 @@
+{
+  "activation": "Regenerate in a new directory with prepare_followup.py",
+  "expression_holdout": {
+    "path": "/data/yilangliu/GraD-Pert/development/v2-exclusion-jurkat-3e3dd0a/partition.json",
+    "sha256": "6238d94601a70e7006fe56aba5fb6c5182a9a245cd3e9bc45d13938568388ff1"
+  },
+  "generator_sha256": "82b9e295f581186f79799ac1a675257c6015de88b8b25890869abc0d1529851b",
+  "group": "G1",
+  "parent_config": "/data/yilangliu/GraD-Pert/development/v2-preregistered-jurkat-matrix-1d8c7d7/parent/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "c4b85b299614f015fd2b2c705bd172239468c1fbd35251166135ede04d7bb6a0",
+  "rows": [
+    {
+      "config": "expression_holdout/gradpert_v2/nadig_jurkat.yaml",
+      "name": "expression_holdout",
+      "overrides": {
+        "expression_holdout_path": "/data/yilangliu/GraD-Pert/development/v2-exclusion-jurkat-3e3dd0a/partition.json",
+        "expression_holdout_sha256": "6238d94601a70e7006fe56aba5fb6c5182a9a245cd3e9bc45d13938568388ff1"
+      },
+      "sha256": "41b235fed5d39b38c74da921ae3f878e78ba98d4476598df16f0fecd62912a20"
+    }
+  ],
+  "schema_version": "gradpert-v2-group-configs-1",
+  "selection_rule": "validation prediction loss only; no within-group rolling parent",
+  "status": "prospective_requires_validation_selected_parent"
+}

@@ -1,0 +1,28 @@
+{
+  "activation": "Regenerate in a new directory with prepare_followup.py",
+  "generator_sha256": "82b9e295f581186f79799ac1a675257c6015de88b8b25890869abc0d1529851b",
+  "group": "A4",
+  "parent_config": "/data/yilangliu/GraD-Pert/development/v2-preregistered-jurkat-matrix-1d8c7d7/parent/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "c4b85b299614f015fd2b2c705bd172239468c1fbd35251166135ede04d7bb6a0",
+  "rows": [
+    {
+      "config": "genept/gradpert_v2/nadig_jurkat.yaml",
+      "name": "genept",
+      "overrides": {
+        "gene_initialization": "genept"
+      },
+      "sha256": "080f8e2429e381c7f6c93c9cdd9f974a20f369b9ff571d3fb69dc3aabe53999f"
+    },
+    {
+      "config": "random/gradpert_v2/nadig_jurkat.yaml",
+      "name": "random",
+      "overrides": {
+        "gene_initialization": "random"
+      },
+      "sha256": "ccb4c4a92f59f14cabaa4cc51c232a4241b787536258c0343a6fa257446ff3b8"
+    }
+  ],
+  "schema_version": "gradpert-v2-group-configs-1",
+  "selection_rule": "validation prediction loss only; no within-group rolling parent",
+  "status": "prospective_requires_validation_selected_parent"
+}
