@@ -17,7 +17,7 @@ def test_full_matrix_is_reviewable_but_no_later_winner_is_invented(tmp_path, mon
     api = importlib.import_module("prepare_matrix")
     probes = []
     for batch in (32, 64):
-        config = ROOT / f"configs/v2/capacity/ddp_m{batch}_eval128/gradpert_v2/nadig_jurkat.yaml"
+        config = ROOT / f"configs/v2/exclusion_capacity/m{batch}/gradpert_v2/nadig_jurkat.yaml"
         receipt = tmp_path / f"synthetic-capacity-{batch}.json"
         payload = valid_receipt() | {
             "config_sha256": sha256_file(config),

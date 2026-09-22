@@ -41,8 +41,9 @@ def optimizer_step(
     """Accumulate cell terms; count graph terms once per effective update.
 
     Unified KoLeo collects all microbatch representations before cross-rank
-    neighbor selection. Graphs are retained until its backward pass; accumulation
-    therefore does not guarantee lower peak memory for this term.
+    neighbor selection. With a single microbatch, its loss joins the ordinary
+    backward pass so that the encoder graph need not be retained. Accumulation
+    retains those graphs and therefore does not guarantee lower peak memory.
     The legacy objective route retains its historical local neighborhoods.
     Distributed callers provide the unsharded condition index; graph terms
     remain once per global update, cell means are weighted by actual rank rows.
@@ -112,6 +113,29 @@ def optimizer_step(
         )
         reduction_weights = (row[offset : offset + total], nodes[:, offset : offset + total])
     finite = True
+
+    def global_koleo() -> torch.Tensor:
+        assert deferred_koleo is not None
+        local_ids = torch.cat([item[2] for item in deferred_koleo])
+        ids = gather_rows(local_ids)
+        sizes = gather_rows(torch.tensor([len(local_ids)], device=batch.control.device))
+        rank = torch.distributed.get_rank() if distributed else 0
+        offset = int(sizes[:rank].sum())
+        weights = population_weights(
+            ids, torch.ones_like(ids, dtype=torch.bool), objective.loss_reduction or "row_mean"
+        )
+        view_terms = []
+        for view in range(2):
+            values = gather_rows(torch.cat([item[view] for item in deferred_koleo]))
+            per_row = nearest_neighbor_terms(values)
+            view_terms.append(
+                (
+                    per_row[offset : offset + len(local_ids)]
+                    * weights[offset : offset + len(local_ids)]
+                ).sum()
+            )
+        return torch.stack(view_terms).mean()
+
     try:
         for start in range(0, total, microbatch):
             micro = slice_cells(batch, start, min(start + microbatch, total))
@@ -133,34 +157,24 @@ def optimizer_step(
                 finite = False
                 if not distributed:
                     raise FloatingPointError("nonfinite v2 cell loss")
-            (loss * fraction * population_factor).backward(retain_graph=deferred_koleo is not None)
+            single_micro = deferred_koleo is not None and microbatch >= total
+            if single_micro:
+                koleo = global_koleo()
+                loss = loss + objective.lambda2 * objective.weights[1][2] * koleo
+                metrics["ssl2_koleo"] = float(koleo.detach())
+            (loss * fraction * population_factor).backward(
+                retain_graph=deferred_koleo is not None and not single_micro
+            )
             for name, value in terms.items():
                 metrics[name] = metrics.get(name, 0.0) + float(value.detach()) * fraction
             # Keep only CLS ancestor graphs for the deferred global KoLeo pass,
             # not projection-head losses or the main prediction graph.
             del loss, terms, value
-        if deferred_koleo is not None:
-            local_ids = torch.cat([item[2] for item in deferred_koleo])
-            ids = gather_rows(local_ids)
-            sizes = gather_rows(torch.tensor([len(local_ids)], device=batch.control.device))
-            rank = torch.distributed.get_rank() if distributed else 0
-            offset = int(sizes[:rank].sum())
-            weights = population_weights(
-                ids, torch.ones_like(ids, dtype=torch.bool), objective.loss_reduction or "row_mean"
-            )
-            terms = []
-            for view in range(2):
-                values = gather_rows(torch.cat([item[view] for item in deferred_koleo]))
-                per_row = nearest_neighbor_terms(values)
-                terms.append(
-                    (
-                        per_row[offset : offset + len(local_ids)]
-                        * weights[offset : offset + len(local_ids)]
-                    ).sum()
-                )
-            koleo = torch.stack(terms).mean()
+        if deferred_koleo is not None and microbatch < total:
+            koleo = global_koleo()
             (koleo * population_factor * objective.lambda2 * objective.weights[1][2]).backward()  # type: ignore[no-untyped-call]
             metrics["ssl2_koleo"] = float(koleo.detach())
+        if deferred_koleo is not None:
             deferred_koleo.clear()
         if objective.lambda1:
             with torch.autocast(device_type=device, dtype=torch.bfloat16, enabled=bf16):
