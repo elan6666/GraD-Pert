@@ -45,13 +45,30 @@ its active source tree; `audit-stop.json` preserves both hashes. It is not
 capacity evidence. The replacement checkout's tree hash matched its pinned
 publication receipt before launch and remained clean after the successful 144
 probe. Never build in that checkout. Do not overwrite run IDs or change the
-active server checkout. The next stage is exact published-source preflight
-for a new five-epoch Jurkat baseline. The
-bounded Goal is complete. The active thread heartbeat is
-`grad-pert-v2-batch128`, every 30 minutes during testing; switch to every two
-hours only when formal ablation training begins.
+active server checkout. The completed capacity receipt is engineering evidence.
+The exact published source `536458333e437252178ffe493c5c50c9064e7615`
+then passed the same-config two-GPU one-update integration preflight: receipt
+`/data/yilangliu/GraD-Pert/development/v2-5364583-b128-integration/receipt.json`,
+SHA256 `c8882f28d279ec5cde045fc1b3f9cdfd9be2d8371930994ecb6ad85c2498cc2c`.
+Its publication receipt is `gradpert-5364583-publication.json`, SHA256
+`37b58e67236317c969b5350e5f25dd1ce0ae3bc16f94eb7e20ad5c19ce8018cf`.
+
+The formal five-epoch Jurkat v2 baseline is now active on GPUs 0,1 at global
+batch 128: run ID
+`nadig_jurkat-seed1-20260923T194747Z-1b7eda2abd6441f592d0834e1e275e88`,
+run root `/data/yilangliu/GraD-Pert/runs-v2-glm53-current/` plus that ID,
+log `/data/yilangliu/GraD-Pert/development/v2-jurkat-baseline-5364583.log`,
+parent PID file with the same stem and `.pid`. The source checkout is
+`/data/yilangliu/GraD-Pert/development/source-v2-formal-5364583`; config
+SHA256 `8471f5ea68f4801406497985291a0088116ff5a8435b82f85e55c611548b06c6`.
+At handoff the process was alive, epoch state was 0/5, and both GPUs were
+occupied by this run. The existing heartbeat `grad-pert-v2-batch128` has been
+retargeted to the formal baseline and verified active at every two hours, with
+user-requested reports on each check. Verify five committed epochs and actual
+best/last tests before treating this run as complete; keep training SHA fixed
+at `5364583` even if documentation-only GitHub main advances.
 Full v2 test suite: 212 passed; lint,
 format and isolated wheel/sdist build passed. Mypy retains five unrelated
 existing errors in `training/step.py` and `training/v2/reductions.py`.
-A formal five-epoch scientific run is a later background stage and is not
-claimed complete by this capacity probe.
+The formal five-epoch scientific run is in progress. Capacity and one-step
+preflight receipts are not scientific best/last results.
