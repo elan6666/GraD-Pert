@@ -135,6 +135,135 @@ class LatentAttention(nn.Module):
         return cast(Tensor, self.output(y.transpose(1, 2).flatten(-2)))
 
 
+class IndexedLatentAttention(nn.Module):
+    """Content-indexed, noncausal latent attention for unordered genes.
+
+    Gene queries reserve slots for self and CLS; the CLS query reads all genes.
+    A selected-score bias keeps the independent indexer trainable despite hard
+    top-k. Query chunks bound gathered KV memory. No positional pooling is used.
+    """
+
+    def __init__(
+        self,
+        width: int,
+        heads: int,
+        rank: int,
+        dropout: float,
+        topk: int,
+        index_dim: int,
+        query_chunk: int,
+    ) -> None:
+        super().__init__()
+        self.heads = heads
+        self.head_width = width // heads
+        self.dropout = dropout
+        self.topk = topk
+        self.query_chunk = query_chunk
+        self.q_down = nn.Linear(width, rank, bias=False)
+        self.q_norm = nn.RMSNorm(rank)
+        self.q_up = nn.Linear(rank, width, bias=False)
+        self.kv_down = nn.Linear(width, rank, bias=False)
+        self.kv_norm = nn.RMSNorm(rank)
+        self.k_up = nn.Linear(rank, width, bias=False)
+        self.v_up = nn.Linear(rank, width, bias=False)
+        self.index_query = nn.Linear(width, heads * index_dim, bias=False)
+        self.index_key = nn.Linear(width, heads * index_dim, bias=False)
+        self.index_dim = index_dim
+        self.index_scale = nn.Parameter(torch.tensor(0.1))
+        self.output = nn.Linear(width, width, bias=False)
+
+    def forward(self, x: Tensor, *, has_cls: bool = True) -> Tensor:
+        batch, length, _ = x.shape
+        genes = length - int(has_cls)
+        q = (
+            self.q_up(self.q_norm(self.q_down(x)))
+            .reshape(batch, length, self.heads, self.head_width)
+            .transpose(1, 2)
+        )
+        latent = self.kv_norm(self.kv_down(x))
+        k = self.k_up(latent).reshape(batch, length, self.heads, self.head_width).transpose(1, 2)
+        v = self.v_up(latent).reshape(batch, length, self.heads, self.head_width).transpose(1, 2)
+        if genes <= self.topk - int(has_cls):
+            y = F.scaled_dot_product_attention(
+                q, k, v, dropout_p=self.dropout if self.training else 0.0
+            )
+            return cast(Tensor, self.output(y.transpose(1, 2).flatten(-2)))
+
+        iq = self.index_query(x).reshape(batch, length, self.heads, self.index_dim)
+        ik = self.index_key(x).reshape(batch, length, self.heads, self.index_dim)
+        iq, ik = iq.transpose(1, 2), ik.transpose(1, 2)
+        outputs = []
+        for start in range(0, genes, self.query_chunk):
+            end = min(start + self.query_chunk, genes)
+            size = end - start
+            query_ids = torch.arange(start, end, device=x.device)
+            count = self.topk - 1 - int(has_cls)
+            with torch.no_grad():
+                scores = torch.matmul(
+                    iq[:, :, start:end].float(), ik[:, :, :genes].float().transpose(-1, -2)
+                ) / math.sqrt(self.index_dim)
+                # Selection is discrete; gathered scores below carry gradients.
+                scores = scores.scatter(
+                    -1,
+                    query_ids.view(1, 1, size, 1).expand(batch, self.heads, -1, -1),
+                    -float("inf"),
+                )
+                selected = scores.topk(count, dim=-1).indices
+            self_ids = query_ids.view(1, 1, size, 1).expand(batch, self.heads, -1, -1)
+            selected = torch.cat((self_ids, selected), dim=-1)
+            if has_cls:
+                cls_ids = torch.full_like(self_ids, genes)
+                selected = torch.cat((selected, cls_ids), dim=-1)
+            key = torch.gather(
+                k.unsqueeze(2).expand(-1, -1, size, -1, -1),
+                3,
+                selected.unsqueeze(-1).expand(-1, -1, -1, -1, self.head_width),
+            )
+            value = torch.gather(
+                v.unsqueeze(2).expand(-1, -1, size, -1, -1),
+                3,
+                selected.unsqueeze(-1).expand(-1, -1, -1, -1, self.head_width),
+            )
+            logits = (q[:, :, start:end].unsqueeze(-2).float() * key.float()).sum(-1)
+            logits = logits / math.sqrt(self.head_width)
+            # Recompute the selected index scores without detached top-k values.
+            index_key = torch.gather(
+                ik.unsqueeze(2).expand(-1, -1, size, -1, -1),
+                3,
+                selected.unsqueeze(-1).expand(-1, -1, -1, -1, self.index_dim),
+            )
+            index_bias = (iq[:, :, start:end].unsqueeze(-2).float() * index_key.float()).sum(
+                -1
+            ) / math.sqrt(self.index_dim)
+            logits = logits + self.index_scale.tanh() * index_bias
+            weights = logits.softmax(-1).to(value.dtype)
+            weights = F.dropout(weights, self.dropout, self.training)
+            outputs.append((weights.unsqueeze(-1) * value).sum(-2))
+        if has_cls:
+            cls_output = F.scaled_dot_product_attention(
+                q[:, :, genes:], k, v, dropout_p=self.dropout if self.training else 0.0
+            )
+            outputs.append(cls_output)
+        y = torch.cat(outputs, dim=2)
+        return cast(Tensor, self.output(y.transpose(1, 2).flatten(-2)))
+
+
+class GatedFeedForward(nn.Module):
+    """GLM-5.3-style clipped SwiGLU with task-specific model width."""
+
+    def __init__(self, width: int, dropout: float) -> None:
+        super().__init__()
+        self.gate = nn.Linear(width, 4 * width, bias=False)
+        self.up = nn.Linear(width, 4 * width, bias=False)
+        self.down = nn.Linear(4 * width, width, bias=False)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x: Tensor) -> Tensor:
+        gate = self.gate(x).clamp(max=10)
+        up = self.up(x).clamp(min=-10, max=10)
+        return cast(Tensor, self.dropout(self.down(self.dropout(F.silu(gate) * up))))
+
+
 class FullAttention(nn.Module):
     def __init__(self, width: int, heads: int, dropout: float, causal: bool) -> None:
         super().__init__()
@@ -186,12 +315,24 @@ class ManifoldResidual(nn.Module):
         c = sinkhorn((c * self.scales[2] + self.bias[2 * n :]).unflatten(-1, (n, n)))
         return a.to(x.dtype), b.to(x.dtype), c.to(x.dtype)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor, *, has_cls: bool = True) -> Tensor:
         if self.streams == 1:
-            return x + cast(Tensor, self.sublayer(self.norm(x.squeeze(-2)))).unsqueeze(-2)
+            h = self.norm(x.squeeze(-2))
+            y = (
+                self.sublayer(h, has_cls=has_cls)
+                if isinstance(self.sublayer, IndexedLatentAttention)
+                else self.sublayer(h)
+            )
+            return x + cast(Tensor, y).unsqueeze(-2)
         pre, post, residual = self.maps(x)
         h = (pre.unsqueeze(-1) * x).sum(-2)
-        y = cast(Tensor, self.sublayer(self.norm(h)))
+        h = self.norm(h)
+        y = cast(
+            Tensor,
+            self.sublayer(h, has_cls=has_cls)
+            if isinstance(self.sublayer, IndexedLatentAttention)
+            else self.sublayer(h),
+        )
         return torch.einsum("...ij,...jd->...id", residual, x) + post.unsqueeze(-1) * y.unsqueeze(
             -2
         )
@@ -207,6 +348,10 @@ class TokenEncoder(nn.Module):
         dropout: float,
         attention: str,
         checkpoint_layers: bool,
+        ffn_type: str = "gelu",
+        sparse_topk: int = 500,
+        sparse_index_dim: int = 64,
+        sparse_query_chunk: int = 8,
     ) -> None:
         super().__init__()
         self.streams, self.checkpoint_layers = streams, checkpoint_layers
@@ -218,24 +363,33 @@ class TokenEncoder(nn.Module):
                 attention_layer = nn.Sequential(
                     nn.Linear(width, width), nn.GELU(), nn.Linear(width, width)
                 )
-            elif index < 3 and attention in ("hybrid", "delta_full"):
+            elif index < 3 and attention in ("hybrid", "hybrid_sparse", "delta_full"):
                 attention_layer = DeltaAttention(width, heads)
+            elif index == 3 and attention == "hybrid_sparse":
+                attention_layer = IndexedLatentAttention(
+                    width, heads, rank, dropout, sparse_topk, sparse_index_dim, sparse_query_chunk
+                )
             elif index == 3 and attention in ("hybrid", "full_latent"):
                 attention_layer = LatentAttention(width, heads, rank, dropout)
             else:
                 attention_layer = FullAttention(width, heads, dropout, causal=index < 3)
             layers.append(ManifoldResidual(width, streams, attention_layer))
+            ffn: nn.Module = (
+                GatedFeedForward(width, dropout)
+                if ffn_type == "swiglu"
+                else nn.Sequential(
+                    nn.Linear(width, 4 * width),
+                    nn.GELU(),
+                    nn.Dropout(dropout),
+                    nn.Linear(4 * width, width),
+                    nn.Dropout(dropout),
+                )
+            )
             layers.append(
                 ManifoldResidual(
                     width,
                     streams,
-                    nn.Sequential(
-                        nn.Linear(width, 4 * width),
-                        nn.GELU(),
-                        nn.Dropout(dropout),
-                        nn.Linear(4 * width, width),
-                        nn.Dropout(dropout),
-                    ),
+                    ffn,
                 )
             )
         self.layers = nn.ModuleList(layers)
@@ -251,7 +405,7 @@ class TokenEncoder(nn.Module):
                 # layers cannot transmit the tail CLS to preceding gene slots.
                 # Retain the normal CLS readout, while genes attend to genes only.
                 full = layer(x)
-                genes = layer(x[:, :-1])
+                genes = layer(x[:, :-1], has_cls=False)
                 x = torch.cat((genes, full[:, -1:]), dim=1)
             elif self.checkpoint_layers and self.training and torch.is_grad_enabled():
                 x = checkpoint(layer, x, use_reentrant=False)

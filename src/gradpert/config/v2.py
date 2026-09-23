@@ -15,6 +15,10 @@ class V2Architecture:
     streams: int = 4
     dropout: float = 0.1
     attention: str = "hybrid"
+    ffn_type: str = "gelu"
+    sparse_topk: int = 500
+    sparse_index_dim: int = 64
+    sparse_query_chunk: int = 8
     checkpoint_layers: bool = True
     projector_hidden: int = 2048
     projector_bottleneck: int = 256
@@ -30,13 +34,27 @@ class V2Architecture:
             "projector_hidden",
             "projector_bottleneck",
             "prototypes",
+            "sparse_topk",
+            "sparse_index_dim",
+            "sparse_query_chunk",
         ):
             if type(getattr(self, name)) is not int or getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be a positive integer")
         if self.width % self.heads or not 0 <= self.dropout < 1:
             raise ValueError("invalid head width or dropout")
-        if self.attention not in ("hybrid", "full_latent", "delta_full", "full", "per_gene"):
+        if self.attention not in (
+            "hybrid",
+            "hybrid_sparse",
+            "full_latent",
+            "delta_full",
+            "full",
+            "per_gene",
+        ):
             raise ValueError("unknown attention variant")
+        if self.ffn_type not in ("gelu", "swiglu"):
+            raise ValueError("unknown FFN type")
+        if self.sparse_topk < 2:
+            raise ValueError("sparse_topk must leave slots for self and CLS")
         if type(self.checkpoint_layers) is not bool:
             raise ValueError("checkpoint_layers must be boolean")
 
@@ -96,7 +114,15 @@ class V2Options:
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
         arch_names = {f.name for f in fields(V2Architecture)}
         names = {f.name for f in fields(cls)}
-        optional = {"expression_holdout_path", "expression_holdout_sha256", "loss_reduction"}
+        optional = {
+            "expression_holdout_path",
+            "expression_holdout_sha256",
+            "loss_reduction",
+            "ffn_type",
+            "sparse_topk",
+            "sparse_index_dim",
+            "sparse_query_chunk",
+        }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
             raise ValueError(
@@ -104,7 +130,7 @@ class V2Options:
                 f"unknown={sorted(set(values) - (arch_names | names))}"
             )
         plain = {name: value.value for name, value in values.items()}
-        arch = V2Architecture.parse({name: plain[name] for name in arch_names})
+        arch = V2Architecture.parse({name: plain[name] for name in arch_names if name in plain})
         return arch, cls(**{name: plain[name] for name in names if name in plain})
 
     def __post_init__(self) -> None:

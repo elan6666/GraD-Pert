@@ -8,7 +8,12 @@ import torch
 from torch import nn
 
 from gradpert.modeling.v2.model import SparseRead
-from gradpert.modeling.v2.operators import DeltaAttention, FullAttention, LatentAttention
+from gradpert.modeling.v2.operators import (
+    DeltaAttention,
+    FullAttention,
+    IndexedLatentAttention,
+    LatentAttention,
+)
 
 
 def routes(model: nn.Module) -> list[dict[str, Any]]:
@@ -37,6 +42,19 @@ def routes(model: nn.Module) -> list[dict[str, Any]]:
             heads = owner.heads
         if hidden and isinstance(owner, FullAttention) and projection == "qkv":
             heads = 3 * owner.heads
+        if (
+            hidden
+            and isinstance(owner, IndexedLatentAttention)
+            and projection
+            in (
+                "q_up",
+                "k_up",
+                "v_up",
+                "index_query",
+                "index_key",
+            )
+        ):
+            heads = owner.heads
         if hidden and (parameter.ndim != 2 or parameter.shape[0] % heads):
             raise ValueError("invalid head-wise optimizer route: " + name)
         result.append(

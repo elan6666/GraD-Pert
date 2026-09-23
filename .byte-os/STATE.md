@@ -1,32 +1,27 @@
-# Dataset-only perturbation analysis
+# Current bounded stage: v2 GLM-5.3-Flash adaptation
 
-Overall outcome: complete feasible observed-data analyses in
-`docs/experiments/PERTURBATION_ANALYSIS_ATLAS.md` on the five canonical
-within-cell datasets and separate fixed-axis cross-cell cache, then publish a
-Chinese report combining earlier EDA/landscape/Systema results and new audited
-measurements. No model predictions, training or checkpoint evaluation.
+Goal: publish a clean, validated native v2 variant with B1 GenePT-only PCA256
+trainable seed table, clipped SwiGLU cell/response FFNs, and unordered-gene
+content-indexed sparse MLA in fourth layer. The default new Jurkat config uses
+Top500; Top100 is an independent comparison. Preserve v1 and frozen B0/B1 configs.
+Do not resume stopped training in this stage.
 
-Acceptance: code and meaningful tests pass; local/GitHub/server analysis source
-is an identical clean commit; each server result has a new run ID and immutable
-receipt; raw H5AD and per-cell matrices stay on `/data/yilangliu`; the report
-distinguishes measured results, descriptive inferences and unavailable analyses.
+Pre-change local/GitHub main: `03d038be562a9f5f8a3ddd8db1f86ac72441169d`.
+Implementation checkout: `/Users/elan/code/grad-pert-v2-build`, not the dirty
+root checkout. The full model remains order-sensitive due to three KDA layers;
+only the fourth sparse attention is gene-permutation equivariant.
 
-Current stage: observed-data analysis and the Chinese report are complete.
-The effect atlas source is `f7d58a27bc877d5904ba5500cff446aea187e03b`
-with completed server receipt `dataset-effect-atlas-f7d58a2`. The matched-batch
-distribution source is `ecdf8f14a11fde63f6f4cdaecda7c9456c3e96ee` with
-completed server receipt `dataset-distribution-ecdf8f1`. Both ran on low-priority
-CPU without touching active training or transferring raw scientific matrices.
-The report is `docs/experiments/PERTURBATION_DATASET_ANALYSIS_ZH.md`. The
-five-dataset EDA and six-resource landscape were rerun on the current canonical
-data as `five-eda-current-ecdf8f1` and `six-landscape-current-ecdf8f1` because
-the historical `data-vnext-a942114` H5AD files have different hashes. The
-current EDA, landscape, Systema-inspired, effect-atlas and distribution audits
-now agree on each of the five canonical H5AD hashes. In the canonical
-H5AD, guide IDs exist for Replogle RPE1 and Nadig Jurkat/HepG2, while a count
-layer exists only for Norman. Same-batch matched distribution tests have low
-coverage in four single-gene datasets and are not generalized to all conditions.
+Acceptance: native implementation and explicit configs; relevant architecture,
+config, gradient, permutation, optimizer-route and legacy tests; static checks;
+source/provenance document; scoped commit pushed to main. No formal run claim.
 
-Next: keep this report as the frozen data-only interpretation. Any later
-model-based analysis, raw-count resampling or broader batch-aware distribution
-test needs its own protocol and receipt.
+Verification: 193 v2 tests passed in an isolated PyTorch 2.12/Python 3.10
+environment; 7 run-group tests requiring Python 3.12+ passed separately under
+Python 3.13. Ruff check and format check passed. An exploratory small CPU
+forward found indexed MLA slower than dense MLA; CUDA capacity and throughput
+are not established and must be checked before sustained training. The new
+Jurkat architecture has 33,908,867 trainable parameters with 6506 genes.
+
+Previous completed data-only atlas and report remain in
+`docs/experiments/PERTURBATION_DATASET_ANALYSIS_ZH.md`; this new stage does not
+change their evidence or data.

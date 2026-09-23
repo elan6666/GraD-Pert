@@ -7,6 +7,18 @@ from gradpert.config.schema import ExperimentConfig
 from gradpert.config.v2 import V2Options
 
 PROBE = Path(__file__).resolve().parents[2] / "configs/v2/capacity/gradpert_v2/nadig_jurkat.yaml"
+GLM53 = Path(__file__).resolve().parents[2] / "configs/v2/glm53_flash_jurkat"
+
+
+@pytest.mark.parametrize("variant,topk", [("default", 500), ("top100", 100)])
+def test_glm53_configs_keep_b1_seed_and_explicit_sparse_settings(variant, topk):
+    path = GLM53 / variant / "gradpert_v2/nadig_jurkat.yaml"
+    config = load_experiment_config(path)
+    arch, options = V2Options.parse_parameters(config.model.parameters)
+    assert (arch.attention, arch.ffn_type, arch.sparse_topk) == ("hybrid_sparse", "swiglu", topk)
+    assert arch.sparse_index_dim == 64 and arch.sparse_query_chunk == 8
+    assert options.genept_artifact_path.endswith("v2-genept-pca256-b4e3a08.npz")
+    assert config.training.max_epochs.value == 5
 
 
 def test_capacity_probe_keeps_complete_method_and_fixed_protocol():

@@ -46,3 +46,43 @@ Numerical limitation observed in CPU tests: changing microbatch yields matching
 loss/gradients within tolerance, but head-wise Muon can amplify floating-point
 noise in near-null directions (one observed parameter difference 4.1e-5 at LR .001).
 Do not claim bitwise accumulation equivalence; fix/report execution profiles.
+
+## GLM-5.3-Flash-inspired v2 variant (2026-09-23)
+
+The new `hybrid_sparse` variant retains three ordered KDA layers, then uses
+content-indexed, noncausal low-rank attention in layer four. The independent
+indexer scores gene queries against gene keys and selects `topk` **per gene and
+per head**, reserving self and tail CLS inside that budget. Tail CLS reads all
+genes. Gene order is not used by this fourth layer's selection, and the layer
+is permutation equivariant over gene slots. The full four-layer encoder is not
+permutation equivariant because KDA scans an explicit sequence order. There is
+no causal mask, rotary position encoding, or contiguous index pooling. The
+selected index score enters the attention logit with a learned bounded scale,
+so the independent indexer receives training gradients despite hard top-k.
+This score bias is a project adaptation, not an assertion of GLM parity.
+Query-chunked gather limits transient KV memory; the indexer still calculates
+all gene-pair scores and measured speedup is not assumed.
+
+A small exploratory CPU forward check (PyTorch 2.12, one thread, eval/no-grad,
+batch2, 256 genes + CLS, width64, 4 heads, rank16, top100, chunk8, three timed
+repetitions after warmup) measured about 0.0006 s for dense MLA and 0.021 s
+for indexed MLA. This is not a GPU throughput or 1000-gene result; it warns
+that the native reference sparse gather must pass a separate CUDA capacity and
+throughput check before sustained training.
+
+`ffn_type=swiglu` uses separate bias-free gate, up, and down projections,
+`SiLU(clamp(gate, max=10)) * clamp(up, -10, 10)` and a 4d hidden size.
+Only the cell and response encoder FFNs change; the graph reader, expression,
+prediction and projector nonlinearities remain as explicitly configured.
+Historical `attention=hybrid`, `ffn_type=gelu` configurations remain readable.
+
+The primary comparison is the official GLM-5.3-Flash config
+(https://huggingface.co/zai-org/GLM-5.3-Flash/blob/main/config.json) and
+Transformers GLM5-Next implementation
+(https://github.com/huggingface/transformers/blob/main/src/transformers/models/glm5_next/modeling_glm5_next.py),
+inspected on 2026-09-23 at Transformers main
+`a008a653dee362f2f667738b51a31aa805e994d7`. Official GLM uses SiLU,
+`swiglu_limit=10`, top-k 2048 and contiguous pool size 4 for causal language
+tokens. GraD-Pert preregisters top500, with top100 as a separate ablation,
+because it has 1000 unordered gene queries plus CLS. These values are task
+adaptations, not official GLM defaults. No official source code is imported.

@@ -133,6 +133,10 @@ class GraDPertV2(nn.Module):
             options.dropout,
             options.attention,
             options.checkpoint_layers,
+            options.ffn_type,
+            options.sparse_topk,
+            options.sparse_index_dim,
+            options.sparse_query_chunk,
         )
         self.cell = TokenEncoder(*args)
         self.condition_fusion = nn.Linear(2 * d, d)
