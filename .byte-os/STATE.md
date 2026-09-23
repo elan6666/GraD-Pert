@@ -42,9 +42,10 @@ publication receipt before launch and remained clean after the successful 144
 probe. Never build in that checkout. Inspect the exact default-128 receipt,
 both ranks' memory and inference, and source tree. Do not overwrite run IDs or
 change the active server checkout. After this, finalize documentation and
-publish a scoped docs/state commit. Complete the bounded Goal only after that
-commit is pushed, then establish a two-hour thread monitor for the exact-default
-128 probe; save its automation identity here. Full v2 test suite: 212 passed; lint,
+publish a scoped docs/state commit. The bounded Goal is complete. The active
+thread heartbeat is `grad-pert-v2-batch128`, every two hours, for the
+exact-default 128 probe; it reports each check per the user's prior preference.
+Full v2 test suite: 212 passed; lint,
 format and isolated wheel/sdist build passed. Mypy retains five unrelated
 existing errors in `training/step.py` and `training/v2/reductions.py`.
 A formal five-epoch scientific run is a later background stage and is not
