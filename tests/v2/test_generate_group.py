@@ -11,6 +11,14 @@ API = runpy.run_path(str(ROOT / "scripts/v2/generate_group.py"))
 PARENT = ROOT / "configs/v2/capacity/m16/gradpert_v2/nadig_jurkat.yaml"
 
 
+def test_new_groups_default_to_current_full_v2_jurkat_parent():
+    raw = yaml.safe_load(API["DEFAULT_PARENT"].read_text())
+    assert raw["model"]["parameters"]["sparse_topk"]["value"] == 500
+    assert raw["model"]["parameters"]["sparse_query_chunk"]["value"] == 32
+    assert raw["model"]["parameters"]["loss_reduction"]["value"] == "row_mean"
+    assert raw["training"]["train_batch_size"]["value"] == 128
+
+
 @pytest.mark.parametrize("group", [g for g in API["GROUPS"] if g not in ("H3", "G1")])
 def test_generated_groups_are_standalone_and_preserve_fixed_parent_contract(tmp_path, group):
     original = yaml.safe_load(PARENT.read_text())
