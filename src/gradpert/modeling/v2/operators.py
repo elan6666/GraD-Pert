@@ -159,6 +159,7 @@ class IndexedLatentAttention(nn.Module):
         self.dropout = dropout
         self.topk = topk
         self.query_chunk = query_chunk
+        self.checkpoint_chunks = True
         self.q_down = nn.Linear(width, rank, bias=False)
         self.q_norm = nn.RMSNorm(rank)
         self.q_up = nn.Linear(rank, width, bias=False)
@@ -171,6 +172,61 @@ class IndexedLatentAttention(nn.Module):
         self.index_dim = index_dim
         self.index_scale = nn.Parameter(torch.tensor(0.1))
         self.output = nn.Linear(width, width, bias=False)
+
+    def _chunk(
+        self,
+        q: Tensor,
+        k: Tensor,
+        v: Tensor,
+        iq: Tensor,
+        ik: Tensor,
+        start: int,
+        end: int,
+        genes: int,
+        has_cls: bool,
+    ) -> Tensor:
+        batch, _, _, _ = q.shape
+        size = end - start
+        query_ids = torch.arange(start, end, device=q.device)
+        count = self.topk - 1 - int(has_cls)
+        with torch.no_grad():
+            scores = torch.matmul(
+                iq[:, :, start:end].float(), ik[:, :, :genes].float().transpose(-1, -2)
+            ) / math.sqrt(self.index_dim)
+            scores = scores.scatter(
+                -1,
+                query_ids.view(1, 1, size, 1).expand(batch, self.heads, -1, -1),
+                -float("inf"),
+            )
+            selected = scores.topk(count, dim=-1).indices
+        self_ids = query_ids.view(1, 1, size, 1).expand(batch, self.heads, -1, -1)
+        selected = torch.cat((self_ids, selected), dim=-1)
+        if has_cls:
+            selected = torch.cat((selected, torch.full_like(self_ids, genes)), dim=-1)
+        key = torch.gather(
+            k.unsqueeze(2).expand(-1, -1, size, -1, -1),
+            3,
+            selected.unsqueeze(-1).expand(-1, -1, -1, -1, self.head_width),
+        )
+        value = torch.gather(
+            v.unsqueeze(2).expand(-1, -1, size, -1, -1),
+            3,
+            selected.unsqueeze(-1).expand(-1, -1, -1, -1, self.head_width),
+        )
+        logits = (q[:, :, start:end].unsqueeze(-2).float() * key.float()).sum(-1)
+        logits = logits / math.sqrt(self.head_width)
+        index_key = torch.gather(
+            ik.unsqueeze(2).expand(-1, -1, size, -1, -1),
+            3,
+            selected.unsqueeze(-1).expand(-1, -1, -1, -1, self.index_dim),
+        )
+        index_bias = (iq[:, :, start:end].unsqueeze(-2).float() * index_key.float()).sum(
+            -1
+        ) / math.sqrt(self.index_dim)
+        logits = logits + self.index_scale.tanh() * index_bias
+        weights = logits.softmax(-1).to(value.dtype)
+        weights = F.dropout(weights, self.dropout, self.training)
+        return cast(Tensor, (weights.unsqueeze(-1) * value).sum(-2))
 
     def forward(self, x: Tensor, *, has_cls: bool = True) -> Tensor:
         batch, length, _ = x.shape
@@ -195,50 +251,13 @@ class IndexedLatentAttention(nn.Module):
         outputs = []
         for start in range(0, genes, self.query_chunk):
             end = min(start + self.query_chunk, genes)
-            size = end - start
-            query_ids = torch.arange(start, end, device=x.device)
-            count = self.topk - 1 - int(has_cls)
-            with torch.no_grad():
-                scores = torch.matmul(
-                    iq[:, :, start:end].float(), ik[:, :, :genes].float().transpose(-1, -2)
-                ) / math.sqrt(self.index_dim)
-                # Selection is discrete; gathered scores below carry gradients.
-                scores = scores.scatter(
-                    -1,
-                    query_ids.view(1, 1, size, 1).expand(batch, self.heads, -1, -1),
-                    -float("inf"),
-                )
-                selected = scores.topk(count, dim=-1).indices
-            self_ids = query_ids.view(1, 1, size, 1).expand(batch, self.heads, -1, -1)
-            selected = torch.cat((self_ids, selected), dim=-1)
-            if has_cls:
-                cls_ids = torch.full_like(self_ids, genes)
-                selected = torch.cat((selected, cls_ids), dim=-1)
-            key = torch.gather(
-                k.unsqueeze(2).expand(-1, -1, size, -1, -1),
-                3,
-                selected.unsqueeze(-1).expand(-1, -1, -1, -1, self.head_width),
-            )
-            value = torch.gather(
-                v.unsqueeze(2).expand(-1, -1, size, -1, -1),
-                3,
-                selected.unsqueeze(-1).expand(-1, -1, -1, -1, self.head_width),
-            )
-            logits = (q[:, :, start:end].unsqueeze(-2).float() * key.float()).sum(-1)
-            logits = logits / math.sqrt(self.head_width)
-            # Recompute the selected index scores without detached top-k values.
-            index_key = torch.gather(
-                ik.unsqueeze(2).expand(-1, -1, size, -1, -1),
-                3,
-                selected.unsqueeze(-1).expand(-1, -1, -1, -1, self.index_dim),
-            )
-            index_bias = (iq[:, :, start:end].unsqueeze(-2).float() * index_key.float()).sum(
-                -1
-            ) / math.sqrt(self.index_dim)
-            logits = logits + self.index_scale.tanh() * index_bias
-            weights = logits.softmax(-1).to(value.dtype)
-            weights = F.dropout(weights, self.dropout, self.training)
-            outputs.append((weights.unsqueeze(-1) * value).sum(-2))
+            args = (q, k, v, iq, ik, start, end, genes, has_cls)
+            if self.checkpoint_chunks and self.training and torch.is_grad_enabled():
+                # Exact recomputation trades extra FLOPs for bounded saved
+                # activations, even when the outer encoder is checkpointed.
+                outputs.append(checkpoint(self._chunk, *args, use_reentrant=False))
+            else:
+                outputs.append(self._chunk(*args))
         if has_cls:
             cls_output = F.scaled_dot_product_attention(
                 q[:, :, genes:], k, v, dropout_p=self.dropout if self.training else 0.0

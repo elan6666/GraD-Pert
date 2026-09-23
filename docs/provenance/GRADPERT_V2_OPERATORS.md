@@ -69,6 +69,9 @@ repetitions after warmup) measured about 0.0006 s for dense MLA and 0.021 s
 for indexed MLA. This is not a GPU throughput or 1000-gene result; it warns
 that the native reference sparse gather must pass a separate CUDA capacity and
 throughput check before sustained training.
+The per-query sparse chunk now has an additional activation checkpoint in
+training; dropout RNG state is preserved by PyTorch's non-reentrant checkpoint.
+This is an exact recomputation strategy, with no changed indices or loss.
 
 `ffn_type=swiglu` uses separate bias-free gate, up, and down projections,
 `SiLU(clamp(gate, max=10)) * clamp(up, -10, 10)` and a 4d hidden size.

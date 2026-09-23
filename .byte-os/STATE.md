@@ -27,6 +27,11 @@ microbatch64/accumulation1 failed during backward with CUDA OOM; immutable
 receipt: `/data/yilangliu/GraD-Pert/development/v2-glm53-integration-1672bb6/receipt.json`.
 Both GPUs were idle before launch. The next isolated config revision uses
 microbatch32/accumulation2, retaining global batch128, and needs a new receipt.
+That second isolated attempt also failed before the first optimizer update;
+receipt: `/data/yilangliu/GraD-Pert/development/v2-glm53-integration-54911b8/receipt.json`.
+The next bounded repair checkpoints each sparse query chunk and verifies its
+gradient equality against the uncheckpointed reference before a fresh CUDA
+preflight. Failed run IDs remain immutable.
 
 Previous completed data-only atlas and report remain in
 `docs/experiments/PERTURBATION_DATASET_ANALYSIS_ZH.md`; this new stage does not

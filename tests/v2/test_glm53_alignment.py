@@ -1,5 +1,7 @@
 """Task-adapted sparse MLA and clipped SwiGLU invariants."""
 
+import copy
+
 import torch
 
 from gradpert.config.v2 import V2Architecture
@@ -51,3 +53,33 @@ def test_sparse_projection_optimizer_routes():
     assert grouped["q_up.weight"]["heads"] == 2
     assert grouped["index_query.weight"]["heads"] == 2
     assert grouped["index_scale"]["optimizer"] == "adamw"
+
+
+def test_chunk_checkpoint_preserves_sparse_attention_gradients():
+    torch.manual_seed(11)
+    layer = IndexedLatentAttention(16, 2, 8, 0, 4, 8, 2).train()
+    plain = copy.deepcopy(layer)
+    plain.checkpoint_chunks = False
+    x = torch.randn(2, 7, 16, requires_grad=True)
+    x_plain = x.detach().clone().requires_grad_()
+    actual = layer(x)
+    expected = plain(x_plain)
+    torch.testing.assert_close(actual, expected)
+    actual.square().sum().backward()
+    expected.square().sum().backward()
+    torch.testing.assert_close(x.grad, x_plain.grad)
+    for (_, parameter), (_, reference) in zip(
+        layer.named_parameters(), plain.named_parameters(), strict=True
+    ):
+        torch.testing.assert_close(parameter.grad, reference.grad)
+
+
+def test_nested_encoder_checkpoint_backpropagates():
+    torch.manual_seed(12)
+    encoder = TokenEncoder(8, 2, 4, 2, 0, "hybrid_sparse", True, "swiglu", 3, 4, 2)
+    x = torch.randn(1, 5, 8, requires_grad=True)
+    encoder(x).square().mean().backward()
+    assert x.grad is not None and torch.isfinite(x.grad).all()
+    indexer = encoder.layers[6].sublayer
+    assert indexer.index_query.weight.grad is not None
+    assert indexer.index_query.weight.grad.abs().sum() > 0
