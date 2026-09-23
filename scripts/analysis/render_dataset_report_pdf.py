@@ -1,0 +1,256 @@
+"""Render the Chinese observed-data report as a paginated PDF with figures."""
+
+from __future__ import annotations
+
+import argparse
+import html
+import re
+from pathlib import Path
+
+from PIL import Image as PILImage
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import (
+    BaseDocTemplate,
+    Frame,
+    Image,
+    KeepTogether,
+    LongTable,
+    PageTemplate,
+    Paragraph,
+    Spacer,
+    TableStyle,
+)
+
+DEFAULT_REPORT = (
+    Path(__file__).resolve().parents[2] / "docs/experiments/PERTURBATION_DATASET_ANALYSIS_ZH.md"
+)
+DEFAULT_OUTPUT = Path(__file__).resolve().parents[2] / "output/pdf/gradpert_dataset_analysis_zh.pdf"
+FONT = "Songti-Embedded"
+FONT_FILE = Path("/System/Library/Fonts/Supplemental/Songti.ttc")
+INK = colors.HexColor("#193047")
+BLUE = colors.HexColor("#1A607C")
+PALE = colors.HexColor("#EAF3F7")
+GRID = colors.HexColor("#D7E3E8")
+
+
+def _inline(source: str) -> str:
+    source = html.escape(source)
+    source = source.replace("\u2013", "-").replace("\u2014", "-").replace("\u2212", "-")
+    source = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", source)
+    source = re.sub(r"`([^`]+)`", r'<font color="#326C82">\1</font>', source)
+
+    def link(match: re.Match[str]) -> str:
+        label, target = match.groups()
+        if target.startswith(("https://", "http://")):
+            return f'<link href="{html.escape(target, quote=True)}" color="#1A607C">{label}</link>'
+        return label
+
+    return re.sub(r"\[([^]]+)\]\(([^)]+)\)", link, source)
+
+
+def _styles() -> dict[str, ParagraphStyle]:
+    if not FONT_FILE.exists():
+        raise FileNotFoundError(f"required Chinese font is unavailable: {FONT_FILE}")
+    pdfmetrics.registerFont(TTFont(FONT, str(FONT_FILE), subfontIndex=0))
+    pdfmetrics.registerFontFamily(FONT, normal=FONT, bold=FONT, italic=FONT, boldItalic=FONT)
+    base = getSampleStyleSheet()
+    common = dict(fontName=FONT, textColor=INK, wordWrap="CJK", allowWidows=0, allowOrphans=0)
+    return {
+        "title": ParagraphStyle(
+            "report_title",
+            parent=base["Title"],
+            fontSize=19,
+            leading=27,
+            textColor=BLUE,
+            spaceAfter=12,
+            alignment=TA_LEFT,
+            **{k: v for k, v in common.items() if k != "textColor"},
+        ),
+        "section": ParagraphStyle(
+            "report_section",
+            parent=base["Heading2"],
+            fontSize=12.5,
+            leading=18,
+            textColor=BLUE,
+            spaceBefore=17,
+            spaceAfter=7,
+            **{k: v for k, v in common.items() if k != "textColor"},
+        ),
+        "body": ParagraphStyle(
+            "report_body",
+            parent=base["BodyText"],
+            fontSize=9.4,
+            leading=15.2,
+            spaceAfter=8,
+            **common,
+        ),
+        "small": ParagraphStyle(
+            "report_small",
+            parent=base["BodyText"],
+            fontSize=8.3,
+            leading=13,
+            spaceAfter=7,
+            **common,
+        ),
+        "caption": ParagraphStyle(
+            "report_caption",
+            parent=base["BodyText"],
+            fontSize=8.4,
+            leading=12.4,
+            textColor=colors.HexColor("#536675"),
+            spaceBefore=5,
+            spaceAfter=12,
+            **{k: v for k, v in common.items() if k != "textColor"},
+        ),
+        "table": ParagraphStyle(
+            "report_table",
+            parent=base["BodyText"],
+            fontSize=7.9,
+            leading=10.9,
+            alignment=TA_CENTER,
+            **common,
+        ),
+    }
+
+
+def _table(lines: list[str], styles: dict[str, ParagraphStyle], width: float) -> LongTable:
+    rows = [[cell.strip() for cell in line.strip().strip("|").split("|")] for line in lines]
+    rows = [rows[0], *rows[2:]]
+    count = len(rows[0])
+    if count == 6:
+        weights = [1.18, 0.82, 1.05, 1.10, 1.50, 1.05]
+    elif count == 3:
+        weights = [1.20, 1.15, 2.55]
+    else:
+        weights = [1.0] * count
+    unit = width / sum(weights)
+    cells = [[Paragraph(_inline(cell), styles["table"]) for cell in row] for row in rows]
+    table = LongTable(
+        cells, colWidths=[unit * item for item in weights], repeatRows=1, hAlign="LEFT"
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), PALE),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FBFC")]),
+                ("GRID", (0, 0), (-1, -1), 0.35, GRID),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ]
+        )
+    )
+    return table
+
+
+def _footer(canvas: object, doc: BaseDocTemplate) -> None:
+    canvas.saveState()
+    canvas.setStrokeColor(GRID)
+    canvas.line(42, 38, A4[0] - 42, 38)
+    canvas.setFont(FONT, 8)
+    canvas.setFillColor(colors.HexColor("#617585"))
+    canvas.drawString(42, 25, "GraD-Pert | 扰动数据集观察性分析 | 2026-09-23")
+    canvas.drawRightString(A4[0] - 42, 25, str(doc.page))
+    canvas.restoreState()
+
+
+def render(source: Path, output: Path) -> None:
+    styles = _styles()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    width = A4[0] - 84
+    doc = BaseDocTemplate(
+        str(output),
+        pagesize=A4,
+        leftMargin=42,
+        rightMargin=42,
+        topMargin=47,
+        bottomMargin=52,
+        title="GraD-Pert 扰动数据集观察性分析报告",
+        author="GraD-Pert research project",
+    )
+    doc.addPageTemplates(
+        PageTemplate(
+            id="main",
+            frames=[
+                Frame(
+                    42,
+                    52,
+                    width,
+                    A4[1] - 99,
+                    leftPadding=0,
+                    rightPadding=0,
+                    topPadding=0,
+                    bottomPadding=0,
+                )
+            ],
+            onPage=_footer,
+        )
+    )
+    lines = source.read_text().splitlines()
+    story: list[object] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index].strip()
+        if not line:
+            index += 1
+            continue
+        if line.startswith("# "):
+            story.append(Paragraph(_inline(line[2:]), styles["title"]))
+        elif line.startswith("## "):
+            story.append(Paragraph(_inline(line[3:]), styles["section"]))
+        elif line.startswith("| "):
+            table_lines = []
+            while index < len(lines) and lines[index].strip().startswith("|"):
+                table_lines.append(lines[index])
+                index += 1
+            story.extend([_table(table_lines, styles, width), Spacer(1, 9)])
+            continue
+        elif line.startswith("!["):
+            match = re.match(r"!\[([^]]*)\]\(([^)]+)\)", line)
+            if match is None:
+                raise ValueError(f"invalid image: {line}")
+            path = source.parent / match.group(2)
+            figure_width = width * (0.77 if "crosscell-transfer" in path.name else 1.0)
+            with PILImage.open(path) as picture:
+                figure_height = figure_width * picture.height / picture.width
+            figure = Image(str(path), width=figure_width, height=figure_height, hAlign="CENTER")
+            if index + 2 < len(lines) and lines[index + 2].startswith("图 "):
+                caption = Paragraph(_inline(lines[index + 2]), styles["caption"])
+                story.append(KeepTogether([figure, caption]))
+                index += 2
+            else:
+                story.append(figure)
+        elif line.startswith("- "):
+            story.append(Paragraph("- " + _inline(line[2:]), styles["small"]))
+        else:
+            paragraph = [line]
+            while (
+                index + 1 < len(lines)
+                and lines[index + 1].strip()
+                and not lines[index + 1].startswith(("#", "|", "![", "- "))
+            ):
+                index += 1
+                paragraph.append(lines[index].strip())
+            style = styles["small"] if line.startswith(("¹", "²")) else styles["body"]
+            story.append(Paragraph(_inline(" ".join(paragraph)), style))
+        index += 1
+    doc.build(story)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source", type=Path, default=DEFAULT_REPORT)
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    args = parser.parse_args()
+    render(args.source, args.output)
+
+
+if __name__ == "__main__":
+    main()
