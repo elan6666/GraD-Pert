@@ -20,14 +20,17 @@ measure of perturbation prediction quality.
 
 TxPert describes two distinct estimators in its published Methods:
 
-1. **Split-half:** for each perturbation, cell context, and batch, randomly
-   partition observed test cells into roughly equal, disjoint halves. Compare
-   their mean expression profiles. The project analysis repeats this five
-   times, reports Pearson correlation on the complete frozen expression gene
-   axis after subtracting the same frozen 300-control mean, and also reports
-   raw-expression Pearson as a diagnostic. A condition with fewer than two
-   cells has no split-half score. This is an empirical repeatability reference,
-   not a mathematical upper bound on model performance.
+1. **Split-half:** TxPert compares observed test-cell halves within each
+   perturbation, cell context, and batch. The current project analysis first
+   partitions within each condition-and-batch group, then pools each half
+   across batches within the condition so that the result has the same
+   condition-level unit as our macro Pearson metric. It repeats this five
+   times and reports Pearson correlation on the complete frozen expression
+   gene axis after subtracting the same frozen 300-control mean. It also
+   reports raw-expression Pearson as a diagnostic. A condition with fewer
+   than two cells has no split-half score. This is an explicitly adapted
+   condition-level repeatability reference, not an exact TxPert batch-level
+   result or a mathematical upper bound on model performance.
 2. **Sample-based extension:** fit a per-perturbation-and-batch multinomial
    gene distribution from the **original count matrix**; stochastically
    generate two independent datasets, each with the original number of cells;
