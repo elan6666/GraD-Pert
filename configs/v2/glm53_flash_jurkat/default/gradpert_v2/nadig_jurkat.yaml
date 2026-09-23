@@ -90,11 +90,11 @@ model:
       source: project_preregistered
       reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
     microbatch:
-      value: 64
+      value: 32
       source: project_preregistered
       reference: docs/design/GRADPERT_V2.md
     accumulation:
-      value: 1
+      value: 2
       source: project_preregistered
       reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
     world_size:

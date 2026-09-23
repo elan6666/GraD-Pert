@@ -18,6 +18,8 @@ def test_glm53_configs_keep_b1_seed_and_explicit_sparse_settings(variant, topk):
     assert (arch.attention, arch.ffn_type, arch.sparse_topk) == ("hybrid_sparse", "swiglu", topk)
     assert arch.sparse_index_dim == 64 and arch.sparse_query_chunk == 8
     assert options.genept_artifact_path.endswith("v2-genept-pca256-b4e3a08.npz")
+    assert (options.microbatch, options.accumulation, options.world_size) == (32, 2, 2)
+    assert config.training.train_batch_size.value == 128
     assert config.training.max_epochs.value == 5
 
 

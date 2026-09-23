@@ -22,6 +22,12 @@ forward found indexed MLA slower than dense MLA; CUDA capacity and throughput
 are not established and must be checked before sustained training. The new
 Jurkat architecture has 33,908,867 trainable parameters with 6506 genes.
 
+First server two-GPU single-update preflight at global batch128, per-rank
+microbatch64/accumulation1 failed during backward with CUDA OOM; immutable
+receipt: `/data/yilangliu/GraD-Pert/development/v2-glm53-integration-1672bb6/receipt.json`.
+Both GPUs were idle before launch. The next isolated config revision uses
+microbatch32/accumulation2, retaining global batch128, and needs a new receipt.
+
 Previous completed data-only atlas and report remain in
 `docs/experiments/PERTURBATION_DATASET_ANALYSIS_ZH.md`; this new stage does not
 change their evidence or data.
