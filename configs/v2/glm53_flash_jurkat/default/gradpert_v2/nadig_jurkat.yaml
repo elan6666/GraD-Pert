@@ -66,7 +66,7 @@ model:
       source: project_preregistered
       reference: docs/design/GRADPERT_V2.md
     sparse_query_chunk:
-      value: 8
+      value: 32
       source: project_preregistered
       reference: docs/design/GRADPERT_V2.md
     checkpoint_layers:

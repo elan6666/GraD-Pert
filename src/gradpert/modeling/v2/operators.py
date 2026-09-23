@@ -213,20 +213,21 @@ class IndexedLatentAttention(nn.Module):
             3,
             selected.unsqueeze(-1).expand(-1, -1, -1, -1, self.head_width),
         )
-        logits = (q[:, :, start:end].unsqueeze(-2).float() * key.float()).sum(-1)
-        logits = logits / math.sqrt(self.head_width)
+        logits = torch.matmul(
+            q[:, :, start:end].float().unsqueeze(-2), key.float().transpose(-1, -2)
+        ).squeeze(-2) / math.sqrt(self.head_width)
         index_key = torch.gather(
             ik.unsqueeze(2).expand(-1, -1, size, -1, -1),
             3,
             selected.unsqueeze(-1).expand(-1, -1, -1, -1, self.index_dim),
         )
-        index_bias = (iq[:, :, start:end].unsqueeze(-2).float() * index_key.float()).sum(
-            -1
-        ) / math.sqrt(self.index_dim)
+        index_bias = torch.matmul(
+            iq[:, :, start:end].float().unsqueeze(-2), index_key.float().transpose(-1, -2)
+        ).squeeze(-2) / math.sqrt(self.index_dim)
         logits = logits + self.index_scale.tanh() * index_bias
         weights = logits.softmax(-1).to(value.dtype)
         weights = F.dropout(weights, self.dropout, self.training)
-        return cast(Tensor, (weights.unsqueeze(-1) * value).sum(-2))
+        return cast(Tensor, torch.matmul(weights.unsqueeze(-2), value).squeeze(-2))
 
     def forward(self, x: Tensor, *, has_cls: bool = True) -> Tensor:
         batch, length, _ = x.shape

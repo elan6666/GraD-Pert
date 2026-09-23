@@ -74,6 +74,38 @@ def test_chunk_checkpoint_preserves_sparse_attention_gradients():
         torch.testing.assert_close(parameter.grad, reference.grad)
 
 
+def test_sparse_chunk_matmul_matches_elementwise_reference_and_chunk_size():
+    torch.manual_seed(23)
+    q = torch.randn(2, 3, 4, 5, requires_grad=True)
+    key = torch.randn(2, 3, 4, 7, 5, requires_grad=True)
+    value = torch.randn(2, 3, 4, 7, 5, requires_grad=True)
+    logits = torch.matmul(q.unsqueeze(-2), key.transpose(-1, -2)).squeeze(-2)
+    weights = logits.softmax(-1)
+    actual = torch.matmul(weights.unsqueeze(-2), value).squeeze(-2)
+    reference_logits = (q.unsqueeze(-2) * key).sum(-1)
+    reference = (reference_logits.softmax(-1).unsqueeze(-1) * value).sum(-2)
+    torch.testing.assert_close(actual, reference, atol=1e-6, rtol=1e-6)
+    actual.square().sum().backward(retain_graph=True)
+    gradients = [tensor.grad.clone() for tensor in (q, key, value)]
+    for tensor in (q, key, value):
+        tensor.grad = None
+    reference.square().sum().backward()
+    for gradient, tensor in zip(gradients, (q, key, value), strict=True):
+        torch.testing.assert_close(gradient, tensor.grad, atol=1e-6, rtol=1e-6)
+
+    layer = IndexedLatentAttention(16, 2, 8, 0, 4, 8, 2).train()
+    wider_chunk = copy.deepcopy(layer)
+    wider_chunk.query_chunk = 4
+    x = torch.randn(2, 7, 16, requires_grad=True)
+    x_wider = x.detach().clone().requires_grad_()
+    output = layer(x)
+    larger = wider_chunk(x_wider)
+    torch.testing.assert_close(output, larger, atol=1e-5, rtol=1e-5)
+    output.square().sum().backward()
+    larger.square().sum().backward()
+    torch.testing.assert_close(x.grad, x_wider.grad, atol=1e-5, rtol=1e-5)
+
+
 def test_nested_encoder_checkpoint_backpropagates():
     torch.manual_seed(12)
     encoder = TokenEncoder(8, 2, 4, 2, 0, "hybrid_sparse", True, "swiglu", 3, 4, 2)

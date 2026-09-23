@@ -10,13 +10,13 @@ PROBE = Path(__file__).resolve().parents[2] / "configs/v2/capacity/gradpert_v2/n
 GLM53 = Path(__file__).resolve().parents[2] / "configs/v2/glm53_flash_jurkat"
 
 
-@pytest.mark.parametrize("variant,topk", [("default", 500), ("top100", 100)])
-def test_glm53_configs_keep_b1_seed_and_explicit_sparse_settings(variant, topk):
+@pytest.mark.parametrize("variant,topk,chunk", [("default", 500, 32), ("top100", 100, 8)])
+def test_glm53_configs_keep_b1_seed_and_explicit_sparse_settings(variant, topk, chunk):
     path = GLM53 / variant / "gradpert_v2/nadig_jurkat.yaml"
     config = load_experiment_config(path)
     arch, options = V2Options.parse_parameters(config.model.parameters)
     assert (arch.attention, arch.ffn_type, arch.sparse_topk) == ("hybrid_sparse", "swiglu", topk)
-    assert arch.sparse_index_dim == 64 and arch.sparse_query_chunk == 8
+    assert arch.sparse_index_dim == 64 and arch.sparse_query_chunk == chunk
     assert options.genept_artifact_path.endswith("v2-genept-pca256-b4e3a08.npz")
     assert (options.microbatch, options.accumulation, options.world_size) == (32, 2, 2)
     assert config.training.train_batch_size.value == 128
