@@ -1,0 +1,2070 @@
+{
+  "sources": {
+    "eda": {
+      "run": "five-eda-current-ecdf8f1",
+      "receipt_sha256": "1bced6d2cf02eb564ffa25d167218ef6c65f07ab403a6ebacee02635cdab5f74"
+    },
+    "landscape": {
+      "run": "six-landscape-current-ecdf8f1",
+      "receipt_sha256": "c8add3b10259cf05a84b87c5e078674ccab24a9b8b5394627b1bd555d1d9402b"
+    },
+    "systema": {
+      "run": "systema-audit-c25fa0a",
+      "receipt_sha256": "e50202206d7267ec90c2eed42ff4e3db258291e5e2d90220cf7103d229b760cb"
+    },
+    "atlas": {
+      "run": "dataset-effect-atlas-f7d58a2",
+      "receipt_sha256": "cbc52160f1129c11db5221357db1bf36d9cf890b196160c8e6a103b5577b607d"
+    },
+    "distribution": {
+      "run": "dataset-distribution-ecdf8f1",
+      "receipt_sha256": "c4fcb226055eb997f613902d56af7a420a5ce30b8fef8bea2d2deefb34c310a6"
+    }
+  },
+  "eda": [
+    {
+      "dataset_id": "replogle_k562_essential",
+      "protocol_id": "within_cell_unseen_single",
+      "canonical_adata_sha256": "b7a06e114342d78e3d89ddff3bcae4e385dfb3a2330e54df53eb852ddb192fc3",
+      "split_manifest_sha256": "e0386e64c97b55877baf4819ab16cdbd174033e4db98b0a224fcc8dfb45e5ec0",
+      "test_control_manifest_sha256": "1189bb57ada4ef06bd532e7369c5ef54a0cd8b326a3269fdeeb6f41e47f5dd1b",
+      "seed": 42,
+      "repeats": 5,
+      "n_cells": 161662,
+      "n_genes": 5000,
+      "n_batches": 48,
+      "class_cells": {
+        "control": 10691,
+        "single": 150971,
+        "double": 0
+      },
+      "class_conditions": {
+        "control": 1,
+        "single": 1092,
+        "double": 0
+      },
+      "visualization_sample": {
+        "control": 2500,
+        "single": 2500,
+        "double": 0
+      },
+      "pca_variance_explained_2": 0.04296686500310898,
+      "split_half": {
+        "single_pearson_delta": {
+          "n": 1365,
+          "mean": 0.669149117038051,
+          "median": 0.6618026558599805,
+          "p05": 0.3776065164658708,
+          "p95": 0.9456489443340607
+        },
+        "single_pearson_expression": {
+          "n": 1365,
+          "mean": 0.9927241415646344,
+          "median": 0.9948445709579126,
+          "p05": 0.9809220570567322,
+          "p95": 0.9978697771942527
+        },
+        "double_pearson_delta": {
+          "n": 0,
+          "mean": null,
+          "median": null,
+          "p05": null,
+          "p95": null
+        },
+        "double_pearson_expression": {
+          "n": 0,
+          "mean": null,
+          "median": null,
+          "p05": null,
+          "p95": null
+        }
+      },
+      "unavailable_test_condition_repeats": 0,
+      "interpretation": "split-half experimental reproducibility; not a theoretical Pearson upper bound"
+    },
+    {
+      "dataset_id": "replogle_rpe1_essential",
+      "protocol_id": "within_cell_unseen_single",
+      "canonical_adata_sha256": "24be9c93304b7e38f62acf9292d8fe00820c3e5e7b81e7eeb9fb2eee055589a7",
+      "split_manifest_sha256": "e44085ea6ab6c9577674f49d991ded75361aabdab509fec67e0205bff8b08ab0",
+      "test_control_manifest_sha256": "7ec09da1af97b1ac1baf696cbe7fa71ce771a62809acb11175ea8749039e7e90",
+      "seed": 42,
+      "repeats": 5,
+      "n_cells": 230244,
+      "n_genes": 5000,
+      "n_batches": 56,
+      "class_cells": {
+        "control": 11485,
+        "single": 218759,
+        "double": 0
+      },
+      "class_conditions": {
+        "control": 1,
+        "single": 2393,
+        "double": 0
+      },
+      "visualization_sample": {
+        "control": 2500,
+        "single": 2500,
+        "double": 0
+      },
+      "pca_variance_explained_2": 0.09162125736474991,
+      "split_half": {
+        "single_pearson_delta": {
+          "n": 2950,
+          "mean": 0.622484082811212,
+          "median": 0.6698564987135089,
+          "p05": 0.18559626728720263,
+          "p95": 0.9261051013744919
+        },
+        "single_pearson_expression": {
+          "n": 2950,
+          "mean": 0.9801049284178086,
+          "median": 0.9865392961948927,
+          "p05": 0.9449525772053029,
+          "p95": 0.9965199603707913
+        },
+        "double_pearson_delta": {
+          "n": 0,
+          "mean": null,
+          "median": null,
+          "p05": null,
+          "p95": null
+        },
+        "double_pearson_expression": {
+          "n": 0,
+          "mean": null,
+          "median": null,
+          "p05": null,
+          "p95": null
+        }
+      },
+      "unavailable_test_condition_repeats": 0,
+      "interpretation": "split-half experimental reproducibility; not a theoretical Pearson upper bound"
+    },
+    {
+      "dataset_id": "nadig_jurkat",
+      "protocol_id": "within_cell_unseen_single",
+      "canonical_adata_sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5",
+      "split_manifest_sha256": "d8807af3f03f4ba6c57ddb4f77acdb915b3b180592bca4ba1619f3e49cbe6890",
+      "test_control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+      "seed": 42,
+      "repeats": 5,
+      "n_cells": 238977,
+      "n_genes": 5000,
+      "n_batches": 55,
+      "class_cells": {
+        "control": 12013,
+        "single": 226964,
+        "double": 0
+      },
+      "class_conditions": {
+        "control": 1,
+        "single": 2392,
+        "double": 0
+      },
+      "visualization_sample": {
+        "control": 2500,
+        "single": 2500,
+        "double": 0
+      },
+      "pca_variance_explained_2": 0.050962142646312714,
+      "split_half": {
+        "single_pearson_delta": {
+          "n": 2950,
+          "mean": 0.41293820418341687,
+          "median": 0.38982697683120193,
+          "p05": 0.06373961845535946,
+          "p95": 0.820508289807952
+        },
+        "single_pearson_expression": {
+          "n": 2950,
+          "mean": 0.9733318962559968,
+          "median": 0.9861665289978444,
+          "p05": 0.8940760274204752,
+          "p95": 0.9952372616742104
+        },
+        "double_pearson_delta": {
+          "n": 0,
+          "mean": null,
+          "median": null,
+          "p05": null,
+          "p95": null
+        },
+        "double_pearson_expression": {
+          "n": 0,
+          "mean": null,
+          "median": null,
+          "p05": null,
+          "p95": null
+        }
+      },
+      "unavailable_test_condition_repeats": 10,
+      "interpretation": "split-half experimental reproducibility; not a theoretical Pearson upper bound"
+    },
+    {
+      "dataset_id": "nadig_hepg2",
+      "protocol_id": "within_cell_unseen_single",
+      "canonical_adata_sha256": "e310a8ed4e81e96e8817217fe089b24327f48b4c4a4b2dfe9fb07afd873f9bda",
+      "split_manifest_sha256": "6d3194dea06a556b07b02190d809a121a71fa221abf80450555db06294ab385f",
+      "test_control_manifest_sha256": "d218a32ae6ee81a723894ef3eee7a900359cb0385fd131d62c2389a632058bb9",
+      "seed": 42,
+      "repeats": 5,
+      "n_cells": 130879,
+      "n_genes": 5000,
+      "n_batches": 56,
+      "class_cells": {
+        "control": 4976,
+        "single": 125903,
+        "double": 0
+      },
+      "class_conditions": {
+        "control": 1,
+        "single": 2393,
+        "double": 0
+      },
+      "visualization_sample": {
+        "control": 2500,
+        "single": 2500,
+        "double": 0
+      },
+      "pca_variance_explained_2": 0.09464500844478607,
+      "split_half": {
+        "single_pearson_delta": {
+          "n": 2955,
+          "mean": 0.42809071169221957,
+          "median": 0.38650422220341396,
+          "p05": 0.04357057617115645,
+          "p95": 0.8932114098776796
+        },
+        "single_pearson_expression": {
+          "n": 2955,
+          "mean": 0.9734439264321294,
+          "median": 0.9811660360499034,
+          "p05": 0.9251519139948502,
+          "p95": 0.9943356693261848
+        },
+        "double_pearson_delta": {
+          "n": 0,
+          "mean": null,
+          "median": null,
+          "p05": null,
+          "p95": null
+        },
+        "double_pearson_expression": {
+          "n": 0,
+          "mean": null,
+          "median": null,
+          "p05": null,
+          "p95": null
+        }
+      },
+      "unavailable_test_condition_repeats": 0,
+      "interpretation": "split-half experimental reproducibility; not a theoretical Pearson upper bound"
+    },
+    {
+      "dataset_id": "norman",
+      "protocol_id": "norman_combo_seen2",
+      "canonical_adata_sha256": "37d17eae90cbeb7eec258d7512a0eb4d549fee308aa4b31db2e1eafdaf8e6325",
+      "split_manifest_sha256": "47065599d2763e352edbfeb7fe048174a0b1d09fcc5c0e3e95545236c375adac",
+      "test_control_manifest_sha256": "770bb4d6cc0c14b3b58897c0db00f908bc6d727958f948ec5d54c2c75c6e1a98",
+      "seed": 42,
+      "repeats": 5,
+      "n_cells": 91205,
+      "n_genes": 5045,
+      "n_batches": 1,
+      "class_cells": {
+        "control": 7353,
+        "single": 48407,
+        "double": 35445
+      },
+      "class_conditions": {
+        "control": 1,
+        "single": 105,
+        "double": 131
+      },
+      "visualization_sample": {
+        "control": 2500,
+        "single": 2500,
+        "double": 2500
+      },
+      "pca_variance_explained_2": 0.08325371891260147,
+      "split_half": {
+        "single_pearson_delta": {
+          "n": 0,
+          "mean": null,
+          "median": null,
+          "p05": null,
+          "p95": null
+        },
+        "single_pearson_expression": {
+          "n": 0,
+          "mean": null,
+          "median": null,
+          "p05": null,
+          "p95": null
+        },
+        "double_pearson_delta": {
+          "n": 65,
+          "mean": 0.8738383809402348,
+          "median": 0.9438377518119812,
+          "p05": 0.45350040389029384,
+          "p95": 0.9824343864118441
+        },
+        "double_pearson_expression": {
+          "n": 65,
+          "mean": 0.9970015517384945,
+          "median": 0.9978123776372418,
+          "p05": 0.9924437004265977,
+          "p95": 0.9990165334793861
+        }
+      },
+      "unavailable_test_condition_repeats": 0,
+      "interpretation": "split-half experimental reproducibility; not a theoretical Pearson upper bound"
+    }
+  ],
+  "landscape": {
+    "replogle_k562_essential": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/replogle_k562_essential/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 161662,
+      "expression_genes": 5000,
+      "seed": 42,
+      "cell_lines": {
+        "K562": {
+          "rows": 161662,
+          "control_rows": 10691,
+          "perturbation_conditions": 1092,
+          "batch_information": {
+            "n_conditions": 1092,
+            "n_batches": 48,
+            "single_batch_condition_fraction": 0.0,
+            "batch_information_fraction": 0.049309141580957554,
+            "permuted_null_fraction": 0.04878744587124788,
+            "excess_batch_information_fraction": 0.0005216957097096755,
+            "null_permutations": 10
+          },
+          "control_correlation": {
+            "within_batch_median": 0.9977185379920671,
+            "across_batch_median": 0.99631469961632,
+            "within_pairs": 48,
+            "across_pairs": 1128
+          },
+          "effect_rms_median": 0.04593388525976483,
+          "effect_rms_p90": 0.07783838957096487,
+          "general_response_pearson_median": 0.4099128053706157,
+          "replicate_retrieval": {
+            "conditions": 500,
+            "top1": 0.568,
+            "top10": 0.858,
+            "random_top1": 0.002,
+            "split_half_pearson_delta_median": 0.5984358923076678
+          }
+        }
+      },
+      "canonical_adata_sha256": "b7a06e114342d78e3d89ddff3bcae4e385dfb3a2330e54df53eb852ddb192fc3"
+    },
+    "replogle_rpe1_essential": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/replogle_rpe1_essential/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 230244,
+      "expression_genes": 5000,
+      "seed": 42,
+      "cell_lines": {
+        "RPE1": {
+          "rows": 230244,
+          "control_rows": 11485,
+          "perturbation_conditions": 2393,
+          "batch_information": {
+            "n_conditions": 2393,
+            "n_batches": 56,
+            "single_batch_condition_fraction": 0.0008357709987463436,
+            "batch_information_fraction": 0.0822371315439681,
+            "permuted_null_fraction": 0.08030252106472595,
+            "excess_batch_information_fraction": 0.0019346104792421492,
+            "null_permutations": 10
+          },
+          "control_correlation": {
+            "within_batch_median": 0.9961814434276921,
+            "across_batch_median": 0.9943301023707674,
+            "within_pairs": 56,
+            "across_pairs": 1540
+          },
+          "effect_rms_median": 0.06809401126697799,
+          "effect_rms_p90": 0.12665229075023887,
+          "general_response_pearson_median": 0.6456555128316502,
+          "replicate_retrieval": {
+            "conditions": 500,
+            "top1": 0.52,
+            "top10": 0.722,
+            "random_top1": 0.002,
+            "split_half_pearson_delta_median": 0.6408108150893579
+          }
+        }
+      },
+      "canonical_adata_sha256": "24be9c93304b7e38f62acf9292d8fe00820c3e5e7b81e7eeb9fb2eee055589a7"
+    },
+    "nadig_jurkat": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 238977,
+      "expression_genes": 5000,
+      "seed": 42,
+      "cell_lines": {
+        "jurkat": {
+          "rows": 238977,
+          "control_rows": 12013,
+          "perturbation_conditions": 2392,
+          "batch_information": {
+            "n_conditions": 2392,
+            "n_batches": 55,
+            "single_batch_condition_fraction": 0.0033444816053511705,
+            "batch_information_fraction": 0.07684944573764914,
+            "permuted_null_fraction": 0.07623124015123325,
+            "excess_batch_information_fraction": 0.0006182055864158847,
+            "null_permutations": 10
+          },
+          "control_correlation": {
+            "within_batch_median": 0.9958827410548656,
+            "across_batch_median": 0.993152067264114,
+            "within_pairs": 55,
+            "across_pairs": 1485
+          },
+          "effect_rms_median": 0.04397084897136801,
+          "effect_rms_p90": 0.08902760550768209,
+          "general_response_pearson_median": 0.3164186334444007,
+          "replicate_retrieval": {
+            "conditions": 500,
+            "top1": 0.406,
+            "top10": 0.652,
+            "random_top1": 0.002,
+            "split_half_pearson_delta_median": 0.31484462294928217
+          }
+        }
+      },
+      "canonical_adata_sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5"
+    },
+    "nadig_hepg2": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/nadig_hepg2/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 130879,
+      "expression_genes": 5000,
+      "seed": 42,
+      "cell_lines": {
+        "hepg2": {
+          "rows": 130879,
+          "control_rows": 4976,
+          "perturbation_conditions": 2393,
+          "batch_information": {
+            "n_conditions": 2393,
+            "n_batches": 56,
+            "single_batch_condition_fraction": 0.0,
+            "batch_information_fraction": 0.13687197058658962,
+            "permuted_null_fraction": 0.1334024089629892,
+            "excess_batch_information_fraction": 0.003469561623600431,
+            "null_permutations": 10
+          },
+          "control_correlation": {
+            "within_batch_median": 0.9919972692155663,
+            "across_batch_median": 0.9915425902628414,
+            "within_pairs": 54,
+            "across_pairs": 1431
+          },
+          "effect_rms_median": 0.048563386560887475,
+          "effect_rms_p90": 0.1035594231924712,
+          "general_response_pearson_median": 0.3484042609208875,
+          "replicate_retrieval": {
+            "conditions": 500,
+            "top1": 0.324,
+            "top10": 0.558,
+            "random_top1": 0.002,
+            "split_half_pearson_delta_median": 0.2841084540054738
+          }
+        }
+      },
+      "canonical_adata_sha256": "e310a8ed4e81e96e8817217fe089b24327f48b4c4a4b2dfe9fb07afd873f9bda"
+    },
+    "norman": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/norman/norman_combo_seen2/canonical/adata.h5ad",
+      "rows": 91205,
+      "expression_genes": 5045,
+      "seed": 42,
+      "cell_lines": {
+        "K562": {
+          "rows": 91205,
+          "control_rows": 7353,
+          "perturbation_conditions": 236,
+          "batch_information": {
+            "n_conditions": 236,
+            "n_batches": 1,
+            "single_batch_condition_fraction": 1.0,
+            "batch_information_fraction": null,
+            "permuted_null_fraction": null,
+            "excess_batch_information_fraction": null,
+            "null_permutations": 10
+          },
+          "control_correlation": {
+            "within_batch_median": 0.9999329920767819,
+            "across_batch_median": null,
+            "within_pairs": 1,
+            "across_pairs": 0
+          },
+          "effect_rms_median": 0.06938236362666225,
+          "effect_rms_p90": 0.11368443225544866,
+          "general_response_pearson_median": 0.6309621699216239,
+          "replicate_retrieval": {
+            "conditions": 236,
+            "top1": 0.8940677966101694,
+            "top10": 0.9830508474576272,
+            "random_top1": 0.00423728813559322,
+            "split_half_pearson_delta_median": 0.928001502594479
+          }
+        }
+      },
+      "double_additivity": {
+        "double_conditions": 131,
+        "with_both_singles": 131,
+        "observed_vs_additive_pearson_median": 0.92316471527511,
+        "relative_residual_median": 0.4473344001907892
+      },
+      "canonical_adata_sha256": "37d17eae90cbeb7eec258d7512a0eb4d549fee308aa4b31db2e1eafdaf8e6325"
+    },
+    "crosscell": {
+      "h5ad": "/data/yilangliu/GraD-Pert/crosscell-fixed-v1/source/K562_cross_cell_lines/de_adata_test.h5ad",
+      "rows": 632488,
+      "expression_genes": 3352,
+      "seed": 42,
+      "cell_lines": {
+        "K562": {
+          "rows": 161662,
+          "control_rows": 10691,
+          "perturbation_conditions": 1092,
+          "batch_information": {
+            "n_conditions": 1092,
+            "n_batches": 48,
+            "single_batch_condition_fraction": 0.0,
+            "batch_information_fraction": 0.049309141580957554,
+            "permuted_null_fraction": 0.04878744587124788,
+            "excess_batch_information_fraction": 0.0005216957097096755,
+            "null_permutations": 10
+          },
+          "control_correlation": {
+            "within_batch_median": 0.997957247008963,
+            "across_batch_median": 0.996492453578012,
+            "within_pairs": 48,
+            "across_pairs": 1128
+          },
+          "effect_rms_median": 0.04824434826754031,
+          "effect_rms_p90": 0.08356893987106041,
+          "general_response_pearson_median": 0.42765581332566094,
+          "replicate_retrieval": {
+            "conditions": 500,
+            "top1": 0.512,
+            "top10": 0.842,
+            "random_top1": 0.002,
+            "split_half_pearson_delta_median": 0.5922700253043405
+          }
+        },
+        "RPE1": {
+          "rows": 162625,
+          "control_rows": 11485,
+          "perturbation_conditions": 1543,
+          "batch_information": {
+            "n_conditions": 1543,
+            "n_batches": 56,
+            "single_batch_condition_fraction": 0.0,
+            "batch_information_fraction": 0.07951738830512439,
+            "permuted_null_fraction": 0.07754706940248136,
+            "excess_batch_information_fraction": 0.0019703189026430284,
+            "null_permutations": 10
+          },
+          "control_correlation": {
+            "within_batch_median": 0.9974973003303004,
+            "across_batch_median": 0.9959031730446886,
+            "within_pairs": 56,
+            "across_pairs": 1540
+          },
+          "effect_rms_median": 0.07906252859355377,
+          "effect_rms_p90": 0.1316046976647708,
+          "general_response_pearson_median": 0.733678752851449,
+          "replicate_retrieval": {
+            "conditions": 500,
+            "top1": 0.616,
+            "top10": 0.82,
+            "random_top1": 0.002,
+            "split_half_pearson_delta_median": 0.7222438316791875
+          }
+        },
+        "hepg2": {
+          "rows": 100004,
+          "control_rows": 4976,
+          "perturbation_conditions": 1653,
+          "batch_information": {
+            "n_conditions": 1653,
+            "n_batches": 56,
+            "single_batch_condition_fraction": 0.0,
+            "batch_information_fraction": 0.13122312892789018,
+            "permuted_null_fraction": 0.12793628627075002,
+            "excess_batch_information_fraction": 0.00328684265714016,
+            "null_permutations": 10
+          },
+          "control_correlation": {
+            "within_batch_median": 0.9949255439200297,
+            "across_batch_median": 0.9945434220195742,
+            "within_pairs": 54,
+            "across_pairs": 1431
+          },
+          "effect_rms_median": 0.04797760476043922,
+          "effect_rms_p90": 0.10219863201443133,
+          "general_response_pearson_median": 0.43097980507241457,
+          "replicate_retrieval": {
+            "conditions": 500,
+            "top1": 0.384,
+            "top10": 0.626,
+            "random_top1": 0.002,
+            "split_half_pearson_delta_median": 0.39372227507460233
+          }
+        },
+        "jurkat": {
+          "rows": 156881,
+          "control_rows": 12013,
+          "perturbation_conditions": 1491,
+          "batch_information": {
+            "n_conditions": 1491,
+            "n_batches": 55,
+            "single_batch_condition_fraction": 0.0,
+            "batch_information_fraction": 0.07764379729952973,
+            "permuted_null_fraction": 0.0767154796941389,
+            "excess_batch_information_fraction": 0.0009283176053908326,
+            "null_permutations": 10
+          },
+          "control_correlation": {
+            "within_batch_median": 0.9968510714587887,
+            "across_batch_median": 0.9945470406278742,
+            "within_pairs": 55,
+            "across_pairs": 1485
+          },
+          "effect_rms_median": 0.05436000021378892,
+          "effect_rms_p90": 0.09714663312915653,
+          "general_response_pearson_median": 0.42789356680211077,
+          "replicate_retrieval": {
+            "conditions": 500,
+            "top1": 0.47,
+            "top10": 0.75,
+            "random_top1": 0.002,
+            "split_half_pearson_delta_median": 0.4953198140606044
+          }
+        }
+      },
+      "crosscell_transfer": {
+        "K562": {
+          "source_average_shared_conditions": 1051,
+          "source_average_pearson_delta_median": 0.5069536342115273,
+          "pairwise": {
+            "RPE1": {
+              "shared_conditions": 848,
+              "median_pearson_delta": 0.4025838490270132
+            },
+            "jurkat": {
+              "shared_conditions": 862,
+              "median_pearson_delta": 0.4902163337621989
+            },
+            "hepg2": {
+              "shared_conditions": 875,
+              "median_pearson_delta": 0.41559860611144156
+            }
+          }
+        },
+        "RPE1": {
+          "source_average_shared_conditions": 1449,
+          "source_average_pearson_delta_median": 0.5005781143649017,
+          "pairwise": {
+            "K562": {
+              "shared_conditions": 848,
+              "median_pearson_delta": 0.4025838490270132
+            },
+            "jurkat": {
+              "shared_conditions": 1124,
+              "median_pearson_delta": 0.36581984769816633
+            },
+            "hepg2": {
+              "shared_conditions": 1229,
+              "median_pearson_delta": 0.48492059429975404
+            }
+          }
+        },
+        "jurkat": {
+          "source_average_shared_conditions": 1413,
+          "source_average_pearson_delta_median": 0.42663915810177694,
+          "pairwise": {
+            "K562": {
+              "shared_conditions": 862,
+              "median_pearson_delta": 0.4902163337621989
+            },
+            "RPE1": {
+              "shared_conditions": 1124,
+              "median_pearson_delta": 0.36581984769816633
+            },
+            "hepg2": {
+              "shared_conditions": 1191,
+              "median_pearson_delta": 0.3266980163611673
+            }
+          }
+        },
+        "hepg2": {
+          "source_average_shared_conditions": 1499,
+          "source_average_pearson_delta_median": 0.4802165057766977,
+          "pairwise": {
+            "K562": {
+              "shared_conditions": 875,
+              "median_pearson_delta": 0.41559860611144156
+            },
+            "RPE1": {
+              "shared_conditions": 1229,
+              "median_pearson_delta": 0.48492059429975404
+            },
+            "jurkat": {
+              "shared_conditions": 1191,
+              "median_pearson_delta": 0.3266980163611673
+            }
+          }
+        }
+      },
+      "fold_manifest_sha256": "a8525e167fd3605418d1d92a15bb027e1890504d7449d98e647bdf768863aebf"
+    }
+  },
+  "systema": {
+    "replogle_k562_essential": {
+      "cell_lines": {
+        "K562": {
+          "conditions": 1092,
+          "systematic_variation_mean_cosine": 0.39527443319917877,
+          "systematic_variation_median_cosine": 0.4059984041185757,
+          "test_conditions": 273,
+          "train_conditions": 612,
+          "train_perturbed_mean_baseline_control_pearson_delta_median": 0.4160594428463239,
+          "train_perturbed_mean_baseline_systema_pearson_delta_median": -0.07453510108404675,
+          "oracle_split_half_control_pearson_delta_median": 0.6246822711667936,
+          "oracle_split_half_train_perturbed_reference_pearson_delta_median": 0.5942288696898577,
+          "perturbed_mean_baseline_centroid_accuracy": {
+            "conditions": 273,
+            "mean": 0.5,
+            "median": 0.5,
+            "p10": 0.1,
+            "p90": 0.9
+          },
+          "test_count_bins": {
+            "0-20": {
+              "conditions": 3,
+              "split_half_pearson_delta_median": 0.18392581190611118
+            },
+            "20-50": {
+              "conditions": 26,
+              "split_half_pearson_delta_median": 0.44653047914999244
+            },
+            "50-100": {
+              "conditions": 81,
+              "split_half_pearson_delta_median": 0.508246234958805
+            },
+            "100-plus": {
+              "conditions": 163,
+              "split_half_pearson_delta_median": 0.7625099049267371
+            }
+          }
+        }
+      },
+      "rows": 161662,
+      "expression_genes": 5000,
+      "canonical_sha256": "b7a06e114342d78e3d89ddff3bcae4e385dfb3a2330e54df53eb852ddb192fc3",
+      "split_sha256": "e0386e64c97b55877baf4819ab16cdbd174033e4db98b0a224fcc8dfb45e5ec0"
+    },
+    "replogle_rpe1_essential": {
+      "cell_lines": {
+        "RPE1": {
+          "conditions": 2393,
+          "systematic_variation_mean_cosine": 0.5253779366249351,
+          "systematic_variation_median_cosine": 0.6519473043717176,
+          "test_conditions": 590,
+          "train_conditions": 1335,
+          "train_perturbed_mean_baseline_control_pearson_delta_median": 0.6650939077894658,
+          "train_perturbed_mean_baseline_systema_pearson_delta_median": -0.050487576153468786,
+          "oracle_split_half_control_pearson_delta_median": 0.6040668737807057,
+          "oracle_split_half_train_perturbed_reference_pearson_delta_median": 0.6274358379506021,
+          "perturbed_mean_baseline_centroid_accuracy": {
+            "conditions": 500,
+            "mean": 0.5,
+            "median": 0.5,
+            "p10": 0.10000000000000002,
+            "p90": 0.9
+          },
+          "test_count_bins": {
+            "0-20": {
+              "conditions": 52,
+              "split_half_pearson_delta_median": 0.5284877760773118
+            },
+            "20-50": {
+              "conditions": 194,
+              "split_half_pearson_delta_median": 0.6414265842992317
+            },
+            "50-100": {
+              "conditions": 168,
+              "split_half_pearson_delta_median": 0.655787098944544
+            },
+            "100-plus": {
+              "conditions": 176,
+              "split_half_pearson_delta_median": 0.5301325409883771
+            }
+          }
+        }
+      },
+      "rows": 230244,
+      "expression_genes": 5000,
+      "canonical_sha256": "24be9c93304b7e38f62acf9292d8fe00820c3e5e7b81e7eeb9fb2eee055589a7",
+      "split_sha256": "e44085ea6ab6c9577674f49d991ded75361aabdab509fec67e0205bff8b08ab0"
+    },
+    "nadig_jurkat": {
+      "cell_lines": {
+        "jurkat": {
+          "conditions": 2392,
+          "systematic_variation_mean_cosine": 0.29017027687718966,
+          "systematic_variation_median_cosine": 0.3066797283600615,
+          "test_conditions": 592,
+          "train_conditions": 1335,
+          "train_perturbed_mean_baseline_control_pearson_delta_median": 0.33505770379619815,
+          "train_perturbed_mean_baseline_systema_pearson_delta_median": 0.09135969680050529,
+          "oracle_split_half_control_pearson_delta_median": 0.31588724544666213,
+          "oracle_split_half_train_perturbed_reference_pearson_delta_median": 0.3462253643063969,
+          "perturbed_mean_baseline_centroid_accuracy": {
+            "conditions": 500,
+            "mean": 0.5,
+            "median": 0.5,
+            "p10": 0.10000000000000002,
+            "p90": 0.9
+          },
+          "test_count_bins": {
+            "0-20": {
+              "conditions": 61,
+              "split_half_pearson_delta_median": 0.04624671824486485
+            },
+            "20-50": {
+              "conditions": 111,
+              "split_half_pearson_delta_median": 0.22030744460402374
+            },
+            "50-100": {
+              "conditions": 237,
+              "split_half_pearson_delta_median": 0.359364800926963
+            },
+            "100-plus": {
+              "conditions": 183,
+              "split_half_pearson_delta_median": 0.45458973870447167
+            }
+          }
+        }
+      },
+      "rows": 238977,
+      "expression_genes": 5000,
+      "canonical_sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5",
+      "split_sha256": "d8807af3f03f4ba6c57ddb4f77acdb915b3b180592bca4ba1619f3e49cbe6890"
+    },
+    "nadig_hepg2": {
+      "cell_lines": {
+        "hepg2": {
+          "conditions": 2393,
+          "systematic_variation_mean_cosine": 0.3322896138319816,
+          "systematic_variation_median_cosine": 0.3433183323835994,
+          "test_conditions": 591,
+          "train_conditions": 1334,
+          "train_perturbed_mean_baseline_control_pearson_delta_median": 0.3675958024040459,
+          "train_perturbed_mean_baseline_systema_pearson_delta_median": 0.05737702387836406,
+          "oracle_split_half_control_pearson_delta_median": 0.30186561200055034,
+          "oracle_split_half_train_perturbed_reference_pearson_delta_median": 0.3583312993560482,
+          "perturbed_mean_baseline_centroid_accuracy": {
+            "conditions": 500,
+            "mean": 0.5,
+            "median": 0.5,
+            "p10": 0.10000000000000002,
+            "p90": 0.9
+          },
+          "test_count_bins": {
+            "0-20": {
+              "conditions": 76,
+              "split_half_pearson_delta_median": 0.15188374163268242
+            },
+            "20-50": {
+              "conditions": 277,
+              "split_half_pearson_delta_median": 0.2130232447003036
+            },
+            "50-100": {
+              "conditions": 185,
+              "split_half_pearson_delta_median": 0.4764746961912018
+            },
+            "100-plus": {
+              "conditions": 53,
+              "split_half_pearson_delta_median": 0.6838126045220918
+            }
+          }
+        }
+      },
+      "rows": 130879,
+      "expression_genes": 5000,
+      "canonical_sha256": "e310a8ed4e81e96e8817217fe089b24327f48b4c4a4b2dfe9fb07afd873f9bda",
+      "split_sha256": "6d3194dea06a556b07b02190d809a121a71fa221abf80450555db06294ab385f"
+    },
+    "norman": {
+      "cell_lines": {
+        "K562": {
+          "conditions": 236,
+          "systematic_variation_mean_cosine": 0.5481853202315505,
+          "systematic_variation_median_cosine": 0.6299995141557286,
+          "test_conditions": 13,
+          "train_conditions": 206,
+          "train_perturbed_mean_baseline_control_pearson_delta_median": 0.6190911411989466,
+          "train_perturbed_mean_baseline_systema_pearson_delta_median": 0.13409061514566065,
+          "oracle_split_half_control_pearson_delta_median": 0.9417477917218632,
+          "oracle_split_half_train_perturbed_reference_pearson_delta_median": 0.9187545267324501,
+          "perturbed_mean_baseline_centroid_accuracy": {
+            "conditions": 13,
+            "mean": 0.5,
+            "median": 0.5,
+            "p10": 0.1,
+            "p90": 0.9
+          },
+          "test_count_bins": {
+            "0-20": {
+              "conditions": 0,
+              "split_half_pearson_delta_median": null
+            },
+            "20-50": {
+              "conditions": 0,
+              "split_half_pearson_delta_median": null
+            },
+            "50-100": {
+              "conditions": 1,
+              "split_half_pearson_delta_median": 0.3974073411620028
+            },
+            "100-plus": {
+              "conditions": 12,
+              "split_half_pearson_delta_median": 0.9476894189489502
+            }
+          }
+        }
+      },
+      "rows": 91205,
+      "expression_genes": 5045,
+      "canonical_sha256": "37d17eae90cbeb7eec258d7512a0eb4d549fee308aa4b31db2e1eafdaf8e6325",
+      "split_sha256": "47065599d2763e352edbfeb7fe048174a0b1d09fcc5c0e3e95545236c375adac"
+    },
+    "crosscell": {
+      "cell_lines": {
+        "K562": {
+          "conditions": 1092,
+          "systematic_variation_mean_cosine": 0.40991130662297914,
+          "systematic_variation_median_cosine": 0.4224949039359415
+        },
+        "RPE1": {
+          "conditions": 1543,
+          "systematic_variation_mean_cosine": 0.6403663349791324,
+          "systematic_variation_median_cosine": 0.7355001213033462
+        },
+        "hepg2": {
+          "conditions": 1653,
+          "systematic_variation_mean_cosine": 0.40056992849670464,
+          "systematic_variation_median_cosine": 0.43704691308605714
+        },
+        "jurkat": {
+          "conditions": 1491,
+          "systematic_variation_mean_cosine": 0.39855651103988016,
+          "systematic_variation_median_cosine": 0.4230275688521205
+        }
+      },
+      "rows": 632488,
+      "expression_genes": 3352,
+      "source_sha256": "1b557390148eba358304e43e0b239538d9ae0691b26ec843f41cf544960307a8",
+      "protocol_note": "descriptive within-line common-response audit; cross-cell train-only baselines require row-level fold adaptation"
+    }
+  },
+  "atlas": {
+    "replogle_k562_essential": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/replogle_k562_essential/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 161662,
+      "genes": 5000,
+      "obs_columns": [
+        "condition",
+        "dose",
+        "control",
+        "batch",
+        "cell_line",
+        "condition_name",
+        "gene_name",
+        "cell_type"
+      ],
+      "layers": [
+        null
+      ],
+      "gene_set_coverage": {
+        "dna_repair": 119,
+        "dna_replication": 30,
+        "g1s_transition": 27,
+        "g2m_transition": 18,
+        "apoptotic_process": 78,
+        "oxidative_stress": 41,
+        "ribosome_biogenesis": 63,
+        "translation": 97
+      },
+      "cell_lines": {
+        "K562": {
+          "rows": 161662,
+          "control_rows": 10691,
+          "conditions": 1092,
+          "condition_cells_median": 114.0,
+          "condition_cells_p10": 48.10000000000001,
+          "condition_cells_p90": 250.0,
+          "conditions_below_20_cells": 8,
+          "effect_rms_median": 0.04593388525976483,
+          "specific_residual_rms_median": 0.04257411759328101,
+          "common_alignment_cosine_mean": 0.39527443319917877,
+          "effective_rank_of_condition_effects_max500": 55.100051398684684,
+          "split_half_pearson_delta_median": 0.6205970950002793,
+          "split_half_top20_jaccard_median": 0.3793103448275862,
+          "split_half_top20_sign_agreement_median": 1.0,
+          "programs": {
+            "dna_repair": {
+              "covered_genes": 119,
+              "median_abs_condition_mean_shift": 0.0058600898982046476,
+              "common_mean_shift": -0.0033233693821874185
+            },
+            "dna_replication": {
+              "covered_genes": 30,
+              "median_abs_condition_mean_shift": 0.013154020713042216,
+              "common_mean_shift": -0.015976726638046956
+            },
+            "g1s_transition": {
+              "covered_genes": 27,
+              "median_abs_condition_mean_shift": 0.00702609700193463,
+              "common_mean_shift": -0.004188492336385301
+            },
+            "g2m_transition": {
+              "covered_genes": 18,
+              "median_abs_condition_mean_shift": 0.009943136409058634,
+              "common_mean_shift": -0.0074562505138903445
+            },
+            "apoptotic_process": {
+              "covered_genes": 78,
+              "median_abs_condition_mean_shift": 0.0055989690203986,
+              "common_mean_shift": -0.0010301013332457082
+            },
+            "oxidative_stress": {
+              "covered_genes": 41,
+              "median_abs_condition_mean_shift": 0.005711243878111388,
+              "common_mean_shift": 0.0054368865821803145
+            },
+            "ribosome_biogenesis": {
+              "covered_genes": 63,
+              "median_abs_condition_mean_shift": 0.02385747552465882,
+              "common_mean_shift": -0.022685546816002426
+            },
+            "translation": {
+              "covered_genes": 97,
+              "median_abs_condition_mean_shift": 0.02967190137038797,
+              "common_mean_shift": -0.028110562921861006
+            }
+          }
+        }
+      },
+      "canonical_sha256": "b7a06e114342d78e3d89ddff3bcae4e385dfb3a2330e54df53eb852ddb192fc3",
+      "split_sha256": "e0386e64c97b55877baf4819ab16cdbd174033e4db98b0a224fcc8dfb45e5ec0"
+    },
+    "replogle_rpe1_essential": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/replogle_rpe1_essential/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 230244,
+      "genes": 5000,
+      "obs_columns": [
+        "batch",
+        "gene",
+        "gene_id",
+        "transcript",
+        "gene_transcript",
+        "guide_id",
+        "percent_mito",
+        "UMI_count",
+        "z_gemgroup_UMI",
+        "core_scale_factor",
+        "core_adjusted_UMI_count",
+        "disease",
+        "cancer",
+        "cell_line",
+        "sex",
+        "age",
+        "perturbation",
+        "organism",
+        "perturbation_type",
+        "tissue_type",
+        "ncounts",
+        "ngenes",
+        "nperts",
+        "percent_ribo",
+        "celltype",
+        "condition",
+        "cell_type",
+        "control",
+        "condition_name"
+      ],
+      "layers": [
+        null
+      ],
+      "gene_set_coverage": {
+        "dna_repair": 150,
+        "dna_replication": 49,
+        "g1s_transition": 35,
+        "g2m_transition": 22,
+        "apoptotic_process": 83,
+        "oxidative_stress": 46,
+        "ribosome_biogenesis": 81,
+        "translation": 54
+      },
+      "cell_lines": {
+        "RPE1": {
+          "rows": 230244,
+          "control_rows": 11485,
+          "conditions": 2393,
+          "condition_cells_median": 66.0,
+          "condition_cells_p10": 20.0,
+          "condition_cells_p90": 166.80000000000018,
+          "conditions_below_20_cells": 234,
+          "effect_rms_median": 0.06809401126697798,
+          "specific_residual_rms_median": 0.054332784396270505,
+          "common_alignment_cosine_mean": 0.5253779366249351,
+          "effective_rank_of_condition_effects_max500": 42.380089536256285,
+          "split_half_pearson_delta_median": 0.6037238085003886,
+          "split_half_top20_jaccard_median": 0.3793103448275862,
+          "split_half_top20_sign_agreement_median": 1.0,
+          "programs": {
+            "dna_repair": {
+              "covered_genes": 150,
+              "median_abs_condition_mean_shift": 0.029231477635858785,
+              "common_mean_shift": -0.01782941509442417
+            },
+            "dna_replication": {
+              "covered_genes": 49,
+              "median_abs_condition_mean_shift": 0.049122415803310726,
+              "common_mean_shift": -0.02977952303637572
+            },
+            "g1s_transition": {
+              "covered_genes": 35,
+              "median_abs_condition_mean_shift": 0.010592968689117993,
+              "common_mean_shift": -0.009204809639391383
+            },
+            "g2m_transition": {
+              "covered_genes": 22,
+              "median_abs_condition_mean_shift": 0.04594169182257013,
+              "common_mean_shift": -0.028269587123911075
+            },
+            "apoptotic_process": {
+              "covered_genes": 83,
+              "median_abs_condition_mean_shift": 0.004601446787944849,
+              "common_mean_shift": -0.00023897267325947584
+            },
+            "oxidative_stress": {
+              "covered_genes": 46,
+              "median_abs_condition_mean_shift": 0.006659077830598608,
+              "common_mean_shift": 0.004895300529087106
+            },
+            "ribosome_biogenesis": {
+              "covered_genes": 81,
+              "median_abs_condition_mean_shift": 0.01633390409412127,
+              "common_mean_shift": -0.010022988632316722
+            },
+            "translation": {
+              "covered_genes": 54,
+              "median_abs_condition_mean_shift": 0.01440917581482978,
+              "common_mean_shift": 0.0015526659474757781
+            }
+          },
+          "guide_agreement": {
+            "guide_column": "guide_id",
+            "eligible_conditions_with_two_guides": 124,
+            "guide_pairs": 169,
+            "guide_pair_pearson_delta_median": 0.08220338396363139,
+            "minimum_cells_per_guide": 10,
+            "note": "Descriptive; guide and batch assignments may be confounded."
+          }
+        }
+      },
+      "canonical_sha256": "24be9c93304b7e38f62acf9292d8fe00820c3e5e7b81e7eeb9fb2eee055589a7",
+      "split_sha256": "e44085ea6ab6c9577674f49d991ded75361aabdab509fec67e0205bff8b08ab0"
+    },
+    "nadig_jurkat": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 238977,
+      "genes": 5000,
+      "obs_columns": [
+        "gem_group",
+        "gene",
+        "gene_id",
+        "transcript",
+        "gene_transcript",
+        "sgID_AB",
+        "mitopercent",
+        "UMI_count",
+        "z_gemgroup_UMI",
+        "condition",
+        "batch",
+        "cell_type",
+        "control",
+        "condition_name"
+      ],
+      "layers": [
+        null
+      ],
+      "gene_set_coverage": {
+        "dna_repair": 136,
+        "dna_replication": 43,
+        "g1s_transition": 34,
+        "g2m_transition": 22,
+        "apoptotic_process": 68,
+        "oxidative_stress": 34,
+        "ribosome_biogenesis": 50,
+        "translation": 49
+      },
+      "cell_lines": {
+        "jurkat": {
+          "rows": 238977,
+          "control_rows": 12013,
+          "conditions": 2392,
+          "condition_cells_median": 75.0,
+          "condition_cells_p10": 21.0,
+          "condition_cells_p90": 168.0,
+          "conditions_below_20_cells": 220,
+          "effect_rms_median": 0.04397084897136801,
+          "specific_residual_rms_median": 0.04158941918619302,
+          "common_alignment_cosine_mean": 0.29017027687718966,
+          "effective_rank_of_condition_effects_max500": 102.05905823853477,
+          "split_half_pearson_delta_median": 0.3259334269522557,
+          "split_half_top20_jaccard_median": 0.17647058823529413,
+          "split_half_top20_sign_agreement_median": 1.0,
+          "programs": {
+            "dna_repair": {
+              "covered_genes": 136,
+              "median_abs_condition_mean_shift": 0.006705898269760426,
+              "common_mean_shift": -0.0029513292750336048
+            },
+            "dna_replication": {
+              "covered_genes": 43,
+              "median_abs_condition_mean_shift": 0.012486162150947683,
+              "common_mean_shift": -0.011192006398864087
+            },
+            "g1s_transition": {
+              "covered_genes": 34,
+              "median_abs_condition_mean_shift": 0.006542796698997543,
+              "common_mean_shift": -0.0018797652216327352
+            },
+            "g2m_transition": {
+              "covered_genes": 22,
+              "median_abs_condition_mean_shift": 0.011628626865892869,
+              "common_mean_shift": -0.00619602421823566
+            },
+            "apoptotic_process": {
+              "covered_genes": 68,
+              "median_abs_condition_mean_shift": 0.004630722826681505,
+              "common_mean_shift": -0.0009492976585747599
+            },
+            "oxidative_stress": {
+              "covered_genes": 34,
+              "median_abs_condition_mean_shift": 0.0047180699618560445,
+              "common_mean_shift": 0.0002493797581535354
+            },
+            "ribosome_biogenesis": {
+              "covered_genes": 50,
+              "median_abs_condition_mean_shift": 0.014779414452816258,
+              "common_mean_shift": -0.013863836744542304
+            },
+            "translation": {
+              "covered_genes": 49,
+              "median_abs_condition_mean_shift": 0.03513246862300369,
+              "common_mean_shift": -0.015144953016461132
+            }
+          },
+          "guide_agreement": {
+            "guide_column": "sgID_AB",
+            "eligible_conditions_with_two_guides": 124,
+            "guide_pairs": 169,
+            "guide_pair_pearson_delta_median": 0.05361308111437211,
+            "minimum_cells_per_guide": 10,
+            "note": "Descriptive; guide and batch assignments may be confounded."
+          }
+        }
+      },
+      "canonical_sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5",
+      "split_sha256": "d8807af3f03f4ba6c57ddb4f77acdb915b3b180592bca4ba1619f3e49cbe6890"
+    },
+    "nadig_hepg2": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/nadig_hepg2/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 130879,
+      "genes": 5000,
+      "obs_columns": [
+        "gem_group",
+        "gene",
+        "gene_id",
+        "transcript",
+        "gene_transcript",
+        "sgID_AB",
+        "mitopercent",
+        "UMI_count",
+        "z_gemgroup_UMI",
+        "condition",
+        "batch",
+        "cell_type",
+        "control",
+        "condition_name"
+      ],
+      "layers": [
+        null
+      ],
+      "gene_set_coverage": {
+        "dna_repair": 115,
+        "dna_replication": 37,
+        "g1s_transition": 36,
+        "g2m_transition": 22,
+        "apoptotic_process": 86,
+        "oxidative_stress": 44,
+        "ribosome_biogenesis": 53,
+        "translation": 37
+      },
+      "cell_lines": {
+        "hepg2": {
+          "rows": 130879,
+          "control_rows": 4976,
+          "conditions": 2393,
+          "condition_cells_median": 40.0,
+          "condition_cells_p10": 17.0,
+          "condition_cells_p90": 92.0,
+          "conditions_below_20_cells": 326,
+          "effect_rms_median": 0.048563386560887475,
+          "specific_residual_rms_median": 0.047770328018602336,
+          "common_alignment_cosine_mean": 0.3322896138319816,
+          "effective_rank_of_condition_effects_max500": 65.93031205961238,
+          "split_half_pearson_delta_median": 0.272733991386771,
+          "split_half_top20_jaccard_median": 0.17647058823529413,
+          "split_half_top20_sign_agreement_median": 1.0,
+          "programs": {
+            "dna_repair": {
+              "covered_genes": 115,
+              "median_abs_condition_mean_shift": 0.012849126962962306,
+              "common_mean_shift": -0.014861615658166114
+            },
+            "dna_replication": {
+              "covered_genes": 37,
+              "median_abs_condition_mean_shift": 0.022161556232670694,
+              "common_mean_shift": -0.027645017612057683
+            },
+            "g1s_transition": {
+              "covered_genes": 36,
+              "median_abs_condition_mean_shift": 0.006090624578033121,
+              "common_mean_shift": -0.0029688250283146393
+            },
+            "g2m_transition": {
+              "covered_genes": 22,
+              "median_abs_condition_mean_shift": 0.019661925029530625,
+              "common_mean_shift": -0.01877456953802552
+            },
+            "apoptotic_process": {
+              "covered_genes": 86,
+              "median_abs_condition_mean_shift": 0.005261416792168879,
+              "common_mean_shift": 0.002446990544870118
+            },
+            "oxidative_stress": {
+              "covered_genes": 44,
+              "median_abs_condition_mean_shift": 0.006064528407183523,
+              "common_mean_shift": 0.002179383857404822
+            },
+            "ribosome_biogenesis": {
+              "covered_genes": 53,
+              "median_abs_condition_mean_shift": 0.011342998350937671,
+              "common_mean_shift": -0.007511234931606774
+            },
+            "translation": {
+              "covered_genes": 37,
+              "median_abs_condition_mean_shift": 0.010602753580742226,
+              "common_mean_shift": -0.002670359050736827
+            }
+          },
+          "guide_agreement": {
+            "guide_column": "sgID_AB",
+            "eligible_conditions_with_two_guides": 101,
+            "guide_pairs": 146,
+            "guide_pair_pearson_delta_median": 0.028386866688047525,
+            "minimum_cells_per_guide": 10,
+            "note": "Descriptive; guide and batch assignments may be confounded."
+          }
+        }
+      },
+      "canonical_sha256": "e310a8ed4e81e96e8817217fe089b24327f48b4c4a4b2dfe9fb07afd873f9bda",
+      "split_sha256": "6d3194dea06a556b07b02190d809a121a71fa221abf80450555db06294ab385f"
+    },
+    "norman": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/norman/norman_combo_seen2/canonical/adata.h5ad",
+      "rows": 91205,
+      "genes": 5045,
+      "obs_columns": [
+        "condition",
+        "cell_type",
+        "dose_val",
+        "control",
+        "condition_name",
+        "batch"
+      ],
+      "layers": [
+        null,
+        "counts"
+      ],
+      "gene_set_coverage": {
+        "dna_repair": 18,
+        "dna_replication": 4,
+        "g1s_transition": 11,
+        "g2m_transition": 7,
+        "apoptotic_process": 65,
+        "oxidative_stress": 25,
+        "ribosome_biogenesis": 8,
+        "translation": 11
+      },
+      "cell_lines": {
+        "K562": {
+          "rows": 91205,
+          "control_rows": 7353,
+          "conditions": 236,
+          "condition_cells_median": 294.0,
+          "condition_cells_p10": 133.0,
+          "condition_cells_p90": 635.5,
+          "conditions_below_20_cells": 0,
+          "effect_rms_median": 0.06938236362666225,
+          "specific_residual_rms_median": 0.05837027553797937,
+          "common_alignment_cosine_mean": 0.5481853202315505,
+          "effective_rank_of_condition_effects_max500": 17.674352566693255,
+          "split_half_pearson_delta_median": 0.9280015025944789,
+          "split_half_top20_jaccard_median": 0.6,
+          "split_half_top20_sign_agreement_median": 1.0,
+          "programs": {
+            "dna_repair": {
+              "covered_genes": 18,
+              "median_abs_condition_mean_shift": 0.03322630253205767,
+              "common_mean_shift": -0.031342917388820175
+            },
+            "dna_replication": {
+              "covered_genes": 4,
+              "median_abs_condition_mean_shift": null,
+              "common_mean_shift": null
+            },
+            "g1s_transition": {
+              "covered_genes": 11,
+              "median_abs_condition_mean_shift": 0.02927341358110247,
+              "common_mean_shift": -0.0239363277603924
+            },
+            "g2m_transition": {
+              "covered_genes": 7,
+              "median_abs_condition_mean_shift": null,
+              "common_mean_shift": null
+            },
+            "apoptotic_process": {
+              "covered_genes": 65,
+              "median_abs_condition_mean_shift": 0.018792858536365524,
+              "common_mean_shift": -0.01389365217703851
+            },
+            "oxidative_stress": {
+              "covered_genes": 25,
+              "median_abs_condition_mean_shift": 0.019447497908450066,
+              "common_mean_shift": -0.00386651353031529
+            },
+            "ribosome_biogenesis": {
+              "covered_genes": 8,
+              "median_abs_condition_mean_shift": null,
+              "common_mean_shift": null
+            },
+            "translation": {
+              "covered_genes": 11,
+              "median_abs_condition_mean_shift": 0.050332090430022805,
+              "common_mean_shift": -0.05530113177707777
+            }
+          },
+          "double_interactions": {
+            "fitted_double_conditions": 131,
+            "coefficient_a_median": 0.8428471942410497,
+            "coefficient_b_median": 0.810167568887282,
+            "fitted_relative_residual_median": 0.36427616060553064,
+            "unit_additive_relative_residual_median": 0.4473344001907892,
+            "fitted_residual_split_half_pearson_median": 0.44926428398569834,
+            "fitted_residual_split_half_conditions": 131
+          }
+        }
+      },
+      "canonical_sha256": "37d17eae90cbeb7eec258d7512a0eb4d549fee308aa4b31db2e1eafdaf8e6325",
+      "split_sha256": "47065599d2763e352edbfeb7fe048174a0b1d09fcc5c0e3e95545236c375adac"
+    },
+    "crosscell": {
+      "h5ad": "/data/yilangliu/GraD-Pert/crosscell-fixed-v1/source/K562_cross_cell_lines/de_adata_test.h5ad",
+      "rows": 632488,
+      "genes": 3352,
+      "obs_columns": [
+        "condition",
+        "dose",
+        "control",
+        "batch",
+        "cell_line",
+        "condition_name",
+        "gene_name"
+      ],
+      "layers": [
+        null
+      ],
+      "gene_set_coverage": {
+        "dna_repair": 98,
+        "dna_replication": 26,
+        "g1s_transition": 19,
+        "g2m_transition": 15,
+        "apoptotic_process": 55,
+        "oxidative_stress": 32,
+        "ribosome_biogenesis": 59,
+        "translation": 95
+      },
+      "cell_lines": {
+        "K562": {
+          "rows": 161662,
+          "control_rows": 10691,
+          "conditions": 1092,
+          "condition_cells_median": 114.0,
+          "condition_cells_p10": 48.10000000000001,
+          "condition_cells_p90": 250.0,
+          "conditions_below_20_cells": 8,
+          "effect_rms_median": 0.04824434826754031,
+          "specific_residual_rms_median": 0.044980627256730035,
+          "common_alignment_cosine_mean": 0.40991130662297914,
+          "effective_rank_of_condition_effects_max500": 50.862208959896286,
+          "split_half_pearson_delta_median": 0.6123685910081161,
+          "split_half_top20_jaccard_median": 0.3793103448275862,
+          "split_half_top20_sign_agreement_median": 1.0,
+          "programs": {
+            "dna_repair": {
+              "covered_genes": 98,
+              "median_abs_condition_mean_shift": 0.006655406922338534,
+              "common_mean_shift": -0.004275649865930712
+            },
+            "dna_replication": {
+              "covered_genes": 26,
+              "median_abs_condition_mean_shift": 0.013210952652263146,
+              "common_mean_shift": -0.015590284691038351
+            },
+            "g1s_transition": {
+              "covered_genes": 19,
+              "median_abs_condition_mean_shift": 0.009057665848300492,
+              "common_mean_shift": -0.005804804045391954
+            },
+            "g2m_transition": {
+              "covered_genes": 15,
+              "median_abs_condition_mean_shift": 0.011775890829085513,
+              "common_mean_shift": -0.009435282962574669
+            },
+            "apoptotic_process": {
+              "covered_genes": 55,
+              "median_abs_condition_mean_shift": 0.007435866334340398,
+              "common_mean_shift": -0.00391490415014631
+            },
+            "oxidative_stress": {
+              "covered_genes": 32,
+              "median_abs_condition_mean_shift": 0.006406753740462311,
+              "common_mean_shift": 0.005351753480193013
+            },
+            "ribosome_biogenesis": {
+              "covered_genes": 59,
+              "median_abs_condition_mean_shift": 0.025119232686447588,
+              "common_mean_shift": -0.02450420860150612
+            },
+            "translation": {
+              "covered_genes": 95,
+              "median_abs_condition_mean_shift": 0.029630730120789872,
+              "common_mean_shift": -0.02841899338053596
+            }
+          }
+        },
+        "RPE1": {
+          "rows": 162625,
+          "control_rows": 11485,
+          "conditions": 1543,
+          "condition_cells_median": 66.0,
+          "condition_cells_p10": 30.0,
+          "condition_cells_p90": 168.0,
+          "conditions_below_20_cells": 12,
+          "effect_rms_median": 0.07906252859355377,
+          "specific_residual_rms_median": 0.05883339374545712,
+          "common_alignment_cosine_mean": 0.6403663349791324,
+          "effective_rank_of_condition_effects_max500": 44.18954833603489,
+          "split_half_pearson_delta_median": 0.7236786536054244,
+          "split_half_top20_jaccard_median": 0.48148148148148145,
+          "split_half_top20_sign_agreement_median": 1.0,
+          "programs": {
+            "dna_repair": {
+              "covered_genes": 98,
+              "median_abs_condition_mean_shift": 0.0318860080648279,
+              "common_mean_shift": -0.02130950864083599
+            },
+            "dna_replication": {
+              "covered_genes": 26,
+              "median_abs_condition_mean_shift": 0.07037770539174594,
+              "common_mean_shift": -0.04702173368711149
+            },
+            "g1s_transition": {
+              "covered_genes": 19,
+              "median_abs_condition_mean_shift": 0.03023100712800107,
+              "common_mean_shift": -0.021912223551558564
+            },
+            "g2m_transition": {
+              "covered_genes": 15,
+              "median_abs_condition_mean_shift": 0.0524160140489236,
+              "common_mean_shift": -0.03441261053945002
+            },
+            "apoptotic_process": {
+              "covered_genes": 55,
+              "median_abs_condition_mean_shift": 0.0072073284374398324,
+              "common_mean_shift": -0.0019784709024150745
+            },
+            "oxidative_stress": {
+              "covered_genes": 32,
+              "median_abs_condition_mean_shift": 0.01605686552382165,
+              "common_mean_shift": 0.012209881873331335
+            },
+            "ribosome_biogenesis": {
+              "covered_genes": 59,
+              "median_abs_condition_mean_shift": 0.018721898559738773,
+              "common_mean_shift": -0.00035696986780661005
+            },
+            "translation": {
+              "covered_genes": 95,
+              "median_abs_condition_mean_shift": 0.029847562955876993,
+              "common_mean_shift": 0.007197953827323038
+            }
+          }
+        },
+        "hepg2": {
+          "rows": 100004,
+          "control_rows": 4976,
+          "conditions": 1653,
+          "condition_cells_median": 44.0,
+          "condition_cells_p10": 26.0,
+          "condition_cells_p90": 94.0,
+          "conditions_below_20_cells": 40,
+          "effect_rms_median": 0.04797760476043922,
+          "specific_residual_rms_median": 0.04795434046951368,
+          "common_alignment_cosine_mean": 0.40056992849670464,
+          "effective_rank_of_condition_effects_max500": 55.264091289086046,
+          "split_half_pearson_delta_median": 0.3799499372312197,
+          "split_half_top20_jaccard_median": 0.21212121212121213,
+          "split_half_top20_sign_agreement_median": 1.0,
+          "programs": {
+            "dna_repair": {
+              "covered_genes": 98,
+              "median_abs_condition_mean_shift": 0.012793648343882582,
+              "common_mean_shift": -0.015439479042560883
+            },
+            "dna_replication": {
+              "covered_genes": 26,
+              "median_abs_condition_mean_shift": 0.02861967972641252,
+              "common_mean_shift": -0.03549525042858554
+            },
+            "g1s_transition": {
+              "covered_genes": 19,
+              "median_abs_condition_mean_shift": 0.010749515927380087,
+              "common_mean_shift": -0.011073193364312579
+            },
+            "g2m_transition": {
+              "covered_genes": 15,
+              "median_abs_condition_mean_shift": 0.02743277934071432,
+              "common_mean_shift": -0.028241353729268066
+            },
+            "apoptotic_process": {
+              "covered_genes": 55,
+              "median_abs_condition_mean_shift": 0.005958257805771905,
+              "common_mean_shift": -0.0024971226518514145
+            },
+            "oxidative_stress": {
+              "covered_genes": 32,
+              "median_abs_condition_mean_shift": 0.0071250460064091236,
+              "common_mean_shift": 0.0012044442378629178
+            },
+            "ribosome_biogenesis": {
+              "covered_genes": 59,
+              "median_abs_condition_mean_shift": 0.016023527381015482,
+              "common_mean_shift": -0.010139434937854332
+            },
+            "translation": {
+              "covered_genes": 95,
+              "median_abs_condition_mean_shift": 0.019751997442818522,
+              "common_mean_shift": -0.010373880157675677
+            }
+          }
+        },
+        "jurkat": {
+          "rows": 156881,
+          "control_rows": 12013,
+          "conditions": 1491,
+          "condition_cells_median": 74.0,
+          "condition_cells_p10": 30.0,
+          "condition_cells_p90": 168.0,
+          "conditions_below_20_cells": 26,
+          "effect_rms_median": 0.05436000021378893,
+          "specific_residual_rms_median": 0.04996527479339173,
+          "common_alignment_cosine_mean": 0.39855651103988016,
+          "effective_rank_of_condition_effects_max500": 75.47555671416983,
+          "split_half_pearson_delta_median": 0.48330084991175437,
+          "split_half_top20_jaccard_median": 0.2903225806451613,
+          "split_half_top20_sign_agreement_median": 1.0,
+          "programs": {
+            "dna_repair": {
+              "covered_genes": 98,
+              "median_abs_condition_mean_shift": 0.009564675006792013,
+              "common_mean_shift": -0.0067705993021940645
+            },
+            "dna_replication": {
+              "covered_genes": 26,
+              "median_abs_condition_mean_shift": 0.021548633382998308,
+              "common_mean_shift": -0.022395457179529624
+            },
+            "g1s_transition": {
+              "covered_genes": 19,
+              "median_abs_condition_mean_shift": 0.010060307483996235,
+              "common_mean_shift": -0.0036851908317371445
+            },
+            "g2m_transition": {
+              "covered_genes": 15,
+              "median_abs_condition_mean_shift": 0.016985955654576317,
+              "common_mean_shift": -0.01153487233139899
+            },
+            "apoptotic_process": {
+              "covered_genes": 55,
+              "median_abs_condition_mean_shift": 0.009470310687658171,
+              "common_mean_shift": -0.009591665276241336
+            },
+            "oxidative_stress": {
+              "covered_genes": 32,
+              "median_abs_condition_mean_shift": 0.006782148084605963,
+              "common_mean_shift": -0.00063814841443454
+            },
+            "ribosome_biogenesis": {
+              "covered_genes": 59,
+              "median_abs_condition_mean_shift": 0.025311501209911214,
+              "common_mean_shift": -0.024166453631781996
+            },
+            "translation": {
+              "covered_genes": 95,
+              "median_abs_condition_mean_shift": 0.03606348941549764,
+              "common_mean_shift": -0.022772775205886605
+            }
+          }
+        }
+      },
+      "four_line_transfer": {
+        "K562<-RPE1": {
+          "shared_conditions": 848,
+          "median_pearson_delta": 0.4025838490270132,
+          "median_target_over_source_effect_norm": 0.5364242726108571,
+          "median_top100_target_gene_sign_agreement": 0.84
+        },
+        "K562<-jurkat": {
+          "shared_conditions": 862,
+          "median_pearson_delta": 0.4902163337621989,
+          "median_target_over_source_effect_norm": 0.7719733112483715,
+          "median_top100_target_gene_sign_agreement": 0.87
+        },
+        "K562<-hepg2": {
+          "shared_conditions": 875,
+          "median_pearson_delta": 0.41559860611144156,
+          "median_target_over_source_effect_norm": 0.7468120810536789,
+          "median_top100_target_gene_sign_agreement": 0.85
+        },
+        "RPE1<-K562": {
+          "shared_conditions": 848,
+          "median_pearson_delta": 0.4025838490270132,
+          "median_target_over_source_effect_norm": 1.864196166690984,
+          "median_top100_target_gene_sign_agreement": 0.8
+        },
+        "RPE1<-jurkat": {
+          "shared_conditions": 1124,
+          "median_pearson_delta": 0.36581984769816633,
+          "median_target_over_source_effect_norm": 1.354134271508094,
+          "median_top100_target_gene_sign_agreement": 0.76
+        },
+        "RPE1<-hepg2": {
+          "shared_conditions": 1229,
+          "median_pearson_delta": 0.48492059429975404,
+          "median_target_over_source_effect_norm": 1.4040863391581573,
+          "median_top100_target_gene_sign_agreement": 0.87
+        },
+        "jurkat<-K562": {
+          "shared_conditions": 862,
+          "median_pearson_delta": 0.4902163337621989,
+          "median_target_over_source_effect_norm": 1.2953816755088075,
+          "median_top100_target_gene_sign_agreement": 0.87
+        },
+        "jurkat<-RPE1": {
+          "shared_conditions": 1124,
+          "median_pearson_delta": 0.36581984769816633,
+          "median_target_over_source_effect_norm": 0.7384792058956278,
+          "median_top100_target_gene_sign_agreement": 0.8
+        },
+        "jurkat<-hepg2": {
+          "shared_conditions": 1191,
+          "median_pearson_delta": 0.3266980163611673,
+          "median_target_over_source_effect_norm": 0.9880613828881167,
+          "median_top100_target_gene_sign_agreement": 0.78
+        },
+        "hepg2<-K562": {
+          "shared_conditions": 875,
+          "median_pearson_delta": 0.41559860611144156,
+          "median_target_over_source_effect_norm": 1.3390249372895757,
+          "median_top100_target_gene_sign_agreement": 0.81
+        },
+        "hepg2<-RPE1": {
+          "shared_conditions": 1229,
+          "median_pearson_delta": 0.48492059429975404,
+          "median_target_over_source_effect_norm": 0.7122069149961007,
+          "median_top100_target_gene_sign_agreement": 0.85
+        },
+        "hepg2<-jurkat": {
+          "shared_conditions": 1191,
+          "median_pearson_delta": 0.3266980163611673,
+          "median_target_over_source_effect_norm": 1.0120828698688602,
+          "median_top100_target_gene_sign_agreement": 0.75
+        }
+      },
+      "source_sha256": "1b557390148eba358304e43e0b239538d9ae0691b26ec843f41cf544960307a8"
+    }
+  },
+  "distribution": {
+    "replogle_k562_essential": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/replogle_k562_essential/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 161662,
+      "genes": 5000,
+      "cell_lines": {
+        "K562": {
+          "all_noncontrol_conditions": 1092,
+          "eligible_conditions": 8,
+          "analyzed_conditions": 8,
+          "selection": "up to 30 from each pairable-cell-count quartile, then seeded fill",
+          "minimum_pairable_cells": 20,
+          "matched_batch_rule": "single batch maximizing min(perturbed, control) rows",
+          "median_energy_rp96": 0.5969002246431412,
+          "fraction_bh_q_below_0_1": 0.875,
+          "median_log2_variance_trace_ratio": 0.15938497508196903,
+          "equal_cell_split_half_curve": {
+            "10": {
+              "comparisons": 24,
+              "median_pearson_delta_rp96": 0.21857112646102905
+            }
+          }
+        }
+      },
+      "canonical_sha256": "b7a06e114342d78e3d89ddff3bcae4e385dfb3a2330e54df53eb852ddb192fc3"
+    },
+    "replogle_rpe1_essential": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/replogle_rpe1_essential/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 230244,
+      "genes": 5000,
+      "cell_lines": {
+        "RPE1": {
+          "all_noncontrol_conditions": 2393,
+          "eligible_conditions": 20,
+          "analyzed_conditions": 20,
+          "selection": "up to 30 from each pairable-cell-count quartile, then seeded fill",
+          "minimum_pairable_cells": 20,
+          "matched_batch_rule": "single batch maximizing min(perturbed, control) rows",
+          "median_energy_rp96": 0.26328212534392037,
+          "fraction_bh_q_below_0_1": 0.65,
+          "median_log2_variance_trace_ratio": 0.07557362920169955,
+          "equal_cell_split_half_curve": {
+            "10": {
+              "comparisons": 60,
+              "median_pearson_delta_rp96": 0.08389995619654655
+            },
+            "20": {
+              "comparisons": 21,
+              "median_pearson_delta_rp96": 0.08982409536838531
+            },
+            "40": {
+              "comparisons": 3,
+              "median_pearson_delta_rp96": 0.4187835454940796
+            }
+          }
+        }
+      },
+      "canonical_sha256": "24be9c93304b7e38f62acf9292d8fe00820c3e5e7b81e7eeb9fb2eee055589a7"
+    },
+    "nadig_jurkat": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 238977,
+      "genes": 5000,
+      "cell_lines": {
+        "jurkat": {
+          "all_noncontrol_conditions": 2392,
+          "eligible_conditions": 20,
+          "analyzed_conditions": 20,
+          "selection": "up to 30 from each pairable-cell-count quartile, then seeded fill",
+          "minimum_pairable_cells": 20,
+          "matched_batch_rule": "single batch maximizing min(perturbed, control) rows",
+          "median_energy_rp96": 0.06654097841184381,
+          "fraction_bh_q_below_0_1": 0.35,
+          "median_log2_variance_trace_ratio": 0.05159032965448744,
+          "equal_cell_split_half_curve": {
+            "10": {
+              "comparisons": 60,
+              "median_pearson_delta_rp96": 0.041607314720749855
+            },
+            "20": {
+              "comparisons": 9,
+              "median_pearson_delta_rp96": 0.16378867626190186
+            }
+          }
+        }
+      },
+      "canonical_sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5"
+    },
+    "nadig_hepg2": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/nadig_hepg2/within_cell_unseen_single/canonical/adata.h5ad",
+      "rows": 130879,
+      "genes": 5000,
+      "cell_lines": {
+        "hepg2": {
+          "all_noncontrol_conditions": 2393,
+          "eligible_conditions": 3,
+          "analyzed_conditions": 3,
+          "selection": "up to 30 from each pairable-cell-count quartile, then seeded fill",
+          "minimum_pairable_cells": 20,
+          "matched_batch_rule": "single batch maximizing min(perturbed, control) rows",
+          "median_energy_rp96": 0.1280344493289718,
+          "fraction_bh_q_below_0_1": 0.3333333333333333,
+          "median_log2_variance_trace_ratio": -0.07085667707352156,
+          "equal_cell_split_half_curve": {
+            "10": {
+              "comparisons": 9,
+              "median_pearson_delta_rp96": 0.05811408907175064
+            }
+          }
+        }
+      },
+      "canonical_sha256": "e310a8ed4e81e96e8817217fe089b24327f48b4c4a4b2dfe9fb07afd873f9bda"
+    },
+    "norman": {
+      "h5ad": "/data/yilangliu/GraD-Pert/data/norman/norman_combo_seen2/canonical/adata.h5ad",
+      "rows": 91205,
+      "genes": 5045,
+      "cell_lines": {
+        "K562": {
+          "all_noncontrol_conditions": 236,
+          "eligible_conditions": 236,
+          "analyzed_conditions": 120,
+          "selection": "up to 30 from each pairable-cell-count quartile, then seeded fill",
+          "minimum_pairable_cells": 20,
+          "matched_batch_rule": "single batch maximizing min(perturbed, control) rows",
+          "median_energy_rp96": 1.1671223168778138,
+          "fraction_bh_q_below_0_1": 0.925,
+          "median_log2_variance_trace_ratio": 0.23780917560711018,
+          "equal_cell_split_half_curve": {
+            "10": {
+              "comparisons": 360,
+              "median_pearson_delta_rp96": 0.3284923881292343
+            },
+            "20": {
+              "comparisons": 360,
+              "median_pearson_delta_rp96": 0.5251413881778717
+            },
+            "40": {
+              "comparisons": 348,
+              "median_pearson_delta_rp96": 0.6868419349193573
+            }
+          }
+        }
+      },
+      "canonical_sha256": "37d17eae90cbeb7eec258d7512a0eb4d549fee308aa4b31db2e1eafdaf8e6325"
+    },
+    "crosscell": {
+      "h5ad": "/data/yilangliu/GraD-Pert/crosscell-fixed-v1/source/K562_cross_cell_lines/de_adata_test.h5ad",
+      "rows": 632488,
+      "genes": 3352,
+      "cell_lines": {
+        "K562": {
+          "all_noncontrol_conditions": 1092,
+          "eligible_conditions": 8,
+          "analyzed_conditions": 8,
+          "selection": "up to 30 from each pairable-cell-count quartile, then seeded fill",
+          "minimum_pairable_cells": 20,
+          "matched_batch_rule": "single batch maximizing min(perturbed, control) rows",
+          "median_energy_rp96": 0.3901584151395383,
+          "fraction_bh_q_below_0_1": 0.75,
+          "median_log2_variance_trace_ratio": 0.13264400879848232,
+          "equal_cell_split_half_curve": {
+            "10": {
+              "comparisons": 24,
+              "median_pearson_delta_rp96": 0.19379834085702896
+            }
+          }
+        },
+        "RPE1": {
+          "all_noncontrol_conditions": 1543,
+          "eligible_conditions": 18,
+          "analyzed_conditions": 18,
+          "selection": "up to 30 from each pairable-cell-count quartile, then seeded fill",
+          "minimum_pairable_cells": 20,
+          "matched_batch_rule": "single batch maximizing min(perturbed, control) rows",
+          "median_energy_rp96": 0.2044895908762845,
+          "fraction_bh_q_below_0_1": 0.4444444444444444,
+          "median_log2_variance_trace_ratio": 0.04451956077495604,
+          "equal_cell_split_half_curve": {
+            "10": {
+              "comparisons": 54,
+              "median_pearson_delta_rp96": 0.12290208414196968
+            },
+            "20": {
+              "comparisons": 21,
+              "median_pearson_delta_rp96": 0.18794357776641846
+            },
+            "40": {
+              "comparisons": 3,
+              "median_pearson_delta_rp96": 0.49578267335891724
+            }
+          }
+        },
+        "hepg2": {
+          "all_noncontrol_conditions": 1653,
+          "eligible_conditions": 2,
+          "analyzed_conditions": 2,
+          "selection": "up to 30 from each pairable-cell-count quartile, then seeded fill",
+          "minimum_pairable_cells": 20,
+          "matched_batch_rule": "single batch maximizing min(perturbed, control) rows",
+          "median_energy_rp96": 0.13319283471248777,
+          "fraction_bh_q_below_0_1": 0.5,
+          "median_log2_variance_trace_ratio": -0.023388638497146567,
+          "equal_cell_split_half_curve": {
+            "10": {
+              "comparisons": 6,
+              "median_pearson_delta_rp96": 0.1278718514367938
+            }
+          }
+        },
+        "jurkat": {
+          "all_noncontrol_conditions": 1491,
+          "eligible_conditions": 15,
+          "analyzed_conditions": 15,
+          "selection": "up to 30 from each pairable-cell-count quartile, then seeded fill",
+          "minimum_pairable_cells": 20,
+          "matched_batch_rule": "single batch maximizing min(perturbed, control) rows",
+          "median_energy_rp96": 0.1402494428291945,
+          "fraction_bh_q_below_0_1": 0.3333333333333333,
+          "median_log2_variance_trace_ratio": 0.049356232369368216,
+          "equal_cell_split_half_curve": {
+            "10": {
+              "comparisons": 45,
+              "median_pearson_delta_rp96": 0.08082083612680435
+            },
+            "20": {
+              "comparisons": 6,
+              "median_pearson_delta_rp96": 0.03902058303356171
+            }
+          }
+        }
+      },
+      "source_sha256": "1b557390148eba358304e43e0b239538d9ae0691b26ec843f41cf544960307a8"
+    }
+  }
+}

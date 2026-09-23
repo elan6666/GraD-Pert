@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import html
+import os
 import re
 from pathlib import Path
 
 from PIL import Image as PILImage
+from pypdf import PdfReader, PdfWriter
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
@@ -20,6 +22,7 @@ from reportlab.platypus import (
     Image,
     KeepTogether,
     LongTable,
+    PageBreak,
     PageTemplate,
     Paragraph,
     Spacer,
@@ -30,6 +33,14 @@ DEFAULT_REPORT = (
     Path(__file__).resolve().parents[2] / "docs/experiments/PERTURBATION_DATASET_ANALYSIS_ZH.md"
 )
 DEFAULT_OUTPUT = Path(__file__).resolve().parents[2] / "output/pdf/gradpert_dataset_analysis_zh.pdf"
+DEFAULT_APPENDIX = (
+    Path(__file__).resolve().parents[2]
+    / "docs/experiments/PERTURBATION_DATASET_ANALYSIS_APPENDIX_ZH.md"
+)
+DEFAULT_DATA_ATTACHMENT = (
+    Path(__file__).resolve().parents[2]
+    / "docs/experiments/data/report-aggregate-current-ecdf8f1.json"
+)
 FONT = "Songti-Embedded"
 FONT_FILE = Path("/System/Library/Fonts/Supplemental/Songti.ttc")
 INK = colors.HexColor("#193047")
@@ -129,7 +140,12 @@ def _table(lines: list[str], styles: dict[str, ParagraphStyle], width: float) ->
     else:
         weights = [1.0] * count
     unit = width / sum(weights)
-    cells = [[Paragraph(_inline(cell), styles["table"]) for cell in row] for row in rows]
+    table_style = styles["table"]
+    if count >= 7:
+        table_style = ParagraphStyle(
+            "report_table_compact", parent=styles["table"], fontSize=7.0, leading=9.6
+        )
+    cells = [[Paragraph(_inline(cell), table_style) for cell in row] for row in rows]
     table = LongTable(
         cells, colWidths=[unit * item for item in weights], repeatRows=1, hAlign="LEFT"
     )
@@ -142,8 +158,8 @@ def _table(lines: list[str], styles: dict[str, ParagraphStyle], width: float) ->
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 5),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
             ]
         )
     )
@@ -161,7 +177,12 @@ def _footer(canvas: object, doc: BaseDocTemplate) -> None:
     canvas.restoreState()
 
 
-def render(source: Path, output: Path) -> None:
+def render(
+    source: Path,
+    output: Path,
+    appendix: Path | None = None,
+    data_attachment: Path | None = None,
+) -> None:
     styles = _styles()
     output.parent.mkdir(parents=True, exist_ok=True)
     width = A4[0] - 84
@@ -194,6 +215,8 @@ def render(source: Path, output: Path) -> None:
         )
     )
     lines = source.read_text().splitlines()
+    if appendix is not None:
+        lines += ["", "<!-- pagebreak -->", "", *appendix.read_text().splitlines()]
     story: list[object] = []
     index = 0
     while index < len(lines):
@@ -201,7 +224,9 @@ def render(source: Path, output: Path) -> None:
         if not line:
             index += 1
             continue
-        if line.startswith("# "):
+        if line == "<!-- pagebreak -->":
+            story.append(PageBreak())
+        elif line.startswith("# "):
             story.append(Paragraph(_inline(line[2:]), styles["title"]))
         elif line.startswith("## "):
             story.append(Paragraph(_inline(line[3:]), styles["section"]))
@@ -242,14 +267,24 @@ def render(source: Path, output: Path) -> None:
             story.append(Paragraph(_inline(" ".join(paragraph)), style))
         index += 1
     doc.build(story)
+    if data_attachment is not None:
+        writer = PdfWriter()
+        writer.clone_document_from_reader(PdfReader(output))
+        writer.add_attachment(filename=data_attachment.name, data=data_attachment.read_bytes())
+        staged = output.with_suffix(".attached.pdf")
+        with staged.open("wb") as handle:
+            writer.write(handle)
+        os.replace(staged, output)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, default=DEFAULT_REPORT)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--appendix", type=Path, default=DEFAULT_APPENDIX)
+    parser.add_argument("--data-attachment", type=Path, default=DEFAULT_DATA_ATTACHMENT)
     args = parser.parse_args()
-    render(args.source, args.output)
+    render(args.source, args.output, args.appendix, args.data_attachment)
 
 
 if __name__ == "__main__":

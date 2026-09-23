@@ -85,3 +85,5 @@ Norman 的 131 个双基因条件均找到相应两个单基因条件。双扰�
 - 批次匹配分布审计：源码 `ecdf8f14a11fde63f6f4cdaecda7c9456c3e96ee`，服务器收据 `/data/yilangliu/GraD-Pert/development/dataset-distribution-ecdf8f1/receipt.json`，收据 SHA256 `c4fcb226055eb997f613902d56af7a420a5ce30b8fef8bea2d2deefb34c310a6`。两项新增审计都以 `seed=42`、低优先级 CPU、每类 2 个数值线程运行；结果目录只含聚合统计和收据，原始矩阵留在服务器。
 
 所有数值都是这批冻结数据与上述具体代码口径的结果。不同来源、细胞数、基因面板及预处理足以改变数值；论文链接用于说明分析动机和方法背景，并不表示复现了对应论文的全部流程。
+
+全部 12 张已生成图、各分析的聚合统计表和图注见 [数据附录](PERTURBATION_DATASET_ANALYSIS_APPENDIX_ZH.md)。PDF 同时内嵌[聚合数据 JSON](data/report-aggregate-current-ecdf8f1.json)；逐条件明细仍按上述收据留在服务器。
