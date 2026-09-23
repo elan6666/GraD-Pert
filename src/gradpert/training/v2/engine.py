@@ -41,9 +41,9 @@ def optimizer_step(
     """Accumulate cell terms; count graph terms once per effective update.
 
     Unified KoLeo collects all microbatch representations before cross-rank
-    neighbor selection. With a single microbatch, its loss joins the ordinary
-    backward pass so that the encoder graph need not be retained. Accumulation
-    retains those graphs and therefore does not guarantee lower peak memory.
+    neighbor selection. Cell and KoLeo terms share one backward pass after the
+    accumulated forwards, avoiding a second traversal of retained encoder
+    graphs. This does not guarantee lower peak memory.
     The legacy objective route retains its historical local neighborhoods.
     Distributed callers provide the unsharded condition index; graph terms
     remain once per global update, cell means are weighted by actual rank rows.
@@ -95,6 +95,7 @@ def optimizer_step(
     deferred_koleo: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] | None = (
         [] if unified and objective.lambda2 and objective.weights[1][2] else None
     )
+    pending_cell_losses: list[torch.Tensor] = []
     if unified:
         ids = gather_rows(batch.condition_index)
         if global_condition_index is not None and not torch.equal(ids, global_condition_index):
@@ -164,9 +165,10 @@ def optimizer_step(
                 koleo = global_koleo()
                 loss = loss + objective.lambda2 * objective.weights[1][2] * koleo
                 metrics["ssl2_koleo"] = float(koleo.detach())
-            (loss * fraction * population_factor).backward(
-                retain_graph=deferred_koleo is not None and not single_micro
-            )
+            if deferred_koleo is not None and not single_micro:
+                pending_cell_losses.append(loss * fraction * population_factor)
+            else:
+                (loss * fraction * population_factor).backward()
             for name, value in terms.items():
                 metrics[name] = metrics.get(name, 0.0) + float(value.detach()) * fraction
             # Keep only CLS ancestor graphs for the deferred global KoLeo pass,
@@ -174,7 +176,10 @@ def optimizer_step(
             del loss, terms, value
         if deferred_koleo is not None and microbatch < total:
             koleo = global_koleo()
-            (koleo * population_factor * objective.lambda2 * objective.weights[1][2]).backward()  # type: ignore[no-untyped-call]
+            (
+                torch.stack(pending_cell_losses).sum()
+                + koleo * population_factor * objective.lambda2 * objective.weights[1][2]
+            ).backward()  # type: ignore[no-untyped-call]
             metrics["ssl2_koleo"] = float(koleo.detach())
         if deferred_koleo is not None:
             deferred_koleo.clear()
