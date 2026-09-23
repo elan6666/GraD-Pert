@@ -42,7 +42,10 @@ halves share a control/reference estimate and therefore do not establish a
 model performance ceiling. Count-bin values describe reliability and do not
 substitute for controlled downsampling or an E-test. Centroid accuracy uses at
 most 500 seeded held-out conditions per dataset for bounded computation and
-must report that denominator. These analyses operate on the canonical feature
+must report that denominator. For a constant predictor, its mean accuracy over
+the same candidate set is mathematically 0.5 (apart from ties); its per-condition
+distribution, rather than that mean, is the useful baseline for later model
+comparison. These analyses operate on the canonical feature
 axis; they cannot be numerically equated to the paper's 10 processed datasets.
 
 The next distribution-level analysis should use the same cell-count cap in

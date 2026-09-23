@@ -40,13 +40,19 @@ def _centroid_accuracy(
         truth = truth[selected]
         n = len(truth)
     if n < 2:
-        return {"conditions": n, "mean": None}
+        return {"conditions": n, "mean": None, "p10": None, "p90": None}
     squared = np.sum((truth - prediction) ** 2, axis=1)
     own = squared.copy()
     accuracy = np.empty(n)
     for i in range(n):
         accuracy[i] = np.mean(squared[np.arange(n) != i] > own[i])
-    return {"conditions": n, "mean": float(np.mean(accuracy)), "median": float(np.median(accuracy))}
+    return {
+        "conditions": n,
+        "mean": float(np.mean(accuracy)),
+        "median": float(np.median(accuracy)),
+        "p10": float(np.quantile(accuracy, 0.1)),
+        "p90": float(np.quantile(accuracy, 0.9)),
+    }
 
 
 def _analyze(

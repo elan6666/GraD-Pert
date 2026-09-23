@@ -17,6 +17,7 @@ def test_constant_prediction_centroid_accuracy_is_half_on_average() -> None:
     result = _centroid_accuracy(np.zeros(2), truth, max_conditions=3, seed=42)
     assert result["conditions"] == 3
     assert result["mean"] == 0.5
+    assert result["p10"] < result["p90"]
 
 
 def test_centroid_accuracy_ties_are_not_counted_as_success() -> None:
