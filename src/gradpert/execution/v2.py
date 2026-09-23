@@ -22,12 +22,15 @@ class DatasetArgs(TypedDict):
 
 
 def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
-    """Run the sealed fifty-epoch lifecycle, then test both checkpoint roles."""
+    """Run the sealed fixed-epoch lifecycle, then test both checkpoint roles."""
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         raise ValueError("v2 requires PYTORCH_ALLOC_CONF=expandable_segments:True")
     config = load_experiment_config(plan["config"])
-    if config.model_id != "gradpert_v2" or config.training.formal_run_policy != "v2_fixed_50":
-        raise ValueError("v2 execution requires its explicit fixed-50 configuration")
+    if config.model_id != "gradpert_v2" or config.training.formal_run_policy not in {
+        "v2_fixed_5",
+        "v2_fixed_50",
+    }:
+        raise ValueError("v2 execution requires its explicit fixed-epoch configuration")
     if sha256_file(Path(plan["config"])) != plan["config_sha256"]:
         raise ValueError("configuration changed after planning")
     if Path(plan["repository_root"]).resolve() != Path(__file__).resolve().parents[3]:

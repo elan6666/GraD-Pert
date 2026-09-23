@@ -44,9 +44,11 @@ class SparseRead(nn.Module):
             raise ValueError("expected four-source edge memberships")
         n, k = neighbors.shape
         q = self.query(self.norm1(query)).reshape(n, self.heads, self.head_width)
-        selected = memory[neighbors.clamp_min(0)]
-        key = self.key(selected).reshape(n, k, self.heads, self.head_width)
-        value = self.value(selected).reshape(n, k, self.heads, self.head_width)
+        # A linear map commutes with row selection. Project each graph node once
+        # instead of projecting the same node for every incoming sparse edge.
+        selected = neighbors.clamp_min(0)
+        key = self.key(memory)[selected].reshape(n, k, self.heads, self.head_width)
+        value = self.value(memory)[selected].reshape(n, k, self.heads, self.head_width)
         score = torch.einsum("nhd,nkhd->nhk", q.float(), key.float()) / self.head_width**0.5
         bias = sources.to(self.source_bias.dtype) @ self.source_bias
         score = score + bias.permute(0, 2, 1).float()
@@ -64,7 +66,13 @@ class GeneGraph(nn.Module):
         self.embedding = nn.Embedding(seeds.shape[0], seeds.shape[1])
         with torch.no_grad():
             self.embedding.weight.copy_(seeds)
-        self.adapter = nn.Linear(seeds.shape[1], options.width)
+        # An already reduced GenePT table is the model-width representation;
+        # the historical 2048-wide route retains its learned adapter unchanged.
+        self.adapter = (
+            nn.Identity()
+            if seeds.shape[1] == options.width
+            else nn.Linear(seeds.shape[1], options.width)
+        )
         self.norm = nn.LayerNorm(options.width)
         self.mask_token = nn.Parameter(torch.zeros(options.width))
         self.layers = nn.ModuleList(

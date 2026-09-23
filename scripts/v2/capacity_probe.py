@@ -106,6 +106,7 @@ def main() -> None:
             run_seed=config.training.run_seeds[0],
             device=torch.device("cuda:0"),
         ) as runtime:
+            total_steps = int(config.training.max_epochs.value) * runtime.steps_per_epoch
             receipt["data"] = runtime.identity
             receipt["optimizer_routes"] = runtime.optimizer.routes
             durations = []
@@ -130,10 +131,10 @@ def main() -> None:
                         runtime.optimizer,
                         batch,
                         microbatch=runtime.options.microbatch,
-                        lr=schedule.at_step(step, 50 * runtime.steps_per_epoch)["learning_rate"],
+                        lr=schedule.at_step(step, total_steps)["learning_rate"],
                         momentum=runtime.options.teacher_end
                         - (runtime.options.teacher_end - runtime.options.teacher_start)
-                        * (1 + math.cos(math.pi * step / (50 * runtime.steps_per_epoch - 1)))
+                        * (1 + math.cos(math.pi * step / (total_steps - 1)))
                         / 2,
                         bf16=True,
                         global_condition_index=global_conditions,

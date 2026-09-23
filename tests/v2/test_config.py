@@ -20,6 +20,17 @@ def test_capacity_probe_keeps_complete_method_and_fixed_protocol():
     assert config.training.train_batch_size.value == options.microbatch * options.accumulation
 
 
+def test_v2_five_epoch_protocol_is_explicit_and_does_not_reinterpret_old_runs():
+    payload = load_experiment_config(PROBE).model_dump(mode="json")
+    payload["training"]["formal_run_policy"] = "v2_fixed_5"
+    payload["training"]["max_epochs"]["value"] = 5
+    five = ExperimentConfig.model_validate(payload)
+    assert five.training.max_epochs.value == 5
+    payload["training"]["max_epochs"]["value"] = 50
+    with pytest.raises(ValueError, match="exactly 5 epochs"):
+        ExperimentConfig.model_validate(payload)
+
+
 @pytest.mark.parametrize("change", ["version", "batch", "policy", "unknown"])
 def test_v2_config_rejects_ambiguous_or_inconsistent_execution(change):
     payload = load_experiment_config(PROBE).model_dump(mode="json")

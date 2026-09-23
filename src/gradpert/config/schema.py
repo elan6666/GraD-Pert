@@ -134,6 +134,7 @@ class TrainingConfig(StrictModel):
         "fixed_epoch_pilot",
         "r50_selection",
         "v2_fixed_50",
+        "v2_fixed_5",
         "inference_only",
         "vnext_combination_100",
         "vnext_combination_200",
@@ -159,7 +160,7 @@ class TrainingConfig(StrictModel):
         if isinstance(self.scheduler.value, dict):
             schedule = load_training_schedule(self.scheduler.value)
             if isinstance(schedule, LRWarmupCosine):
-                if self.formal_run_policy not in {"r50_selection", "v2_fixed_50"}:
+                if self.formal_run_policy not in {"r50_selection", "v2_fixed_50", "v2_fixed_5"}:
                     raise ValueError("LR-only schedule requires R50 policy")
             elif self.formal_run_policy not in {"vnext_combination_100", "vnext_combination_200"}:
                 raise ValueError("native restart schedule is restricted to explicit combinations")
@@ -224,9 +225,12 @@ class TrainingConfig(StrictModel):
                     raise ValueError("vNext combination requires early-stopping patience=10")
                 if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
                     raise ValueError("vNext combination requires the common validation monitor")
-            elif self.formal_run_policy == "v2_fixed_50":
-                if self.max_epochs.value != 50 or self.early_stopping:
-                    raise ValueError("v2 requires exactly 50 epochs without early stopping")
+            elif self.formal_run_policy in {"v2_fixed_50", "v2_fixed_5"}:
+                expected_epochs = 5 if self.formal_run_policy == "v2_fixed_5" else 50
+                if self.max_epochs.value != expected_epochs or self.early_stopping:
+                    raise ValueError(
+                        f"v2 requires exactly {expected_epochs} epochs without early stopping"
+                    )
                 if self.monitor != "val/prediction_loss" or self.monitor_mode != "min":
                     raise ValueError("v2 selects best by validation prediction loss")
                 if (
@@ -352,6 +356,7 @@ class ExperimentConfig(StrictModel):
                 "smoke_then_full",
                 "r50_selection",
                 "v2_fixed_50",
+                "v2_fixed_5",
                 "fixed_epoch_pilot",
                 "vnext_combination_100",
                 "vnext_combination_200",
@@ -368,7 +373,10 @@ class ExperimentConfig(StrictModel):
             or self.artifacts.result_mode != "metrics_only"
         ):
             raise ValueError("external R50 is restricted to registered Jurkat metrics_only rows")
-        if self.training.formal_run_policy == "v2_fixed_50" and self.model_id != "gradpert_v2":
+        if (
+            self.training.formal_run_policy in {"v2_fixed_50", "v2_fixed_5"}
+            and self.model_id != "gradpert_v2"
+        ):
             raise ValueError("v2 policy cannot reinterpret a legacy model")
         is_legacy_performance_pilot = "performance_pilot_variant" in self.model.parameters
         if self.training.formal_run_policy == "r50_selection" and (
@@ -382,11 +390,13 @@ class ExperimentConfig(StrictModel):
             _, options = V2Options.parse_parameters(self.model.parameters)
             if self.artifacts.result_mode != "metrics_only":
                 raise ValueError("v2 requires metrics_only with server-side best/last checkpoints")
-            if (
-                self.training.formal_run_policy != "v2_fixed_50"
-                or self.training.max_epochs.value != 50
+            if self.training.formal_run_policy not in {
+                "v2_fixed_50",
+                "v2_fixed_5",
+            } or self.training.max_epochs.value != (
+                5 if self.training.formal_run_policy == "v2_fixed_5" else 50
             ):
-                raise ValueError("v2 uses the fixed 50 epoch best/last protocol")
+                raise ValueError("v2 requires a fixed 5/50 epoch best/last protocol")
             if self.training.optimizer.value != "GLM5MuonSplit_v2":
                 raise ValueError("v2 requires its explicit parameter-route optimizer")
             if (

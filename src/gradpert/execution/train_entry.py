@@ -36,10 +36,15 @@ def resolve_plan(args: argparse.Namespace) -> dict[str, Any]:
     root = repository_root()
     config_path = (args.config or root / DEFAULT_CONFIG).resolve(strict=True)
     config = load_experiment_config(config_path)
-    if config.training.formal_run_policy not in {"r50_selection", "v2_fixed_50"}:
-        raise ValueError("train currently supports the complete R50 best/last lifecycle only")
-    if config.training.max_epochs.value != 50 or config.training.early_stopping:
-        raise ValueError("train requires 50 epochs without early stopping")
+    expected_epochs = {
+        "r50_selection": 50,
+        "v2_fixed_50": 50,
+        "v2_fixed_5": 5,
+    }.get(config.training.formal_run_policy)
+    if expected_epochs is None or config.training.max_epochs.value != expected_epochs:
+        raise ValueError("train requires an explicit fixed-epoch best/last policy")
+    if config.training.early_stopping:
+        raise ValueError("train requires no early stopping")
     if config.artifacts.result_mode != "metrics_only":
         raise ValueError("train currently requires metrics_only results")
     seed = config.training.run_seeds[0] if args.seed is None else args.seed
