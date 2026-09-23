@@ -8,7 +8,7 @@ read only for descriptive statistics and are never fed back into training.
 
 | Analysis | Scope | Interpretation and source |
 | --- | --- | --- |
-| Perturbation–batch association | Each of five datasets; each of four cross-cell lines | Fraction of batch entropy explained by perturbation identity and fraction of conditions occurring in only one batch. Motivated by [TxPert Fig. 1](https://www.nature.com/articles/s41587-026-03113-4). It diagnoses confounding; it does not prove its cause. |
+| Perturbation–batch association | Each of five datasets; each of four cross-cell lines | Fraction of batch entropy explained by perturbation identity, its mean under ten batch-label permutations, their difference, and fraction of conditions occurring in only one batch. Motivated by [TxPert Fig. 1](https://www.nature.com/articles/s41587-026-03113-4). The permutation reference controls finite-sample upward bias; it does not prove a biological cause. |
 | Control consistency | Same nine contexts | Pearson correlation between independent halves of controls within a batch, compared with mean controls across batch pairs. Uses one seeded half split. High expression correlation alone does not imply absent batch effects. |
 | Split-half retrieval | Same nine contexts | Among up to 500 conditions with at least 20 cells, retrieve the matching second-half perturbation by Pearson correlation of control-subtracted expression shifts. Report top-1/top-10 and chance. This adapts TxPert's perturbation-specific [retrieval analysis](https://www.nature.com/articles/s41587-026-03113-4); it is not a model score. |
 | Shared response and effect magnitude | Same nine contexts | Per-condition RMS expression shift and correlation with the mean perturbation shift. A strong shared response can boost average Pearson without identifying the perturbation. |
@@ -25,7 +25,10 @@ defensible units. Cross-cell line comparisons share one fixed axis but may
 still reflect line-specific experimental sources.
 
 The script streams the backed sparse H5ADs and saves only aggregated JSON and
-figures on `/data/yilangliu`. The five-dataset split-half estimates already in
+figures on `/data/yilangliu`. A single-batch dataset has no batch-association
+or across-batch control comparison; plots mark these cases N/A. Control
+dissimilarity is displayed as `1000 × (1 − Pearson)` to make small differences
+visible. The five-dataset split-half estimates already in
 `docs/experiments/FIVE_DATASET_EDA.md` remain a separate repeatability
 analysis. The additional retrieval half split uses seed 42 and strata of
 cell line, condition and batch; its correlation is not an upper bound on model

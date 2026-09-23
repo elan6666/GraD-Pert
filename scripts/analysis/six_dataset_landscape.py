@@ -47,28 +47,54 @@ def _stable_seed(seed: int, key: str) -> int:
 
 
 def _batch_information(
-    conditions: np.ndarray, batches: np.ndarray
+    conditions: np.ndarray, batches: np.ndarray, *, seed: int = 42
 ) -> dict[str, float | int | None]:
-    import pandas as pd
+    condition_codes = np.unique(conditions, return_inverse=True)[1]
+    batch_codes = np.unique(batches, return_inverse=True)[1]
+    n_conditions = int(condition_codes.max()) + 1
+    n_batches = int(batch_codes.max()) + 1
+    total = len(conditions)
 
-    table = pd.crosstab(pd.Series(conditions), pd.Series(batches)).to_numpy(dtype=float)
-    total = table.sum()
-    row = table.sum(axis=1)
-    column = table.sum(axis=0)
-    probabilities = column / total
-    nonzero = probabilities > 0
-    entropy = float(-(probabilities[nonzero] * np.log(probabilities[nonzero])).sum())
-    conditional = 0.0
-    for counts, size in zip(table, row, strict=True):
-        p = counts[counts > 0] / size
-        conditional += (size / total) * float(-(p * np.log(p)).sum())
+    def table_for(codes: np.ndarray) -> np.ndarray:
+        return np.bincount(
+            condition_codes * n_batches + codes,
+            minlength=n_conditions * n_batches,
+        ).reshape(n_conditions, n_batches)
+
+    table = table_for(batch_codes)
+    probabilities = table.sum(axis=0) / total
+    entropy = float(
+        -(probabilities[probabilities > 0] * np.log(probabilities[probabilities > 0])).sum()
+    )
+
+    def fraction(current: np.ndarray) -> float | None:
+        if entropy == 0:
+            return None
+        occupied = current > 0
+        row_probability = current.sum(axis=1) / total
+        column_probability = current.sum(axis=0) / total
+        joint = current[occupied] / total
+        expected = (row_probability[:, None] * column_probability[None, :])[occupied]
+        return float(np.sum(joint * np.log(joint / expected)) / entropy)
+
+    observed = fraction(table)
+    if observed is None:
+        null_mean = None
+        excess = None
+    else:
+        rng = np.random.default_rng(seed)
+        null_mean = float(
+            np.mean([fraction(table_for(rng.permutation(batch_codes))) for _ in range(10)])
+        )
+        excess = observed - null_mean
     return {
-        "n_conditions": len(row),
-        "n_batches": len(column),
+        "n_conditions": n_conditions,
+        "n_batches": n_batches,
         "single_batch_condition_fraction": float(np.mean((table > 0).sum(axis=1) == 1)),
-        "batch_information_fraction": (
-            float(max(0.0, min(1.0, (entropy - conditional) / entropy))) if entropy > 0 else None
-        ),
+        "batch_information_fraction": observed,
+        "permuted_null_fraction": null_mean,
+        "excess_batch_information_fraction": excess,
+        "null_permutations": 10,
     }
 
 
@@ -342,22 +368,28 @@ def _plot(summaries: dict[str, dict], output: Path) -> None:
             info.append(item)
     x = np.arange(len(names))
     fig, axes = plt.subplots(2, 2, figsize=(16, 10), constrained_layout=True)
-    axes[0, 0].bar(x, [v["batch_information"]["batch_information_fraction"] or 0 for v in info])
-    axes[0, 0].set_title("Batch information explained by perturbation ID")
+    batch_values = [v["batch_information"]["excess_batch_information_fraction"] for v in info]
+    axes[0, 0].bar(x, [value if value is not None else np.nan for value in batch_values])
+    for i, value in enumerate(batch_values):
+        if value is None:
+            axes[0, 0].text(i, 0.005, "N/A", ha="center", va="bottom", rotation=90)
+    axes[0, 0].set_title("Batch information above shuffled-label baseline")
     width = 0.35
+    within = [v["control_correlation"]["within_batch_median"] for v in info]
+    across = [v["control_correlation"]["across_batch_median"] for v in info]
     axes[0, 1].bar(
         x - width / 2,
-        [v["control_correlation"]["within_batch_median"] or 0 for v in info],
+        [1000 * (1 - value) if value is not None else np.nan for value in within],
         width,
         label="within",
     )
     axes[0, 1].bar(
         x + width / 2,
-        [v["control_correlation"]["across_batch_median"] or 0 for v in info],
+        [1000 * (1 - value) if value is not None else np.nan for value in across],
         width,
         label="across",
     )
-    axes[0, 1].set_title("Control mean Pearson by batch")
+    axes[0, 1].set_title("Control dissimilarity: 1000 x (1 - Pearson)")
     axes[0, 1].legend(frameon=False)
     axes[1, 0].bar(x, [v["replicate_retrieval"]["top1"] or 0 for v in info], label="observed")
     axes[1, 0].plot(
@@ -374,6 +406,34 @@ def _plot(summaries: dict[str, dict], output: Path) -> None:
     for ax in axes.flat:
         ax.set_xticks(x, names, rotation=50, ha="right", fontsize=7)
     fig.savefig(output, dpi=160)
+    plt.close(fig)
+
+    transfer = summaries["crosscell"]["crosscell_transfer"]
+    lines = ("K562", "RPE1", "jurkat", "hepg2")
+    pairwise = np.full((4, 4), np.nan)
+    for row, target in enumerate(lines):
+        for col, source in enumerate(lines):
+            if target != source:
+                pairwise[row, col] = transfer[target]["pairwise"][source]["median_pearson_delta"]
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), constrained_layout=True)
+    im = axes[0].imshow(pairwise, vmin=0, vmax=1, cmap="viridis")
+    axes[0].set_xticks(range(4), lines, rotation=35)
+    axes[0].set_yticks(range(4), lines)
+    axes[0].set(
+        xlabel="source cell line", ylabel="target cell line", title="Matched perturbation Pearson Δ"
+    )
+    for row in range(4):
+        for col in range(4):
+            if row != col:
+                axes[0].text(
+                    col, row, f"{pairwise[row, col]:.2f}", ha="center", va="center", color="white"
+                )
+    fig.colorbar(im, ax=axes[0], shrink=0.8)
+    axes[1].bar(lines, [transfer[line]["source_average_pearson_delta_median"] for line in lines])
+    axes[1].set(
+        ylim=(0, 1), ylabel="median Pearson Δ", title="Mean of available source-line responses"
+    )
+    fig.savefig(output.with_name("crosscell_transfer.png"), dpi=160)
     plt.close(fig)
 
 
