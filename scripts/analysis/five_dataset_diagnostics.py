@@ -259,7 +259,7 @@ def analyze_dataset(
         }
         plot_split = np.asarray(
             [
-                "control" if kind == 0 else split_by_condition[condition]
+                "control" if kind == 0 else split_by_condition.get(condition, "excluded")
                 for condition, kind in zip(conditions, kinds, strict=True)
             ]
         )

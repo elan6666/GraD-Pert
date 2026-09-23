@@ -11,6 +11,8 @@ For each independent dataset, sample up to 2,500 cells per perturbation class
 with a 24-cell cap per non-control condition. Class means control, one
 non-control target, or two non-control targets. Plot PCA and PCA-input UMAP,
 colored separately by class, frozen condition split, and experimental batch.
+Canonical conditions omitted by the official-graph representability filter
+are labeled `excluded` rather than assigned to a benchmark split.
 The plot is exploratory: distance and cluster shape are not a numerical
 measure of perturbation prediction quality.
 
