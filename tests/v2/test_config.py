@@ -24,7 +24,7 @@ def test_glm53_configs_keep_b1_seed_and_explicit_sparse_settings(variant, topk, 
     assert config.training.max_epochs.value == 5
 
 
-@pytest.mark.parametrize("microbatch", [40, 48, 56, 64])
+@pytest.mark.parametrize("microbatch", [36, 38, 40, 48, 56, 64])
 def test_glm53_capacity_profiles_only_change_physical_and_global_batch(microbatch):
     baseline = yaml.safe_load((GLM53 / "default/gradpert_v2/nadig_jurkat.yaml").read_text())
     path = GLM53 / f"capacity_m{microbatch}_a2/gradpert_v2/nadig_jurkat.yaml"
