@@ -201,3 +201,20 @@
 - Prevention: run builds in a disposable clean clone or stage the source into a
   separate build directory. Keep every active training checkout read-only;
   recheck both Git status and content-tree SHA before accepting a run receipt.
+
+## Advance the authorized dependency after a monitor confirms completion
+
+- Context: the scheduled v2 batch-128 capacity check verified a passed 128-step
+  receipt while the overall request still required recording the result and
+  preparing the formal Jurkat baseline.
+- Mistake or misunderstanding: I reported the completed test and listed its
+  successor as a future step instead of executing the already authorized
+  documentation and preflight handoff in the same turn.
+- Correct understanding and evidence: a successful stage receipt changes the
+  active work set; it does not complete the overall outcome. A newly discovered
+  repair is another dependency to track before returning to the original path.
+- Prevention rule: after verifying a stage, immediately execute the next
+  authorized ready action, then update the existing monitor's target and
+  cadence. Stop only at a genuine external wait, unresolved blocker, or
+  completed overall outcome.
+- Status: active

@@ -52,7 +52,7 @@ or final model quality are unchanged.
 
 | Per-rank microbatch × accumulation | Global batch | Evidence | Peak allocated | Result |
 |---|---:|---|---:|---|
-| 32 × 2 | 128 | 5 updates, frozen `2eb4c4e` | 25.91 GB | passed; default scientific batch |
+| 32 × 2 | 128 | 128 updates plus validation inference, frozen `0a9a67f` | 27.80/27.80 GB | passed; default scientific batch |
 | 36 × 2 | 144 | 128 updates plus validation inference, frozen `0a9a67f` | 31.68 GB | passed sustained capacity |
 | 38 × 2 | 152 | 5 updates, frozen `0a9a67f` | 32.42 GB | passed short test; only ~1.25 GB/card total headroom |
 | 40 × 2 | 160 | one update passed, longer probe failed at update 3 | — | OOM; not capacity-valid |
@@ -73,7 +73,18 @@ check and must not be used to select a scientific model or hyperparameters.
 Batch 152 has only a five-update pass with narrow headroom; no exact physical
 maximum above 144 is claimed. The user-selected ablation default remains global
 batch 128; a hardware capacity point is not an automatic experimental default.
-An exact-configuration 128-update probe for that default is running separately.
+The exact-configuration default batch-128 probe also passed on both GPUs at
+source `0a9a67f272978476e104952f3a715fa41969105d`. Its clean receipt is
+`v2-m32-capacity-clean-0a9a67f/receipt.json`, SHA256
+`51323c14610b8094dbe25e73c9c6ce4663c3325498e9873db97b2f1e9a59b269`.
+It completed 128 updates, checkpoint continuation at update 64, and
+300-control validation inference with output shape 300×5000. Training took
+2,657.49 s, with measured post-warmup throughput 6.622 cells/s; peak allocated
+memory was 27.80/27.80 GB on GPUs 0/1. The single-condition validation loss
+(0.009516) only checks that inference is finite; it is not a formal baseline
+metric. The source checkout stayed clean at the pinned commit. This result
+establishes sustained capacity for the selected batch, not five-epoch model
+quality or best/last test performance.
 
 The first 128-step batch-144 attempt was operator-stopped after 32 committed
 updates: a packaging build had created ignored `src/gradpert.egg-info/` in the

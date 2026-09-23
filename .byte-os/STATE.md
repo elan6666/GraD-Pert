@@ -29,22 +29,27 @@ It is the highest sustained-tested batch, not an exact physical maximum. 152
 passed only 5 updates and reached 32.42 GB/card; 160 failed by update 3; 192
 failed at its first update. Disabling outer checkpointing OOMed at global 128.
 
-Active server process: exact-default global-batch128 128-update plus
+Completed server process: exact-default global-batch128 128-update plus
 validation-inference capacity probe, output
 `/data/yilangliu/GraD-Pert/development/v2-m32-capacity-clean-0a9a67f`, log
 same stem plus `.log`, clean read-only source checkout
-`source-v2-capacity-clean-0a9a67f`, GPUs 0,1. It writes progress every 8 updates.
+`source-v2-capacity-clean-0a9a67f`, GPUs 0,1. Its receipt passed 128/128
+updates, checkpoint continuation, and 300×5000 validation inference; receipt
+SHA256 is `51323c14610b8094dbe25e73c9c6ce4663c3325498e9873db97b2f1e9a59b269`.
+Both GPUs are idle after completion. Measured throughput was 6.622 cells/s,
+with 27.80/27.80 GB peak allocated memory. Source HEAD remains the pinned
+`0a9a67f` commit and the server checkout is clean.
 The earlier distinct 128-step attempt `v2-m36-capacity-0a9a67f` was stopped
 after 32 updates because a concurrent build introduced ignored egg-info into
 its active source tree; `audit-stop.json` preserves both hashes. It is not
 capacity evidence. The replacement checkout's tree hash matched its pinned
 publication receipt before launch and remained clean after the successful 144
-probe. Never build in that checkout. Inspect the exact default-128 receipt,
-both ranks' memory and inference, and source tree. Do not overwrite run IDs or
-change the active server checkout. After this, finalize documentation and
-publish a scoped docs/state commit. The bounded Goal is complete. The active
-thread heartbeat is `grad-pert-v2-batch128`, every two hours, for the
-exact-default 128 probe; it reports each check per the user's prior preference.
+probe. Never build in that checkout. Do not overwrite run IDs or change the
+active server checkout. The next stage is exact published-source preflight
+for a new five-epoch Jurkat baseline. The
+bounded Goal is complete. The active thread heartbeat is
+`grad-pert-v2-batch128`, every 30 minutes during testing; switch to every two
+hours only when formal ablation training begins.
 Full v2 test suite: 212 passed; lint,
 format and isolated wheel/sdist build passed. Mypy retains five unrelated
 existing errors in `training/step.py` and `training/v2/reductions.py`.
