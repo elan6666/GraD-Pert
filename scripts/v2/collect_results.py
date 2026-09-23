@@ -26,6 +26,11 @@ def collect_run(root: Path) -> list[dict]:
     source = manifest["source"]
     if source["dirty"] or source["commit"] != source["published_commit"]:
         raise ValueError("training source is not clean and published")
+    resolved = read(root / "resolved_config.json")
+    policy = resolved["training"]["formal_run_policy"]
+    expected_epochs = {"v2_fixed_5": 5, "v2_fixed_50": 50}.get(policy)
+    if expected_epochs is None or resolved["training"]["max_epochs"]["value"] != expected_epochs:
+        raise ValueError("run has no supported fixed-epoch v2 contract")
     journal_path = root / "fit/epoch_state.json"
     journal = read(journal_path) if journal_path.exists() else None
     if journal and journal["identity"] != manifest:
@@ -33,13 +38,17 @@ def collect_run(root: Path) -> list[dict]:
     complete_path = root / "COMPLETE.json"
     complete = read(complete_path) if complete_path.exists() else None
     if complete:
-        if complete["identity"] != manifest or complete["epoch"] != 50:
-            raise ValueError("completion identity or epoch differs from fixed-50 contract")
-        if not journal or journal["epoch"] != 50 or journal["budget"][0] != 50:
-            raise ValueError("completion has no complete fixed-50 epoch journal")
+        if complete["identity"] != manifest or complete["epoch"] != expected_epochs:
+            raise ValueError("completion identity or epoch differs from fixed-epoch contract")
+        if (
+            not journal
+            or journal["epoch"] != expected_epochs
+            or journal["budget"][0] != expected_epochs
+        ):
+            raise ValueError("completion has no complete fixed-epoch journal")
         history = read(root / "fit/history.json")
-        if [h["epoch"] for h in history] != list(range(1, 51)):
-            raise ValueError("completion lacks all fifty committed epochs")
+        if [h["epoch"] for h in history] != list(range(1, expected_epochs + 1)):
+            raise ValueError("completion lacks all committed epochs")
         if any(
             h["validation"]["split"] != "val"
             or not math.isfinite(h["validation"]["prediction_loss"])

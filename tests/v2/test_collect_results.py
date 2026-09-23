@@ -14,10 +14,10 @@ def write(path, value):
     path.write_text(json.dumps(value))
 
 
-def completed(root):
+def completed(root, epochs=50):
     fit = root / "fit"
     fit.mkdir()
-    checkpoint = fit / "epoch-0050.pt"
+    checkpoint = fit / f"epoch-{epochs:04d}.pt"
     checkpoint.write_bytes(b"synthetic checkpoint hash fixture")
     identity = {
         "source": {"dirty": False, "commit": "a" * 40, "published_commit": "a" * 40},
@@ -28,23 +28,32 @@ def completed(root):
     selected = {
         "file": checkpoint.name,
         "sha256": sha256_file(checkpoint),
-        "epoch": 50,
-        "prediction_loss": 0.02,
+        "epoch": epochs,
+        "prediction_loss": 1 / epochs,
     }
     journal = {
         "identity": identity,
-        "epoch": 50,
-        "budget": [50, 2],
+        "epoch": epochs,
+        "budget": [epochs, 2],
         "best": selected,
         "last": selected,
     }
     write(root / "run_manifest.json", identity)
+    write(
+        root / "resolved_config.json",
+        {
+            "training": {
+                "formal_run_policy": f"v2_fixed_{epochs}",
+                "max_epochs": {"value": epochs},
+            }
+        },
+    )
     write(fit / "epoch_state.json", journal)
     write(
         fit / "history.json",
         [
             {"epoch": e, "validation": {"split": "val", "prediction_loss": 1 / e}}
-            for e in range(1, 51)
+            for e in range(1, epochs + 1)
         ],
     )
     for role in ("best", "last"):
@@ -63,8 +72,9 @@ def completed(root):
     write(root / "COMPLETE.json", {**journal, "test_roles": ["best", "last"], "zero_pkl": True})
 
 
-def test_keeps_both_roles_even_when_checkpoint_identical(tmp_path):
-    completed(tmp_path)
+@pytest.mark.parametrize("epochs", [5, 50])
+def test_keeps_both_roles_even_when_checkpoint_identical(tmp_path, epochs):
+    completed(tmp_path, epochs)
     rows = collect(tmp_path)
     assert [r["role"] for r in rows] == ["best", "last"]
     assert all(r["status"] == "complete" for r in rows)
@@ -91,4 +101,13 @@ def test_completion_cannot_hide_missing_or_corrupt_evidence(tmp_path, corruption
     else:
         (tmp_path / "unexpected.pkl").write_bytes(b"fixture")
     with pytest.raises(ValueError):
+        collect(tmp_path)
+
+
+def test_rejects_early_completion_under_five_epoch_contract(tmp_path):
+    completed(tmp_path, 5)
+    complete = json.loads((tmp_path / "COMPLETE.json").read_text())
+    complete["epoch"] = 4
+    write(tmp_path / "COMPLETE.json", complete)
+    with pytest.raises(ValueError, match="fixed-epoch contract"):
         collect(tmp_path)
