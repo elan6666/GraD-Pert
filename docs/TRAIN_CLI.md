@@ -14,8 +14,19 @@ AdamW fixed LR 0.001, 50 epochs without early stopping, and historical
 validation Pearson maximization for best. It is not a schedule ablation or
 a claim of exact historical reproduction under a new source version.
 Explicit configs preserve their own selection metric, architecture and losses.
-This entry currently supports native R50 `metrics_only` configurations only;
-unsupported protocols fail rather than silently substituting a configuration.
+The explicit current GraD-Pert v2 Jurkat baseline is
+`configs/v2/glm53_flash_jurkat/default/gradpert_v2/nadig_jurkat.yaml`.
+On an idle two-GPU server with a runtime JSON bound to the same published
+source, its GenePT receipt, and the canonical data, inspect and launch with:
+
+```bash
+python -m gradpert train --config configs/v2/glm53_flash_jurkat/default/gradpert_v2/nadig_jurkat.yaml --gpu 0,1 --dry-run
+python -m gradpert train --config configs/v2/glm53_flash_jurkat/default/gradpert_v2/nadig_jurkat.yaml --gpu 0,1
+```
+
+This uses the existing sealed five-epoch native v2 fit, validation, best/last
+test, and small-result pipeline. Omission of `--config` still selects v1.
+Unsupported protocols fail rather than silently substituting a configuration.
 
 Every run computes validation prediction loss and the three canonical Pearson
 metrics, saves per-epoch numeric records and training/validation PNG/PDF curves,
@@ -50,8 +61,9 @@ the runtime binding for each release. No global credential search is performed.
 `--seed` defaults to the first configured seed. An override is accepted only if
 listed in `training.run_seeds`; default seed1-only configs reject `--seed 2`.
 `--data-root` overrides only the data root, not split identities. `--gpu` accepts
-one physical index or UUID; the process maps it to logical cuda:0 and sets the
-required allocator before importing the training runtime.
+the distinct physical index or UUID selectors required by the selected config;
+v2's two-GPU config requires two selectors. The runner sets the required
+allocator before importing the training runtime.
 
 Dry-run reads and verifies configuration/publication/hash inputs, prints the
 resolved config and proposed unique output paths, but does not reserve a run,

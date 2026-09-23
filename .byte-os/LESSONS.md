@@ -190,3 +190,14 @@
 - Prevention: report the eligible condition denominator for each matched-batch
   distribution test. Do not extrapolate significance fractions from this tiny
   subset or replace it silently with unmatched pooled controls.
+
+## Never build in an active source-identity snapshot
+
+- Mistake (2026-09-23): `python -m build` was run from the same server checkout
+  used by an active v2 capacity probe. It created ignored
+  `src/gradpert.egg-info/` after the probe's startup source check. Git remained
+  clean, but the project's content-tree hash changed; the 32-update partial
+  run was stopped and explicitly audited rather than used as capacity evidence.
+- Prevention: run builds in a disposable clean clone or stage the source into a
+  separate build directory. Keep every active training checkout read-only;
+  recheck both Git status and content-tree SHA before accepting a run receipt.

@@ -717,3 +717,29 @@ Top100 只改变检索预算，不改变参数量。这是容量对比，尚非�
 不使用历史 B0/B1 编码器；固定 3352 基因轴须单独制备并核验 GenePT-PCA256
 与图产物。四折的按行留出和 target control 协议见
 `docs/design/CROSS_CELL_FIXED_AXIS_V1.md`，尚未接入训练适配器。
+
+## 21. 当前新消融的基线和双卡性能（2026-09-23）
+
+新建 Jurkat v2 消融统一从
+`configs/v2/glm53_flash_jurkat/default/gradpert_v2/nadig_jurkat.yaml` 派生，
+保留本节的 33,908,867 参数完整模型、GenePT-PCA256、Top500、SwiGLU、
+两支蒸馏、跨双卡 KoLeo 和统一 `row_mean`。默认双卡全局 batch128
+（每卡微批32、累积2）、项目自定的 5 epoch warmup+cosine。现有 B0/B1 与旧
+`preregistered_jurkat` 文件是历史协议，不能当作本模型的新消融父配置。
+`scripts/v2/generate_group.py` 未显式指定 `--parent` 时使用这份新配置；
+其他数据集必须显式提供其独立核验的当前架构父配置。
+
+稀疏查询从8增至32并把向量点积改为矩阵乘法后，单层微基准提速，完整
+双卡更新却只由 4.56 升至 4.58 cells/s。把细胞项与 KoLeo 合并为一次
+反向后，同协议 5 步短测达到 6.51 cells/s，峰值分配显存从 21.51 升至
+25.91 GB/卡。这是计算图重用的性能改动，损失定义、最近邻全集、条件权重
+与 Teacher center 不变；BF16 舍入和 dropout 的逐位轨迹可能不同，不能把
+短测当最终效果等价证明。关闭外层 checkpoint 的试验首步 OOM，不作为默认。
+
+全局 batch144 已通过双卡持续128步、断点重载与 300-control 验证推理，
+两卡峰值分配约31.68／31.56 GB；152 仅通过 5 步且峰值约32.42 GB/卡，
+余量过窄；160 在第3步 OOM，192 在首步 OOM。144 是目前**最高的持续验证
+档位**，不宣称精确硬件最大值。默认消融 batch128 的同配置持续探针正在
+独立运行；容量上限与科学消融的固定 batch128 是不同概念。详细对照、
+源码 SHA 与收据位置见
+`docs/experiments/GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md`。

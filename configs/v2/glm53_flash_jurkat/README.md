@@ -10,13 +10,22 @@ microbatch 32 with accumulation 2. Historical B0/B1 and earlier v2 group configs
 remain pinned to their original source and must not be reinterpreted as this
 baseline.
 
-`capacity_m{40,48,56,64}_a2` are **engineering candidates only**. They change
-just per-rank physical microbatch and effective global batch (160/192/224/256).
+`capacity_m{36,38,40,48,56,64}_a2` are **engineering candidates only**. They change
+just per-rank physical microbatch and effective global batch (144/152/160/192/224/256).
 Each requires its own immutable two-GPU capacity receipt; a short integration or
 throughput pass does not authorize a formal five-epoch run. The largest passing
 profile is a measured capacity boundary, not automatically the scientific
 ablation batch. Unless explicitly changed after capacity/throughput review, use
 the fixed default global batch 128 for comparable ablations.
+
+The first five-update sweep passed at 144 and 152, but 160 OOMed on update 3
+and 192 OOMed on its first update. The 152 profile leaves only about 1.25 GB
+total free GPU memory at its observed peak. Batch 144 passed the longer
+128-update plus validation-inference capacity probe at source `0a9a67f`; see
+`docs/experiments/GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md` for immutable
+receipt paths and precise status. `performance_no_outer_checkpoint` is a
+retained negative compute-only candidate; it OOMed on the first update at
+global batch 128 and must not be selected as the baseline.
 
 Generate new ablation rows with `scripts/v2/generate_group.py --group GROUP
 --output NEW_DIRECTORY`. Its CLI default parent is this `default` config. Pass
