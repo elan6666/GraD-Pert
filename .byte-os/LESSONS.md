@@ -170,3 +170,14 @@
   post-fit testing. The legacy R50 queue delayed LR-mid despite free GPU0.
   Chain tests directly after successful training, retain memory safety checks,
   and use an explicit nonduplicate handoff for already-waiting evaluations.
+
+## Normalize Norman single-perturbation condition keys before interaction fits
+
+- Mistake (2026-09-23): the first dataset-only interaction audit looked for
+  singles by bare gene name, while canonical Norman stores them as `GENE+ctrl`.
+  It silently returned zero fitted double conditions although measured singles
+  and doubles were present.
+- Prevention: parse condition components, map every `GENE+ctrl` single to its
+  gene component, and require a positive known double count in the integration
+  check. Do not interpret a zero-count scientific result before inspecting
+  canonical condition strings and expected coverage.

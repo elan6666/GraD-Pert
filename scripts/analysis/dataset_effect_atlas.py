@@ -116,15 +116,23 @@ def _effective_rank(vectors: np.ndarray, *, seed: int, cap: int = 500) -> float 
 def _norman_interactions(
     deltas: dict[str, np.ndarray], halves: dict[str, tuple[np.ndarray, np.ndarray]]
 ) -> dict:
+    singles = {}
+    single_halves = {}
+    for condition, vector in deltas.items():
+        parts = tuple(piece for piece in condition.split("+") if piece != "ctrl")
+        if len(parts) == 1:
+            singles[parts[0]] = vector
+            if condition in halves:
+                single_halves[parts[0]] = halves[condition]
     coefficients = []
     fitted_residuals = []
     additive_residuals = []
     half_residual_agreement = []
     for condition, observed in deltas.items():
         parts = tuple(piece for piece in condition.split("+") if piece != "ctrl")
-        if len(parts) != 2 or parts[0] not in deltas or parts[1] not in deltas:
+        if len(parts) != 2 or parts[0] not in singles or parts[1] not in singles:
             continue
-        design = np.column_stack((deltas[parts[0]], deltas[parts[1]]))
+        design = np.column_stack((singles[parts[0]], singles[parts[1]]))
         coefficient, _, rank, _ = np.linalg.lstsq(design, observed, rcond=None)
         if rank < 2:
             continue
@@ -140,10 +148,10 @@ def _norman_interactions(
                 np.linalg.norm(observed - design.sum(axis=1)) / max(np.linalg.norm(observed), 1e-12)
             )
         )
-        if all(name in halves for name in (condition, *parts)):
+        if condition in halves and all(name in single_halves for name in parts):
             residual = []
             for side in (0, 1):
-                x = np.column_stack((halves[parts[0]][side], halves[parts[1]][side]))
+                x = np.column_stack((single_halves[parts[0]][side], single_halves[parts[1]][side]))
                 y = halves[condition][side]
                 c, _, r, _ = np.linalg.lstsq(x, y, rcond=None)
                 if r == 2:
@@ -338,7 +346,9 @@ def _analyze(
                 "programs": program_changes,
             }
             condition_details[line] = rows
-            if not crosscell and any("+" in name for name in names):
+            if not crosscell and any(
+                len([piece for piece in name.split("+") if piece != "ctrl"]) == 2 for name in names
+            ):
                 line_summaries[line]["double_interactions"] = _norman_interactions(
                     deltas[line], half_deltas[line]
                 )

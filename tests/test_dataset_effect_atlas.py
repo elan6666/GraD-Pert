@@ -30,7 +30,7 @@ def test_norman_fitted_interaction_recovers_linear_combination() -> None:
     a = np.array([1.0, 0.0, 0.0])
     b = np.array([0.0, 1.0, 0.0])
     observed = 2 * a + 3 * b
-    result = _norman_interactions({"A": a, "B": b, "A+B": observed}, {})
+    result = _norman_interactions({"A+ctrl": a, "B+ctrl": b, "A+B": observed}, {})
     assert result["fitted_double_conditions"] == 1
     assert np.isclose(result["coefficient_a_median"], 2.0)
     assert np.isclose(result["coefficient_b_median"], 3.0)
