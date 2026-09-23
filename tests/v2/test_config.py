@@ -36,6 +36,16 @@ def test_glm53_capacity_profiles_only_change_physical_and_global_batch(microbatc
     assert profile == baseline
 
 
+def test_no_outer_checkpoint_profile_is_a_compute_only_candidate():
+    baseline = yaml.safe_load((GLM53 / "default/gradpert_v2/nadig_jurkat.yaml").read_text())
+    path = GLM53 / "performance_no_outer_checkpoint/gradpert_v2/nadig_jurkat.yaml"
+    candidate = yaml.safe_load(path.read_text())
+    assert load_experiment_config(path).training.train_batch_size.value == 128
+    assert candidate["model"]["parameters"]["checkpoint_layers"]["value"] is False
+    candidate["model"]["parameters"]["checkpoint_layers"]["value"] = True
+    assert candidate == baseline
+
+
 def test_capacity_probe_keeps_complete_method_and_fixed_protocol():
     config = load_experiment_config(PROBE)
     arch, options = V2Options.parse_parameters(config.model.parameters)
