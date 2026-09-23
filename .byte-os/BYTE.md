@@ -24,7 +24,9 @@
 
 ## Current stage
 
-Byte Auto 启动；正在进行设计、论文、冻结参考代码、数据源和 benchmark 接口审计，尚未开始产品代码实现。
+当前 GraD-Pert v2 已完成方法实现与双卡容量验证，Jurkat 五轮消融基线正在正式训练。
+运行身份、监控和下一步以 [STATUS.md](STATUS.md) 与 [STATE.md](STATE.md) 为准；
+本文件其余 B2 产品定位与验收条目保留原始项目背景，不替代现行 v2 实验协议。
 
 ## Success criteria
 

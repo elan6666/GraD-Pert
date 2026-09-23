@@ -1,5 +1,11 @@
 # GraD-Pert v2 acceptance ledger
 
+Historical implementation/capacity snapshot. The current five-epoch
+Top500/GenePT-PCA256/SwiGLU baseline is actively training; see
+[STATE.md](STATE.md) for its immutable run identity and current evidence.
+The 50-epoch and batch-148 statements below belong to the earlier protocol
+and must not be read as the current v2 ablation default.
+
 Scope: method and independent implementation, synchronous two-5090 capacity,
 measured grouped experiment configs/scripts, exact launch preflight and a verified
 ZCode supervision handoff. Formal50-epoch training results are downstream of this

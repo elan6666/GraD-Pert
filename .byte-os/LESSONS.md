@@ -215,6 +215,8 @@
   repair is another dependency to track before returning to the original path.
 - Prevention rule: after verifying a stage, immediately execute the next
   authorized ready action, then update the existing monitor's target and
-  cadence. Stop only at a genuine external wait, unresolved blocker, or
-  completed overall outcome.
+  cadence. Also update the project's Byte state/entry documents so a future
+  scheduled run sees the current stage instead of an older status snapshot.
+  Stop only at a genuine external wait, unresolved blocker, or completed
+  overall outcome.
 - Status: active

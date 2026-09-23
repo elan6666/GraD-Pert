@@ -2,41 +2,42 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: implementation
+stage: experiment_supervision
 current_workflow: byte-auto
 next_workflow: byte-auto
-review_verdict: pending
+review_verdict: pending_formal_best_last
 hard_blocked: false
-updated_at: 2026-09-14T03:22:00+08:00
+updated_at: 2026-09-24T04:00:00+08:00
 ---
 
 # Current state
 
-The active work is the R50 batch-1024 completion matrix in
-`docs/experiments/R50_1024_FINISH_MATRIX.md`. This status is deliberately
-short; prior status entries remain in Git history, while immutable run
-receipts are the authority for scientific completion.
+The active GraD-Pert v2 work is the five-epoch Nadig Jurkat ablation baseline.
+The complete Top500/GenePT-PCA256/SwiGLU model, global batch 128, and
+two-GPU row-mean protocol are fixed at training source
+`536458333e437252178ffe493c5c50c9064e7615` and config SHA256
+`8471f5ea68f4801406497985291a0088116ff5a8435b82f85e55c611548b06c6`.
+The exact-source two-GPU integration check passed before launch.
 
-- Baseline before this change: clean/published `7efd44787c4023c9fde4ce81a2a110b8c69ac05d`.
-- Existing batch-1024 reference: one full 50-epoch fit at source
-  `bf938adc2465adda9697387882b87f420683297d`, with best and last tested.
-  Its `concurrent` companion is one-epoch capacity evidence, **not** an
-  independent repeat.
-- New `r1024_ref_repeat`: second independent 50-epoch fit is **planned, not
-  launched**. Prefer the original clean bf938 source; never overwrite the
-  first run. Compare best-to-best, last-to-last and validation trajectories.
-- Eleven previously recorded R1024 single-factor rows have terminal receipts.
-  Old P1's declared projector width did not reach the model, so its receipt
-  must not be interpreted as a valid projector-size ablation.
-- New loss-weight/scale/LR-low rows and explicit batch-1024 TxPert override
-  are in preparation. No new CUDA or formal 50-epoch fit has started for them.
-  TxPert requires its own batch-1024 capacity and one-epoch smoke gates.
-- Completed GEARS and Scouter official 50-epoch baselines retain their
-  original official batch configurations; they are not relabeled 1024.
+- Active run ID:
+  `nadig_jurkat-seed1-20260923T194747Z-1b7eda2abd6441f592d0834e1e275e88`.
+- Server run root: `/data/yilangliu/GraD-Pert/runs-v2-glm53-current/`
+  followed by that ID. The training log is
+  `/data/yilangliu/GraD-Pert/development/v2-jurkat-baseline-5364583.log`.
+- Last checked: process alive, epoch state 0/5, GPUs 0 and 1 occupied by the
+  training job. `COMPLETE.json` and best/last test receipts were absent.
+- Existing heartbeat: `grad-pert-v2-batch128`, retargeted to this baseline,
+  every two hours with a brief report on every check. It should inspect live
+  process, epoch state, logs, GPUs, and terminal receipts; a missing process
+  alone is not completion evidence.
 
-Next: finish projector wiring/tests, full gates and review; publish a scoped
-main commit; verify clean source and capacity; then launch fresh roots on two
-GPUs, targeting four concurrent tasks only when measured resource headroom
-permits. Every row must retain 50 validations and test both best and true
-epoch-50 last checkpoints. Keep the existing monitor current, quiet for
-unchanged healthy training, and delete it only after all authorized rows pass.
+Next dependency: after five committed epochs, verify both checkpoint roles and
+their actual test receipts, then record comparable metrics and provenance.
+If a failure creates an in-scope repair, record and resolve that dependency
+before returning to the baseline; retarget the same monitor to the live stage.
+Do not silently start another ablation group. The detailed active ledger is
+[STATE.md](STATE.md); capacity and throughput evidence is in
+[GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md](../docs/experiments/GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md).
+
+Historical R50 batch-1024 status from 2026-09-14 remains in Git history and
+its dedicated experiment documents. It does not describe this v2 run.

@@ -1,5 +1,10 @@
 # GraD-Pert v2 implementation state
 
+Historical implementation snapshot. Current method, capacity, formal baseline,
+and monitor state are in [STATE.md](STATE.md). The statements below about an
+active implementation Goal and no training launch describe this earlier stage,
+not the present five-epoch run.
+
 Goal active. User explicitly authorized completing the entire implementation,
 capacity and ablation-package plan before ZCode takes ablation supervision.
 No model training or capacity run has launched. ZCode session choice remains
