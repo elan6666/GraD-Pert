@@ -360,11 +360,18 @@ def _plot(summaries: dict[str, dict], output: Path) -> None:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    display_names = {
+        "replogle_k562_essential": "K562",
+        "replogle_rpe1_essential": "RPE1",
+        "nadig_jurkat": "Jurkat",
+        "nadig_hepg2": "HepG2",
+        "norman": "Norman",
+    }
     names = []
     info = []
     for dataset, result in summaries.items():
         for line, item in result["cell_lines"].items():
-            names.append(f"{dataset}\n{line}" if dataset == "crosscell" else dataset)
+            names.append(f"X-{line}" if dataset == "crosscell" else display_names[dataset])
             info.append(item)
     x = np.arange(len(names))
     fig, axes = plt.subplots(2, 2, figsize=(16, 10), constrained_layout=True)
@@ -372,7 +379,15 @@ def _plot(summaries: dict[str, dict], output: Path) -> None:
     axes[0, 0].bar(x, [value if value is not None else np.nan for value in batch_values])
     for i, value in enumerate(batch_values):
         if value is None:
-            axes[0, 0].text(i, 0.005, "N/A", ha="center", va="bottom", rotation=90)
+            axes[0, 0].text(
+                i,
+                0.02,
+                "N/A",
+                ha="center",
+                va="bottom",
+                rotation=90,
+                transform=axes[0, 0].get_xaxis_transform(),
+            )
     axes[0, 0].set_title("Batch information above shuffled-label baseline")
     width = 0.35
     within = [v["control_correlation"]["within_batch_median"] for v in info]
@@ -391,6 +406,17 @@ def _plot(summaries: dict[str, dict], output: Path) -> None:
     )
     axes[0, 1].set_title("Control dissimilarity: 1000 x (1 - Pearson)")
     axes[0, 1].legend(frameon=False)
+    for i, value in enumerate(across):
+        if value is None:
+            axes[0, 1].text(
+                i + width / 2,
+                0.02,
+                "N/A",
+                ha="center",
+                va="bottom",
+                rotation=90,
+                transform=axes[0, 1].get_xaxis_transform(),
+            )
     axes[1, 0].bar(x, [v["replicate_retrieval"]["top1"] or 0 for v in info], label="observed")
     axes[1, 0].plot(
         x,
