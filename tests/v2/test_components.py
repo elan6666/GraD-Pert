@@ -210,7 +210,8 @@ def test_overfit_opposite_responses_for_identical_controls(lambda1, lambda2):
 
 
 @pytest.mark.parametrize("length", [1, 7, 17, 33])
-def test_chunk_delta_matches_recurrence_full_gradients(length):
+@pytest.mark.parametrize("chunk_size", [16, 32])
+def test_chunk_delta_matches_recurrence_full_gradients(length, chunk_size):
     from gradpert.modeling.v2.operators import chunk_delta_scan
 
     torch.manual_seed(42)
@@ -221,7 +222,7 @@ def test_chunk_delta_matches_recurrence_full_gradients(length):
     beta = torch.rand(2, length, 2, requires_grad=True)
     inputs = [q, tensors[1], v, gates, beta]
     expected = delta_scan(q, k, v, gates, beta)
-    actual = chunk_delta_scan(q, k, v, gates, beta)
+    actual = chunk_delta_scan(q, k, v, gates, beta, chunk_size=chunk_size)
     torch.testing.assert_close(actual, expected, atol=3e-6, rtol=3e-5)
     a = torch.autograd.grad(actual.square().sum(), inputs, retain_graph=True)
     b = torch.autograd.grad(expected.square().sum(), inputs)
@@ -291,9 +292,7 @@ def test_accumulated_prediction_gradients_match_full_batch(monkeypatch):
     assert ma["prediction"] == pytest.approx(mb["prediction"], rel=1e-5)
     assert gradients[0].keys() == gradients[1].keys()
     for name in gradients[0]:
-        # Sparse K/V projection now shares repeated graph-node work across edges;
-        # float32 accumulation may differ by a few ulps between microbatch shapes.
-        torch.testing.assert_close(gradients[0][name], gradients[1][name], atol=5e-7, rtol=5e-4)
+        torch.testing.assert_close(gradients[0][name], gradients[1][name], atol=1e-7, rtol=1e-4)
     assert oa.steps == ob.steps == 1
     assert all(torch.isfinite(p).all() for p in model.parameters())
 

@@ -33,7 +33,7 @@ def delta_scan(q: Tensor, k: Tensor, v: Tensor, log_decay: Tensor, beta: Tensor)
 
 
 def chunk_delta_scan(
-    q: Tensor, k: Tensor, v: Tensor, log_decay: Tensor, beta: Tensor, chunk_size: int = 16
+    q: Tensor, k: Tensor, v: Tensor, log_decay: Tensor, beta: Tensor, chunk_size: int = 32
 ) -> Tensor:
     """Native differentiable block solve of the same delta recurrence.
 
