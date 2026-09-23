@@ -227,7 +227,7 @@ class IndexedLatentAttention(nn.Module):
         logits = logits + self.index_scale.tanh() * index_bias
         weights = logits.softmax(-1).to(value.dtype)
         weights = F.dropout(weights, self.dropout, self.training)
-        return cast(Tensor, torch.matmul(weights.unsqueeze(-2), value).squeeze(-2))
+        return torch.matmul(weights.unsqueeze(-2), value).squeeze(-2)
 
     def forward(self, x: Tensor, *, has_cls: bool = True) -> Tensor:
         batch, length, _ = x.shape
