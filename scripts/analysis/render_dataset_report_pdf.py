@@ -19,9 +19,11 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
+    FrameBreak,
     Image,
     KeepTogether,
     LongTable,
+    NextPageTemplate,
     PageBreak,
     PageTemplate,
     Paragraph,
@@ -57,8 +59,13 @@ def _inline(source: str) -> str:
 
     def link(match: re.Match[str]) -> str:
         label, target = match.groups()
-        if target.startswith(("https://", "http://")):
+        if target.startswith(("https://", "http://", "#")):
             return f'<link href="{html.escape(target, quote=True)}" color="#1A607C">{label}</link>'
+        if target.endswith(".md") and "/" not in target:
+            source_url = (
+                f"https://github.com/elan6666/GraD-Pert/blob/main/docs/experiments/{target}"
+            )
+            return f'<link href="{source_url}" color="#1A607C">{label}</link>'
         return label
 
     return re.sub(r"\[([^]]+)\]\(([^)]+)\)", link, source)
@@ -95,16 +102,16 @@ def _styles() -> dict[str, ParagraphStyle]:
         "body": ParagraphStyle(
             "report_body",
             parent=base["BodyText"],
-            fontSize=9.4,
-            leading=15.2,
-            spaceAfter=8,
+            fontSize=8.9,
+            leading=14.1,
+            spaceAfter=7,
             **common,
         ),
         "small": ParagraphStyle(
             "report_small",
             parent=base["BodyText"],
-            fontSize=8.3,
-            leading=13,
+            fontSize=8.0,
+            leading=12.5,
             spaceAfter=7,
             **common,
         ),
@@ -172,7 +179,7 @@ def _footer(canvas: object, doc: BaseDocTemplate) -> None:
     canvas.line(42, 38, A4[0] - 42, 38)
     canvas.setFont(FONT, 8)
     canvas.setFillColor(colors.HexColor("#617585"))
-    canvas.drawString(42, 25, "GraD-Pert | 扰动数据集观察性分析 | 2026-09-23")
+    canvas.drawString(42, 25, "GraD-Pert | 数据集观察性分析与方法综述 | 2026-09-23")
     canvas.drawRightString(A4[0] - 42, 25, str(doc.page))
     canvas.restoreState()
 
@@ -180,12 +187,14 @@ def _footer(canvas: object, doc: BaseDocTemplate) -> None:
 def render(
     source: Path,
     output: Path,
-    appendix: Path | None = None,
+    appendix: Path = DEFAULT_APPENDIX,
     data_attachment: Path | None = None,
 ) -> None:
     styles = _styles()
     output.parent.mkdir(parents=True, exist_ok=True)
     width = A4[0] - 84
+    gutter = 17
+    column_width = (width - gutter) / 2
     doc = BaseDocTemplate(
         str(output),
         pagesize=A4,
@@ -193,49 +202,100 @@ def render(
         rightMargin=42,
         topMargin=47,
         bottomMargin=52,
-        title="GraD-Pert 扰动数据集观察性分析报告",
+        title="GraD-Pert 扰动数据集观察性分析与方法综述",
         author="GraD-Pert research project",
     )
+
+    def frame(x: float, y: float, w: float, h: float) -> Frame:
+        return Frame(x, y, w, h, leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
+
+    main_height = A4[1] - 99
+    header_height = 155
     doc.addPageTemplates(
-        PageTemplate(
-            id="main",
-            frames=[
-                Frame(
-                    42,
-                    52,
-                    width,
-                    A4[1] - 99,
-                    leftPadding=0,
-                    rightPadding=0,
-                    topPadding=0,
-                    bottomPadding=0,
-                )
-            ],
-            onPage=_footer,
-        )
+        [
+            PageTemplate(
+                id="opening",
+                frames=[
+                    frame(42, 52 + main_height - header_height, width, header_height),
+                    frame(42, 52, column_width, main_height - header_height - 8),
+                    frame(
+                        42 + column_width + gutter,
+                        52,
+                        column_width,
+                        main_height - header_height - 8,
+                    ),
+                ],
+                onPage=_footer,
+                autoNextPageTemplate="columns",
+            ),
+            PageTemplate(
+                id="columns",
+                frames=[
+                    frame(42, 52, column_width, main_height),
+                    frame(42 + column_width + gutter, 52, column_width, main_height),
+                ],
+                onPage=_footer,
+            ),
+            PageTemplate(
+                id="full",
+                frames=[frame(42, 52, width, main_height)],
+                onPage=_footer,
+            ),
+        ]
     )
     lines = source.read_text().splitlines()
-    if appendix is not None:
-        lines += ["", "<!-- pagebreak -->", "", *appendix.read_text().splitlines()]
+    main_count = len(lines)
+    lines += ["", "<!-- pagebreak -->", "", *appendix.read_text().splitlines()]
     story: list[object] = []
+    plates: list[object] = []
+    main_table_number = 0
     index = 0
+    opening_done = False
     while index < len(lines):
         line = lines[index].strip()
+        in_appendix = index >= main_count + 3
         if not line:
             index += 1
             continue
         if line == "<!-- pagebreak -->":
-            story.append(PageBreak())
+            if index == main_count + 1:
+                story.append(NextPageTemplate("full"))
+                story.append(PageBreak())
+                story.append(Paragraph("图版与正文主表", styles["section"]))
+                story.extend(plates)
+                story.append(PageBreak())
+            else:
+                story.append(PageBreak())
         elif line.startswith("# "):
-            story.append(Paragraph(_inline(line[2:]), styles["title"]))
+            title = _inline(line[2:])
+            if line.startswith("# 数据附录"):
+                title = '<a name="appendix"/>' + title
+            story.append(Paragraph(title, styles["title"]))
         elif line.startswith("## "):
-            story.append(Paragraph(_inline(line[3:]), styles["section"]))
+            title = _inline(line[3:])
+            if line.startswith("## 数据附录"):
+                title = '<a name="appendix"/>' + title
+            story.append(Paragraph(title, styles["section"]))
         elif line.startswith("| "):
             table_lines = []
             while index < len(lines) and lines[index].strip().startswith("|"):
                 table_lines.append(lines[index])
                 index += 1
-            story.extend([_table(table_lines, styles, width), Spacer(1, 9)])
+            if not in_appendix:
+                main_table_number += 1
+                plates.extend(
+                    [
+                        Paragraph(
+                            f'<a name="table{main_table_number}"/>'
+                            f"表 {main_table_number} · 正文数据汇总",
+                            styles["section"],
+                        ),
+                        _table(table_lines, styles, width),
+                        Spacer(1, 12),
+                    ]
+                )
+            else:
+                story.extend([_table(table_lines, styles, width), Spacer(1, 9)])
             continue
         elif line.startswith("!["):
             match = re.match(r"!\[([^]]*)\]\(([^)]+)\)", line)
@@ -247,13 +307,22 @@ def render(
                 figure_height = figure_width * picture.height / picture.width
             figure = Image(str(path), width=figure_width, height=figure_height, hAlign="CENTER")
             if index + 2 < len(lines) and lines[index + 2].startswith("图 "):
-                caption = Paragraph(_inline(lines[index + 2]), styles["caption"])
-                story.append(KeepTogether([figure, caption]))
+                caption_text = lines[index + 2]
+                number = re.match(r"图 (A?\d+)", caption_text)
+                anchor = f'<a name="fig{number.group(1).lower()}"/>' if number else ""
+                caption = Paragraph(anchor + _inline(caption_text), styles["caption"])
+                target = story if in_appendix else plates
+                if not in_appendix:
+                    target.append(PageBreak())
+                target.append(KeepTogether([figure, caption]))
                 index += 2
             else:
-                story.append(figure)
+                target = story if in_appendix else plates
+                target.append(figure)
         elif line.startswith("- "):
             story.append(Paragraph("- " + _inline(line[2:]), styles["small"]))
+        elif re.match(r"^\d+\. ", line):
+            story.append(Paragraph(_inline(line), styles["small"]))
         else:
             paragraph = [line]
             while (
@@ -265,6 +334,9 @@ def render(
                 paragraph.append(lines[index].strip())
             style = styles["small"] if line.startswith(("¹", "²")) else styles["body"]
             story.append(Paragraph(_inline(" ".join(paragraph)), style))
+            if not opening_done:
+                story.append(FrameBreak())
+                opening_done = True
         index += 1
     doc.build(story)
     if data_attachment is not None:

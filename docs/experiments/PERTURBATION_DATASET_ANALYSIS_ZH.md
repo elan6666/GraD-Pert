@@ -1,10 +1,10 @@
-# GraD-Pert 扰动数据集观察性分析报告
+# 基因扰动数据集的稳定性与效应结构：观察性综述
 
 **范围与结论。** 本报告只分析真实观测数据：五个独立的细胞内基准数据集，以及另列的四细胞系固定基因轴 cross-cell 缓存。没有使用 GraD-Pert 或其他模型的预测，也没有据此选择超参数或检查点。主要发现是：扰动效应的重复性、每条件细胞数和批次内可比性差异很大；大多数数据集含有明显的共同扰动方向；跨细胞系保留了部分方向相似性，但效应幅度并不相同。由此，单一相关系数不足以描述数据难度。
 
 ## 数据与比较口径
 
-五个基准分别是 Replogle K562、Replogle RPE1、Nadig Jurkat、Nadig HepG2 的未见过单基因扰动，以及 Norman 的已见单基因组成的双基因扰动。前四个基准使用各自冻结的 5,000 个表达基因；Norman 使用 5,045 个。另行分析的 cross-cell 缓存包含 K562、RPE1、Jurkat、HepG2，统一为 **K562 来源选择的 3,352 基因轴**。它不是四个独立基准的拼接，也不是 TxPert 论文四折分别重选高变基因的精确复现。主表中的五数据集数字均来自当前 `/data/yilangliu/GraD-Pert/data`：EDA、景观、Systema 参照审计、效应图谱及分布审计使用的 canonical H5AD 哈希已逐一核对一致。涉及测试条件真值的统计只用于描述数据，不参与模型选择。
+五个基准分别是 Replogle K562、Replogle RPE1、Nadig Jurkat、Nadig HepG2 的未见过单基因扰动，以及 Norman 的已见单基因组成的双基因扰动。前四个基准使用各自冻结的 5,000 个表达基因；Norman 使用 5,045 个。另行分析的 cross-cell 缓存包含 K562、RPE1、Jurkat、HepG2，统一为 **K562 来源选择的 3,352 基因轴**。它不是四个独立基准的拼接，也不是 TxPert 论文四折分别重选高变基因的精确复现。[表 1](#table1) 中的五数据集数字均来自当前 `/data/yilangliu/GraD-Pert/data`：EDA、景观、Systema 参照审计、效应图谱及分布审计使用的 canonical H5AD 哈希已逐一核对一致。涉及测试条件真值的统计只用于描述数据，不参与模型选择。
 
 | 独立数据集 | 细胞数 | 非 control 条件数 | 每条件细胞数中位数 | 条件效应拆半 Pearson Δ 中位数¹ | 拆半 Top-1 检索² |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -16,9 +16,9 @@
 
 ¹ 效应拆半使用同一条件的两组细胞均值，各减去同一细胞系的 control 均值；表中为全部合格条件的中位数。² 从至多 500 个、每个至少有 20 个细胞的条件中，用一半效应检索另一半；Norman 用全部 236 个合格条件。两列来自不同审计的固定口径，不是模型分数。跨数据集表达轴、实验方案和条件组成不同，数值不能直接排成模型“难度榜”。[TxPert](https://www.nature.com/articles/s41587-026-03113-4) 将实验拆半作为参照，同时明确它不是性能上界。
 
-五数据集 EDA 还按 **control／单基因／双基因**、划分和批次分别绘制 PCA/UMAP。当前数据版本的冻结测试条件拆半中，完整表达的相关中位数达 0.981–0.998，而 control 扣除后的效应相关中位数仅为 0.387–0.944；这说明完整表达的高相关很大程度上可能来自共同的基础表达。该图是结构探索，不把 UMAP 距离当作扰动预测准确率。EDA 与上表的拆半数值不同，是因为前者只取测试条件、按批次拆分并重复五次，后者汇总全部合格条件。详见 [EDA 口径](FIVE_DATASET_EDA.md)；[早期景观结果记录](SIX_DATASET_LANDSCAPE_RESULTS.md)属于旧 `data-vnext-a942114` 数据版本，本文数值使用当前版本复跑收据。
+五数据集 EDA 还按 **control／单基因／双基因**、划分和批次分别绘制 PCA/UMAP：K562 [图 A1–A2](#figa1)、RPE1 [图 A3–A4](#figa3)、Jurkat [图 A5–A6](#figa5)、HepG2 [图 A7–A8](#figa7)、Norman [图 A9–A10](#figa9)。当前数据版本的冻结测试条件拆半中，完整表达的相关中位数达 0.981–0.998，而 control 扣除后的效应相关中位数仅为 0.387–0.944；这说明完整表达的高相关很大程度上可能来自共同的基础表达。该图是结构探索，不把 UMAP 距离当作扰动预测准确率。EDA 与[表 1](#table1) 的拆半数值不同，是因为前者只取测试条件、按批次拆分并重复五次，后者汇总全部合格条件。详见 [EDA 口径](FIVE_DATASET_EDA.md)；[早期景观结果记录](SIX_DATASET_LANDSCAPE_RESULTS.md)属于旧 `data-vnext-a942114` 数据版本，本文数值使用当前版本复跑收据。
 
-固定轴 cross-cell 缓存总计 **632,488 个细胞**；下表只列四折所用的四个细胞系（共 581,172 个细胞），排除缓存中另外 51,316 个 `K562_adamson` 细胞，始终与上面的五个独立数据集分栏解释。
+固定轴 cross-cell 缓存总计 **632,488 个细胞**；[表 2](#table2) 只列四折所用的四个细胞系（共 581,172 个细胞），排除缓存中另外 51,316 个 `K562_adamson` 细胞，始终与上面的五个独立数据集分栏解释。
 
 | 固定轴细胞系 | 细胞数 | 非 control 条件数 | 每条件细胞数中位数 | 效应拆半 Pearson Δ 中位数 | 拆半 Top-1 检索 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -29,7 +29,7 @@
 
 ## 效应强弱、共享方向与稳定性
 
-将每个条件的观测均值减去本细胞系 control 均值后，仍需区分共同方向与条件特异方向。按条件平均的共同效应与单个条件效应的平均余弦，在五个独立数据集中依次为 **0.395、0.525、0.290、0.332、0.548**（顺序同上表）。尤其 RPE1 和 Norman 的共同方向较强。这与 [Systema](https://www.nature.com/articles/s41587-025-02777-8) 强调的系统性变化风险相符；这里是我们自己的描述性统计，不能把共同方向直接归因为选择偏差或某一生物机制。
+将每个条件的观测均值减去本细胞系 control 均值后，仍需区分共同方向与条件特异方向。按条件平均的共同效应与单个条件效应的平均余弦，在五个独立数据集中依次为 **0.395、0.525、0.290、0.332、0.548**（顺序同[表 1](#table1)）。尤其 RPE1 和 Norman 的共同方向较强。这与 [Systema](https://www.nature.com/articles/s41587-025-02777-8) 强调的系统性变化风险相符；这里是我们自己的描述性统计，不能把共同方向直接归因为选择偏差或某一生物机制。
 
 在先前冻结测试条件的审计中，对同一个“训练条件平均效应”的常数基线，只把评估参照从 control 改为**训练扰动条件的平均中心**，Pearson Δ 中位数便从 K562 0.416→−0.075、RPE1 0.665→−0.050、Jurkat 0.335→0.091、HepG2 0.368→0.057、Norman 0.619→0.134。预测本身没有改变；大幅变化来自评估参照。这是评价指标敏感性的诊断，不是 GraD-Pert 的成绩，也不等同于完全照搬 Systema 的处理流程。[原审计及定义](LITERATURE_GUIDED_DATA_AUDIT_RESULTS.md)。
 
@@ -39,11 +39,13 @@
 
 批次与扰动标签的原始关联指标在四个单基因数据集为 0.049–0.137；扣除随机置换的有限样本基线后，超额关联只有 K562 **0.0005**、RPE1 **0.0019**、Jurkat **0.0006**、HepG2 **0.0035**。但跨批次 control 轮廓通常比同批次 control 更不相似，因而“标签关联弱”不等于“批次效应不存在”。Norman 的 canonical 批次元数据只有一档，无法作跨批次比较。
 
+批次、检索和共同响应的总览见[图 1](#fig1)。
+
 ![当前 canonical 数据的批次信息、control 差异、扰动检索和共同反应概览](figures/landscape-current-ecdf8f1.png)
 
 图 1｜`X-` 前缀指固定轴 cross-cell 缓存，与左侧五个独立数据集区分；右上角的 control 差异为 `1000 × (1 − Pearson)`。底部检索与共同反应图分别反映条件可区分性和共享方向，不能被解释为模型精度。
 
-本次新增的严格匹配审计对每个条件只选一个批次，并要求该批次中扰动与 control **各至少 20 个细胞**。满足要求的条件数如下；这比条件总体细胞数更加限制可识别的分布差异。
+本次新增的严格匹配审计对每个条件只选一个批次，并要求该批次中扰动与 control **各至少 20 个细胞**。满足要求的条件数见[表 3](#table3)；这比条件总体细胞数更加限制可识别的分布差异。
 
 | 数据来源 | 同批次合格条件／全部条件 | 审计中的解释 |
 | --- | ---: | --- |
@@ -63,6 +65,8 @@ guide 身份只在 Replogle RPE1、Nadig Jurkat、Nadig HepG2 的当前 canonica
 以 [Enrichr GO Biological Process 2023](https://maayanlab.cloud/Enrichr/) 中预先指定的八个 GO 项作基因集合，计算每条件集合内表达均值的相对 control 变化。这是**程序级描述性汇总**，没有逐条件富集检验或因果归因。四个单基因数据集的 DNA replication 与 G2/M 程序共同均值变化均为负；K562 与 Jurkat 的 translation／ribosome biogenesis 共同变化也为负。不过集合覆盖度随基因面板变化，例如 Norman 的 DNA replication 仅覆盖 4 个基因、G2/M 仅 7 个，这两项被标记为不可解释，不与其他数据集比较。
 
 固定轴 cross-cell 四系共有扰动并不能保证同样大小的效应。两两观测效应的 Pearson Δ 中位数跨配对约 **0.327–0.491**，但 RPE1 相对 K562 的共享条件效应范数比中位数为 **1.86**（848 个共享条件），反向比值为 0.54。先前以其余来源细胞系的同名扰动均值作为描述性参照，对留出细胞系观测效应所得 Pearson Δ 中位数为 K562 **0.507**、RPE1 **0.501**、Jurkat **0.427**、HepG2 **0.480**。这些统计使用了目标真值来度量相似性，是迁移难度的背景，**不是**留一训练模型的成绩；总体 control 扣除仍可能受批次差异影响。
+
+共享扰动的跨细胞系效应参照见[图 2](#fig2)。
 
 ![四细胞系共享扰动的观测效应相关与来源均值参照](figures/crosscell-transfer-current-ecdf8f1.png)
 
@@ -86,4 +90,17 @@ Norman 的 131 个双基因条件均找到相应两个单基因条件。双扰�
 
 所有数值都是这批冻结数据与上述具体代码口径的结果。不同来源、细胞数、基因面板及预处理足以改变数值；论文链接用于说明分析动机和方法背景，并不表示复现了对应论文的全部流程。
 
-全部 12 张已生成图、各分析的聚合统计表和图注见 [数据附录](PERTURBATION_DATASET_ANALYSIS_APPENDIX_ZH.md)。PDF 同时内嵌[聚合数据 JSON](data/report-aggregate-current-ecdf8f1.json)；逐条件明细仍按上述收据留在服务器。
+全部 12 张已生成图、各分析的聚合统计表和图注见 [数据附录](#appendix)。PDF 同时内嵌聚合数据 JSON；逐条件明细仍按上述收据留在服务器。
+
+## 参考文献与方法来源
+
+下列条目链接至原论文或官方资源。正文中的论文名称可直接打开来源；图号可跳转到本文图页。
+
+1. [Wenkel 等，TxPert: using multiple knowledge graphs for prediction of transcriptomic perturbation effects，Nature Biotechnology，2026](https://www.nature.com/articles/s41587-026-03113-4)。
+2. [Viñas Torné 等，Systema: a framework for evaluating genetic perturbation response prediction beyond systematic variation，Nature Biotechnology，2025](https://www.nature.com/articles/s41587-025-02777-8)。
+3. [Peidli 等，scPerturb: harmonized single-cell perturbation data，Nature Methods，2024](https://www.nature.com/articles/s41592-023-02144-y)。
+4. [Norman 等，Exploring genetic interaction manifolds constructed from rich single-cell phenotypes，Science，2019](https://pmc.ncbi.nlm.nih.gov/articles/PMC6746554/)。
+5. [Roohani 等，Predicting transcriptional outcomes of novel multigene perturbations with GEARS，Nature Biotechnology，2023](https://www.nature.com/articles/s41587-023-01905-6)。
+6. [Squair 等，Confronting false discoveries in single-cell differential expression，Nature Communications，2021](https://www.nature.com/articles/s41467-021-25960-2)。
+7. [Replogle 等，Mapping information-rich genotype–phenotype landscapes with genome-scale Perturb-seq，Cell，2022](https://pmc.ncbi.nlm.nih.gov/articles/PMC9380471/)。
+8. [Enrichr 官方资源及基因集库](https://maayanlab.cloud/Enrichr/)。
