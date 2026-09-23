@@ -706,3 +706,9 @@ Top100 只改变检索预算，不改变参数量。这是容量对比，尚非�
 因此内层稀疏 query chunk 增加精确 activation checkpoint：反向按 chunk
 重算选择与加权，只保存共享投影及 chunk 输出，保留相同的 TopK、loss 和梯度。
 须用梯度等价测试及第三个独立 GPU 运行收据验证，不能将前两次失败计为通过。
+第三次双卡预检在训练源码 `7f4140c90dd123c0bc2444e28da52a437c7e42cf`
+通过，收据 `/data/yilangliu/GraD-Pert/development/v2-glm53-integration-7f4140c/receipt.json`
+（SHA256 `337560ee9a42db53cf074eaebaa45e897f27fd9fc391673f3949b374e7aa2707`）。
+完成一次更新和断点重载；两卡峰值分配分别约 20.39、20.27 GB，单步更新约
+30.9 秒。该收据仅是单步集成检查，未覆盖持续 128 步容量、完整推理或 5 epoch
+吞吐；Top100 尚未跑 GPU 预检。

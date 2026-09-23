@@ -33,6 +33,14 @@ The next bounded repair checkpoints each sparse query chunk and verifies its
 gradient equality against the uncheckpointed reference before a fresh CUDA
 preflight. Failed run IDs remain immutable.
 
+Third isolated two-GPU preflight at source `7f4140c90dd123c0bc2444e28da52a437c7e42cf`
+passed one global-batch128 optimizer step and checkpoint reload:
+`/data/yilangliu/GraD-Pert/development/v2-glm53-integration-7f4140c/receipt.json`,
+SHA256 `337560ee9a42db53cf074eaebaa45e897f27fd9fc391673f3949b374e7aa2707`.
+Peak allocated was 20,394,624,512 / 20,274,631,168 bytes on GPUs 0/1; the
+single update took 30.90 seconds. This does not establish sustained training
+or inference capacity. Top100 has config/unit validation only.
+
 Previous completed data-only atlas and report remain in
 `docs/experiments/PERTURBATION_DATASET_ANALYSIS_ZH.md`; this new stage does not
 change their evidence or data.
