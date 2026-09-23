@@ -1,5 +1,13 @@
 # Six-dataset landscape: first measured results
 
+Historical data version notice (2026-09-23): this record used
+`data-vnext-a942114`, whose canonical H5AD hashes differ from the current
+`data` root. The analysis was rerun on the current data at source
+`ecdf8f14a11fde63f6f4cdaecda7c9456c3e96ee`; its completed receipt is
+`/data/yilangliu/GraD-Pert/development/six-landscape-current-ecdf8f1/receipt.json`.
+Use the current-data numbers and provenance in the
+[Chinese dataset report](PERTURBATION_DATASET_ANALYSIS_ZH.md).
+
 Analysis source commit: `846d2d7194e396d9c9845ad3d25b73794170ebc7`.
 Server receipt: `/data/yilangliu/GraD-Pert/development/six-landscape-846d2d7/receipt.json`
 (SHA256 `cff41058fcc3114e681fd8f63b5ed9aea15e6789bba3c2ed98111e33bbe75f63`).

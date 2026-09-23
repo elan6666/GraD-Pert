@@ -1,5 +1,12 @@
 # Five-dataset descriptive analysis
 
+Current-data rerun (2026-09-23):
+`/data/yilangliu/GraD-Pert/development/five-eda-current-ecdf8f1/manifest.json`
+at source `ecdf8f14a11fde63f6f4cdaecda7c9456c3e96ee`. The earlier
+`five-eda-d34256e` results came from `data-vnext-a942114`, whose H5AD hashes
+differ from the current canonical data; use the current rerun for the
+[Chinese report](PERTURBATION_DATASET_ANALYSIS_ZH.md).
+
 This analysis is descriptive. It reads the frozen canonical test labels to
 measure experimental reproducibility and must not select model variants,
 hyperparameters, checkpoints, or training duration. The five within-project

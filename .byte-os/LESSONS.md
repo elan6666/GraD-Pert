@@ -181,3 +181,12 @@
   gene component, and require a positive known double count in the integration
   check. Do not interpret a zero-count scientific result before inspecting
   canonical condition strings and expected coverage.
+
+## Condition-level counts do not guarantee within-batch comparison coverage
+
+- Finding (2026-09-23): in the five-dataset audit, four single-gene datasets
+  had many cells per condition overall, yet only 3–20 conditions per dataset
+  had at least 20 perturbed and 20 control cells in one common batch.
+- Prevention: report the eligible condition denominator for each matched-batch
+  distribution test. Do not extrapolate significance fractions from this tiny
+  subset or replace it silently with unmatched pooled controls.

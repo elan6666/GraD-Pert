@@ -59,7 +59,9 @@ against this baseline; meanwhile the reference-shift contrast is the more
 informative data-only result.
 
 This audit does not reproduce Systema's preprocessing, condition splits, gene
-panels or three-run protocol. It also does not yet implement scPerturb's
-E-distance, Norman's fitted genetic-interaction coefficients, or individual
-causal responses. Those are separate analyses with their own assumptions and
-receipts, as specified in the methods document.
+panels or three-run protocol. Later, separate observed-data audits measured
+Norman's fitted interaction residuals and a bounded random-projection
+energy-statistic on a small same-batch eligible subset. Neither reproduces a
+paper's exact implementation, and individual causal responses remain
+unmeasured. Their results, assumptions and receipts are consolidated in the
+[Chinese dataset analysis report](PERTURBATION_DATASET_ANALYSIS_ZH.md).
