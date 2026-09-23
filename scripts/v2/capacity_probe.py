@@ -12,11 +12,20 @@ from datetime import timedelta
 from pathlib import Path
 
 
-def probe_policy(integration_only: bool, steps: int | None) -> tuple[int, int, str]:
+def probe_policy(
+    integration_only: bool, steps: int | None, benchmark_only: bool = False
+) -> tuple[int, int, str]:
+    if integration_only and benchmark_only:
+        raise ValueError("integration-only and benchmark-only are mutually exclusive")
     if integration_only:
         if steps not in (None, 1):
             raise ValueError("integration-only mode requires exactly one optimizer update")
         return 1, 0, "integration_only"
+    if benchmark_only:
+        steps = 5 if steps is None else steps
+        if steps < 3:
+            raise ValueError("benchmark-only mode requires at least three updates")
+        return steps, 1, "benchmark_only"
     steps = 128 if steps is None else steps
     if steps < 128:
         raise ValueError("capacity evidence requires at least 128 sustained updates")
@@ -33,9 +42,12 @@ def main() -> None:
     parser.add_argument("--publication-sha256", required=True)
     parser.add_argument("--steps", type=int)
     parser.add_argument("--integration-only", action="store_true")
+    parser.add_argument("--benchmark-only", action="store_true")
     args = parser.parse_args()
     try:
-        args.steps, warmup_steps, kind = probe_policy(args.integration_only, args.steps)
+        args.steps, warmup_steps, kind = probe_policy(
+            args.integration_only, args.steps, args.benchmark_only
+        )
     except ValueError as error:
         parser.error(str(error))
     if not args.output.resolve().is_relative_to("/data/yilangliu"):
@@ -85,7 +97,7 @@ def main() -> None:
     receipt = {
         "kind": kind,
         "data_root": str(args.data_root.resolve()),
-        "inference_exercised": not args.integration_only,
+        "inference_exercised": kind == "capacity_only",
         "source": source.payload(),
         "environment": environment.payload(),
         "config_sha256": sha256_file(args.config),
@@ -228,7 +240,7 @@ def main() -> None:
                     )
                 return validation
 
-            if not args.integration_only:
+            if kind == "capacity_only":
                 receipt.update(primary_call(validation_probe))
             local_measurement = {
                 "rank": rank,
@@ -264,8 +276,13 @@ def main() -> None:
                 coverage=(
                     "one optimizer update; checkpoint reload; "
                     "no sustained-capacity or inference evidence"
-                    if args.integration_only
-                    else "128+ updates; checkpoint continuation; single-condition validation"
+                    if kind == "integration_only"
+                    else (
+                        "bounded training throughput only; checkpoint reload; "
+                        "no sustained-capacity or inference evidence"
+                        if kind == "benchmark_only"
+                        else "128+ updates; checkpoint continuation; single-condition validation"
+                    )
                 ),
             )
     except BaseException as error:

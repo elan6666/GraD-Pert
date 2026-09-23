@@ -15,3 +15,12 @@ def test_short_integration_evidence_is_a_separate_kind():
         POLICY(False, 1)
     with pytest.raises(ValueError, match="exactly one"):
         POLICY(True, 128)
+
+
+def test_bounded_benchmark_cannot_be_mistaken_for_capacity():
+    assert POLICY(False, None, True) == (5, 1, "benchmark_only")
+    assert POLICY(False, 7, True) == (7, 1, "benchmark_only")
+    with pytest.raises(ValueError, match="at least three"):
+        POLICY(False, 2, True)
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        POLICY(True, None, True)
