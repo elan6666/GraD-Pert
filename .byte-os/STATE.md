@@ -81,5 +81,17 @@ the existing run through five epochs; no new run ID or ablation group.
 Full v2 test suite: 212 passed; lint,
 format and isolated wheel/sdist build passed. Mypy retains five unrelated
 existing errors in `training/step.py` and `training/v2/reductions.py`.
-The formal five-epoch scientific run is in progress. Capacity and one-step
-preflight receipts are not scientific best/last results.
+The formal five-epoch scientific run described above was later stopped by the
+user. Capacity and one-step preflight receipts are not scientific best/last
+results.
+
+2026-09-24 18:05 +08 user stop: the formal Jurkat v2 run was interrupted
+after one committed epoch while the second epoch had no committed receipt.
+Verified parent PID 2770034 and torchrun PID 2770045 received SIGTERM;
+both rank workers 2770069/2770070 exited. GPUs 0/1 returned to 2 MiB each.
+`COMPLETE.json` and best/last test receipts were absent. Preserve the run ID,
+epoch-1 checkpoint, source/config hashes, and all existing receipts; do not
+mark the five-epoch baseline complete or restart it. The two-hour heartbeat
+`grad-pert-v2-batch128` was deleted. Current scope is discussion of speed
+changes (Cell/Response Encoder depth 2:1 and four heads 16384→8192
+prototypes); no new code or experiment has been launched.
