@@ -14,14 +14,15 @@ AdamW fixed LR 0.001, 50 epochs without early stopping, and historical
 validation Pearson maximization for best. It is not a schedule ablation or
 a claim of exact historical reproduction under a new source version.
 Explicit configs preserve their own selection metric, architecture and losses.
-The explicit current GraD-Pert v2 Jurkat baseline is
-`configs/v2/glm53_flash_jurkat/default/gradpert_v2/nadig_jurkat.yaml`.
+The explicit current GraD-Pert v2 Jurkat method config is
+`configs/v2/hamiltonian_mla_jurkat/gradpert_v2/nadig_jurkat.yaml`.
+Its new graph propagation has not yet passed a dual-GPU sustained-capacity
+probe, so the inherited batch 192 is a candidate, not a validated launch size.
 On an idle two-GPU server with a runtime JSON bound to the same published
 source, its GenePT receipt, and the canonical data, inspect and launch with:
 
 ```bash
-python -m gradpert train --config configs/v2/glm53_flash_jurkat/default/gradpert_v2/nadig_jurkat.yaml --gpu 0,1 --dry-run
-python -m gradpert train --config configs/v2/glm53_flash_jurkat/default/gradpert_v2/nadig_jurkat.yaml --gpu 0,1
+python -m gradpert train --config configs/v2/hamiltonian_mla_jurkat/gradpert_v2/nadig_jurkat.yaml --gpu 0,1 --dry-run
 ```
 
 This uses the existing sealed five-epoch native v2 fit, validation, best/last

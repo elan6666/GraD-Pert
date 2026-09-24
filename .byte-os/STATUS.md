@@ -2,15 +2,28 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: compact_v2_b0_stopped
+stage: hamiltonian_mla_method_review
 current_workflow: byte-auto
 next_workflow: byte-auto
-review_verdict: user_stopped_before_first_committed_epoch
+review_verdict: implemented_locally_pending_capacity_and_user_review
 hard_blocked: false
-updated_at: 2026-09-25T02:29:00+08:00
+updated_at: 2026-09-25T02:53:13+08:00
 ---
 
 # Current state
+
+2026-09-25 method update: new Jurkat v2 config
+`configs/v2/hamiltonian_mla_jurkat/gradpert_v2/nadig_jurkat.yaml` selects
+three fixed bidirectional Hamiltonian expander cycles, two graph layers with
+updated-neighbor propagation, and 2 KDA + 1 full MLA block in each Cell and
+Response Encoder, with no DSA in the new profile. Old configs and stopped B0
+remain unchanged. Full formulas and review issues are in
+`docs/design/GRADPERT_V2_HAMILTONIAN_MLA_METHOD.md`. The inherited global
+batch192 is **not capacity-certified for this changed architecture**; do not
+start formal training before new two-card sustained capacity evidence, clean
+source publication and method review. No training was restarted by this edit.
+Local v2 regression: 230 tests passed; Ruff lint/format and wheel/sdist build
+passed. This does not establish two-GPU throughput or capacity.
 
 The old five-epoch Nadig Jurkat v2 ablation baseline was stopped at the user's
 request on 2026-09-24. The subsequent compact v2 B0 formal run was also

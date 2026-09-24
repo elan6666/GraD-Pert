@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import cast
 
 import torch
@@ -13,8 +14,20 @@ from gradpert.config.v2 import V2Architecture
 from .operators import TokenEncoder
 
 
+@dataclass
+class GraphContext:
+    """One-hop closure needed for exact two-layer selected-node propagation."""
+
+    ids: Tensor
+    neighbors: Tensor
+    valid: Tensor
+    sources: Tensor
+    query_positions: Tensor
+    query_neighbors: Tensor
+
+
 class SparseRead(nn.Module):
-    """Memory is static gene identity, never control-expression dependent.
+    """Read gene identities or updated graph states, never control expression.
 
     Neighbors contain one entry per edge union with four-bit source membership:
     GO, STRING, expander, self. Padding has valid=False; source sums do not
@@ -79,6 +92,7 @@ class GeneGraph(nn.Module):
                 for _ in range(options.graph_layers)
             ]
         )
+        self.read_mode = options.graph_read_mode
 
     def forward(
         self,
@@ -87,14 +101,33 @@ class GeneGraph(nn.Module):
         valid: Tensor,
         sources: Tensor,
         masked_ids: Tensor | None = None,
+        context: GraphContext | None = None,
     ) -> Tensor:
         memory = self.norm(self.adapter(self.embedding.weight))
         if masked_ids is not None:
             memory = memory.index_copy(0, masked_ids, self.mask_token.expand(len(masked_ids), -1))
-        x = memory[ids]
-        for layer in self.layers:
-            x = layer(x, memory, neighbors, valid, sources)
-        return cast(Tensor, x)
+        if self.read_mode == "static":
+            if context is not None:
+                raise ValueError("static graph read cannot use propagation context")
+            x = memory[ids]
+            for layer in self.layers:
+                x = layer(x, memory, neighbors, valid, sources)
+            return cast(Tensor, x)
+        if context is None or len(self.layers) != 2:
+            raise ValueError("propagated graph read requires two layers and a context")
+        first = self.layers[0](
+            memory[context.ids], memory, context.neighbors, context.valid, context.sources
+        )
+        return cast(
+            Tensor,
+            self.layers[1](
+                first[context.query_positions],
+                first,
+                context.query_neighbors,
+                valid,
+                sources,
+            ),
+        )
 
 
 class Projector(nn.Module):

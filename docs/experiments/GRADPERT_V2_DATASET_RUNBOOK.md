@@ -1,13 +1,12 @@
 # V2 dataset-specific ablation workflow
 
-**Current new-run parent (2026-09-23):**
-`configs/v2/glm53_flash_jurkat/default/gradpert_v2/nadig_jurkat.yaml`.
-See `configs/v2/glm53_flash_jurkat/README.md` for its full Top500/PCA256/SwiGLU
-architecture and dual-GPU batch evidence. `generate_group.py` now defaults to
-that parent for new Jurkat groups. The capacity and initial-group procedure below
-documents the earlier integration-template program; its old batch receipts and
-group configs do not certify the current architecture. Other datasets need
-separate current-architecture configs and capacity receipts before launch.
+**Current new-run parent (2026-09-25):**
+`configs/v2/hamiltonian_mla_jurkat/gradpert_v2/nadig_jurkat.yaml`.
+`generate_group.py` defaults to this parent for newly generated Jurkat groups.
+The previous Top500/DSA capacity receipts do not certify this propagated-graph,
+full-MLA architecture. The inherited global batch 192 requires a new sustained
+dual-GPU probe before a formal launch; no old run is resumed. Other datasets
+need separate configs and capacity receipts.
 
 Execution uses both RTX5090 cards in one distributed job. Global batch equals
 per-rank microbatch ×2 with accumulation1. Jurkat reference is64/rank, global128, selected from full dual-card capacity.

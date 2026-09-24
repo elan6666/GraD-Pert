@@ -161,7 +161,9 @@ def evaluate_response_diagnostics(
     training = model.training
     model.eval()
     try:
-        graph = model.graph(view.ids, view.neighbors, view.valid, view.sources)
+        graph = model.graph(
+            view.ids, view.neighbors, view.valid, view.sources, context=view.context
+        )
         conditions = model.aggregate_targets(graph, view.target_positions, view.target_valid)
         gene = graph[torch.tensor(np.searchsorted(ids, queries), device=device)]
         controls = [

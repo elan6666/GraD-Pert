@@ -227,7 +227,13 @@ def prepare_runtime(
         yield Runtime(
             data,
             options,
-            NeighborhoodIndex(topology, options.graph_expander_degree, options.graph_expander_seed),
+            NeighborhoodIndex(
+                topology,
+                options.graph_expander_degree,
+                options.graph_expander_seed,
+                expander_type=options.graph_expander_type,
+                propagated=arch.graph_read_mode == "propagated",
+            ),
             objective,
             optimizer,
             np.random.default_rng(run_seed),

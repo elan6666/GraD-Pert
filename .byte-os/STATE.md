@@ -1,4 +1,17 @@
-# Current bounded stage: GraD-Pert v2 dual-GPU performance and capacity
+# Current bounded stage: Hamiltonian expander / full MLA method implementation
+
+The user requested replacing the old random-permutation expander with
+TxPert-style fixed bidirectional Hamiltonian cycles, allowing graph layers
+to read updated neighbors, and dropping DSA for full MLA. Preserve the old
+stopped B0 and all historical config/source identities. The new explicit
+Jurkat config is `configs/v2/hamiltonian_mla_jurkat/gradpert_v2/nadig_jurkat.yaml`.
+It keeps 5 epochs and a **candidate** global batch192; capacity must be
+remeasured before formal GPU work. Detailed method and open scientific risks:
+`docs/design/GRADPERT_V2_HAMILTONIAN_MLA_METHOD.md`. This stage is local
+implementation, tests, documentation and Git publication only, not a
+training restart. The historical capacity records below refer to older
+architectures and are not evidence for this method.
+Local validation: 230 v2 tests, Ruff lint/format, and wheel/sdist build passed.
 
 Overall outcome: deliver a runnable, clean, published Top500/GenePT-PCA256/
 SwiGLU v2 model on two RTX 5090 cards, measure useful batch capacity, and make

@@ -11,6 +11,7 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 from gradpert.modeling.v2 import GraDPertV2
+from gradpert.modeling.v2.model import GraphContext
 
 from .reductions import nearest_neighbor_terms, population_weights
 
@@ -24,6 +25,7 @@ class GraphView:
     target_positions: Tensor
     target_valid: Tensor
     masked_positions: Tensor
+    context: GraphContext | None = None
 
 
 @dataclass
@@ -133,7 +135,7 @@ class JointObjective(nn.Module):
 
     def _graph(self, model: GraDPertV2, view: GraphView, masked: bool) -> tuple[Tensor, Tensor]:
         ids = view.ids[view.masked_positions] if masked else None
-        graph = model.graph(view.ids, view.neighbors, view.valid, view.sources, ids)
+        graph = model.graph(view.ids, view.neighbors, view.valid, view.sources, ids, view.context)
         condition = model.aggregate_targets(graph, view.target_positions, view.target_valid)
         return graph, condition
 

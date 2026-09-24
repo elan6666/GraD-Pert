@@ -79,7 +79,7 @@ def predict_query_set(
     model.eval()
     ids = np.union1d(queries, targets)
     view = index.view(ids, [targets], rng=np.random.default_rng(0), device=device, induced=False)
-    gene = model.graph(view.ids, view.neighbors, view.valid, view.sources)
+    gene = model.graph(view.ids, view.neighbors, view.valid, view.sources, context=view.context)
     condition = model.aggregate_targets(gene, view.target_positions, view.target_valid)
     positions = torch.tensor(np.searchsorted(ids, queries), device=device)
     result = np.empty((len(controls), len(queries)), dtype=np.float32)

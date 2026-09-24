@@ -16,7 +16,7 @@ from gradpert.hashing import sha256_file
 GROUPS = ("B0", "H1", "H2", "H3", "P1", "L0", "L1", "L2", "A1", "A2", "A3", "A4", "S1", "S2", "G1")
 DEFAULT_PARENT = (
     Path(__file__).resolve().parents[2]
-    / "configs/v2/glm53_flash_jurkat/default/gradpert_v2/nadig_jurkat.yaml"
+    / "configs/v2/hamiltonian_mla_jurkat/gradpert_v2/nadig_jurkat.yaml"
 )
 
 

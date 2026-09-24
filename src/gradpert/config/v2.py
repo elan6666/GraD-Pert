@@ -11,6 +11,7 @@ class V2Architecture:
     width: int = 256
     heads: int = 4
     graph_layers: int = 2
+    graph_read_mode: str = "static"
     latent_rank: int = 64
     streams: int = 4
     dropout: float = 0.1
@@ -55,6 +56,10 @@ class V2Architecture:
             raise ValueError("unknown attention variant")
         if self.ffn_type not in ("gelu", "swiglu"):
             raise ValueError("unknown FFN type")
+        if self.graph_read_mode not in ("static", "propagated"):
+            raise ValueError("unknown graph read mode")
+        if self.graph_read_mode == "propagated" and self.graph_layers != 2:
+            raise ValueError("propagated graph read currently requires two layers")
         if self.sparse_topk < 2:
             raise ValueError("sparse_topk must leave slots for self and CLS")
         if type(self.checkpoint_layers) is not bool:
@@ -109,6 +114,7 @@ class V2Options:
     gene_initialization: str
     prediction_loss: str
     loss_reduction: str = "row_mean"
+    graph_expander_type: str = "permutation"
     expression_holdout_path: str = ""
     expression_holdout_sha256: str = ""
 
@@ -125,6 +131,8 @@ class V2Options:
             "sparse_index_dim",
             "sparse_query_chunk",
             "kda_layers",
+            "graph_read_mode",
+            "graph_expander_type",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -139,6 +147,8 @@ class V2Options:
     def __post_init__(self) -> None:
         if self.loss_reduction not in ("row_mean", "condition_mean"):
             raise ValueError("unknown unified loss reduction")
+        if self.graph_expander_type not in ("permutation", "hamiltonian"):
+            raise ValueError("unknown graph expander type")
         if bool(self.expression_holdout_path) != bool(self.expression_holdout_sha256):
             raise ValueError("expression holdout manifest path and hash must be supplied together")
         if self.expression_holdout_sha256 and (

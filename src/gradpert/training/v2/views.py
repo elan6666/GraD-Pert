@@ -10,6 +10,7 @@ from torch import Tensor
 
 from gradpert.config.v2 import V2Options
 from gradpert.graphs import GraphTopology
+from gradpert.modeling.v2.model import GraphContext
 from gradpert.training.batch import GraDPertTrainingBatch
 
 from .objective import CellView, GraphView, TrainingBatch
@@ -18,9 +19,19 @@ from .objective import CellView, GraphView, TrainingBatch
 class NeighborhoodIndex:
     """Deduplicated incoming Top20/source plus deterministic expander/self edges."""
 
-    def __init__(self, topology: GraphTopology, degree: int, seed: int) -> None:
+    def __init__(
+        self,
+        topology: GraphTopology,
+        degree: int,
+        seed: int,
+        *,
+        expander_type: str = "permutation",
+        propagated: bool = False,
+    ) -> None:
         if degree < 0:
             raise ValueError("expander degree cannot be negative")
+        if expander_type not in ("permutation", "hamiltonian"):
+            raise ValueError("unknown expander type")
         n = topology.n_nodes
         rows: list[dict[int, list[bool]]] = [{} for _ in range(n)]
 
@@ -31,14 +42,22 @@ class NeighborhoodIndex:
             for edge in topology.sources[name].edges:
                 add(edge.target, edge.source, slot)
         rng = np.random.default_rng(seed)
-        # Union of random permutation matchings, independent of expression/split.
+        # Fixed random edges depend only on the frozen gene order and seed.
         for _ in range(degree):
-            for query, memory in enumerate(rng.permutation(n)):
-                add(query, int(memory), 2)
+            permutation = rng.permutation(n)
+            if expander_type == "permutation":
+                for query, memory in enumerate(permutation):
+                    add(query, int(memory), 2)
+            elif n > 1:
+                for i, query in enumerate(permutation):
+                    memory = int(permutation[(i + 1) % n])
+                    add(int(query), memory, 2)
+                    add(memory, int(query), 2)
         for query in range(n):
             add(query, query, 3)
         self.rows, self.n_nodes = rows, n
         self.gene_ids = topology.gene_ids
+        self.propagated = propagated
 
     def view(
         self,
@@ -52,23 +71,56 @@ class NeighborhoodIndex:
         mask_ratio: float = 0.0,
     ) -> GraphView:
         position = {int(g): i for i, g in enumerate(ids)}
-        edges = []
-        for gene in ids:
-            row = []
-            for memory, membership in sorted(self.rows[int(gene)].items()):
-                if induced and memory not in position:
-                    continue
-                if memory != gene and rng.random() < edge_dropout:
-                    continue
-                row.append((memory, membership))
-            edges.append(row)
-        max_neighbors = max(map(len, edges))
-        neighbors = np.zeros((len(ids), max_neighbors), dtype=np.int64)
-        valid = np.zeros_like(neighbors, dtype=bool)
-        sources = np.zeros((*neighbors.shape, 4), dtype=bool)
-        for i, row in enumerate(edges):
-            for j, (memory, membership) in enumerate(row):
-                neighbors[i, j], valid[i, j], sources[i, j] = memory, True, membership
+
+        def sampled_edges(genes: np.ndarray) -> list[list[tuple[int, list[bool]]]]:
+            result = []
+            for gene in genes:
+                row = []
+                for memory, membership in sorted(self.rows[int(gene)].items()):
+                    if induced and memory not in position:
+                        continue
+                    if memory != gene and rng.random() < edge_dropout:
+                        continue
+                    row.append((memory, membership))
+                result.append(row)
+            return result
+
+        def pack_edges(
+            edge_rows: list[list[tuple[int, list[bool]]]],
+        ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+            max_neighbors = max(map(len, edge_rows))
+            neighbors = np.zeros((len(edge_rows), max_neighbors), dtype=np.int64)
+            valid = np.zeros_like(neighbors, dtype=bool)
+            sources = np.zeros((*neighbors.shape, 4), dtype=bool)
+            for i, row in enumerate(edge_rows):
+                for j, (memory, membership) in enumerate(row):
+                    neighbors[i, j], valid[i, j], sources[i, j] = memory, True, membership
+            return neighbors, valid, sources
+
+        edges = sampled_edges(ids)
+        neighbors, valid, sources = pack_edges(edges)
+        context_data = None
+        if self.propagated:
+            context_ids = np.unique(np.concatenate((ids, neighbors[valid].astype(np.int64))))
+            selected_edges = {int(gene): row for gene, row in zip(ids, edges, strict=True)}
+            context_edges = []
+            for gene in context_ids:
+                if int(gene) in selected_edges:
+                    context_edges.append(selected_edges[int(gene)])
+                else:
+                    context_edges.extend(sampled_edges(np.array([gene], dtype=np.int64)))
+            context_neighbors, context_valid, context_sources = pack_edges(context_edges)
+            query_neighbors = np.where(valid, np.searchsorted(context_ids, neighbors), 0)
+            if (query_neighbors[valid] >= len(context_ids)).any():
+                raise ValueError("graph context is missing a query neighbor")
+            context_data = (
+                context_ids,
+                context_neighbors,
+                context_valid,
+                context_sources,
+                np.searchsorted(context_ids, ids),
+                query_neighbors,
+            )
         target_positions = np.zeros((len(targets), max(map(len, targets))), dtype=np.int64)
         target_valid = np.zeros_like(target_positions, dtype=bool)
         for i, target in enumerate(targets):
@@ -80,12 +132,15 @@ class NeighborhoodIndex:
         def tensor(a: np.ndarray) -> Tensor:
             return torch.from_numpy(a).to(device)
 
-        return GraphView(
+        view = GraphView(
             *(
                 tensor(a)
                 for a in (ids, neighbors, valid, sources, target_positions, target_valid, masked)
             )
         )
+        if context_data is not None:
+            view.context = GraphContext(*(tensor(a) for a in context_data))
+        return view
 
     def local_nodes(
         self, anchors: Sequence[int], budget: int, rng: np.random.Generator
