@@ -137,6 +137,7 @@ class GraDPertV2(nn.Module):
             options.sparse_topk,
             options.sparse_index_dim,
             options.sparse_query_chunk,
+            options.kda_layers,
         )
         self.cell = TokenEncoder(*args)
         self.condition_fusion = nn.Linear(2 * d, d)

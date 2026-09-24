@@ -26,11 +26,12 @@ def validate_profiles(configs: list[Path]) -> list[int]:
         load_experiment_config(path)
         raw = yaml.safe_load(path.read_text())
         parameters = raw["model"]["parameters"]
-        if parameters["world_size"]["value"] != 2 or parameters["accumulation"]["value"] != 1:
-            raise ValueError("sweep requires two ranks and accumulation1")
+        accumulation = parameters["accumulation"]["value"]
+        if parameters["world_size"]["value"] != 2 or accumulation < 1:
+            raise ValueError("sweep requires two ranks and positive accumulation")
         micro = parameters.pop("microbatch")["value"]
-        if raw["training"].pop("train_batch_size")["value"] != 2 * micro:
-            raise ValueError("global batch must be twice the physical per-rank batch")
+        if raw["training"].pop("train_batch_size")["value"] != 2 * micro * accumulation:
+            raise ValueError("global batch must be world size times microbatch and accumulation")
         if baseline is not None and raw != baseline:
             raise ValueError("capacity profiles may vary only physical/global batch")
         baseline = raw
@@ -54,6 +55,9 @@ def main() -> None:
     root = Path(__file__).resolve().parents[2]
     rows = []
     for config, micro in zip(args.config, batches, strict=True):
+        accumulation = yaml.safe_load(config.read_text())["model"]["parameters"]["accumulation"][
+            "value"
+        ]
         output = args.output / f"micro{micro}"
         command = [
             sys.executable,
@@ -80,7 +84,7 @@ def main() -> None:
         rows.append(
             {
                 "microbatch": micro,
-                "global_batch": 2 * micro,
+                "global_batch": 2 * micro * accumulation,
                 "config_sha256": sha256_file(config),
                 "command": command,
             }

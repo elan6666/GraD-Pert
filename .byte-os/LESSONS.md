@@ -220,3 +220,12 @@
   Stop only at a genuine external wait, unresolved blocker, or completed
   overall outcome.
 - Status: active
+# Ratio descriptions must name their scope
+
+- Mistake: interpreted the requested 2:1 as a Cell-versus-Response depth ratio,
+  then as an uneven KDA/DSA allocation between encoders.
+- Correction: the user specified the same internal two-KDA/one-DSA-MLA sequence
+  in **each** encoder. The old configuration was three KDA plus one terminal
+  DSA/MLA in each encoder.
+- Prevention: write layer sequences per module and compute total depth before
+  giving parameter estimates or editing architecture configs.

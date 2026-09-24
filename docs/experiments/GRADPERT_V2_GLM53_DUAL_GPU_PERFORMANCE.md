@@ -8,6 +8,9 @@ rank per microbatch and two accumulated microbatches. The project five-epoch
 warmup+cosine recipe, frozen canonical split, and default row-mean losses are
 unchanged. Source, resolved config, data identity, and both GPU measurements are
 in each immutable server receipt under `/data/yilangliu/GraD-Pert/development/`.
+This page describes the historical four-layer/16384-prototype source. The
+2026-09-24 three-layer/8192-prototype default requires fresh dual-GPU capacity
+receipts; none of the numerical batch limits below transfer to it automatically.
 
 ## Same-batch performance comparison
 

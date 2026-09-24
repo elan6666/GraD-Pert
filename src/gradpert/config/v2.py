@@ -19,6 +19,7 @@ class V2Architecture:
     sparse_topk: int = 500
     sparse_index_dim: int = 64
     sparse_query_chunk: int = 8
+    kda_layers: int = 3
     checkpoint_layers: bool = True
     projector_hidden: int = 2048
     projector_bottleneck: int = 256
@@ -37,6 +38,7 @@ class V2Architecture:
             "sparse_topk",
             "sparse_index_dim",
             "sparse_query_chunk",
+            "kda_layers",
         ):
             if type(getattr(self, name)) is not int or getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be a positive integer")
@@ -122,6 +124,7 @@ class V2Options:
             "sparse_topk",
             "sparse_index_dim",
             "sparse_query_chunk",
+            "kda_layers",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):

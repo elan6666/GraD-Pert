@@ -743,3 +743,26 @@ Top100 只改变检索预算，不改变参数量。这是容量对比，尚非�
 独立运行；容量上限与科学消融的固定 batch128 是不同概念。详细对照、
 源码 SHA 与收据位置见
 `docs/experiments/GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md`。
+
+## 22. 双编码器三层与 8192 prototypes（2026-09-24）
+
+用户将第 21 节的 Jurkat 消融父模型更新为：**Cell Encoder 与 Response
+Encoder 各三层，均为前两层 KDA、末层内容索引稀疏 MLA/DSA**。这里的 2:1
+是每个编码器内部 KDA 与末层的数量比，不是两个编码器之间的层数比。两个
+编码器均保留末层非因果 CLS↔gene 读取；CLS→gene 阻断诊断应作用于新的末层。
+图读取层数、宽度 256、Top500、SwiGLU、GenePT-PCA256、视图与 loss
+定义保持不变。四个独立蒸馏投影头均使用 8192 prototypes；Teacher 与
+Student 同构，四个 center 同步缩为 8192 维，EMA 更新规则不变。
+
+在 Jurkat 6506×256 GenePT 表下，旧四层／16384 配置的 Student 为
+33,908,867 参数；仅改两个编码器为三层是 31,512,455；仅缩 prototypes
+是 25,520,259；两项合用是 **23,123,847**。Teacher 是同结构冻结副本，
+不计入这些 Student 数值。参数变化不是速度或效果的证明。新默认写在
+`configs/v2/glm53_flash_jurkat/default/`，历史运行仍以原训练 Git SHA、
+resolved config 和 checkpoint 哈希解释。没有 `kda_layers` 字段的旧 v2
+配置继续解析为三层 KDA 加一层末层，避免追溯改变旧实验。
+
+2026-09-24 用户停止的五轮基线仅完成一轮；其旧模型验证数据不能作为新
+模型的最终结果。新结构的容量必须重新测试两张 RTX 5090，同时记录
+每卡 microbatch、累积次数、有效全局 batch、持续更新数、验证推理和峰值
+显存。容量最大档位与后续科学实验采用的 batch 是两个不同决定。

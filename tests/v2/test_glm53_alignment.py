@@ -5,7 +5,14 @@ import copy
 import torch
 
 from gradpert.config.v2 import V2Architecture
-from gradpert.modeling.v2.operators import GatedFeedForward, IndexedLatentAttention, TokenEncoder
+from gradpert.modeling.v2 import GraDPertV2
+from gradpert.modeling.v2.operators import (
+    DeltaAttention,
+    GatedFeedForward,
+    IndexedLatentAttention,
+    TokenEncoder,
+)
+from gradpert.training.v2.objective import JointObjective
 from gradpert.training.v2.optimizer import routes
 
 
@@ -45,6 +52,38 @@ def test_sparse_encoder_cls_intervention_and_legacy_architecture():
     assert torch.isfinite(output).all() and torch.isfinite(blocked).all()
     assert V2Architecture().attention == "hybrid"
     assert V2Architecture().ffn_type == "gelu"
+    assert V2Architecture().kda_layers == 3
+
+
+def test_compact_encoder_keeps_two_kda_and_final_sparse_mla():
+    encoder = TokenEncoder(8, 2, 4, 2, 0, "hybrid_sparse", False, "swiglu", 3, 4, 2, 2)
+    assert len(encoder.layers) == 6
+    assert isinstance(encoder.layers[0].sublayer, DeltaAttention)
+    assert isinstance(encoder.layers[2].sublayer, DeltaAttention)
+    assert isinstance(encoder.layers[4].sublayer, IndexedLatentAttention)
+    encoder.eval()
+    x = torch.randn(1, 5, 8)
+    assert encoder(x, block_cls_to_gene=True).shape == x.shape
+
+
+def test_compact_student_teacher_head_and_parameter_contract():
+    options = V2Architecture(
+        attention="hybrid_sparse",
+        ffn_type="swiglu",
+        sparse_query_chunk=32,
+        kda_layers=2,
+        prototypes=8192,
+    )
+    model = GraDPertV2(torch.zeros(6506, 256), options)
+    objective = JointObjective(model)
+    assert sum(p.numel() for p in model.parameters()) == 23_123_847
+    for encoder in (model.cell, model.response, objective.teacher.cell, objective.teacher.response):
+        assert len(encoder.layers) == 6
+        assert isinstance(encoder.layers[4].sublayer, IndexedLatentAttention)
+    for name in ("ssl1_cls", "ssl1_node", "ssl2_cls", "ssl2_node"):
+        assert getattr(model, name).prototypes.out_features == 8192
+        assert getattr(objective.teacher, name).prototypes.out_features == 8192
+        assert getattr(objective, name + "_center").numel() == 8192
 
 
 def test_sparse_projection_optimizer_routes():

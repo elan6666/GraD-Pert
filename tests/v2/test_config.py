@@ -18,6 +18,7 @@ def test_glm53_configs_keep_b1_seed_and_explicit_sparse_settings(variant, topk, 
     arch, options = V2Options.parse_parameters(config.model.parameters)
     assert (arch.attention, arch.ffn_type, arch.sparse_topk) == ("hybrid_sparse", "swiglu", topk)
     assert arch.sparse_index_dim == 64 and arch.sparse_query_chunk == chunk
+    assert (arch.kda_layers, arch.prototypes) == ((2, 8192) if variant == "default" else (3, 16384))
     assert options.genept_artifact_path.endswith("v2-genept-pca256-b4e3a08.npz")
     assert (options.microbatch, options.accumulation, options.world_size) == (32, 2, 2)
     assert config.training.train_batch_size.value == 128
@@ -26,7 +27,9 @@ def test_glm53_configs_keep_b1_seed_and_explicit_sparse_settings(variant, topk, 
 
 @pytest.mark.parametrize("microbatch", [36, 38, 40, 48, 56, 64])
 def test_glm53_capacity_profiles_only_change_physical_and_global_batch(microbatch):
-    baseline = yaml.safe_load((GLM53 / "default/gradpert_v2/nadig_jurkat.yaml").read_text())
+    baseline = yaml.safe_load((GLM53 / "capacity_m36_a2/gradpert_v2/nadig_jurkat.yaml").read_text())
+    baseline["model"]["parameters"]["microbatch"]["value"] = 32
+    baseline["training"]["train_batch_size"]["value"] = 128
     path = GLM53 / f"capacity_m{microbatch}_a2/gradpert_v2/nadig_jurkat.yaml"
     profile = yaml.safe_load(path.read_text())
     assert load_experiment_config(path).training.train_batch_size.value == 4 * microbatch
@@ -37,13 +40,26 @@ def test_glm53_capacity_profiles_only_change_physical_and_global_batch(microbatc
 
 
 def test_no_outer_checkpoint_profile_is_a_compute_only_candidate():
-    baseline = yaml.safe_load((GLM53 / "default/gradpert_v2/nadig_jurkat.yaml").read_text())
+    baseline = yaml.safe_load((GLM53 / "capacity_m36_a2/gradpert_v2/nadig_jurkat.yaml").read_text())
+    baseline["model"]["parameters"]["microbatch"]["value"] = 32
+    baseline["training"]["train_batch_size"]["value"] = 128
     path = GLM53 / "performance_no_outer_checkpoint/gradpert_v2/nadig_jurkat.yaml"
     candidate = yaml.safe_load(path.read_text())
     assert load_experiment_config(path).training.train_batch_size.value == 128
     assert candidate["model"]["parameters"]["checkpoint_layers"]["value"] is False
     candidate["model"]["parameters"]["checkpoint_layers"]["value"] = True
     assert candidate == baseline
+
+
+@pytest.mark.parametrize("microbatch", [32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72])
+def test_compact_capacity_profiles_only_change_batch(microbatch):
+    baseline = yaml.safe_load((GLM53 / "default/gradpert_v2/nadig_jurkat.yaml").read_text())
+    path = GLM53 / f"compact_m{microbatch}_a2/gradpert_v2/nadig_jurkat.yaml"
+    profile = yaml.safe_load(path.read_text())
+    assert load_experiment_config(path).training.train_batch_size.value == 4 * microbatch
+    profile["model"]["parameters"]["microbatch"]["value"] = 32
+    profile["training"]["train_batch_size"]["value"] = 128
+    assert profile == baseline
 
 
 def test_capacity_probe_keeps_complete_method_and_fixed_protocol():

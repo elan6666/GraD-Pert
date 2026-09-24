@@ -2,19 +2,19 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: performance_discussion
+stage: compact_v2_capacity_preparation
 current_workflow: byte-auto
 next_workflow: byte-auto
-review_verdict: stopped_by_user_before_formal_completion
+review_verdict: pending_publication_and_dual_gpu_capacity
 hard_blocked: false
-updated_at: 2026-09-24T18:05:36+08:00
+updated_at: 2026-09-24T18:37:26+08:00
 ---
 
 # Current state
 
 The five-epoch Nadig Jurkat v2 ablation baseline was stopped at the user's
-request on 2026-09-24. The active work is discussion of training speed changes;
-no replacement training has been authorized or launched.
+request on 2026-09-24. The active work is a new compact v2 model and dual-GPU
+capacity retest, **not** a replacement formal five-epoch training run.
 The complete Top500/GenePT-PCA256/SwiGLU model, global batch 128, and
 two-GPU row-mean protocol are fixed at training source
 `536458333e437252178ffe493c5c50c9064e7615` and config SHA256
@@ -36,9 +36,14 @@ The exact-source two-GPU integration check passed before launch.
   do not report this run as a completed five-epoch baseline.
 - The `grad-pert-v2-batch128` heartbeat was deleted after the requested stop.
 
-Next dependency: resolve the speed/architecture design before any new published
-source or experiment ID. The stopped run remains historical evidence only;
-do not silently resume it or start another ablation group. The detailed ledger is
+New design: both Cell and Response Encoders have two KDA layers followed by one
+DSA/MLA layer; all four Student/Teacher distillation heads use 8192 prototypes.
+The expected Student count is 23,123,847. An isolated server CPU snapshot
+passed 227 v2 tests; lint, format, and package build passed. Next: publish the
+scoped source/config change, verify identical clean server checkout, then test
+two-GPU physical/global batch capacity with new run IDs and receipts. The stopped
+run remains historical evidence only; do not resume it or start an ablation
+group. The detailed ledger is
 [STATE.md](STATE.md); capacity and throughput evidence is in
 [GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md](../docs/experiments/GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md).
 

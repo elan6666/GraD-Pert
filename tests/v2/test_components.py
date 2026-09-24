@@ -1,4 +1,5 @@
 import copy
+from dataclasses import replace
 
 import pytest
 import torch
@@ -94,6 +95,25 @@ def test_expression_mask_blocks_hidden_value():
     torch.testing.assert_close(a["delta"], b["delta"])
     # Raw control residual is deliberately outside the distillation representation.
     assert not torch.equal(a["prediction"], b["prediction"])
+
+
+def test_three_layer_student_teacher_joint_backward():
+    baseline, batch = fixture()
+    options = replace(
+        baseline.options,
+        attention="hybrid_sparse",
+        kda_layers=2,
+        sparse_topk=3,
+        sparse_query_chunk=2,
+    )
+    compact = GraDPertV2(torch.randn(6, 5), options)
+    objective = JointObjective(compact, 1, 0.1).train()
+    loss, _ = objective(batch)
+    assert torch.isfinite(loss)
+    loss.backward()
+    assert compact.cell.layers[4].sublayer.index_query.weight.grad is not None
+    assert compact.response.layers[4].sublayer.index_query.weight.grad is not None
+    assert all(parameter.grad is None for parameter in objective.teacher.parameters())
 
 
 @pytest.mark.parametrize("l1,l2", [(0, 0), (1, 0), (0, 0.1), (1, 0.1)])

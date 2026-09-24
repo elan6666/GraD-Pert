@@ -372,27 +372,31 @@ class TokenEncoder(nn.Module):
         sparse_topk: int = 500,
         sparse_index_dim: int = 64,
         sparse_query_chunk: int = 8,
+        kda_layers: int = 3,
     ) -> None:
         super().__init__()
+        if kda_layers < 1:
+            raise ValueError("encoder needs at least one pre-read layer")
+        self.kda_layers = kda_layers
         self.streams, self.checkpoint_layers = streams, checkpoint_layers
         self.per_gene = attention == "per_gene"
         layers = []
         attention_layer: nn.Module
-        for index in range(4):
+        for index in range(kda_layers + 1):
             if self.per_gene:
                 attention_layer = nn.Sequential(
                     nn.Linear(width, width), nn.GELU(), nn.Linear(width, width)
                 )
-            elif index < 3 and attention in ("hybrid", "hybrid_sparse", "delta_full"):
+            elif index < kda_layers and attention in ("hybrid", "hybrid_sparse", "delta_full"):
                 attention_layer = DeltaAttention(width, heads)
-            elif index == 3 and attention == "hybrid_sparse":
+            elif index == kda_layers and attention == "hybrid_sparse":
                 attention_layer = IndexedLatentAttention(
                     width, heads, rank, dropout, sparse_topk, sparse_index_dim, sparse_query_chunk
                 )
-            elif index == 3 and attention in ("hybrid", "full_latent"):
+            elif index == kda_layers and attention in ("hybrid", "full_latent"):
                 attention_layer = LatentAttention(width, heads, rank, dropout)
             else:
-                attention_layer = FullAttention(width, heads, dropout, causal=index < 3)
+                attention_layer = FullAttention(width, heads, dropout, causal=index < kda_layers)
             layers.append(ManifoldResidual(width, streams, attention_layer))
             ffn: nn.Module = (
                 GatedFeedForward(width, dropout)
@@ -420,8 +424,8 @@ class TokenEncoder(nn.Module):
             raise ValueError("CLS edge intervention is an evaluation-only diagnostic")
         x = x.unsqueeze(-2).expand(*x.shape[:-1], self.streams, x.shape[-1])
         for index, layer in enumerate(self.layers):
-            if block_cls_to_gene and index == 6:
-                # Only the fourth attention layer is noncausal. Earlier causal
+            if block_cls_to_gene and index == 2 * self.kda_layers:
+                # Only the final attention layer is noncausal. Earlier causal
                 # layers cannot transmit the tail CLS to preceding gene slots.
                 # Retain the normal CLS readout, while genes attend to genes only.
                 full = layer(x)

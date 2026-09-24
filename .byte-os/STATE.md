@@ -95,3 +95,20 @@ mark the five-epoch baseline complete or restart it. The two-hour heartbeat
 `grad-pert-v2-batch128` was deleted. Current scope is discussion of speed
 changes (Cell/Response Encoder depth 2:1 and four heads 16384→8192
 prototypes); no new code or experiment has been launched.
+
+2026-09-24 18:37 +08 new authorized outcome: implement the compact v2 parent
+and retest maximum useful dual-GPU batch without restarting the stopped formal
+run. User clarified that **each** of Cell and Response has two KDA layers and
+one terminal DSA/MLA layer, not a 2:1 depth ratio between encoders. Four
+Student projectors and their four Teacher copies use 8192 prototypes; center
+buffers follow. New default Jurkat config is explicit; unmodified historical
+v2 configs resolve to the old three-KDA plus one-terminal-layer architecture.
+Expected Student count: 23,123,847. Isolated server development snapshot
+`/data/yilangliu/GraD-Pert/development/v2-compact-preflight-20260924-39473bd`
+passed 82 targeted and 227 total v2 tests, Ruff lint/format and isolated
+wheel/sdist build. Mypy retained exactly the five previously documented errors
+in unchanged `training/step.py` and `training/v2/reductions.py`. This is
+prepublication CPU evidence, not a GPU capacity receipt. Next: scoped commit
+and GitHub push; clean immutable server checkout and exact publication receipt;
+two-GPU short failure bracket then 128-update/validation confirmation at the
+highest practical batch. No monitoring is active yet.
