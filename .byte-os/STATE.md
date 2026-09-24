@@ -141,3 +141,19 @@ a distinct ID after the GPUs are idle. The 30-minute heartbeat
 `grad-pert-v2-compact-batch-capacity` is active and reports at every check.
 This is engineering capacity evidence only; no new five-epoch training or
 ablation has been launched.
+
+2026-09-24 19:41 +08 capacity follow-up: the batch208, micro52, accumulation2
+128-step run failed on both ranks from CUDA OOM in backward at update24, with
+23 completed updates. GPU 0 had about 120 MiB free and the attempted tensor
+was 138 MiB. Exit code 1; failed receipt SHA256
+`b52aad0d0d1874f4ec04d556d991504123defe0b1d95fe62156221535cd5811a`.
+The failure is not a sustained-capacity result. Both GPUs returned to idle.
+The next independent full probe started at global batch192, micro48 per GPU,
+accumulation2, using the same immutable source and publication receipt:
+`/data/yilangliu/GraD-Pert/development/v2-compact-974c5ea-capacity-m48-128`.
+Its config SHA256 is
+`674ea9ab4160e10e85de7f6da78137257efee510c97e2f9852a474a55e81acf5`;
+PID/log/exit file names use that run stem. The existing 30-minute monitor was
+retargeted to this run. Require all 128 updates, checkpoint continuation and
+300-control validation before accepting batch192. If it fails, retain evidence
+and narrow to a smaller unused candidate with a new run ID.

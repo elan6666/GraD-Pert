@@ -121,16 +121,19 @@ and `gradpert-v2-compact-publication-974c5ea.json` respectively.
 | Per-rank microbatch × accumulation | Global batch | Five-update probe | Peak allocated per rank | Sustained 128-update result |
 |---|---:|---|---:|---|
 | 32 × 2 | 128 | one-step integration and reload passed | 19.23 GB at rank 0 | not repeated at 128 updates for this source |
-| 48 × 2 | 192 | passed | 28.23 GB | pending if 208 fails |
-| 52 × 2 | 208 | passed | 31.47 GB | running in `v2-compact-974c5ea-capacity-m52-128` |
+| 48 × 2 | 192 | passed | 28.23 GB | 128-update probe running in `v2-compact-974c5ea-capacity-m48-128` |
+| 52 × 2 | 208 | passed | 31.47 GB | CUDA OOM at update 24, after 23 completed updates |
 | 56 × 2 | 224 | passed | 32.34 GB | CUDA OOM at update 6, after 5 completed updates |
 | 60 × 2 | 240 | CUDA OOM at update 3 | — | not attempted |
 
 The five-update passes are short preflights, not proof of sustained capacity.
 The 224 failure occurred during KDA checkpoint recomputation on GPU 0 while
 trying to allocate another 438 MiB; its failed receipt and log are preserved in
-`v2-compact-974c5ea-capacity-m56-128`. The 208 continuation uses the same
-published source, data, two cards, and allocator setting with a new run ID.
+`v2-compact-974c5ea-capacity-m56-128`. The 208 test later OOMed during backward
+when another 138 MiB was needed and only about 120 MiB was free. Its failed
+receipt and log are preserved in `v2-compact-974c5ea-capacity-m52-128`. The
+192 continuation uses the same published source, data, two cards, and
+allocator setting with a new run ID.
 Before promoting any batch to a capacity result, require 128 completed updates,
 checkpoint save/reload, and 300-control validation inference. The previous
 four-layer result of 144 is not an estimate for this new architecture.
