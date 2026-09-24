@@ -67,6 +67,17 @@ retargeted to the formal baseline and verified active at every two hours, with
 user-requested reports on each check. Verify five committed epochs and actual
 best/last tests before treating this run as complete; keep training SHA fixed
 at `5364583` even if documentation-only GitHub main advances.
+
+2026-09-24 11:53 +08 milestone: epoch 1/5 committed after 1,081 optimizer
+updates. Journal SHA256
+`02fe76ec4cd46489a58116a095a3059ac9f6382c1e97f95fe3ce419f7ac76dcb`;
+provisional best/last `epoch-0001.pt` SHA256
+`c3e1134e441db33556765458f009c88f5bd321389539c1bda1a8118a40647d85`.
+Validation prediction loss `0.005269254464738538`; validation Pearson values
+TxPert `0.14296990652273225`, TriShift `0.1875737367080305`, Systema
+`0.06702235003118254`. The parent and both rank workers remained alive;
+`COMPLETE.json` and best/last **test** receipts were absent. Continue training
+the existing run through five epochs; no new run ID or ablation group.
 Full v2 test suite: 212 passed; lint,
 format and isolated wheel/sdist build passed. Mypy retains five unrelated
 existing errors in `training/step.py` and `training/v2/reductions.py`.

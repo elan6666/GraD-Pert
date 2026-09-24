@@ -7,7 +7,7 @@ current_workflow: byte-auto
 next_workflow: byte-auto
 review_verdict: pending_formal_best_last
 hard_blocked: false
-updated_at: 2026-09-24T04:00:00+08:00
+updated_at: 2026-09-24T11:53:00+08:00
 ---
 
 # Current state
@@ -24,8 +24,12 @@ The exact-source two-GPU integration check passed before launch.
 - Server run root: `/data/yilangliu/GraD-Pert/runs-v2-glm53-current/`
   followed by that ID. The training log is
   `/data/yilangliu/GraD-Pert/development/v2-jurkat-baseline-5364583.log`.
-- Last checked: process alive, epoch state 0/5, GPUs 0 and 1 occupied by the
-  training job. `COMPLETE.json` and best/last test receipts were absent.
+- Last checked: process alive and **1/5 epochs committed**. Epoch 1 completed
+  1,081 updates and selected `epoch-0001.pt` as provisional best/last by
+  validation prediction loss `0.0052692545`. Validation Pearson values:
+  TxPert `0.142970`, TriShift `0.187574`, Systema `0.067022`. These are
+  validation metrics, not test results. `COMPLETE.json` and best/last test
+  receipts remain absent; epoch 2 is in progress.
 - Existing heartbeat: `grad-pert-v2-batch128`, retargeted to this baseline,
   every two hours with a brief report on every check. It should inspect live
   process, epoch state, logs, GPUs, and terminal receipts; a missing process
