@@ -157,3 +157,22 @@ PID/log/exit file names use that run stem. The existing 30-minute monitor was
 retargeted to this run. Require all 128 updates, checkpoint continuation and
 300-control validation before accepting batch192. If it fails, retain evidence
 and narrow to a smaller unused candidate with a new run ID.
+
+2026-09-24 20:50 +08 capacity completion: the new compact v2 source
+`974c5eadf35a95fbc3ba46cffe6d9ab34cdd4e94` completed the dual-GPU
+global-batch192 (micro48/rank × accumulation2 × two ranks) 128-step probe.
+Exit code 0; receipt status `passed`, 128/128 updates, checkpoint continuation
+SHA256 `1610f227056f5565697bde00c2ba95345b4a1df3f80b70bec11ff98a3ee1ffbb`,
+300×5000 validation inference in 11.986 s, and both GPUs free afterward.
+Receipt `/data/yilangliu/GraD-Pert/development/v2-compact-974c5ea-capacity-m48-128/receipt.json`
+SHA256 `71d952f90466052a52855a819090d9c5e03ba3e96081eadc03ac2cd3c896529d`.
+Post-warmup throughput 8.486 cells/s; end-to-end throughput 7.992 cells/s;
+training wall time 3,074.805 s. Peak allocated memory: GPU0 31,011,834,880
+bytes, GPU1 31,045,261,312 bytes. The single-condition validation prediction
+loss 0.008950 is only an inference finiteness check, not a scientific result.
+The source checkout remains clean at its pinned commit. Batch208 failed at
+24th update and batch224 at sixth, so 192 is the highest sustained-validated
+batch among tested candidates; the exact physical threshold between 192 and
+208 remains unknown. Scientific default batch128 and five-epoch plan remain
+unchanged. No new formal train or ablation was launched. The capacity monitor
+can now be removed.

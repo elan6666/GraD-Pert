@@ -121,7 +121,7 @@ and `gradpert-v2-compact-publication-974c5ea.json` respectively.
 | Per-rank microbatch × accumulation | Global batch | Five-update probe | Peak allocated per rank | Sustained 128-update result |
 |---|---:|---|---:|---|
 | 32 × 2 | 128 | one-step integration and reload passed | 19.23 GB at rank 0 | not repeated at 128 updates for this source |
-| 48 × 2 | 192 | passed | 28.23 GB | 128-update probe running in `v2-compact-974c5ea-capacity-m48-128` |
+| 48 × 2 | 192 | passed | 28.23 GB | passed 128 updates, checkpoint continuation and 300-control inference |
 | 52 × 2 | 208 | passed | 31.47 GB | CUDA OOM at update 24, after 23 completed updates |
 | 56 × 2 | 224 | passed | 32.34 GB | CUDA OOM at update 6, after 5 completed updates |
 | 60 × 2 | 240 | CUDA OOM at update 3 | — | not attempted |
@@ -132,8 +132,16 @@ trying to allocate another 438 MiB; its failed receipt and log are preserved in
 `v2-compact-974c5ea-capacity-m56-128`. The 208 test later OOMed during backward
 when another 138 MiB was needed and only about 120 MiB was free. Its failed
 receipt and log are preserved in `v2-compact-974c5ea-capacity-m52-128`. The
-192 continuation uses the same published source, data, two cards, and
-allocator setting with a new run ID.
-Before promoting any batch to a capacity result, require 128 completed updates,
-checkpoint save/reload, and 300-control validation inference. The previous
-four-layer result of 144 is not an estimate for this new architecture.
+192 continuation used the same published source, data, two cards, and
+allocator setting with a new run ID. Its clean receipt
+`v2-compact-974c5ea-capacity-m48-128/receipt.json` has SHA256
+`71d952f90466052a52855a819090d9c5e03ba3e96081eadc03ac2cd3c896529d`.
+Both ranks completed 128 updates, checkpoint continuation at update 64, and
+300-control validation inference with output shape 300×5000 in 11.986 s.
+Training took 3,074.805 s, at 8.486 cells/s post-warmup and 7.992 cells/s
+end to end. Peak allocated memory was 31.01/31.05 GB on GPUs 0/1. The
+single-condition validation loss 0.008950 checks only finite inference and
+is not a formal model metric. The source checkout stayed clean at its pinned
+commit. **192 is the highest sustained-validated batch among these candidates**;
+the exact physical threshold between 192 and 208 is not established. The
+previous four-layer result of 144 is not an estimate for this new architecture.

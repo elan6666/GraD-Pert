@@ -2,12 +2,12 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: compact_v2_capacity_validation
+stage: compact_v2_capacity_complete
 current_workflow: byte-auto
 next_workflow: byte-auto
-review_verdict: published_and_dual_gpu_capacity_running
+review_verdict: published_and_dual_gpu_capacity_passed
 hard_blocked: false
-updated_at: 2026-09-24T19:41:00+08:00
+updated_at: 2026-09-24T20:50:00+08:00
 ---
 
 # Current state
@@ -45,11 +45,16 @@ checkout and publication receipt passed the formal source-identity check.
 The default global-batch-128 two-GPU one-step integration and checkpoint reload
 passed. Short probes passed global batches 192, 208, and 224; global 240 OOMed
 at step 3. The full 128-step probes at 224 and 208 OOMed after five and 23
-completed steps, respectively; neither is a sustained-capacity result. A new
-128-step probe at global 192 is running at
-`/data/yilangliu/GraD-Pert/development/v2-compact-974c5ea-capacity-m48-128`.
-The active 30-minute monitor is `grad-pert-v2-compact-batch-capacity`; it checks
-the run and reports each time as requested. The stopped five-epoch run remains
+completed steps, respectively; neither is a sustained-capacity result. The
+128-step dual-GPU probe at global 192 **passed** with checkpoint continuation
+and 300×5000 validation inference. Its clean receipt is
+`/data/yilangliu/GraD-Pert/development/v2-compact-974c5ea-capacity-m48-128/receipt.json`,
+SHA256 `71d952f90466052a52855a819090d9c5e03ba3e96081eadc03ac2cd3c896529d`.
+Measured throughput was 8.486 cells/s after warmup, 7.992 cells/s end to end;
+peak allocated memory was 31.01/31.05 GB on GPUs 0/1. Thus 192 is the highest
+**sustained-validated** batch under this protocol, while the exact physical
+maximum between 192 and 208 is unmeasured. The scientific default stays 128.
+The stopped five-epoch run remains
 historical evidence only; do not resume it or start an ablation group. The detailed ledger is
 [STATE.md](STATE.md); capacity and throughput evidence is in
 [GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md](../docs/experiments/GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md).
