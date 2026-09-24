@@ -176,3 +176,36 @@ batch among tested candidates; the exact physical threshold between 192 and
 208 remains unknown. Scientific default batch128 and five-epoch plan remain
 unchanged. No new formal train or ablation was launched. The capacity monitor
 can now be removed.
+
+2026-09-24 21:44 +08 new formal stage: the user selected the sustained-passed
+global batch192 profile and authorized B0 formal training. The user then
+clarified that B0 here means only the complete prediction + SSL1 + SSL2
+baseline, **not** the `prediction_only` contrast in the older group generator.
+The tentative two-row local generated group was removed before publication;
+no prediction-only training launched. The existing self-contained compact-m48
+configuration has micro48/rank, accumulation2, world2, batch192, lambda1=1,
+lambda2=0.1, seed1 and five epochs. Source, GitHub main and a fresh immutable
+server checkout matched published SHA
+`fc90a0d992373e619976504c82bd6f94c930d7b2`; clean source identity and
+publication receipt SHA256
+`a77a9e63771f1ffc516d123f7280e8cf04401c408f34c820d150dfd487c5c770`
+passed. Exact-source, exact-config dual-GPU one-step integration and checkpoint
+reload passed, receipt SHA256
+`7cdeb101149bbfe5264215b474e2e38d449ca461c6312f11aafc0aa57c0b73e4`.
+
+Formal B0 run ID
+`nadig_jurkat-seed1-20260924T134139Z-e5df6111138747e08ba5a582e37c1ed2`,
+root `/data/yilangliu/GraD-Pert/runs-v2-b0-compact192-fc90a0d/` plus ID,
+started from sealed plan
+`/data/yilangliu/GraD-Pert/development/v2-b0-fc90a0d-b192.launch-plan.json`,
+SHA256 `8f4dac881eb98bf5f3ed1bf7562e51e897d8ece58cde146727008fc61b2df03a`.
+Config SHA256 `674ea9ab4160e10e85de7f6da78137257efee510c97e2f9852a474a55e81acf5`;
+runtime SHA256 `54691399183a502fcf7f939e0f4e3bad587b00677fc84545cf6d20a582a547c6`.
+Parent PID file `/data/yilangliu/GraD-Pert/development/v2-b0-fc90a0d-b192.pid`
+contains 2953737; log and exit-code files use the same stem. At first check,
+parent was alive, epoch journal 0/5 with 749 updates/epoch, and GPUs 0/1
+were both active. Require five committed epochs, best/last tests and
+`COMPLETE.json` before reporting a scientific result. The heartbeat
+`grad-pert-v2-b0-compact192-formal` checks every two hours and reports every
+check. Do not modify the active source, resume the old run, or launch any other
+ablation row.

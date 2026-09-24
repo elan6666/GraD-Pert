@@ -229,3 +229,15 @@
   DSA/MLA in each encoder.
 - Prevention: write layer sequences per module and compute total depth before
   giving parameter estimates or editing architecture configs.
+
+## Resolve B0 labels against the user's current experiment meaning
+
+- Mistake (2026-09-24): I initially treated “launch B0” as the historical
+  two-row generator group (`prediction_only` plus `joint_ssl`) and generated
+  both local candidate configs. Neither was published or launched.
+- Correction: the user specified that this B0 is the **complete** compact v2
+  baseline with prediction, SSL1 and SSL2; `prediction_only` is outside the
+  authorized formal launch. The tentative files were removed.
+- Prevention: for reused experiment labels, inspect the current run lineage
+  and apply the user's latest explicit definition before creating a formal
+  queue or allocating GPUs. Keep a separate run ID for each scientific model.

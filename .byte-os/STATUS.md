@@ -2,26 +2,28 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: compact_v2_capacity_complete
+stage: compact_v2_b0_formal_training
 current_workflow: byte-auto
 next_workflow: byte-auto
-review_verdict: published_and_dual_gpu_capacity_passed
+review_verdict: launched_pending_five_epochs_and_best_last_tests
 hard_blocked: false
-updated_at: 2026-09-24T20:50:00+08:00
+updated_at: 2026-09-24T21:44:00+08:00
 ---
 
 # Current state
 
-The five-epoch Nadig Jurkat v2 ablation baseline was stopped at the user's
-request on 2026-09-24. The active work is a new compact v2 model and dual-GPU
-capacity retest, **not** a replacement formal five-epoch training run.
+The old five-epoch Nadig Jurkat v2 ablation baseline was stopped at the user's
+request on 2026-09-24. The active work is a **new** compact v2 B0 formal run,
+using the complete prediction + SSL1 + SSL2 model. The user explicitly
+clarified that B0 here is the complete baseline only; `prediction_only` is
+not part of this launch. The separate compact-model capacity retest is complete.
 The complete Top500/GenePT-PCA256/SwiGLU model, global batch 128, and
 two-GPU row-mean protocol are fixed at training source
 `536458333e437252178ffe493c5c50c9064e7615` and config SHA256
 `8471f5ea68f4801406497985291a0088116ff5a8435b82f85e55c611548b06c6`.
 The exact-source two-GPU integration check passed before launch.
 
-- Active run ID:
+- Historical stopped run ID:
   `nadig_jurkat-seed1-20260923T194747Z-1b7eda2abd6441f592d0834e1e275e88`.
 - Server run root: `/data/yilangliu/GraD-Pert/runs-v2-glm53-current/`
   followed by that ID. The training log is
@@ -53,9 +55,23 @@ SHA256 `71d952f90466052a52855a819090d9c5e03ba3e96081eadc03ac2cd3c896529d`.
 Measured throughput was 8.486 cells/s after warmup, 7.992 cells/s end to end;
 peak allocated memory was 31.01/31.05 GB on GPUs 0/1. Thus 192 is the highest
 **sustained-validated** batch under this protocol, while the exact physical
-maximum between 192 and 208 is unmeasured. The scientific default stays 128.
-The stopped five-epoch run remains
-historical evidence only; do not resume it or start an ablation group. The detailed ledger is
+maximum between 192 and 208 is unmeasured. The user selected the passed
+**global batch 192**, micro48/rank × accumulation2 × two ranks, for this new B0
+formal run. The older stopped run remains historical evidence only.
+
+New active B0 run ID:
+`nadig_jurkat-seed1-20260924T134139Z-e5df6111138747e08ba5a582e37c1ed2`.
+Run root:
+`/data/yilangliu/GraD-Pert/runs-v2-b0-compact192-fc90a0d/` plus the ID.
+Training source is clean published commit
+`fc90a0d992373e619976504c82bd6f94c930d7b2`; config SHA256
+`674ea9ab4160e10e85de7f6da78137257efee510c97e2f9852a474a55e81acf5`.
+Exact-source two-GPU one-step integration passed before launch. At initial
+verification the parent process was alive, both GPUs were active, and the
+epoch journal was **0/5**, 749 updates per epoch; best/last test receipts were
+not yet present. The two-hour heartbeat
+`grad-pert-v2-b0-compact192-formal` reports each check. No other ablation row
+was launched. The detailed ledger is
 [STATE.md](STATE.md); capacity and throughput evidence is in
 [GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md](../docs/experiments/GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md).
 
