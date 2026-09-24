@@ -104,3 +104,33 @@ Receipt stems: `v2-throughput-baseline-cb517ea`,
 `v2-m36-throughput-0a9a67f`, `v2-m38-throughput-0a9a67f`,
 `v2-fused-m40-throughput-2eb4c4e`, and
 `v2-fused-m48-integration-2eb4c4e`.
+
+## Compact three-layer v2 retest (2026-09-24)
+
+These measurements use a different, published architecture and must not be
+merged with the preceding four-layer capacity boundary. Source
+`974c5eadf35a95fbc3ba46cffe6d9ab34cdd4e94` gives **each** Cell and
+Response Encoder two KDA layers plus one terminal DSA/MLA layer and reduces
+each of the four Student and corresponding Teacher projector prototype banks
+from 16,384 to 8,192. Student parameters are 23,123,847. The new Jurkat
+scientific default remains global batch 128; these larger profiles only probe
+hardware capacity. The clean immutable server source and publication receipt
+are under `/data/yilangliu/GraD-Pert/development/source-v2-compact-974c5ea`
+and `gradpert-v2-compact-publication-974c5ea.json` respectively.
+
+| Per-rank microbatch × accumulation | Global batch | Five-update probe | Peak allocated per rank | Sustained 128-update result |
+|---|---:|---|---:|---|
+| 32 × 2 | 128 | one-step integration and reload passed | 19.23 GB at rank 0 | not repeated at 128 updates for this source |
+| 48 × 2 | 192 | passed | 28.23 GB | pending if 208 fails |
+| 52 × 2 | 208 | passed | 31.47 GB | running in `v2-compact-974c5ea-capacity-m52-128` |
+| 56 × 2 | 224 | passed | 32.34 GB | CUDA OOM at update 6, after 5 completed updates |
+| 60 × 2 | 240 | CUDA OOM at update 3 | — | not attempted |
+
+The five-update passes are short preflights, not proof of sustained capacity.
+The 224 failure occurred during KDA checkpoint recomputation on GPU 0 while
+trying to allocate another 438 MiB; its failed receipt and log are preserved in
+`v2-compact-974c5ea-capacity-m56-128`. The 208 continuation uses the same
+published source, data, two cards, and allocator setting with a new run ID.
+Before promoting any batch to a capacity result, require 128 completed updates,
+checkpoint save/reload, and 300-control validation inference. The previous
+four-layer result of 144 is not an estimate for this new architecture.
