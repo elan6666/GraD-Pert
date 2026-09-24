@@ -2,12 +2,12 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: compact_v2_capacity_preparation
+stage: compact_v2_capacity_validation
 current_workflow: byte-auto
 next_workflow: byte-auto
-review_verdict: pending_publication_and_dual_gpu_capacity
+review_verdict: published_and_dual_gpu_capacity_running
 hard_blocked: false
-updated_at: 2026-09-24T18:37:26+08:00
+updated_at: 2026-09-24T19:07:00+08:00
 ---
 
 # Current state
@@ -38,12 +38,18 @@ The exact-source two-GPU integration check passed before launch.
 
 New design: both Cell and Response Encoders have two KDA layers followed by one
 DSA/MLA layer; all four Student/Teacher distillation heads use 8192 prototypes.
-The expected Student count is 23,123,847. An isolated server CPU snapshot
-passed 227 v2 tests; lint, format, and package build passed. Next: publish the
-scoped source/config change, verify identical clean server checkout, then test
-two-GPU physical/global batch capacity with new run IDs and receipts. The stopped
-run remains historical evidence only; do not resume it or start an ablation
-group. The detailed ledger is
+The Student count is 23,123,847. An isolated server CPU snapshot passed 227 v2
+tests; lint, format, and package build passed. The scoped change is published
+as `974c5eadf35a95fbc3ba46cffe6d9ab34cdd4e94`; its clean immutable server
+checkout and publication receipt passed the formal source-identity check.
+The default global-batch-128 two-GPU one-step integration and checkpoint reload
+passed. Short probes passed global batches 192, 208, and 224; global 240 OOMed
+at step 3. A full 128-step probe at 224 OOMed after five completed steps, so
+224 is **not** a sustained-capacity result. A new 128-step probe at global 208
+is running at `/data/yilangliu/GraD-Pert/development/v2-compact-974c5ea-capacity-m52-128`.
+The active 30-minute monitor is `grad-pert-v2-compact-batch-capacity`; it checks
+the run and reports each time as requested. The stopped five-epoch run remains
+historical evidence only; do not resume it or start an ablation group. The detailed ledger is
 [STATE.md](STATE.md); capacity and throughput evidence is in
 [GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md](../docs/experiments/GRADPERT_V2_GLM53_DUAL_GPU_PERFORMANCE.md).
 

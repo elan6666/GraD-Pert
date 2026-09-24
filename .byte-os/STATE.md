@@ -112,3 +112,32 @@ prepublication CPU evidence, not a GPU capacity receipt. Next: scoped commit
 and GitHub push; clean immutable server checkout and exact publication receipt;
 two-GPU short failure bracket then 128-update/validation confirmation at the
 highest practical batch. No monitoring is active yet.
+
+2026-09-24 19:07 +08 publication and capacity milestone: scoped source/config
+change `974c5eadf35a95fbc3ba46cffe6d9ab34cdd4e94` is on GitHub `main` and
+in clean immutable server checkout
+`/data/yilangliu/GraD-Pert/development/source-v2-compact-974c5ea`.
+Publication receipt `gradpert-v2-compact-publication-974c5ea.json` has SHA256
+`626bb795287187ea1accec20eacb1bdb906c6bf1ed95fc371ead270424c13760`;
+formal server source identity passed. Default global batch128 dual-GPU one-step
+integration plus checkpoint reload passed; its receipt SHA256 is
+`b7b75b95c22e4ff6cb43aa9f40d39f353a4cc230381d6b63d5fa775bc5698554`.
+Five-step short probes passed batch192, 208, and 224, with batch224 throughput
+9.5172 cells/s and 32,338,694,656 bytes peak allocated. Batch240 OOMed at
+step3. The 128-step batch224 probe
+`/data/yilangliu/GraD-Pert/development/v2-compact-974c5ea-capacity-m56-128`
+failed at step6 with CUDA OOM after five completed steps; batch224 is not a
+sustained-capacity result. The failed receipt and log are preserved.
+
+The next 128-step probe is running at global batch208, microbatch52 per GPU,
+accumulation2, GPUs 0/1, with the same published source and allocator contract.
+Run root `/data/yilangliu/GraD-Pert/development/v2-compact-974c5ea-capacity-m52-128`,
+PID file same stem plus `.pid`, log same stem plus `.log`, exit-code file same
+stem plus `.exit`; config SHA256
+`89832263f13fe41a3eda0e0793fea8567df28616d07f92416ae31594b2b84172`.
+Check 128 completed steps, checkpoint continuation and 300-control validation
+inference before accepting it. If it OOMs, preserve its run and probe 192 with
+a distinct ID after the GPUs are idle. The 30-minute heartbeat
+`grad-pert-v2-compact-batch-capacity` is active and reports at every check.
+This is engineering capacity evidence only; no new five-epoch training or
+ablation has been launched.
