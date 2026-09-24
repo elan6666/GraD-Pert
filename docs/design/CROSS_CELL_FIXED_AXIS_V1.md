@@ -56,13 +56,15 @@ row-level leakage checks are validated.
 
 ## GraD-Pert v2 model contract
 
-The GraD-Pert model in all four leave-one-cell-line-out folds uses the latest
-v2 method recorded in `docs/design/GRADPERT_V2.md` section 20: a trainable
-GenePT-only deterministic PCA256 identity table, three KDA layers followed by
-noncausal content-indexed sparse MLA with Top500 gene reads, clipped SwiGLU
-cell/response FFNs, and the existing v2 graph, distillation and prediction
-paths. Top100 is a separately named ablation, not the default cross-cell model.
-The older B0/B1 encoder is not the cross-cell default.
+The GraD-Pert model in all four leave-one-cell-line-out folds uses the
+2026-09-25 v2 method in
+`docs/design/GRADPERT_V2_HAMILTONIAN_MLA_METHOD.md`: a trainable GenePT-only
+deterministic PCA256 identity table; GO/STRING incoming Top20 plus three
+fixed bidirectional Hamiltonian expander cycles and self edges; two graph
+layers reading updated neighbor states; and, in each Cell/Response Encoder,
+two KDA blocks followed by one noncausal full MLA block. There is no DSA
+Top500 index in this parent. The older B0/B1 and Top500 encoder profiles
+remain historical or separately named ablations, not this cross-cell default.
 
 The four folds share this model design and the cache's exact ordered 3,352-gene
 axis. A new GenePT-PCA256 seed artifact must be generated and hash-audited
@@ -72,7 +74,7 @@ columns must be aligned to the fixed axis. The row-level cross-cell split and
 target-control pool above remain unchanged. Each fold requires a self-contained
 config and explicit source/data/split/seed hashes before training. Model
 comparisons must hold this GraD-Pert architecture fixed across folds; any
-different width, depth, TopK or prior is a separately labeled ablation.
+different width, depth, graph topology or prior is a separately labeled ablation.
 
 `prepare_fixed_axis.py` remains a model-agnostic split generator. A cross-cell
 training/evaluation adapter and the fixed-axis GenePT/graph artifacts are still

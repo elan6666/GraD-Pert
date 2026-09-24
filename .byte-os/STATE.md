@@ -12,6 +12,8 @@ implementation, tests, documentation and Git publication only, not a
 training restart. The historical capacity records below refer to older
 architectures and are not evidence for this method.
 Local validation: 230 v2 tests, Ruff lint/format, and wheel/sdist build passed.
+The fixed-axis four-fold cross-cell design is updated to this same method;
+its dataset-specific artifacts and execution adapter remain pending.
 
 Overall outcome: deliver a runnable, clean, published Top500/GenePT-PCA256/
 SwiGLU v2 model on two RTX 5090 cards, measure useful batch capacity, and make

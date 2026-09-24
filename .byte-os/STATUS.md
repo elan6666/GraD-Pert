@@ -24,6 +24,9 @@ start formal training before new two-card sustained capacity evidence, clean
 source publication and method review. No training was restarted by this edit.
 Local v2 regression: 230 tests passed; Ruff lint/format and wheel/sdist build
 passed. This does not establish two-GPU throughput or capacity.
+The four-fold fixed-axis cross-cell **design contract** now points to the same
+new mechanism; it still lacks axis-specific prior/graph artifacts and a
+validated training adapter, so no cross-cell GPU run is implied.
 
 The old five-epoch Nadig Jurkat v2 ablation baseline was stopped at the user's
 request on 2026-09-24. The subsequent compact v2 B0 formal run was also
