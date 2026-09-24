@@ -1,6 +1,6 @@
 # GraD-Pert v2 新方法：Hamiltonian 图传播与全量 MLA
 
-更新：2026-09-25。新运行配置为 `configs/v2/hamiltonian_mla_jurkat/gradpert_v2/nadig_jurkat.yaml`。历史 B0 的源码、配置和结果不追溯修改。“TxPert 式 expander”仅指固定随机双向 Hamiltonian 环拓扑，不等于其完整 Exphormer 或训练目标。
+更新：2026-09-25。新运行配置为 `configs/v2/hamiltonian_mla_jurkat/gradpert_v2/nadig_jurkat.yaml`。历史 B0 的源码、配置和结果不追溯修改。“TxPert 式 expander”仅指固定随机双向 Hamiltonian 环拓扑，不等于其完整 Exphormer 或训练目标。参照的冻结上游证据为 [TxPert 的环生成与图边并集实现](https://github.com/valence-labs/TxPert/blob/08d82eea86746b044cf7531f4ec8c5f60e1cb73f/gspp/models/pert_models/exphormer.py) 和 [Exphormer 配置](https://github.com/valence-labs/TxPert/blob/08d82eea86746b044cf7531f4ec8c5f60e1cb73f/configs/config-exphormer-mg.yaml)；本项目独立实现，且使用项目种子 1，不声称与上游默认随机图逐边相同。
 
 ## 输入与图
 
