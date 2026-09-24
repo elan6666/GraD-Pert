@@ -209,3 +209,19 @@ were both active. Require five committed epochs, best/last tests and
 `grad-pert-v2-b0-compact192-formal` checks every two hours and reports every
 check. Do not modify the active source, resume the old run, or launch any other
 ablation row.
+
+2026-09-25 02:28 +08 user stop: the compact complete B0 run above was
+terminated before its first epoch committed. The targeted torchrun PID 2953749
+and launcher parent PID 2953737 received SIGTERM after their command lines
+were matched to the sealed B0 launch plan. Wrapper PID 2953738 and rank PIDs
+2953761/2953762 also exited; GPUs 0/1 returned to 2 MiB each. The fit journal
+remains 0/5 with 749 planned optimizer updates per epoch, `history.json` is
+empty, and only the epoch-0000 initial checkpoint exists. There is no finite
+validation selection, `COMPLETE.json`, or best/last test receipt. Preserve the
+run ID, published training SHA `fc90a0d992373e619976504c82bd6f94c930d7b2`,
+config SHA256 `674ea9ab4160e10e85de7f6da78137257efee510c97e2f9852a474a55e81acf5`,
+and existing run files; do not resume or relabel this interrupted run. The
+two-hour `grad-pert-v2-b0-compact192-formal` heartbeat was deleted. No other
+ablation or `prediction_only` job was started. Current stage is discussion of
+graph propagation and expander design; no server training is active from this
+B0 run.
