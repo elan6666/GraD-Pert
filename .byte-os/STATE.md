@@ -60,7 +60,16 @@ data materialization.012s,assemble1.173s,gradient average.017s. Elementwise
 multiply alone212752calls/2.721summedGPUseconds. Prioritize measured small-op
 fusion/chunk kernels and recompute overhead before generic data-loader tuning;
 first obtain unprofiled steady baseline, then full-update numerical/gradient/RNG
-checks and controlled ABBA. No GPU task currently active.
+checks and controlled ABBA. Unprofiled baseline A1 now active:
+`/data/yilangliu/GraD-Pert/development/relay-d9c1fbf-m2-steady-A1`;
+PID3371948, .pid/.log/.exit/.sh same stem, dual exclusive locks,3600s limit;
+40 full updates with10 warmups/30 measured. Original immutable d9 source/config.
+No formal training. Check its live receipt and process before admitting another
+GPU job. Opt-in compiled chunk candidate locally implemented; existing defaults
+remain eager.269 distinct local v2 tests passed (268 suite +1 additional policy
+test), four-source mypy and lint pass. Next publish/deploy candidate, then after
+A1 exits run synthetic CUDA FP32/BF16 output+gradient/RNG/timing probe; only if
+it passes proceed complete-update parity and controlled throughput comparisons.
 
 Additional user request complete: updated EasyConnect skill with native Swift AX
 and private Security.framework credential path; both installed copies match,

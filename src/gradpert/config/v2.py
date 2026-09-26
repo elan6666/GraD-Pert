@@ -26,6 +26,7 @@ class V2Architecture:
     projector_bottleneck: int = 256
     prototypes: int = 16384
     relay_eval_seed: int | None = None
+    relay_kernel: str = "eager"
 
     def __post_init__(self) -> None:
         for name in (
@@ -76,6 +77,10 @@ class V2Architecture:
             type(self.relay_eval_seed) is not int or self.relay_eval_seed < 0
         ):
             raise ValueError("relay evaluation seed must be a nonnegative integer")
+        if self.relay_kernel not in ("eager", "inductor"):
+            raise ValueError("unknown relay kernel")
+        if self.relay_kernel != "eager" and self.attention != "relay_full":
+            raise ValueError("compiled relay kernel requires the relay profile")
 
     @classmethod
     def parse(cls, values: dict[str, Any]) -> V2Architecture:
@@ -89,6 +94,8 @@ class V2Architecture:
         if self.relay_eval_seed is None:
             # Preserve architecture identity of checkpoints predating relay KDA.
             values.pop("relay_eval_seed")
+        if self.relay_kernel == "eager":
+            values.pop("relay_kernel")
         return values
 
 
@@ -152,6 +159,7 @@ class V2Options:
             "graph_read_mode",
             "graph_expander_type",
             "relay_eval_seed",
+            "relay_kernel",
             "koleo_exclude_same_condition",
             "graph_view_mode",
         }

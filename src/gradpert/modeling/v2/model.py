@@ -403,6 +403,7 @@ class GraDPertV2(nn.Module):
             self.set_relay_order_randomization(self.training)
         for module in self.modules():
             if isinstance(module, RelayDeltaAttention):
+                module.compiled_chunks = options.relay_kernel == "inductor"
                 module.eval_seed = (
                     options.relay_eval_seed if options.relay_eval_seed is not None else 1
                 )

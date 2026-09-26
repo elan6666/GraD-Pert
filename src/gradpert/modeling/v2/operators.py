@@ -7,6 +7,8 @@ Equation provenance and deliberate architectural differences are recorded in
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
+from functools import lru_cache
 from typing import cast
 
 import torch
@@ -95,34 +97,70 @@ def chunk_delta_final_state(
     beta: Tensor,
     state: Tensor | None = None,
     chunk_size: int = 32,
+    *,
+    compiled: bool = False,
 ) -> Tensor:
     """Exact block solve for the final state only; avoids per-token query reads."""
     if state is None:
         state = k.new_zeros(k.shape[0], k.shape[2], k.shape[3], v.shape[-1], dtype=torch.float32)
+    block = compiled_delta_block() if compiled else delta_final_block
     for start in range(0, k.shape[1], chunk_size):
         end = min(start + chunk_size, k.shape[1])
-        key, value = [t[:, start:end].float().transpose(1, 2) for t in (k, v)]
-        gates = log_decay[:, start:end].float().transpose(1, 2).cumsum(-2)
-        write_rate = beta[:, start:end].float().transpose(1, 2).unsqueeze(-1)
-        length = end - start
-        causal = torch.ones(length, length, device=k.device, dtype=torch.bool).tril()
-        decay = (
-            (gates.unsqueeze(-2) - gates.unsqueeze(-3))
-            .masked_fill(~causal[None, None, :, :, None], 0)
-            .exp()
-        )
-        past_keys = (key.unsqueeze(-2) * key.unsqueeze(-3) * decay).sum(-1)
-        triangular = (past_keys * write_rate).tril(-1)
-        triangular = triangular + torch.eye(length, device=k.device)
-        old_read = (key * gates.exp()) @ state
-        writes = torch.linalg.solve_triangular(
-            triangular, write_rate * (value - old_read), upper=False
-        )
-        final_keys = key * (gates[..., -1:, :] - gates).exp()
-        state = (
-            gates[..., -1, :].exp().unsqueeze(-1) * state + final_keys.transpose(-1, -2) @ writes
+        state = block(
+            k[:, start:end], v[:, start:end], log_decay[:, start:end], beta[:, start:end], state
         )
     return state
+
+
+def delta_final_block(
+    k: Tensor, v: Tensor, log_decay: Tensor, beta: Tensor, state: Tensor
+) -> Tensor:
+    """One unchanged delta block; regional compilation can fuse elementwise work.
+
+    Keep the causal mask before exp to avoid overflowing unused upper entries.
+    This region has no random draws, parameter mutation or device synchronization.
+    """
+    key, value = [t.float().transpose(1, 2) for t in (k, v)]
+    gates = log_decay.float().transpose(1, 2).cumsum(-2)
+    write_rate = beta.float().transpose(1, 2).unsqueeze(-1)
+    length = k.shape[1]
+    causal = torch.ones(length, length, device=k.device, dtype=torch.bool).tril()
+    decay = (
+        (gates.unsqueeze(-2) - gates.unsqueeze(-3))
+        .masked_fill(~causal[None, None, :, :, None], 0)
+        .exp()
+    )
+    past_keys = (key.unsqueeze(-2) * key.unsqueeze(-3) * decay).sum(-1)
+    triangular = (past_keys * write_rate).tril(-1)
+    triangular = triangular + torch.eye(length, device=k.device)
+    old_read = (key * gates.exp()) @ state
+    writes = torch.linalg.solve_triangular(triangular, write_rate * (value - old_read), upper=False)
+    final_keys = key * (gates[..., -1:, :] - gates).exp()
+    return cast(
+        Tensor,
+        gates[..., -1, :].exp().unsqueeze(-1) * state + final_keys.transpose(-1, -2) @ writes,
+    )
+
+
+@lru_cache(maxsize=1)
+def compiled_delta_block() -> Callable[..., Tensor]:
+    """Opt-in Inductor region shared across graph/cell/response and EMA copies.
+
+    Dynamic shapes cover cropped views and graph tail chunks. Fail on compiler
+    errors instead of silently recording eager execution as a compiled result.
+    Compilation caches and warmup costs belong in the performance receipt.
+    """
+    import torch._functorch.config as compiler_config
+
+    compiled = torch.compile(delta_final_block, fullgraph=True, dynamic=True)
+
+    def invoke(*args: Tensor) -> Tensor:
+        # The training engine leaves autocast before backward. AOTAutograd's
+        # default same_as_forward assumption would silently change that policy.
+        with compiler_config.patch(backward_pass_autocast="off"):
+            return compiled(*args)
+
+    return invoke
 
 
 def relay_order(
@@ -179,6 +217,7 @@ class RelayDeltaAttention(DeltaAttention):
         self.source = nn.Linear(4, width, bias=False)
         self.randomize_order: bool | None = None
         self.eval_seed: int = 1
+        self.compiled_chunks = False
 
     def random_order_enabled(self) -> bool:
         return self.training if self.randomize_order is None else self.randomize_order
@@ -218,6 +257,7 @@ class RelayDeltaAttention(DeltaAttention):
             torch.cat((value, value.flip(1)), dim=1),
             torch.cat((decay, decay.flip(1)), dim=1),
             torch.cat((beta, beta.flip(1)), dim=1),
+            compiled=self.compiled_chunks,
         )
 
     def forward(
@@ -240,7 +280,9 @@ class RelayDeltaAttention(DeltaAttention):
         if has_cls:
             # Forward CLS is read-only; after both gene scans it writes exactly once.
             cls_key, cls_value, cls_decay, cls_beta = self._project_writes(x[:, genes:])
-            state = chunk_delta_final_state(cls_key, cls_value, cls_decay, cls_beta, state=state)
+            state = chunk_delta_final_state(
+                cls_key, cls_value, cls_decay, cls_beta, state=state, compiled=self.compiled_chunks
+            )
         if block_cls_to_gene and has_cls:
             return torch.cat(
                 (self._read(x[:, :genes], gene_state), self._read(x[:, genes:], state)), dim=1

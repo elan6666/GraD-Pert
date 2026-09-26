@@ -143,3 +143,31 @@ Student 实际 **27,279,662** 个参数；同构 EMA Teacher **27,279,662**（�
 工具本地定向验证49项通过，补充CLI非法组合/allocator失败关闭5项通过；三份工具mypy、全树Ruff和format通过。benchmark不含checkpoint，单步integration和128+capacity仍保留恢复验证；profile收据不能宣称容量。
 
 测量依据：[PyTorch Profiler](https://docs.pytorch.org/docs/stable/profiler.html)、[CUDA异步执行与stream语义](https://docs.pytorch.org/docs/main/notes/cuda.html)、[pin_memory/non_blocking说明](https://docs.pytorch.org/tutorials/intermediate/pinmem_nonblock.html)。Profiler开销与稳态吞吐严格分开，不能用“另开stream”或单个GPU利用率数字作为加速证明。
+
+
+## 2026-09-26 首个执行优化候选：chunk 区域编译（未采用为默认）
+
+双卡时间线各记录约197.2万kernel，一次更新的嵌套CPU图前向与反向耗时显著；
+原始trace和重新解析SHA见 `docs/experiments/relay-profile-d9c1fbf/`。
+第一候选保留32-token chunk的三角求解、causal mask-before-exp、输入/状态精度
+和两遍接力语义，将重复单chunk提取为`delta_final_block`，以Inductor区域编译
+融合逐元素/归约工作。外层扫描、随机排序、图邻居、loss/Teacher更新保持原调用。
+自包含候选配置 `configs/v2/relay_jurkat/compiled_m2_a2/gradpert_v2/nadig_jurkat.yaml`
+仅显式增加`relay_kernel=inductor`；所有现有配置继续eager，历史payload省略默认字段。
+动态维覆盖crop和尾chunk；fullgraph编译失败直接报错，不把静默eager回退计作加速。
+首次编译成本、缓存目录与稳态更新分开记录。
+
+训练engine在autocast之外backward，因此编译区域显式使用
+`torch._functorch.config.patch(backward_pass_autocast="off")`并恢复原设置。
+[PyTorch 编译反向语义](https://docs.pytorch.org/docs/main/user_guide/torch_compiler/torch.compiler_backward.html)
+[区域编译与首次成本](https://docs.pytorch.org/docs/main/user_guide/torch_compiler/compile/programming_model.reducing_compile_time.html)。
+本地AOT数值、梯度、极端衰减、RNG和默认身份测试通过；全v2 268项通过，随后
+额外反向精度上下文测试通过（269个不同测试）。四份源文件mypy、Ruff通过。
+这些不等于CUDA Inductor或BF16通过。
+
+待执行`benchmark_relay_kernel.py`：固定seed、合法mask no-op、非零初始状态、
+1/94/257长度、2/64行、FP32与BF16 autocast，前向和全部输入梯度严格对照
+atol3e-5/rtol3e-4并记录实际误差，3次预热+10次同步计时，冷编译单独记录。
+任何数值失败保留收据，不放宽阈值来接受候选。随后必须同配置完整双卡更新、
+Student/optimizer/Teacher/center/RNG核对，再进行ABBA稳定吞吐比较；只有实测
+整步收益且科学语义验证通过，才更新默认执行后端。
