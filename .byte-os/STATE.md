@@ -1,5 +1,20 @@
 ## Resumed single-pass performance engineering — 2026-09-26
 
+CPU prefetch parity PASSED two updates on both ranks: exact inputs/RNG and
+max_abs0 gradients/loss/objective/optimizer. Exit0; reviewed41,682byte receipts
+saved docs/experiments/single-ec2384a-prefetch-parity/. Complete local v2 suite
+312passed in85.78s (two existing TorchScript deprecation warnings).
+Immediately launched throughput ABBA PID3421214, stem
+`/data/yilangliu/GraD-Pert/development/single-ec2384a-prefetch-abba`.
+Source ec2384ade9fa66458eac2ff40c2dbff2fd067dc8/publication as below. A1/B1/B2/A2
+all identical checkpointed eager profiling_m2_a2 configs; B alone --cpu-prefetch.
+12updates each,3warmup9timed,1200s timeouteach,bothGPUlocks. Both parity receipts
+are checked before benchmark. .stage/.pid/.exit; stem-label.log and
+stem-label/receipt.json. Compare schedule/RNG/data/identity plus inclusive
+throughput and memory after all complete. Existing compare_benchmarks.py CLI
+is specific to validation-hoist; do not mislabel this as that experiment.
+Default remains synchronous pending speed evidence; no capacity/formal yet.
+
 CPU prefetch full-update parity now running PID3420187, stem
 `/data/yilangliu/GraD-Pert/development/single-ec2384a-prefetch-parity`;
 .stage/.run.log/.exit/.pid and rank receipts at stem/, bothGPUlocks,1200s.
