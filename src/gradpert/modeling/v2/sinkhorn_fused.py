@@ -62,8 +62,13 @@ def fused_sinkhorn(logits: Tensor, iterations: int = 20) -> Tensor:
         raise ValueError("fused Sinkhorn requires CUDA and four streams")
     if not 1 <= iterations <= 32:
         raise ValueError("iterations must be between 1 and 32")
+    contiguous = logits.contiguous()
+    if not torch.is_grad_enabled() or not logits.requires_grad:
+        from ._sinkhorn_cuda import forward_no_grad
+
+        return forward_no_grad(contiguous, iterations)
     apply = cast(Callable[..., Tensor], _Sinkhorn.apply)
-    return apply(logits.contiguous(), iterations)
+    return apply(contiguous, iterations)
 
 
 @lru_cache(maxsize=16)

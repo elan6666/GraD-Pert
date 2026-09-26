@@ -20,7 +20,7 @@ def _row_sum(z):  # type: ignore[no-untyped-def]
 
 
 @triton.jit(do_not_specialize=["N"], do_not_specialize_on_alignment=["N"])  # type: ignore[untyped-decorator]
-def _forward(X, Y, P, N, STEPS: tl.constexpr, BLOCK: tl.constexpr):  # type: ignore[no-untyped-def]
+def _forward(X, Y, P, N, STEPS: tl.constexpr, BLOCK: tl.constexpr, SAVE: tl.constexpr):  # type: ignore[no-untyped-def]
     tokens = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
     row = tl.arange(0, 4)
     col = tl.arange(0, 4)
@@ -32,17 +32,19 @@ def _forward(X, Y, P, N, STEPS: tl.constexpr, BLOCK: tl.constexpr):  # type: ign
             _row_sum(cuda_extra.libdevice.exp(z - maximum[:, None, :]))
         )
         z = z - lse[:, None, :]
-        probability = cuda_extra.libdevice.exp(z)
-        saved = tokens[:, None, None] * (STEPS * 2 * 16) + step * 32
-        offsets = row[None, :, None] * 4 + col[None, None, :]
-        tl.store(P + saved + offsets, probability, tokens[:, None, None] < N)
+        if SAVE:
+            probability = cuda_extra.libdevice.exp(z)
+            saved = tokens[:, None, None] * (STEPS * 2 * 16) + step * 32
+            offsets = row[None, :, None] * 4 + col[None, None, :]
+            tl.store(P + saved + offsets, probability, tokens[:, None, None] < N)
         maximum = tl.max(z, axis=2)
         lse = maximum + cuda_extra.libdevice.log(
             tl.sum(cuda_extra.libdevice.exp(z - maximum[:, :, None]), axis=2)
         )
         z = z - lse[:, :, None]
-        probability = cuda_extra.libdevice.exp(z)
-        tl.store(P + saved + 16 + offsets, probability, tokens[:, None, None] < N)
+        if SAVE:
+            probability = cuda_extra.libdevice.exp(z)
+            tl.store(P + saved + 16 + offsets, probability, tokens[:, None, None] < N)
     tl.store(Y + index, cuda_extra.libdevice.exp(z), tokens[:, None, None] < N)
 
 
@@ -71,9 +73,28 @@ def forward(logits: Tensor, iterations: int) -> tuple[Tensor, Tensor]:
     probabilities = torch.empty((count, iterations * 2, 4, 4), device=logits.device)
     if count:
         _forward[(triton.cdiv(count, 8),)](
-            logits, output, probabilities, count, iterations, 8, num_warps=4, enable_fp_fusion=False
+            logits,
+            output,
+            probabilities,
+            count,
+            iterations,
+            8,
+            True,
+            num_warps=4,
+            enable_fp_fusion=False,
         )
     return output, probabilities
+
+
+def forward_no_grad(logits: Tensor, iterations: int) -> Tensor:
+    """Run the same normalizations without allocating backward-only probabilities."""
+    count = logits.numel() // 16
+    output = torch.empty_like(logits, dtype=torch.float32)
+    if count:
+        _forward[(triton.cdiv(count, 8),)](
+            logits, output, output, count, iterations, 8, False, num_warps=4, enable_fp_fusion=False
+        )
+    return output
 
 
 def backward(upstream: Tensor, output: Tensor, probabilities: Tensor, iterations: int) -> Tensor:

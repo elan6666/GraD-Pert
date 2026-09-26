@@ -27,3 +27,21 @@ def test_analytic_sinkhorn_gradient(iterations, scale):
 def test_cpu_fused_path_fails_explicitly():
     with pytest.raises(ValueError, match="CUDA"):
         fused_sinkhorn(torch.zeros(2, 4, 4))
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="requires NVIDIA CUDA")
+@pytest.mark.parametrize("count", [1, 17, 4096])
+def test_no_grad_fused_path_matches_training_forward(count):
+    from gradpert.modeling.v2._sinkhorn_cuda import forward
+
+    torch.manual_seed(73)
+    logits = (torch.randn(count, 4, 4, device="cuda") * 4).requires_grad_()
+    training_output, _ = forward(logits.detach(), 20)
+    with torch.no_grad():
+        teacher_output = fused_sinkhorn(logits)
+    torch.testing.assert_close(teacher_output, training_output, atol=0, rtol=0)
+    assert teacher_output.grad_fn is None
+
+    # Frozen parameters also need the memory-saving path when grad mode is on.
+    frozen_output = fused_sinkhorn(logits.detach())
+    torch.testing.assert_close(frozen_output, training_output, atol=0, rtol=0)
