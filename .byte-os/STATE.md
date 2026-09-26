@@ -144,7 +144,12 @@ A uses profiling_m2_a2, B validated_m2_a2; same immutable4898 source, global8,
 full prediction+SSL1+SSL2, normal GPU mode,40 updates each (10warmup+30timed).
 A1 passed40/40, update median26.3230s,including-data0.2915533cells/s; small
 receipt copied after dry-run to docs/experiments/relay-abba-4898de3/A1/receipt.json.
-B1 automatically started; no paired speed conclusion until B1/B2/A2 finish.
+B1 passed40/40: update median25.9832s,including-data0.2954293cells/s; receipt
+copied after dry-run to docs/experiments/relay-abba-4898de3/B1/receipt.json.
+A1/B1 source/environment/data/ordered batches/view RNG matched exactly; B1
+configuration hash verified. Single-pair throughput ratio1.01329 is small and
+not yet evidence of stable improvement. B2 automatically started; A2 follows.
+Do not adopt or claim speedup until the repeated comparison completes.
 Each run max3600s, queue stops on any process/receipt failure. This is bounded
 performance engineering, not formal/capacity evidence. At terminal completion,
 compare exact row/view RNG hashes, pair medians/p95/throughput/memory; decide

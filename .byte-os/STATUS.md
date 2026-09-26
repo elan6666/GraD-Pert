@@ -34,7 +34,8 @@ also fails strict gradient tolerance (max1.3163e-4), with exact inputs/RNG.
 Deterministic reference/candidate diagnostic passed two complete updates on
 both GPUs with bitwise-equal losses/gradients/model/optimizer and exact RNG.
 Same-source ABBA throughput queue runs40updates each at global8. A1 passed,
-median26.323s/update; B1 automatically started. Remaining B1/B2/A2 still pending;
+median26.323s/update. B1 passed at25.983s/update; B2 automatically started.
+Single-pair throughput differs by only1.33%; B2/A2 remain pending;
 no throughput improvement or default adoption claimed. Next CUDA Graph replay
 probe is published279696a, CPU helper checks pass, and queued behind ABBA with
 explicit successful-receipt/resource gates; its GPU behavior remains unverified. No formal training or timer; Goal continues. STATE.md has receipts
