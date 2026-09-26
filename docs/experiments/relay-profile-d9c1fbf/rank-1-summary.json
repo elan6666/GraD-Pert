@@ -1,0 +1,1722 @@
+{
+  "window_us": 43665203.578125,
+  "cuda_activity_present": true,
+  "gpu_busy_union_us": 9601109.33203125,
+  "gpu_busy_fraction": 0.2198801000630426,
+  "kernel_count": 1972124,
+  "memcpy_count": 55412,
+  "largest_gpu_gaps_start_and_duration_us": [
+    [
+      14371.21875,
+      474519.7724609375
+    ],
+    [
+      686345.0126953125,
+      358420.599609375
+    ],
+    [
+      6514137.4697265625,
+      315791.25
+    ],
+    [
+      14612938.854492188,
+      313922.3798828125
+    ],
+    [
+      30708268.38671875,
+      274202.82421875
+    ],
+    [
+      2284009.88671875,
+      218990.4375
+    ],
+    [
+      43449307.40722656,
+      215896.1708984375
+    ],
+    [
+      496978.3798828125,
+      188427.521484375
+    ],
+    [
+      11174498.740234375,
+      170262.9287109375
+    ],
+    [
+      33698538.080078125,
+      93945.0849609375
+    ],
+    [
+      1045709.203125,
+      91428.076171875
+    ],
+    [
+      27966745.379882812,
+      67826.8759765625
+    ],
+    [
+      1137725.73046875,
+      65275.048828125
+    ],
+    [
+      43199502.21875,
+      33926.013671875
+    ],
+    [
+      0.0,
+      14296.306640625
+    ],
+    [
+      43311143.091796875,
+      7227.7666015625
+    ],
+    [
+      489762.6142578125,
+      7034.35546875
+    ],
+    [
+      14941335.1015625,
+      6135.88671875
+    ],
+    [
+      1206184.6748046875,
+      5146.0869140625
+    ],
+    [
+      22769588.676757812,
+      4618.5625
+    ],
+    [
+      14297631.759765625,
+      4487.0107421875
+    ],
+    [
+      23104707.064453125,
+      4331.8076171875
+    ],
+    [
+      21067127.033203125,
+      3718.7158203125
+    ],
+    [
+      12628538.606445312,
+      3587.7373046875
+    ],
+    [
+      13437406.159179688,
+      3552.25
+    ],
+    [
+      21892675.40625,
+      3525.146484375
+    ],
+    [
+      12875647.334960938,
+      3436.50390625
+    ],
+    [
+      13693316.713867188,
+      3435.5126953125
+    ],
+    [
+      21315247.231445312,
+      3429.4658203125
+    ],
+    [
+      22147937.674804688,
+      3411.544921875
+    ]
+  ],
+  "regions": {
+    "gradpert/student/response.self_layers.2": {
+      "calls": 20,
+      "cpu_inclusive_us": 110722.783203125
+    },
+    "gradpert/student/response.cross_layers.2": {
+      "calls": 20,
+      "cpu_inclusive_us": 109283.099609375
+    },
+    "gradpert/student/response.self_layers.1": {
+      "calls": 20,
+      "cpu_inclusive_us": 841616.958984375
+    },
+    "gradpert/student/response.cross_layers.1": {
+      "calls": 20,
+      "cpu_inclusive_us": 811655.7060546875
+    },
+    "gradpert/student/response.self_layers.0": {
+      "calls": 20,
+      "cpu_inclusive_us": 843992.2822265625
+    },
+    "gradpert/student/response.cross_layers.0": {
+      "calls": 20,
+      "cpu_inclusive_us": 1112397.0888671875
+    },
+    "gradpert/capture_window": {
+      "calls": 1,
+      "cpu_inclusive_us": 43665203.578125
+    },
+    "gradpert/data/materialize_cpu_batch": {
+      "calls": 1,
+      "cpu_inclusive_us": 12493.033203125
+    },
+    "gradpert/data/to_training_batch": {
+      "calls": 1,
+      "cpu_inclusive_us": 1971.2138671875
+    },
+    "gradpert/data/assemble_views": {
+      "calls": 1,
+      "cpu_inclusive_us": 1190666.6865234375
+    },
+    "gradpert/communication/gather_rows": {
+      "calls": 8,
+      "cpu_inclusive_us": 5089.060546875
+    },
+    "gradpert/student/graph": {
+      "calls": 6,
+      "cpu_inclusive_us": 7435572.4990234375
+    },
+    "gradpert/student/cell": {
+      "calls": 10,
+      "cpu_inclusive_us": 1038057.095703125
+    },
+    "gradpert/student/response": {
+      "calls": 10,
+      "cpu_inclusive_us": 1887170.0791015625
+    },
+    "gradpert/teacher/graph": {
+      "calls": 4,
+      "cpu_inclusive_us": 4230558.396484375
+    },
+    "gradpert/loss/ssl2": {
+      "calls": 2,
+      "cpu_inclusive_us": 3149499.9775390625
+    },
+    "gradpert/teacher/cell": {
+      "calls": 4,
+      "cpu_inclusive_us": 347406.970703125
+    },
+    "gradpert/teacher/response": {
+      "calls": 4,
+      "cpu_inclusive_us": 637934.5048828125
+    },
+    "gradpert/teacher/response.self_layers.0": {
+      "calls": 4,
+      "cpu_inclusive_us": 139813.1328125
+    },
+    "gradpert/teacher/response.cross_layers.0": {
+      "calls": 4,
+      "cpu_inclusive_us": 133109.4580078125
+    },
+    "gradpert/teacher/response.self_layers.1": {
+      "calls": 4,
+      "cpu_inclusive_us": 136599.3935546875
+    },
+    "gradpert/teacher/response.cross_layers.1": {
+      "calls": 4,
+      "cpu_inclusive_us": 134188.3076171875
+    },
+    "gradpert/teacher/response.self_layers.2": {
+      "calls": 4,
+      "cpu_inclusive_us": 18050.8212890625
+    },
+    "gradpert/teacher/response.cross_layers.2": {
+      "calls": 4,
+      "cpu_inclusive_us": 20461.2099609375
+    },
+    "gradpert/student/ssl2_cls": {
+      "calls": 8,
+      "cpu_inclusive_us": 1757.8115234375
+    },
+    "gradpert/teacher/ssl2_cls": {
+      "calls": 4,
+      "cpu_inclusive_us": 893.640625
+    },
+    "gradpert/student/ssl2_node": {
+      "calls": 3,
+      "cpu_inclusive_us": 1093.8125
+    },
+    "gradpert/teacher/ssl2_node": {
+      "calls": 3,
+      "cpu_inclusive_us": 879.4013671875
+    },
+    "gradpert/backward": {
+      "calls": 2,
+      "cpu_inclusive_us": 26394941.248046875
+    },
+    "gradpert/loss/ssl1": {
+      "calls": 1,
+      "cpu_inclusive_us": 5663465.3076171875
+    },
+    "gradpert/teacher/ssl1_cls": {
+      "calls": 2,
+      "cpu_inclusive_us": 625.85546875
+    },
+    "gradpert/student/ssl1_cls": {
+      "calls": 4,
+      "cpu_inclusive_us": 817.1435546875
+    },
+    "gradpert/student/ssl1_node": {
+      "calls": 2,
+      "cpu_inclusive_us": 678.310546875
+    },
+    "gradpert/teacher/ssl1_node": {
+      "calls": 2,
+      "cpu_inclusive_us": 522.44140625
+    },
+    "gradpert/communication/average_gradients": {
+      "calls": 1,
+      "cpu_inclusive_us": 19459.9716796875
+    },
+    "gradpert/optimizer": {
+      "calls": 1,
+      "cpu_inclusive_us": 103967.00390625
+    },
+    "gradpert/ema_centers": {
+      "calls": 1,
+      "cpu_inclusive_us": 7137.1181640625
+    }
+  },
+  "cuda_allocation_event_count": 3404642,
+  "cuda_allocation_peak_bytes": 3476280832,
+  "cuda_memory_timeline_sample": [
+    {
+      "time_us": 11343164.254882812,
+      "allocated_bytes": 2584408576,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 11496800.282226562,
+      "allocated_bytes": 2804739072,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 11649904.634765625,
+      "allocated_bytes": 2882498560,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 11791395.213867188,
+      "allocated_bytes": 2731605504,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 11942500.024414062,
+      "allocated_bytes": 2579459072,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 12092175.412109375,
+      "allocated_bytes": 2730916864,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 12247713.109375,
+      "allocated_bytes": 2762620416,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 12392254.443359375,
+      "allocated_bytes": 2635014656,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 12535437.352539062,
+      "allocated_bytes": 2565562368,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 12700533.322265625,
+      "allocated_bytes": 2866187776,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 12856048.67578125,
+      "allocated_bytes": 2984565248,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 13003256.5078125,
+      "allocated_bytes": 2653630976,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 13154261.823242188,
+      "allocated_bytes": 2612615680,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 13306318.666015625,
+      "allocated_bytes": 2515870208,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 13466712.125976562,
+      "allocated_bytes": 2979994624,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 13612058.54296875,
+      "allocated_bytes": 2604908032,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 13772826.211914062,
+      "allocated_bytes": 2781042176,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 13919776.533203125,
+      "allocated_bytes": 2694740480,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 14078984.7421875,
+      "allocated_bytes": 2694465536,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 14229074.13671875,
+      "allocated_bytes": 2796054528,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 14391610.359375,
+      "allocated_bytes": 2911087616,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 14537633.331054688,
+      "allocated_bytes": 2696328192,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 15021808.024414062,
+      "allocated_bytes": 2958452736,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 15165611.234375,
+      "allocated_bytes": 2458571776,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 15325499.213867188,
+      "allocated_bytes": 2522311680,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 15483464.4609375,
+      "allocated_bytes": 2564557312,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 15686150.130859375,
+      "allocated_bytes": 2136677376,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 15862933.666992188,
+      "allocated_bytes": 2139295232,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 16036268.120117188,
+      "allocated_bytes": 2019992064,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 16213247.706054688,
+      "allocated_bytes": 1850056192,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 16389125.302734375,
+      "allocated_bytes": 1657018880,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 16565761.563476562,
+      "allocated_bytes": 1674915328,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 16742020.729492188,
+      "allocated_bytes": 1705091072,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 16918416.083984375,
+      "allocated_bytes": 1858149376,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 17094378.84765625,
+      "allocated_bytes": 2003649024,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 17272065.529296875,
+      "allocated_bytes": 2122999296,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 17449627.958007812,
+      "allocated_bytes": 2127656448,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 17626896.970703125,
+      "allocated_bytes": 2127642112,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 17803991.462890625,
+      "allocated_bytes": 2130454528,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 17981101.834960938,
+      "allocated_bytes": 2009121792,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 18157576.452148438,
+      "allocated_bytes": 1774174208,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 18329926.0859375,
+      "allocated_bytes": 1654940672,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 18508343.924804688,
+      "allocated_bytes": 1663631872,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 18685839.647460938,
+      "allocated_bytes": 1830150144,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 18863775.369140625,
+      "allocated_bytes": 1920393216,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 19042958.08203125,
+      "allocated_bytes": 1994941440,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 19222513.43359375,
+      "allocated_bytes": 2116192256,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 19394994.516601562,
+      "allocated_bytes": 2118817792,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 19573239.901367188,
+      "allocated_bytes": 2119000576,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 19749232.119140625,
+      "allocated_bytes": 1581702144,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 19907216.203125,
+      "allocated_bytes": 1790569984,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 20065065.690429688,
+      "allocated_bytes": 1869056512,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 20211017.657226562,
+      "allocated_bytes": 1734059008,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 20365634.0,
+      "allocated_bytes": 1570344960,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 20519624.91015625,
+      "allocated_bytes": 1713868288,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 20678422.017578125,
+      "allocated_bytes": 1749442048,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 20821089.360351562,
+      "allocated_bytes": 1617868800,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 20967150.934570312,
+      "allocated_bytes": 1560480256,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 21138161.625976562,
+      "allocated_bytes": 1851642880,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 21297284.947265625,
+      "allocated_bytes": 1988976640,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 21449980.94140625,
+      "allocated_bytes": 1634694144,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 21604870.745117188,
+      "allocated_bytes": 1597970432,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 21759020.68359375,
+      "allocated_bytes": 1504697344,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 21923182.548828125,
+      "allocated_bytes": 1965384192,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 22072202.412109375,
+      "allocated_bytes": 1609313280,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 22234250.583007812,
+      "allocated_bytes": 1769785856,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 22379575.586914062,
+      "allocated_bytes": 1695052800,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 22541179.333984375,
+      "allocated_bytes": 1684049408,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 22694578.129882812,
+      "allocated_bytes": 1793967104,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 22863544.3515625,
+      "allocated_bytes": 1888361472,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 23015367.010742188,
+      "allocated_bytes": 1680857088,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 23183819.477539062,
+      "allocated_bytes": 1926914048,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 23329761.78125,
+      "allocated_bytes": 1426348032,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 23490738.963867188,
+      "allocated_bytes": 1483783168,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 23645134.020507812,
+      "allocated_bytes": 1521338368,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 23851620.06640625,
+      "allocated_bytes": 1087707648,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 24031685.80078125,
+      "allocated_bytes": 1093701632,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 24209985.69140625,
+      "allocated_bytes": 980557312,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 24389261.189453125,
+      "allocated_bytes": 804268544,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 24568674.012695312,
+      "allocated_bytes": 612308480,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 24749317.548828125,
+      "allocated_bytes": 625486336,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 24923431.19140625,
+      "allocated_bytes": 650910720,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 25102342.015625,
+      "allocated_bytes": 808163328,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 25283539.159179688,
+      "allocated_bytes": 956399616,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 25463017.720703125,
+      "allocated_bytes": 1075330048,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 25641578.557617188,
+      "allocated_bytes": 1075033088,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 25821410.49609375,
+      "allocated_bytes": 1075149824,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 25993694.646484375,
+      "allocated_bytes": 1087447552,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 26172385.331054688,
+      "allocated_bytes": 955580928,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 26351329.364257812,
+      "allocated_bytes": 646182400,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 26530011.921875,
+      "allocated_bytes": 605690368,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 26712465.421875,
+      "allocated_bytes": 622060544,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 26894721.861328125,
+      "allocated_bytes": 781410304,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 27069870.717773438,
+      "allocated_bytes": 929358848,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 27250171.81640625,
+      "allocated_bytes": 932340736,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 27429530.232421875,
+      "allocated_bytes": 1062998016,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 27609789.553710938,
+      "allocated_bytes": 1059822592,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 27789346.659179688,
+      "allocated_bytes": 1062625280,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 33796174.11425781,
+      "allocated_bytes": 2260776960,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 33984278.51855469,
+      "allocated_bytes": 2337302528,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 34159238.11621094,
+      "allocated_bytes": 2180867072,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 34331580.19140625,
+      "allocated_bytes": 1982000640,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 34505147.11035156,
+      "allocated_bytes": 1980786176,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 34678753.92871094,
+      "allocated_bytes": 1999109632,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 34853134.697265625,
+      "allocated_bytes": 2158436864,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 35023948.06640625,
+      "allocated_bytes": 2311628288,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 35217498.185546875,
+      "allocated_bytes": 1776556032,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 35392755.25292969,
+      "allocated_bytes": 2129034752,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 35566959.69824219,
+      "allocated_bytes": 1993694720,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 35740586.607421875,
+      "allocated_bytes": 1711788032,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 35914623.837890625,
+      "allocated_bytes": 1718479872,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 36086764.25488281,
+      "allocated_bytes": 1733899264,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 36261593.6171875,
+      "allocated_bytes": 1959081472,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 36437328.29199219,
+      "allocated_bytes": 1913685504,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 36613071.798828125,
+      "allocated_bytes": 2059438592,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 36788104.43066406,
+      "allocated_bytes": 2094040064,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 37007071.890625,
+      "allocated_bytes": 1574618112,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 37182684.47949219,
+      "allocated_bytes": 1411694592,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 37355360.5859375,
+      "allocated_bytes": 1221753344,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 37531111.50390625,
+      "allocated_bytes": 1226226176,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 37707012.58496094,
+      "allocated_bytes": 1253522432,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 37883350.369140625,
+      "allocated_bytes": 1397078016,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 38060368.57128906,
+      "allocated_bytes": 1543975936,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 38237028.830078125,
+      "allocated_bytes": 1545581568,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 38410180.072265625,
+      "allocated_bytes": 1594985984,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 38586755.75683594,
+      "allocated_bytes": 1596529152,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 38762530.85644531,
+      "allocated_bytes": 1599269376,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 38939156.28417969,
+      "allocated_bytes": 1604054016,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 39116666.48535156,
+      "allocated_bytes": 1405011968,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 39293145.82519531,
+      "allocated_bytes": 1217862656,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 39465503.224609375,
+      "allocated_bytes": 1209319936,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 39642051.40527344,
+      "allocated_bytes": 1218000384,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 39818395.61230469,
+      "allocated_bytes": 1378006016,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 40041798.783203125,
+      "allocated_bytes": 1036989952,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 40219198.55175781,
+      "allocated_bytes": 1039761920,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 40395655.94140625,
+      "allocated_bytes": 1056149504,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 40567965.84863281,
+      "allocated_bytes": 909771776,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 40744038.806640625,
+      "allocated_bytes": 657188352,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 40919986.1328125,
+      "allocated_bytes": 638777344,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 41097663.36816406,
+      "allocated_bytes": 666072064,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 41275392.70019531,
+      "allocated_bytes": 818464768,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 41453608.15332031,
+      "allocated_bytes": 966413312,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 41630738.083984375,
+      "allocated_bytes": 1015270912,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 41803859.15527344,
+      "allocated_bytes": 1025703424,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 41981254.38964844,
+      "allocated_bytes": 1024494080,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 42159435.62402344,
+      "allocated_bytes": 1025781760,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 42337935.17285156,
+      "allocated_bytes": 960737280,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 42515741.06152344,
+      "allocated_bytes": 652301312,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 42693891.60253906,
+      "allocated_bytes": 615468032,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 42866537.51660156,
+      "allocated_bytes": 630207488,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 43045080.791015625,
+      "allocated_bytes": 783337472,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 1226374.40625,
+      "allocated_bytes": 499935232,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 1389578.931640625,
+      "allocated_bytes": 608051200,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 1549511.2978515625,
+      "allocated_bytes": 523019264,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 1709497.4990234375,
+      "allocated_bytes": 495389184,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 1872288.412109375,
+      "allocated_bytes": 615010304,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 2033168.0380859375,
+      "allocated_bytes": 505040384,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 2194175.0146484375,
+      "allocated_bytes": 615870464,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 2575415.6748046875,
+      "allocated_bytes": 517668864,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 2740724.421875,
+      "allocated_bytes": 631939072,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 2904314.63671875,
+      "allocated_bytes": 646217728,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 3052222.8232421875,
+      "allocated_bytes": 1330103808,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 3190458.548828125,
+      "allocated_bytes": 1370559488,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 3327831.732421875,
+      "allocated_bytes": 1357842432,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 3453886.68359375,
+      "allocated_bytes": 1491184640,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 3579585.4638671875,
+      "allocated_bytes": 1501670400,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 3706203.376953125,
+      "allocated_bytes": 1396443648,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 3828098.2666015625,
+      "allocated_bytes": 1500949504,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 3953407.9921875,
+      "allocated_bytes": 1502260224,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 4079048.685546875,
+      "allocated_bytes": 1395648000,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 4203996.2783203125,
+      "allocated_bytes": 1502915584,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 4329037.45703125,
+      "allocated_bytes": 1494461440,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 4452243.03125,
+      "allocated_bytes": 1390568960,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 4583291.560546875,
+      "allocated_bytes": 1389966336,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 4721000.4990234375,
+      "allocated_bytes": 1411548160,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 4856165.0341796875,
+      "allocated_bytes": 1418089472,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 4967199.5615234375,
+      "allocated_bytes": 1444157952,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 5076877.5498046875,
+      "allocated_bytes": 1451166208,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 5202467.8798828125,
+      "allocated_bytes": 1455723520,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 5339569.4287109375,
+      "allocated_bytes": 1485486592,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 5467994.4580078125,
+      "allocated_bytes": 1484754432,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 5576892.7490234375,
+      "allocated_bytes": 1496090112,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 5689985.9208984375,
+      "allocated_bytes": 1486597632,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 5827855.4521484375,
+      "allocated_bytes": 1509740544,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 5965074.798828125,
+      "allocated_bytes": 1523734528,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 6103754.376953125,
+      "allocated_bytes": 1532529664,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 6262201.9453125,
+      "allocated_bytes": 1671812608,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 6428187.275390625,
+      "allocated_bytes": 1564725248,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 6912719.419921875,
+      "allocated_bytes": 1649734144,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 7077687.0458984375,
+      "allocated_bytes": 1581107200,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 7239978.7392578125,
+      "allocated_bytes": 1587563008,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 7405644.982421875,
+      "allocated_bytes": 1695678976,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 7570381.4267578125,
+      "allocated_bytes": 1600715264,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 7735648.8134765625,
+      "allocated_bytes": 1715220992,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 7900999.88671875,
+      "allocated_bytes": 1632449024,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 8058643.5205078125,
+      "allocated_bytes": 2380049408,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 8199203.025390625,
+      "allocated_bytes": 2436593664,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 8336468.669921875,
+      "allocated_bytes": 2446668288,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 8466255.033203125,
+      "allocated_bytes": 2569108992,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 8590476.739257812,
+      "allocated_bytes": 2574933504,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 8714607.993164062,
+      "allocated_bytes": 2485772800,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 8838115.599609375,
+      "allocated_bytes": 2562227712,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 8962142.568359375,
+      "allocated_bytes": 2637389312,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 9085489.1875,
+      "allocated_bytes": 2465269248,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 9208654.041992188,
+      "allocated_bytes": 2563079680,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 9330378.942382812,
+      "allocated_bytes": 2568774144,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 9453967.0,
+      "allocated_bytes": 2467829760,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 9578317.838867188,
+      "allocated_bytes": 2471044608,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 9717617.467773438,
+      "allocated_bytes": 2496552960,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 9857889.125976562,
+      "allocated_bytes": 2499563520,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 9976763.657226562,
+      "allocated_bytes": 2514262528,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 10086208.270507812,
+      "allocated_bytes": 2515713024,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 10204526.112304688,
+      "allocated_bytes": 2505661440,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 10343284.5703125,
+      "allocated_bytes": 2549066752,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 10478433.66015625,
+      "allocated_bytes": 2560209408,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 10587119.932617188,
+      "allocated_bytes": 2548988416,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 10696055.739257812,
+      "allocated_bytes": 2551898112,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 10830856.025390625,
+      "allocated_bytes": 2576671232,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 10968328.188476562,
+      "allocated_bytes": 2586302464,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 11107460.244140625,
+      "allocated_bytes": 2612247552,
+      "reserved_bytes": 3755999232
+    },
+    {
+      "time_us": 28136862.744140625,
+      "allocated_bytes": 576886784,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 28298036.592773438,
+      "allocated_bytes": 583440384,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 28463467.186523438,
+      "allocated_bytes": 691251200,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 28632932.873046875,
+      "allocated_bytes": 581584384,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 28812099.37109375,
+      "allocated_bytes": 656221696,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 28980003.680664062,
+      "allocated_bytes": 601201152,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 29149108.913085938,
+      "allocated_bytes": 619554816,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 29319898.18359375,
+      "allocated_bytes": 1152926208,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 29490941.974609375,
+      "allocated_bytes": 1219162112,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 29661481.576171875,
+      "allocated_bytes": 1271517696,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 29830496.969726562,
+      "allocated_bytes": 1177443840,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 29999392.180664062,
+      "allocated_bytes": 1280593408,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 30166925.608398438,
+      "allocated_bytes": 1173371392,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 30337574.58984375,
+      "allocated_bytes": 1238427648,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 30504053.744140625,
+      "allocated_bytes": 1687328768,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 30672657.129882812,
+      "allocated_bytes": 1857792000,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 31117263.569335938,
+      "allocated_bytes": 1689655808,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 31285326.93359375,
+      "allocated_bytes": 1748985344,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 31455196.642578125,
+      "allocated_bytes": 1947049472,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 31623245.322265625,
+      "allocated_bytes": 2059930112,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 31789237.606445312,
+      "allocated_bytes": 1963634688,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 31930878.704101562,
+      "allocated_bytes": 2171031040,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 32057446.7109375,
+      "allocated_bytes": 2247912448,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 32182413.22265625,
+      "allocated_bytes": 2179537920,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 32308597.403320312,
+      "allocated_bytes": 2172668928,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 32434384.784179688,
+      "allocated_bytes": 2245749760,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 32559708.025390625,
+      "allocated_bytes": 2195692032,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 32685462.626953125,
+      "allocated_bytes": 2173783040,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 32808428.58203125,
+      "allocated_bytes": 2223394304,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 32935125.190429688,
+      "allocated_bytes": 2190066688,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 33061489.608398438,
+      "allocated_bytes": 2264678912,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 33186922.509765625,
+      "allocated_bytes": 2184968192,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 33312757.600585938,
+      "allocated_bytes": 2181735424,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 33437941.50390625,
+      "allocated_bytes": 2288399360,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 33563986.37597656,
+      "allocated_bytes": 2189018112,
+      "reserved_bytes": 3758096384
+    },
+    {
+      "time_us": 33686463.740234375,
+      "allocated_bytes": 2179310592,
+      "reserved_bytes": 3758096384
+    }
+  ],
+  "scope": "one rank, nested CPU-inclusive regions; GPU interval union includes kernel/memcpy/memset; profiler overhead included; not utilization or throughput evidence",
+  "analysis_git_sha": "5186003d54646d1f7f45723cc9617076349427c9",
+  "capture_git_sha": "d9c1fbfb4a7864be316426fd2a7b26797ad7b138",
+  "original_trace": "/data/yilangliu/GraD-Pert/development/relay-d9c1fbf-m2-profile/rank-1-trace.json",
+  "trace_bytes": 7948285217,
+  "analysis_script_sha256": "def67629c7cd6e3c2e5e3ee933e8e1ce7875b480781a5c0f91192a381fe92e91",
+  "top_kernels_summed_duration_us": [
+    {
+      "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> > const&)::{lambda(int)#1})",
+      "calls": 212755,
+      "summed_us": 2717492.005998099
+    },
+    {
+      "name": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4>)",
+      "calls": 51611,
+      "summed_us": 540948.5770000413
+    },
+    {
+      "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1})",
+      "calls": 121255,
+      "summed_us": 497675.34000001126
+    },
+    {
+      "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::masked_fill_kernel(at::TensorIterator&, c10::Scalar const&)::{lambda()#1}::operator()() const::{lambda()#7}::operator()() const::{lambda(float, bool)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::masked_fill_kernel(at::TensorIterator&, c10::Scalar const&)::{lambda()#1}::operator()() const::{lambda()#7}::operator()() const::{lambda(float, bool)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::(anonymous namespace)::masked_fill_kernel(at::TensorIterator&, c10::Scalar const&)::{lambda()#1}::operator()() const::{lambda()#7}::operator()() const::{lambda(float, bool)#1}>(at::TensorIteratorBase&, at::native::(anonymous namespace)::masked_fill_kernel(at::TensorIterator&, c10::Scalar const&)::{lambda()#1}::operator()() const::{lambda()#7}::operator()() const::{lambda(float, bool)#1} const&)::{lambda(int)#1})",
+      "calls": 36424,
+      "summed_us": 487447.6420000021
+    },
+    {
+      "name": "void (anonymous namespace)::indexing_backward_kernel<float, 4>(long const*, long const*, float const*, float*, long, long, long, long, bool)",
+      "calls": 1342,
+      "summed_us": 483294.88300000055
+    },
+    {
+      "name": "void at::native::vectorized_elementwise_kernel<4, at::native::exp_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::exp_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#2}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>)",
+      "calls": 76560,
+      "summed_us": 445825.7950000516
+    },
+    {
+      "name": "void at::native::reduce_kernel<128, 4, at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4> >(at::native::ReduceOp<float, at::native::func_wrapper_t<float, at::native::sum_functor<float, float, float>::operator()(at::TensorIterator&)::{lambda(float, float)#1}>, unsigned int, float, 4, 4>)",
+      "calls": 43498,
+      "summed_us": 439585.0510000596
+    },
+    {
+      "name": "void at::native::vectorized_elementwise_kernel<4, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul> >(int, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::MulFunctor<float> >, std::array<char*, 3ul>)",
+      "calls": 46625,
+      "summed_us": 418030.4790001176
+    },
+    {
+      "name": "void at::native::vectorized_elementwise_kernel<4, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::bfloat16_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda(float)#1}, std::array<char*, 2ul>)",
+      "calls": 183519,
+      "summed_us": 245099.8179999593
+    },
+    {
+      "name": "void batch_trsm_left_kernel<float, 64, 4, 3, false, true, true>(cublasTrsmBatchParams2<float>, float, float const*, int)",
+      "calls": 17172,
+      "summed_us": 164895.39500001486
+    },
+    {
+      "name": "void at::native::vectorized_elementwise_kernel<4, at::native::neg_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul> >(int, at::native::neg_kernel_cuda(at::TensorIteratorBase&)::{lambda()#2}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>)",
+      "calls": 39972,
+      "summed_us": 162192.03100000686
+    },
+    {
+      "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul>)",
+      "calls": 96599,
+      "summed_us": 159391.8040000139
+    },
+    {
+      "name": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, 4, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1> >(int, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}, std::array<char*, 2ul>, TrivialOffsetCalculator<1, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<1>, at::native::memory::StoreWithCast<1>)",
+      "calls": 64643,
+      "summed_us": 146006.27699999267
+    },
+    {
+      "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int)#1})",
+      "calls": 73263,
+      "summed_us": 143669.3710000049
+    },
+    {
+      "name": "void at::native::tensor_kernel_scan_outer_dim<float, unsigned int, std::plus<float> >(float*, float const*, unsigned int, unsigned int, unsigned int, float, std::plus<float>)",
+      "calls": 23691,
+      "summed_us": 119098.83699999478
+    },
+    {
+      "name": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#12}::operator()() const::{lambda(c10::BFloat16)#1} const&)::{lambda(int)#1})",
+      "calls": 41133,
+      "summed_us": 90252.06300001247
+    },
+    {
+      "name": "void at::native::unrolled_elementwise_kernel<at::native::CUDAFunctor_add<float>, std::array<char*, 3ul>, 4, TrivialOffsetCalculator<2, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<2>, at::native::memory::StoreWithCast<1> >(int, at::native::CUDAFunctor_add<float>, std::array<char*, 3ul>, TrivialOffsetCalculator<2, unsigned int>, TrivialOffsetCalculator<1, unsigned int>, at::native::memory::LoadWithCast<2>, at::native::memory::StoreWithCast<1>)",
+      "calls": 27392,
+      "summed_us": 87634.63200000668
+    },
+    {
+      "name": "void at::native::vectorized_elementwise_kernel<4, at::native::FillFunctor<float>, std::array<char*, 1ul> >(int, at::native::FillFunctor<float>, std::array<char*, 1ul>)",
+      "calls": 65163,
+      "summed_us": 80031.75199999678
+    },
+    {
+      "name": "ncclDevKernel_AllReduce_Sum_u64_RING_LL(ncclDevKernelArgsStorage<4096ul>)",
+      "calls": 2,
+      "summed_us": 74989.59
+    },
+    {
+      "name": "void batch_trsm_left_kernel<float, 64, 4, 3, false, false, true>(cublasTrsmBatchParams2<float>, float, float const*, int)",
+      "calls": 6423,
+      "summed_us": 71257.66300000026
+    },
+    {
+      "name": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl<at::native::CUDAFunctor_add<float> >(at::TensorIteratorBase&, at::native::CUDAFunctor_add<float> const&)::{lambda(int)#1})",
+      "calls": 17218,
+      "summed_us": 57473.84400000445
+    },
+    {
+      "name": "void at::native::triu_tril_kernel<float, int, false, 2, false>(at::cuda::detail::TensorInfo<float, int>, at::cuda::detail::TensorInfo<float const, int>, long, long, int)",
+      "calls": 30194,
+      "summed_us": 56312.44499998872
+    },
+    {
+      "name": "void at::native::index_elementwise_kernel<128, 4, at::native::flip_kernel_impl<at::native::OpaqueType<4> >(at::TensorIterator&)::{lambda(int)#1}>(long, at::native::flip_kernel_impl<at::native::OpaqueType<4> >(at::TensorIterator&)::{lambda(int)#1})",
+      "calls": 28317,
+      "summed_us": 55156.35700000239
+    },
+    {
+      "name": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl<at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1}>(at::TensorIteratorBase&, at::native::direct_copy_kernel_cuda(at::TensorIteratorBase&)::{lambda()#3}::operator()() const::{lambda()#7}::operator()() const::{lambda(float)#1} const&)::{lambda(int)#1})",
+      "calls": 17220,
+      "summed_us": 50064.87700000138
+    },
+    {
+      "name": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_32x1_nn_align8>(cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_32x1_nn_align8::Params)",
+      "calls": 17286,
+      "summed_us": 47158.179999995074
+    },
+    {
+      "name": "void at::native::_scatter_gather_elementwise_kernel<128, 8, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<4>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1}>(int, at::native::_cuda_scatter_gather_internal_kernel<false, at::native::OpaqueType<4>, long>::operator()<at::native::TensorAssign>(at::TensorIterator&, long, long, long, at::native::TensorAssign const&)::{lambda(int)#1})",
+      "calls": 11415,
+      "summed_us": 40442.11299999782
+    },
+    {
+      "name": "void (anonymous namespace)::elementwise_kernel_with_index<int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>(int, at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}, function_traits<at::native::arange_cuda_out(c10::Scalar const&, c10::Scalar const&, c10::Scalar const&, at::Tensor&)::{lambda()#1}::operator()() const::{lambda()#4}::operator()() const::{lambda(long)#1}>::result_type*)",
+      "calls": 52492,
+      "summed_us": 36317.98599999421
+    },
+    {
+      "name": "void at::native::vectorized_elementwise_kernel<4, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul> >(int, at::native::CUDAFunctor_add<c10::BFloat16>, std::array<char*, 3ul>)",
+      "calls": 24732,
+      "summed_us": 35693.63600000076
+    },
+    {
+      "name": "void at::native::elementwise_kernel<128, 2, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > const&)::{lambda(int)#1}>(int, at::native::gpu_kernel_impl_nocast<at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > >(at::TensorIteratorBase&, at::native::BinaryFunctor<float, float, float, at::native::binary_internal::DivFunctor<float> > const&)::{lambda(int)#1})",
+      "calls": 18808,
+      "summed_us": 35138.26199999599
+    },
+    {
+      "name": "void cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_32x1_tn_align8>(cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_32x1_tn_align8::Params)",
+      "calls": 13596,
+      "summed_us": 34240.00000000048
+    }
+  ]
+}

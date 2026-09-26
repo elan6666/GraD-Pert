@@ -2,7 +2,7 @@
 
 User explicitly requested Goal-mode supervision on 2026-09-26 after restoring
 VPN. Goal is active for performance diagnosis/optimization and the dependent
-capacity/full-B0 workflow; no scheduled monitor. The first GPU profile captured both traces but its summary parser failed; repair is in progress.
+capacity/full-B0 workflow; no scheduled monitor. The first GPU profile capture is complete and its failed summary parser has been repaired; both saved traces were reanalyzed.
 Worktree `/Users/elan/code/grad-pert-v2-build`; preserve dirty root and old runs.
 
 Method stage A published: `7e4c669e5043986209339a0c8a613b02645356d3`.
@@ -46,7 +46,21 @@ annotation plus CUDA-mirrored gpu_user_annotation as two windows. Original
 rank failure receipts/logs and traces remain unchanged; no active GPU process
 or formal run. Fix selects only the CPU window and excludes GPU mirrored
 regions from CPU-inclusive totals, with a synthetic mirrored-event regression.
-Analyze existing traces after validation/publication; no GPU recapture needed.
+Repair published as5186003d54646d1f7f45723cc9617076349427c9;4 targeted tests
+including complete-update/RNG parity passed. Both existing traces reanalyzed
+successfully, in development/relay-d9c1fbf-profile-reanalysis-5186003, with
+capture and analysis SHAs separated. Small summaries dry-run-reviewed and
+copied to docs/experiments/relay-profile-d9c1fbf/ (104534bytes total).
+Original status remains failed(profile_only),3/3 updates completed,105.118s
+training wall including cold/profile overhead. Do not retrofit successful run.
+Rank0/1 windows43.645/43.665s; GPU interval union22.207%/21.988%; kernel
+counts1,971,993/1,972,124. These include profiler overhead, not normal utilization
+or speed. Rank0 nested CPU graph Student7.357s,Teacher4.233s; backward26.456s;
+data materialization.012s,assemble1.173s,gradient average.017s. Elementwise
+multiply alone212752calls/2.721summedGPUseconds. Prioritize measured small-op
+fusion/chunk kernels and recompute overhead before generic data-loader tuning;
+first obtain unprofiled steady baseline, then full-update numerical/gradient/RNG
+checks and controlled ABBA. No GPU task currently active.
 
 Additional user request complete: updated EasyConnect skill with native Swift AX
 and private Security.framework credential path; both installed copies match,
