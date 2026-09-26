@@ -166,6 +166,41 @@ def enable_fused_gram(objective: Any) -> int:
     return count
 
 
+def enable_gram_forward_audit() -> None:
+    """Fail at the first real-input forward mismatch, with scalar metadata only."""
+    from gradpert.modeling.v2 import weighted_gram
+
+    original = weighted_gram.fused_weighted_gram
+    calls = 0
+
+    def audited(keys: torch.Tensor, gates: torch.Tensor) -> torch.Tensor:
+        nonlocal calls
+        calls += 1
+        actual = original(keys, gates)
+        with torch.no_grad():
+            expected = weighted_gram.weighted_gram_reference(keys, gates)
+            if not torch.equal(actual, expected):
+                raise RuntimeError(
+                    "Gram forward audit mismatch: "
+                    + json.dumps(
+                        {
+                            "call": calls,
+                            "shape": list(keys.shape),
+                            "key_stride": list(keys.stride()),
+                            "gate_stride": list(gates.stride()),
+                            "max_absolute": (actual - expected).abs().max().item(),
+                            "different": (actual != expected).sum().item(),
+                            "gates_min": gates.min().item(),
+                            "gates_max": gates.max().item(),
+                            "autocast": torch.is_autocast_enabled("cuda"),
+                        }
+                    )
+                )
+        return actual
+
+    weighted_gram.fused_weighted_gram = audited
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
@@ -182,7 +217,10 @@ def main() -> None:
     parser.add_argument("--candidate-cpu-prefetch", action="store_true")
     parser.add_argument("--candidate-fused-sinkhorn", action="store_true")
     parser.add_argument("--candidate-fused-gram", action="store_true")
+    parser.add_argument("--candidate-gram-forward-audit", action="store_true")
     args = parser.parse_args()
+    if args.candidate_gram_forward_audit and not args.candidate_fused_gram:
+        parser.error("Gram forward audit requires candidate Gram fusion")
     if args.candidate_fused_gram and (
         args.candidate_fused_sinkhorn
         or args.candidate_cpu_prefetch
@@ -295,6 +333,7 @@ def main() -> None:
         "candidate_cpu_prefetch_diagnostic_only": args.candidate_cpu_prefetch,
         "candidate_fused_sinkhorn_diagnostic_only": args.candidate_fused_sinkhorn,
         "candidate_fused_gram_diagnostic_only": args.candidate_fused_gram,
+        "candidate_gram_forward_audit": args.candidate_gram_forward_audit,
         "candidate_sequence_checkpoint_disabled_diagnostic_only": (
             args.candidate_no_sequence_checkpoint
         ),
@@ -349,6 +388,8 @@ def main() -> None:
                         )
                         if args.candidate_no_sequence_checkpoint:
                             disable_sequence_checkpoint(runtime.objective)
+                        if args.candidate_gram_forward_audit:
+                            enable_gram_forward_audit()
                         if args.candidate_fused_gram:
                             receipt["fused_gram_module_count"] = enable_fused_gram(
                                 runtime.objective
