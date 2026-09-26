@@ -1,0 +1,5611 @@
+{
+  "training_git_sha": "7ae9a8b0259dd31b79f3b9d0a39e1c8430b1005a",
+  "source_clean": true,
+  "protocol": {
+    "devices": [
+      0,
+      1
+    ],
+    "counts": [
+      17,
+      256,
+      4096
+    ],
+    "scales": [
+      0.2,
+      4.0,
+      20.0
+    ],
+    "iterations": 20,
+    "atol": 3e-06,
+    "rtol": 3e-05,
+    "warmup": 3,
+    "repetitions": 20
+  },
+  "config_sha256": "25d709b103609a86746e1f2e9f1771df43c724e0c414ca4b171a955829876a27",
+  "scope": "Synthetic FP32 four-stream mechanism only; not model update or throughput proof",
+  "torch": "2.13.0+cu130",
+  "cases": [
+    {
+      "device": 0,
+      "count": 17,
+      "scale": 0.2,
+      "first_call_seconds": 0.6931956466287374,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.005070025334134698,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0006498177535831928,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 0,
+      "count": 17,
+      "scale": 4.0,
+      "first_call_seconds": 0.0007505267858505249,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.0049518909305334095,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0006212699692696333,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 0,
+      "count": 17,
+      "scale": 20.0,
+      "first_call_seconds": 0.0007408270612359047,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.004889439279213548,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0007129054050892591,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 0,
+      "count": 256,
+      "scale": 0.2,
+      "first_call_seconds": 0.29420417454093695,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.00481190076097846,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005921068135648966,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 0,
+      "count": 256,
+      "scale": 4.0,
+      "first_call_seconds": 0.0007491791620850563,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.004831247450783849,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0006008500698953867,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 0,
+      "count": 256,
+      "scale": 20.0,
+      "first_call_seconds": 0.0007294639945030212,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.0048508136067539455,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005905542522668839,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 0,
+      "count": 4096,
+      "scale": 0.2,
+      "first_call_seconds": 0.28882141783833504,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.004814864601939917,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0006041573360562325,
+        "peak_additional_bytes": 11010048
+      }
+    },
+    {
+      "device": 0,
+      "count": 4096,
+      "scale": 4.0,
+      "first_call_seconds": 0.0007177265360951424,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.004842622485011816,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0006087478715926409,
+        "peak_additional_bytes": 11010048
+      }
+    },
+    {
+      "device": 0,
+      "count": 4096,
+      "scale": 20.0,
+      "first_call_seconds": 0.0006994940340518951,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.004769632825627923,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0006310771219432354,
+        "peak_additional_bytes": 11010048
+      }
+    },
+    {
+      "device": 1,
+      "count": 17,
+      "scale": 0.2,
+      "first_call_seconds": 0.010050608776509762,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.006691213278099894,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0008624712005257607,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 1,
+      "count": 17,
+      "scale": 4.0,
+      "first_call_seconds": 0.0011106273159384727,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.009902921272441745,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0011007688008248806,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 1,
+      "count": 17,
+      "scale": 20.0,
+      "first_call_seconds": 0.0016065165400505066,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.009525630297139287,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0010549156460911036,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 1,
+      "count": 256,
+      "scale": 0.2,
+      "first_call_seconds": 0.005338936112821102,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.00946944672614336,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0010893228929489851,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 1,
+      "count": 256,
+      "scale": 4.0,
+      "first_call_seconds": 0.0013913270086050034,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.009902947908267378,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0010659630876034497,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 1,
+      "count": 256,
+      "scale": 20.0,
+      "first_call_seconds": 0.0016639912500977516,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.010117038292810321,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0010601101443171502,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 1,
+      "count": 4096,
+      "scale": 0.2,
+      "first_call_seconds": 0.007050453685224056,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.010155374696478248,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0011247276794165372,
+        "peak_additional_bytes": 11010048
+      }
+    },
+    {
+      "device": 1,
+      "count": 4096,
+      "scale": 4.0,
+      "first_call_seconds": 0.0017626993358135223,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.010280515253543853,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0010742643848061562,
+        "peak_additional_bytes": 11010048
+      }
+    },
+    {
+      "device": 1,
+      "count": 4096,
+      "scale": 20.0,
+      "first_call_seconds": 0.0017643328756093979,
+      "output": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 0.0,
+        "different_elements": 0,
+        "different_after_bfloat16": 0,
+        "error": null
+      },
+      "normalization_stages": [
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        },
+        {
+          "passed": true,
+          "max_absolute": 0.0,
+          "different_elements": 0,
+          "different_after_bfloat16": 0,
+          "error": null
+        }
+      ],
+      "eager": {
+        "seconds_per_forward_backward": 0.010009851865470409,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.001090253982692957,
+        "peak_additional_bytes": 11010048
+      }
+    }
+  ],
+  "passed": true
+}

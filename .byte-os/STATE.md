@@ -20,18 +20,25 @@ trace两轮分析均完成，结果在docs/experiments/single-38af3ce-profile-re
 首版4f855f9编译scope错误已修，失败收据保留；未改活动源码。
 本地61测试通过，服务器18定向测试通过。
 
-当前活跃父PID3436999，stem `/data/yilangliu/GraD-Pert/development/single-67fd8e1-sinkhorn-parity`
+前次完整更新67fd8e1失败，第1candidate更新gradient最大差1.6681e-4，
+ssl2_koleo亦超容差，输入/RNG完全一致。两rank收据已入库，不采用，不跑其ABBA。
+经安装Torch Reduce.cuh证明strided四元素和逐项结合，修正Triton行轴归约；
+7ae9a8b微基准18/18组、全部40阶段、输出及梯度逐元素相等，BF16差异0。
+证据docs/experiments/single-7ae9a8b-sinkhorn-probe/receipt.json。
+
+当前活跃父PID3439468，stem `/data/yilangliu/GraD-Pert/development/single-7ae9a8b-sinkhorn-parity`
 (.pid/.log/.stage/.tests.log/.run.log/.exit；收据子目录rank-{0,1}-receipt.json)。
-已进入parity；双卡完整loss每边2更新，candidate-only fused_sinkhorn；
-config两边同为single_pass_jurkat/profiling_m2_a2 (全局8)，deterministic，默认checkpoint。
-服务器源码`/data/yilangliu/GraD-Pert/development/source-v2-sinkhorn-67fd8e1`，
-SHA67fd8e1883ecb5d1145fe179d797347057f29394，干净发布身份核验通过。
-publication `development/gradpert-sinkhorn-publication-67fd8e1.json` SHA256
-`d5b530afeef52a7af65d057cc40c890e939af23fd0e83d16df213dbf4772dbd4`。
-当前默认模型仍eager，诊断开关只由update_parity --candidate-fused-sinkhorn启用。
-下一步核对完整loss/all gradients/optimizer/EMA/centers及RNG、非零LR，
-失败不放宽误差；通过后实际ABBA双卡端到端吞吐（需添加benchmark-only开关）。
-之后仍需代表性batch、持续容量、恢复/300control，再完整B0五轮best/last。
+双卡完整loss每边2更新，candidate-only fused_sinkhorn；同config全局8，deterministic默认checkpoint。
+服务器源码`/data/yilangliu/GraD-Pert/development/source-v2-sinkhorn-7ae9a8b`，
+SHA7ae9a8b0259dd31b79f3b9d0a39e1c8430b1005a，干净发布核验。
+publication `development/gradpert-sinkhorn-publication-7ae9a8b.json` SHA256
+`06499f685fc485353d6c33efc1a615173e825dadb62599fdfeb938def0c8a2bf`。
+下一步核对全loss/all gradients/optimizer/EMA/centers及RNG、非零LR。
+通过后还需处理kernel N constexpr会按随机视图长度重复编译的问题：改runtime N，
+重新验证精确性和冷/稳态成本，勿提重编译上限。再ABBA完整双卡吞吐，已有benchmark-only
+--fused-sinkhorn及compare_benchmarks --execution-factor fused_sinkhorn；18工具测试通过。
+所有正式默认仍eager；尚未采用融合。之后代表性batch、持续容量、恢复/300control、
+完整B0五轮best/last均待执行。源码活跃时绝不修改服务器checkout。
 
 先前容量短检查全部终止：a1d55fa micro8/16/32/48/64 passed1/1，
 3ba9a96 micro72 passed1/1+restore、micro80 OOM、88未启动。
