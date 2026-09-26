@@ -1,5 +1,16 @@
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Prepared self-contained current-method capacity candidates under
+configs/v2/single_pass_jurkat/capacity_m{8,16,32,48,64}_a2/gradpert_v2/.
+All parsed and validate_profiles passed: only micro/global batch differ from
+profiling_m2_a2; single-pass final-state eager, checkpointed, fullSSL1+SSL2,
+world2 accumulation2. No GPU capacity launched while prefetch ABBA is active.
+After optimization decision: publish selected execution configuration, run
+ascending one-step integration to bound memory (expand if64 passes, refine if
+failure); then128+ updates/checkpoint continuation/300-control inference near
+boundary with fresh run IDs. Never call one-step boundary stable maximum.
+Recheck prefetch benefit at selected larger batch; current ABBA only global8.
+
 CPU prefetch parity PASSED two updates on both ranks: exact inputs/RNG and
 max_abs0 gradients/loss/objective/optimizer. Exit0; reviewed41,682byte receipts
 saved docs/experiments/single-ec2384a-prefetch-parity/. Complete local v2 suite
