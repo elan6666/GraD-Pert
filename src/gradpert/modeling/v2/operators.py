@@ -638,6 +638,7 @@ class ManifoldResidual(nn.Module):
     def __init__(self, width: int, streams: int, sublayer: nn.Module) -> None:
         super().__init__()
         self.streams, self.sublayer = streams, sublayer
+        self.fused_sinkhorn_diagnostic = False
         self.norm = nn.RMSNorm(width)
         if streams > 1:
             self.route = nn.Linear(streams * width, 2 * streams + streams * streams, bias=False)
@@ -654,7 +655,13 @@ class ManifoldResidual(nn.Module):
         a, b, c = self.route(normed).float().split((n, n, n * n), dim=-1)
         a = (a * self.scales[0] + self.bias[:n]).sigmoid()
         b = 2 * (b * self.scales[1] + self.bias[n : 2 * n]).sigmoid()
-        c = sinkhorn((c * self.scales[2] + self.bias[2 * n :]).unflatten(-1, (n, n)))
+        logits = (c * self.scales[2] + self.bias[2 * n :]).unflatten(-1, (n, n))
+        if self.fused_sinkhorn_diagnostic:
+            from .sinkhorn_fused import fused_sinkhorn
+
+            c = fused_sinkhorn(logits)
+        else:
+            c = sinkhorn(logits)
         return a.to(x.dtype), b.to(x.dtype), c.to(x.dtype)
 
     def forward(

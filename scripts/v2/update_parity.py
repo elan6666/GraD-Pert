@@ -135,6 +135,21 @@ def disable_sequence_checkpoint(objective: Any) -> None:
         model.response.checkpoint_layers = False
 
 
+def enable_fused_sinkhorn(objective: Any) -> int:
+    """Candidate-only diagnostic, recorded explicitly; no architecture changes."""
+    from gradpert.modeling.v2.operators import ManifoldResidual
+
+    count = 0
+    for model in (objective.student, objective.teacher):
+        for module in model.modules():
+            if isinstance(module, ManifoldResidual) and module.streams > 1:
+                assert module.streams == 4
+                module.fused_sinkhorn_diagnostic = True
+                count += 1
+    assert count > 0
+    return count
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
@@ -149,7 +164,15 @@ def main() -> None:
     parser.add_argument("--no-sequence-checkpoint", action="store_true")
     parser.add_argument("--candidate-no-sequence-checkpoint", action="store_true")
     parser.add_argument("--candidate-cpu-prefetch", action="store_true")
+    parser.add_argument("--candidate-fused-sinkhorn", action="store_true")
     args = parser.parse_args()
+    if args.candidate_fused_sinkhorn and (
+        args.candidate_cpu_prefetch
+        or args.no_sequence_checkpoint
+        or args.candidate_no_sequence_checkpoint
+        or args.reference_repeat
+    ):
+        parser.error("fused Sinkhorn diagnostic must isolate one execution factor")
     if args.candidate_cpu_prefetch and (
         args.no_sequence_checkpoint
         or args.candidate_no_sequence_checkpoint
@@ -208,7 +231,8 @@ def main() -> None:
         candidate_architecture,
         args.reference_repeat
         or args.candidate_no_sequence_checkpoint
-        or args.candidate_cpu_prefetch,
+        or args.candidate_cpu_prefetch
+        or args.candidate_fused_sinkhorn,
     )
     assert candidate_options == options
     left, right = config.model_dump(mode="json"), candidate.model_dump(mode="json")
@@ -243,6 +267,7 @@ def main() -> None:
         "execution_change": {name: getattr(candidate_architecture, name) for name in changed},
         "reference_repeat": args.reference_repeat,
         "candidate_cpu_prefetch_diagnostic_only": args.candidate_cpu_prefetch,
+        "candidate_fused_sinkhorn_diagnostic_only": args.candidate_fused_sinkhorn,
         "candidate_sequence_checkpoint_disabled_diagnostic_only": (
             args.candidate_no_sequence_checkpoint
         ),
@@ -297,6 +322,10 @@ def main() -> None:
                         )
                         if args.candidate_no_sequence_checkpoint:
                             disable_sequence_checkpoint(runtime.objective)
+                        if args.candidate_fused_sinkhorn:
+                            receipt["fused_sinkhorn_module_count"] = enable_fused_sinkhorn(
+                                runtime.objective
+                            )
                         for model in (runtime.objective.student, runtime.objective.teacher):
                             model.options = candidate_architecture
                             for module in model.modules():

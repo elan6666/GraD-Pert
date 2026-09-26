@@ -1,0 +1,463 @@
+{
+  "training_git_sha": "59305eecb4ed68636dcdebae5a20625fadc717db",
+  "source_clean": true,
+  "protocol": {
+    "devices": [
+      0,
+      1
+    ],
+    "counts": [
+      17,
+      256,
+      4096
+    ],
+    "scales": [
+      0.2,
+      4.0,
+      20.0
+    ],
+    "iterations": 20,
+    "atol": 3e-06,
+    "rtol": 3e-05,
+    "warmup": 3,
+    "repetitions": 20
+  },
+  "config_sha256": "25d709b103609a86746e1f2e9f1771df43c724e0c414ca4b171a955829876a27",
+  "scope": "Synthetic FP32 four-stream mechanism only; not model update or throughput proof",
+  "torch": "2.13.0+cu130",
+  "cases": [
+    {
+      "device": 0,
+      "count": 17,
+      "scale": 0.2,
+      "first_call_seconds": 0.6025575324892998,
+      "output": {
+        "passed": true,
+        "max_absolute": 8.940696716308594e-08,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.0046262502204626795,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005979967769235373,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 0,
+      "count": 17,
+      "scale": 4.0,
+      "first_call_seconds": 0.0005277469754219055,
+      "output": {
+        "passed": true,
+        "max_absolute": 1.4901161193847656e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004582516755908728,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005581184756010771,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 0,
+      "count": 17,
+      "scale": 20.0,
+      "first_call_seconds": 0.000676383264362812,
+      "output": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.2665987014770508e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004629182489588856,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005726967006921768,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 0,
+      "count": 256,
+      "scale": 0.2,
+      "first_call_seconds": 0.23086093366146088,
+      "output": {
+        "passed": true,
+        "max_absolute": 8.940696716308594e-08,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004653913900256157,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0006081941071897745,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 0,
+      "count": 256,
+      "scale": 4.0,
+      "first_call_seconds": 0.0006875572726130486,
+      "output": {
+        "passed": true,
+        "max_absolute": 2.384185791015625e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 2.086162567138672e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004677659878507256,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005752970464527607,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 0,
+      "count": 256,
+      "scale": 20.0,
+      "first_call_seconds": 0.00046167057007551193,
+      "output": {
+        "passed": true,
+        "max_absolute": 2.384185791015625e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.2665987014770508e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.0046691189520061014,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005795302800834179,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 0,
+      "count": 4096,
+      "scale": 0.2,
+      "first_call_seconds": 0.2290074434131384,
+      "output": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.005038535315543413,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0006561411544680595,
+        "peak_additional_bytes": 11010048
+      }
+    },
+    {
+      "device": 0,
+      "count": 4096,
+      "scale": 4.0,
+      "first_call_seconds": 0.0007158489897847176,
+      "output": {
+        "passed": true,
+        "max_absolute": 2.980232238769531e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 2.086162567138672e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.005002565123140812,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0006357369478791952,
+        "peak_additional_bytes": 11010048
+      }
+    },
+    {
+      "device": 0,
+      "count": 4096,
+      "scale": 20.0,
+      "first_call_seconds": 0.0006766337901353836,
+      "output": {
+        "passed": true,
+        "max_absolute": 4.917383193969727e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 3.8743019104003906e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004979870095849037,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0006136644631624221,
+        "peak_additional_bytes": 11010048
+      }
+    },
+    {
+      "device": 1,
+      "count": 17,
+      "scale": 0.2,
+      "first_call_seconds": 0.007397103123366833,
+      "output": {
+        "passed": true,
+        "max_absolute": 8.940696716308594e-08,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004364639520645142,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005596383009105921,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 1,
+      "count": 17,
+      "scale": 4.0,
+      "first_call_seconds": 0.0005490826442837715,
+      "output": {
+        "passed": true,
+        "max_absolute": 1.4901161193847656e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.0043303184676915405,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005252215545624494,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 1,
+      "count": 17,
+      "scale": 20.0,
+      "first_call_seconds": 0.0006495360285043716,
+      "output": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.2665987014770508e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004365136148408055,
+        "peak_additional_bytes": 88576
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005781889893114566,
+        "peak_additional_bytes": 46592
+      }
+    },
+    {
+      "device": 1,
+      "count": 256,
+      "scale": 0.2,
+      "first_call_seconds": 0.003082042559981346,
+      "output": {
+        "passed": true,
+        "max_absolute": 8.940696716308594e-08,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004354835627600551,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005139431916177273,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 1,
+      "count": 256,
+      "scale": 4.0,
+      "first_call_seconds": 0.0006599156185984612,
+      "output": {
+        "passed": true,
+        "max_absolute": 2.384185791015625e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 2.086162567138672e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004369837883859873,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005671982187777757,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 1,
+      "count": 256,
+      "scale": 20.0,
+      "first_call_seconds": 0.0006673969328403473,
+      "output": {
+        "passed": true,
+        "max_absolute": 2.384185791015625e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.2665987014770508e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004373976262286305,
+        "peak_additional_bytes": 888832
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005168689414858818,
+        "peak_additional_bytes": 688128
+      }
+    },
+    {
+      "device": 1,
+      "count": 4096,
+      "scale": 0.2,
+      "first_call_seconds": 0.0031980006024241447,
+      "output": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 1.1920928955078125e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004356033075600863,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.0005628457758575678,
+        "peak_additional_bytes": 11010048
+      }
+    },
+    {
+      "device": 1,
+      "count": 4096,
+      "scale": 4.0,
+      "first_call_seconds": 0.0006403950974345207,
+      "output": {
+        "passed": true,
+        "max_absolute": 2.980232238769531e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 2.086162567138672e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004375444771721959,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.000517567154020071,
+        "peak_additional_bytes": 11010048
+      }
+    },
+    {
+      "device": 1,
+      "count": 4096,
+      "scale": 20.0,
+      "first_call_seconds": 0.0006804754957556725,
+      "output": {
+        "passed": true,
+        "max_absolute": 4.917383193969727e-07,
+        "error": null
+      },
+      "gradient": {
+        "passed": true,
+        "max_absolute": 3.8743019104003906e-07,
+        "error": null
+      },
+      "eager": {
+        "seconds_per_forward_backward": 0.004349235026165843,
+        "peak_additional_bytes": 14221312
+      },
+      "fused": {
+        "seconds_per_forward_backward": 0.000570910470560193,
+        "peak_additional_bytes": 11010048
+      }
+    }
+  ],
+  "passed": true
+}

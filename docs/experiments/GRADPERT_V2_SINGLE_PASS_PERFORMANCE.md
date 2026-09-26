@@ -123,3 +123,12 @@ u'=u-exp(z')*sum_axis(u)。保存40次归一化后的概率，按逆序应用这
 后续要测其对checkpoint重计算、实际batch和内存的影响，不能只看微基准。
 FP32 libdevice exp/log，关闭FMA合并；CPU公式输出精确一致、解析梯度10项测试通过。
 代码独立opt-in且未接入ManifoldResidual。GPU严格数值、完整更新及吞吐尚未验证。
+
+独立GPU探针首版4f855f9因Triton循环临时量作用域编译失败，0有效case，失败保留。
+修正版59305eecb4ed68636dcdebae5a20625fadc717db，在两张5090分别检验
+17/256/4096 token、logit scale .2/4/20，共18组，全部输出/梯度通过既定
+atol3e-6/rtol3e-5。最大输出差4.92e-7、梯度差3.88e-7。
+局部前向+反向eager4.33–5.04ms、fused0.514–0.656ms；4096token额外峰值
+14,221,312→11,010,048bytes。冷调用耗时和各组原值保留在
+`single-59305ee-sinkhorn-probe/receipt.json`。此为合成算子微基准，不是完整双卡
+训练吞吐，不代表正式采用。下一步candidate-only完整更新校验，正式默认仍eager。
