@@ -165,3 +165,9 @@ loss标量比较通过，但旧max_absolute字段仅统计张量，不能凭它�
 全部exact，且每卡forward/backward各仅1个编译缓存。完整更新校验仍在运行。
 吞吐工具补启动至训练、runtime准备、各rank热身update/data-wait时间；原稳定段
 计时规则不变。后续ABBA源码若仅该工具元数据变动，会明确与parity源码不同。
+
+cab78a1最终完整更新exit0：两rank两步输入/RNG一致，loss标量、全部gradients、
+objective(Teacher+centers)、optimizer最大绝对差均0。第二步LR明确为
+7.796055196070788e-8。源cab78a1与ABBA源b64745b的src/configs diff为空，
+后者仅补工具冷启动计时。正式吞吐ABBA使用global128、micro32、accum2，
+各12steps/3warmup，保证与实际容量相比有代表性；不把此12步称为持续容量验证。

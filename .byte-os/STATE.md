@@ -26,19 +26,27 @@ ssl2_koleo亦超容差，输入/RNG完全一致。两rank收据已入库，不�
 7ae9a8b微基准18/18组、全部40阶段、输出及梯度逐元素相等，BF16差异0。
 证据docs/experiments/single-7ae9a8b-sinkhorn-probe/receipt.json。
 
-当前活跃父PID3439468，stem `/data/yilangliu/GraD-Pert/development/single-7ae9a8b-sinkhorn-parity`
-(.pid/.log/.stage/.tests.log/.run.log/.exit；收据子目录rank-{0,1}-receipt.json)。
-双卡完整loss每边2更新，candidate-only fused_sinkhorn；同config全局8，deterministic默认checkpoint。
-服务器源码`/data/yilangliu/GraD-Pert/development/source-v2-sinkhorn-7ae9a8b`，
-SHA7ae9a8b0259dd31b79f3b9d0a39e1c8430b1005a，干净发布核验。
-publication `development/gradpert-sinkhorn-publication-7ae9a8b.json` SHA256
-`06499f685fc485353d6c33efc1a615173e825dadb62599fdfeb938def0c8a2bf`。
-下一步核对全loss/all gradients/optimizer/EMA/centers及RNG、非零LR。
-通过后还需处理kernel N constexpr会按随机视图长度重复编译的问题：改runtime N，
-重新验证精确性和冷/稳态成本，勿提重编译上限。再ABBA完整双卡吞吐，已有benchmark-only
---fused-sinkhorn及compare_benchmarks --execution-factor fused_sinkhorn；18工具测试通过。
-所有正式默认仍eager；尚未采用融合。之后代表性batch、持续容量、恢复/300control、
-完整B0五轮best/last均待执行。源码活跃时绝不修改服务器checkout。
+动态N cab78a1已通过双卡30组微基准：全部40阶段/输出/梯度exact，
+每卡forward/backward各1编译variant。完整两rank两更新也全部max差0（含loss标量），
+第二步明确非零LR7.796055196070788e-8。收据已dry-run复核281810bytes入库
+`docs/experiments/single-cab78a1-sinkhorn-parity/`，未将第一步LR0冒充非零更新。
+
+当前活跃父PID3442646，stem `/data/yilangliu/GraD-Pert/development/single-b64745b-sinkhorn-abba-m32`
+(.pid/.log/.stage/.tests.log/.exit；每组stem-A1/B1/B2/A2目录receipt.json及同名.log)。
+完整双蒸馏ABBA：global128=m32×accum2×2卡，每组12步，3warmup+9timed，
+仅B启用--fused-sinkhorn；不改checkpoint/CPU预取/模型参数/损失权重。
+服务器源码`/data/yilangliu/GraD-Pert/development/source-v2-sinkhorn-b64745b`，
+SHAb64745b7cc2a752ab992a32c62a234193a676cad，干净发布核验。
+publication `development/gradpert-sinkhorn-publication-b64745b.json` SHA256
+`cce6250a6583e1903509f95e513c057f4f8fdfa678d907ab0108ac70c6c54a91`。
+config single_pass_jurkat/capacity_m32_a2/gradpert_v2/nadig_jurkat.yaml SHA256
+`c03f83643f208af475765d2491401fd2de0b6b0091d96c7243712b21152b5a8f`。
+parity来源cab78a1，与b64745b的src/configs diff为空；后者只补启动/准备/热身计时。
+启动门槛核验前次exit0、每rank2步通过、第二步非零LR、全比较max0。
+下一步检查该PID/日志/组收据，4组完成用compare_benchmarks --execution-factor fused_sinkhorn
+及同一config分析，dry-run后仅拉小JSON。不得将局部7–8倍直接说成模型收益。
+仍未正式采用融合或启动B0；持续batch/恢复/300control/完整B0五轮best/last待完成。
+KDA Gram临时量/图邻域工作组织仍待按剩余瓶颈决定，不重复失败的静态sequence graph/预取。
 
 先前容量短检查全部终止：a1d55fa micro8/16/32/48/64 passed1/1，
 3ba9a96 micro72 passed1/1+restore、micro80 OOM、88未启动。

@@ -1,3 +1,11 @@
+## 2026-09-26：动态N完整更新精确通过，代表性batch吞吐对照启动
+
+cab78a1两rank两更新（含非零LR）loss/gradient/objective/optimizer全部差0，
+30微基准全部阶段exact且每GPU只有1forward/1backward编译variant。
+全局128的ABBA已启动，父PID3442646，single-b64745b-sinkhorn-abba-m32。
+每组12步3热身9计时、完整双蒸馏，同配置只切换融合；新增冷/稳态分开记录。
+还没有真实训练加速结论或正式B0启动。路径/hash/下一步见STATE.md。
+
 ## 2026-09-26：完整校验否决首版，定位归约精度并重测
 
 67fd8e1完整更新失败，损失/梯度超原容差，输入RNG一致；不采用、不跑其吞吐。
