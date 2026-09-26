@@ -1,5 +1,22 @@
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Supersedes pending c073a37 capture/replay queue: explicitly stopped diagnostic
+postprocessing (raw traces+summaries preserved, no terminal profile pass) and
+its waiting successor. Both process trees gone, GPUs empty; stop evidence
+`development/single-c073a37-postprocess-interrupted.json`. Integration and
+12-step baseline remain passed. No training checkpoint/run was restarted.
+Replacement immutable source `development/source-v2-profile-38af3ce`, SHA
+`38af3ce7a9b00ba4f8876af6e9521c49cb555edb`, clean local/server/publication identity
+verified. Model/config tree identical to c073a37, a7d78edc8a11dc3f39a469247382dac0e612139bd7ed1ee47f25d57bfec52ca8;
+only diagnostic script behavior changed. Publication
+`development/gradpert-profile-publication-38af3ce.json`, SHA256
+`79ecb1e787512e32f78eae81f1b7a4ed5fa61096fa8ae0be0a9d930e1443f19a`.
+New bounded queue PID3404789: `development/single-38af3ce-profile-replay`,
+`.sh/.pid/.stage/.log/.exit`. Target12tests → dualGPU4step profile (900s timeout)
+→ synthetic GPU0 replay (1800s timeout), both GPU locks held. Child outputs
+append `-profile`/`-replay`; no detailed operator aggregation requested.
+Inspect this queue, not stopped predecessors. Goal active, no automation.
+
 Profiler postprocessing issue observed: after ~4.77GB/rank trace and small
 summary had been saved, lazy key_averages aggregation ran >5minutes at one CPU
 core/rank and ~49millionKiB RSS/rank. Host still had ample available RAM;
