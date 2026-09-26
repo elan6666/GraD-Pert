@@ -65,11 +65,25 @@ checks and controlled ABBA. Unprofiled baseline A1 now active:
 PID3371948, .pid/.log/.exit/.sh same stem, dual exclusive locks,3600s limit;
 40 full updates with10 warmups/30 measured. Original immutable d9 source/config.
 No formal training. Check its live receipt and process before admitting another
-GPU job. Opt-in compiled chunk candidate locally implemented; existing defaults
+GPU job. Opt-in compiled chunk candidate published and deployed; existing defaults
 remain eager.269 distinct local v2 tests passed (268 suite +1 additional policy
-test), four-source mypy and lint pass. Next publish/deploy candidate, then after
-A1 exits run synthetic CUDA FP32/BF16 output+gradient/RNG/timing probe; only if
-it passes proceed complete-update parity and controlled throughput comparisons.
+test), four-source mypy and lint pass. Candidate source569ae1bbda8fe905fd53e8dd2208c27354d1a550 deployed clean to
+`/data/yilangliu/GraD-Pert/development/source-v2-relay-569ae1b`; tree
+07bd9659a9a8a5769d62ae61695202ce84c5864a3e9e0986ac139e8473ef1c66.
+Publication development/gradpert-relay-publication-569ae1b.json hash
+8f67ad305a23dbcc3996e9ca26c9c5accea50784c9ae3fed4418d3d0944cdb46.
+Fresh baseline receipt24/40, parent3371948 alive. Candidate kernel check
+already queued: development/relay-569ae1b-kernel-check.{sh,pid,log,exit},
+parent3374334 alive with child3374336 blocked on flock -w3600 GPU0. After A1
+releases both locks, require its passed40/40 receipt and exit0, then run
+benchmark_relay_kernel.py onGPU0 using candidate source,1800s cap. Outputdir
+same stem, explicit Inductor/Triton caches in development/relay-569ae1b-*-cache,
+compiler workers2. No CUDA job overlaps the timing baseline. Strict per-output
+and all-input-gradient FP32/BF16 tolerance3e-5/3e-4; failure preserves receipt
+and aborts, never auto-relaxes precision thresholds. No throughput claim yet.
+Only if kernel checks pass proceed actual full-update parity (losses, gradients,
+Student, optimizer, Teacher, centers, RNG and resume) then controlled ABBA;
+method default stays eager until that evidence passes. Do not duplicate queue.
 
 Additional user request complete: updated EasyConnect skill with native Swift AX
 and private Security.framework credential path; both installed copies match,

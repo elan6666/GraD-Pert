@@ -24,7 +24,12 @@ update CPU/GPU traces were exported, but summary parsing failed on CUDA-mirrored
 annotations. Repair5186003 passed4 tests; both original traces successfully
 reanalyzed with separate analysis SHA. About1.972million kernels/update suggests
 small-op/chunk fusion as next diagnostic direction; profiled timings are not
-normal throughput evidence. No GPU job, formal training or timer is active. GPU0 idle100%
+normal throughput evidence. Unprofiled A1 is active at24/40 updates (10warmup+30measured); compiled
+chunk candidate569ae1b has269 distinct local v2 checks and scoped typing/lint
+passed. Clean server candidate and a dependent, lock-protected CUDA kernel
+check are ready; it starts automatically only after A1 passes. No formal
+training or timer is active; Goal supervision continues. STATE.md has exact
+PIDs, immutable sources and failure rules. GPU0 idle100%
 telemetry is anomalous but both cards passed CUDA arithmetic; analyze traces. [Plan](../docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md) and STATE.md carry
 remaining diagnostics→optimization→capacity→five-epoch-B0 dependencies. No new
 CUDA throughput, capacity, or scientific results claimed.
