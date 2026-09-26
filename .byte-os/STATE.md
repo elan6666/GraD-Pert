@@ -32,29 +32,18 @@ ssl2_koleo亦超容差，输入/RNG完全一致。两rank收据已入库，不�
 `docs/experiments/single-cab78a1-sinkhorn-parity/`，未将第一步LR0冒充非零更新。
 
 本地完整v2回归340passed（113b96a阶段）；接口类型修复后20定向测试及4文件mypy通过。
-ABBA最新已进入A2：A1/B1/B2均12/12，中位update19.9003/19.0998/18.9844s；
-尚未四组合并审计，不能仅凭前三组宣布采用。
-
-当前活跃父PID3442646，stem `/data/yilangliu/GraD-Pert/development/single-b64745b-sinkhorn-abba-m32`
-(.pid/.log/.stage/.tests.log/.exit；每组stem-A1/B1/B2/A2目录receipt.json及同名.log)。
-完整双蒸馏ABBA：global128=m32×accum2×2卡，每组12步，3warmup+9timed，
-仅B启用--fused-sinkhorn；不改checkpoint/CPU预取/模型参数/损失权重。
-服务器源码`/data/yilangliu/GraD-Pert/development/source-v2-sinkhorn-b64745b`，
-SHAb64745b7cc2a752ab992a32c62a234193a676cad，干净发布核验。
-publication `development/gradpert-sinkhorn-publication-b64745b.json` SHA256
-`cce6250a6583e1903509f95e513c057f4f8fdfa678d907ab0108ac70c6c54a91`。
-config single_pass_jurkat/capacity_m32_a2/gradpert_v2/nadig_jurkat.yaml SHA256
-`c03f83643f208af475765d2491401fd2de0b6b0091d96c7243712b21152b5a8f`。
-parity来源cab78a1，与b64745b的src/configs diff为空；后者只补启动/准备/热身计时。
-启动门槛核验前次exit0、每rank2步通过、第二步非零LR、全比较max0。
-下一步检查该PID/日志/组收据，4组完成用compare_benchmarks --execution-factor fused_sinkhorn
-及同一config分析，dry-run后仅拉小JSON。不得将局部7–8倍直接说成模型收益。
-仍未正式采用融合或启动B0；持续batch/恢复/300control/完整B0五轮best/last待完成。
-本地新增独立KDA Gram前向融合候选，未接入模型；保留原Torch反向并重建decay，
-保存原stride，缩短dproduct存活时间。CPU10项等价测试通过；GPU尚未编译/验证。
-files modeling/v2/weighted_gram.py,_weighted_gram_cuda.py；scripts/v2/weighted_gram_probe.py。
-ABBA运行期间禁止并发GPU探针；收尾后根据结果和剩余瓶颈决定独立验证。
-不重复失败的静态sequence graph/预取。
+ABBA已终止exit0，四组12/12、完整审计comparable。
+A1/B1/B2/A2含等待均值21.3293/20.4358/20.2642/21.3046秒；吞吐+4.7519%。
+收据docs/experiments/single-b64745b-sinkhorn-abba-m32/；源码
+b64745b7cc2a752ab992a32c62a234193a676cad，config SHA256
+c03f83643f208af475765d2491401fd2de0b6b0091d96c7243712b21152b5a8f。
+mHC通过完整精确更新和代表性batch性能门槛，保留；正式配置接入待完成。
+独立Gram probe源码c7e89e8525a149026bdb17354e289e42fda0a28a，exit0、18组通过容差，
+梯度exact、前向最大差4.47e-8；小形状偏慢，不采用默认。
+收据docs/experiments/single-c7e89e8-gram-probe/receipt.json。
+当前无活跃GPU任务，两卡各2MiB/0%；下一步核对Gram归约顺序并据新假设优化，
+再完整更新/真实吞吐验证。不得放宽容差，不重复无新假设的失败候选。
+保持单向KDA统一final-state读取；持续容量和完整B0尚待完成。
 
 先前容量短检查全部终止：a1d55fa micro8/16/32/48/64 passed1/1，
 3ba9a96 micro72 passed1/1+restore、micro80 OOM、88未启动。

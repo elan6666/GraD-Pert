@@ -1,0 +1,79 @@
+{
+  "status": "comparable",
+  "source_sha": "b64745b7cc2a752ab992a32c62a234193a676cad",
+  "rows": [
+    {
+      "role": "A1",
+      "update_median_seconds": 19.90033362340182,
+      "update_p95_seconds": 21.149348752573133,
+      "total_mean_seconds": 21.329327459654046,
+      "total_median_seconds": 21.24274202156812,
+      "peak_allocated_bytes": 16286307328,
+      "peak_reserved_bytes": 16504586240,
+      "cells_per_second_including_data_wait": 6.0011268635694766
+    },
+    {
+      "role": "B1",
+      "update_median_seconds": 19.099758870899677,
+      "update_p95_seconds": 20.28560902774334,
+      "total_mean_seconds": 20.43577072966016,
+      "total_median_seconds": 20.26720157638192,
+      "peak_allocated_bytes": 16231134208,
+      "peak_reserved_bytes": 16456351744,
+      "cells_per_second_including_data_wait": 6.263526915293818
+    },
+    {
+      "role": "B2",
+      "update_median_seconds": 18.984407782554626,
+      "update_p95_seconds": 19.99269891604781,
+      "total_mean_seconds": 20.264171273861493,
+      "total_median_seconds": 20.166006821207702,
+      "peak_allocated_bytes": 16231134208,
+      "peak_reserved_bytes": 16456351744,
+      "cells_per_second_including_data_wait": 6.316567219558869
+    },
+    {
+      "role": "A2",
+      "update_median_seconds": 19.918506720103323,
+      "update_p95_seconds": 21.109145994111895,
+      "total_mean_seconds": 21.30463813390169,
+      "total_median_seconds": 21.237823004834354,
+      "peak_allocated_bytes": 16286307328,
+      "peak_reserved_bytes": 16504586240,
+      "cells_per_second_including_data_wait": 6.008081395023363
+    }
+  ],
+  "total_time_speed_ratio_A_over_B": 1.0475190748396332,
+  "total_time_reduction_fraction": 0.045363445860790774,
+  "pair_ratios": [
+    1.0437251299113957,
+    1.0513451473528692
+  ],
+  "both_B_faster_than_both_A": true,
+  "limitations": "Two runs per variant; descriptive ratios, not a significance claim. Does not prove numerical parity, sustained batch capacity, or model quality.",
+  "execution_factor": "fused_sinkhorn",
+  "effective_batch": 128,
+  "inputs": [
+    {
+      "receipt": "/data/yilangliu/GraD-Pert/development/single-b64745b-sinkhorn-abba-m32-A1/receipt.json",
+      "sha256": "83b048499a348ada00206f180d39a18e25df584b3cc5ba9411e1f324e583533d"
+    },
+    {
+      "receipt": "/data/yilangliu/GraD-Pert/development/single-b64745b-sinkhorn-abba-m32-B1/receipt.json",
+      "sha256": "d4c9fb02759b777cb9cf68a86beffad700f68b6ce95cd7696700b4cd51236027"
+    },
+    {
+      "receipt": "/data/yilangliu/GraD-Pert/development/single-b64745b-sinkhorn-abba-m32-B2/receipt.json",
+      "sha256": "2ea9a2c7b5c87656bb0e00170ce1e88e2443fedc372766f6a28328032a7a09ac"
+    },
+    {
+      "receipt": "/data/yilangliu/GraD-Pert/development/single-b64745b-sinkhorn-abba-m32-A2/receipt.json",
+      "sha256": "9c566348e4db17af6b34741e6c5176e5f1ffa9d4a03c93c40079b50ce6c84c7b"
+    }
+  ],
+  "analysis_script_sha256": "6f56c5227ba807cf2e12fd358c7533b164eab7523d60bb8a987bc75dc6a16f1e",
+  "config_sha256": [
+    "c03f83643f208af475765d2491401fd2de0b6b0091d96c7243712b21152b5a8f",
+    "c03f83643f208af475765d2491401fd2de0b6b0091d96c7243712b21152b5a8f"
+  ]
+}
