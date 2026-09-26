@@ -16,7 +16,7 @@
 | Eager＋激活重计算 | 12次更新，3预热9计时；更新中位数19.5796秒，峰值分配3.265GiB；含数据等待0.3876细胞/秒。[原始收据](single-c073a37-preflight/baseline/receipt.json)，源码c073a37c3c038561fb3d167b2a8f53f8650544bd | 当前默认；未认证持续容量 |
 | 关闭 Cell/Response 重计算，保留图重计算 | 双卡两次完整更新与默认逐项差值0、输入/RNG一致。[一致性收据](single-473466d-checkpoint-parity/rank-0-receipt.json)；一次12步参考测量中位数17.1801秒，峰值13.552GiB，[速度收据](single-3a2980d-replay-abba/A1/receipt.json)，源码3a2980d2eee30faa1ad99fb4481262701879d262 | 显存代价明显，未采用；跨源码单次速度比较仅描述性 |
 | 整段序列 CUDA Graph replay | 禁用序列重计算时双卡两步完全一致，[收据](single-a63ac39-replay-no-sequence-checkpoint/rank-0-receipt.json)；随机长度持续测试第11步触及重编译64次上限，10/12失败，[失败收据](single-3a2980d-replay-abba/B1/receipt.json) | 淘汰当前整段静态形状方案；不提高缓存上限来掩盖问题 |
-| 一批 CPU 数据/视图预取 | 双卡两次完整更新输入/RNG一致，损失、梯度、模型/Teacher/center及优化器比较差值0，[rank0](single-ec2384a-prefetch-parity/rank-0-receipt.json)、[rank1](single-ec2384a-prefetch-parity/rank-1-receipt.json)，源码ec2384ade9fa66458eac2ff40c2dbff2fd067dc8 | ABBA吞吐对照进行中；尚未启用默认 |
+| 一批 CPU 数据/视图预取 | 双卡两次完整更新输入/RNG一致，损失、梯度、模型/Teacher/center及优化器比较差值0，[rank0](single-ec2384a-prefetch-parity/rank-0-receipt.json)、[rank1](single-ec2384a-prefetch-parity/rank-1-receipt.json)，源码ec2384ade9fa66458eac2ff40c2dbff2fd067dc8 | ABBA全部完成，预取含等待平均步时增加2.4476%，不采用；[审计报告](single-ec2384a-prefetch-abba/comparison.json) |
 
 关闭重计算的一致性覆盖两次更新（含非零 LR），不能代替长程科学结果。
 上述显存是 PyTorch peak allocated；与 nvidia-smi 已保留显存不可混用。
@@ -33,10 +33,17 @@
 主线程消费时才提交公开RNG状态并转移张量。提前关闭或异常不提交未消费批次。
 没有修改视图长度、采样分布、损失或模型结构。完整本地v2测试312项通过。
 
+## CPU预取四轮结果
+
+同源码ec2384ade9fa66458eac2ff40c2dbff2fd067dc8，完整身份审计通过。
+A1/B1/B2/A2含等待平均步时分别为21.6529/22.3103/21.8072/21.4106秒。
+预取等待占比下降但整体步时增加2.4476%；两组重复是描述性证据，非显著性
+检验。维持同步默认，不把局部等待改善称为训练提速。原始收据与每卡计时见
+[审计报告及其输入](single-ec2384a-prefetch-abba/comparison.json)。
+
 ## 尚需完成
 
-1. 核对CPU预取ABBA四份完整收据：同配置、数据/样本/视图RNG、线程与设备；
-   比较含等待总耗时、更新耗时、显存和两组重复，不能只比较kernel片段。
+1. 已完成CPU预取ABBA审计，淘汰当前线程预取候选。当前进入双卡容量扫描。
 2. 按证据选择执行方式。已准备micro8/16/32/48/64双卡、累积2容量候选；
    若最高仍通过则继续扩展，失败则细化边界。先单步定位，再128+持续更新、
    checkpoint续跑及300-control验证。旧模型batch192不构成当前方法的证据。

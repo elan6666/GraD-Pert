@@ -14,6 +14,14 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+CPU prefetch ABBA complete exit0, all12/12 and comparable identity audit.
+Mean inclusive step increases2.4476%; do not adopt. Saved reviewed356,094byte
+receipts and comparison under docs/experiments/single-ec2384a-prefetch-abba/.
+Immediately launched current-method capacity integration sweep PID3427171,
+stem development/single-a1d55fa-capacity-integration, source/publication below.
+Both GPUs verified idle, locks held,1800s timeout, micro8/16/32/48/64, accum2.
+Only one-step boundary search; continue sustained validation after terminal evidence.
+
 CPU prefetch B2 passed12/12, median21.5217s/inclusive0.36685cells/s, wait2.2775%.
 A2 now running; both prefetch repeats so far do not exceed A1 throughput.
 Capacity integration wrapper prepared/uploaded (.sh at planned stem), not launched.

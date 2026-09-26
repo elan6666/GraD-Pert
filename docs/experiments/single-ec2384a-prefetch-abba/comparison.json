@@ -1,0 +1,79 @@
+{
+  "status": "comparable",
+  "source_sha": "ec2384ade9fa66458eac2ff40c2dbff2fd067dc8",
+  "rows": [
+    {
+      "role": "A1",
+      "update_median_seconds": 20.600454937666655,
+      "update_p95_seconds": 21.02703589871526,
+      "total_mean_seconds": 21.652862740473616,
+      "total_median_seconds": 21.826931015588343,
+      "peak_allocated_bytes": 3505913344,
+      "peak_reserved_bytes": 3886022656,
+      "cells_per_second_including_data_wait": 0.3694661577033123
+    },
+    {
+      "role": "B1",
+      "update_median_seconds": 21.81827374920249,
+      "update_p95_seconds": 23.217500923760234,
+      "total_mean_seconds": 22.310258248200018,
+      "total_median_seconds": 22.350250368006527,
+      "peak_allocated_bytes": 3505592832,
+      "peak_reserved_bytes": 3886022656,
+      "cells_per_second_including_data_wait": 0.35857944408355
+    },
+    {
+      "role": "B2",
+      "update_median_seconds": 21.521726137027144,
+      "update_p95_seconds": 22.78613318670541,
+      "total_mean_seconds": 21.807219611170392,
+      "total_median_seconds": 21.54723227210343,
+      "peak_allocated_bytes": 3505592832,
+      "peak_reserved_bytes": 3886022656,
+      "cells_per_second_including_data_wait": 0.3668509852536236
+    },
+    {
+      "role": "A2",
+      "update_median_seconds": 20.29567804839462,
+      "update_p95_seconds": 20.733513274043798,
+      "total_mean_seconds": 21.410584351668756,
+      "total_median_seconds": 21.525598847307265,
+      "peak_allocated_bytes": 3505913344,
+      "peak_reserved_bytes": 3886022656,
+      "cells_per_second_including_data_wait": 0.3736469714511306
+    }
+  ],
+  "total_time_speed_ratio_A_over_B": 0.9761085443146164,
+  "total_time_reduction_fraction": -0.02447622841183028,
+  "pair_ratios": [
+    0.9705339355370555,
+    0.9818117455331873
+  ],
+  "both_B_faster_than_both_A": false,
+  "limitations": "Two runs per variant; descriptive ratios, not a significance claim. Does not prove numerical parity, sustained batch capacity, or model quality.",
+  "execution_factor": "cpu_prefetch",
+  "effective_batch": 8,
+  "inputs": [
+    {
+      "receipt": "/Users/elan/code/grad-pert-v2-build/docs/experiments/single-ec2384a-prefetch-abba/A1/receipt.json",
+      "sha256": "b7030634c56db67c6e71be6528d30053df4e7fd6d9e1a22b089644685d6d1f47"
+    },
+    {
+      "receipt": "/Users/elan/code/grad-pert-v2-build/docs/experiments/single-ec2384a-prefetch-abba/B1/receipt.json",
+      "sha256": "167aef881a33c02ad45958b72f6f42c701939d3a8c810bd16c568831bc363d0e"
+    },
+    {
+      "receipt": "/Users/elan/code/grad-pert-v2-build/docs/experiments/single-ec2384a-prefetch-abba/B2/receipt.json",
+      "sha256": "ed0e45acd1f01ad58e47133cbe87c368ce76e360aaecc568843f263482f98619"
+    },
+    {
+      "receipt": "/Users/elan/code/grad-pert-v2-build/docs/experiments/single-ec2384a-prefetch-abba/A2/receipt.json",
+      "sha256": "9b741e2449814acc76c7c11269db5033d0506795c448ae34e4f411703fd53505"
+    }
+  ],
+  "analysis_script_sha256": "f48152d58c918034c7a1e5905f09ceafb9baa4c879b475ebd2f0575a16237b60",
+  "config_sha256": [
+    "d4496451c7f8ba2e18d3900f72b04c34049e847c58b0aa56a6e97368ec53f1ea",
+    "d4496451c7f8ba2e18d3900f72b04c34049e847c58b0aa56a6e97368ec53f1ea"
+  ]
+}
