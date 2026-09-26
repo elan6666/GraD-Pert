@@ -1,0 +1,31 @@
+{
+  "training_git_sha": "4f855f9a7ee122eb3deac9fcaf25dda6bea58efc",
+  "source_clean": true,
+  "protocol": {
+    "devices": [
+      0,
+      1
+    ],
+    "counts": [
+      17,
+      256,
+      4096
+    ],
+    "scales": [
+      0.2,
+      4.0,
+      20.0
+    ],
+    "iterations": 20,
+    "atol": 3e-06,
+    "rtol": 3e-05,
+    "warmup": 3,
+    "repetitions": 20
+  },
+  "config_sha256": "25d709b103609a86746e1f2e9f1771df43c724e0c414ca4b171a955829876a27",
+  "scope": "Synthetic FP32 four-stream mechanism only; not model update or throughput proof",
+  "torch": "2.13.0+cu130",
+  "cases": [],
+  "passed": false,
+  "exception": "CompilationError('def _forward(X, Y, P, N: tl.constexpr, STEPS: tl.constexpr, BLOCK: tl.constexpr):\\n    tokens = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)\\n    row = tl.arange(0, 4)\\n    col = tl.arange(0, 4)\\n    index = tokens[:, None, None] * 16 + row[None, :, None] * 4 + col[None, None, :]\\n    z = tl.load(X + index, tokens[:, None, None] < N, 0).to(tl.float32)\\n    for step in range(STEPS):\\n        maximum = tl.max(z, axis=1)\\n        lse = maximum + cuda_extra.libdevice.log(\\n            tl.sum(cuda_extra.libdevice.exp(z - maximum[:, None, :]), axis=1)\\n        )\\n        z = z - lse[:, None, :]\\n        probability = cuda_extra.libdevice.exp(z)\\n        saved = tokens[:, None, None] * (STEPS * 2 * 16) + step * 32\\n        offsets = row[None, :, None] * 4 + col[None, None, :]\\n        tl.store(P + saved + offsets, probability, tokens[:, None, None] < N)\\n        maximum = tl.max(z, axis=2)\\n        lse = maximum + cuda_extra.libdevice.log(\\n            tl.sum(cuda_extra.libdevice.exp(z - maximum[:, :, None]), axis=2)\\n        )\\n        z = z - lse[:, :, None]\\n        probability = cuda_extra.libdevice.exp(z)\\n        tl.store(P + saved + 16 + offsets, probability, tokens[:, None, None] < N)\\n    tl.store(Y + index, probability, tokens[:, None, None] < N)\\n', <ast.Name object at 0x7c55f7fd7150>, \"NameError('probability is not defined')\")"
+}

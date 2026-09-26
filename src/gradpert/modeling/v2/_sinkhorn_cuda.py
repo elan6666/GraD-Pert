@@ -30,7 +30,7 @@ def _forward(X, Y, P, N: tl.constexpr, STEPS: tl.constexpr, BLOCK: tl.constexpr)
         z = z - lse[:, :, None]
         probability = cuda_extra.libdevice.exp(z)
         tl.store(P + saved + 16 + offsets, probability, tokens[:, None, None] < N)
-    tl.store(Y + index, probability, tokens[:, None, None] < N)
+    tl.store(Y + index, cuda_extra.libdevice.exp(z), tokens[:, None, None] < N)
 
 
 @triton.jit
