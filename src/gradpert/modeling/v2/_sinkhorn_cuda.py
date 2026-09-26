@@ -7,6 +7,18 @@ from triton.language.extra import cuda as cuda_extra
 
 
 @triton.jit
+def _row_sum(z):
+    # Four strided inputs in ATen Reduce.cuh thread_reduce_impl combine serially.
+    # Keep this association instead of a balanced tree: BF16 boundaries amplify
+    # otherwise tiny differences through the full model. Still a candidate.
+    a = tl.gather(z, tl.full((z.shape[0], 1, 4), 0, tl.int32), axis=1).reshape((z.shape[0], 4))
+    b = tl.gather(z, tl.full((z.shape[0], 1, 4), 1, tl.int32), axis=1).reshape((z.shape[0], 4))
+    c = tl.gather(z, tl.full((z.shape[0], 1, 4), 2, tl.int32), axis=1).reshape((z.shape[0], 4))
+    d = tl.gather(z, tl.full((z.shape[0], 1, 4), 3, tl.int32), axis=1).reshape((z.shape[0], 4))
+    return ((a + b) + c) + d
+
+
+@triton.jit
 def _forward(X, Y, P, N: tl.constexpr, STEPS: tl.constexpr, BLOCK: tl.constexpr):
     tokens = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
     row = tl.arange(0, 4)
@@ -16,7 +28,7 @@ def _forward(X, Y, P, N: tl.constexpr, STEPS: tl.constexpr, BLOCK: tl.constexpr)
     for step in range(STEPS):
         maximum = tl.max(z, axis=1)
         lse = maximum + cuda_extra.libdevice.log(
-            tl.sum(cuda_extra.libdevice.exp(z - maximum[:, None, :]), axis=1)
+            _row_sum(cuda_extra.libdevice.exp(z - maximum[:, None, :]))
         )
         z = z - lse[:, None, :]
         probability = cuda_extra.libdevice.exp(z)
@@ -48,7 +60,7 @@ def _backward(U, Y, P, DX, N: tl.constexpr, STEPS: tl.constexpr, BLOCK: tl.const
         probability = tl.load(P + saved + 16, mask, 0)
         gradient = gradient - probability * tl.sum(gradient, axis=2)[:, :, None]
         probability = tl.load(P + saved, mask, 0)
-        gradient = gradient - probability * tl.sum(gradient, axis=1)[:, None, :]
+        gradient = gradient - probability * _row_sum(gradient)[:, None, :]
     tl.store(DX + index, gradient, mask)
 
 

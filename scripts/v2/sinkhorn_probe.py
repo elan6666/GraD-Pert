@@ -13,7 +13,7 @@ from pathlib import Path
 import torch
 
 from gradpert.modeling.v2.operators import sinkhorn
-from gradpert.modeling.v2.sinkhorn_fused import fused_sinkhorn
+from gradpert.modeling.v2.sinkhorn_fused import fused_sinkhorn, reference_with_saved
 
 
 def check(reference, actual):
@@ -25,6 +25,10 @@ def check(reference, actual):
     return {
         "passed": error is None,
         "max_absolute": (actual - reference).abs().max().item(),
+        "different_elements": int((actual != reference).sum().item()),
+        "different_after_bfloat16": int(
+            (actual.to(torch.bfloat16) != reference.to(torch.bfloat16)).sum().item()
+        ),
         "error": error,
     }
 
@@ -101,6 +105,13 @@ def main():
                         "output": check(reference, actual),
                         "gradient": check(reference_grad, actual_grad),
                     }
+                    from gradpert.modeling.v2._sinkhorn_cuda import forward
+
+                    _, expected_saved = reference_with_saved(x.detach())
+                    _, actual_saved = forward(x.detach(), 20)
+                    case["normalization_stages"] = [
+                        check(expected_saved[i], actual_saved[:, i]) for i in range(40)
+                    ]
                     case["eager"] = timed(sinkhorn, x, upstream)
                     case["fused"] = timed(fused_sinkhorn, x, upstream)
                     result["passed"] &= case["output"]["passed"] and case["gradient"]["passed"]
