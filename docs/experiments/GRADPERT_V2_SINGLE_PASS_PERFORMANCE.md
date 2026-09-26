@@ -331,3 +331,14 @@ objective在LR0相同不构成等价通过；不启动此版本ABBA或正式训�
 capacity收据记录实际调用的后端模块数；Student与EMA Teacher同构选择。
 CPU回退输出/梯度精确、历史身份和十份新配置单因素比较已有定向测试，
 完整v2回归及正式配置双卡校验完成前不称为可正式运行版本。
+
+
+### 显式后端配置完整更新通过
+
+9d9bad86e16286b590b2bb31c5df5103ecfbbccb干净发布服务器source-v2-opt-9d9bad8，
+publication SHA256 da83f52334078f742997eb4d2e3c850abba1b5234c13e09bfaceaa7688977294。
+同profiling_m2_a2协议，仅candidate配置从native改auto；无诊断融合开关。
+两rank两步全部比较最大差0，输入/RNG相同，第二步LR7.796055196070788e-8。
+exit0，收据single-9d9bad8-config-parity/共42414bytes经dry-run归档。
+这验证正式配置接入等价；不是新的吞吐或持续容量结果。当前GPU无活动任务。
+下一文献指导候选是Teacher无梯度Sinkhorn的无用中间存储消除，详见文献矩阵。

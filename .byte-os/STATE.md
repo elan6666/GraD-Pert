@@ -1,19 +1,20 @@
-## 当前阶段：可移植mHC配置接入完成本地验证，继续文献驱动机制审阅
+## 最新状态：显式mHC配置完整更新通过；下一步无梯度存储消除候选
 
-新增sinkhorn_backend=native/auto/triton；历史native身份保留，新
-configs/v2/optimized_single_pass_jurkat十份自包含配置只选择auto。
-CPU/MPS/缺Triton/非四流回退原生；NVIDIA CUDA四流选融合，不按GPU型号分支。
-运行异常不会静默掩盖，capacity收据记录实际后端模块数。
-349项完整v2测试通过110.16秒，4源文件mypy和ruff通过；未做新配置GPU校验。
-目前没有活动GPU任务，Gram失败候选未采用，未启动正式B0。
 
-用户新约束：必须文献研究指导机制，而不是事后补引用。
-首轮8类原始资料矩阵已写 docs/experiments/GRADPERT_V2_PERFORMANCE_LITERATURE.md。
-FLA冻结commit954438d1fcb5e1bb05c22f9908de9c5c2df74ae5，已读chunk.py；
-下一步读chunk_fwd/bwd及Checkmate选择性重算实现，按实际profile排序新候选。
-禁止safe_gate改门控；不导入上游到原生模型；不扩大设备/资源。
-并行可做新配置正式发布/同配置双卡校验。最终执行组合选定后持续容量，B0五轮best/last。
-此为阶段进展，目标仍active，跨设备加速与论文新颖性均未证明。
+### 显式后端配置完整更新通过
+
+9d9bad86e16286b590b2bb31c5df5103ecfbbccb干净发布服务器source-v2-opt-9d9bad8，
+publication SHA256 da83f52334078f742997eb4d2e3c850abba1b5234c13e09bfaceaa7688977294。
+同profiling_m2_a2协议，仅candidate配置从native改auto；无诊断融合开关。
+两rank两步全部比较最大差0，输入/RNG相同，第二步LR7.796055196070788e-8。
+exit0，收据single-9d9bad8-config-parity/共42414bytes经dry-run归档。
+这验证正式配置接入等价；不是新的吞吐或持续容量结果。当前GPU无活动任务。
+下一文献指导候选是Teacher无梯度Sinkhorn的无用中间存储消除，详见文献矩阵。
+
+FLA冻结完整前后向已读，直接替换会保留逐token输出，不能宣称省算。
+文献矩阵新增具体候选：Teacher无梯度时每token2560bytes反向概率无需保存，
+保持40归一化与Student梯度路径；先独立数值/完整更新再ABBA，未实现。
+原目标仍为最终执行组合→持续双卡最大batch→完整B0五轮best/last。
 
 # 当前状态 — 2026-09-26
 

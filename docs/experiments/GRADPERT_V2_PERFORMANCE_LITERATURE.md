@@ -42,3 +42,20 @@
 use_gate_in_kernel=false允许输入既有log-decay，但这尚不证明数值、状态布局和完整更新兼容。
 下一步读取同commit的chunk_fwd.py/chunk_bwd.py，确认只要final_state时哪些工作仍执行。
 未导入FLA运行时、未复制源代码、未声称复现；此处是实现接口层的可核验观察。
+
+## 完整KDA调用图检查与下一候选
+
+已读取同一冻结commit的chunk_fwd.py、chunk_bwd.py（临时副本仅在/tmp，不导入模型）。
+前向在状态传播后仍调用chunk_gla_fwd_o_gk；disable_recompute=false时清除w/u/qg/kg/v_new及h，
+反向重建它们，再合并do和dht路径。当前实现已经只读最终S，因此“直接换成FLA”不自动省算。
+完整块重写需重新证明final-state-only反向及浮点累加；鉴于Gram局部替换的整步失败，暂不直接迁移。
+
+下一具体假设：按梯度活性消除Teacher Sinkhorn无用中间存储。
+依据是FlashAttention的IO视角及Checkmate的张量生命周期视角，而非声称新算法。
+当前融合kernel每token写20×2×4×4个FP32概率，即2560 bytes，供反向使用。
+Teacher处于no_grad，反向不会消费这些值。候选在无梯度调用中只保留最终输出，
+全部40次log归一化与浮点结合顺序不变；Student需梯度的路径保持现状。
+理论上减少这部分HBM写出与临时存储，不改变渐近计算复杂度；编译器删除无用exp是否
+改变最终输出仍须实测。收益取决于Teacher调用占比、tokens、内核是否带宽受限，不能按字节比外推速度。
+验证：多形状输出exact→完整两卡多步更新/EMA/center→相同配置ABBA→峰值显存与启动成本。
+此为尚未实现的独立候选。先完成当前显式auto配置的完整校验；不混合Gram候选。

@@ -1,3 +1,16 @@
+## 2026-09-26：正式auto配置双卡完整更新精确通过
+
+
+### 显式后端配置完整更新通过
+
+9d9bad86e16286b590b2bb31c5df5103ecfbbccb干净发布服务器source-v2-opt-9d9bad8，
+publication SHA256 da83f52334078f742997eb4d2e3c850abba1b5234c13e09bfaceaa7688977294。
+同profiling_m2_a2协议，仅candidate配置从native改auto；无诊断融合开关。
+两rank两步全部比较最大差0，输入/RNG相同，第二步LR7.796055196070788e-8。
+exit0，收据single-9d9bad8-config-parity/共42414bytes经dry-run归档。
+这验证正式配置接入等价；不是新的吞吐或持续容量结果。当前GPU无活动任务。
+下一文献指导候选是Teacher无梯度Sinkhorn的无用中间存储消除，详见文献矩阵。
+
 ## 2026-09-26：可移植执行配置通过349测试；文献驱动后续机制
 
 mHC新增显式后端及原生回退，十份新配置仅切执行选项；349v2测试、mypy/ruff通过。
