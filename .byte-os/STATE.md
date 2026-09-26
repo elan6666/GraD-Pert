@@ -154,7 +154,11 @@ config edit. Tests compare two live carried states and all input gradients
 against the independent recurrent reference. Probe covers FP32/BF16,grad/no-grad,
 masked writes/nonzero state,strict numerical/RNG/capture/replay gates and memory.
 Requires idle GPU and publication identity; do not overlap the ABBA resource
-locks. CUDA capture and speed remain unverified. Publish before server probe.
+locks. CUDA capture and speed remain unverified. Tool published3a05875bb43e88cf7004a79a1df6b23c87e64775;
+clean server copy passed7 helper checks on supported Python3.12/Torch2.13.
+Pre-GPU review then kept the single-token CLS-like case active (mask starts at
+index1, not0); a length-one recurrence/gradient test now covers that boundary.
+Final corrected publication is required before its GPU probe.
 No timer, Goal active. Remaining full-update/throughput/capacity/B0requirements
 unchanged. No new default optimization has been accepted.
 

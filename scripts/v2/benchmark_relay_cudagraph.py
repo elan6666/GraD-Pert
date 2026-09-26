@@ -135,7 +135,8 @@ def main() -> None:
                         )
                         value, decay = torch.randn_like(key), -torch.rand_like(key) * 2
                         beta = torch.rand(batch, length, 4, device="cuda")
-                        decay[:, ::7], beta[:, ::7] = 0, 0
+                        # Keep length-one (CLS-like) writes active; mask later tokens.
+                        decay[:, 1::7], beta[:, 1::7] = 0, 0
                         state = torch.randn(batch, 4, 64, 64, device="cuda") * 0.1
                         inputs = tuple(
                             x.requires_grad_(gradients) for x in (key, value, decay, beta, state)

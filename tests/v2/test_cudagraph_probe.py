@@ -3,6 +3,7 @@
 import importlib.util
 from pathlib import Path
 
+import pytest
 import torch
 
 from gradpert.modeling.v2.operators import chunk_delta_final_state, delta_final_state
@@ -15,12 +16,13 @@ MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 
-def test_carried_pair_preserves_state_and_checks_all_input_gradients():
+@pytest.mark.parametrize("length", [1, 5])
+def test_carried_pair_preserves_state_and_checks_all_input_gradients(length):
     torch.manual_seed(23)
-    key = torch.nn.functional.normalize(torch.randn(2, 5, 2, 4), dim=-1)
+    key = torch.nn.functional.normalize(torch.randn(2, length, 2, 4), dim=-1)
     values = torch.randn_like(key)
     decay = -torch.rand_like(key)
-    beta = torch.rand(2, 5, 2)
+    beta = torch.rand(2, length, 2)
     state = torch.randn(2, 2, 4, 4) * 0.1
     inputs = tuple(x.requires_grad_() for x in (key, values, decay, beta, state))
     rng = torch.get_rng_state().clone()
