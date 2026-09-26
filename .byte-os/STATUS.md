@@ -14,6 +14,21 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Replacement queue3404789 completed exit0: profile4/4 passed; synthetic
+CUDA Graph12/12 cases passed, no skipped graphs or recaptures during timing.
+FP32/BF16,grad/no-grad,live carried states and all five input gradients checked
+at unchanged3e-5/3e-4 tolerance; max observed absolute error2.33e-10, RNG exact.
+B2,T257 speedup4.83–5.87x; B64,T94 only1.008–1.046x; CLS-likeT1 2.43–3.08x.
+These are synthetic paired-call timings, NOT model/update speedup or proof of
+full-model parity. Small receipts/summaries dry-run (111900+21401bytes) then
+copied to `docs/experiments/single-38af3ce-profile-replay/{profile,replay}/`.
+Both GPUs verified no compute apps after completion. No monitor or GPU job now.
+Next active engineering: opt-in model replay candidate, preserving eager default;
+handle variable view shapes, live output/state lifetimes, checkpoint recomputation,
+full nonzero-LR update/EMA/center/RNG parity and graph cache memory before any
+capacity/formal run. Graph-neighborhood replay alone has weak speed evidence;
+prioritize sequence KDA and ensure capture overhead does not erase gains.
+
 Supersedes pending c073a37 capture/replay queue: explicitly stopped diagnostic
 postprocessing (raw traces+summaries preserved, no terminal profile pass) and
 its waiting successor. Both process trees gone, GPUs empty; stop evidence
