@@ -266,3 +266,12 @@ objective在LR0相同不构成等价通过；不启动此版本ABBA或正式训�
 两rank失败收据44556bytes dry-run后保存single-df9b3d7-gram-parity/。
 下一步在真实调用逐项比较前向，定位最早差异，不放宽容差。
 已准备benchmark-only Gram开关与ABBA单因素审计（11测试通过），但未运行。
+
+
+真实前向诊断e58d96688677497e685175e576aaa96b0d826490已终止exit1。
+两rank收据candidate_gram_forward_audit=true，fused_gram_module_count=18；
+未触发逐调用前向差异，第一步完成后仍失败于gradient最大差0.00011191517114639282。
+输入/RNG相同。仅能证明该次已执行Gram调用前向一致，不能证明整模型等价。
+两小收据共44636bytes经dry-run保存single-e58d966-gram-audit/。
+下一步检查实际upstream下反向精度和输出布局是否改变后续算子路径；
+不再无证据修改前向公式。当前无活跃GPU任务，未开始候选ABBA/正式B0。

@@ -1,15 +1,13 @@
-## 最新状态：真实Gram前向首差异诊断运行中
+## 最新状态：真实Gram前向均一致，完整更新仍失败
 
-保留df9b3d7失败，未启动其ABBA。当前只诊断，源e58d96688677497e685175e576aaa96b0d826490，
-服务器source-v2-gram-e58d966，publication SHA256
-5bb11bde72e901841d8899974ff9c1cc4826d8c05ae8fb8173cda7aecbeeff23。
-父PID3455848，stem /data/yilangliu/GraD-Pert/development/single-e58d966-gram-audit。
-.stage/.exit/.run.log以及目录rank-*-receipt.json；当前父进程存活/parity阶段。
---candidate-fused-gram --candidate-gram-forward-audit：真实输入逐调用对比原Gram，
-首差异抛出scalar-only形状/stride/误差/门控范围；无科学矩阵下载，无默认修改。
-新增诊断异常分支测试，9parity测试及ruff通过；初版缺json导入已本地修复，未部署初版。
-下一步读取首差异证据再修复；若前向全通过而梯度失败，转向反向/布局诊断。
-保持目标：机制验证→持续最大batch→完整B0五轮best/last；当前未正式训练。
+
+真实前向诊断e58d96688677497e685175e576aaa96b0d826490已终止exit1。
+两rank收据candidate_gram_forward_audit=true，fused_gram_module_count=18；
+未触发逐调用前向差异，第一步完成后仍失败于gradient最大差0.00011191517114639282。
+输入/RNG相同。仅能证明该次已执行Gram调用前向一致，不能证明整模型等价。
+两小收据共44636bytes经dry-run保存single-e58d966-gram-audit/。
+下一步检查实际upstream下反向精度和输出布局是否改变后续算子路径；
+不再无证据修改前向公式。当前无活跃GPU任务，未开始候选ABBA/正式B0。
 
 # 当前状态 — 2026-09-26
 
