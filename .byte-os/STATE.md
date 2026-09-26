@@ -1,5 +1,19 @@
 ## Resumed single-pass performance engineering — 2026-09-26
 
+3c308dd sequence replay full-update candidate FAILED on both ranks during
+first accumulated cell backward, before any candidate update comparison:
+"graph recording observed an input tensor deallocate ... did not occur during
+replay" in PyTorch cudagraph_trees.check_invariants. Exit1, processes gone,
+GPUs clear. Both failure receipts dry-run35,700bytes then copied to
+`docs/experiments/single-3c308dd-replay-parity/`. Do not adopt or call parity passed.
+All303 local v2 tests passed; that does not cover CUDA storage lifetimes.
+Inspected installed PyTorch runtime and functorch donated_buffer config.
+Next bounded repair hypothesis: disable saved-buffer donation during regional
+capture to stabilize checkpoint-recomputation ownership. Same method/tolerances,
+checkpoint setting/views/losses unchanged.9 targeted tests plus scoped mypy pass;
+new test asserts policy restoration and independent differentiable output copy.
+GPU rerun still required; disabling donation is not yet established as a fix.
+
 Sequence replay candidate published `3c308ddb5d163659cfbd87e325a92d1ea191bd64`;
 clean immutable server `development/source-v2-replay-3c308dd` verified against
 clean local publication. Publication `development/gradpert-replay-publication-3c308dd.json`,

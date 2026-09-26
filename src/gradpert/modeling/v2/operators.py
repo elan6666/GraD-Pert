@@ -164,7 +164,9 @@ def replayed_delta_scan() -> Callable[..., Tensor]:
             raise ValueError("CUDA Graph sequence replay requires CUDA tensors")
         with (
             dynamo_config.patch(recompile_limit=64),
-            aot_config.patch(backward_pass_autocast="off"),
+            # Keep saved-buffer ownership stable across checkpoint recomputation;
+            # do not donate saved buffers to compiled backward storage reuse.
+            aot_config.patch(backward_pass_autocast="off", donated_buffer=False),
             inductor_config.patch({"triton.cudagraph_or_error": True}),
         ):
             result = replay(*args)

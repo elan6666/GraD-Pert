@@ -54,3 +54,36 @@ def test_replay_profile_is_only_execution_factor():
     b, p = V2Options.parse_parameters(new.model.parameters)
     assert replace(b, relay_kernel="eager") == a and o == p
     assert b.payload()["relay_kernel"] == "cudagraphs"
+
+
+def test_replay_capture_disables_donation_and_restores_global_policy(monkeypatch):
+    from types import SimpleNamespace
+
+    import torch._functorch.config as config
+    from torch._dynamo.utils import counters
+
+    original = config.donated_buffer, config.backward_pass_autocast
+    output = torch.ones(2, requires_grad=True)
+
+    def compile_stub(fn, **kwargs):
+        assert kwargs == {"backend": "cudagraphs", "fullgraph": True, "dynamic": False}
+
+        def invoke(*args):
+            assert config.donated_buffer is False
+            assert config.backward_pass_autocast == "off"
+            return output
+
+        return invoke
+
+    monkeypatch.setattr(torch, "compile", compile_stub)
+    monkeypatch.setitem(counters["inductor"], "cudagraph_skips", 0)
+    operators.replayed_delta_scan.cache_clear()
+    try:
+        actual = operators.replayed_delta_scan()(
+            SimpleNamespace(device=SimpleNamespace(type="cuda"))
+        )
+        assert actual.data_ptr() != output.data_ptr()
+        assert torch.equal(torch.autograd.grad(actual.sum(), output)[0], torch.ones(2))
+        assert (config.donated_buffer, config.backward_pass_autocast) == original
+    finally:
+        operators.replayed_delta_scan.cache_clear()
