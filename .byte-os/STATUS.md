@@ -1,3 +1,11 @@
+## 2026-09-26：单向方法继续性能目标；关联归因进行中
+
+全量trace统计完成并入库：1414510次GPU kernel、43200次logsumexp，
+后者对应mHC Sinkhorn。累计耗时非互斥关键路径，未宣称任何新加速。
+已发布301be18 CPU scope/launch/kernel三遍关联分析工具，6定向测试通过；
+服务器CPU任务PID3432732，900s有界，stem single-301be18-trace-attribution-rank0。
+无GPU任务；持续容量/B0待机制优化验证。当前详情见STATE.md与性能报告。
+
 ---
 schema_version: 1
 mode: auto

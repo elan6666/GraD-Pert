@@ -13,11 +13,14 @@ Goal active：当前新方法升级与性能工程 → 双卡持续容量 → �
 优先审计衰减加权Gram的[B,H,L,L,D]临时量，再融合归约及解析反向；尚未实现。
 现有trace只有嵌套时间，先流式提取CPU发射/主要kernel成本，不能猜端到端收益。
 
-CPU trace分析正在运行：timeout父PID3430854，stem development/single-38af3ce-stream-costs-rank0
-(.pid/.log，完成产物.json)。600s上限，读取既有rank0 4.77GB trace，GPU不占用。
-脚本scripts/v2/trace_costs.py，已发布SHA c00e3441d77fdb1084bbfd13b0b4b38e04ee4a7a；服务器独立副本
-development/trace-costs-stream-v1.py，产物记录脚本/trace SHA256；4测试通过。
-先检查该进程与完整JSON/日志，完成后提取各类top成本，不将duration sum当关键路径。
+CPU全量统计已完成：13,518,242事件，1414510 kernel，43,200 logsumexp。
+小结果docs/experiments/single-38af3ce-profile-replay/costs/rank0.json；trace留服务器。
+尚不能把float multiply或嵌套CPU耗时全部归给KDA，先与mHC Sinkhorn比较。
+CPU关联归因正在运行：timeout父PID3432732，stem development/single-301be18-trace-attribution-rank0
+(.pid/.log，完成.json，无.exit)，900s上限；不占GPU。
+脚本scripts/v2/trace_attribution.py已发布301be18，三遍流式扫描CPU scopes→launch correlation→kernel。
+6定向测试通过，覆盖嵌套区间、线程隔离、GPU annotation排除、乱序与多进程拒绝。
+下一步检查PID/日志/完整JSON，按实测mHC、图层、三角求解等归因调整机制优先级。
 
 无活动GPU任务。上探wrapper3429104已exit1：micro72 passed1/1及checkpoint恢复，
 peakallocated31,009,318,400bytes；micro80 OOM，88未启动。单步不证明持续容量。
