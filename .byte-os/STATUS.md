@@ -14,6 +14,17 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+CPU prefetch full-update parity now running PID3420187, stem
+`/data/yilangliu/GraD-Pert/development/single-ec2384a-prefetch-parity`;
+.stage/.run.log/.exit/.pid and rank receipts at stem/, bothGPUlocks,1200s.
+Source `development/source-v2-prefetch-ec2384a`, fullSHA
+ec2384ade9fa66458eac2ff40c2dbff2fd067dc8, clean identity verified; publication
+`development/gradpert-prefetch-publication-ec2384a.json` SHA256
+43f6146774258e336d6777e4fef1b439d9380e49af75a310bb9b3a090442d2fa.
+Identical eager checkpointed profiling_m2_a2 config, only candidate CPU lookahead
+changed; --deterministic --candidate-cpu-prefetch. Inspect terminal result before
+throughput benchmark. Default remains synchronous; no formal/capacity launch.
+
 Checkpoint-removal parity PASSED both ranks, exit0, two full updates with exact
 inputs/RNG and max_abs0 losses/gradients/objective/optimizer. Reviewed41,616byte
 receipts copied to docs/experiments/single-473466d-checkpoint-parity/. Not adopted:
