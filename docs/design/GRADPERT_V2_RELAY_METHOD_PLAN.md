@@ -171,3 +171,13 @@ atol3e-5/rtol3e-4并记录实际误差，3次预热+10次同步计时，冷编�
 任何数值失败保留收据，不放宽阈值来接受候选。随后必须同配置完整双卡更新、
 Student/optimizer/Teacher/center/RNG核对，再进行ABBA稳定吞吐比较；只有实测
 整步收益且科学语义验证通过，才更新默认执行后端。
+
+
+完整更新验证入口 `scripts/v2/update_parity.py` 使用同一initial.pt恢复，不同kernel
+使用同样两次真实数据更新；配置仅允许relay_kernel字段变化。沿用封存LR/EMA日程、
+双卡全局loss人口、相同有序batch/view/RNG；截获梯度后执行原optimizer.step，
+逐步核对loss、全部梯度、Student/Teacher/center和optimizer状态。RNG与输入哈希
+严格相等，浮点比较atol3e-5/rtol3e-4。CPU拷贝只用于诊断，不用于吞吐计时。
+检查点与原始梯度留服务器，导出小比较收据。两卡通过标志一起归约，任一卡失败
+均停止，不继续ABBA或正式训练。本地3项证据辅助测试、mypy和lint通过；真实双卡
+验证尚未执行，须等待kernel数值检查通过。
