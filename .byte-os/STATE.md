@@ -170,6 +170,14 @@ CUDA call, then runs a bounded1800s GPU0 synthetic check (both locks held).
 Current stage waiting-for-abba-lock; no CUDA probe result yet. This is a finite
 prerequisite queue, not a timer or parallel GPU job. Inspect actual wrapper/rank
 processes and terminal receipts; do not restart based on a stale .stage file.
+Prepared scripts/v2/compare_benchmarks.py for the current one-factor ABBA:
+requires all four terminal passed unprofiled receipts, matching clean source,
+config hashes/one changed validation setting, data/ordered batches/view RNG,
+rank populations and CPU thread/affinity settings. Recomputes whole-step rank
+maxima and reports descriptive ratios, both pairs and run variability without
+calling two replicates statistically significant or numerical/capacity proof.
+Eight focused rejection/aggregation tests and scoped lint/mypy pass. Run against
+actual four small receipts after completion; partial A1 alone cannot show gain.
 No timer, Goal active. Remaining full-update/throughput/capacity/B0requirements
 unchanged. No new default optimization has been accepted.
 
