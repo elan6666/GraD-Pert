@@ -140,3 +140,20 @@ def test_gram_forward_audit_reports_first_actual_mismatch(monkeypatch):
         weighted_gram.fused_weighted_gram(torch.ones(1, 1, 2, 3), torch.zeros(1, 1, 2, 3))
     assert '"call": 1' in str(error.value)
     assert '"shape": [1, 1, 2, 3]' in str(error.value)
+
+
+def test_gram_backward_audit_checks_real_upstream(monkeypatch):
+    from gradpert.modeling.v2 import weighted_gram
+
+    monkeypatch.setattr(weighted_gram, "fused_weighted_gram", weighted_gram.weighted_gram_reference)
+    original = weighted_gram.weighted_gram_backward
+    monkeypatch.setattr(
+        weighted_gram,
+        "weighted_gram_backward",
+        lambda k, g, u: tuple(v + 0.01 for v in original(k, g, u)),
+    )
+    MODULE.enable_gram_forward_audit(backward=True)
+    key = torch.ones(1, 1, 2, 3, requires_grad=True)
+    gate = torch.zeros_like(key, requires_grad=True)
+    with pytest.raises(RuntimeError, match="Gram backward audit mismatch"):
+        weighted_gram.fused_weighted_gram(key, gate).sum().backward()

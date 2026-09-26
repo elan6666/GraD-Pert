@@ -167,7 +167,7 @@ def enable_fused_gram(objective: Any) -> int:
     return count
 
 
-def enable_gram_forward_audit() -> None:
+def enable_gram_forward_audit(*, backward: bool = False) -> None:
     """Fail at the first real-input forward mismatch, with scalar metadata only."""
     from gradpert.modeling.v2 import weighted_gram
 
@@ -197,6 +197,37 @@ def enable_gram_forward_audit() -> None:
                         }
                     )
                 )
+        if backward and actual.requires_grad:
+            call_index = calls
+
+            def check_backward(upstream: torch.Tensor) -> torch.Tensor:
+                with torch.enable_grad():
+                    key = keys.detach().requires_grad_()
+                    gate = gates.detach().requires_grad_()
+                    ref = weighted_gram.weighted_gram_reference(key, gate)
+                    reference = torch.autograd.grad(ref, (key, gate), upstream)
+                with torch.no_grad():
+                    candidate = weighted_gram.weighted_gram_backward(keys, gates, upstream)
+                    for name, a, b in zip(("key", "gate"), reference, candidate, strict=True):
+                        if not torch.equal(a, b):
+                            raise RuntimeError(
+                                "Gram backward audit mismatch: "
+                                + json.dumps(
+                                    {
+                                        "call": call_index,
+                                        "input": name,
+                                        "shape": list(keys.shape),
+                                        "key_stride": list(keys.stride()),
+                                        "gate_stride": list(gates.stride()),
+                                        "upstream_stride": list(upstream.stride()),
+                                        "max_absolute": (a - b).abs().max().item(),
+                                        "different": (a != b).sum().item(),
+                                    }
+                                )
+                            )
+                return upstream
+
+            actual.register_hook(check_backward)
         return actual
 
     weighted_gram.fused_weighted_gram = audited
@@ -219,7 +250,10 @@ def main() -> None:
     parser.add_argument("--candidate-fused-sinkhorn", action="store_true")
     parser.add_argument("--candidate-fused-gram", action="store_true")
     parser.add_argument("--candidate-gram-forward-audit", action="store_true")
+    parser.add_argument("--candidate-gram-backward-audit", action="store_true")
     args = parser.parse_args()
+    if args.candidate_gram_backward_audit and not args.candidate_gram_forward_audit:
+        parser.error("backward audit requires forward audit")
     if args.candidate_gram_forward_audit and not args.candidate_fused_gram:
         parser.error("Gram forward audit requires candidate Gram fusion")
     if args.candidate_fused_gram and (
@@ -335,6 +369,7 @@ def main() -> None:
         "candidate_fused_sinkhorn_diagnostic_only": args.candidate_fused_sinkhorn,
         "candidate_fused_gram_diagnostic_only": args.candidate_fused_gram,
         "candidate_gram_forward_audit": args.candidate_gram_forward_audit,
+        "candidate_gram_backward_audit": args.candidate_gram_backward_audit,
         "candidate_sequence_checkpoint_disabled_diagnostic_only": (
             args.candidate_no_sequence_checkpoint
         ),
@@ -390,7 +425,7 @@ def main() -> None:
                         if args.candidate_no_sequence_checkpoint:
                             disable_sequence_checkpoint(runtime.objective)
                         if args.candidate_gram_forward_audit:
-                            enable_gram_forward_audit()
+                            enable_gram_forward_audit(backward=args.candidate_gram_backward_audit)
                         if args.candidate_fused_gram:
                             receipt["fused_gram_module_count"] = enable_fused_gram(
                                 runtime.objective
