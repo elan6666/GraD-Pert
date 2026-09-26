@@ -14,6 +14,12 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+CPU prefetch B1 passed12/12, median21.8183s, wait fraction2.5462%,
+inclusive0.35858cells/s versus A1 .36947 (~2.95% slower). Waiting decreased
+but update grew; CPU contention is a hypothesis, not established cause.
+B2 now running in same ABBA wrapper3421214. Do not adopt based on wait fraction;
+await B2/A2 for paired throughput conclusion. No reruns or other GPU job.
+
 CPU prefetch ABBA A1 passed12/12, median20.6005s, inclusive0.36947cells/s;
 B1 running at latest check. compare_benchmarks.py now accepts explicit
 --execution-factor cpu_prefetch, requiring identical configs and A/B/B/A flags

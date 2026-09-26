@@ -19,7 +19,8 @@ Goal active：当前新方法升级与性能工程 → 双卡持续容量 → �
 - 发布收据 `development/gradpert-prefetch-publication-ec2384a.json`
   SHA256 `43f6146774258e336d6777e4fef1b439d9380e49af75a310bb9b3a090442d2fa`。
 - 每组timeout1200s、双GPU锁、allocator expandable_segments:True，失败停止队列。
-- 最新A1 passed12/12，中位20.6005s、含等待0.36947cells/s、等待占5.8767%；B1运行中。
+- 最新A1 passed12/12，中位20.6005s、含等待0.36947cells/s、等待占5.8767%；
+  B1 passed12/12，中位21.8183s、含等待0.35858cells/s、等待占2.5462%；B2运行中。
   务必实时查验，不据此推断后续组状态。
 
 ## 已完成证据与下一动作
