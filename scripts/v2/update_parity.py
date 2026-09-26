@@ -112,6 +112,22 @@ def compare_trees(
     return result
 
 
+def execution_changes(reference: Any, candidate: Any, repeat: bool) -> list[str]:
+    assert reference.relay_kernel == "eager" and not reference.relay_validate_once
+    changed = [
+        f.name
+        for f in dataclasses.fields(reference)
+        if getattr(reference, f.name) != getattr(candidate, f.name)
+    ]
+    if repeat:
+        assert not changed, "reference repeat must use identical architecture"
+    else:
+        assert changed in (["relay_kernel"], ["relay_validate_once"]), (
+            "one execution factor at a time"
+        )
+    return changed
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
@@ -121,6 +137,8 @@ def main() -> None:
     parser.add_argument("--gpu", required=True)
     parser.add_argument("--publication", type=Path, required=True)
     parser.add_argument("--publication-sha256", required=True)
+    parser.add_argument("--reference-repeat", action="store_true")
+    parser.add_argument("--deterministic", action="store_true")
     args = parser.parse_args()
     world, rank = int(os.environ.get("WORLD_SIZE", "1")), int(os.environ.get("LOCAL_RANK", "0"))
     devices = args.gpu.split(",")
@@ -132,6 +150,10 @@ def main() -> None:
         parser.error("required allocator missing")
     # No CUDA API has been called before this per-rank assignment.
     os.environ["CUDA_VISIBLE_DEVICES"] = devices[rank]
+    if args.deterministic:
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+        torch.use_deterministic_algorithms(True)
+        torch.autograd.set_multithreading_enabled(False)
     from gradpert.config import load_experiment_config
     from gradpert.config.step_schedule import (
         LRWarmupCosine,
@@ -161,13 +183,7 @@ def main() -> None:
     candidate_architecture, candidate_options = V2Options.parse_parameters(
         candidate.model.parameters
     )
-    assert architecture.relay_kernel == "eager" and not architecture.relay_validate_once
-    changed = [
-        f.name
-        for f in dataclasses.fields(architecture)
-        if getattr(architecture, f.name) != getattr(candidate_architecture, f.name)
-    ]
-    assert changed in (["relay_kernel"], ["relay_validate_once"]), "one execution factor at a time"
+    changed = execution_changes(architecture, candidate_architecture, args.reference_repeat)
     assert candidate_options == options
     left, right = config.model_dump(mode="json"), candidate.model_dump(mode="json")
     for field in changed:
@@ -199,6 +215,9 @@ def main() -> None:
         "rtol": 3e-4,
         "steps": [],
         "execution_change": {name: getattr(candidate_architecture, name) for name in changed},
+        "reference_repeat": args.reference_repeat,
+        "deterministic_diagnostic_only": args.deterministic,
+        "cublas_workspace_config": os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
     }
     receipt_path = args.output / f"rank-{rank}-receipt.json"
     atomic_json(receipt_path, receipt)

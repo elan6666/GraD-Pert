@@ -1,11 +1,14 @@
 """Evidence helpers must notice gradient and ordered-input changes."""
 
 import importlib.util
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
+
+from gradpert.config.v2 import V2Architecture
 
 SPEC = importlib.util.spec_from_file_location(
     "update_parity", Path(__file__).resolve().parents[2] / "scripts/v2/update_parity.py"
@@ -54,3 +57,18 @@ def test_digest_accepts_zero_stride_singletons_broadcast_and_bfloat16():
         assert MODULE.tree_digest(singleton) == MODULE.tree_digest(seed)
         broadcast = singleton.expand(5)
         assert MODULE.tree_digest(broadcast) == MODULE.tree_digest(torch.full((5,), 3, dtype=dtype))
+
+
+def test_reference_repeat_cannot_hide_an_architecture_change():
+    original = V2Architecture(
+        attention="relay_full", graph_read_mode="relay", graph_layers=4, kda_layers=2
+    )
+    assert MODULE.execution_changes(original, original, True) == []
+    changed = replace(original, relay_validate_once=True)
+    assert MODULE.execution_changes(original, changed, False) == ["relay_validate_once"]
+    with pytest.raises(AssertionError, match="identical architecture"):
+        MODULE.execution_changes(original, changed, True)
+    with pytest.raises(AssertionError, match="one execution factor"):
+        MODULE.execution_changes(original, original, False)
+    with pytest.raises(AssertionError, match="one execution factor"):
+        MODULE.execution_changes(original, replace(changed, relay_kernel="inductor"), False)

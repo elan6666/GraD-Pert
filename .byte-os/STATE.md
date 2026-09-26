@@ -104,8 +104,24 @@ singleton Long tensor: contiguous() can preserve a singleton stride0, so viewing
 as bytes fails. Initial checkpoint/log/rank receipts retained. Diagnostic fix
 forces contiguous-format clone before byte view, covered by a new int64/bfloat16
 singleton+broadcast test;4 helper tests/mypy/lint pass. Model source unchanged.
-Next publish fix, deploy new immutable checkout and fresh parity run. Then controlled ABBA if it passes, sustained128+maxbatch, only
-fullB0five epochs+best/last. No timer; Goal supervision active.
+Fix published8aae56d6e383b2b250eb8b2fdcfc186cd537709b, deployed clean
+source-v2-relay-8aae56d; publication hash23a3f9a11ca3078b1a2a10b5150a3526001423837070f2903dc796e323d590b0.
+Development/relay-8aae56d-validation-parity failed after candidate step1:
+inputs+all RNG digests exact, losses/objective parameters exact; gradients max
+.00011331774294376373 and optimizer max.000011331867426633835. Failed gradient
+paths include control_cls, graph.embedding and graph.layers.0 read projections.
+Do not call this passed. Dependent relay-8aae56d-m2-validated-B1 was gated off;
+no throughput measurement ran. Both wrappers terminal, GPUs idle.
+Next diagnose numerical repeatability WITHOUT changing tolerance: add explicit
+--reference-repeat (identical config/architecture enforced) and --deterministic
+(diagnostic-only deterministic algorithms, disabled autograd multithreading,
+CUBLAS_WORKSPACE_CONFIG=:4096:8). Test unchanged reference twice in normal mode,
+then candidate vs reference in deterministic mode. If nondeterministic scatter/
+GEMM explains differences, record that evidence; it is a hypothesis for now.
+These flags never alter formal training defaults or benchmark settings. Five
+parity-helper tests, scoped mypy/lint pass; publish/deploy and run diagnostics.
+No timer, Goal active. Remaining full-update/throughput/capacity/B0requirements
+unchanged. No new default optimization has been accepted.
 
 Additional user request complete: updated EasyConnect skill with native Swift AX
 and private Security.framework credential path; both installed copies match,

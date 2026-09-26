@@ -208,3 +208,12 @@ CPU checkpoint/dropout测试输出/所有参数与输入梯度/RNG逐位相等�
 读取从多次降到一次；空邻域在两种策略下都失败。真实GPU节省多少尚待整步测量。
 完整更新工具现在只允许一次改变relay_kernel或relay_validate_once中一个，
 会将具体执行差异写入收据；该调度候选保持eager，无需通过已搁置的编译候选。
+
+
+真实validation-once更新对照（8aae56d）在首步：input/RNG完全一致、loss和
+更新后模型状态一致，但gradient最大差1.133e-4超出原阈值；optimizer差1.133e-5。
+尚不能区分GPU梯度累加非确定性与候选影响；不接受候选，不运行排队吞吐。
+诊断工具新增原实现重复对照（强制配置/架构相同）与显式确定性模式；后者仅
+用于数学/完整更新诊断，设置deterministic_algorithms、关闭autograd多线程与
+CUBLAS_WORKSPACE_CONFIG=:4096:8。先测reference-repeat，再确定性A/B，收据
+记录模式，误差阈值不变。正式训练与吞吐benchmark均不继承这些诊断设置。
