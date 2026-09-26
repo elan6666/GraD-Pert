@@ -114,29 +114,54 @@ def summarize(receipts: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def validate_execution_factor(
+    payloads: list[dict[str, Any]], receipts: list[dict[str, Any]], factor: str
+) -> None:
+    """Reject mixed execution factors, including flags outside the config file."""
+    require(len(payloads) == 2 and len(receipts) == 4, "requires two configs and four runs")
+    if factor == "relay_validate_once":
+        for i, payload in enumerate(payloads):
+            option = payload["model"]["parameters"].pop("relay_validate_once", {"value": False})
+            require(option["value"] is bool(i), "wrong reference/candidate execution setting")
+    elif factor != "cpu_prefetch":
+        raise ValueError("unsupported execution factor")
+    require(payloads[0] == payloads[1], "more than one configuration factor changed")
+    for record, candidate in zip(receipts, (False, True, True, False), strict=True):
+        require(
+            record.get("sequence_checkpoint_disabled_diagnostic_only", False) is False,
+            "checkpoint override confounds benchmark",
+        )
+        expected = candidate if factor == "cpu_prefetch" else False
+        require(
+            record.get("cpu_prefetch_diagnostic_only", False) is expected,
+            "wrong CPU prefetch execution flag",
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("receipts", type=Path, nargs=4, help="A1 B1 B2 A2 in that order")
     parser.add_argument("--reference-config", type=Path, required=True)
     parser.add_argument("--candidate-config", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--execution-factor",
+        choices=("relay_validate_once", "cpu_prefetch"),
+        default="relay_validate_once",
+    )
     args = parser.parse_args()
     require(len({p.resolve() for p in args.receipts}) == 4, "duplicate receipt paths")
     digests = [sha256_file(p) for p in args.receipts]
     require(len(set(digests)) == 4, "duplicate receipt contents are not independent runs")
     configs = [load_experiment_config(p) for p in (args.reference_config, args.candidate_config)]
     payloads = [c.model_dump(mode="json") for c in configs]
-    # Current experiment varies legality-check placement only, including its
-    # explicit provenance wrapper; reject all other configuration changes.
-    for i, payload in enumerate(payloads):
-        option = payload["model"]["parameters"].pop("relay_validate_once", {"value": False})
-        require(option["value"] is bool(i), "wrong reference/candidate execution setting")
-    require(payloads[0] == payloads[1], "more than one configuration factor changed")
     expected = [sha256_file(p) for p in (args.reference_config, args.candidate_config)]
     receipts = [json.loads(p.read_text()) for p in args.receipts]
+    validate_execution_factor(payloads, receipts, args.execution_factor)
     for record, index in zip(receipts, (0, 1, 1, 0), strict=True):
         require(record["config_sha256"] == expected[index], "config checksum mismatch")
     result = summarize(receipts)
+    result["execution_factor"] = args.execution_factor
     global_batch = int(configs[0].training.train_batch_size.value)
     result["effective_batch"] = global_batch
     for row, record in zip(result["rows"], receipts, strict=True):

@@ -19,7 +19,8 @@ Goal active：当前新方法升级与性能工程 → 双卡持续容量 → �
 - 发布收据 `development/gradpert-prefetch-publication-ec2384a.json`
   SHA256 `43f6146774258e336d6777e4fef1b439d9380e49af75a310bb9b3a090442d2fa`。
 - 每组timeout1200s、双GPU锁、allocator expandable_segments:True，失败停止队列。
-- 最后核对A1运行中；务必实时查验，不据此推断后续组状态。
+- 最新A1 passed12/12，中位20.6005s、含等待0.36947cells/s、等待占5.8767%；B1运行中。
+  务必实时查验，不据此推断后续组状态。
 
 ## 已完成证据与下一动作
 
@@ -27,8 +28,10 @@ CPU预取两次双卡完整更新精确一致、输入/RNG一致；本地v2测�
 收据 `docs/experiments/single-ec2384a-prefetch-parity/`。
 预取默认尚未启用，正式runner未改变；GPU结果通过后才测吞吐。
 目前即上述吞吐阶段，完成后核对同配置/输入/RNG和含等待时间，再决定采用。
-`compare_benchmarks.py`的summarize可审计时间，但CLI仍固定验证hoist因子，
-不可直接把预取实验套成该因子；应独立检查A/B预取flag及其他诊断选项一致。
+`compare_benchmarks.py --execution-factor cpu_prefetch`已支持本次审计；要求同配置、
+A/B/B/A预取flag、无重计算override，并核对完整收据/输入/RNG/计时。9项测试通过。
+待四组完成后使用该模式生成分析收据（记录分析脚本hash）；不要分析未完成组。
+
 
 性能总结：`docs/experiments/GRADPERT_V2_SINGLE_PASS_PERFORMANCE.md`。
 - 全序列CUDA Graph候选10/12失败，重编译64上限；不采用、不提高上限盲试。

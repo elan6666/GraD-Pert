@@ -94,3 +94,22 @@ def test_rejects_changed_rank_rng_or_nonfinite_duration():
     rows[1]["rank_measurements"][0]["update_seconds"][0] = float("nan")
     with pytest.raises(ValueError, match="invalid timing"):
         MODULE.summarize(rows)
+
+
+def test_cpu_prefetch_factor_requires_identical_configs_and_only_expected_flags():
+    payloads = [{"model": {"parameters": {"width": {"value": 256}}}} for _ in range(2)]
+    rows = [receipt(10) for _ in range(4)]
+    for record, flag in zip(rows, (False, True, True, False), strict=True):
+        record["cpu_prefetch_diagnostic_only"] = flag
+    MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "cpu_prefetch")
+    changed = copy.deepcopy(rows)
+    changed[1]["sequence_checkpoint_disabled_diagnostic_only"] = True
+    with pytest.raises(ValueError, match="checkpoint override"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), changed, "cpu_prefetch")
+    changed = copy.deepcopy(rows)
+    changed[2]["cpu_prefetch_diagnostic_only"] = False
+    with pytest.raises(ValueError, match="prefetch execution flag"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), changed, "cpu_prefetch")
+    payloads[1]["model"]["parameters"]["width"]["value"] = 128
+    with pytest.raises(ValueError, match="configuration factor"):
+        MODULE.validate_execution_factor(payloads, rows, "cpu_prefetch")

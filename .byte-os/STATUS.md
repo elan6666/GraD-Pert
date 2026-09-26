@@ -14,6 +14,11 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+CPU prefetch ABBA A1 passed12/12, median20.6005s, inclusive0.36947cells/s;
+B1 running at latest check. compare_benchmarks.py now accepts explicit
+--execution-factor cpu_prefetch, requiring identical configs and A/B/B/A flags
+without checkpoint override;9 audit tests and scoped mypy/ruff passed.
+
 Prepared self-contained current-method capacity candidates under
 configs/v2/single_pass_jurkat/capacity_m{8,16,32,48,64}_a2/gradpert_v2/.
 All parsed and validate_profiles passed: only micro/global batch differ from
