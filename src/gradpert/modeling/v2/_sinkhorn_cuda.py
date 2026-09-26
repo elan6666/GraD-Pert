@@ -1,13 +1,14 @@
 """Native Triton kernels for the opt-in four-stream Sinkhorn experiment."""
 
 import torch
-import triton
-import triton.language as tl
-from triton.language.extra import cuda as cuda_extra
+import triton  # type: ignore[import-not-found]
+import triton.language as tl  # type: ignore[import-not-found]
+from torch import Tensor
+from triton.language.extra import cuda as cuda_extra  # type: ignore[import-not-found]
 
 
 @triton.jit
-def _row_sum(z):
+def _row_sum(z):  # type: ignore[no-untyped-def]
     # Four strided inputs in ATen Reduce.cuh thread_reduce_impl combine serially.
     # Keep this association instead of a balanced tree: BF16 boundaries amplify
     # otherwise tiny differences through the full model. Still a candidate.
@@ -18,8 +19,8 @@ def _row_sum(z):
     return ((a + b) + c) + d
 
 
-@triton.jit(do_not_specialize=["N"], do_not_specialize_on_alignment=["N"])
-def _forward(X, Y, P, N, STEPS: tl.constexpr, BLOCK: tl.constexpr):
+@triton.jit(do_not_specialize=["N"], do_not_specialize_on_alignment=["N"])  # type: ignore[untyped-decorator]
+def _forward(X, Y, P, N, STEPS: tl.constexpr, BLOCK: tl.constexpr):  # type: ignore[no-untyped-def]
     tokens = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
     row = tl.arange(0, 4)
     col = tl.arange(0, 4)
@@ -45,8 +46,8 @@ def _forward(X, Y, P, N, STEPS: tl.constexpr, BLOCK: tl.constexpr):
     tl.store(Y + index, cuda_extra.libdevice.exp(z), tokens[:, None, None] < N)
 
 
-@triton.jit(do_not_specialize=["N"], do_not_specialize_on_alignment=["N"])
-def _backward(U, Y, P, DX, N, STEPS: tl.constexpr, BLOCK: tl.constexpr):
+@triton.jit(do_not_specialize=["N"], do_not_specialize_on_alignment=["N"])  # type: ignore[untyped-decorator]
+def _backward(U, Y, P, DX, N, STEPS: tl.constexpr, BLOCK: tl.constexpr):  # type: ignore[no-untyped-def]
     tokens = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
     row = tl.arange(0, 4)
     col = tl.arange(0, 4)
@@ -64,7 +65,7 @@ def _backward(U, Y, P, DX, N, STEPS: tl.constexpr, BLOCK: tl.constexpr):
     tl.store(DX + index, gradient, mask)
 
 
-def forward(logits, iterations):
+def forward(logits: Tensor, iterations: int) -> tuple[Tensor, Tensor]:
     count = logits.numel() // 16
     output = torch.empty_like(logits, dtype=torch.float32)
     probabilities = torch.empty((count, iterations * 2, 4, 4), device=logits.device)
@@ -75,7 +76,7 @@ def forward(logits, iterations):
     return output, probabilities
 
 
-def backward(upstream, output, probabilities, iterations):
+def backward(upstream: Tensor, output: Tensor, probabilities: Tensor, iterations: int) -> Tensor:
     count = output.numel() // 16
     gradient = torch.empty_like(output)
     if count:

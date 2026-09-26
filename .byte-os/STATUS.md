@@ -1,3 +1,10 @@
+## 2026-09-26：ABBA进入A2，本地回归通过
+
+A1/B1/B2均完成12步，update中位19.9003/19.0998/18.9844秒；A2运行中。
+已核对A1/B1源码、config、data、ordered batch及视图RNG起点一致，完整审计待四组。
+本地v2回归340passed；补齐新CUDA候选的类型接口，20定向测试与4文件mypy通过。
+KDA候选未执行GPU测试、未接入默认；当前GPU仍只用于ABBA。
+
 ## 2026-09-26：动态N完整更新精确通过，代表性batch吞吐对照启动
 
 cab78a1两rank两更新（含非零LR）loss/gradient/objective/optimizer全部差0，

@@ -31,6 +31,10 @@ ssl2_koleo亦超容差，输入/RNG完全一致。两rank收据已入库，不�
 第二步明确非零LR7.796055196070788e-8。收据已dry-run复核281810bytes入库
 `docs/experiments/single-cab78a1-sinkhorn-parity/`，未将第一步LR0冒充非零更新。
 
+本地完整v2回归340passed（113b96a阶段）；接口类型修复后20定向测试及4文件mypy通过。
+ABBA最新已进入A2：A1/B1/B2均12/12，中位update19.9003/19.0998/18.9844s；
+尚未四组合并审计，不能仅凭前三组宣布采用。
+
 当前活跃父PID3442646，stem `/data/yilangliu/GraD-Pert/development/single-b64745b-sinkhorn-abba-m32`
 (.pid/.log/.stage/.tests.log/.exit；每组stem-A1/B1/B2/A2目录receipt.json及同名.log)。
 完整双蒸馏ABBA：global128=m32×accum2×2卡，每组12步，3warmup+9timed，

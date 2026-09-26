@@ -9,6 +9,9 @@ backward work for forward launches/storage and must be measured end to end.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any, cast
+
 import torch
 from torch import Tensor
 
@@ -42,7 +45,7 @@ def weighted_gram_backward(keys: Tensor, gates: Tensor, upstream: Tensor) -> tup
 
 class _WeightedGram(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, keys, gates):
+    def forward(ctx: Any, keys: Tensor, gates: Tensor) -> Tensor:
         from ._weighted_gram_cuda import forward
 
         # Preserve original strides for the eager backward's reduction ordering.
@@ -51,8 +54,9 @@ class _WeightedGram(torch.autograd.Function):
 
     @staticmethod
     @torch.autograd.function.once_differentiable
-    def backward(ctx, upstream):
-        return weighted_gram_backward(*ctx.saved_tensors, upstream)
+    def backward(ctx: Any, upstream: Tensor) -> tuple[Tensor, Tensor]:
+        keys, gates = ctx.saved_tensors
+        return weighted_gram_backward(keys, gates, upstream)
 
 
 def fused_weighted_gram(keys: Tensor, gates: Tensor) -> Tensor:
@@ -67,4 +71,5 @@ def fused_weighted_gram(keys: Tensor, gates: Tensor) -> Tensor:
         or not 1 <= keys.shape[-2] <= 32
     ):
         raise ValueError("weighted-Gram candidate requires matching CUDA FP32 [B,H,1..32,64]")
-    return _WeightedGram.apply(keys, gates)
+    apply = cast(Callable[..., Tensor], _WeightedGram.apply)
+    return apply(keys, gates)

@@ -8,6 +8,9 @@ reducing iterations or detaching any gradient. Higher derivatives are unsupporte
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any, cast
+
 import torch
 from torch import Tensor
 
@@ -33,7 +36,7 @@ def reference_backward(upstream: Tensor, output: Tensor, probabilities: Tensor) 
 
 class _Sinkhorn(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, logits, iterations):
+    def forward(ctx: Any, logits: Tensor, iterations: int) -> Tensor:
         from ._sinkhorn_cuda import forward
 
         output, probabilities = forward(logits, iterations)
@@ -44,7 +47,7 @@ class _Sinkhorn(torch.autograd.Function):
 
     @staticmethod
     @torch.autograd.function.once_differentiable
-    def backward(ctx, upstream):
+    def backward(ctx: Any, upstream: Tensor) -> tuple[Tensor, None]:
         from ._sinkhorn_cuda import backward
 
         output, probabilities = ctx.saved_tensors
@@ -57,4 +60,5 @@ def fused_sinkhorn(logits: Tensor, iterations: int = 20) -> Tensor:
         raise ValueError("experimental fused Sinkhorn requires CUDA and four streams")
     if not 1 <= iterations <= 32:
         raise ValueError("iterations must be between 1 and 32")
-    return _Sinkhorn.apply(logits.contiguous(), iterations)
+    apply = cast(Callable[..., Tensor], _Sinkhorn.apply)
+    return apply(logits.contiguous(), iterations)

@@ -1,13 +1,14 @@
 """Forward-only fused KDA Gram candidate, with no channel-expanded allocation."""
 
 import torch
-import triton
-import triton.language as tl
-from triton.language.extra import cuda as cuda_extra
+import triton  # type: ignore[import-not-found]
+import triton.language as tl  # type: ignore[import-not-found]
+from torch import Tensor
+from triton.language.extra import cuda as cuda_extra  # type: ignore[import-not-found]
 
 
 @triton.jit(do_not_specialize=["N"], do_not_specialize_on_alignment=["N"])
-def _gram(K, G, P, N):
+def _gram(K, G, P, N):  # type: ignore[no-untyped-def]
     query = tl.program_id(0)
     batch_head = tl.program_id(1)
     neighbor = tl.arange(0, 32)
@@ -26,7 +27,7 @@ def _gram(K, G, P, N):
     tl.store(P + (batch_head * N + query) * N + neighbor, tl.where(legal, value, 0.0), neighbor < N)
 
 
-def forward(keys, gates):
+def forward(keys: Tensor, gates: Tensor) -> Tensor:
     batch, heads, length, _ = keys.shape
     output = torch.empty((batch, heads, length, length), device=keys.device, dtype=torch.float32)
     if batch * heads:
