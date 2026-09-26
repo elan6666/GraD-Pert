@@ -6,38 +6,37 @@ Goal active：当前新方法升级与性能工程 → 双卡持续容量 → �
 不启动其他消融；不恢复旧停止运行。默认单向KDA、最终S统一读取，完整双蒸馏。
 无定时监控；本Goal持续推进。保留历史来源，禁止修改活动服务器源码或覆盖runID。
 
-## 当前阶段：机制级KDA优化；GPU短检查已收尾
+## 当前阶段：融合mHC Sinkhorn完整双卡更新校验
 
-用户补充：开关/预取/batch探针不等于深度优化完成。先实施和验证主要机制，
-再持续容量与完整B0；不套用DSec或侧边固定方案。路线详见性能报告末节。
-优先审计衰减加权Gram的[B,H,L,L,D]临时量，再融合归约及解析反向；尚未实现。
-现有trace只有嵌套时间，先流式提取CPU发射/主要kernel成本，不能猜端到端收益。
+trace两轮分析均完成，结果在docs/experiments/single-38af3ce-profile-replay/costs/。
+1414510 kernels；logsumexp去重CPU区间1.5996s、129600 kernel累计0.166s。
+不把嵌套时间相加；主要机制还包括图邻域/重计算/KDA临时量。先验证mHC融合，
+保持20轮与解析梯度，不减少迭代、不改模型数学。KDA Gram候选尚未实施。
 
-CPU全量统计已完成：13,518,242事件，1414510 kernel，43,200 logsumexp。
-小结果docs/experiments/single-38af3ce-profile-replay/costs/rank0.json；trace留服务器。
-尚不能把float multiply或嵌套CPU耗时全部归给KDA，先与mHC Sinkhorn比较。
-CPU关联归因正在运行：timeout父PID3432732，stem development/single-301be18-trace-attribution-rank0
-(.pid/.log，完成.json，无.exit)，900s上限；不占GPU。
-脚本scripts/v2/trace_attribution.py已发布301be18，三遍流式扫描CPU scopes→launch correlation→kernel。
-6定向测试通过，覆盖嵌套区间、线程隔离、GPU annotation排除、乱序与多进程拒绝。
-下一步检查PID/日志/完整JSON，按实测mHC、图层、三角求解等归因调整机制优先级。
+独立Triton融合算子18/18双设备合成case通过，原始收据
+`docs/experiments/single-59305ee-sinkhorn-probe/receipt.json`。
+最大输出/梯度差4.92e-7/3.88e-7，原4.33–5.04ms→0.514–0.656ms；
+4096token临时峰值14,221,312→11,010,048bytes。非完整训练吞吐，不作采用依据。
+首版4f855f9编译scope错误已修，失败收据保留；未改活动源码。
+本地61测试通过，服务器18定向测试通过。
 
-无活动GPU任务。上探wrapper3429104已exit1：micro72 passed1/1及checkpoint恢复，
-peakallocated31,009,318,400bytes；micro80 OOM，88未启动。单步不证明持续容量。
-stem `/data/yilangliu/GraD-Pert/development/single-3ba9a96-capacity-integration`。
-源码 `/data/yilangliu/GraD-Pert/development/source-v2-capacity-3ba9a96`，
-SHA `3ba9a960d79d207ce89dd938b672be051f327234`，发布身份已核验。
-发布 `development/gradpert-capacity-publication-3ba9a96.json` SHA256
-`54e8f9df74e539e51001c74b1a0b51bc7b162b3cb89fe2fb5a746a35bffc0c2c`。
-收据review158,510bytes后保存docs/experiments/single-3ba9a96-capacity-integration/。
-前次micro8/16/32/48/64均passed，review403,935bytes后保存
-`docs/experiments/single-a1d55fa-capacity-integration/`。
+当前活跃父PID3436999，stem `/data/yilangliu/GraD-Pert/development/single-67fd8e1-sinkhorn-parity`
+(.pid/.log/.stage/.tests.log/.run.log/.exit；收据子目录rank-{0,1}-receipt.json)。
+已进入parity；双卡完整loss每边2更新，candidate-only fused_sinkhorn；
+config两边同为single_pass_jurkat/profiling_m2_a2 (全局8)，deterministic，默认checkpoint。
+服务器源码`/data/yilangliu/GraD-Pert/development/source-v2-sinkhorn-67fd8e1`，
+SHA67fd8e1883ecb5d1145fe179d797347057f29394，干净发布身份核验通过。
+publication `development/gradpert-sinkhorn-publication-67fd8e1.json` SHA256
+`d5b530afeef52a7af65d057cc40c890e939af23fd0e83d16df213dbf4772dbd4`。
+当前默认模型仍eager，诊断开关只由update_parity --candidate-fused-sinkhorn启用。
+下一步核对完整loss/all gradients/optimizer/EMA/centers及RNG、非零LR，
+失败不放宽误差；通过后实际ABBA双卡端到端吞吐（需添加benchmark-only开关）。
+之后仍需代表性batch、持续容量、恢复/300control，再完整B0五轮best/last。
 
-下一动作：有界流式解析既有大trace（无需重新占GPU）：服务器development/
-single-38af3ce-profile-replay-profile/rank-{0,1}-trace.json，各约4.77GB。
-避免key_averages超大内存问题。定量结果指导融合Gram前后向候选；保持随机数、
-合法邻域、final-state读取、梯度及optimizer/EMA/center协议，不放宽误差掩盖失败。
-优化完成前不启动72的长测/正式B0；最终仍需持续容量和完整B0五轮best/last。
+先前容量短检查全部终止：a1d55fa micro8/16/32/48/64 passed1/1，
+3ba9a96 micro72 passed1/1+restore、micro80 OOM、88未启动。
+各原始收据在对应docs/experiments/single-*-capacity-integration目录。
+单步不证明持续容量；机制优化验证前不启动容量长测/正式B0。
 
 ## 已完成的性能取舍
 
