@@ -42,3 +42,35 @@ def test_unused_positive_exponents_cannot_overflow():
     gradients = weighted_gram_backward(keys, gates, torch.ones_like(result))
     assert torch.isfinite(result).all()
     assert all(torch.isfinite(g).all() for g in gradients)
+
+
+@pytest.mark.parametrize("length", [1, 17, 33])
+def test_fused_dispatch_preserves_final_state_and_all_gradients(monkeypatch, length):
+    from gradpert.modeling.v2 import weighted_gram
+    from gradpert.modeling.v2.operators import chunk_delta_final_state
+
+    calls = []
+
+    def reference(keys, gates):
+        calls.append(keys.shape[-2])
+        return weighted_gram_reference(keys, gates)
+
+    monkeypatch.setattr(weighted_gram, "fused_weighted_gram", reference)
+    torch.manual_seed(31)
+    k = torch.nn.functional.normalize(torch.randn(2, length, 2, 8), dim=-1).requires_grad_()
+    v = torch.randn_like(k, requires_grad=True)
+    g = (-torch.rand_like(k)).requires_grad_()
+    beta = torch.rand(2, length, 2, requires_grad=True)
+    initial = torch.randn(2, 2, 8, 8, requires_grad=True)
+    inputs = (k, v, g, beta, initial)
+    expected = chunk_delta_final_state(*inputs)
+    actual = chunk_delta_final_state(*inputs, fused_gram=True)
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+    upstream = torch.randn_like(actual)
+    for a, b in zip(
+        torch.autograd.grad(actual, inputs, upstream),
+        torch.autograd.grad(expected, inputs, upstream),
+        strict=True,
+    ):
+        torch.testing.assert_close(a, b, atol=0, rtol=0)
+    assert calls == ([length] if length <= 32 else [32, 1])

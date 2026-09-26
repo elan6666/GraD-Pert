@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
-from functools import lru_cache
+from functools import lru_cache, partial
 from typing import cast
 
 import torch
@@ -99,11 +99,16 @@ def chunk_delta_final_state(
     chunk_size: int = 32,
     *,
     compiled: bool = False,
+    fused_gram: bool = False,
 ) -> Tensor:
     """Exact block solve for the final state only; avoids per-token query reads."""
     if state is None:
         state = k.new_zeros(k.shape[0], k.shape[2], k.shape[3], v.shape[-1], dtype=torch.float32)
+    if compiled and fused_gram:
+        raise ValueError("isolate Gram fusion from regional compilation")
     block = compiled_delta_block() if compiled else delta_final_block
+    if fused_gram:
+        block = partial(delta_final_block, fused_gram=True)
     for start in range(0, k.shape[1], chunk_size):
         end = min(start + chunk_size, k.shape[1])
         state = block(
@@ -113,7 +118,13 @@ def chunk_delta_final_state(
 
 
 def delta_final_block(
-    k: Tensor, v: Tensor, log_decay: Tensor, beta: Tensor, state: Tensor
+    k: Tensor,
+    v: Tensor,
+    log_decay: Tensor,
+    beta: Tensor,
+    state: Tensor,
+    *,
+    fused_gram: bool = False,
 ) -> Tensor:
     """One unchanged delta block; regional compilation can fuse elementwise work.
 
@@ -124,13 +135,18 @@ def delta_final_block(
     gates = log_decay.float().transpose(1, 2).cumsum(-2)
     write_rate = beta.float().transpose(1, 2).unsqueeze(-1)
     length = k.shape[1]
-    causal = torch.ones(length, length, device=k.device, dtype=torch.bool).tril()
-    decay = (
-        (gates.unsqueeze(-2) - gates.unsqueeze(-3))
-        .masked_fill(~causal[None, None, :, :, None], 0)
-        .exp()
-    )
-    past_keys = (key.unsqueeze(-2) * key.unsqueeze(-3) * decay).sum(-1)
+    if fused_gram:
+        from .weighted_gram import fused_weighted_gram
+
+        past_keys = fused_weighted_gram(key, gates)
+    else:
+        causal = torch.ones(length, length, device=k.device, dtype=torch.bool).tril()
+        decay = (
+            (gates.unsqueeze(-2) - gates.unsqueeze(-3))
+            .masked_fill(~causal[None, None, :, :, None], 0)
+            .exp()
+        )
+        past_keys = (key.unsqueeze(-2) * key.unsqueeze(-3) * decay).sum(-1)
     triangular = (past_keys * write_rate).tril(-1)
     triangular = triangular + torch.eye(length, device=k.device)
     old_read = (key * gates.exp()) @ state
@@ -261,6 +277,7 @@ class RelayDeltaAttention(DeltaAttention):
         self.compiled_chunks = False
         self.write_passes = 2
         self.replay_sequences = False
+        self.fused_gram_diagnostic = False
 
     def random_order_enabled(self) -> bool:
         return self.training if self.randomize_order is None else self.randomize_order
@@ -302,7 +319,14 @@ class RelayDeltaAttention(DeltaAttention):
                 )
             return replayed_delta_scan()(key, value, decay, beta)
         if self.write_passes == 1:
-            return chunk_delta_final_state(key, value, decay, beta, compiled=self.compiled_chunks)
+            return chunk_delta_final_state(
+                key,
+                value,
+                decay,
+                beta,
+                compiled=self.compiled_chunks,
+                fused_gram=self.fused_gram_diagnostic,
+            )
         # A single scan preserves the exact forward final state as the reverse
         # initial state; reverse writes use the very same projected tokens.
         return chunk_delta_final_state(
@@ -311,6 +335,7 @@ class RelayDeltaAttention(DeltaAttention):
             torch.cat((decay, decay.flip(1)), dim=1),
             torch.cat((beta, beta.flip(1)), dim=1),
             compiled=self.compiled_chunks,
+            fused_gram=self.fused_gram_diagnostic,
         )
 
     def forward(
@@ -343,6 +368,7 @@ class RelayDeltaAttention(DeltaAttention):
                     cls_beta,
                     state=state,
                     compiled=self.compiled_chunks,
+                    fused_gram=self.fused_gram_diagnostic,
                 )
         if block_cls_to_gene and has_cls:
             return torch.cat(

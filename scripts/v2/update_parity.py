@@ -151,6 +151,21 @@ def enable_fused_sinkhorn(objective: Any) -> int:
     return count
 
 
+def enable_fused_gram(objective: Any) -> int:
+    """Candidate-only Gram fusion in graph, self and cross KDA, including EMA."""
+    from gradpert.modeling.v2.operators import RelayDeltaAttention
+
+    count = 0
+    for model in (objective.student, objective.teacher):
+        for module in model.modules():
+            if isinstance(module, RelayDeltaAttention):
+                assert not module.compiled_chunks and not module.replay_sequences
+                module.fused_gram_diagnostic = True
+                count += 1
+    assert count > 0
+    return count
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
@@ -166,7 +181,16 @@ def main() -> None:
     parser.add_argument("--candidate-no-sequence-checkpoint", action="store_true")
     parser.add_argument("--candidate-cpu-prefetch", action="store_true")
     parser.add_argument("--candidate-fused-sinkhorn", action="store_true")
+    parser.add_argument("--candidate-fused-gram", action="store_true")
     args = parser.parse_args()
+    if args.candidate_fused_gram and (
+        args.candidate_fused_sinkhorn
+        or args.candidate_cpu_prefetch
+        or args.no_sequence_checkpoint
+        or args.candidate_no_sequence_checkpoint
+        or args.reference_repeat
+    ):
+        parser.error("Gram fusion diagnostic must isolate one execution factor")
     if args.candidate_fused_sinkhorn and (
         args.candidate_cpu_prefetch
         or args.no_sequence_checkpoint
@@ -233,7 +257,8 @@ def main() -> None:
         args.reference_repeat
         or args.candidate_no_sequence_checkpoint
         or args.candidate_cpu_prefetch
-        or args.candidate_fused_sinkhorn,
+        or args.candidate_fused_sinkhorn
+        or args.candidate_fused_gram,
     )
     assert candidate_options == options
     left, right = config.model_dump(mode="json"), candidate.model_dump(mode="json")
@@ -269,6 +294,7 @@ def main() -> None:
         "reference_repeat": args.reference_repeat,
         "candidate_cpu_prefetch_diagnostic_only": args.candidate_cpu_prefetch,
         "candidate_fused_sinkhorn_diagnostic_only": args.candidate_fused_sinkhorn,
+        "candidate_fused_gram_diagnostic_only": args.candidate_fused_gram,
         "candidate_sequence_checkpoint_disabled_diagnostic_only": (
             args.candidate_no_sequence_checkpoint
         ),
@@ -323,6 +349,10 @@ def main() -> None:
                         )
                         if args.candidate_no_sequence_checkpoint:
                             disable_sequence_checkpoint(runtime.objective)
+                        if args.candidate_fused_gram:
+                            receipt["fused_gram_module_count"] = enable_fused_gram(
+                                runtime.objective
+                            )
                         if args.candidate_fused_sinkhorn:
                             receipt["fused_sinkhorn_module_count"] = enable_fused_sinkhorn(
                                 runtime.objective
