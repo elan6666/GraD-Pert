@@ -2,7 +2,7 @@
 
 User explicitly requested Goal-mode supervision on 2026-09-26 after restoring
 VPN. Goal is active for performance diagnosis/optimization and the dependent
-capacity/full-B0 workflow; no scheduled monitor and a bounded GPU diagnostic probe is now active.
+capacity/full-B0 workflow; no scheduled monitor. The first GPU profile captured both traces but its summary parser failed; repair is in progress.
 Worktree `/Users/elan/code/grad-pert-v2-build`; preserve dirty root and old runs.
 
 Method stage A published: `7e4c669e5043986209339a0c8a613b02645356d3`.
@@ -22,13 +22,9 @@ matches unprofiled. Published diagnostics/guidance SHA `d9c1fbfb4a7864be316426fd
 First probe config is full-size model at micro2×accum2×world2=batch8. This is
 only a conservative diagnostic candidate, not a new scientific default.
 
-Fresh SSH recovered and authenticated to ubuntu-server; GPUs each2MiB, no
-compute process shown yet to be verified. GPU0 reported100% utilization despite
-2MiB; inspect topology/process/device health before admission. New-method source
-must be deployed to a fresh clean immutable checkout, never an old run checkout.
-Local build produced ignored egg-info; create publication receipt from a clean
-archive/worktree, not this packaging workspace (old temporary7e4c669 receipt
-includes build metadata and must not be used on server).
+Fresh SSH is authenticated. Publication receipts must come from a clean
+worktree: local build egg-info contaminated the old temporary7e4c669 receipt;
+that receipt is invalid for server comparison. d9c1fbf uses the clean receipt.
 
 Server supported environment Python3.12.3/Torch2.13.0+cu130 passed all263 v2
 checks. Both GPUs passed tiny CUDA arithmetic/synchronization; GPU0 idle100%
@@ -42,11 +38,15 @@ Dual-card integration passed1/1 with checkpoint reload; receipt
 SHA256 `e2f84d94521a8fb484d5c715c2f6956fc905ed36b05be37bab9e6c95097e5a7c`.
 Cold update28.942s/data4.386s/peak3.313GB; not steady throughput or capacity.
 
-Active 3-update diagnostic (last update profiled with allocation events):
+Failed 3-update diagnostic (last update captured with allocation events):
 `/data/yilangliu/GraD-Pert/development/relay-d9c1fbf-m2-profile`;
 log/PID/exit use same stem with .log/.pid/.exit, own GPU0/1 locks,600s time cap.
-Require status/exit and both rank traces; missing process is not success.
-A timeout/failure preserves receipts and needs diagnosis before any continuation.
+Both7.5GB traces were exported, then trace_summary rejected the CPU capture
+annotation plus CUDA-mirrored gpu_user_annotation as two windows. Original
+rank failure receipts/logs and traces remain unchanged; no active GPU process
+or formal run. Fix selects only the CPU window and excludes GPU mirrored
+regions from CPU-inclusive totals, with a synthetic mirrored-event regression.
+Analyze existing traces after validation/publication; no GPU recapture needed.
 
 Additional user request complete: updated EasyConnect skill with native Swift AX
 and private Security.framework credential path; both installed copies match,

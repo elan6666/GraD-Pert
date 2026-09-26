@@ -20,7 +20,8 @@ User restored server access and requested Goal supervision. Goal active; SSH
 works again. Diagnostics published `d9c1fbfb4a7864be316426fd2a7b26797ad7b138` and verified
 on clean server source. Supported server environment passed263 v2 tests;
 dual-card complete update + resume passed at micro2/accum2/global8. Short final-
-update CPU/GPU trace is active; no formal training or timer. GPU0 idle100%
+update CPU/GPU traces were exported, but summary parsing failed on CUDA-mirrored
+annotations. Repair and reanalysis are in progress; no formal training or timer. GPU0 idle100%
 telemetry is anomalous but both cards passed CUDA arithmetic; analyze traces. [Plan](../docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md) and STATE.md carry
 remaining diagnostics→optimization→capacity→five-epoch-B0 dependencies. No new
 CUDA throughput, capacity, or scientific results claimed.

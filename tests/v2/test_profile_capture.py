@@ -73,6 +73,46 @@ def test_profile_preserves_complete_update_rng_and_restores_wrapped_methods(tmp_
     FIXTURE.assert_tree_close(snapshots[0], snapshots[1])
 
 
+def test_cuda_mirrored_annotations_are_not_cpu_windows_or_cpu_regions():
+    trace = {
+        "traceEvents": [
+            {
+                "ph": "X",
+                "cat": "user_annotation",
+                "name": "gradpert/capture_window",
+                "ts": 0,
+                "dur": 100,
+            },
+            {
+                "ph": "X",
+                "cat": "gpu_user_annotation",
+                "name": "gradpert/capture_window",
+                "ts": 10,
+                "dur": 80,
+            },
+            {
+                "ph": "X",
+                "cat": "user_annotation",
+                "name": "gradpert/student/graph",
+                "ts": 5,
+                "dur": 50,
+            },
+            {
+                "ph": "X",
+                "cat": "gpu_user_annotation",
+                "name": "gradpert/student/graph",
+                "ts": 10,
+                "dur": 40,
+            },
+            {"ph": "X", "cat": "kernel", "ts": 10, "dur": 40},
+        ]
+    }
+    summary = PROFILE.trace_summary(trace)
+    assert summary["window_us"] == 100
+    assert summary["gpu_busy_union_us"] == 40
+    assert summary["regions"]["gradpert/student/graph"] == {"calls": 1, "cpu_inclusive_us": 50}
+
+
 def test_region_cleanup_on_failure():
     objective, _ = FIXTURE.relay_training_fixture()
     optimizer = V2Optimizer(objective.student, 0.001, 0)

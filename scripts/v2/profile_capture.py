@@ -140,7 +140,9 @@ def trace_summary(trace: dict[str, Any]) -> dict[str, Any]:
     windows = [
         (float(e["ts"]), float(e["ts"]) + float(e["dur"]))
         for e in events
-        if e.get("ph") == "X" and e.get("name") == "gradpert/capture_window"
+        if e.get("ph") == "X"
+        and e.get("name") == "gradpert/capture_window"
+        and e.get("cat") != "gpu_user_annotation"
     ]
     if len(windows) != 1:
         raise ValueError("trace needs exactly one capture window")
@@ -174,7 +176,7 @@ def trace_summary(trace: dict[str, Any]) -> dict[str, Any]:
             device.append((left, right))
             kernels += category == "kernel"
             copies += category == "gpu_memcpy"
-        if name.startswith("gradpert/"):
+        if name.startswith("gradpert/") and category != "gpu_user_annotation":
             row = labels.setdefault(name, {"calls": 0, "cpu_inclusive_us": 0})
             row["calls"] += 1
             row["cpu_inclusive_us"] += right - left
