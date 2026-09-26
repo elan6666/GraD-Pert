@@ -1,5 +1,19 @@
 ## Resumed single-pass performance engineering — 2026-09-26
 
+ABBA throughput diagnostic launched PID3413600, stem
+`/data/yilangliu/GraD-Pert/development/single-3a2980d-replay-abba`.
+Immutable source `development/source-v2-replay-3a2980d`, fullSHA
+3a2980d2eee30faa1ad99fb4481262701879d262, publication
+`development/gradpert-replay-publication-3a2980d.json` SHA256
+a19bc42a1af60768863314c2ba640a8847f8bf1d905f9825d387d752682650f6.
+A1/B1/B2/A2: eager/replay/replay/eager, all no-sequence-checkpoint override;
+graph checkpoint remains. Global8=micro2*accum2*2GPUs. Each12 updates,
+3warmup+9timed, timeout1200s each, bothGPUlocks. Logs/receipts: stem-label.log
+and stem-label/receipt.json; wrapper .stage/.pid/.exit. Stops on failure.
+14 targeted tests passed locally and scoped mypy/ruff passed. Inspect live
+result, compare schedule/view hashes, timings and peak memory before adoption.
+This diagnostic is not sustained capacity or formal training. Goal stays active.
+
 Checkpoint-isolation diagnostic PASSED on both ranks, exit0, GPUs released.
 Source a63ac39a3b9237cf57c5782bcc7f5939fa6e2edb; two full updates (second
 nonzero LR), exact input/RNG identity, all compared losses/gradients/objective/
