@@ -1,5 +1,17 @@
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Ownership-repair hypothesis published835a9ad663ca0546b2cf36da02d1df69a1dc9521,
+clean immutable `development/source-v2-replay-835a9ad`, tree
+b3103a1d8457898db791584716a8abcefbdcf1ab6acfa0f5f9184b932eb74ccd;
+publication `development/gradpert-replay-publication-835a9ad.json` SHA256
+64ed51fa9535eaf91f48d984b7dd728b408bd1ad12df6e26d5b404532e12a735.
+New parity wrapper PID3409783, stem `development/single-835a9ad-replay-parity`;
+same .stage/.run.log/.pid/.exit and rank receipt layout,1200s timeout/bothGPUlocks.
+Only donation policy changes relative to failed replay candidate. Reference
+still eager, checkpointing unchanged. Inspect terminal result before deciding
+next optimization; do not repeat unchanged failing configuration. No model
+optimization adopted and no capacity/formal job yet.
+
 3c308dd sequence replay full-update candidate FAILED on both ranks during
 first accumulated cell backward, before any candidate update comparison:
 "graph recording observed an input tensor deallocate ... did not occur during
