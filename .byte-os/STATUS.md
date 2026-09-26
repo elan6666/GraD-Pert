@@ -14,6 +14,19 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Profiler postprocessing issue observed: after ~4.77GB/rank trace and small
+summary had been saved, lazy key_averages aggregation ran >5minutes at one CPU
+core/rank and ~49millionKiB RSS/rank. Host still had ample available RAM;
+original processes kept intact under2400s wrapper timeout. Do not label hung
+or terminal solely because .stage/receipt has not advanced.
+Prepared diagnostic-only repair: detailed operator table is now opt-in via
+`--profile-operator-table` (requires profile-last-update). Default still exports
+raw trace, region summary and GPU interval union, without key_averages. No
+model, loss or optimizer change. Tests5profile+7probe-policy pass; profile test
+checks complete update/RNG equality, default forbids expensive aggregation,
+explicit mode exports table. Scoped mypy2files and ruff pass. Applies only to
+future immutable source; current c073a37 capture is not modified.
+
 Both single-pass trace summaries have been generated and copied after bounded
 dry-run (12,618bytes), `docs/experiments/single-c073a37-preflight/profile/`.
 Rank0/1 kernel counts1,414,510/1,414,379 in ~31.51s profiled windows;

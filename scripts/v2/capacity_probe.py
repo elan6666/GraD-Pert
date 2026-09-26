@@ -47,6 +47,7 @@ def main() -> None:
     parser.add_argument("--warmup-steps", type=int)
     parser.add_argument("--profile-last-update", action="store_true")
     parser.add_argument("--profile-memory", action="store_true")
+    parser.add_argument("--profile-operator-table", action="store_true")
     parser.add_argument("--sync-phase-timing", action="store_true")
     args = parser.parse_args()
     try:
@@ -65,6 +66,8 @@ def main() -> None:
         parser.error("profile requires benchmark-only, two post-warmup updates and no sync timing")
     if args.profile_memory and not args.profile_last_update:
         parser.error("profile-memory requires profile-last-update")
+    if args.profile_operator_table and not args.profile_last_update:
+        parser.error("operator table requires profile-last-update")
     measured_stop = args.steps - int(args.profile_last_update)
     if not args.output.resolve().is_relative_to("/data/yilangliu"):
         parser.error("capacity artifacts stay on the server")
@@ -131,6 +134,7 @@ def main() -> None:
         "warmup_steps": warmup_steps,
         "profile_last_update": args.profile_last_update,
         "profile_memory": args.profile_memory,
+        "profile_operator_table": args.profile_operator_table,
         "sync_phase_timing": args.sync_phase_timing,
         "hardware": environment_snapshot(torch),
         "host_before": host_snapshot(),
@@ -268,7 +272,11 @@ def main() -> None:
                 if step >= args.steps:
                     break
             receipt["training_wall_seconds"] = time.perf_counter() - training_started
-            profile_summary = capture.close() if capture is not None else None
+            profile_summary = (
+                capture.close(operator_table=args.profile_operator_table)
+                if capture is not None
+                else None
+            )
             receipt["host_after"] = host_snapshot()
             receipt["end_to_end_training_cells_per_second"] = (
                 sum(cells) / receipt["training_wall_seconds"]

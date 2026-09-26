@@ -274,3 +274,11 @@ Publication from it differed from a fresh server checkout and correctly failed.
 Generate release receipts from a clean clone at the published SHA; compare tree
 hashes before any CUDA work. Never bypass the identity check or delete unrelated
 local artifacts merely to match a release.
+
+## Bounded profiler postprocessing
+
+Large KDA traces contain over a million kernels per update. Torch key_averages
+can lazily materialize event objects after trace export, taking minutes and
+~47GiB RSS per rank in the observed single-pass probe. Keep detailed operator
+tables opt-in; preserve raw traces and small summaries by default. Profiler
+overhead, including postprocessing, is not model training throughput.

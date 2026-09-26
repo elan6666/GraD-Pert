@@ -46,7 +46,10 @@ def test_trace_union_counts_parallel_kernels_once_and_missing_cuda_is_unknown():
         PROFILE.trace_summary({"traceEvents": []})
 
 
-def test_profile_preserves_complete_update_rng_and_restores_wrapped_methods(tmp_path):
+@pytest.mark.parametrize("operator_table", [False, True])
+def test_profile_preserves_complete_update_rng_and_restores_wrapped_methods(
+    tmp_path, monkeypatch, operator_table
+):
     objective, batch = FIXTURE.relay_training_fixture()
     snapshots = []
     for capture_enabled in (False, True):
@@ -61,7 +64,15 @@ def test_profile_preserves_complete_update_rng_and_restores_wrapped_methods(tmp_
             current, optimizer, batch, microbatch=2, lr=0.001, momentum=0.99, bf16=False
         )
         if capture_enabled:
-            summary = capture.close()
+            if not operator_table:
+
+                def forbidden(*args, **kwargs):
+                    raise AssertionError("default capture must not aggregate full event objects")
+
+                monkeypatch.setattr(capture.profiler, "key_averages", forbidden)
+            summary = capture.close(operator_table=operator_table)
+            assert summary["operator_table_exported"] == operator_table
+            assert (tmp_path / "rank-0-operators.txt").exists() == operator_table
             assert summary["summary"]["cuda_activity_present"] is False
             assert "gradpert/student/graph" in summary["summary"]["regions"]
             assert (tmp_path / "rank-0-trace.json").is_file()

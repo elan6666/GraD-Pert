@@ -239,7 +239,7 @@ class ProfileCapture:
             self.close(export=False)
             raise
 
-    def close(self, *, export: bool = True) -> dict[str, Any] | None:
+    def close(self, *, export: bool = True, operator_table: bool = False) -> dict[str, Any] | None:
         if self.stack is None:
             return None
         stack, self.stack = self.stack, None
@@ -252,8 +252,17 @@ class ProfileCapture:
         (self.output / f"rank-{self.rank}-trace-summary.json").write_text(
             json.dumps(summary, indent=2) + "\n"
         )
-        (self.output / f"rank-{self.rank}-operators.txt").write_text(
-            self.profiler.key_averages().table(sort_by="self_device_time_total", row_limit=100)
-        )
+        # Kineto key_averages lazily materializes millions of events and can
+        # dominate host memory/time. Raw traces preserve the evidence for later
+        # analysis; normal diagnostics need only the bounded summary above.
+        if operator_table:
+            (self.output / f"rank-{self.rank}-operators.txt").write_text(
+                self.profiler.key_averages().table(sort_by="self_device_time_total", row_limit=100)
+            )
         self.profiler = None
-        return {"trace": str(path), "trace_bytes": path.stat().st_size, "summary": summary}
+        return {
+            "trace": str(path),
+            "trace_bytes": path.stat().st_size,
+            "summary": summary,
+            "operator_table_exported": operator_table,
+        }
