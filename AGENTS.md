@@ -104,6 +104,12 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   `com.sangfor.Easyconnect` through available live UI/AX tools. If the current
   tool set cannot interact, try available supported local UI automation and
   report the precise limitation instead of pretending a recovery was attempted.
+- If the computer-use plugin is unavailable, run the skill's bundled native
+  fallback: `python3 /Users/elan/.agents/skills/smbu-easyconnect-login/scripts/easyconnect.py recover`.
+  Native AX avoids the observed System Events AXURL error and unbounded
+  Electron-tree hangs. The helper verifies live UI, TCP and SSH and never
+  relogs a healthy session. Its installed copies and runtime loading were
+  checked on 2026-09-26; a live expired-session submission remains unverified.
 - On failed research-server connectivity, inspect the live client. For an
   expired/logged-out session, perform one routine recovery at the approved
   `https://vpn.smbu.edu.cn` gateway; reopen only EasyConnect if unresponsive.

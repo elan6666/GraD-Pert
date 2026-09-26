@@ -2,7 +2,7 @@
 
 User explicitly requested Goal-mode supervision on 2026-09-26 after restoring
 VPN. Goal is active for performance diagnosis/optimization and the dependent
-capacity/full-B0 workflow; no scheduled monitor and no new GPU job yet.
+capacity/full-B0 workflow; no scheduled monitor and a bounded GPU diagnostic probe is now active.
 Worktree `/Users/elan/code/grad-pert-v2-build`; preserve dirty root and old runs.
 
 Method stage A published: `7e4c669e5043986209339a0c8a613b02645356d3`.
@@ -18,7 +18,7 @@ labels, GPU busy interval unions, optional memory trace, per-rank timing/RSS,
 ordered batch plan/RNG hashes, custom warmup and no default mid-step barriers.
 49 targeted tests plus5 additional CLI rejection tests pass; scoped tool mypy
 and all-tree lint/format pass. Profiled complete optimizer/EMA/center/RNG update
-matches unprofiled. Pending scoped publication then server integration.
+matches unprofiled. Published diagnostics/guidance SHA `d9c1fbfb4a7864be316426fd2a7b26797ad7b138`; clean local/GitHub/server identity verified.
 First probe config is full-size model at micro2×accum2×world2=batch8. This is
 only a conservative diagnostic candidate, not a new scientific default.
 
@@ -30,8 +30,30 @@ Local build produced ignored egg-info; create publication receipt from a clean
 archive/worktree, not this packaging workspace (old temporary7e4c669 receipt
 includes build metadata and must not be used on server).
 
-Next: publish tools, seal clean source/receipt, supported-environment CPU checks,
-dual-GPU single-update+resume, short CPU/GPU timeline, then ranked measured
+Server supported environment Python3.12.3/Torch2.13.0+cu130 passed all263 v2
+checks. Both GPUs passed tiny CUDA arithmetic/synchronization; GPU0 idle100%
+telemetry remains anomalous, so use trace timings, not utilization alone.
+Immutable source `/data/yilangliu/GraD-Pert/development/source-v2-relay-d9c1fbf`.
+Publication `/data/yilangliu/GraD-Pert/development/gradpert-relay-publication-d9c1fbf.json`,
+SHA256 `0d13c02e2bf8a5599da7a41dc2d184511b9c025aa524031d83f5bc1eac471eee`.
+Config m2/a2 SHA256 `069251ca1d0cf3dbd16f73466d3621a74894a57ce8df306203c5db81f1ca8692`.
+Dual-card integration passed1/1 with checkpoint reload; receipt
+`/data/yilangliu/GraD-Pert/development/relay-d9c1fbf-m2-integration/receipt.json`,
+SHA256 `e2f84d94521a8fb484d5c715c2f6956fc905ed36b05be37bab9e6c95097e5a7c`.
+Cold update28.942s/data4.386s/peak3.313GB; not steady throughput or capacity.
+
+Active 3-update diagnostic (last update profiled with allocation events):
+`/data/yilangliu/GraD-Pert/development/relay-d9c1fbf-m2-profile`;
+log/PID/exit use same stem with .log/.pid/.exit, own GPU0/1 locks,600s time cap.
+Require status/exit and both rank traces; missing process is not success.
+A timeout/failure preserves receipts and needs diagnosis before any continuation.
+
+Additional user request complete: updated EasyConnect skill with native Swift AX
+and private Security.framework credential path; both installed copies match,
+6 decision tests, live healthy UI/TCP/SSH checks and Codex forceReload recognition
+passed. No live logout/login was forced. AGENTS contains fallback command.
+
+Next: read short CPU/GPU timeline, then ranked measured
 optimizations with full-update parity/ABBA, sustained128+ batch search, then only
 complete Jurkat B0 five epochs and best/last tests. No other ablations. Preserve
 full run/source/config/data/environment identity. Old batch192 is uncertified.

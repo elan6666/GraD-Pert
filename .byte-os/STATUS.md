@@ -17,10 +17,11 @@ same frozen EMA Teacher. Full B0 retains prediction+SSL1+SSL2. Local acceptance
 and disclosed historical failures: [receipt](../docs/experiments/relay-stage-a.json).
 
 User restored server access and requested Goal supervision. Goal active; SSH
-works again. No new GPU job/monitor yet. Performance instrumentation is locally
-validated and awaiting publication; first target probe is same full model at
-micro2/accum2/two GPUs. Inspect GPU0's anomalous idle100% utilization before
-launch. [Plan](../docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md) and STATE.md carry
+works again. Diagnostics published `d9c1fbfb4a7864be316426fd2a7b26797ad7b138` and verified
+on clean server source. Supported server environment passed263 v2 tests;
+dual-card complete update + resume passed at micro2/accum2/global8. Short final-
+update CPU/GPU trace is active; no formal training or timer. GPU0 idle100%
+telemetry is anomalous but both cards passed CUDA arithmetic; analyze traces. [Plan](../docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md) and STATE.md carry
 remaining diagnostics→optimization→capacity→five-epoch-B0 dependencies. No new
 CUDA throughput, capacity, or scientific results claimed.
 
