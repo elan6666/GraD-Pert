@@ -127,6 +127,40 @@ def test_candidate_checkpoint_diagnostic_rejects_ambiguous_overrides(conflict):
     assert "candidate-only checkpoint diagnostic" in result.stderr
 
 
+def test_no_grad_elision_diagnostic_rejects_mixed_execution_factors():
+    import subprocess
+    import sys
+
+    script = Path(__file__).resolve().parents[2] / "scripts/v2/update_parity.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--config",
+            "unused",
+            "--candidate-config",
+            "unused",
+            "--data-root",
+            "/data/yilangliu",
+            "--output",
+            "/data/yilangliu/unused",
+            "--gpu",
+            "0,1",
+            "--publication",
+            "unused",
+            "--publication-sha256",
+            "unused",
+            "--candidate-no-grad-elision",
+            "--candidate-fused-gram",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "no-grad storage diagnostic" in result.stderr
+
+
 def test_gram_forward_audit_reports_first_actual_mismatch(monkeypatch):
     from gradpert.modeling.v2 import weighted_gram
 

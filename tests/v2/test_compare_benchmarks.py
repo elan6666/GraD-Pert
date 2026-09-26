@@ -131,6 +131,21 @@ def test_fused_sinkhorn_rejects_hidden_prefetch_and_missing_activation():
         MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "fused_sinkhorn")
 
 
+def test_teacher_no_grad_elision_requires_saved_reference_only():
+    payloads = [
+        {"model": {"parameters": {"sinkhorn_backend": {"value": "auto"}}}} for _ in range(2)
+    ]
+    rows = [receipt(10) for _ in range(4)]
+    for record, saved in zip(rows, (True, False, False, True), strict=True):
+        record["save_no_grad_sinkhorn_diagnostic_only"] = saved
+        if saved:
+            record["sinkhorn_storage_module_count"] = 40
+    MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "teacher_no_grad_elision")
+    rows[1]["save_no_grad_sinkhorn_diagnostic_only"] = True
+    with pytest.raises(ValueError, match="Teacher Sinkhorn storage"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "teacher_no_grad_elision")
+
+
 def test_gram_factor_rejects_mixed_fusion_and_count_drift():
     payloads = [{"model": {"parameters": {}}} for _ in range(2)]
     rows = [receipt(10) for _ in range(4)]

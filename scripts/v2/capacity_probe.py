@@ -53,6 +53,7 @@ def main() -> None:
     parser.add_argument("--no-sequence-checkpoint", action="store_true")
     parser.add_argument("--cpu-prefetch", action="store_true")
     parser.add_argument("--fused-sinkhorn", action="store_true")
+    parser.add_argument("--save-no-grad-sinkhorn", action="store_true")
     parser.add_argument("--fused-gram", action="store_true")
     args = parser.parse_args()
     if args.fused_gram and (
@@ -86,6 +87,14 @@ def main() -> None:
         not args.benchmark_only or args.cpu_prefetch or args.no_sequence_checkpoint
     ):
         parser.error("fused Sinkhorn requires an isolated benchmark-only diagnostic")
+    if args.save_no_grad_sinkhorn and (
+        not args.benchmark_only
+        or args.fused_sinkhorn
+        or args.fused_gram
+        or args.cpu_prefetch
+        or args.no_sequence_checkpoint
+    ):
+        parser.error("saved no-grad Sinkhorn requires an isolated benchmark-only diagnostic")
     if args.no_sequence_checkpoint and not args.benchmark_only:
         parser.error("no-sequence-checkpoint is benchmark-only diagnostic, not capacity evidence")
     measured_stop = args.steps - int(args.profile_last_update)
@@ -113,6 +122,7 @@ def main() -> None:
         StepWarmupCosine,
         load_training_schedule,
     )
+    from gradpert.config.v2 import V2Options
     from gradpert.data._io import atomic_json
     from gradpert.evaluation.data import CanonicalEvaluationData
     from gradpert.execution.identity import inspect_environment, inspect_source_identity
@@ -124,6 +134,9 @@ def main() -> None:
     from gradpert.training.v2.runtime import prepare_runtime
 
     config = load_experiment_config(args.config)
+    architecture, _ = V2Options.parse_parameters(config.model.parameters)
+    if args.save_no_grad_sinkhorn and architecture.sinkhorn_backend not in ("auto", "triton"):
+        parser.error("saved no-grad Sinkhorn requires a fused backend")
     source = inspect_source_identity(
         Path(__file__).resolve().parents[2],
         formal=True,
@@ -158,6 +171,7 @@ def main() -> None:
         "sync_phase_timing": args.sync_phase_timing,
         "cpu_prefetch_diagnostic_only": args.cpu_prefetch,
         "fused_sinkhorn_diagnostic_only": args.fused_sinkhorn,
+        "save_no_grad_sinkhorn_diagnostic_only": args.save_no_grad_sinkhorn,
         "fused_gram_diagnostic_only": args.fused_gram,
         "sequence_checkpoint_disabled_diagnostic_only": args.no_sequence_checkpoint,
         "hardware": environment_snapshot(torch),
@@ -185,6 +199,12 @@ def main() -> None:
                 from update_parity import enable_fused_sinkhorn
 
                 receipt["fused_sinkhorn_module_count"] = enable_fused_sinkhorn(runtime.objective)
+            if args.save_no_grad_sinkhorn:
+                from update_parity import set_no_grad_sinkhorn_storage
+
+                receipt["sinkhorn_storage_module_count"] = set_no_grad_sinkhorn_storage(
+                    runtime.objective, save=True
+                )
             if args.no_sequence_checkpoint:
                 from update_parity import disable_sequence_checkpoint
 

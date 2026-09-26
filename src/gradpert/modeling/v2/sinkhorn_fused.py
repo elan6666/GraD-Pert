@@ -57,13 +57,15 @@ class _Sinkhorn(torch.autograd.Function):
         return gradient.to(ctx.input_dtype), None
 
 
-def fused_sinkhorn(logits: Tensor, iterations: int = 20) -> Tensor:
+def fused_sinkhorn(
+    logits: Tensor, iterations: int = 20, *, save_no_grad_intermediates: bool = False
+) -> Tensor:
     if not logits.is_cuda or logits.shape[-2:] != (4, 4):
         raise ValueError("fused Sinkhorn requires CUDA and four streams")
     if not 1 <= iterations <= 32:
         raise ValueError("iterations must be between 1 and 32")
     contiguous = logits.contiguous()
-    if not torch.is_grad_enabled() or not logits.requires_grad:
+    if (not torch.is_grad_enabled() or not logits.requires_grad) and not save_no_grad_intermediates:
         from ._sinkhorn_cuda import forward_no_grad
 
         return forward_no_grad(contiguous, iterations)

@@ -39,7 +39,9 @@ def test_no_grad_fused_path_matches_training_forward(count):
     training_output, _ = forward(logits.detach(), 20)
     with torch.no_grad():
         teacher_output = fused_sinkhorn(logits)
+        saved_output = fused_sinkhorn(logits, save_no_grad_intermediates=True)
     torch.testing.assert_close(teacher_output, training_output, atol=0, rtol=0)
+    torch.testing.assert_close(teacher_output, saved_output, atol=0, rtol=0)
     assert teacher_output.grad_fn is None
 
     # Frozen parameters also need the memory-saving path when grad mode is on.

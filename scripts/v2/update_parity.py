@@ -152,6 +152,20 @@ def enable_fused_sinkhorn(objective: Any) -> int:
     return count
 
 
+def set_no_grad_sinkhorn_storage(objective: Any, *, save: bool) -> int:
+    """Compare the old saved-probability and new elided Teacher execution."""
+    from gradpert.modeling.v2.operators import ManifoldResidual
+
+    count = 0
+    for model in (objective.student, objective.teacher):
+        for module in model.modules():
+            if isinstance(module, ManifoldResidual) and module.streams == 4:
+                module.sinkhorn_save_no_grad_diagnostic = save
+                count += 1
+    assert count > 0
+    return count
+
+
 def enable_fused_gram(objective: Any) -> int:
     """Candidate-only Gram fusion in graph, self and cross KDA, including EMA."""
     from gradpert.modeling.v2.operators import RelayDeltaAttention
@@ -248,6 +262,7 @@ def main() -> None:
     parser.add_argument("--candidate-no-sequence-checkpoint", action="store_true")
     parser.add_argument("--candidate-cpu-prefetch", action="store_true")
     parser.add_argument("--candidate-fused-sinkhorn", action="store_true")
+    parser.add_argument("--candidate-no-grad-elision", action="store_true")
     parser.add_argument("--candidate-fused-gram", action="store_true")
     parser.add_argument("--candidate-gram-forward-audit", action="store_true")
     parser.add_argument("--candidate-gram-backward-audit", action="store_true")
@@ -281,6 +296,15 @@ def main() -> None:
         args.no_sequence_checkpoint or args.reference_repeat
     ):
         parser.error("candidate-only checkpoint diagnostic cannot combine checkpoint/repeat flags")
+    if args.candidate_no_grad_elision and (
+        args.candidate_fused_sinkhorn
+        or args.candidate_fused_gram
+        or args.candidate_cpu_prefetch
+        or args.no_sequence_checkpoint
+        or args.candidate_no_sequence_checkpoint
+        or args.reference_repeat
+    ):
+        parser.error("no-grad storage diagnostic must isolate one execution factor")
     world, rank = int(os.environ.get("WORLD_SIZE", "1")), int(os.environ.get("LOCAL_RANK", "0"))
     devices = args.gpu.split(",")
     if world != 2 or sorted(devices) != ["0", "1"] or not 0 <= rank < world:
@@ -324,6 +348,8 @@ def main() -> None:
     candidate_architecture, candidate_options = V2Options.parse_parameters(
         candidate.model.parameters
     )
+    if args.candidate_no_grad_elision and architecture.sinkhorn_backend not in ("auto", "triton"):
+        parser.error("no-grad storage diagnostic requires fused Sinkhorn on both sides")
     changed = execution_changes(
         architecture,
         candidate_architecture,
@@ -331,6 +357,7 @@ def main() -> None:
         or args.candidate_no_sequence_checkpoint
         or args.candidate_cpu_prefetch
         or args.candidate_fused_sinkhorn
+        or args.candidate_no_grad_elision
         or args.candidate_fused_gram,
     )
     assert candidate_options == options
@@ -367,6 +394,7 @@ def main() -> None:
         "reference_repeat": args.reference_repeat,
         "candidate_cpu_prefetch_diagnostic_only": args.candidate_cpu_prefetch,
         "candidate_fused_sinkhorn_diagnostic_only": args.candidate_fused_sinkhorn,
+        "candidate_no_grad_elision_diagnostic_only": args.candidate_no_grad_elision,
         "candidate_fused_gram_diagnostic_only": args.candidate_fused_gram,
         "candidate_gram_forward_audit": args.candidate_gram_forward_audit,
         "candidate_gram_backward_audit": args.candidate_gram_backward_audit,
@@ -385,6 +413,10 @@ def main() -> None:
         ) as runtime:
             if args.no_sequence_checkpoint:
                 disable_sequence_checkpoint(runtime.objective)
+            if args.candidate_no_grad_elision:
+                receipt["sinkhorn_storage_module_count"] = set_no_grad_sinkhorn_storage(
+                    runtime.objective, save=True
+                )
             receipt["data"] = runtime.identity
             total_steps = int(config.training.max_epochs.value) * runtime.steps_per_epoch
             initial = args.output / "initial.pt"
@@ -433,6 +465,11 @@ def main() -> None:
                         if args.candidate_fused_sinkhorn:
                             receipt["fused_sinkhorn_module_count"] = enable_fused_sinkhorn(
                                 runtime.objective
+                            )
+                        if args.candidate_no_grad_elision:
+                            assert (
+                                set_no_grad_sinkhorn_storage(runtime.objective, save=False)
+                                == receipt["sinkhorn_storage_module_count"]
                             )
                         from gradpert.modeling.v2.operators import ManifoldResidual
 

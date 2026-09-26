@@ -123,7 +123,7 @@ def validate_execution_factor(
         for i, payload in enumerate(payloads):
             option = payload["model"]["parameters"].pop("relay_validate_once", {"value": False})
             require(option["value"] is bool(i), "wrong reference/candidate execution setting")
-    elif factor not in {"cpu_prefetch", "fused_sinkhorn", "fused_gram"}:
+    elif factor not in {"cpu_prefetch", "fused_sinkhorn", "fused_gram", "teacher_no_grad_elision"}:
         raise ValueError("unsupported execution factor")
     require(payloads[0] == payloads[1], "more than one configuration factor changed")
     for record, candidate in zip(receipts, (False, True, True, False), strict=True):
@@ -148,6 +148,20 @@ def validate_execution_factor(
                     record[f"{name}_module_count"] == receipts[1][f"{name}_module_count"],
                     "different fused module count",
                 )
+        save = factor == "teacher_no_grad_elision" and not candidate
+        require(
+            record.get("save_no_grad_sinkhorn_diagnostic_only", False) is save,
+            "wrong Teacher Sinkhorn storage execution flag",
+        )
+        if save:
+            require(
+                record.get("sinkhorn_storage_module_count", 0) > 0, "no Sinkhorn modules enabled"
+            )
+            require(
+                record["sinkhorn_storage_module_count"]
+                == receipts[0]["sinkhorn_storage_module_count"],
+                "different Sinkhorn module count",
+            )
 
 
 def main() -> None:
@@ -158,7 +172,13 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
         "--execution-factor",
-        choices=("relay_validate_once", "cpu_prefetch", "fused_sinkhorn", "fused_gram"),
+        choices=(
+            "relay_validate_once",
+            "cpu_prefetch",
+            "fused_sinkhorn",
+            "fused_gram",
+            "teacher_no_grad_elision",
+        ),
         default="relay_validate_once",
     )
     args = parser.parse_args()
