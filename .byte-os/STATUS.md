@@ -29,7 +29,12 @@ FP32 kernel checks but failed strict BF16 output tolerance; failure preserved,
 default stays eager. Intermediate-rounding retry also failed; compilation is not adopted.
 Independent per-layer graph validation candidate passes275 local v2 tests
 including bitwise checkpoint/dropout gradient/RNG checks; full two-card
-update parity is next. No formal training or timer; Goal continues. STATE.md has receipts
+update parity exposed GPU repeatability differences. Published4898de3 reference-repeat
+also fails strict gradient tolerance (max1.3163e-4), with exact inputs/RNG.
+Deterministic reference/candidate diagnostic passed two complete updates on
+both GPUs with bitwise-equal losses/gradients/model/optimizer and exact RNG.
+Same-source ABBA throughput queue is now running (40updates each,global8);
+no throughput improvement or default adoption claimed. No formal training or timer; Goal continues. STATE.md has receipts
 and remaining gates. GPU0 idle100%
 telemetry is anomalous but both cards passed CUDA arithmetic; analyze traces. [Plan](../docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md) and STATE.md carry
 remaining diagnostics→optimization→capacity→five-epoch-B0 dependencies. No new

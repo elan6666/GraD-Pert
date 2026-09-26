@@ -119,7 +119,34 @@ CUBLAS_WORKSPACE_CONFIG=:4096:8). Test unchanged reference twice in normal mode,
 then candidate vs reference in deterministic mode. If nondeterministic scatter/
 GEMM explains differences, record that evidence; it is a hypothesis for now.
 These flags never alter formal training defaults or benchmark settings. Five
-parity-helper tests, scoped mypy/lint pass; publish/deploy and run diagnostics.
+parity-helper tests, scoped mypy/lint pass. Published4898de30dbb8ccdc09ce5bcbc8938ae2b4992cc1;
+clean source development/source-v2-relay-4898de3, publication SHA256
+f08a9de3ec3c48e8b5c40132bb31ee60e5d27d0a4c0b0d22436cb32f2778c231.
+Reference-repeat development/relay-4898de3-reference-repeat exited1: both ranks
+have exact inputs/RNG/loss/model state but gradient max1.31627545e-4,
+optimizer max1.31627312e-5. The original implementation itself is not strictly
+repeatable in normal GPU mode; specific nondeterministic operator unresolved.
+Small rank receipts copied after dry-run (44506bytes) to
+ docs/experiments/relay-parity-4898de3/reference-repeat/.
+First update LR is zero from the sealed warmup, so exact updated parameters alone
+are not evidence of update equivalence. Inspect nonzero-LR step2 as well.
+Deterministic diagnostic development/relay-4898de3-validation-deterministic
+passed2/2 on both GPUs, exit0. Every compared loss/gradient/objective/optimizer
+tensor is bitwise identical; inputs and all RNG hashes exact. It includes a
+nonzero-LR second update. Small receipts copied after dry-run (41370bytes) to
+ docs/experiments/relay-parity-4898de3/validation-deterministic/.
+The validation-hoist candidate passes controlled mathematical/full-update
+checks; performance benefit not established, defaults unchanged.
+CURRENT finite ABBA queue development/relay-4898de3-validation-abba,
+PID3386002, same-stem .sh/.log/.pid/.exit/.current; exclusive GPU0/1 throughout.
+Order A1,B1,B2,A2; child roots append -A1/-B1/-B2/-A2, with .log/.exit files.
+A uses profiling_m2_a2, B validated_m2_a2; same immutable4898 source, global8,
+full prediction+SSL1+SSL2, normal GPU mode,40 updates each (10warmup+30timed).
+Each run max3600s, queue stops on any process/receipt failure. This is bounded
+performance engineering, not formal/capacity evidence. At terminal completion,
+compare exact row/view RNG hashes, pair medians/p95/throughput/memory; decide
+adoption only on repeatable benefit. No deterministic settings leak into timing.
+Original, failed and stopped runs remain immutable.
 No timer, Goal active. Remaining full-update/throughput/capacity/B0requirements
 unchanged. No new default optimization has been accepted.
 

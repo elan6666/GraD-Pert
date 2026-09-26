@@ -253,3 +253,15 @@
 - Prevention: for reused experiment labels, inspect the current run lineage
   and apply the user's latest explicit definition before creating a formal
   queue or allocating GPUs. Keep a separate run ID for each scientific model.
+
+## Check the reference numerical repeatability before blaming an execution change
+
+- Evidence (2026-09-26): unchanged full two-GPU relay model repeated from the
+  same checkpoint and exact input/RNG digests differs by 1.3163e-4 in gradients
+  (relay-4898de3-reference-repeat). The candidate discrepancy was 1.1332e-4.
+- Correction: strict normal-mode A/B failure alone does not isolate the
+  candidate as the cause; the responsible nondeterministic operator remains
+  unresolved. First-step model equality is also weak when warmup LR is zero.
+- Prevention: preserve thresholds, add an unchanged-reference control and
+  diagnostic deterministic comparison, and inspect gradients/optimizer plus
+  a nonzero-LR update. Do not claim equivalence or speed before those checks.

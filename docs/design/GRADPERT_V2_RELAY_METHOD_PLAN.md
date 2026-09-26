@@ -217,3 +217,17 @@ CPU checkpoint/dropout测试输出/所有参数与输入梯度/RNG逐位相等�
 用于数学/完整更新诊断，设置deterministic_algorithms、关闭autograd多线程与
 CUBLAS_WORKSPACE_CONFIG=:4096:8。先测reference-repeat，再确定性A/B，收据
 记录模式，误差阈值不变。正式训练与吞吐benchmark均不继承这些诊断设置。
+
+
+4898de30dbb8ccdc09ce5bcbc8938ae2b4992cc1 实测补充：原实现重复对照也在梯度
+出现1.3163e-4差异（输入/RNG一致），因此普通GPU执行存在数值重复性误差。
+确定性A/B的两次完整更新在双卡均通过，loss、全部梯度、Student/Teacher/center
+和optimizer逐位相同，input/RNG严格一致。第二次更新学习率非零；第一步日程
+LR=0，所以单看首步模型参数相同没有证明力。收据保留在
+`docs/experiments/relay-parity-4898de3/`，未放宽容差或修改正式训练确定性策略。
+
+验证外移候选进入同源码ABBA测量：每次完整global8、40步（10预热、30计时），
+A保持逐chunk校验，B仅整图层一次校验，CPU线程均2，双卡独占、无profiler。
+有界队列`development/relay-4898de3-validation-abba`按A1/B1/B2/A2串行，
+任何失败停止后续项。首次原始d9 A1仅作历史参考，不混入这组受控ABBA统计。
+还未证明提速；当前默认仍不采用候选，也未认证新模型最大batch或启动正式B0。
