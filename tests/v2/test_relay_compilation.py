@@ -60,7 +60,11 @@ def test_compiled_backward_policy_is_scoped_and_matches_training_engine(monkeypa
     original = config.backward_pass_autocast
 
     def fake_compile(fn, **kwargs):
-        assert kwargs == {"fullgraph": True, "dynamic": True}
+        assert kwargs == {
+            "fullgraph": True,
+            "dynamic": True,
+            "options": {"emulate_precision_casts": True},
+        }
 
         def invoke(*args):
             assert config.backward_pass_autocast == "off"

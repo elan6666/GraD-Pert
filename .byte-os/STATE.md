@@ -72,18 +72,25 @@ test), four-source mypy and lint pass. Candidate source569ae1bbda8fe905fd53e8dd2
 07bd9659a9a8a5769d62ae61695202ce84c5864a3e9e0986ac139e8473ef1c66.
 Publication development/gradpert-relay-publication-569ae1b.json hash
 8f67ad305a23dbcc3996e9ca26c9c5accea50784c9ae3fed4418d3d0944cdb46.
-Fresh baseline receipt24/40, parent3371948 alive. Candidate kernel check
-already queued: development/relay-569ae1b-kernel-check.{sh,pid,log,exit},
-parent3374334 alive with child3374336 blocked on flock -w3600 GPU0. After A1
-releases both locks, require its passed40/40 receipt and exit0, then run
-benchmark_relay_kernel.py onGPU0 using candidate source,1800s cap. Outputdir
-same stem, explicit Inductor/Triton caches in development/relay-569ae1b-*-cache,
-compiler workers2. No CUDA job overlaps the timing baseline. Strict per-output
-and all-input-gradient FP32/BF16 tolerance3e-5/3e-4; failure preserves receipt
-and aborts, never auto-relaxes precision thresholds. No throughput claim yet.
-Only if kernel checks pass proceed actual full-update parity (losses, gradients,
-Student, optimizer, Teacher, centers, RNG and resume) then controlled ABBA;
-method default stays eager until that evidence passes. Do not duplicate queue.
+Baseline A1 passed40/40; original queue and kernel-check processes both
+terminal. Measured median26.634557s,p9527.352516s,including-data.2887537cells/s,
+peak allocated3,547,394,560/reserved4,011,851,776bytes. Small receipt copied after
+dry-run to docs/experiments/relay-steady-d9c1fbf-A1/receipt.json, SHA256
+1159d98616a01a0e877802f881bf0c0b4ac4f966991b26a9dd57808d8d27b2a7.
+Kernel probe569ae1b failed BF16 B64/L94 after FP32 cases passed;71 output elements
+exceed3e-5/3e-4, max absolute.00048828125. No threshold relaxation; default eager.
+Failure receipt docs/experiments/relay-kernel-candidate-569ae1b/receipt.json hash
+ffc60bfa0aacbdc3f16782dc54bb5bedae98d5c12ecf37d9c314df60ef3efca4.
+Correction sets compile options emulate_precision_casts=True to preserve eager
+rounding (target2.13 exposes this flag, defaultFalse); same five local compilation
+tests pass. CUDA retest pending publication/deployment; don't reuse old output.
+Full-update parity tool added in a74a70e (3 helper tests+mypy/lint passed):
+update_parity.py restores initial.pt and exact RNG/data plan, two real dual-card
+updates with frozen LR/EMA schedule, checks gradients/losses/Student/Teacher/
+centers/optimizer/RNG. Requires passing kernel test first. Not yet CUDA-validated.
+After it passes continue controlled full-step ABBA and sustained128+ maxbatch;
+then only full B0five epochs+best/last. No formal training or GPU process active
+at this recorded milestone; no timer, Goal supervision continues.
 
 Additional user request complete: updated EasyConnect skill with native Swift AX
 and private Security.framework credential path; both installed copies match,

@@ -152,7 +152,12 @@ def compiled_delta_block() -> Callable[..., Tensor]:
     """
     import torch._functorch.config as compiler_config
 
-    compiled = torch.compile(delta_final_block, fullgraph=True, dynamic=True)
+    compiled = torch.compile(
+        delta_final_block,
+        fullgraph=True,
+        dynamic=True,
+        options={"emulate_precision_casts": True},
+    )
 
     def invoke(*args: Tensor) -> Tensor:
         # The training engine leaves autocast before backward. AOTAutograd's

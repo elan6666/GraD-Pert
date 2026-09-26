@@ -178,6 +178,18 @@ Student/optimizer/Teacher/center/RNG核对，再进行ABBA稳定吞吐比较；�
 双卡全局loss人口、相同有序batch/view/RNG；截获梯度后执行原optimizer.step，
 逐步核对loss、全部梯度、Student/Teacher/center和optimizer状态。RNG与输入哈希
 严格相等，浮点比较atol3e-5/rtol3e-4。CPU拷贝只用于诊断，不用于吞吐计时。
-检查点与原始梯度留服务器，导出小比较收据。两卡通过标志一起归约，任一卡失败
+梯度比较在服务器内存完成；检查点留服务器，导出小比较收据。两卡通过标志一起归约，任一卡失败
 均停止，不继续ABBA或正式训练。本地3项证据辅助测试、mypy和lint通过；真实双卡
 验证尚未执行，须等待kernel数值检查通过。
+
+
+2026-09-26实测A1：原始d9源完整双卡global8，40次更新（10预热+30计时），
+中位数26.6346s、p9527.3525s，含data的0.288754cells/s，峰值allocated3.547GB，
+reserved4.012GB。收据见`docs/experiments/relay-steady-d9c1fbf-A1/receipt.json`。
+569ae1b编译候选FP32通过，但BF16 B64/L94输出71/1048576元素超出既定阈值，
+最大绝对误差0.00048828125；全部失败证据见
+`docs/experiments/relay-kernel-candidate-569ae1b/receipt.json`，候选不采用。
+下一修正显式设置编译options `emulate_precision_casts=True`，保持eager中间舍入；
+目标环境Torch2.13已确认该选项存在且默认为False。保持原输入/误差阈值，重新验证，
+尚不声称这是唯一误差来源或已经解决。参考
+[PyTorch实际lowering](https://github.com/pytorch/pytorch/blob/main/torch/_inductor/lowering.py)。

@@ -1,0 +1,316 @@
+{
+  "atol": 3e-05,
+  "autocast_dtype": "bfloat16",
+  "cases": [
+    {
+      "batch": 2,
+      "bf16": false,
+      "cold_candidate_seconds": 6.242747453041375,
+      "compiled": {
+        "median_seconds": 0.001204038504511118,
+        "seconds": [
+          0.001206367276608944,
+          0.0012349952012300491,
+          0.00103706493973732,
+          0.0009765606373548508,
+          0.0012158248573541641,
+          0.0011961348354816437,
+          0.0012012636289000511,
+          0.0012248978018760681,
+          0.0012115100398659706,
+          0.001201709732413292
+        ]
+      },
+      "eager": {
+        "median_seconds": 0.0017842738889157772,
+        "seconds": [
+          0.001796480268239975,
+          0.0017778435721993446,
+          0.0018089581280946732,
+          0.00183003768324852,
+          0.0017222492024302483,
+          0.0017691254615783691,
+          0.0017907042056322098,
+          0.0017335405573248863,
+          0.0016374988481402397,
+          0.0017923703417181969
+        ]
+      },
+      "errors_output_then_gradients": [
+        {
+          "max_absolute": 0.0,
+          "rms_relative": 0.0
+        },
+        {
+          "max_absolute": 0.0,
+          "rms_relative": 0.0
+        },
+        {
+          "max_absolute": 0.0,
+          "rms_relative": 0.0
+        },
+        {
+          "max_absolute": 7.275957614183426e-12,
+          "rms_relative": 5.192765328843052e-08
+        },
+        {
+          "max_absolute": 1.4551915228366852e-11,
+          "rms_relative": 1.0712000175772118e-07
+        },
+        {
+          "max_absolute": 0.0,
+          "rms_relative": 0.0
+        }
+      ],
+      "length": 1
+    },
+    {
+      "batch": 64,
+      "bf16": false,
+      "cold_candidate_seconds": 11.593492980115116,
+      "compiled": {
+        "median_seconds": 0.0027084709145128727,
+        "seconds": [
+          0.0027274787425994873,
+          0.0027060192078351974,
+          0.002695334143936634,
+          0.003027462400496006,
+          0.0027177194133400917,
+          0.002717304043471813,
+          0.002692917361855507,
+          0.0026977714151144028,
+          0.0027088364586234093,
+          0.002708105370402336
+        ]
+      },
+      "eager": {
+        "median_seconds": 0.0044802166521549225,
+        "seconds": [
+          0.004485476762056351,
+          0.0044785235077142715,
+          0.00448931660503149,
+          0.004485319368541241,
+          0.004458582028746605,
+          0.004481909796595573,
+          0.004537653177976608,
+          0.00447472557425499,
+          0.004455435089766979,
+          0.004472061991691589
+        ]
+      },
+      "errors_output_then_gradients": [
+        {
+          "max_absolute": 1.4901161193847656e-06,
+          "rms_relative": 5.043085025135952e-07
+        },
+        {
+          "max_absolute": 1.382431946694851e-10,
+          "rms_relative": 7.065940508255153e-07
+        },
+        {
+          "max_absolute": 2.1600499167107046e-12,
+          "rms_relative": 1.915018259524004e-07
+        },
+        {
+          "max_absolute": 5.3660187404602766e-11,
+          "rms_relative": 2.2330641513690352e-06
+        },
+        {
+          "max_absolute": 5.638867150992155e-11,
+          "rms_relative": 1.7307517907738657e-07
+        },
+        {
+          "max_absolute": 1.5869173736100881e-37,
+          "rms_relative": 0.0
+        }
+      ],
+      "length": 94
+    },
+    {
+      "batch": 2,
+      "bf16": false,
+      "cold_candidate_seconds": 3.868883980438113,
+      "compiled": {
+        "median_seconds": 0.0056625972501933575,
+        "seconds": [
+          0.005662901327013969,
+          0.005695304833352566,
+          0.005636473186314106,
+          0.005779324099421501,
+          0.0056622931733727455,
+          0.005649775266647339,
+          0.005624404177069664,
+          0.005862219259142876,
+          0.005686473101377487,
+          0.00564616359770298
+        ]
+      },
+      "eager": {
+        "median_seconds": 0.014874090906232595,
+        "seconds": [
+          0.014755179174244404,
+          0.012570200487971306,
+          0.01489594578742981,
+          0.014949477277696133,
+          0.01491894293576479,
+          0.014781923964619637,
+          0.015041477978229523,
+          0.014852236025035381,
+          0.01513813529163599,
+          0.012938397005200386
+        ]
+      },
+      "errors_output_then_gradients": [
+        {
+          "max_absolute": 4.172325134277344e-07,
+          "rms_relative": 1.75007158986773e-07
+        },
+        {
+          "max_absolute": 6.402842700481415e-10,
+          "rms_relative": 1.5500347672059434e-07
+        },
+        {
+          "max_absolute": 1.4551915228366852e-11,
+          "rms_relative": 5.614980125301372e-08
+        },
+        {
+          "max_absolute": 1.0913936421275139e-10,
+          "rms_relative": 6.897341791045619e-07
+        },
+        {
+          "max_absolute": 2.6193447411060333e-10,
+          "rms_relative": 5.210959841406293e-08
+        },
+        {
+          "max_absolute": 0.0,
+          "rms_relative": 0.0
+        }
+      ],
+      "length": 257
+    },
+    {
+      "batch": 2,
+      "bf16": true,
+      "cold_candidate_seconds": 4.042199692688882,
+      "compiled": {
+        "median_seconds": 0.0012735296040773392,
+        "seconds": [
+          0.0012804409489035606,
+          0.001264079473912716,
+          0.0012834453955292702,
+          0.001272633671760559,
+          0.001273362897336483,
+          0.0013250261545181274,
+          0.0012736963108181953,
+          0.0013174666091799736,
+          0.001078752800822258,
+          0.0010471530258655548
+        ]
+      },
+      "eager": {
+        "median_seconds": 0.0019301273860037327,
+        "seconds": [
+          0.001972801052033901,
+          0.0017565172165632248,
+          0.0019720708951354027,
+          0.001947556622326374,
+          0.0019304323941469193,
+          0.001968594267964363,
+          0.0019298223778605461,
+          0.0018724007532000542,
+          0.0017928602173924446,
+          0.001929151825606823
+        ]
+      },
+      "errors_output_then_gradients": [
+        {
+          "max_absolute": 0.0,
+          "rms_relative": 0.0
+        },
+        {
+          "max_absolute": 0.0,
+          "rms_relative": 0.0
+        },
+        {
+          "max_absolute": 0.0,
+          "rms_relative": 0.0
+        },
+        {
+          "max_absolute": 7.275957614183426e-12,
+          "rms_relative": 5.192765328843052e-08
+        },
+        {
+          "max_absolute": 7.275957614183426e-12,
+          "rms_relative": 5.986287021642056e-08
+        },
+        {
+          "max_absolute": 0.0,
+          "rms_relative": 0.0
+        }
+      ],
+      "length": 1
+    },
+    {
+      "batch": 64,
+      "bf16": true,
+      "cold_candidate_seconds": 10.728332669474185,
+      "errors_output_then_gradients": [
+        {
+          "max_absolute": 0.00048828125,
+          "rms_relative": 1.947005330293905e-05
+        },
+        {
+          "max_absolute": 6.085087989049498e-09,
+          "rms_relative": 6.690513146168087e-06
+        },
+        {
+          "max_absolute": 1.036383423524967e-09,
+          "rms_relative": 1.2934185178892221e-05
+        },
+        {
+          "max_absolute": 5.686651149972022e-11,
+          "rms_relative": 2.3669449547014665e-06
+        },
+        {
+          "max_absolute": 2.3978827812243253e-09,
+          "rms_relative": 2.231536427643732e-06
+        },
+        {
+          "max_absolute": 1.2037062152420224e-35,
+          "rms_relative": 0.0
+        }
+      ],
+      "length": 94
+    }
+  ],
+  "compiler_cache": "/data/yilangliu/GraD-Pert/development/relay-569ae1b-inductor-cache",
+  "environment": {
+    "cuda_runtime": "13.0",
+    "cudnn_version": 92000,
+    "device_name": "NVIDIA GeForce RTX 5090",
+    "lock_file": "/data/yilangliu/GraD-Pert/development/source-v2-relay-569ae1b/uv.lock",
+    "lock_file_sha256": "313e9dbbd63ab8405d77ae991a724081fe6fa4ed26b0ae8047321733e015375d",
+    "payload_sha256": "e37d6793819ccd833982768cd0830695f357f310661bdd941fc677992be0d9a3",
+    "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39",
+    "python_version": "3.12.3",
+    "torch_version": "2.13.0+cu130"
+  },
+  "error": "Tensor-likes are not close!\n\nMismatched elements: 71 / 1048576 (0.0%)\nGreatest absolute difference: 0.00048828125 at index (34, 0, 15, 26) (up to 3e-05 allowed)\nGreatest relative difference: 0.03999999910593033 at index (59, 1, 43, 24) (up to 0.0003 allowed)",
+  "error_type": "AssertionError",
+  "kind": "synthetic_kernel_only",
+  "rtol": 0.0003,
+  "source": {
+    "commit": "569ae1bbda8fe905fd53e8dd2208c27354d1a550",
+    "dirty": false,
+    "formal_eligibility_reason": null,
+    "formal_eligible": true,
+    "publication_receipt_sha256": "8f67ad305a23dbcc3996e9ca26c9c5accea50784c9ae3fed4418d3d0944cdb46",
+    "published_commit": "569ae1bbda8fe905fd53e8dd2208c27354d1a550",
+    "remote_ref": "refs/heads/main",
+    "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+    "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-relay-569ae1b",
+    "tree_sha256": "07bd9659a9a8a5769d62ae61695202ce84c5864a3e9e0986ac139e8473ef1c66"
+  },
+  "status": "failed",
+  "timing": "three warmups then ten synchronized forward+backward times; cold time separate"
+}

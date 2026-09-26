@@ -24,12 +24,12 @@ update CPU/GPU traces were exported, but summary parsing failed on CUDA-mirrored
 annotations. Repair5186003 passed4 tests; both original traces successfully
 reanalyzed with separate analysis SHA. About1.972million kernels/update suggests
 small-op/chunk fusion as next diagnostic direction; profiled timings are not
-normal throughput evidence. Unprofiled A1 is active at24/40 updates (10warmup+30measured); compiled
-chunk candidate569ae1b has269 distinct local v2 checks and scoped typing/lint
-passed. Clean server candidate and a dependent, lock-protected CUDA kernel
-check are ready; it starts automatically only after A1 passes. No formal
-training or timer is active; Goal supervision continues. STATE.md has exact
-PIDs, immutable sources and failure rules. GPU0 idle100%
+normal throughput evidence. A1 passed40/40: median26.63s/update at global8. Candidate569ae1b passed
+FP32 kernel checks but failed strict BF16 output tolerance; failure preserved,
+default stays eager. Corrected intermediate-rounding compilation is prepared
+for CUDA retest; full two-update parity tool is published but not yet exercised
+on CUDA. No formal training or timer; Goal continues. STATE.md has receipts
+and remaining gates. GPU0 idle100%
 telemetry is anomalous but both cards passed CUDA arithmetic; analyze traces. [Plan](../docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md) and STATE.md carry
 remaining diagnostics→optimization→capacity→five-epoch-B0 dependencies. No new
 CUDA throughput, capacity, or scientific results claimed.
