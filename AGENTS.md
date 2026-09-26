@@ -95,6 +95,32 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   `PYTORCH_ALLOC_CONF=expandable_segments:True`; the runner fails closed when
   this allocator contract is missing or changed.
 
+## Campus VPN recovery
+
+- The user authorizes routine EasyConnect login/relogin and recovery for this
+  research workflow; do not ask for the same permission again. Use the
+  `smbu-easyconnect-login` skill at
+  `/Users/elan/.agents/skills/smbu-easyconnect-login/SKILL.md` and operate
+  `com.sangfor.Easyconnect` through available live UI/AX tools. If the current
+  tool set cannot interact, try available supported local UI automation and
+  report the precise limitation instead of pretending a recovery was attempted.
+- On failed research-server connectivity, inspect the live client. For an
+  expired/logged-out session, perform one routine recovery at the approved
+  `https://vpn.smbu.edu.cn` gateway; reopen only EasyConnect if unresponsive.
+  Do not change routes, DNS, proxies or other VPNs as part of ordinary login.
+- Reuse the authorized macOS Keychain credential through a private UI path;
+  never put passwords in this file, code, logs, tool output or clipboard.
+  Request user interaction only for genuinely unavailable UI/credential access,
+  MFA/CAPTCHA, Keychain unlock or certificate decisions.
+- Verify three facts separately: authenticated `/portal/#!/service` with the
+  `10.24.1.91` resource, bounded TCP/22 reachability, then key-authenticated SSH.
+  A visible connected page or open port alone is not SSH success. A reachable
+  SSH authentication failure is not a reason to cycle a healthy VPN session.
+- Connection recovery does not restart an experiment: reconcile saved run IDs,
+  processes, immutable source/config and receipts, then continue the already
+  authorized next step without duplicate runs. Save mutable connection/run
+  evidence in Byte state, not in these durable rules.
+
 ## Repository Map
 
 - `src/gradpert/`: standalone package; no upstream runtime dependency.
