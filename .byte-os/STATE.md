@@ -142,6 +142,9 @@ PID3386002, same-stem .sh/.log/.pid/.exit/.current; exclusive GPU0/1 throughout.
 Order A1,B1,B2,A2; child roots append -A1/-B1/-B2/-A2, with .log/.exit files.
 A uses profiling_m2_a2, B validated_m2_a2; same immutable4898 source, global8,
 full prediction+SSL1+SSL2, normal GPU mode,40 updates each (10warmup+30timed).
+A1 passed40/40, update median26.3230s,including-data0.2915533cells/s; small
+receipt copied after dry-run to docs/experiments/relay-abba-4898de3/A1/receipt.json.
+B1 automatically started; no paired speed conclusion until B1/B2/A2 finish.
 Each run max3600s, queue stops on any process/receipt failure. This is bounded
 performance engineering, not formal/capacity evidence. At terminal completion,
 compare exact row/view RNG hashes, pair medians/p95/throughput/memory; decide

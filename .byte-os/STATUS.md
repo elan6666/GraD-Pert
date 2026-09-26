@@ -33,7 +33,8 @@ update parity exposed GPU repeatability differences. Published4898de3 reference-
 also fails strict gradient tolerance (max1.3163e-4), with exact inputs/RNG.
 Deterministic reference/candidate diagnostic passed two complete updates on
 both GPUs with bitwise-equal losses/gradients/model/optimizer and exact RNG.
-Same-source ABBA throughput queue is now running (40updates each,global8);
+Same-source ABBA throughput queue runs40updates each at global8. A1 passed,
+median26.323s/update; B1 automatically started. Remaining B1/B2/A2 still pending;
 no throughput improvement or default adoption claimed. Next CUDA Graph replay
 probe is published279696a, CPU helper checks pass, and queued behind ABBA with
 explicit successful-receipt/resource gates; its GPU behavior remains unverified. No formal training or timer; Goal continues. STATE.md has receipts
