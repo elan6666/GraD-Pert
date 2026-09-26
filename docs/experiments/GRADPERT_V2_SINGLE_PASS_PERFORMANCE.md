@@ -160,3 +160,8 @@ loss标量比较通过，但旧max_absolute字段仅统计张量，不能凭它�
 后续候选将N改为runtime参数并禁止值/对齐特化，保持STEPS=20/BLOCK=8常量。
 微基准扩展到1/17/256/4096/32768 token，记录Triton3.7.1两kernel每卡缓存数。
 先验证变长无需逐长度编译且输出/梯度精确，再执行同版本完整更新与端到端ABBA。
+
+动态N候选cab78a1在1–32768 token的双卡30组合成probe通过，40阶段/输出/梯度
+全部exact，且每卡forward/backward各仅1个编译缓存。完整更新校验仍在运行。
+吞吐工具补启动至训练、runtime准备、各rank热身update/data-wait时间；原稳定段
+计时规则不变。后续ABBA源码若仅该工具元数据变动，会明确与parity源码不同。

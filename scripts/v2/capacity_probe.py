@@ -34,6 +34,7 @@ def probe_policy(
 
 
 def main() -> None:
+    process_started = time.perf_counter()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--data-root", type=Path, required=True)
@@ -159,12 +160,14 @@ def main() -> None:
         schedule = load_training_schedule(config.training.scheduler.value)
         if not isinstance(schedule, (StepWarmupCosine, LRWarmupCosine)):
             raise ValueError("probe requires a sealed step-based training schedule")
+        preparation_started = time.perf_counter()
         with prepare_runtime(
             config,
             data_root=args.data_root,
             run_seed=config.training.run_seeds[0],
             device=torch.device("cuda:0"),
         ) as runtime:
+            receipt["runtime_preparation_seconds"] = time.perf_counter() - preparation_started
             if args.fused_sinkhorn:
                 from update_parity import enable_fused_sinkhorn
 
@@ -215,6 +218,7 @@ def main() -> None:
             torch.cuda.reset_peak_memory_stats()
             step = 0
             training_started = time.perf_counter()
+            receipt["startup_seconds_until_training"] = training_started - process_started
             next_batch_ready = training_started
             for epoch in itertools.count():
                 for batch in runtime.batches(epoch, cpu_prefetch=args.cpu_prefetch):
@@ -360,6 +364,10 @@ def main() -> None:
                 "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
                 "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
                 "training_wall_seconds": receipt["training_wall_seconds"],
+                "startup_seconds_until_training": receipt["startup_seconds_until_training"],
+                "runtime_preparation_seconds": receipt["runtime_preparation_seconds"],
+                "warmup_update_seconds": durations[:warmup_steps],
+                "warmup_data_wait_seconds": data_wait_seconds[:warmup_steps],
                 "update_seconds": durations[warmup_steps:measured_stop],
                 "data_wait_seconds": data_wait_seconds[warmup_steps:measured_stop],
                 "gradient_reduction_seconds": gradient_reduction_seconds[
