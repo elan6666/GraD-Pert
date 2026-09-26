@@ -1,0 +1,284 @@
+{
+  "window_us": 31507693.0078125,
+  "cuda_activity_present": true,
+  "gpu_busy_union_us": 5156271.26171875,
+  "gpu_busy_fraction": 0.16365118386929264,
+  "kernel_count": 1414510,
+  "memcpy_count": 43889,
+  "largest_gpu_gaps_start_and_duration_us": [
+    [
+      13504.130859375,
+      459352.98046875
+    ],
+    [
+      7381585.6181640625,
+      274251.142578125
+    ],
+    [
+      756367.5068359375,
+      264417.0771484375
+    ],
+    [
+      22522084.109375,
+      246608.6904296875
+    ],
+    [
+      2504093.4287109375,
+      223895.705078125
+    ],
+    [
+      616003.6865234375,
+      139613.4814453125
+    ],
+    [
+      31371444.357421875,
+      136248.650390625
+    ],
+    [
+      481432.716796875,
+      133828.375
+    ],
+    [
+      8708217.7578125,
+      101355.7421875
+    ],
+    [
+      24654785.827148438,
+      53784.3330078125
+    ],
+    [
+      1021374.3701171875,
+      49588.9375
+    ],
+    [
+      20610994.884765625,
+      38737.482421875
+    ],
+    [
+      31213698.848632812,
+      22104.478515625
+    ],
+    [
+      0.0,
+      13438.912109375
+    ],
+    [
+      473739.4892578125,
+      7491.873046875
+    ],
+    [
+      1079098.3154296875,
+      5163.5078125
+    ],
+    [
+      31238810.508789062,
+      5061.4228515625
+    ],
+    [
+      16690733.916015625,
+      2685.8544921875
+    ],
+    [
+      16878595.859375,
+      2670.71875
+    ],
+    [
+      10791701.233398438,
+      2663.998046875
+    ],
+    [
+      10976236.681640625,
+      2629.2763671875
+    ],
+    [
+      16098690.80078125,
+      2603.291015625
+    ],
+    [
+      10212631.092773438,
+      2481.1416015625
+    ],
+    [
+      15693312.3828125,
+      2436.2109375
+    ],
+    [
+      9646507.516601562,
+      2425.1708984375
+    ],
+    [
+      15523978.229492188,
+      2407.6025390625
+    ],
+    [
+      9812726.163085938,
+      2396.400390625
+    ],
+    [
+      16266862.309570312,
+      2377.7119140625
+    ],
+    [
+      10378656.194335938,
+      2311.5966796875
+    ],
+    [
+      13214584.055664062,
+      2192.294921875
+    ]
+  ],
+  "regions": {
+    "gradpert/student/response.self_layers.2": {
+      "calls": 20,
+      "cpu_inclusive_us": 115380.3662109375
+    },
+    "gradpert/student/response.cross_layers.2": {
+      "calls": 20,
+      "cpu_inclusive_us": 109552.6650390625
+    },
+    "gradpert/student/response.self_layers.1": {
+      "calls": 20,
+      "cpu_inclusive_us": 740950.5908203125
+    },
+    "gradpert/student/response.cross_layers.1": {
+      "calls": 20,
+      "cpu_inclusive_us": 500917.9443359375
+    },
+    "gradpert/student/response.self_layers.0": {
+      "calls": 20,
+      "cpu_inclusive_us": 521766.681640625
+    },
+    "gradpert/student/response.cross_layers.0": {
+      "calls": 20,
+      "cpu_inclusive_us": 489649.130859375
+    },
+    "gradpert/capture_window": {
+      "calls": 1,
+      "cpu_inclusive_us": 31507693.0078125
+    },
+    "gradpert/data/materialize_cpu_batch": {
+      "calls": 1,
+      "cpu_inclusive_us": 11732.677734375
+    },
+    "gradpert/data/to_training_batch": {
+      "calls": 1,
+      "cpu_inclusive_us": 1799.2890625
+    },
+    "gradpert/data/assemble_views": {
+      "calls": 1,
+      "cpu_inclusive_us": 1059256.4501953125
+    },
+    "gradpert/communication/gather_rows": {
+      "calls": 8,
+      "cpu_inclusive_us": 3877.078125
+    },
+    "gradpert/student/graph": {
+      "calls": 6,
+      "cpu_inclusive_us": 5194180.8935546875
+    },
+    "gradpert/student/cell": {
+      "calls": 10,
+      "cpu_inclusive_us": 1000300.5673828125
+    },
+    "gradpert/student/response": {
+      "calls": 10,
+      "cpu_inclusive_us": 1483872.9970703125
+    },
+    "gradpert/teacher/graph": {
+      "calls": 4,
+      "cpu_inclusive_us": 3181647.0703125
+    },
+    "gradpert/loss/ssl2": {
+      "calls": 2,
+      "cpu_inclusive_us": 2512438.4326171875
+    },
+    "gradpert/teacher/cell": {
+      "calls": 4,
+      "cpu_inclusive_us": 261757.0283203125
+    },
+    "gradpert/teacher/response": {
+      "calls": 4,
+      "cpu_inclusive_us": 461065.779296875
+    },
+    "gradpert/teacher/response.self_layers.0": {
+      "calls": 4,
+      "cpu_inclusive_us": 92376.4970703125
+    },
+    "gradpert/teacher/response.cross_layers.0": {
+      "calls": 4,
+      "cpu_inclusive_us": 90321.826171875
+    },
+    "gradpert/teacher/response.self_layers.1": {
+      "calls": 4,
+      "cpu_inclusive_us": 94492.2734375
+    },
+    "gradpert/teacher/response.cross_layers.1": {
+      "calls": 4,
+      "cpu_inclusive_us": 89187.53515625
+    },
+    "gradpert/teacher/response.self_layers.2": {
+      "calls": 4,
+      "cpu_inclusive_us": 17996.8486328125
+    },
+    "gradpert/teacher/response.cross_layers.2": {
+      "calls": 4,
+      "cpu_inclusive_us": 19909.7607421875
+    },
+    "gradpert/student/ssl2_cls": {
+      "calls": 8,
+      "cpu_inclusive_us": 1728.51171875
+    },
+    "gradpert/teacher/ssl2_cls": {
+      "calls": 4,
+      "cpu_inclusive_us": 918.763671875
+    },
+    "gradpert/student/ssl2_node": {
+      "calls": 3,
+      "cpu_inclusive_us": 1049.3984375
+    },
+    "gradpert/teacher/ssl2_node": {
+      "calls": 3,
+      "cpu_inclusive_us": 838.029296875
+    },
+    "gradpert/backward": {
+      "calls": 2,
+      "cpu_inclusive_us": 18522488.9765625
+    },
+    "gradpert/loss/ssl1": {
+      "calls": 1,
+      "cpu_inclusive_us": 4004605.2626953125
+    },
+    "gradpert/teacher/ssl1_cls": {
+      "calls": 2,
+      "cpu_inclusive_us": 532.6337890625
+    },
+    "gradpert/student/ssl1_cls": {
+      "calls": 4,
+      "cpu_inclusive_us": 891.880859375
+    },
+    "gradpert/student/ssl1_node": {
+      "calls": 2,
+      "cpu_inclusive_us": 660.287109375
+    },
+    "gradpert/teacher/ssl1_node": {
+      "calls": 2,
+      "cpu_inclusive_us": 575.919921875
+    },
+    "gradpert/communication/average_gradients": {
+      "calls": 1,
+      "cpu_inclusive_us": 14373.962890625
+    },
+    "gradpert/optimizer": {
+      "calls": 1,
+      "cpu_inclusive_us": 106445.845703125
+    },
+    "gradpert/ema_centers": {
+      "calls": 1,
+      "cpu_inclusive_us": 4262.9677734375
+    }
+  },
+  "cuda_allocation_event_count": 0,
+  "cuda_allocation_peak_bytes": null,
+  "cuda_memory_timeline_sample": [],
+  "scope": "one rank, nested CPU-inclusive regions; GPU interval union includes kernel/memcpy/memset; profiler overhead included; not utilization or throughput evidence"
+}

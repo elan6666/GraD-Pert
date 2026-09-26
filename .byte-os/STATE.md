@@ -1,5 +1,16 @@
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Both single-pass trace summaries have been generated and copied after bounded
+dry-run (12,618bytes), `docs/experiments/single-c073a37-preflight/profile/`.
+Rank0/1 kernel counts1,414,510/1,414,379 in ~31.51s profiled windows;
+GPU interval-union fractions0.16365/0.20411 include profiler overhead, not normal
+utilization. Graph forwards ~5.19/5.01s student plus3.18/3.01s teacher;
+backward18.52/17.74s CPU-inclusive; gradient reduction14–16ms. Nested times
+must not be summed. Evidence prioritizes launch overhead/KDA regional replay.
+Raw traces (~4.77GB/rank) remain server-only. Profile workers3401379/3401380
+are still live in CPU summary/operator aggregation, not terminal success;
+queue retains locks and the synthetic replay successor remains gated.
+
 Single-pass baseline passed12/12 (3warmup,9timed), source c073a37 unchanged.
 Median update19.57964s; p9519.83892s; measured cells/s including data0.387596;
 peak allocated3,505,913,344bytes. Global8 is diagnostic only. Data wait1.09–1.45s
