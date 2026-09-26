@@ -123,7 +123,7 @@ def validate_execution_factor(
         for i, payload in enumerate(payloads):
             option = payload["model"]["parameters"].pop("relay_validate_once", {"value": False})
             require(option["value"] is bool(i), "wrong reference/candidate execution setting")
-    elif factor != "cpu_prefetch":
+    elif factor not in {"cpu_prefetch", "fused_sinkhorn"}:
         raise ValueError("unsupported execution factor")
     require(payloads[0] == payloads[1], "more than one configuration factor changed")
     for record, candidate in zip(receipts, (False, True, True, False), strict=True):
@@ -136,6 +136,17 @@ def validate_execution_factor(
             record.get("cpu_prefetch_diagnostic_only", False) is expected,
             "wrong CPU prefetch execution flag",
         )
+        expected = candidate if factor == "fused_sinkhorn" else False
+        require(
+            record.get("fused_sinkhorn_diagnostic_only", False) is expected,
+            "wrong fused Sinkhorn execution flag",
+        )
+        if expected:
+            require(record.get("fused_sinkhorn_module_count", 0) > 0, "no fused modules enabled")
+            require(
+                record["fused_sinkhorn_module_count"] == receipts[1]["fused_sinkhorn_module_count"],
+                "different fused module count",
+            )
 
 
 def main() -> None:
@@ -146,7 +157,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
         "--execution-factor",
-        choices=("relay_validate_once", "cpu_prefetch"),
+        choices=("relay_validate_once", "cpu_prefetch", "fused_sinkhorn"),
         default="relay_validate_once",
     )
     args = parser.parse_args()

@@ -113,3 +113,19 @@ def test_cpu_prefetch_factor_requires_identical_configs_and_only_expected_flags(
     payloads[1]["model"]["parameters"]["width"]["value"] = 128
     with pytest.raises(ValueError, match="configuration factor"):
         MODULE.validate_execution_factor(payloads, rows, "cpu_prefetch")
+
+
+def test_fused_sinkhorn_rejects_hidden_prefetch_and_missing_activation():
+    payloads = [{"model": {"parameters": {}}} for _ in range(2)]
+    rows = [receipt(10) for _ in range(4)]
+    for record, flag in zip(rows, (False, True, True, False), strict=True):
+        record["fused_sinkhorn_diagnostic_only"] = flag
+        record["fused_sinkhorn_module_count"] = 40 if flag else 0
+    MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "fused_sinkhorn")
+    rows[1]["cpu_prefetch_diagnostic_only"] = True
+    with pytest.raises(ValueError, match="CPU prefetch"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "fused_sinkhorn")
+    rows[1]["cpu_prefetch_diagnostic_only"] = False
+    rows[2]["fused_sinkhorn_module_count"] = 0
+    with pytest.raises(ValueError, match="no fused modules"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "fused_sinkhorn")

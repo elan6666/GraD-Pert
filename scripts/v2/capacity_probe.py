@@ -51,6 +51,7 @@ def main() -> None:
     parser.add_argument("--sync-phase-timing", action="store_true")
     parser.add_argument("--no-sequence-checkpoint", action="store_true")
     parser.add_argument("--cpu-prefetch", action="store_true")
+    parser.add_argument("--fused-sinkhorn", action="store_true")
     args = parser.parse_args()
     try:
         args.steps, warmup_steps, kind = probe_policy(
@@ -72,6 +73,10 @@ def main() -> None:
         parser.error("operator table requires profile-last-update")
     if args.cpu_prefetch and not args.benchmark_only:
         parser.error("CPU prefetch is currently benchmark-only diagnostic")
+    if args.fused_sinkhorn and (
+        not args.benchmark_only or args.cpu_prefetch or args.no_sequence_checkpoint
+    ):
+        parser.error("fused Sinkhorn requires an isolated benchmark-only diagnostic")
     if args.no_sequence_checkpoint and not args.benchmark_only:
         parser.error("no-sequence-checkpoint is benchmark-only diagnostic, not capacity evidence")
     measured_stop = args.steps - int(args.profile_last_update)
@@ -143,6 +148,7 @@ def main() -> None:
         "profile_operator_table": args.profile_operator_table,
         "sync_phase_timing": args.sync_phase_timing,
         "cpu_prefetch_diagnostic_only": args.cpu_prefetch,
+        "fused_sinkhorn_diagnostic_only": args.fused_sinkhorn,
         "sequence_checkpoint_disabled_diagnostic_only": args.no_sequence_checkpoint,
         "hardware": environment_snapshot(torch),
         "host_before": host_snapshot(),
@@ -159,6 +165,10 @@ def main() -> None:
             run_seed=config.training.run_seeds[0],
             device=torch.device("cuda:0"),
         ) as runtime:
+            if args.fused_sinkhorn:
+                from update_parity import enable_fused_sinkhorn
+
+                receipt["fused_sinkhorn_module_count"] = enable_fused_sinkhorn(runtime.objective)
             if args.no_sequence_checkpoint:
                 from update_parity import disable_sequence_checkpoint
 
