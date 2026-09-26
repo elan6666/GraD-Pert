@@ -91,3 +91,18 @@ A1/B1/B2/A2含等待平均步时分别为21.6529/22.3103/21.8072/21.4106秒。
 复测。Profiler嵌套inclusive时间不能相加成关键路径；GPU union与kernel总时长
 分开报告，不能用瞬时利用率证明效果。若改变模型数学或目标，转为待讨论方法
 提案，不混入等价优化。机制通过后再做持续容量与完整B0五轮/best/last。
+
+### 2026-09-26：既有 trace 的流式成本分解
+
+原始 rank0 trace 已在服务器完成有界解析，13,518,242 个事件；小结果见
+`single-38af3ce-profile-replay/costs/rank0.json`（含 trace 与分析脚本 SHA256）。
+全窗口 kernel 1,414,510 次，kernel duration sum 4.8895s；CUDA runtime
+launch API 1,281,076 次、5.5947s。CPU `logsumexp` 43,200 次、嵌套累计4.3420s，
+对应 mHC Sinkhorn 每次20轮双轴归一化；不能直接把累计时间作为可节约墙钟时间。
+最大单类 GPU float multiply kernel 累计1.1495s，亦不能全部归给 KDA。
+
+因此先补充 launch correlation 与 CPU scope 的归因，比较 mHC 归一化、
+图前向、dropout backward、三角求解的 kernel 数量/时间；不预设 Gram 融合
+一定是第一优先级。三遍流式扫描只保留选定区间与关联ID，核验线程/进程，
+避免将 GPU annotation 与 CPU scope 混合；范围可能嵌套，不相加。
+采集不会再占 GPU，不改变任何模型、训练语义或性能默认配置。
