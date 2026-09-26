@@ -1,0 +1,107 @@
+{
+  "child_execution_environment": {
+    "MKL_NUM_THREADS": "2",
+    "OMP_NUM_THREADS": "2",
+    "OPENBLAS_NUM_THREADS": "2",
+    "PYTORCH_ALLOC_CONF": "expandable_segments:True"
+  },
+  "kind": "integration_sweep",
+  "rows": [
+    {
+      "command": [
+        "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+        "-m",
+        "torch.distributed.run",
+        "--standalone",
+        "--nproc_per_node=2",
+        "/data/yilangliu/GraD-Pert/development/source-v2-capacity-3ba9a96/scripts/v2/capacity_probe.py",
+        "--config",
+        "/data/yilangliu/GraD-Pert/development/source-v2-capacity-3ba9a96/configs/v2/single_pass_jurkat/capacity_m72_a2/gradpert_v2/nadig_jurkat.yaml",
+        "--gpu",
+        "0,1",
+        "--data-root",
+        "/data/yilangliu/GraD-Pert/data-vnext-a942114",
+        "--output",
+        "/data/yilangliu/GraD-Pert/development/single-3ba9a96-capacity-integration/micro72",
+        "--publication",
+        "/data/yilangliu/GraD-Pert/development/gradpert-capacity-publication-3ba9a96.json",
+        "--publication-sha256",
+        "54e8f9df74e539e51001c74b1a0b51bc7b162b3cb89fe2fb5a746a35bffc0c2c",
+        "--integration-only"
+      ],
+      "config_sha256": "ce0f1736b87e4abcfed3499c5ac3afb6b9bbb777581279d82fe20a5ccf93e829",
+      "exit_code": 0,
+      "global_batch": 288,
+      "microbatch": 72,
+      "receipt_sha256": "c03183e824ae085a0afd1e30a754d7a21710744fa84ef4ed240bcb7930bf2f19",
+      "status": "passed"
+    },
+    {
+      "command": [
+        "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+        "-m",
+        "torch.distributed.run",
+        "--standalone",
+        "--nproc_per_node=2",
+        "/data/yilangliu/GraD-Pert/development/source-v2-capacity-3ba9a96/scripts/v2/capacity_probe.py",
+        "--config",
+        "/data/yilangliu/GraD-Pert/development/source-v2-capacity-3ba9a96/configs/v2/single_pass_jurkat/capacity_m80_a2/gradpert_v2/nadig_jurkat.yaml",
+        "--gpu",
+        "0,1",
+        "--data-root",
+        "/data/yilangliu/GraD-Pert/data-vnext-a942114",
+        "--output",
+        "/data/yilangliu/GraD-Pert/development/single-3ba9a96-capacity-integration/micro80",
+        "--publication",
+        "/data/yilangliu/GraD-Pert/development/gradpert-capacity-publication-3ba9a96.json",
+        "--publication-sha256",
+        "54e8f9df74e539e51001c74b1a0b51bc7b162b3cb89fe2fb5a746a35bffc0c2c",
+        "--integration-only"
+      ],
+      "config_sha256": "7c59c35dd1a006d40a1ad35bc2dc5df723a730833252f6d55897eea074268697",
+      "exit_code": 1,
+      "global_batch": 320,
+      "microbatch": 80,
+      "receipt_sha256": "ee23af653f8704b5e4d3c43ae4cd89c8bfeb6ee3f8989e7b22b7c7e75cca12fd"
+    },
+    {
+      "command": [
+        "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+        "-m",
+        "torch.distributed.run",
+        "--standalone",
+        "--nproc_per_node=2",
+        "/data/yilangliu/GraD-Pert/development/source-v2-capacity-3ba9a96/scripts/v2/capacity_probe.py",
+        "--config",
+        "/data/yilangliu/GraD-Pert/development/source-v2-capacity-3ba9a96/configs/v2/single_pass_jurkat/capacity_m88_a2/gradpert_v2/nadig_jurkat.yaml",
+        "--gpu",
+        "0,1",
+        "--data-root",
+        "/data/yilangliu/GraD-Pert/data-vnext-a942114",
+        "--output",
+        "/data/yilangliu/GraD-Pert/development/single-3ba9a96-capacity-integration/micro88",
+        "--publication",
+        "/data/yilangliu/GraD-Pert/development/gradpert-capacity-publication-3ba9a96.json",
+        "--publication-sha256",
+        "54e8f9df74e539e51001c74b1a0b51bc7b162b3cb89fe2fb5a746a35bffc0c2c",
+        "--integration-only"
+      ],
+      "config_sha256": "c701a8c3ff8a4cc0c41ce4d40d3360482015c417eea1c4dcd909af3566e8da81",
+      "global_batch": 352,
+      "microbatch": 88
+    }
+  ],
+  "source": {
+    "commit": "3ba9a960d79d207ce89dd938b672be051f327234",
+    "dirty": false,
+    "formal_eligibility_reason": null,
+    "formal_eligible": true,
+    "publication_receipt_sha256": "54e8f9df74e539e51001c74b1a0b51bc7b162b3cb89fe2fb5a746a35bffc0c2c",
+    "published_commit": "3ba9a960d79d207ce89dd938b672be051f327234",
+    "remote_ref": "refs/heads/main",
+    "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+    "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-capacity-3ba9a96",
+    "tree_sha256": "75d4959d3b877b7622cfd767d690765b37e7e1aa3d479dee68f1b843161eda9b"
+  },
+  "status": "stopped_on_failure_not_a_confirmed_memory_boundary"
+}
