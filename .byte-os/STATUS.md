@@ -14,6 +14,20 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Sequence replay candidate published `3c308ddb5d163659cfbd87e325a92d1ea191bd64`;
+clean immutable server `development/source-v2-replay-3c308dd` verified against
+clean local publication. Publication `development/gradpert-replay-publication-3c308dd.json`,
+SHA256 d7fbdbd15c8cd2e6dde21e09ba1b328c091e51d95ea67390561eff18de011e26.
+Live bounded parity wrapper PID3407939, stem
+`development/single-3c308dd-replay-parity`; `.sh/.pid/.stage/.log/.exit`, diagnostic
+log `.run.log`, per-rank receipts inside stem directory. Both GPU locks, timeout
+1200s; target3routing tests then deterministic2update reference/candidate check.
+Reference profiling_m2_a2 and candidate replay_m2_a2, same single-pass method,
+global8. Comparison includes nonzero-LR update2, all gradients/optimizer/EMA/
+centers, inputs and RNG. No throughput queue or formal training launched until
+candidate terminal evidence is inspected. Recompilation/cache/OOM failure is
+candidate evidence, never grounds to silently relax precision or change views.
+
 Opt-in sequence CUDA replay candidate prepared (relay_kernel=cudagraphs),
 self/cross gene scans and CLS write only; graph neighborhoods remain eager.
 Unchanged eager arithmetic inside compiled cudagraphs backend, no fusion.
