@@ -266,6 +266,9 @@ def main() -> None:
                             model.options = candidate_architecture
                             for module in model.modules():
                                 if isinstance(module, RelayDeltaAttention):
+                                    module.replay_sequences = (
+                                        candidate_architecture.relay_kernel == "cudagraphs"
+                                    )
                                     module.compiled_chunks = (
                                         candidate_architecture.relay_kernel == "inductor"
                                     )
@@ -344,6 +347,15 @@ def main() -> None:
                     )
             finally:
                 runtime.optimizer.step = original_step  # type: ignore[method-assign]
+        if candidate_architecture.relay_kernel == "cudagraphs":
+            from torch._dynamo.utils import counters
+            from torch._inductor.cudagraph_trees import get_manager
+
+            manager = get_manager(0, create_if_none_exists=False)
+            assert manager is not None, "no graph captured in complete update"
+            receipt["replay_graphs"] = int(manager.graph_counter.__reduce__()[1][0])
+            receipt["replay_skips"] = counters["inductor"]["cudagraph_skips"]
+            assert receipt["replay_graphs"] > 0 and receipt["replay_skips"] == 0
         receipt["status"] = "passed"
     except BaseException as error:
         receipt.update(status="failed", error_type=type(error).__name__, error=str(error))

@@ -143,6 +143,40 @@ def delta_final_block(
 
 
 @lru_cache(maxsize=1)
+def replayed_delta_scan() -> Callable[..., Tensor]:
+    """Opt-in sequence scan replay; eager math, finite shape cache, no fusion.
+
+    The caller marks optimizer-step boundaries, never individual live forwards.
+    Variable views can trigger capture/compilation and must be measured before
+    adoption. Graph-neighborhood scans deliberately remain eager.
+    """
+    import torch._dynamo.config as dynamo_config
+    import torch._functorch.config as aot_config
+    import torch._inductor.config as inductor_config
+    from torch._dynamo.utils import counters
+
+    replay: Callable[..., Tensor] = torch.compile(
+        chunk_delta_final_state, backend="cudagraphs", fullgraph=True, dynamic=False
+    )
+
+    def invoke(*args: Tensor) -> Tensor:
+        if args[0].device.type != "cuda":
+            raise ValueError("CUDA Graph sequence replay requires CUDA tensors")
+        with (
+            dynamo_config.patch(recompile_limit=64),
+            aot_config.patch(backward_pass_autocast="off"),
+            inductor_config.patch({"triton.cudagraph_or_error": True}),
+        ):
+            result = replay(*args)
+        if counters["inductor"]["cudagraph_skips"]:
+            raise RuntimeError("sequence replay skipped capture; candidate rejected")
+        # Readers must not retain views into a replay pool reused by later calls.
+        return result.clone()
+
+    return invoke
+
+
+@lru_cache(maxsize=1)
 def compiled_delta_block() -> Callable[..., Tensor]:
     """Opt-in Inductor region shared across graph/cell/response and EMA copies.
 
@@ -224,6 +258,7 @@ class RelayDeltaAttention(DeltaAttention):
         self.eval_seed: int = 1
         self.compiled_chunks = False
         self.write_passes = 2
+        self.replay_sequences = False
 
     def random_order_enabled(self) -> bool:
         return self.training if self.randomize_order is None else self.randomize_order
@@ -254,8 +289,16 @@ class RelayDeltaAttention(DeltaAttention):
             ),
         )
 
-    def _write_state(self, writes: tuple[Tensor, Tensor, Tensor, Tensor], order: Tensor) -> Tensor:
+    def _write_state(
+        self, writes: tuple[Tensor, Tensor, Tensor, Tensor], order: Tensor, *, sequence: bool = True
+    ) -> Tensor:
         key, value, decay, beta = (self._ordered(t, order) for t in writes)
+        if sequence and self.replay_sequences:
+            if self.write_passes == 2:
+                key, value, decay, beta = (
+                    torch.cat((t, t.flip(1)), 1) for t in (key, value, decay, beta)
+                )
+            return replayed_delta_scan()(key, value, decay, beta)
         if self.write_passes == 1:
             return chunk_delta_final_state(key, value, decay, beta, compiled=self.compiled_chunks)
         # A single scan preserves the exact forward final state as the reverse
@@ -288,9 +331,17 @@ class RelayDeltaAttention(DeltaAttention):
         if has_cls:
             # CLS writes exactly once after all configured gene writes.
             cls_key, cls_value, cls_decay, cls_beta = self._project_writes(x[:, genes:])
-            state = chunk_delta_final_state(
-                cls_key, cls_value, cls_decay, cls_beta, state=state, compiled=self.compiled_chunks
-            )
+            if self.replay_sequences:
+                state = replayed_delta_scan()(cls_key, cls_value, cls_decay, cls_beta, state)
+            else:
+                state = chunk_delta_final_state(
+                    cls_key,
+                    cls_value,
+                    cls_decay,
+                    cls_beta,
+                    state=state,
+                    compiled=self.compiled_chunks,
+                )
         if block_cls_to_gene and has_cls:
             return torch.cat(
                 (self._read(x[:, :genes], gene_state), self._read(x[:, genes:], state)), dim=1
@@ -333,7 +384,7 @@ class RelayDeltaAttention(DeltaAttention):
                 )
             )
             order = scores.masked_fill(~valid, float("inf")).argsort(-1)
-        state = self._write_state((key, value, decay, beta), order)
+        state = self._write_state((key, value, decay, beta), order, sequence=False)
         return self._read(query.unsqueeze(1), state).squeeze(1)
 
 

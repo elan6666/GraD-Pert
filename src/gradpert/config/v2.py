@@ -83,7 +83,7 @@ class V2Architecture:
             raise ValueError("relay_passes must be 1 or 2")
         if self.relay_passes != 2 and self.attention != "relay_full":
             raise ValueError("single-pass final-state KDA requires the relay profile")
-        if self.relay_kernel not in ("eager", "inductor"):
+        if self.relay_kernel not in ("eager", "inductor", "cudagraphs"):
             raise ValueError("unknown relay kernel")
         if self.relay_kernel != "eager" and self.attention != "relay_full":
             raise ValueError("compiled relay kernel requires the relay profile")

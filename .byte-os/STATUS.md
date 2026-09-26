@@ -14,6 +14,19 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Opt-in sequence CUDA replay candidate prepared (relay_kernel=cudagraphs),
+self/cross gene scans and CLS write only; graph neighborhoods remain eager.
+Unchanged eager arithmetic inside compiled cudagraphs backend, no fusion.
+Optimizer-boundary step markers only, cloned final outputs retain storage
+ownership; finite64 shape-recompile budget, capture skips rejected. Variable
+view shape capture costs/memory remain unvalidated and may reject the candidate.
+Default remains eager; config single_pass_jurkat/replay_m2_a2 is engineering-only.
+38 targeted tests passed, scoped mypy4files and ruff passed. CPU tests validate
+dispatch/eager equivalence; actual replay proof requires target GPU parity.
+Next publish clean source and run deterministic two-update dualGPU parity,
+including nonzero-LR step2 and actual graph/skip counters. No throughput or
+formal adoption before full-update and sustained memory evidence.
+
 Replacement queue3404789 completed exit0: profile4/4 passed; synthetic
 CUDA Graph12/12 cases passed, no skipped graphs or recaptures during timing.
 FP32/BF16,grad/no-grad,live carried states and all five input gradients checked

@@ -74,6 +74,8 @@ def optimizer_step(
     objective.train()
     optimizer.zero_grad()
     objective.pending.clear()
+    if objective.student.options.relay_kernel == "cudagraphs":
+        torch.compiler.cudagraph_mark_step_begin()  # type: ignore[no-untyped-call]
     device = batch.control.device.type
     metrics: dict[str, float] = {}
     total = len(batch.control)
