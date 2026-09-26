@@ -14,6 +14,19 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+## 容量测试发布就绪（尚未运行）
+
+源码 `/data/yilangliu/GraD-Pert/development/source-v2-capacity-a1d55fa`，
+SHA `a1d55faff4a55d624e5061b7eb70e76d93f24c9b`，干净身份已核验。
+发布 `development/gradpert-capacity-publication-a1d55fa.json` SHA256
+`d00729ca8d66fe5dede305af80a94aa22fcba3298f0424154dd9f11cdf10e67c`。
+单步扫描dry-run `development/single-a1d55fa-capacity-integration.plan.json`，
+SHA256 `53e743e31d453259ed1136afbb4854b4b67ccb72e6566c667ea6be35f1ad678d`。
+候选micro8/16/32/48/64，eager/重计算/同步数据路径，未加--execute。
+待当前ABBA完成和取舍后再启动；如果启用预取则需要先正式配置化并重新发布，
+不可让benchmark-only override冒充容量/正式设置。
+
+
 CPU prefetch B1 passed12/12, median21.8183s, wait fraction2.5462%,
 inclusive0.35858cells/s versus A1 .36947 (~2.95% slower). Waiting decreased
 but update grew; CPU contention is a hypothesis, not established cause.

@@ -45,6 +45,18 @@ A/B/B/A预取flag、无重计算override，并核对完整收据/输入/RNG/计�
 再128+更新、checkpoint续跑、300-control验证，较大batch复测吞吐。
 最后按新不可变源码/新runID启动完整B0五轮，核对best/last真正测试收据。
 
+## 容量测试发布就绪（尚未运行）
+
+源码 `/data/yilangliu/GraD-Pert/development/source-v2-capacity-a1d55fa`，
+SHA `a1d55faff4a55d624e5061b7eb70e76d93f24c9b`，干净身份已核验。
+发布 `development/gradpert-capacity-publication-a1d55fa.json` SHA256
+`d00729ca8d66fe5dede305af80a94aa22fcba3298f0424154dd9f11cdf10e67c`。
+单步扫描dry-run `development/single-a1d55fa-capacity-integration.plan.json`，
+SHA256 `53e743e31d453259ed1136afbb4854b4b67ccb72e6566c667ea6be35f1ad678d`。
+候选micro8/16/32/48/64，eager/重计算/同步数据路径，未加--execute。
+待当前ABBA完成和取舍后再启动；如果启用预取则需要先正式配置化并重新发布，
+不可让benchmark-only override冒充容量/正式设置。
+
 ## 运维
 
 本地工作树 `/Users/elan/code/grad-pert-v2-build`，定向提交推送HEAD:main。
