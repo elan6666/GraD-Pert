@@ -171,3 +171,21 @@ objective(Teacher+centers)、optimizer最大绝对差均0。第二步LR明确为
 7.796055196070788e-8。源cab78a1与ABBA源b64745b的src/configs diff为空，
 后者仅补工具冷启动计时。正式吞吐ABBA使用global128、micro32、accum2，
 各12steps/3warmup，保证与实际容量相比有代表性；不把此12步称为持续容量验证。
+
+### 待独立验证：KDA weighted-Gram前向融合
+
+在mHC ABBA计时期间仅做本地CPU工作，没有另占GPU干扰吞吐。实现独立候选，
+未接入delta_final_block，也未更改默认：
+P_ij = 1[j<i] sum_d k_id k_jd exp(g_id-g_jd)。每个query直接归约64channel，
+仅输出[B,H,L,L]，不创建前向[B,H,L,L,64]的decay/product。
+输入连续化只在kernel入口；autograd保存原始stride的key/gate，避免改变PyTorch
+反向归约结合顺序。长度N为运行时参数，固定最大chunk32和channel64，不按N编译。
+
+第一候选反向保留PyTorch计算/归约顺序（重建decay），而非一次同时改所有算子。
+U=dP，dproduct=U*decay；dk由两个广播乘法分别沿j/i归约相加；
+dg=sum_j(U*(k_i*k_j)*decay)+sum_i(-(U*(k_i*k_j)*decay))，上三角先mask再exp。
+key梯度完成后释放dproduct，以缩短大临时量共存时间。代价是反向重建decay，
+可能抵消前向收益；只有端到端测量能决定是否采用。三角solve与final S均不动。
+CPU10项测试覆盖float32/64、1/3/17/32长度、非连续输入、原block下三角及溢出mask，
+输出/解析梯度逐元素相等。Triton kernel尚未在GPU执行，不能宣称编译或数值通过。
+待ABBA收尾后使用scripts/v2/weighted_gram_probe.py独立测数值、冷/稳态和峰值显存。

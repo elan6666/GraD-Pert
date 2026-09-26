@@ -46,7 +46,11 @@ parity来源cab78a1，与b64745b的src/configs diff为空；后者只补启动/�
 下一步检查该PID/日志/组收据，4组完成用compare_benchmarks --execution-factor fused_sinkhorn
 及同一config分析，dry-run后仅拉小JSON。不得将局部7–8倍直接说成模型收益。
 仍未正式采用融合或启动B0；持续batch/恢复/300control/完整B0五轮best/last待完成。
-KDA Gram临时量/图邻域工作组织仍待按剩余瓶颈决定，不重复失败的静态sequence graph/预取。
+本地新增独立KDA Gram前向融合候选，未接入模型；保留原Torch反向并重建decay，
+保存原stride，缩短dproduct存活时间。CPU10项等价测试通过；GPU尚未编译/验证。
+files modeling/v2/weighted_gram.py,_weighted_gram_cuda.py；scripts/v2/weighted_gram_probe.py。
+ABBA运行期间禁止并发GPU探针；收尾后根据结果和剩余瓶颈决定独立验证。
+不重复失败的静态sequence graph/预取。
 
 先前容量短检查全部终止：a1d55fa micro8/16/32/48/64 passed1/1，
 3ba9a96 micro72 passed1/1+restore、micro80 OOM、88未启动。
