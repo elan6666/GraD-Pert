@@ -310,3 +310,24 @@ objective在LR0相同不构成等价通过；不启动此版本ABBA或正式训�
 
 上述约束叠加于原流程：已验证机制正式接入→持续容量→完整B0五轮best/last，
 不替换原目标，不启动其他消融。无额外设备时跨设备加速结论明确列为待验证。
+
+
+## 文献驱动后续实验
+
+用户新增要求：先广泛检索原始论文及官方实现，再形成优化假设，不做闭门反复微调。
+首轮8类来源、实测瓶颈映射、兼容边界、实现核对状态和后续门槛见
+[性能工程文献矩阵](GRADPERT_V2_PERFORMANCE_LITERATURE.md)。
+下一步优先深入官方KDA chunk和选择性重计算，完成成本判断后再决定新的实验。
+
+
+## 正式执行选项：Sinkhorn 后端
+
+新增sinkhorn_backend=native/auto/triton；历史缺省仍native且省略旧payload字段，
+保留历史配置/检查点身份。新自包含optimized_single_pass_jurkat系列仅新增auto，
+原单向KDA、所有模型参数/loss/采样/训练协议不变。auto在NVIDIA CUDA、
+四流且Triton存在时选择融合；CPU/MPS/无Triton/其他流数走原生。
+显式triton遇不支持环境报错；选中内核后的编译或运行失败不静默回退。
+这一规则是可运行策略，不是所有设备数值或加速已验证的声明。
+capacity收据记录实际调用的后端模块数；Student与EMA Teacher同构选择。
+CPU回退输出/梯度精确、历史身份和十份新配置单因素比较已有定向测试，
+完整v2回归及正式配置双卡校验完成前不称为可正式运行版本。

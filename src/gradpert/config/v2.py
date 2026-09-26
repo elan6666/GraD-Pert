@@ -14,6 +14,7 @@ class V2Architecture:
     graph_read_mode: str = "static"
     latent_rank: int = 64
     streams: int = 4
+    sinkhorn_backend: str = "native"
     dropout: float = 0.1
     attention: str = "hybrid"
     ffn_type: str = "gelu"
@@ -47,6 +48,8 @@ class V2Architecture:
         ):
             if type(getattr(self, name)) is not int or getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be a positive integer")
+        if self.sinkhorn_backend not in ("native", "auto", "triton"):
+            raise ValueError("unknown Sinkhorn backend")
         if self.width % self.heads or not 0 <= self.dropout < 1:
             raise ValueError("invalid head width or dropout")
         if self.attention not in (
@@ -101,6 +104,8 @@ class V2Architecture:
 
     def payload(self) -> dict[str, Any]:
         values = asdict(self)
+        if self.sinkhorn_backend == "native":
+            values.pop("sinkhorn_backend")
         if self.relay_eval_seed is None:
             # Preserve architecture identity of checkpoints predating relay KDA.
             values.pop("relay_eval_seed")
@@ -163,6 +168,7 @@ class V2Options:
         arch_names = {f.name for f in fields(V2Architecture)}
         names = {f.name for f in fields(cls)}
         optional = {
+            "sinkhorn_backend",
             "expression_holdout_path",
             "expression_holdout_sha256",
             "loss_reduction",

@@ -665,6 +665,8 @@ class ManifoldResidual(nn.Module):
         super().__init__()
         self.streams, self.sublayer = streams, sublayer
         self.fused_sinkhorn_diagnostic = False
+        self.sinkhorn_backend = "native"
+        self.resolved_sinkhorn_backend = "unused"
         self.norm = nn.RMSNorm(width)
         if streams > 1:
             self.route = nn.Linear(streams * width, 2 * streams + streams * streams, bias=False)
@@ -682,12 +684,12 @@ class ManifoldResidual(nn.Module):
         a = (a * self.scales[0] + self.bias[:n]).sigmoid()
         b = 2 * (b * self.scales[1] + self.bias[n : 2 * n]).sigmoid()
         logits = (c * self.scales[2] + self.bias[2 * n :]).unflatten(-1, (n, n))
-        if self.fused_sinkhorn_diagnostic:
-            from .sinkhorn_fused import fused_sinkhorn
+        from .sinkhorn_fused import fused_sinkhorn, resolve_sinkhorn_backend
 
-            c = fused_sinkhorn(logits)
-        else:
-            c = sinkhorn(logits)
+        requested = "triton" if self.fused_sinkhorn_diagnostic else self.sinkhorn_backend
+        backend = resolve_sinkhorn_backend(requested, logits.device.type, n)
+        self.resolved_sinkhorn_backend = backend
+        c = fused_sinkhorn(logits) if backend == "triton" else sinkhorn(logits)
         return a.to(x.dtype), b.to(x.dtype), c.to(x.dtype)
 
     def forward(

@@ -444,6 +444,15 @@ def main() -> None:
             receipt["measured_cells_per_second_including_data_wait"] = sum(
                 cells[warmup_steps:measured_stop]
             ) / sum(step_totals)
+            from gradpert.modeling.v2.operators import ManifoldResidual
+
+            backend_counts: dict[str, int] = {}
+            for model in (runtime.objective.student, runtime.objective.teacher):
+                for module in model.modules():
+                    if isinstance(module, ManifoldResidual):
+                        backend = module.resolved_sinkhorn_backend
+                        backend_counts[backend] = backend_counts.get(backend, 0) + 1
+            receipt["resolved_sinkhorn_module_counts"] = backend_counts
             receipt["pipeline_stats"] = runtime.data.pipeline_stats.payload()
             receipt["timing_limitations"] = (
                 "step-boundary synchronization; checkpoints excluded from measured update/gap "

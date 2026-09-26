@@ -406,6 +406,8 @@ class GraDPertV2(nn.Module):
         if options.attention == "relay_full":
             self.set_relay_order_randomization(self.training)
         for module in self.modules():
+            if isinstance(module, ManifoldResidual):
+                module.sinkhorn_backend = options.sinkhorn_backend
             if isinstance(module, RelayGraphLayer):
                 module.validate_once = options.relay_validate_once
             if isinstance(module, RelayDeltaAttention):
