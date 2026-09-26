@@ -23,7 +23,13 @@ def _gram(K, G, P, N):  # type: ignore[no-untyped-def]
     difference = tl.where(legal[:, None], gi[None, :] - gj, 0.0)
     # Preserve multiply order; do not rewrite decay as exp(g_i)/exp(g_j).
     product = ki[None, :] * kj
-    value = tl.sum(product * cuda_extra.libdevice.exp(difference), axis=1)
+    weighted = product * cuda_extra.libdevice.exp(difference)
+    # Match ATen's descending-offset 64-channel reduction: combine halves
+    # before the warp-width tree, rather than adjacent per-thread elements.
+    half = tl.arange(0, 32)
+    paired = tl.gather(weighted, tl.broadcast_to(half[None, :], (32, 32)), axis=1)
+    paired += tl.gather(weighted, tl.broadcast_to((half + 32)[None, :], (32, 32)), axis=1)
+    value = tl.sum(paired, axis=1)
     tl.store(P + (batch_head * N + query) * N + neighbor, tl.where(legal, value, 0.0), neighbor < N)
 
 
