@@ -30,6 +30,7 @@ def test_bounded_benchmark_cannot_be_mistaken_for_capacity():
     "flags,expected",
     [
         (["--profile-last-update"], "profile requires"),
+        (["--no-sequence-checkpoint"], "benchmark-only diagnostic"),
         (["--benchmark-only", "--steps", "3", "--warmup-steps", "3"], "custom warmup"),
         (["--benchmark-only", "--profile-last-update", "--sync-phase-timing"], "profile requires"),
         (["--benchmark-only", "--profile-memory"], "profile-memory requires"),

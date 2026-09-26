@@ -1,5 +1,18 @@
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Checkpoint-isolation diagnostic PASSED on both ranks, exit0, GPUs released.
+Source a63ac39a3b9237cf57c5782bcc7f5939fa6e2edb; two full updates (second
+nonzero LR), exact input/RNG identity, all compared losses/gradients/objective/
+optimizer max_abs0. Each rank captured10 graphs, skipped0. Receipts:
+docs/experiments/single-a63ac39-replay-no-sequence-checkpoint/ (41,598byte
+reviewed transfer). Scope: BOTH sides disable Cell/Response checkpointing;
+graph checkpoint remains. This isolates the failed checkpoint/replay combination,
+not proof of a production speedup or capacity. Default remains eager.
+Next: bounded throughput measurements with identical checkpoint override on
+reference/candidate, then compare memory/throughput to checkpointed baseline.
+Probe override restricted to benchmark-only and explicitly receipted; no formal
+capacity/training can silently use it. Goal active, no timer or formal B0 yet.
+
 Checkpoint-isolation diagnostic now running, PID3411374, stem
 `development/single-a63ac39-replay-no-sequence-checkpoint`; same .stage/.run.log/
 .pid/.exit and rank-receipt layout,1200s timeout, bothGPUlocks. Clean source

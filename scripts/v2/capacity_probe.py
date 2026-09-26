@@ -49,6 +49,7 @@ def main() -> None:
     parser.add_argument("--profile-memory", action="store_true")
     parser.add_argument("--profile-operator-table", action="store_true")
     parser.add_argument("--sync-phase-timing", action="store_true")
+    parser.add_argument("--no-sequence-checkpoint", action="store_true")
     args = parser.parse_args()
     try:
         args.steps, warmup_steps, kind = probe_policy(
@@ -68,6 +69,8 @@ def main() -> None:
         parser.error("profile-memory requires profile-last-update")
     if args.profile_operator_table and not args.profile_last_update:
         parser.error("operator table requires profile-last-update")
+    if args.no_sequence_checkpoint and not args.benchmark_only:
+        parser.error("no-sequence-checkpoint is benchmark-only diagnostic, not capacity evidence")
     measured_stop = args.steps - int(args.profile_last_update)
     if not args.output.resolve().is_relative_to("/data/yilangliu"):
         parser.error("capacity artifacts stay on the server")
@@ -136,6 +139,7 @@ def main() -> None:
         "profile_memory": args.profile_memory,
         "profile_operator_table": args.profile_operator_table,
         "sync_phase_timing": args.sync_phase_timing,
+        "sequence_checkpoint_disabled_diagnostic_only": args.no_sequence_checkpoint,
         "hardware": environment_snapshot(torch),
         "host_before": host_snapshot(),
     }
@@ -151,6 +155,10 @@ def main() -> None:
             run_seed=config.training.run_seeds[0],
             device=torch.device("cuda:0"),
         ) as runtime:
+            if args.no_sequence_checkpoint:
+                from update_parity import disable_sequence_checkpoint
+
+                disable_sequence_checkpoint(runtime.objective)
             if args.profile_last_update:
                 capture = ProfileCapture(runtime, args.output, rank)
             total_steps = int(config.training.max_epochs.value) * runtime.steps_per_epoch
