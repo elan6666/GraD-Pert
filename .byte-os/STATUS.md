@@ -2,15 +2,31 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: paused_single_pass_method_update
+stage: single_pass_performance_preflight
 current_workflow: byte-auto
 next_workflow: byte-auto
-review_verdict: single_pass_locally_validated_paused
+review_verdict: single_pass_locally_validated
 hard_blocked: false
 updated_at: 2026-09-26
 ---
 
 # Current state
+
+## Resumed single-pass performance engineering — 2026-09-26
+
+User explicitly resumed the original Goal after the single-pass correction.
+The pause below is historical and superseded. Current method commit
+`f6d84bebb3519a5cf94c91e38ea0b90854e1a952`: single random-order writing pass,
+unchanged final-state readout. Resume only new run IDs; old dual-pass ABBA
+and CUDA Graph queue remain stopped. SSH works; both5090s verified idle.
+Next: publish the same method with a conservative micro2×accum2×world2=batch8
+profiling config; verify fresh immutable server checkout and full-loss integration
+with checkpoint reload. Then collect single-pass throughput/CPU-GPU timeline,
+optimize evidenced bottlenecks with complete-update parity, and validate sustained
+capacity before full B0 five epochs and best/last tests. No other ablations.
+Goal active; no enabled automation. Old batch192 is not a certified new-method
+capacity; base config batch values are placeholders until capacity acceptance.
+
 
 ## Latest user override — performance work paused; single-pass KDA
 

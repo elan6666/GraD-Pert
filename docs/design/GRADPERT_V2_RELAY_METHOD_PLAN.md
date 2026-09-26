@@ -1,6 +1,6 @@
 # GraD-Pert v2 邻域接力方法与交付计划
 
-状态：2026-09-26 用户暂停性能/容量/训练工作，只更新 KDA 扫描方向。当前配置为 `configs/v2/single_pass_jurkat/gradpert_v2/nadig_jurkat.yaml`，显式 `relay_passes: 1`。此前 `relay_jurkat` 双遍配置及其性能记录保留为历史；缺省字段仍解释为历史双遍，保证旧 checkpoint 配置身份不变。除扫描遍数外，新旧自包含配置完全相同。更新后须重新测性能，不能用旧双遍收据证明新方法吞吐或容量。
+状态：2026-09-26 单向扫描修改通过本地验证；用户已明确恢复原性能工程目标。当前配置为 `configs/v2/single_pass_jurkat/gradpert_v2/nadig_jurkat.yaml`，显式 `relay_passes: 1`。此前 `relay_jurkat` 双遍配置及其性能记录保留为历史；缺省字段仍解释为历史双遍，保证旧 checkpoint 配置身份不变。除扫描遍数外，新旧自包含配置完全相同。更新后须重新测性能，不能用旧双遍收据证明新方法吞吐或容量。
 
 ## 方法合同
 
@@ -16,7 +16,7 @@ Response 从 Cell 基因状态和独立 response CLS 开始。每层首先通过
 
 ## 单遍覆盖规则（2026-09-26）
 
-每个 KDA 层从零状态开始，按训练随机排列执行一次原有衰减与 delta 写入；self 分支随后写 CLS 一次。最终统一用 `y_g = S_*^T q_g` 读取，不回退为逐 token 中间状态输出。图分支仍为每个目标的独立合法邻域状态，仅目标 query 读取，无 CLS；cross 分支仅 control 基因写入，response query 读取。层数、参数量、随机顺序、图边、所有损失与 EMA Teacher 同构规则不变。下文性能工作保持暂停，旧的“双遍/接力”测量只作历史证据。
+每个 KDA 层从零状态开始，按训练随机排列执行一次原有衰减与 delta 写入；self 分支随后写 CLS 一次。最终统一用 `y_g = S_*^T q_g` 读取，不回退为逐 token 中间状态输出。图分支仍为每个目标的独立合法邻域状态，仅目标 query 读取，无 CLS；cross 分支仅 control 基因写入，response query 读取。层数、参数量、随机顺序、图边、所有损失与 EMA Teacher 同构规则不变。下文性能工作恢复，旧的“双遍/接力”测量只作历史证据。
 
 ## 总交付与判定原则
 
