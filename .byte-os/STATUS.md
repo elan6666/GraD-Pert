@@ -14,6 +14,10 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+CPU prefetch B2 passed12/12, median21.5217s/inclusive0.36685cells/s, wait2.2775%.
+A2 now running; both prefetch repeats so far do not exceed A1 throughput.
+Capacity integration wrapper prepared/uploaded (.sh at planned stem), not launched.
+
 ## 容量测试发布就绪（尚未运行）
 
 源码 `/data/yilangliu/GraD-Pert/development/source-v2-capacity-a1d55fa`，

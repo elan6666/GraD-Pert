@@ -20,7 +20,8 @@ Goal active：当前新方法升级与性能工程 → 双卡持续容量 → �
   SHA256 `43f6146774258e336d6777e4fef1b439d9380e49af75a310bb9b3a090442d2fa`。
 - 每组timeout1200s、双GPU锁、allocator expandable_segments:True，失败停止队列。
 - 最新A1 passed12/12，中位20.6005s、含等待0.36947cells/s、等待占5.8767%；
-  B1 passed12/12，中位21.8183s、含等待0.35858cells/s、等待占2.5462%；B2运行中。
+  B1 passed12/12，中位21.8183s、含等待0.35858cells/s、等待占2.5462%；
+  B2 passed12/12，中位21.5217s、含等待0.36685cells/s、等待占2.2775%；A2运行中。
   务必实时查验，不据此推断后续组状态。
 
 ## 已完成证据与下一动作
@@ -53,7 +54,8 @@ SHA `a1d55faff4a55d624e5061b7eb70e76d93f24c9b`，干净身份已核验。
 `d00729ca8d66fe5dede305af80a94aa22fcba3298f0424154dd9f11cdf10e67c`。
 单步扫描dry-run `development/single-a1d55fa-capacity-integration.plan.json`，
 SHA256 `53e743e31d453259ed1136afbb4854b4b67ccb72e6566c667ea6be35f1ad678d`。
-候选micro8/16/32/48/64，eager/重计算/同步数据路径，未加--execute。
+候选micro8/16/32/48/64，eager/重计算/同步数据路径；dry-run未执行。
+服务器同stem的.sh启动器已准备（双GPU锁、1800s超时、失败停止），尚未启动。
 待当前ABBA完成和取舍后再启动；如果启用预取则需要先正式配置化并重新发布，
 不可让benchmark-only override冒充容量/正式设置。
 
