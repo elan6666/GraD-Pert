@@ -123,7 +123,7 @@ def validate_execution_factor(
         for i, payload in enumerate(payloads):
             option = payload["model"]["parameters"].pop("relay_validate_once", {"value": False})
             require(option["value"] is bool(i), "wrong reference/candidate execution setting")
-    elif factor not in {"cpu_prefetch", "fused_sinkhorn"}:
+    elif factor not in {"cpu_prefetch", "fused_sinkhorn", "fused_gram"}:
         raise ValueError("unsupported execution factor")
     require(payloads[0] == payloads[1], "more than one configuration factor changed")
     for record, candidate in zip(receipts, (False, True, True, False), strict=True):
@@ -136,17 +136,18 @@ def validate_execution_factor(
             record.get("cpu_prefetch_diagnostic_only", False) is expected,
             "wrong CPU prefetch execution flag",
         )
-        expected = candidate if factor == "fused_sinkhorn" else False
-        require(
-            record.get("fused_sinkhorn_diagnostic_only", False) is expected,
-            "wrong fused Sinkhorn execution flag",
-        )
-        if expected:
-            require(record.get("fused_sinkhorn_module_count", 0) > 0, "no fused modules enabled")
+        for name in ("fused_sinkhorn", "fused_gram"):
+            expected = candidate if factor == name else False
             require(
-                record["fused_sinkhorn_module_count"] == receipts[1]["fused_sinkhorn_module_count"],
-                "different fused module count",
+                record.get(f"{name}_diagnostic_only", False) is expected,
+                f"wrong {name} execution flag",
             )
+            if expected:
+                require(record.get(f"{name}_module_count", 0) > 0, "no fused modules enabled")
+                require(
+                    record[f"{name}_module_count"] == receipts[1][f"{name}_module_count"],
+                    "different fused module count",
+                )
 
 
 def main() -> None:
@@ -157,7 +158,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
         "--execution-factor",
-        choices=("relay_validate_once", "cpu_prefetch", "fused_sinkhorn"),
+        choices=("relay_validate_once", "cpu_prefetch", "fused_sinkhorn", "fused_gram"),
         default="relay_validate_once",
     )
     args = parser.parse_args()

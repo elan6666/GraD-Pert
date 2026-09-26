@@ -1,17 +1,12 @@
-## 最新增量：Gram 完整双卡更新校验已启动
+## 最新状态：Gram完整更新失败，停止候选性能测试
 
-源df9b3d79dc95a57ab3258c1be098c17e46ed0a4a，独立干净服务器目录
-/data/yilangliu/GraD-Pert/development/source-v2-gram-df9b3d7。
-publication gradpert-gram-publication-df9b3d7.json SHA256
-2342fe0733bc844f68ad3b248e24da3c767e4d4ff720195bc7b5fd8e40419e49。
-父PID3453868，stem /data/yilangliu/GraD-Pert/development/single-df9b3d7-gram-parity；
-.pid/.stage/.exit/.tests.log/.run.log，rank收据位于stem目录。
-只candidate启用Gram融合，参考不变；不叠加Sinkhorn或CPU预取。
-同profiling_m2_a2配置global8，完整loss，两rank两更新（含非零LR）。
-本地13 Gram测试+43 relay/single/parity测试通过，operators mypy/ruff通过。
-刚核验父启动及服务器tests阶段；未宣称整模型通过。
-下一步检查进程/终止证据/每rank loss、全部梯度、optimizer、EMA/center、LR与RNG；
-通过才进行真实吞吐/内存对照。最终持续容量与完整B0五轮best/last仍待完成。
+
+Gram df9b3d7完整更新失败exit1：两rank第一步输入/RNG完全一致，gradient最大差
+0.00011191517114639282，超过3e-5/3e-4；未进入第二步非零LR。
+objective在LR0相同不构成等价通过；不启动此版本ABBA或正式训练。
+两rank失败收据44556bytes dry-run后保存single-df9b3d7-gram-parity/。
+下一步在真实调用逐项比较前向，定位最早差异，不放宽容差。
+已准备benchmark-only Gram开关与ABBA单因素审计（11测试通过），但未运行。
 
 # 当前状态 — 2026-09-26
 

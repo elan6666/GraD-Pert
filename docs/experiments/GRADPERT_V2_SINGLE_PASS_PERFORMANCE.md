@@ -258,3 +258,11 @@ Student/Teacher同时启用，默认false。禁止叠加其他执行因素。
 新增单chunk/跨chunk初始状态及五项输入梯度测试，CPU替身验证分派等价；
 13 Gram+43原方法/更新测试通过，算子mypy通过。CUDA完整更新另行测，
 不能把CPU替身测试当成CUDA等价证据。服务器single-df9b3d7-gram-parity启动。
+
+
+Gram df9b3d7完整更新失败exit1：两rank第一步输入/RNG完全一致，gradient最大差
+0.00011191517114639282，超过3e-5/3e-4；未进入第二步非零LR。
+objective在LR0相同不构成等价通过；不启动此版本ABBA或正式训练。
+两rank失败收据44556bytes dry-run后保存single-df9b3d7-gram-parity/。
+下一步在真实调用逐项比较前向，定位最早差异，不放宽容差。
+已准备benchmark-only Gram开关与ABBA单因素审计（11测试通过），但未运行。

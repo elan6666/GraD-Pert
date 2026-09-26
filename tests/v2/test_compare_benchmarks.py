@@ -129,3 +129,19 @@ def test_fused_sinkhorn_rejects_hidden_prefetch_and_missing_activation():
     rows[2]["fused_sinkhorn_module_count"] = 0
     with pytest.raises(ValueError, match="no fused modules"):
         MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "fused_sinkhorn")
+
+
+def test_gram_factor_rejects_mixed_fusion_and_count_drift():
+    payloads = [{"model": {"parameters": {}}} for _ in range(2)]
+    rows = [receipt(10) for _ in range(4)]
+    for record, flag in zip(rows, (False, True, True, False), strict=True):
+        record["fused_gram_diagnostic_only"] = flag
+        record["fused_gram_module_count"] = 18 if flag else 0
+    MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "fused_gram")
+    rows[1]["fused_sinkhorn_diagnostic_only"] = True
+    with pytest.raises(ValueError, match="fused_sinkhorn execution flag"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "fused_gram")
+    rows[1]["fused_sinkhorn_diagnostic_only"] = False
+    rows[2]["fused_gram_module_count"] = 17
+    with pytest.raises(ValueError, match="different fused module count"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "fused_gram")

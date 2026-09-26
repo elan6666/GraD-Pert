@@ -53,7 +53,15 @@ def main() -> None:
     parser.add_argument("--no-sequence-checkpoint", action="store_true")
     parser.add_argument("--cpu-prefetch", action="store_true")
     parser.add_argument("--fused-sinkhorn", action="store_true")
+    parser.add_argument("--fused-gram", action="store_true")
     args = parser.parse_args()
+    if args.fused_gram and (
+        not args.benchmark_only
+        or args.fused_sinkhorn
+        or args.cpu_prefetch
+        or args.no_sequence_checkpoint
+    ):
+        parser.error("Gram fusion requires an isolated benchmark-only diagnostic")
     try:
         args.steps, warmup_steps, kind = probe_policy(
             args.integration_only, args.steps, args.benchmark_only
@@ -150,6 +158,7 @@ def main() -> None:
         "sync_phase_timing": args.sync_phase_timing,
         "cpu_prefetch_diagnostic_only": args.cpu_prefetch,
         "fused_sinkhorn_diagnostic_only": args.fused_sinkhorn,
+        "fused_gram_diagnostic_only": args.fused_gram,
         "sequence_checkpoint_disabled_diagnostic_only": args.no_sequence_checkpoint,
         "hardware": environment_snapshot(torch),
         "host_before": host_snapshot(),
@@ -168,6 +177,10 @@ def main() -> None:
             device=torch.device("cuda:0"),
         ) as runtime:
             receipt["runtime_preparation_seconds"] = time.perf_counter() - preparation_started
+            if args.fused_gram:
+                from update_parity import enable_fused_gram
+
+                receipt["fused_gram_module_count"] = enable_fused_gram(runtime.objective)
             if args.fused_sinkhorn:
                 from update_parity import enable_fused_sinkhorn
 
