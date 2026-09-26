@@ -1,0 +1,24 @@
+{
+  "status": "local_validation_passed_server_work_paused",
+  "pre_change_sha": "f5267dfa3c34f3bf5993848d315ed4bbaf19c02b",
+  "change": "one writing pass; all final-state readout and CLS semantics preserved",
+  "config": "configs/v2/single_pass_jurkat/gradpert_v2/nadig_jurkat.yaml",
+  "config_sha256": "08a91f8f38646bc8012487e90e65f00277d36067deda3a1fb2213c2f1a8a77e6",
+  "validation": {
+    "v2_suite": {
+      "passed": 298,
+      "seconds": 83.78
+    },
+    "additional_joint_loss_parameterization": {
+      "passed": 2,
+      "note": "single and historical dual passes; single case added after full-suite collection"
+    },
+    "ruff": "passed",
+    "scoped_mypy": "3 files passed"
+  },
+  "server_stop_evidence": "/data/yilangliu/GraD-Pert/development/user-pause-single-pass-20260926.json",
+  "new_cuda_validation": "not_run_user_paused",
+  "performance": "not_measured_for_single_pass",
+  "student_parameters": 27279662,
+  "old_method_performance_receipts": "historical_only"
+}

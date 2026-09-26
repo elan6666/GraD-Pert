@@ -1,3 +1,27 @@
+## Latest user override — performance work paused; single-pass KDA
+
+2026-09-26: Goal paused at user request. Stopped both verified process trees:
+ABBA wrapper3386002 (including active B2 ranks) and waiting CUDA Graph
+wrapper3389345, stopping the successor before freeing GPU locks. Post-stop
+process inspection found no owned processes and nvidia-smi no compute apps.
+Server evidence: `/data/yilangliu/GraD-Pert/development/user-pause-single-pass-20260926.json`.
+A1/B1 completed receipts remain historical; ABBA is incomplete, B2 interrupted,
+A2 and CUDA Graph probe have not been accepted as completed.
+
+Only method change: `relay_passes: 1`, new self-contained current config
+`configs/v2/single_pass_jurkat/gradpert_v2/nadig_jurkat.yaml`. All graph, cell,
+response self/cross KDA write once, then queries read the final state. Self CLS
+writes once at the end; graph target-only readout and cross control K/V remain.
+Historical missing setting means two passes; old checkpoints/config identities
+remain valid. Student parameter count unchanged at27,279,662; EMA same structure.
+Local validation: 298 v2 tests passed (83.78s), plus the subsequently added
+single/dual joint-loss parameterization passed both cases. Ruff and scoped mypy
+passed. Receipt: `docs/experiments/single-pass-method-validation.json`.
+New single-pass CUDA performance/capacity remains untested while paused.
+Pre-change clean published baseline: f5267dfa3c34f3bf5993848d315ed4bbaf19c02b.
+No new GPU test, capacity sweep, training or monitor is authorized to resume
+by this correction. Earlier active/running statements below are historical.
+
 # Current stage: performance instrumentation and target preflight
 
 User explicitly requested Goal-mode supervision on 2026-09-26 after restoring

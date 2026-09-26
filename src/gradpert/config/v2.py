@@ -26,6 +26,7 @@ class V2Architecture:
     projector_bottleneck: int = 256
     prototypes: int = 16384
     relay_eval_seed: int | None = None
+    relay_passes: int = 2
     relay_kernel: str = "eager"
     relay_validate_once: bool = False
 
@@ -78,6 +79,10 @@ class V2Architecture:
             type(self.relay_eval_seed) is not int or self.relay_eval_seed < 0
         ):
             raise ValueError("relay evaluation seed must be a nonnegative integer")
+        if type(self.relay_passes) is not int or self.relay_passes not in (1, 2):
+            raise ValueError("relay_passes must be 1 or 2")
+        if self.relay_passes != 2 and self.attention != "relay_full":
+            raise ValueError("single-pass final-state KDA requires the relay profile")
         if self.relay_kernel not in ("eager", "inductor"):
             raise ValueError("unknown relay kernel")
         if self.relay_kernel != "eager" and self.attention != "relay_full":
@@ -99,6 +104,9 @@ class V2Architecture:
         if self.relay_eval_seed is None:
             # Preserve architecture identity of checkpoints predating relay KDA.
             values.pop("relay_eval_seed")
+        if self.relay_passes == 2:
+            # Missing field retains historical two-pass checkpoint identity.
+            values.pop("relay_passes")
         if self.relay_kernel == "eager":
             values.pop("relay_kernel")
         if not self.relay_validate_once:
@@ -166,6 +174,7 @@ class V2Options:
             "graph_read_mode",
             "graph_expander_type",
             "relay_eval_seed",
+            "relay_passes",
             "relay_kernel",
             "relay_validate_once",
             "koleo_exclude_same_condition",

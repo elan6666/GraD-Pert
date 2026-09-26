@@ -74,18 +74,32 @@ def test_chunk_final_state_and_carried_state_match_reference_gradients(chunk_siz
         torch.testing.assert_close(a, b, atol=3e-5, rtol=3e-4)
 
 
-def test_relay_cls_writes_once_after_twice_scanned_genes() -> None:
+@pytest.mark.parametrize("passes", [1, 2])
+def test_relay_cls_writes_once_after_configured_gene_scans(passes: int) -> None:
     torch.manual_seed(2)
     layer = RelayDeltaAttention(8, 2).eval()
-    x = torch.randn(2, 5, 8)
+    layer.write_passes = passes
+    x = torch.randn(2, 5, 8, requires_grad=True)
     order = torch.tensor([[3, 1, 0, 2], [2, 3, 1, 0]])
     genes = layer._project_writes(x[:, :4])
     cls = layer._project_writes(x[:, 4:])
     forward = [layer._ordered(t, order) for t in genes]
     state = delta_final_state(*forward)
-    state = delta_final_state(*(t.flip(1) for t in forward), state=state)
+    if passes == 2:
+        state = delta_final_state(*(t.flip(1) for t in forward), state=state)
     state = delta_final_state(*cls, state=state)
-    torch.testing.assert_close(layer(x, order=order), layer._read(x, state))
+    actual, expected = layer(x, order=order), layer._read(x, state)
+    torch.testing.assert_close(actual, expected)
+    inputs = (x, *layer.parameters())
+    for a, b in zip(
+        torch.autograd.grad(actual.square().sum(), inputs, retain_graph=True, allow_unused=True),
+        torch.autograd.grad(expected.square().sum(), inputs, allow_unused=True),
+        strict=True,
+    ):
+        if a is None or b is None:
+            assert a is b
+        else:
+            torch.testing.assert_close(a, b, atol=3e-5, rtol=3e-4)
 
 
 def test_graph_selected_output_matches_full_synchronous_4_layer_graph() -> None:
@@ -111,7 +125,8 @@ def test_graph_selected_output_matches_full_synchronous_4_layer_graph() -> None:
     torch.testing.assert_close(a, b[selected])
 
 
-def test_relay_local_graph_cannot_read_outside_induced_nodes() -> None:
+@pytest.mark.parametrize("passes", [1, 2])
+def test_relay_local_graph_cannot_read_outside_induced_nodes(passes: int) -> None:
     torch.manual_seed(3)
     seeds = torch.randn(9, 8)
     index = small_index()
@@ -123,7 +138,7 @@ def test_relay_local_graph_cannot_read_outside_induced_nodes() -> None:
         induced=True,
     )
     assert view.context is not None
-    model = GraDPertV2(seeds, small_architecture()).eval()
+    model = GraDPertV2(seeds, replace(small_architecture(), relay_passes=passes)).eval()
     original = model.graph(view.ids, view.neighbors, view.valid, view.sources, context=view.context)
     with torch.no_grad():
         model.graph.embedding.weight[3:].add_(100)
@@ -205,7 +220,8 @@ def test_new_profile_config_is_distinct_from_historical_method() -> None:
     assert (options.local_min_ratio, options.local_max_ratio) == (0.25, 0.5)
 
 
-def test_relay_joint_losses_and_evaluation_reuse_same_model() -> None:
+@pytest.mark.parametrize("passes", [1, 2])
+def test_relay_joint_losses_and_evaluation_reuse_same_model(passes: int) -> None:
     config = load_experiment_config(
         Path(__file__).resolve().parents[2]
         / "configs/v2/relay_jurkat/gradpert_v2/nadig_jurkat.yaml"
@@ -222,7 +238,7 @@ def test_relay_joint_losses_and_evaluation_reuse_same_model() -> None:
         ("c0", "c1", "c2", "c3"),
     )
     batch = assemble_batch(raw, index, options, np.random.default_rng(4))
-    model = GraDPertV2(torch.randn(9, 8), small_architecture())
+    model = GraDPertV2(torch.randn(9, 8), replace(small_architecture(), relay_passes=passes))
     objective = JointObjective(
         model, loss_reduction="row_mean", koleo_exclude_same_condition=True
     ).train()

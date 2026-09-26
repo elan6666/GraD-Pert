@@ -215,7 +215,7 @@ class DeltaAttention(nn.Module):
 
 
 class RelayDeltaAttention(DeltaAttention):
-    """Two-pass carried-state KDA whose tokens read only the final state."""
+    """Configurable write passes; all queries read the same final state."""
 
     def __init__(self, width: int, heads: int) -> None:
         super().__init__(width, heads)
@@ -223,6 +223,7 @@ class RelayDeltaAttention(DeltaAttention):
         self.randomize_order: bool | None = None
         self.eval_seed: int = 1
         self.compiled_chunks = False
+        self.write_passes = 2
 
     def random_order_enabled(self) -> bool:
         return self.training if self.randomize_order is None else self.randomize_order
@@ -253,8 +254,10 @@ class RelayDeltaAttention(DeltaAttention):
             ),
         )
 
-    def _two_pass(self, writes: tuple[Tensor, Tensor, Tensor, Tensor], order: Tensor) -> Tensor:
+    def _write_state(self, writes: tuple[Tensor, Tensor, Tensor, Tensor], order: Tensor) -> Tensor:
         key, value, decay, beta = (self._ordered(t, order) for t in writes)
+        if self.write_passes == 1:
+            return chunk_delta_final_state(key, value, decay, beta, compiled=self.compiled_chunks)
         # A single scan preserves the exact forward final state as the reverse
         # initial state; reverse writes use the very same projected tokens.
         return chunk_delta_final_state(
@@ -280,10 +283,10 @@ class RelayDeltaAttention(DeltaAttention):
             )
         if order.shape != (len(x), genes):
             raise ValueError("relay permutation must cover every gene exactly once")
-        state = self._two_pass(self._project_writes(x[:, :genes]), order)
+        state = self._write_state(self._project_writes(x[:, :genes]), order)
         gene_state = state
         if has_cls:
-            # Forward CLS is read-only; after both gene scans it writes exactly once.
+            # CLS writes exactly once after all configured gene writes.
             cls_key, cls_value, cls_decay, cls_beta = self._project_writes(x[:, genes:])
             state = chunk_delta_final_state(
                 cls_key, cls_value, cls_decay, cls_beta, state=state, compiled=self.compiled_chunks
@@ -297,7 +300,7 @@ class RelayDeltaAttention(DeltaAttention):
     def cross(self, query: Tensor, control: Tensor, *, order: Tensor) -> Tensor:
         if len(query) != len(control) or order.shape != control.shape[:2]:
             raise ValueError("cross KDA needs aligned control order")
-        state = self._two_pass(self._project_writes(control), order)
+        state = self._write_state(self._project_writes(control), order)
         return self._read(query, state)
 
     def graph(
@@ -330,7 +333,7 @@ class RelayDeltaAttention(DeltaAttention):
                 )
             )
             order = scores.masked_fill(~valid, float("inf")).argsort(-1)
-        state = self._two_pass((key, value, decay, beta), order)
+        state = self._write_state((key, value, decay, beta), order)
         return self._read(query.unsqueeze(1), state).squeeze(1)
 
 
