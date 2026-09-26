@@ -6,9 +6,11 @@ Goal active：当前新方法升级与性能工程 → 双卡持续容量 → �
 不启动其他消融；不恢复旧停止运行。默认单向KDA、最终S统一读取，完整双蒸馏。
 无定时监控；本Goal持续推进。保留历史来源，禁止修改活动服务器源码或覆盖runID。
 
-## 正在运行：当前方法双卡单步容量扫描
+## 单步容量扫描已完成；正在准备向上扩展
 
-wrapper PID3427171，启动前双卡均2MiB空闲。
+wrapper PID3427171已退出，exit0；micro8/16/32/48/64全部passed1/1及checkpoint恢复。
+峰值分配分别5,178,335,744 /9,163,398,144 /14,990,420,992 /21,175,608,832 /27,755,764,736 bytes。
+64尚未触边界，新增72/80/88配置通过单因素校验；待发布后按序测试，失败即停止。
 stem `/data/yilangliu/GraD-Pert/development/single-a1d55fa-capacity-integration`。
 `.stage/.pid/.exit/.run.log`，运行根同stem，`sweep.json`及`micro8/receipt.json`等。
 源码 `/data/yilangliu/GraD-Pert/development/source-v2-capacity-a1d55fa`，
