@@ -97,8 +97,14 @@ New validated_m2_a2 config differs only this flag from profiling_m2_a2.
 Update-parity tool supports exactly one of kernel or validation execution
 changes, using initial.pt+same RNG/data and original LR/EMA for two full steps;
 checks gradients/losses/Student/Teacher/centers/optimizer/RNG. 3 helper tests
-passed; actual two-card test pending publication and launch for validation
-candidate. Then controlled ABBA if it passes, sustained128+maxbatch, only
+passed; first actual two-card diagnostic was published as09845938ff1e0caa8e6b94ee40d52bf536adf1f5
+and launched in development/relay-0984593-validation-parity (PID3380495, now
+terminal exit1). Failed BEFORE any optimizer update while hashing a zero-stride
+singleton Long tensor: contiguous() can preserve a singleton stride0, so viewing
+as bytes fails. Initial checkpoint/log/rank receipts retained. Diagnostic fix
+forces contiguous-format clone before byte view, covered by a new int64/bfloat16
+singleton+broadcast test;4 helper tests/mypy/lint pass. Model source unchanged.
+Next publish fix, deploy new immutable checkout and fresh parity run. Then controlled ABBA if it passes, sustained128+maxbatch, only
 fullB0five epochs+best/last. No timer; Goal supervision active.
 
 Additional user request complete: updated EasyConnect skill with native Swift AX

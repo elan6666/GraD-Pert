@@ -45,3 +45,12 @@ def test_parity_checks_small_gradients_and_optimizer_structure():
 def test_nonfinite_or_dtype_changes_do_not_pass_parity():
     assert not MODULE.compare_trees(torch.ones(2), torch.tensor([1.0, float("nan")]))["passed"]
     assert not MODULE.compare_trees(torch.ones(2), torch.ones(2, dtype=torch.float64))["passed"]
+
+
+def test_digest_accepts_zero_stride_singletons_broadcast_and_bfloat16():
+    for dtype in (torch.int64, torch.bfloat16):
+        seed = torch.tensor([3], dtype=dtype)
+        singleton = torch.as_strided(seed, (1,), (0,))
+        assert MODULE.tree_digest(singleton) == MODULE.tree_digest(seed)
+        broadcast = singleton.expand(5)
+        assert MODULE.tree_digest(broadcast) == MODULE.tree_digest(torch.full((5,), 3, dtype=dtype))

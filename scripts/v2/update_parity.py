@@ -27,7 +27,13 @@ def tree_digest(value: Any) -> str:
         if isinstance(item, torch.Tensor):
             digest.update(str((item.dtype, tuple(item.shape))).encode())
             digest.update(
-                item.detach().cpu().contiguous().reshape(-1).view(torch.uint8).numpy().tobytes()
+                item.detach()
+                .cpu()
+                .reshape(-1)
+                .clone(memory_format=torch.contiguous_format)
+                .view(torch.uint8)
+                .numpy()
+                .tobytes()
             )
         elif isinstance(item, np.ndarray):
             digest.update(str((item.dtype, item.shape)).encode())
