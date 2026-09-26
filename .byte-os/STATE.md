@@ -6,26 +6,29 @@ Goal active：当前新方法升级与性能工程 → 双卡持续容量 → �
 不启动其他消融；不恢复旧停止运行。默认单向KDA、最终S统一读取，完整双蒸馏。
 无定时监控；本Goal持续推进。保留历史来源，禁止修改活动服务器源码或覆盖runID。
 
-## 单步容量扫描已完成；正在准备向上扩展
+## 当前阶段：机制级KDA优化；GPU短检查已收尾
 
-wrapper PID3427171已退出，exit0；micro8/16/32/48/64全部passed1/1及checkpoint恢复。
-峰值分配分别5,178,335,744 /9,163,398,144 /14,990,420,992 /21,175,608,832 /27,755,764,736 bytes。
-64尚未触边界，新增72/80/88配置通过单因素校验；待发布后按序测试，失败即停止。
-stem `/data/yilangliu/GraD-Pert/development/single-a1d55fa-capacity-integration`。
-`.stage/.pid/.exit/.run.log`，运行根同stem，`sweep.json`及`micro8/receipt.json`等。
-源码 `/data/yilangliu/GraD-Pert/development/source-v2-capacity-a1d55fa`，
-SHA `a1d55faff4a55d624e5061b7eb70e76d93f24c9b`，干净发布已核验。
-发布收据 `development/gradpert-capacity-publication-a1d55fa.json` SHA256
-`d00729ca8d66fe5dede305af80a94aa22fcba3298f0424154dd9f11cdf10e67c`。
-计划 `.plan.json` SHA256 `53e743e31d453259ed1136afbb4854b4b67ccb72e6566c667ea6be35f1ad678d`。
+用户补充：开关/预取/batch探针不等于深度优化完成。先实施和验证主要机制，
+再持续容量与完整B0；不套用DSec或侧边固定方案。路线详见性能报告末节。
+优先审计衰减加权Gram的[B,H,L,L,D]临时量，再融合归约及解析反向；尚未实现。
+现有trace只有嵌套时间，先流式提取CPU发射/主要kernel成本，不能猜端到端收益。
 
-依次micro8/16/32/48/64，world2、accum2、eager/重计算/同步数据，完整SSL1/2。
-配置 `configs/v2/single_pass_jurkat/capacity_m{8,16,32,48,64}_a2/gradpert_v2/`。
-双GPU锁，wrapper timeout1800s，失败停止，不得覆盖旧ID或修改活动源码。
-单步含checkpoint保存/恢复，仅定位边界，不能证明持续容量或正式效果。
-实时核对进程及每点收据；进程消失不代表成功。64通过则扩展、失败细化；
-随后近边界做128+更新、checkpoint续跑、300-control验证，并测稳态吞吐。
-后续仅完整B0五轮与best/last测试；不启动其他消融、不恢复旧停止运行。
+无活动GPU任务。上探wrapper3429104已exit1：micro72 passed1/1及checkpoint恢复，
+peakallocated31,009,318,400bytes；micro80 OOM，88未启动。单步不证明持续容量。
+stem `/data/yilangliu/GraD-Pert/development/single-3ba9a96-capacity-integration`。
+源码 `/data/yilangliu/GraD-Pert/development/source-v2-capacity-3ba9a96`，
+SHA `3ba9a960d79d207ce89dd938b672be051f327234`，发布身份已核验。
+发布 `development/gradpert-capacity-publication-3ba9a96.json` SHA256
+`54e8f9df74e539e51001c74b1a0b51bc7b162b3cb89fe2fb5a746a35bffc0c2c`。
+收据review158,510bytes后保存docs/experiments/single-3ba9a96-capacity-integration/。
+前次micro8/16/32/48/64均passed，review403,935bytes后保存
+`docs/experiments/single-a1d55fa-capacity-integration/`。
+
+下一动作：有界流式解析既有大trace（无需重新占GPU）：服务器development/
+single-38af3ce-profile-replay-profile/rank-{0,1}-trace.json，各约4.77GB。
+避免key_averages超大内存问题。定量结果指导融合Gram前后向候选；保持随机数、
+合法邻域、final-state读取、梯度及optimizer/EMA/center协议，不放宽误差掩盖失败。
+优化完成前不启动72的长测/正式B0；最终仍需持续容量和完整B0五轮best/last。
 
 ## 已完成的性能取舍
 

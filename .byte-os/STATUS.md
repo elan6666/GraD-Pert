@@ -14,6 +14,11 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+User steering prioritizes mechanism-depth KDA optimization before sustained capacity/B0.
+Sweep3429104 exit1:72passed/80OOM/88notrun; no activeGPU job. Receipts saved.
+Route in performance report: quantify existing trace, fused decay-Gram fwd/bwd
+without expanded pair-channel temporary; not yet implemented. Byte state corrected.
+
 CPU prefetch ABBA complete exit0, all12/12 and comparable identity audit.
 Mean inclusive step increases2.4476%; do not adopt. Saved reviewed356,094byte
 receipts and comparison under docs/experiments/single-ec2384a-prefetch-abba/.
