@@ -1,12 +1,15 @@
-## 最新状态：Gram完整更新失败，停止候选性能测试
+## 最新状态：真实Gram前向首差异诊断运行中
 
-
-Gram df9b3d7完整更新失败exit1：两rank第一步输入/RNG完全一致，gradient最大差
-0.00011191517114639282，超过3e-5/3e-4；未进入第二步非零LR。
-objective在LR0相同不构成等价通过；不启动此版本ABBA或正式训练。
-两rank失败收据44556bytes dry-run后保存single-df9b3d7-gram-parity/。
-下一步在真实调用逐项比较前向，定位最早差异，不放宽容差。
-已准备benchmark-only Gram开关与ABBA单因素审计（11测试通过），但未运行。
+保留df9b3d7失败，未启动其ABBA。当前只诊断，源e58d96688677497e685175e576aaa96b0d826490，
+服务器source-v2-gram-e58d966，publication SHA256
+5bb11bde72e901841d8899974ff9c1cc4826d8c05ae8fb8173cda7aecbeeff23。
+父PID3455848，stem /data/yilangliu/GraD-Pert/development/single-e58d966-gram-audit。
+.stage/.exit/.run.log以及目录rank-*-receipt.json；当前父进程存活/parity阶段。
+--candidate-fused-gram --candidate-gram-forward-audit：真实输入逐调用对比原Gram，
+首差异抛出scalar-only形状/stride/误差/门控范围；无科学矩阵下载，无默认修改。
+新增诊断异常分支测试，9parity测试及ruff通过；初版缺json导入已本地修复，未部署初版。
+下一步读取首差异证据再修复；若前向全通过而梯度失败，转向反向/布局诊断。
+保持目标：机制验证→持续最大batch→完整B0五轮best/last；当前未正式训练。
 
 # 当前状态 — 2026-09-26
 
