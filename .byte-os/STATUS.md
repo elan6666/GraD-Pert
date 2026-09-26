@@ -14,6 +14,17 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Single-pass baseline passed12/12 (3warmup,9timed), source c073a37 unchanged.
+Median update19.57964s; p9519.83892s; measured cells/s including data0.387596;
+peak allocated3,505,913,344bytes. Global8 is diagnostic only. Data wait1.09–1.45s
+per update is a modest fraction; prioritize KDA CPU launch/synchronization
+investigation before assuming prefetch alone solves the bottleneck. Method
+change from dual to single pass is not an equivalent-implementation speedup.
+Receipt dry-run88,894bytes then copied to
+`docs/experiments/single-c073a37-preflight/baseline/receipt.json`.
+Queue has transitioned to final-update profiling; wrapper3399679 live. Replay
+candidate wrapper3400405 still waits on GPU locks and verified predecessor gates.
+
 Single-pass integration passed1/1 complete update on both GPUs with checkpoint
 save/reload; receipt dry-run reviewed79,212bytes then copied to
 `docs/experiments/single-c073a37-preflight/integration/receipt.json`.
