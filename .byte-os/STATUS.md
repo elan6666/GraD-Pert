@@ -26,9 +26,10 @@ reanalyzed with separate analysis SHA. About1.972million kernels/update suggests
 small-op/chunk fusion as next diagnostic direction; profiled timings are not
 normal throughput evidence. A1 passed40/40: median26.63s/update at global8. Candidate569ae1b passed
 FP32 kernel checks but failed strict BF16 output tolerance; failure preserved,
-default stays eager. Corrected intermediate-rounding compilation is prepared
-for CUDA retest; full two-update parity tool is published but not yet exercised
-on CUDA. No formal training or timer; Goal continues. STATE.md has receipts
+default stays eager. Intermediate-rounding retry also failed; compilation is not adopted.
+Independent per-layer graph validation candidate passes275 local v2 tests
+including bitwise checkpoint/dropout gradient/RNG checks; full two-card
+update parity is next. No formal training or timer; Goal continues. STATE.md has receipts
 and remaining gates. GPU0 idle100%
 telemetry is anomalous but both cards passed CUDA arithmetic; analyze traces. [Plan](../docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md) and STATE.md carry
 remaining diagnostics→optimization→capacity→five-epoch-B0 dependencies. No new

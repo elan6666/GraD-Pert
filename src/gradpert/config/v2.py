@@ -27,6 +27,7 @@ class V2Architecture:
     prototypes: int = 16384
     relay_eval_seed: int | None = None
     relay_kernel: str = "eager"
+    relay_validate_once: bool = False
 
     def __post_init__(self) -> None:
         for name in (
@@ -81,6 +82,10 @@ class V2Architecture:
             raise ValueError("unknown relay kernel")
         if self.relay_kernel != "eager" and self.attention != "relay_full":
             raise ValueError("compiled relay kernel requires the relay profile")
+        if type(self.relay_validate_once) is not bool:
+            raise ValueError("relay_validate_once must be boolean")
+        if self.relay_validate_once and self.graph_read_mode != "relay":
+            raise ValueError("single neighborhood validation requires relay graph")
 
     @classmethod
     def parse(cls, values: dict[str, Any]) -> V2Architecture:
@@ -96,6 +101,8 @@ class V2Architecture:
             values.pop("relay_eval_seed")
         if self.relay_kernel == "eager":
             values.pop("relay_kernel")
+        if not self.relay_validate_once:
+            values.pop("relay_validate_once")
         return values
 
 
@@ -160,6 +167,7 @@ class V2Options:
             "graph_expander_type",
             "relay_eval_seed",
             "relay_kernel",
+            "relay_validate_once",
             "koleo_exclude_same_condition",
             "graph_view_mode",
         }

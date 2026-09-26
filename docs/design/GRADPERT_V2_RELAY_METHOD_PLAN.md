@@ -193,3 +193,18 @@ reserved4.012GB。收据见`docs/experiments/relay-steady-d9c1fbf-A1/receipt.jso
 目标环境Torch2.13已确认该选项存在且默认为False。保持原输入/误差阈值，重新验证，
 尚不声称这是唯一误差来源或已经解决。参考
 [PyTorch实际lowering](https://github.com/pytorch/pytorch/blob/main/torch/_inductor/lowering.py)。
+
+
+30a597a保留中间精度舍入后，BF16 B64/L94仍出现完全相同的71个超阈值元素；
+说明该flag没有修复当前偏差。整chunk编译暂时搁置；其后排队的完整更新验证
+在依赖门禁终止，没有执行GPU训练，不把它记为模型数值失败或通过。
+
+下一项独立调度候选 `relay_validate_once=true` 将图层每个chunk内部重复的
+`valid.any(-1).all()` CPU布尔读取，移到整层forward一次检查。所有行仍须拥有
+合法邻居；私有chunk仅读取已检查的数据，直接调用attention.graph默认仍检查。
+不改变KDA/MLA浮点运算、dropout、排序、邻域或任何梯度公式。新开关默认False，
+自包含候选 `configs/v2/relay_jurkat/validated_m2_a2/gradpert_v2/nadig_jurkat.yaml`。
+CPU checkpoint/dropout测试输出/所有参数与输入梯度/RNG逐位相等；示例的标量
+读取从多次降到一次；空邻域在两种策略下都失败。真实GPU节省多少尚待整步测量。
+完整更新工具现在只允许一次改变relay_kernel或relay_validate_once中一个，
+会将具体执行差异写入收据；该调度候选保持eager，无需通过已搁置的编译候选。

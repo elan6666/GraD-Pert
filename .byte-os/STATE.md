@@ -81,16 +81,25 @@ Kernel probe569ae1b failed BF16 B64/L94 after FP32 cases passed;71 output elemen
 exceed3e-5/3e-4, max absolute.00048828125. No threshold relaxation; default eager.
 Failure receipt docs/experiments/relay-kernel-candidate-569ae1b/receipt.json hash
 ffc60bfa0aacbdc3f16782dc54bb5bedae98d5c12ecf37d9c314df60ef3efca4.
-Correction sets compile options emulate_precision_casts=True to preserve eager
-rounding (target2.13 exposes this flag, defaultFalse); same five local compilation
-tests pass. CUDA retest pending publication/deployment; don't reuse old output.
-Full-update parity tool added in a74a70e (3 helper tests+mypy/lint passed):
-update_parity.py restores initial.pt and exact RNG/data plan, two real dual-card
-updates with frozen LR/EMA schedule, checks gradients/losses/Student/Teacher/
-centers/optimizer/RNG. Requires passing kernel test first. Not yet CUDA-validated.
-After it passes continue controlled full-step ABBA and sustained128+ maxbatch;
-then only full B0five epochs+best/last. No formal training or GPU process active
-at this recorded milestone; no timer, Goal supervision continues.
+30a597a75ddfa10fced9b5a503c5699cadde3222 tested the same kernel with
+emulate_precision_casts=True; same71 BF16 mismatches. It is rejected too.
+Server source development/source-v2-relay-30a597a remains immutable;
+publication91ca4093766941f736c65c158cb5d07c98734a5094c8dfead39654e7aec425e4.
+Both development/relay-30a597a-kernel-check and dependent update-parity wrappers
+exited1; dependency gate prevented the latter from running. No GPU work active.
+Do not retry these output IDs or relax tolerances. Compiler remains opt-in,
+not accepted/default. Next independent candidate: relay_validate_once=True,
+hoists graph-neighborhood legality checks outside per-chunk/recompute calls,
+without changing floating operations, RNG or losses. Default remainsFalse.
+CPU checkpoint/dropout bitwise-output/gradient/RNG tests and invalid-neighbor
+checks pass; full local v2 suite275passed, scoped4file mypy/lint pass.
+New validated_m2_a2 config differs only this flag from profiling_m2_a2.
+Update-parity tool supports exactly one of kernel or validation execution
+changes, using initial.pt+same RNG/data and original LR/EMA for two full steps;
+checks gradients/losses/Student/Teacher/centers/optimizer/RNG. 3 helper tests
+passed; actual two-card test pending publication and launch for validation
+candidate. Then controlled ABBA if it passes, sustained128+maxbatch, only
+fullB0five epochs+best/last. No timer; Goal supervision active.
 
 Additional user request complete: updated EasyConnect skill with native Swift AX
 and private Security.framework credential path; both installed copies match,

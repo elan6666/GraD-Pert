@@ -309,10 +309,11 @@ class RelayDeltaAttention(DeltaAttention):
         sources: Tensor,
         *,
         order: Tensor | None = None,
+        neighborhoods_validated: bool = False,
     ) -> Tensor:
         if neighbors.shape != valid.shape or sources.shape != (*neighbors.shape, 4):
             raise ValueError("invalid graph neighborhood shape")
-        if not valid.any(-1).all():
+        if not neighborhoods_validated and not valid.any(-1).all():
             raise ValueError("every graph target needs a valid neighbor")
         n, length = neighbors.shape
         selected = memory[neighbors.clamp_min(0)] + self.source(sources.to(memory.dtype))

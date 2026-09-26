@@ -136,6 +136,7 @@ def main() -> None:
     from gradpert.data._io import atomic_json
     from gradpert.execution.identity import inspect_environment, inspect_source_identity
     from gradpert.hashing import sha256_file
+    from gradpert.modeling.v2.model import RelayGraphLayer
     from gradpert.modeling.v2.operators import RelayDeltaAttention
     from gradpert.training.checkpoint import _rng_state
     from gradpert.training.v2.checkpoint import load_checkpoint, save_checkpoint
@@ -154,14 +155,19 @@ def main() -> None:
     candidate_architecture, candidate_options = V2Options.parse_parameters(
         candidate.model.parameters
     )
-    assert (
-        architecture.relay_kernel == "eager" and candidate_architecture.relay_kernel == "inductor"
-    )
-    assert dataclasses.replace(candidate_architecture, relay_kernel="eager") == architecture
+    assert architecture.relay_kernel == "eager" and not architecture.relay_validate_once
+    changed = [
+        f.name
+        for f in dataclasses.fields(architecture)
+        if getattr(architecture, f.name) != getattr(candidate_architecture, f.name)
+    ]
+    assert changed in (["relay_kernel"], ["relay_validate_once"]), "one execution factor at a time"
     assert candidate_options == options
     left, right = config.model_dump(mode="json"), candidate.model_dump(mode="json")
-    right["model"]["parameters"].pop("relay_kernel")
-    assert left == right, "only kernel execution option may differ"
+    for field in changed:
+        left["model"]["parameters"].pop(field, None)
+        right["model"]["parameters"].pop(field, None)
+    assert left == right, "only the selected execution option may differ"
     root = Path(__file__).resolve().parents[2]
     source = inspect_source_identity(
         root,
@@ -186,6 +192,7 @@ def main() -> None:
         "atol": 3e-5,
         "rtol": 3e-4,
         "steps": [],
+        "execution_change": {name: getattr(candidate_architecture, name) for name in changed},
     }
     receipt_path = args.output / f"rank-{rank}-receipt.json"
     atomic_json(receipt_path, receipt)
@@ -221,8 +228,8 @@ def main() -> None:
 
             runtime.optimizer.step = capture_step  # type: ignore[method-assign]
             try:
-                for kernel in ("eager", "inductor"):
-                    if kernel == "inductor":
+                for kernel in ("reference", "candidate"):
+                    if kernel == "candidate":
                         load_checkpoint(
                             initial,
                             runtime.objective,
@@ -234,7 +241,13 @@ def main() -> None:
                             model.options = candidate_architecture
                             for module in model.modules():
                                 if isinstance(module, RelayDeltaAttention):
-                                    module.compiled_chunks = True
+                                    module.compiled_chunks = (
+                                        candidate_architecture.relay_kernel == "inductor"
+                                    )
+                                if isinstance(module, RelayGraphLayer):
+                                    module.validate_once = (
+                                        candidate_architecture.relay_validate_once
+                                    )
                     for step, batch in enumerate(itertools.islice(runtime.batches(0), 2)):
                         input_digest = tree_digest(batch)
                         rng_before = tree_digest(_rng_state())
@@ -267,7 +280,7 @@ def main() -> None:
                             "rng_after_sha256": tree_digest(_rng_state()),
                             "view_rng_sha256": tree_digest(runtime.generator.bit_generator.state),
                         }
-                        if kernel == "eager":
+                        if kernel == "reference":
                             references.append((snapshot, record))
                         else:
                             reference, expected_record = references[step]

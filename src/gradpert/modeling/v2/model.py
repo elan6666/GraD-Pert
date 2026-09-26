@@ -116,6 +116,7 @@ class RelayGraphLayer(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.chunk_rows = chunk_rows
         self.checkpoint_chunks = checkpoint_chunks
+        self.validate_once = False
 
     def _chunk(
         self,
@@ -132,11 +133,14 @@ class RelayGraphLayer(nn.Module):
             neighbors=neighbors,
             valid=valid,
             sources=sources,
+            neighborhoods_validated=self.validate_once,
         )
         x = query + self.dropout(read)
         return cast(Tensor, x + self.dropout(self.ffn(self.norm2(x))))
 
     def forward(self, memory: Tensor, neighbors: Tensor, valid: Tensor, sources: Tensor) -> Tensor:
+        if self.validate_once and not valid.any(-1).all():
+            raise ValueError("every graph target needs a valid neighbor")
         normalized = self.norm1(memory)
         outputs = []
         for start in range(0, len(memory), self.chunk_rows):
@@ -402,6 +406,8 @@ class GraDPertV2(nn.Module):
         if options.attention == "relay_full":
             self.set_relay_order_randomization(self.training)
         for module in self.modules():
+            if isinstance(module, RelayGraphLayer):
+                module.validate_once = options.relay_validate_once
             if isinstance(module, RelayDeltaAttention):
                 module.compiled_chunks = options.relay_kernel == "inductor"
                 module.eval_seed = (
