@@ -147,6 +147,14 @@ performance engineering, not formal/capacity evidence. At terminal completion,
 compare exact row/view RNG hashes, pair medians/p95/throughput/memory; decide
 adoption only on repeatable benefit. No deterministic settings leak into timing.
 Original, failed and stopped runs remain immutable.
+While ABBA runs, next independent candidate prepared: synthetic
+scripts/v2/benchmark_relay_cudagraph.py, unchanged eager final-state function
+inside Torch's AOTAutograd cudagraphs backend (no Inductor fusion). No model or
+config edit. Tests compare two live carried states and all input gradients
+against the independent recurrent reference. Probe covers FP32/BF16,grad/no-grad,
+masked writes/nonzero state,strict numerical/RNG/capture/replay gates and memory.
+Requires idle GPU and publication identity; do not overlap the ABBA resource
+locks. CUDA capture and speed remain unverified. Publish before server probe.
 No timer, Goal active. Remaining full-update/throughput/capacity/B0requirements
 unchanged. No new default optimization has been accepted.
 

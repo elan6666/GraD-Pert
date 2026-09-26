@@ -231,3 +231,23 @@ A保持逐chunk校验，B仅整图层一次校验，CPU线程均2，双卡独占
 有界队列`development/relay-4898de3-validation-abba`按A1/B1/B2/A2串行，
 任何失败停止后续项。首次原始d9 A1仅作历史参考，不混入这组受控ABBA统计。
 还未证明提速；当前默认仍不采用候选，也未认证新模型最大batch或启动正式B0。
+
+
+## 下一候选：保持 eager 运算的 CUDA Graph 重放（尚未 CUDA 验证）
+
+目标服务器 Torch2.13 的实际 `torch/_dynamo/backends/cudagraphs.py` 使用
+AOTAutograd + boxed_nop + cudagraph_trees；它没有请求 Inductor 逐元素融合。
+独立探针 `scripts/v2/benchmark_relay_cudagraph.py` 编译原有
+`chunk_delta_final_state` 整个区域（内部 compiled=False），模型/配置默认不变。
+先验证同一区域多次调用、第一次结果仍存活且作为第二次状态的生命周期；两个
+输出都参与 loss，全部五个输入梯度均比较。覆盖 FP32/BF16、1/94/257长度、
+2/64行、训练梯度/Teacher无梯度路径，mask no-op 与非零初态；固定 RNG。
+使用与已通过完整更新相同的确定性诊断环境与原阈值，反向在autocast之外。
+四次预热、十次计时；首次编译/捕获单独记录，每个计时输出也检查数值。
+要求capture manager/recorded graphs实际存在，任何静默skip或预热后重新录制
+都判失败；记录实际backend源码SHA与Torch Git版本、内存。每次独立更新边界
+只调用一次mark_step_begin，不在两个相互依赖的区域之间标记新步。
+
+这是独立 synthetic probe，不代表模型集成或提速；未添加新默认backend。
+动态裁剪带来的形状缓存/图池内存，以及完整模型checkpoint重算、多视图、多次
+累积backward生命周期都仍需随后验证。当前ABBA不被这项准备工作修改或中断。
