@@ -150,3 +150,13 @@ ATen/native/cuda/Reduce.cuh:562–631及635–670，四元素strided归约在线
 修正后完整双卡校验已另起single-7ae9a8b-sinkhorn-parity，不覆盖失败版本。
 另外正式采用前要将kernel的N从constexpr改为运行时边界（只保留4stream、20轮常量），
 防止随机视图token数导致每个长度一次编译；需要新的精确数值与冷/稳态验证。
+
+7ae9a8b完整双卡校验exit0，两rank两更新均通过；302参数梯度、620模型状态张量、
+739优化器状态张量比较均最大差0，包含Teacher/center的objective state_dict。
+loss标量比较通过，但旧max_absolute字段仅统计张量，不能凭它宣称loss逐位相等；
+新诊断已补标量差值与显式learning_rate记录。30个ManifoldResidual启用融合。
+原始收据见single-7ae9a8b-sinkhorn-parity/。
+
+后续候选将N改为runtime参数并禁止值/对齐特化，保持STEPS=20/BLOCK=8常量。
+微基准扩展到1/17/256/4096/32768 token，记录Triton3.7.1两kernel每卡缓存数。
+先验证变长无需逐长度编译且输出/梯度精确，再执行同版本完整更新与端到端ABBA。

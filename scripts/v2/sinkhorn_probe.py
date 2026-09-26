@@ -64,7 +64,7 @@ def main():
     assert clean
     protocol = {
         "devices": [0, 1],
-        "counts": [17, 256, 4096],
+        "counts": [1, 17, 256, 4096, 32768],
         "scales": [0.2, 4.0, 20.0],
         "iterations": 20,
         "atol": 3e-6,
@@ -105,13 +105,16 @@ def main():
                         "output": check(reference, actual),
                         "gradient": check(reference_grad, actual_grad),
                     }
-                    from gradpert.modeling.v2._sinkhorn_cuda import forward
+                    from gradpert.modeling.v2._sinkhorn_cuda import _backward, _forward, forward
 
                     _, expected_saved = reference_with_saved(x.detach())
                     _, actual_saved = forward(x.detach(), 20)
                     case["normalization_stages"] = [
                         check(expected_saved[i], actual_saved[:, i]) for i in range(40)
                     ]
+                    # Triton 3.7.1 cache layout is verified against installed jit.py.
+                    case["compiled_forward_variants"] = len(_forward.device_caches[device][0])
+                    case["compiled_backward_variants"] = len(_backward.device_caches[device][0])
                     case["eager"] = timed(sinkhorn, x, upstream)
                     case["fused"] = timed(fused_sinkhorn, x, upstream)
                     result["passed"] &= case["output"]["passed"] and case["gradient"]["passed"]

@@ -18,8 +18,8 @@ def _row_sum(z):
     return ((a + b) + c) + d
 
 
-@triton.jit
-def _forward(X, Y, P, N: tl.constexpr, STEPS: tl.constexpr, BLOCK: tl.constexpr):
+@triton.jit(do_not_specialize=["N"], do_not_specialize_on_alignment=["N"])
+def _forward(X, Y, P, N, STEPS: tl.constexpr, BLOCK: tl.constexpr):
     tokens = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
     row = tl.arange(0, 4)
     col = tl.arange(0, 4)
@@ -45,8 +45,8 @@ def _forward(X, Y, P, N: tl.constexpr, STEPS: tl.constexpr, BLOCK: tl.constexpr)
     tl.store(Y + index, cuda_extra.libdevice.exp(z), tokens[:, None, None] < N)
 
 
-@triton.jit
-def _backward(U, Y, P, DX, N: tl.constexpr, STEPS: tl.constexpr, BLOCK: tl.constexpr):
+@triton.jit(do_not_specialize=["N"], do_not_specialize_on_alignment=["N"])
+def _backward(U, Y, P, DX, N, STEPS: tl.constexpr, BLOCK: tl.constexpr):
     tokens = tl.program_id(0) * BLOCK + tl.arange(0, BLOCK)
     row = tl.arange(0, 4)
     col = tl.arange(0, 4)

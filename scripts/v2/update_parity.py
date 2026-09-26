@@ -103,6 +103,7 @@ def compare_trees(
             for i, (left, right) in enumerate(zip(a, b, strict=True)):
                 visit(left, right, path + "/" + str(i))
         elif isinstance(a, (float, int)) and isinstance(b, (float, int)):
+            result["max_absolute"] = max(result["max_absolute"], abs(float(a) - float(b)))
             if not math.isclose(a, b, abs_tol=atol, rel_tol=rtol):
                 failure(path, f"{a} != {b}")
         elif tree_digest(a) != tree_digest(b):
@@ -375,6 +376,7 @@ def main() -> None:
                             "optimizer": cpu_copy(runtime.optimizer.state_dict()),
                         }
                         record = {
+                            "learning_rate": schedule.at_step(step, total_steps)["learning_rate"],
                             "input_sha256": input_digest,
                             "rng_before_sha256": rng_before,
                             "rng_after_sha256": tree_digest(_rng_state()),
