@@ -147,7 +147,12 @@ def main() -> None:
     parser.add_argument("--reference-repeat", action="store_true")
     parser.add_argument("--deterministic", action="store_true")
     parser.add_argument("--no-sequence-checkpoint", action="store_true")
+    parser.add_argument("--candidate-no-sequence-checkpoint", action="store_true")
     args = parser.parse_args()
+    if args.candidate_no_sequence_checkpoint and (
+        args.no_sequence_checkpoint or args.reference_repeat
+    ):
+        parser.error("candidate-only checkpoint diagnostic cannot combine checkpoint/repeat flags")
     world, rank = int(os.environ.get("WORLD_SIZE", "1")), int(os.environ.get("LOCAL_RANK", "0"))
     devices = args.gpu.split(",")
     if world != 2 or sorted(devices) != ["0", "1"] or not 0 <= rank < world:
@@ -191,7 +196,11 @@ def main() -> None:
     candidate_architecture, candidate_options = V2Options.parse_parameters(
         candidate.model.parameters
     )
-    changed = execution_changes(architecture, candidate_architecture, args.reference_repeat)
+    changed = execution_changes(
+        architecture,
+        candidate_architecture,
+        args.reference_repeat or args.candidate_no_sequence_checkpoint,
+    )
     assert candidate_options == options
     left, right = config.model_dump(mode="json"), candidate.model_dump(mode="json")
     for field in changed:
@@ -224,6 +233,9 @@ def main() -> None:
         "steps": [],
         "execution_change": {name: getattr(candidate_architecture, name) for name in changed},
         "reference_repeat": args.reference_repeat,
+        "candidate_sequence_checkpoint_disabled_diagnostic_only": (
+            args.candidate_no_sequence_checkpoint
+        ),
         "deterministic_diagnostic_only": args.deterministic,
         "sequence_checkpoint_disabled_both_sides_diagnostic_only": args.no_sequence_checkpoint,
         "cublas_workspace_config": os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
@@ -273,6 +285,8 @@ def main() -> None:
                             identity=runtime.identity,
                             generator=runtime.generator,
                         )
+                        if args.candidate_no_sequence_checkpoint:
+                            disable_sequence_checkpoint(runtime.objective)
                         for model in (runtime.objective.student, runtime.objective.teacher):
                             model.options = candidate_architecture
                             for module in model.modules():

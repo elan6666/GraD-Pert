@@ -14,6 +14,16 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+ABBA live at B1 after A1 passed12/12. A1 median17.1801s, inclusive0.43615cells/s,
+peakallocated14,551,056,384bytes (13.55GiB), default checkpointed priorbaseline
+19.5796s /3,505,913,344bytes. This is one reference observation, not ABBA outcome.
+Prepared separate candidate-only checkpoint-disable parity flag, requiring
+identical eager architecture/config on both sides and rejecting reference-repeat
+or both-sides overrides. This checks against the real checkpointed default;
+the previous replay parity disabled checkpointing on both sides.8 helper/CLI
+tests plus scoped lint/typecheck passed. GPU validation of this new diagnostic
+must wait for current ABBA to release GPUs; no duplicate job launched.
+
 ABBA throughput diagnostic launched PID3413600, stem
 `/data/yilangliu/GraD-Pert/development/single-3a2980d-replay-abba`.
 Immutable source `development/source-v2-replay-3a2980d`, fullSHA

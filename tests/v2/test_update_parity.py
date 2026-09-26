@@ -90,3 +90,38 @@ def test_sequence_checkpoint_diagnostic_changes_both_sides_only():
         assert not network.cell.checkpoint_layers
         assert not network.response.checkpoint_layers
         assert network.graph.checkpoint_chunks
+
+
+@pytest.mark.parametrize("conflict", ["--reference-repeat", "--no-sequence-checkpoint"])
+def test_candidate_checkpoint_diagnostic_rejects_ambiguous_overrides(conflict):
+    import subprocess
+    import sys
+
+    script = Path(__file__).resolve().parents[2] / "scripts/v2/update_parity.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--config",
+            "unused",
+            "--candidate-config",
+            "unused",
+            "--data-root",
+            "/data/yilangliu",
+            "--output",
+            "/data/yilangliu/unused",
+            "--gpu",
+            "0,1",
+            "--publication",
+            "unused",
+            "--publication-sha256",
+            "unused",
+            "--candidate-no-sequence-checkpoint",
+            conflict,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "candidate-only checkpoint diagnostic" in result.stderr
