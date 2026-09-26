@@ -7,6 +7,16 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def test_capacity_child_preserves_selected_host_thread_policy(monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "scripts/v2"))
+    make_env = runpy.run_path(str(ROOT / "scripts/v2/capacity_sweep.py"))["probe_environment"]
+    parent = {"OMP_NUM_THREADS": "2", "MKL_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2"}
+    actual = make_env(parent)
+    assert actual == {**parent, "PYTORCH_ALLOC_CONF": "expandable_segments:True"}
+    assert "PYTORCH_ALLOC_CONF" not in parent
+    assert make_env({})["OMP_NUM_THREADS"] == "1"
+
+
 def test_sweep_accepts_two_rank_profiles_but_rejects_order_and_confounds(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend(str(ROOT / "scripts/v2"))
     validate = runpy.run_path(str(ROOT / "scripts/v2/capacity_sweep.py"))["validate_profiles"]

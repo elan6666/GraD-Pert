@@ -181,6 +181,13 @@ maxima and reports descriptive ratios, both pairs and run variability without
 calling two replicates statistically significant or numerical/capacity proof.
 Eight focused rejection/aggregation tests and scoped lint/mypy pass. Run against
 actual four small receipts after completion; partial A1 alone cannot show gain.
+Capacity handoff audit found scripts/v2/capacity_sweep.py silently forced OMP=1,
+which would discard the current explicit OMP=2 setting. Changed child environment
+to preserve caller-supplied OMP/MKL/OpenBLAS settings, keep legacy OMP=1 only when
+unset, and record the four whitelisted execution variables in sweep.json. No
+GPU/model/scientific config changes. Three focused sweep checks and lint pass;
+scoped mypy passes with missing external yaml stubs excluded (import-untyped).
+This repair applies to future sweeps only; active ABBA/probe source stays frozen.
 No timer, Goal active. Remaining full-update/throughput/capacity/B0requirements
 unchanged. No new default optimization has been accepted.
 

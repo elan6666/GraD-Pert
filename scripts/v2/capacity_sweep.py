@@ -7,7 +7,9 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import yaml
 from capacity_report import collect
@@ -16,6 +18,14 @@ from gradpert.config import load_experiment_config
 from gradpert.data._io import atomic_json
 from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file
+
+
+def probe_environment(parent: Mapping[str, str]) -> dict[str, str]:
+    """Preserve explicitly profiled host settings; retain the legacy unset default."""
+    result = dict(parent)
+    result["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
+    result.setdefault("OMP_NUM_THREADS", "1")
+    return result
 
 
 def validate_profiles(configs: list[Path]) -> list[int]:
@@ -89,7 +99,7 @@ def main() -> None:
                 "command": command,
             }
         )
-    result = {
+    result: dict[str, Any] = {
         "kind": "integration_sweep" if args.integration_only else "capacity_sweep",
         "status": "planned",
         "rows": rows,
@@ -112,7 +122,17 @@ def main() -> None:
     args.output.mkdir(parents=True, exist_ok=False)
     result["status"] = "running"
     atomic_json(args.output / "sweep.json", result)
-    env = {**os.environ, "PYTORCH_ALLOC_CONF": "expandable_segments:True", "OMP_NUM_THREADS": "1"}
+    env = probe_environment(os.environ)
+    result["child_execution_environment"] = {
+        key: env.get(key)
+        for key in (
+            "OMP_NUM_THREADS",
+            "MKL_NUM_THREADS",
+            "OPENBLAS_NUM_THREADS",
+            "PYTORCH_ALLOC_CONF",
+        )
+    }
+    atomic_json(args.output / "sweep.json", result)
     for row, config in zip(rows, args.config, strict=True):
         with (args.output / f"micro{row['microbatch']}.log").open("x") as log:
             process = subprocess.run(
