@@ -125,3 +125,18 @@ def test_candidate_checkpoint_diagnostic_rejects_ambiguous_overrides(conflict):
     )
     assert result.returncode == 2
     assert "candidate-only checkpoint diagnostic" in result.stderr
+
+
+def test_gram_forward_audit_reports_first_actual_mismatch(monkeypatch):
+    from gradpert.modeling.v2 import weighted_gram
+
+    monkeypatch.setattr(
+        weighted_gram,
+        "fused_weighted_gram",
+        lambda k, g: weighted_gram.weighted_gram_reference(k, g) + 0.01,
+    )
+    MODULE.enable_gram_forward_audit()
+    with pytest.raises(RuntimeError, match="Gram forward audit mismatch") as error:
+        weighted_gram.fused_weighted_gram(torch.ones(1, 1, 2, 3), torch.zeros(1, 1, 2, 3))
+    assert '"call": 1' in str(error.value)
+    assert '"shape": [1, 1, 2, 3]' in str(error.value)
