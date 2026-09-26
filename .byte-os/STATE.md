@@ -1,5 +1,15 @@
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Checkpoint-isolation diagnostic now running, PID3411374, stem
+`development/single-a63ac39-replay-no-sequence-checkpoint`; same .stage/.run.log/
+.pid/.exit and rank-receipt layout,1200s timeout, bothGPUlocks. Clean source
+`development/source-v2-replay-a63ac39` at a63ac39a3b9237cf57c5782bcc7f5939fa6e2edb.
+Publication development/gradpert-replay-publication-a63ac39.json SHA256
+c2652c2080543178f443eb07ca98f66acf17dc2599dd7a505f84401956e8f8a0.
+Both reference/candidate sequence checkpoints disabled by explicit diagnostic
+flag; graph checkpointing retained. Formal configs unchanged. Six parity-helper
+tests passed locally (corrects preceding count typo). Outcome pending.
+
 835a9ad donation-disabled candidate also FAILED on both ranks with exactly
 same cudagraph lifetime invariant in first cell backward; exit1, no candidate
 update passed. Receipts saved under docs/experiments/single-835a9ad-replay-parity/
@@ -8,7 +18,7 @@ Next diagnostic isolates checkpoint interaction: --no-sequence-checkpoint on
 update_parity disables Cell/Response checkpointing on BOTH reference and
 candidate, graph checkpointing unchanged. Explicit diagnostic receipt flag;
 formal configs/runners untouched. This is fault isolation, not adoption or a
-claim of faster training.7 parity helper tests and scoped mypy/ruff pass.
+claim of faster training.6 parity helper tests and scoped mypy/ruff pass.
 
 Ownership-repair hypothesis published835a9ad663ca0546b2cf36da02d1df69a1dc9521,
 clean immutable `development/source-v2-replay-835a9ad`, tree
