@@ -1,0 +1,115 @@
+{
+  "source_sha": "ac67ce8f03958754c45dcd65b0eb3b5e982b1ce2",
+  "source_clean": true,
+  "scope": "Arithmetic diagnosis only",
+  "cases": [
+    {
+      "device": 0,
+      "length": 17,
+      "exp": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "weighted": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "tree_vs_sum": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "contiguous_sum_vs_original": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "weighted_stride": [
+        73984,
+        64,
+        4352,
+        256,
+        1
+      ]
+    },
+    {
+      "device": 0,
+      "length": 32,
+      "exp": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "weighted": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "tree_vs_sum": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "contiguous_sum_vs_original": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "weighted_stride": [
+        262144,
+        64,
+        8192,
+        256,
+        1
+      ]
+    },
+    {
+      "device": 1,
+      "length": 17,
+      "exp": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "weighted": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "tree_vs_sum": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "contiguous_sum_vs_original": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "weighted_stride": [
+        73984,
+        64,
+        4352,
+        256,
+        1
+      ]
+    },
+    {
+      "device": 1,
+      "length": 32,
+      "exp": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "weighted": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "tree_vs_sum": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "contiguous_sum_vs_original": {
+        "max_absolute": 0.0,
+        "different": 0
+      },
+      "weighted_stride": [
+        262144,
+        64,
+        8192,
+        256,
+        1
+      ]
+    }
+  ]
+}

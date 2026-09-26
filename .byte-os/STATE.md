@@ -1,10 +1,10 @@
-## 最新增量：Gram 归约假设尚未解决精度差异
+## 最新增量：Gram 全部显式归约树精确微基准通过
 
-b3978a27b36fb7020376380603aca81474e3b044 已发布并独立测双卡18组，exit0。
-前向仍最大5.96e-8、梯度exact，未采用。无活动GPU任务。
-下一步逐项分离指数、乘积与归约中间值，不能仅假定求和是唯一来源。
-收据 docs/experiments/single-b3978a2-gram-probe/receipt.json；性能报告末节。
-后续仍为完整更新验证/性能取舍→持续容量→完整B0五轮best/last。
+分阶段诊断ac67ce8证明exp/乘积exact，完整下降offset树与Torch sum exact。
+候选3784c7fbafa444ff128b7cdd90b0c7f67e91a05c双卡18组前向/两梯度全部差0，exit0。
+收据docs/experiments/single-3784c7f-gram-probe/receipt.json及single-ac67ce8-gram-stages/。
+无活动GPU任务。下一步接入候选专用完整更新校验，再测ABBA，未采用默认。
+仍需最终优化配置接入、持续最大batch、完整B0五轮best/last。
 
 # 当前状态 — 2026-09-26
 

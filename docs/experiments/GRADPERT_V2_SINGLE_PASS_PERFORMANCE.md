@@ -234,3 +234,17 @@ c03f83643f208af475765d2491401fd2de0b6b0091d96c7243712b21152b5a8f。
 小收据15463bytes经dry-run归档至single-b3978a2-gram-probe/receipt.json。
 下一步分离exp、乘积、求和的中间值比较，定位误差后才提出下一候选；
 禁止无新证据重复相同修改，不放宽容差。当前所有GPU任务终止，未启动B0。
+
+
+### Gram 精度定位完成：全部显式归约树通过微基准
+
+分阶段源码ac67ce8f03958754c45dcd65b0eb3b5e982b1ce2，双卡长度17/32结果：
+exp、weighted乘积与Torch逐元素相同；Torch显式32→16→8→4→2→1配对
+与其sum也相同。证据single-ac67ce8-gram-stages/receipt.json，exit0。
+由此继续保留指数和乘法，实现每级显式下降offset归约而非剩余tl.sum。
+新候选3784c7fbafa444ff128b7cdd90b0c7f67e91a05c，发布hash
+0e5d7c118bfedb9085b44ddb0eb3872067637646aaad1a8a82357c4f5a37a65d。
+双卡18组合成微基准全部前向及两输入梯度差0，exit0；原有容差未修改。
+两个小收据共17303bytes dry-run复核后入库。已定位被测误差为归约路径，
+不能外推至整模型。尚未接入模型默认；下一步candidate-only完整非零LR更新
+验证所有梯度、优化器、EMA/center，再真实双卡吞吐/内存测量决定采用。
