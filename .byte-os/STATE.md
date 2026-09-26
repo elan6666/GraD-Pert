@@ -1,10 +1,17 @@
-## 最新增量：Gram 全部显式归约树精确微基准通过
+## 最新增量：Gram 完整双卡更新校验已启动
 
-分阶段诊断ac67ce8证明exp/乘积exact，完整下降offset树与Torch sum exact。
-候选3784c7fbafa444ff128b7cdd90b0c7f67e91a05c双卡18组前向/两梯度全部差0，exit0。
-收据docs/experiments/single-3784c7f-gram-probe/receipt.json及single-ac67ce8-gram-stages/。
-无活动GPU任务。下一步接入候选专用完整更新校验，再测ABBA，未采用默认。
-仍需最终优化配置接入、持续最大batch、完整B0五轮best/last。
+源df9b3d79dc95a57ab3258c1be098c17e46ed0a4a，独立干净服务器目录
+/data/yilangliu/GraD-Pert/development/source-v2-gram-df9b3d7。
+publication gradpert-gram-publication-df9b3d7.json SHA256
+2342fe0733bc844f68ad3b248e24da3c767e4d4ff720195bc7b5fd8e40419e49。
+父PID3453868，stem /data/yilangliu/GraD-Pert/development/single-df9b3d7-gram-parity；
+.pid/.stage/.exit/.tests.log/.run.log，rank收据位于stem目录。
+只candidate启用Gram融合，参考不变；不叠加Sinkhorn或CPU预取。
+同profiling_m2_a2配置global8，完整loss，两rank两更新（含非零LR）。
+本地13 Gram测试+43 relay/single/parity测试通过，operators mypy/ruff通过。
+刚核验父启动及服务器tests阶段；未宣称整模型通过。
+下一步检查进程/终止证据/每rank loss、全部梯度、optimizer、EMA/center、LR与RNG；
+通过才进行真实吞吐/内存对照。最终持续容量与完整B0五轮best/last仍待完成。
 
 # 当前状态 — 2026-09-26
 

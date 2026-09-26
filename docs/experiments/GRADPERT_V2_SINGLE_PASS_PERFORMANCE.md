@@ -248,3 +248,13 @@ exp、weighted乘积与Torch逐元素相同；Torch显式32→16→8→4→2→1
 两个小收据共17303bytes dry-run复核后入库。已定位被测误差为归约路径，
 不能外推至整模型。尚未接入模型默认；下一步candidate-only完整非零LR更新
 验证所有梯度、优化器、EMA/center，再真实双卡吞吐/内存测量决定采用。
+
+
+### Gram完整更新验证接入
+
+候选源df9b3d79dc95a57ab3258c1be098c17e46ed0a4a；新增显式fused_gram参数，
+图/self/cross/末尾CLS均通过RelayDeltaAttention的candidate-only标志进入，
+Student/Teacher同时启用，默认false。禁止叠加其他执行因素。
+新增单chunk/跨chunk初始状态及五项输入梯度测试，CPU替身验证分派等价；
+13 Gram+43原方法/更新测试通过，算子mypy通过。CUDA完整更新另行测，
+不能把CPU替身测试当成CUDA等价证据。服务器single-df9b3d7-gram-parity启动。
