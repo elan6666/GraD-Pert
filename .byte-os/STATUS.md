@@ -14,6 +14,18 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Checkpoint-removal parity PASSED both ranks, exit0, two full updates with exact
+inputs/RNG and max_abs0 losses/gradients/objective/optimizer. Reviewed41,616byte
+receipts copied to docs/experiments/single-473466d-checkpoint-parity/. Not adopted:
+A1 suggests ~12% faster update but ~4x memory; need sustained capacity tradeoff.
+New opt-in CPU view/data lookahead implemented, default disabled. One worker,
+one batch ahead; private NumPy generator, public state committed only at yield;
+CPU-only assembly, consumer-thread device transfer. Early close/error preserves
+consumed RNG, worker joined. Diagnostic flags isolate prefetch from other changes.
+20 relevant tests, scoped mypy/ruff passed. Next publish and run full two-update
+parity (--candidate-cpu-prefetch, identical eager checkpointed configs), then
+benchmark if passed. No current GPU job; no timer/formal B0/capacity yet.
+
 ABBA stopped terminal exit1: A1 passed12/12, B1 failed10/12 on both ranks,
 Dynamo recompile_limit64 exceeded at chunk_delta_final_state; no B2/A2 launched.
 Full-sequence static replay is rejected for current random-length views; do not

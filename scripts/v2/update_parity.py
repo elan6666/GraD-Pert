@@ -148,7 +148,14 @@ def main() -> None:
     parser.add_argument("--deterministic", action="store_true")
     parser.add_argument("--no-sequence-checkpoint", action="store_true")
     parser.add_argument("--candidate-no-sequence-checkpoint", action="store_true")
+    parser.add_argument("--candidate-cpu-prefetch", action="store_true")
     args = parser.parse_args()
+    if args.candidate_cpu_prefetch and (
+        args.no_sequence_checkpoint
+        or args.candidate_no_sequence_checkpoint
+        or args.reference_repeat
+    ):
+        parser.error("CPU prefetch diagnostic must isolate one execution factor")
     if args.candidate_no_sequence_checkpoint and (
         args.no_sequence_checkpoint or args.reference_repeat
     ):
@@ -199,7 +206,9 @@ def main() -> None:
     changed = execution_changes(
         architecture,
         candidate_architecture,
-        args.reference_repeat or args.candidate_no_sequence_checkpoint,
+        args.reference_repeat
+        or args.candidate_no_sequence_checkpoint
+        or args.candidate_cpu_prefetch,
     )
     assert candidate_options == options
     left, right = config.model_dump(mode="json"), candidate.model_dump(mode="json")
@@ -233,6 +242,7 @@ def main() -> None:
         "steps": [],
         "execution_change": {name: getattr(candidate_architecture, name) for name in changed},
         "reference_repeat": args.reference_repeat,
+        "candidate_cpu_prefetch_diagnostic_only": args.candidate_cpu_prefetch,
         "candidate_sequence_checkpoint_disabled_diagnostic_only": (
             args.candidate_no_sequence_checkpoint
         ),
@@ -301,7 +311,15 @@ def main() -> None:
                                     module.validate_once = (
                                         candidate_architecture.relay_validate_once
                                     )
-                    for step, batch in enumerate(itertools.islice(runtime.batches(0), 2)):
+                    for step, batch in enumerate(
+                        itertools.islice(
+                            runtime.batches(
+                                0,
+                                cpu_prefetch=args.candidate_cpu_prefetch and kernel == "candidate",
+                            ),
+                            2,
+                        )
+                    ):
                         input_digest = tree_digest(batch)
                         rng_before = tree_digest(_rng_state())
                         count, conditions = len(batch.control), batch.condition_index

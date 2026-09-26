@@ -50,6 +50,7 @@ def main() -> None:
     parser.add_argument("--profile-operator-table", action="store_true")
     parser.add_argument("--sync-phase-timing", action="store_true")
     parser.add_argument("--no-sequence-checkpoint", action="store_true")
+    parser.add_argument("--cpu-prefetch", action="store_true")
     args = parser.parse_args()
     try:
         args.steps, warmup_steps, kind = probe_policy(
@@ -69,6 +70,8 @@ def main() -> None:
         parser.error("profile-memory requires profile-last-update")
     if args.profile_operator_table and not args.profile_last_update:
         parser.error("operator table requires profile-last-update")
+    if args.cpu_prefetch and not args.benchmark_only:
+        parser.error("CPU prefetch is currently benchmark-only diagnostic")
     if args.no_sequence_checkpoint and not args.benchmark_only:
         parser.error("no-sequence-checkpoint is benchmark-only diagnostic, not capacity evidence")
     measured_stop = args.steps - int(args.profile_last_update)
@@ -139,6 +142,7 @@ def main() -> None:
         "profile_memory": args.profile_memory,
         "profile_operator_table": args.profile_operator_table,
         "sync_phase_timing": args.sync_phase_timing,
+        "cpu_prefetch_diagnostic_only": args.cpu_prefetch,
         "sequence_checkpoint_disabled_diagnostic_only": args.no_sequence_checkpoint,
         "hardware": environment_snapshot(torch),
         "host_before": host_snapshot(),
@@ -203,7 +207,7 @@ def main() -> None:
             training_started = time.perf_counter()
             next_batch_ready = training_started
             for epoch in itertools.count():
-                for batch in runtime.batches(epoch):
+                for batch in runtime.batches(epoch, cpu_prefetch=args.cpu_prefetch):
                     # This gap includes CPU materialization, view assembly and
                     # host-to-device transfer after the preceding synchronized
                     # update. A prefetch optimization should reduce this gap.

@@ -5,10 +5,10 @@ from __future__ import annotations
 import random
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass, replace
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import numpy as np
 import torch
@@ -38,7 +38,7 @@ class Runtime:
     device: torch.device
     batch_size: int
     identity: dict[str, Any]
-    allowed_expression_ids: np.ndarray | None = None
+    allowed_expression_ids: np.ndarray[Any, Any] | None = None
     purpose: Literal["training", "evaluation"] = "training"
 
     @cached_property
@@ -54,12 +54,29 @@ class Runtime:
             ),
         )
 
-    def batches(self, epoch: int) -> Iterator[TrainingBatch]:
+    def batches(self, epoch: int, *, cpu_prefetch: bool = False) -> Iterator[TrainingBatch]:
+        if not cpu_prefetch:
+            yield from self._batches(epoch, self.device, self.generator)
+            return
+        from .prefetch import prefetch_cpu
+
+        stream = prefetch_cpu(
+            lambda rng: self._batches(epoch, torch.device("cpu"), rng), self.generator
+        )
+        try:
+            for batch in stream:
+                yield cast(TrainingBatch, _move_batch_tree(batch, self.device))
+        finally:
+            stream.close()
+
+    def _batches(
+        self, epoch: int, device: torch.device, generator: np.random.Generator
+    ) -> Iterator[TrainingBatch]:
         if self.purpose != "training":
             raise RuntimeError("evaluation runtime cannot enter training")
         for raw in self.data.iter_train_epoch(
             epoch=epoch,
-            device=self.device,
+            device=device,
             batch_size=self.batch_size,
             max_unique_conditions=(
                 0
@@ -71,9 +88,26 @@ class Runtime:
                 raw,
                 self.index,
                 self.options,
-                self.generator,
+                generator,
                 allowed_expression_ids=self.allowed_expression_ids,
             )
+
+
+def _move_batch_tree(value: Any, device: torch.device) -> Any:
+    """Transfer immutable batch structure on the consumer thread, without RNG draws."""
+    if isinstance(value, torch.Tensor):
+        return value.to(device)
+    if is_dataclass(value) and not isinstance(value, type):
+        return replace(
+            value,
+            **{
+                field.name: _move_batch_tree(getattr(value, field.name), device)
+                for field in fields(value)
+            },
+        )
+    if isinstance(value, tuple):
+        return tuple(_move_batch_tree(item, device) for item in value)
+    return value
 
 
 def validate_world(configured: int, observed: int, purpose: str) -> None:
