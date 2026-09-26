@@ -122,13 +122,20 @@ def main() -> None:
             receipt["data"] = runtime.identity
             receipt["optimizer_routes"] = runtime.optimizer.routes
             durations = []
+            data_wait_seconds = []
             cells = []
             gradient_reduction_seconds = []
             torch.cuda.reset_peak_memory_stats()
             step = 0
             training_started = time.perf_counter()
+            next_batch_ready = training_started
             for epoch in itertools.count():
                 for batch in runtime.batches(epoch):
+                    # This gap includes CPU materialization, view assembly and
+                    # host-to-device transfer after the preceding synchronized
+                    # update. A prefetch optimization should reduce this gap.
+                    torch.cuda.synchronize()
+                    data_wait_seconds.append(time.perf_counter() - next_batch_ready)
                     global_cells = len(batch.control)
                     global_conditions = batch.condition_index if world > 1 else None
                     if world > 1:
@@ -183,6 +190,7 @@ def main() -> None:
                         receipt["resume_checkpoint_sha256"] = sha256_file(path)
                     if step % 8 == 0:
                         primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
+                    next_batch_ready = time.perf_counter()
                     if step >= args.steps:
                         break
                 if step >= args.steps:
@@ -249,6 +257,7 @@ def main() -> None:
                 "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
                 "training_wall_seconds": receipt["training_wall_seconds"],
                 "update_seconds": durations[warmup_steps:],
+                "data_wait_seconds": data_wait_seconds[warmup_steps:],
                 "gradient_reduction_seconds": gradient_reduction_seconds[warmup_steps:],
             }
             measurements = [local_measurement]
@@ -259,7 +268,19 @@ def main() -> None:
                 max(times)
                 for times in zip(*(m["update_seconds"] for m in measurements), strict=True)
             ]
+            gaps_measured = [
+                max(times)
+                for times in zip(*(m["data_wait_seconds"] for m in measurements), strict=True)
+            ]
             receipt["rank_measurements"] = measurements
+            receipt["measured_data_wait_seconds"] = gaps_measured
+            receipt["data_wait_fraction"] = sum(gaps_measured) / max(
+                1e-9, sum(gaps_measured) + sum(durations_measured)
+            )
+            receipt["cpu_gpu_gap_scope"] = (
+                "time after prior synchronized update until next batch and transfer complete; "
+                "excludes update math and includes batch preparation"
+            )
             receipt["communication_timing_scope"] = (
                 "synchronized gradient averaging only; excludes center/metric collectives; "
                 "includes reduction packing and rank wait"

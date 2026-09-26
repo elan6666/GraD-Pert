@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -27,6 +28,7 @@ class NeighborhoodIndex:
         *,
         expander_type: str = "permutation",
         propagated: bool = False,
+        relay: bool = False,
     ) -> None:
         if degree < 0:
             raise ValueError("expander degree cannot be negative")
@@ -58,10 +60,11 @@ class NeighborhoodIndex:
         self.rows, self.n_nodes = rows, n
         self.gene_ids = topology.gene_ids
         self.propagated = propagated
+        self.relay = relay
 
     def view(
         self,
-        ids: np.ndarray,
+        ids: np.ndarray[Any, Any],
         targets: Sequence[Sequence[int]],
         *,
         rng: np.random.Generator,
@@ -72,7 +75,7 @@ class NeighborhoodIndex:
     ) -> GraphView:
         position = {int(g): i for i, g in enumerate(ids)}
 
-        def sampled_edges(genes: np.ndarray) -> list[list[tuple[int, list[bool]]]]:
+        def sampled_edges(genes: np.ndarray[Any, Any]) -> list[list[tuple[int, list[bool]]]]:
             result = []
             for gene in genes:
                 row = []
@@ -87,7 +90,7 @@ class NeighborhoodIndex:
 
         def pack_edges(
             edge_rows: list[list[tuple[int, list[bool]]]],
-        ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        ) -> tuple[np.ndarray[Any, Any], np.ndarray[Any, Any], np.ndarray[Any, Any]]:
             max_neighbors = max(map(len, edge_rows))
             neighbors = np.zeros((len(edge_rows), max_neighbors), dtype=np.int64)
             valid = np.zeros_like(neighbors, dtype=bool)
@@ -100,7 +103,24 @@ class NeighborhoodIndex:
         edges = sampled_edges(ids)
         neighbors, valid, sources = pack_edges(edges)
         context_data = None
-        if self.propagated:
+        if self.relay:
+            context_ids = ids if induced else np.arange(self.n_nodes, dtype=np.int64)
+            context_edges = edges if induced else sampled_edges(context_ids)
+            context_neighbors, context_valid, context_sources = pack_edges(context_edges)
+            context_neighbors = np.where(
+                context_valid,
+                np.searchsorted(context_ids, context_neighbors),
+                0,
+            )
+            context_data = (
+                context_ids,
+                context_neighbors,
+                context_valid,
+                context_sources,
+                np.searchsorted(context_ids, ids),
+                np.zeros_like(neighbors),
+            )
+        elif self.propagated:
             context_ids = np.unique(np.concatenate((ids, neighbors[valid].astype(np.int64))))
             selected_edges = {int(gene): row for gene, row in zip(ids, edges, strict=True)}
             context_edges = []
@@ -129,28 +149,50 @@ class NeighborhoodIndex:
         count = int(len(ids) * mask_ratio)
         masked = np.sort(rng.choice(len(ids), count, replace=False))
 
-        def tensor(a: np.ndarray) -> Tensor:
+        def tensor(a: np.ndarray[Any, Any]) -> Tensor:
             return torch.from_numpy(a).to(device)
 
         view = GraphView(
-            *(
-                tensor(a)
-                for a in (ids, neighbors, valid, sources, target_positions, target_valid, masked)
-            )
+            tensor(ids),
+            tensor(neighbors),
+            tensor(valid),
+            tensor(sources),
+            tensor(target_positions),
+            tensor(target_valid),
+            tensor(masked),
         )
         if context_data is not None:
-            view.context = GraphContext(*(tensor(a) for a in context_data))
+            view.context = GraphContext(
+                tensor(context_data[0]),
+                tensor(context_data[1]),
+                tensor(context_data[2]),
+                tensor(context_data[3]),
+                tensor(context_data[4]),
+                tensor(context_data[5]),
+            )
         return view
 
     def local_nodes(
-        self, anchors: Sequence[int], budget: int, rng: np.random.Generator
-    ) -> np.ndarray:
+        self,
+        anchors: Sequence[int],
+        budget: int,
+        rng: np.random.Generator,
+        source: int | None = None,
+    ) -> np.ndarray[Any, Any]:
         selected = set(anchors)
         if len(selected) > budget:
             raise ValueError("local budget smaller than forced target set")
         frontier = set(selected)
         while frontier and len(selected) < budget:
-            candidates = sorted({k for q in frontier for k in self.rows[q]} - selected)
+            candidates = sorted(
+                {
+                    k
+                    for q in frontier
+                    for k, membership in self.rows[q].items()
+                    if source is None or membership[source]
+                }
+                - selected
+            )
             rng.shuffle(candidates)
             frontier = set(candidates[: budget - len(selected)])
             selected.update(frontier)
@@ -166,7 +208,7 @@ def assemble_batch(
     options: V2Options,
     rng: np.random.Generator,
     *,
-    allowed_expression_ids: np.ndarray | None = None,
+    allowed_expression_ids: np.ndarray[Any, Any] | None = None,
 ) -> TrainingBatch:
     device = raw.control_expression.device
     n = raw.control_expression.shape[1]
@@ -194,11 +236,26 @@ def assemble_batch(
     graph_views = []
     if options.lambda1:
         for i in range(2 + options.local_views):
-            nodes = (
-                np.arange(index.n_nodes)
-                if i < 2
-                else index.local_nodes(anchors, max(len(anchors), index.n_nodes // 2), rng)
-            )
+            if options.graph_view_mode == "multiscale":
+                lo, hi = (
+                    (options.global_min_ratio, options.global_max_ratio)
+                    if i < 2
+                    else (options.local_min_ratio, options.local_max_ratio)
+                )
+                count = max(len(anchors), round(index.n_nodes * rng.uniform(lo, hi)))
+                if i < 2:
+                    remaining = np.setdiff1d(np.arange(index.n_nodes), anchors)
+                    nodes = np.union1d(
+                        anchors, rng.choice(remaining, count - len(anchors), replace=False)
+                    )
+                else:
+                    nodes = index.local_nodes(anchors, count, rng, source=i - 2 if i < 4 else None)
+            else:
+                nodes = (
+                    np.arange(index.n_nodes)
+                    if i < 2
+                    else index.local_nodes(anchors, max(len(anchors), index.n_nodes // 2), rng)
+                )
             graph_views.append(
                 index.view(
                     nodes,
@@ -218,7 +275,10 @@ def assemble_batch(
                 if i < 2
                 else (options.local_min_ratio, options.local_max_ratio)
             )
-            size = max(1, int(options.query_count * rng.uniform(lo, hi)))
+            sampled = options.query_count * rng.uniform(lo, hi)
+            size = max(
+                1, round(sampled) if options.graph_view_mode == "multiscale" else int(sampled)
+            )
             positions = np.sort(rng.choice(options.query_count, size, replace=False))
             mask = np.zeros((len(control), size), dtype=bool)
             for row in range(len(control)):

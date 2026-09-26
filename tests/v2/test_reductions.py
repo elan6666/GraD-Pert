@@ -26,7 +26,7 @@ def test_global_condition_weights_skip_invalid_cells():
     assert not population_weights(ids, torch.zeros_like(valid), "condition_mean").any()
 
 
-def _neighbor_worker(rank, rendezvous, strategy):
+def _neighbor_worker(rank, rendezvous, strategy, exclude_condition):
     dist.init_process_group(
         "gloo",
         init_method="file://" + rendezvous,
@@ -39,13 +39,14 @@ def _neighbor_worker(rank, rendezvous, strategy):
         ids = torch.tensor([0, 0, 1, 1, 1])
         weights = population_weights(ids, torch.ones(5, dtype=torch.bool), strategy)
         reference = values.clone().requires_grad_()
-        (nearest_neighbor_terms(reference) * weights).sum().backward()
+        excluded = ids if exclude_condition else None
+        (nearest_neighbor_terms(reference, excluded) * weights).sum().backward()
         start, end = ((0, 2), (2, 5))[rank]
         local = values[start:end].clone().requires_grad_()
         all_rows = gather_rows(local)
         # Local queries may select neighbors on the other rank. Unequal rank
         # populations and condition counts must not change the reference gradient.
-        terms = nearest_neighbor_terms(all_rows)
+        terms = nearest_neighbor_terms(all_rows, excluded)
         (terms[start:end] * weights[start:end]).sum().backward()
         torch.testing.assert_close(local.grad, reference.grad[start:end])
     finally:
@@ -53,5 +54,13 @@ def _neighbor_worker(rank, rendezvous, strategy):
 
 
 @pytest.mark.parametrize("strategy", ["row_mean", "condition_mean"])
-def test_cross_rank_nearest_neighbor_gradients_match_full_batch(tmp_path, strategy):
-    mp.spawn(_neighbor_worker, args=(str(tmp_path / strategy), strategy), nprocs=2, join=True)
+@pytest.mark.parametrize("exclude_condition", [False, True])
+def test_cross_rank_nearest_neighbor_gradients_match_full_batch(
+    tmp_path, strategy, exclude_condition
+):
+    mp.spawn(
+        _neighbor_worker,
+        args=(str(tmp_path / strategy), strategy, exclude_condition),
+        nprocs=2,
+        join=True,
+    )

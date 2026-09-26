@@ -25,6 +25,7 @@ class V2Architecture:
     projector_hidden: int = 2048
     projector_bottleneck: int = 256
     prototypes: int = 16384
+    relay_eval_seed: int | None = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -52,18 +53,29 @@ class V2Architecture:
             "delta_full",
             "full",
             "per_gene",
+            "relay_full",
         ):
             raise ValueError("unknown attention variant")
         if self.ffn_type not in ("gelu", "swiglu"):
             raise ValueError("unknown FFN type")
-        if self.graph_read_mode not in ("static", "propagated"):
+        if self.graph_read_mode not in ("static", "propagated", "relay"):
             raise ValueError("unknown graph read mode")
         if self.graph_read_mode == "propagated" and self.graph_layers != 2:
             raise ValueError("propagated graph read currently requires two layers")
+        if self.graph_read_mode == "relay" and self.graph_layers != 4:
+            raise ValueError("relay graph read requires three KDA plus one MLA layer")
+        if self.attention == "relay_full" and (
+            self.kda_layers != 2 or self.graph_read_mode != "relay"
+        ):
+            raise ValueError("relay profile requires two cell/response KDA and relay graph")
         if self.sparse_topk < 2:
             raise ValueError("sparse_topk must leave slots for self and CLS")
         if type(self.checkpoint_layers) is not bool:
             raise ValueError("checkpoint_layers must be boolean")
+        if self.relay_eval_seed is not None and (
+            type(self.relay_eval_seed) is not int or self.relay_eval_seed < 0
+        ):
+            raise ValueError("relay evaluation seed must be a nonnegative integer")
 
     @classmethod
     def parse(cls, values: dict[str, Any]) -> V2Architecture:
@@ -73,7 +85,11 @@ class V2Architecture:
         return cls(**values)
 
     def payload(self) -> dict[str, Any]:
-        return asdict(self)
+        values = asdict(self)
+        if self.relay_eval_seed is None:
+            # Preserve architecture identity of checkpoints predating relay KDA.
+            values.pop("relay_eval_seed")
+        return values
 
 
 @dataclass(frozen=True)
@@ -117,6 +133,8 @@ class V2Options:
     graph_expander_type: str = "permutation"
     expression_holdout_path: str = ""
     expression_holdout_sha256: str = ""
+    koleo_exclude_same_condition: bool = False
+    graph_view_mode: str = "legacy"
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -133,6 +151,9 @@ class V2Options:
             "kda_layers",
             "graph_read_mode",
             "graph_expander_type",
+            "relay_eval_seed",
+            "koleo_exclude_same_condition",
+            "graph_view_mode",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -149,6 +170,10 @@ class V2Options:
             raise ValueError("unknown unified loss reduction")
         if self.graph_expander_type not in ("permutation", "hamiltonian"):
             raise ValueError("unknown graph expander type")
+        if type(self.koleo_exclude_same_condition) is not bool:
+            raise ValueError("KoLeo condition exclusion must be boolean")
+        if self.graph_view_mode not in ("legacy", "multiscale"):
+            raise ValueError("unknown graph view mode")
         if bool(self.expression_holdout_path) != bool(self.expression_holdout_sha256):
             raise ValueError("expression holdout manifest path and hash must be supplied together")
         if self.expression_holdout_sha256 and (
@@ -164,10 +189,11 @@ class V2Options:
             "world_size",
             "eval_query_count",
             "local_views",
-            "max_conditions",
         ):
             if type(getattr(self, name)) is not int or getattr(self, name) < 1:
                 raise ValueError(f"{name} must be a positive integer")
+        if type(self.max_conditions) is not int or self.max_conditions < 0:
+            raise ValueError("max_conditions must be nonnegative (zero means uncapped)")
         for name in (
             "lambda1",
             "lambda2",

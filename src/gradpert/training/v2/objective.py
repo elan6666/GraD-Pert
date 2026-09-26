@@ -93,6 +93,7 @@ class JointObjective(nn.Module):
         ssl1_reduction: str = "condition_mean",
         prediction_reduction: str = "cell_mean",
         loss_reduction: str | None = None,
+        koleo_exclude_same_condition: bool = False,
     ) -> None:
         super().__init__()
         if min(lambda1, lambda2, *ssl1_weights, *ssl2_weights) < 0:
@@ -104,6 +105,9 @@ class JointObjective(nn.Module):
         if loss_reduction not in (None, "row_mean", "condition_mean"):
             raise ValueError("unknown unified loss reduction")
         self.loss_reduction = loss_reduction
+        self.koleo_exclude_same_condition = koleo_exclude_same_condition
+        if koleo_exclude_same_condition and loss_reduction is None:
+            raise ValueError("condition-excluding KoLeo requires a unified global population")
         if loss_reduction is not None:
             ssl1_reduction = loss_reduction
             prediction_reduction = "cell_mean" if loss_reduction == "row_mean" else loss_reduction
@@ -120,6 +124,9 @@ class JointObjective(nn.Module):
     def train(self, mode: bool = True) -> JointObjective:
         super().train(mode)
         self.teacher.eval()
+        if self.student.options.attention == "relay_full":
+            self.student.set_relay_order_randomization(mode)
+            self.teacher.set_relay_order_randomization(mode)
         return self
 
     def _targets(self, name: str, logits: Tensor) -> None:
@@ -340,7 +347,16 @@ class JointObjective(nn.Module):
                     ids, torch.ones_like(ids, dtype=torch.bool), self.loss_reduction
                 )
                 koleo = torch.stack(
-                    [(nearest_neighbor_terms(v) * weights).sum() for v in values]
+                    [
+                        (
+                            nearest_neighbor_terms(
+                                v,
+                                ids if self.koleo_exclude_same_condition else None,
+                            )
+                            * weights
+                        ).sum()
+                        for v in values
+                    ]
                 ).mean()
         else:
             koleo = None

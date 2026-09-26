@@ -13,11 +13,18 @@ PARENT = ROOT / "configs/v2/capacity/m16/gradpert_v2/nadig_jurkat.yaml"
 
 def test_new_groups_default_to_current_full_v2_jurkat_parent():
     raw = yaml.safe_load(API["DEFAULT_PARENT"].read_text())
-    assert raw["model"]["parameters"]["attention"]["value"] == "hybrid"
-    assert raw["model"]["parameters"]["graph_read_mode"]["value"] == "propagated"
+    assert raw["model"]["parameters"]["attention"]["value"] == "relay_full"
+    assert raw["model"]["parameters"]["graph_read_mode"]["value"] == "relay"
     assert raw["model"]["parameters"]["graph_expander_type"]["value"] == "hamiltonian"
     assert raw["model"]["parameters"]["loss_reduction"]["value"] == "row_mean"
     assert raw["training"]["train_batch_size"]["value"] == 192
+
+
+@pytest.mark.parametrize("group", ["A1", "A2"])
+def test_relay_attention_rows_cannot_silently_remove_cross_path(tmp_path, group):
+    with pytest.raises(ValueError, match="self/cross-preserving"):
+        API["generate"](API["DEFAULT_PARENT"], group, tmp_path / group)
+    assert not (tmp_path / group).exists()
 
 
 @pytest.mark.parametrize("group", [g for g in API["GROUPS"] if g not in ("H3", "G1")])

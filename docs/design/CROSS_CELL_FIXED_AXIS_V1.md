@@ -56,15 +56,17 @@ row-level leakage checks are validated.
 
 ## GraD-Pert v2 model contract
 
-The GraD-Pert model in all four leave-one-cell-line-out folds uses the
-2026-09-25 v2 method in
-`docs/design/GRADPERT_V2_HAMILTONIAN_MLA_METHOD.md`: a trainable GenePT-only
+The GraD-Pert model in all four leave-one-cell-line-out folds follows the
+2026-09-26 v2 relay method in
+`docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md`: a trainable GenePT-only
 deterministic PCA256 identity table; GO/STRING incoming Top20 plus three
-fixed bidirectional Hamiltonian expander cycles and self edges; two graph
-layers reading updated neighbor states; and, in each Cell/Response Encoder,
-two KDA blocks followed by one noncausal full MLA block. There is no DSA
-Top500 index in this parent. The older B0/B1 and Top500 encoder profiles
-remain historical or separately named ablations, not this cross-cell default.
+fixed bidirectional Hamiltonian expander cycles and self edges; three
+per-target-neighborhood relay KDA layers plus one source-aware sparse MLA;
+and, in each Cell/Response Encoder, two randomized relay KDA blocks followed
+by one noncausal full MLA block. Response additionally reads control genes by
+per-layer cross attention. There is no DSA Top500 index in this parent. The
+older B0/B1, Hamiltonian-MLA and Top500 profiles remain historical or
+separately named ablations, not this cross-cell default.
 
 The four folds share this model design and the cache's exact ordered 3,352-gene
 axis. A new GenePT-PCA256 seed artifact must be generated and hash-audited

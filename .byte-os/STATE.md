@@ -1,4 +1,37 @@
-# Current bounded stage: Hamiltonian expander / full MLA method implementation
+# Current stage: relay method validated locally, publication in progress
+
+User explicitly resumed execution with byte-auto on 2026-09-26. Overall outcome:
+finish the new complete v2 method, then deeply profile/optimize CPU/GPU scheduling,
+validate dual RTX 5090 sustained capacity, then complete Jurkat B0 five epochs
+and best/last tests. Preserve v1 and every stopped run. Worktree:
+`/Users/elan/code/grad-pert-v2-build`; do not edit the separate dirty root checkout.
+
+Active bounded Goal: stage A implementation/correctness/publication. No scheduled
+monitor or new server/GPU job. Pre-change clean local/GitHub SHA:
+`95388f5bd365ae3768080f5c2e39f1fc79e672ef`. New edits await scoped publication.
+Plan and contract: `docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md`.
+Compact acceptance receipt: `docs/experiments/relay-stage-a.json`.
+
+Fresh evidence: v2 suite253 passed plus added two-rank complete-update test1
+passed; historical1039 passed/7 skipped/5 failed, same5 failures reproduced in
+clean baseline. Current mypy12 errors vs baseline19; changed model/config/view
+scope passes. Ruff/format/build pass. Student27,279,662; frozen Teacher same.
+Checkpoint on/off complete optimizer/EMA/center/RNG parity, resume, best/last
+loading, eval cell-batch independence and distributed unlike-condition KoLeo
+validated. Local Python3.11 is not server Python>=3.12 proof. No CUDA speed,
+capacity or scientific claims. Old batch192 remains only a candidate.
+
+Next: publish stage A; verify matching immutable server checkout and supported
+environment; then start stage B timeline diagnostics with conservative batch.
+Latest SSH attempt returned connection reset during key exchange; diagnose VPN
+UI/TCP/SSH separately and use authorized EasyConnect recovery if expired.
+Waiting monitors, once needed: test30min, formal training2h, every-check reports.
+Advance authorized dependent work as prerequisites pass; update this state and
+existing monitor at milestones/failures. Do not start other ablation groups.
+
+## Historical state, superseded by the relay-method stage above
+
+Previous heading: Hamiltonian expander / full MLA method implementation.
 
 The user requested replacing the old random-permutation expander with
 TxPert-style fixed bidirectional Hamiltonian cycles, allowing graph layers

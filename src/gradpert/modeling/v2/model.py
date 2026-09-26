@@ -8,15 +8,25 @@ from typing import cast
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
+from torch.utils.checkpoint import checkpoint
 
 from gradpert.config.v2 import V2Architecture
 
-from .operators import TokenEncoder
+from .operators import (
+    CrossManifoldResidual,
+    GatedFeedForward,
+    LatentAttention,
+    LatentCrossAttention,
+    ManifoldResidual,
+    RelayDeltaAttention,
+    TokenEncoder,
+    relay_order,
+)
 
 
 @dataclass
 class GraphContext:
-    """One-hop closure needed for exact two-layer selected-node propagation."""
+    """Aligned graph context for exact selected-node propagation or relay reads."""
 
     ids: Tensor
     neighbors: Tensor
@@ -34,17 +44,33 @@ class SparseRead(nn.Module):
     duplicate neighbors. No dense query-by-all-gene score matrix is formed.
     """
 
-    def __init__(self, width: int, heads: int, dropout: float) -> None:
+    def __init__(
+        self,
+        width: int,
+        heads: int,
+        dropout: float,
+        rank: int | None = None,
+        ffn_type: str = "gelu",
+    ) -> None:
         super().__init__()
         self.heads, self.head_width = heads, width // heads
         self.query = nn.Linear(width, width, bias=False)
-        self.key = nn.Linear(width, width, bias=False)
-        self.value = nn.Linear(width, width, bias=False)
+        self.compress = nn.Linear(width, rank, bias=False) if rank is not None else None
+        self.latent_norm = nn.RMSNorm(rank) if rank is not None else None
+        self.key = nn.Linear(rank or width, width, bias=False)
+        self.value = nn.Linear(rank or width, width, bias=False)
         self.output = nn.Linear(width, width, bias=False)
         self.source_bias = nn.Parameter(torch.zeros(4, heads))
         self.norm1, self.norm2 = nn.LayerNorm(width), nn.LayerNorm(width)
-        self.ffn = nn.Sequential(
-            nn.Linear(width, 4 * width), nn.GELU(), nn.Dropout(dropout), nn.Linear(4 * width, width)
+        self.ffn = (
+            GatedFeedForward(width, dropout)
+            if ffn_type == "swiglu"
+            else nn.Sequential(
+                nn.Linear(width, 4 * width),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(4 * width, width),
+            )
         )
         self.dropout = nn.Dropout(dropout)
 
@@ -58,6 +84,9 @@ class SparseRead(nn.Module):
         n, k = neighbors.shape
         q = self.query(self.norm1(query)).reshape(n, self.heads, self.head_width)
         selected = memory[neighbors.clamp_min(0)]
+        if self.compress is not None:
+            assert self.latent_norm is not None
+            selected = self.latent_norm(self.compress(selected))
         key = self.key(selected).reshape(n, k, self.heads, self.head_width)
         value = self.value(selected).reshape(n, k, self.heads, self.head_width)
         score = torch.einsum("nhd,nkhd->nhk", q.float(), key.float()) / self.head_width**0.5
@@ -67,6 +96,154 @@ class SparseRead(nn.Module):
         read = torch.einsum("nhk,nkhd->nhd", weights.to(value.dtype), value).flatten(-2)
         x = query + self.dropout(self.output(read))
         return cast(Tensor, x + self.dropout(self.ffn(self.norm2(x))))
+
+
+class RelayGraphLayer(nn.Module):
+    """One target receives one output from only its own randomized neighborhood."""
+
+    def __init__(
+        self,
+        width: int,
+        heads: int,
+        dropout: float,
+        chunk_rows: int = 64,
+        checkpoint_chunks: bool = False,
+    ) -> None:
+        super().__init__()
+        self.norm1, self.norm2 = nn.LayerNorm(width), nn.LayerNorm(width)
+        self.read = RelayDeltaAttention(width, heads)
+        self.ffn = GatedFeedForward(width, dropout)
+        self.dropout = nn.Dropout(dropout)
+        self.chunk_rows = chunk_rows
+        self.checkpoint_chunks = checkpoint_chunks
+
+    def _chunk(
+        self,
+        query: Tensor,
+        normalized_query: Tensor,
+        normalized: Tensor,
+        neighbors: Tensor,
+        valid: Tensor,
+        sources: Tensor,
+    ) -> Tensor:
+        read = self.read.graph(
+            query=normalized_query,
+            memory=normalized,
+            neighbors=neighbors,
+            valid=valid,
+            sources=sources,
+        )
+        x = query + self.dropout(read)
+        return cast(Tensor, x + self.dropout(self.ffn(self.norm2(x))))
+
+    def forward(self, memory: Tensor, neighbors: Tensor, valid: Tensor, sources: Tensor) -> Tensor:
+        normalized = self.norm1(memory)
+        outputs = []
+        for start in range(0, len(memory), self.chunk_rows):
+            end = min(start + self.chunk_rows, len(memory))
+            args = (
+                memory[start:end],
+                normalized[start:end],
+                normalized,
+                neighbors[start:end],
+                valid[start:end],
+                sources[start:end],
+            )
+            outputs.append(
+                checkpoint(self._chunk, *args, use_reentrant=False)
+                if self.checkpoint_chunks and self.training and torch.is_grad_enabled()
+                else self._chunk(*args)
+            )
+        return torch.cat(outputs)
+
+
+class RelayResponseEncoder(nn.Module):
+    """Per-layer perturbation injection, self read, control cross read, FFN."""
+
+    def __init__(self, options: V2Architecture) -> None:
+        super().__init__()
+        d, streams = options.width, options.streams
+        self.streams = streams
+        self.checkpoint_layers = options.checkpoint_layers
+        self.injections = nn.ModuleList(
+            nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, d))
+            for _ in range(options.kda_layers + 1)
+        )
+        self.self_layers = nn.ModuleList()
+        self.cross_layers = nn.ModuleList()
+        self.ffn_layers = nn.ModuleList()
+        for index in range(options.kda_layers + 1):
+            self.self_layers.append(
+                ManifoldResidual(
+                    d,
+                    streams,
+                    RelayDeltaAttention(d, options.heads)
+                    if index < options.kda_layers
+                    else LatentAttention(d, options.heads, options.latent_rank, options.dropout),
+                )
+            )
+            self.cross_layers.append(
+                CrossManifoldResidual(
+                    d,
+                    streams,
+                    RelayDeltaAttention(d, options.heads)
+                    if index < options.kda_layers
+                    else LatentCrossAttention(
+                        d, options.heads, options.latent_rank, options.dropout
+                    ),
+                )
+            )
+            self.ffn_layers.append(
+                ManifoldResidual(d, streams, GatedFeedForward(d, options.dropout))
+            )
+        self.norm = nn.RMSNorm(d)
+
+    def _layer(
+        self,
+        x: Tensor,
+        control: Tensor,
+        condition: Tensor,
+        order: Tensor,
+        index: int,
+        block_cls_to_gene: bool,
+    ) -> Tensor:
+        p = condition[:, None, None, :].expand_as(x)
+        x = self.injections[index](torch.cat((x, p), dim=-1))
+        x = self.self_layers[index](x, order=order, block_cls_to_gene=block_cls_to_gene)
+        x = self.cross_layers[index](x, memory=control, order=order)
+        return cast(Tensor, self.ffn_layers[index](x))
+
+    def forward(
+        self,
+        x: Tensor,
+        control: Tensor,
+        condition: Tensor,
+        orders: tuple[Tensor, ...],
+        *,
+        block_cls_to_gene: bool = False,
+    ) -> Tensor:
+        x = x.unsqueeze(-2).expand(*x.shape[:-1], self.streams, x.shape[-1])
+        for index in range(len(self.injections)):
+            order = orders[index] if index < len(orders) else orders[-1]
+            if self.checkpoint_layers and self.training and torch.is_grad_enabled():
+                x = checkpoint(
+                    lambda state, memory, perturbation, scan_order, layer_index=index: self._layer(
+                        state,
+                        memory,
+                        perturbation,
+                        scan_order,
+                        layer_index,
+                        block_cls_to_gene,
+                    ),
+                    x,
+                    control,
+                    condition,
+                    order,
+                    use_reentrant=False,
+                )
+            else:
+                x = self._layer(x, control, condition, order, index, block_cls_to_gene)
+        return cast(Tensor, self.norm(x.mean(-2)))
 
 
 class GeneGraph(nn.Module):
@@ -86,8 +263,33 @@ class GeneGraph(nn.Module):
         )
         self.norm = nn.LayerNorm(options.width)
         self.mask_token = nn.Parameter(torch.zeros(options.width))
+        if options.graph_read_mode == "relay":
+            # Zero queries stay zero across bias-free relay blocks; repeated
+            # normalize(0) derivatives otherwise amplify masked-node gradients.
+            nn.init.normal_(self.mask_token, std=0.02)
         self.layers = nn.ModuleList(
-            [
+            (
+                [
+                    RelayGraphLayer(
+                        options.width,
+                        options.heads,
+                        options.dropout,
+                        checkpoint_chunks=options.checkpoint_layers,
+                    )
+                    for _ in range(3)
+                ]
+                + [
+                    SparseRead(
+                        options.width,
+                        options.heads,
+                        options.dropout,
+                        options.latent_rank,
+                        options.ffn_type,
+                    )
+                ]
+            )
+            if options.graph_read_mode == "relay"
+            else [
                 SparseRead(options.width, options.heads, options.dropout)
                 for _ in range(options.graph_layers)
             ]
@@ -113,6 +315,14 @@ class GeneGraph(nn.Module):
             for layer in self.layers:
                 x = layer(x, memory, neighbors, valid, sources)
             return cast(Tensor, x)
+        if self.read_mode == "relay":
+            if context is None or len(self.layers) != 4:
+                raise ValueError("relay graph read requires four layers and a context")
+            x = memory[context.ids]
+            for layer in self.layers[:3]:
+                x = layer(x, context.neighbors, context.valid, context.sources)
+            x = self.layers[3](x, x, context.neighbors, context.valid, context.sources)
+            return cast(Tensor, x[context.query_positions])
         if context is None or len(self.layers) != 2:
             raise ValueError("propagated graph read requires two layers and a context")
         first = self.layers[0](
@@ -146,10 +356,12 @@ class Projector(nn.Module):
 
 class GraDPertV2(nn.Module):
     model_version = "v2"
+    randomize_relay_order: bool
 
     def __init__(self, seeds: Tensor, options: V2Architecture) -> None:
         super().__init__()
         self.options = options
+        self.randomize_relay_order = False
         d = options.width
         self.graph = GeneGraph(seeds, options)
         self.expression = nn.Sequential(
@@ -173,13 +385,40 @@ class GraDPertV2(nn.Module):
             options.kda_layers,
         )
         self.cell = TokenEncoder(*args)
-        self.condition_fusion = nn.Linear(2 * d, d)
-        self.response = TokenEncoder(*args)
-        self.prediction = nn.Sequential(nn.Linear(d, d), nn.GELU(), nn.Linear(d, 1))
+        self.condition_fusion = (
+            nn.Identity() if options.attention == "relay_full" else nn.Linear(2 * d, d)
+        )
+        self.response = (
+            RelayResponseEncoder(options)
+            if options.attention == "relay_full"
+            else TokenEncoder(*args)
+        )
+        prediction_width = 2 * d if options.attention == "relay_full" else d
+        self.prediction = nn.Sequential(nn.Linear(prediction_width, d), nn.GELU(), nn.Linear(d, 1))
         self.ssl1_cls = Projector(options)
         self.ssl1_node = Projector(options)
         self.ssl2_cls = Projector(options)
         self.ssl2_node = Projector(options)
+        if options.attention == "relay_full":
+            self.set_relay_order_randomization(self.training)
+        for module in self.modules():
+            if isinstance(module, RelayDeltaAttention):
+                module.eval_seed = (
+                    options.relay_eval_seed if options.relay_eval_seed is not None else 1
+                )
+
+    def set_relay_order_randomization(self, enabled: bool) -> None:
+        """Teacher can remain in eval mode while receiving randomized training views."""
+        self.randomize_relay_order = enabled
+        for module in self.modules():
+            if isinstance(module, RelayDeltaAttention):
+                module.randomize_order = enabled
+
+    def train(self, mode: bool = True) -> GraDPertV2:
+        super().train(mode)
+        if self.options.attention == "relay_full":
+            self.set_relay_order_randomization(mode)
+        return self
 
     @staticmethod
     def aggregate_targets(graph: Tensor, positions: Tensor, valid: Tensor) -> Tensor:
@@ -207,8 +446,47 @@ class GraDPertV2(nn.Module):
                 expression_mask.unsqueeze(-1), self.expression_mask, expression
             )
         x = expression + gene.unsqueeze(0)
-        encoded = self.cell(torch.cat((x, self.control_cls.expand(len(control), -1, -1)), dim=1))
+        relay = self.options.attention == "relay_full"
+        order = (
+            tuple(
+                relay_order(
+                    len(control),
+                    control.shape[1],
+                    control.device,
+                    getattr(self, "randomize_relay_order", self.training),
+                    layer,
+                    self.options.relay_eval_seed if self.options.relay_eval_seed is not None else 1,
+                )
+                for layer in range(self.options.kda_layers)
+            )
+            if relay
+            else None
+        )
+        encoded = self.cell(
+            torch.cat((x, self.control_cls.expand(len(control), -1, -1)), dim=1), order=order
+        )
         basal, control_cls = encoded[:, :-1], encoded[:, -1]
+        if relay:
+            if not isinstance(order, tuple):
+                raise AssertionError("relay order was not initialized")
+            if block_response_cls_to_gene and self.training:
+                raise ValueError("CLS edge intervention is an evaluation-only diagnostic")
+            response = self.response(
+                torch.cat((basal, self.response_cls.expand(len(control), -1, -1)), dim=1),
+                basal,
+                condition,
+                order,
+                block_cls_to_gene=block_response_cls_to_gene,
+            )
+            joint = torch.cat((response[:, :-1], condition[:, None, :].expand_as(basal)), dim=-1)
+            delta = self.prediction(joint).squeeze(-1)
+            return {
+                "prediction": control + delta,
+                "delta": delta,
+                "control_cls": control_cls,
+                "response_cls": response[:, -1],
+                "response_tokens": response[:, :-1],
+            }
         joint = torch.cat((basal, condition[:, None, :].expand_as(basal)), dim=-1)
         response = self.response(
             torch.cat(

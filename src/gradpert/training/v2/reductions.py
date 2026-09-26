@@ -60,13 +60,23 @@ def gather_rows(values: Tensor) -> Tensor:
     return cast(Tensor, _GatherRows.apply(values))
 
 
-def nearest_neighbor_terms(values: Tensor) -> Tensor:
-    """One loss per row over the supplied full population, excluding self."""
+def nearest_neighbor_terms(values: Tensor, conditions: Tensor | None = None) -> Tensor:
+    """One loss per row over the full population, optionally excluding its condition."""
     if len(values) < 2:
+        if conditions is not None:
+            raise ValueError("KoLeo needs at least two unlike-condition rows")
         return values.sum(dim=-1) * 0
     normalized = F.normalize(values.float(), dim=-1)
     similarity = normalized.detach() @ normalized.detach().T
-    similarity.fill_diagonal_(float("-inf"))
+    if conditions is not None:
+        if conditions.shape != (len(values),):
+            raise ValueError("KoLeo condition IDs must align with the population")
+        valid = conditions[:, None] != conditions[None, :]
+        if not valid.any(-1).all():
+            raise ValueError("KoLeo needs an unlike-condition neighbor for every row")
+        similarity.masked_fill_(~valid, float("-inf"))
+    else:
+        similarity.fill_diagonal_(float("-inf"))
     neighbors = similarity.argmax(-1)
     return cast(
         Tensor, -(torch.linalg.vector_norm(normalized - normalized[neighbors], dim=-1) + 1e-8).log()

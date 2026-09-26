@@ -74,6 +74,68 @@ def chunk_delta_scan(
     return torch.cat(chunks, dim=1).to(v.dtype)
 
 
+def delta_final_state(
+    k: Tensor, v: Tensor, log_decay: Tensor, beta: Tensor, state: Tensor | None = None
+) -> Tensor:
+    """Reference write-only delta scan, with an optional carried-in state."""
+    if state is None:
+        state = k.new_zeros(k.shape[0], k.shape[2], k.shape[3], v.shape[-1], dtype=torch.float32)
+    for t in range(k.shape[1]):
+        key = k[:, t].float()
+        state = state * log_decay[:, t].float().exp().unsqueeze(-1)
+        error = v[:, t].float() - torch.einsum("bhk,bhkv->bhv", key, state)
+        state = state + (beta[:, t].float().unsqueeze(-1) * key).unsqueeze(-1) * error.unsqueeze(-2)
+    return state
+
+
+def chunk_delta_final_state(
+    k: Tensor,
+    v: Tensor,
+    log_decay: Tensor,
+    beta: Tensor,
+    state: Tensor | None = None,
+    chunk_size: int = 32,
+) -> Tensor:
+    """Exact block solve for the final state only; avoids per-token query reads."""
+    if state is None:
+        state = k.new_zeros(k.shape[0], k.shape[2], k.shape[3], v.shape[-1], dtype=torch.float32)
+    for start in range(0, k.shape[1], chunk_size):
+        end = min(start + chunk_size, k.shape[1])
+        key, value = [t[:, start:end].float().transpose(1, 2) for t in (k, v)]
+        gates = log_decay[:, start:end].float().transpose(1, 2).cumsum(-2)
+        write_rate = beta[:, start:end].float().transpose(1, 2).unsqueeze(-1)
+        length = end - start
+        causal = torch.ones(length, length, device=k.device, dtype=torch.bool).tril()
+        decay = (
+            (gates.unsqueeze(-2) - gates.unsqueeze(-3))
+            .masked_fill(~causal[None, None, :, :, None], 0)
+            .exp()
+        )
+        past_keys = (key.unsqueeze(-2) * key.unsqueeze(-3) * decay).sum(-1)
+        triangular = (past_keys * write_rate).tril(-1)
+        triangular = triangular + torch.eye(length, device=k.device)
+        old_read = (key * gates.exp()) @ state
+        writes = torch.linalg.solve_triangular(
+            triangular, write_rate * (value - old_read), upper=False
+        )
+        final_keys = key * (gates[..., -1:, :] - gates).exp()
+        state = (
+            gates[..., -1, :].exp().unsqueeze(-1) * state + final_keys.transpose(-1, -2) @ writes
+        )
+    return state
+
+
+def relay_order(
+    batch: int, genes: int, device: torch.device, training: bool, layer: int = 0, seed: int = 1
+) -> Tensor:
+    """Random training order; stable seeded order at evaluation."""
+    if training:
+        return torch.rand(batch, genes, device=device).argsort(-1)
+    generator = torch.Generator(device=device).manual_seed(seed + layer)
+    # One evaluation permutation per layer/view, independent of cell chunking.
+    return torch.rand(1, genes, device=device, generator=generator).argsort(-1).expand(batch, -1)
+
+
 class DeltaAttention(nn.Module):
     """KDA equation with normalized Q/K, channel decay and gated output.
 
@@ -109,6 +171,121 @@ class DeltaAttention(nn.Module):
         return cast(Tensor, self.output(y))
 
 
+class RelayDeltaAttention(DeltaAttention):
+    """Two-pass carried-state KDA whose tokens read only the final state."""
+
+    def __init__(self, width: int, heads: int) -> None:
+        super().__init__(width, heads)
+        self.source = nn.Linear(4, width, bias=False)
+        self.randomize_order: bool | None = None
+        self.eval_seed: int = 1
+
+    def random_order_enabled(self) -> bool:
+        return self.training if self.randomize_order is None else self.randomize_order
+
+    def _project_writes(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        shape = (*x.shape[:2], self.heads, self.head_width)
+        k = F.normalize(self.key(x).reshape(shape).float(), dim=-1)
+        v = self.value(x).reshape(shape)
+        gate = self.decay_up(self.decay_down(x)).float() + self.decay_bias
+        decay = -self.log_rate.float().exp()[None, None, :, None] * F.softplus(gate.reshape(shape))
+        beta = self.write(x).float().sigmoid()
+        return k, v, decay, beta
+
+    def _read(self, query: Tensor, state: Tensor) -> Tensor:
+        shape = (*query.shape[:2], self.heads, self.head_width)
+        q = F.normalize(self.query(query).reshape(shape).float(), dim=-1)
+        y = torch.einsum("bthk,bhkv->bthv", q / math.sqrt(self.head_width), state)
+        y = self.head_norm(y.to(query.dtype)).flatten(-2) * F.silu(self.output_gate(query))
+        return cast(Tensor, self.output(y))
+
+    @staticmethod
+    def _ordered(tensor: Tensor, order: Tensor) -> Tensor:
+        return torch.gather(
+            tensor,
+            1,
+            order.reshape(*order.shape, *([1] * (tensor.ndim - 2))).expand(
+                -1, -1, *tensor.shape[2:]
+            ),
+        )
+
+    def _two_pass(self, writes: tuple[Tensor, Tensor, Tensor, Tensor], order: Tensor) -> Tensor:
+        key, value, decay, beta = (self._ordered(t, order) for t in writes)
+        # A single scan preserves the exact forward final state as the reverse
+        # initial state; reverse writes use the very same projected tokens.
+        return chunk_delta_final_state(
+            torch.cat((key, key.flip(1)), dim=1),
+            torch.cat((value, value.flip(1)), dim=1),
+            torch.cat((decay, decay.flip(1)), dim=1),
+            torch.cat((beta, beta.flip(1)), dim=1),
+        )
+
+    def forward(
+        self,
+        x: Tensor,
+        *,
+        order: Tensor | None = None,
+        has_cls: bool = True,
+        block_cls_to_gene: bool = False,
+    ) -> Tensor:
+        genes = x.shape[1] - int(has_cls)
+        if order is None:
+            order = relay_order(
+                len(x), genes, x.device, self.random_order_enabled(), seed=self.eval_seed
+            )
+        if order.shape != (len(x), genes):
+            raise ValueError("relay permutation must cover every gene exactly once")
+        state = self._two_pass(self._project_writes(x[:, :genes]), order)
+        gene_state = state
+        if has_cls:
+            # Forward CLS is read-only; after both gene scans it writes exactly once.
+            cls_key, cls_value, cls_decay, cls_beta = self._project_writes(x[:, genes:])
+            state = chunk_delta_final_state(cls_key, cls_value, cls_decay, cls_beta, state=state)
+        if block_cls_to_gene and has_cls:
+            return torch.cat(
+                (self._read(x[:, :genes], gene_state), self._read(x[:, genes:], state)), dim=1
+            )
+        return self._read(x, state)
+
+    def cross(self, query: Tensor, control: Tensor, *, order: Tensor) -> Tensor:
+        if len(query) != len(control) or order.shape != control.shape[:2]:
+            raise ValueError("cross KDA needs aligned control order")
+        state = self._two_pass(self._project_writes(control), order)
+        return self._read(query, state)
+
+    def graph(
+        self,
+        query: Tensor,
+        memory: Tensor,
+        neighbors: Tensor,
+        valid: Tensor,
+        sources: Tensor,
+        *,
+        order: Tensor | None = None,
+    ) -> Tensor:
+        if neighbors.shape != valid.shape or sources.shape != (*neighbors.shape, 4):
+            raise ValueError("invalid graph neighborhood shape")
+        if not valid.any(-1).all():
+            raise ValueError("every graph target needs a valid neighbor")
+        n, length = neighbors.shape
+        selected = memory[neighbors.clamp_min(0)] + self.source(sources.to(memory.dtype))
+        key, value, decay, beta = self._project_writes(selected)
+        decay = decay.masked_fill(~valid[:, :, None, None], 0)
+        beta = beta.masked_fill(~valid[:, :, None], 0)
+        if order is None:
+            scores = (
+                torch.rand(n, length, device=query.device)
+                if self.random_order_enabled()
+                else (
+                    ((neighbors.long() * 1103515245 + 12345 * self.eval_seed) & 0x7FFFFFFF).float()
+                    / 0x7FFFFFFF
+                )
+            )
+            order = scores.masked_fill(~valid, float("inf")).argsort(-1)
+        state = self._two_pass((key, value, decay, beta), order)
+        return self._read(query.unsqueeze(1), state).squeeze(1)
+
+
 class LatentAttention(nn.Module):
     """Noncausal attention with a shared compressed KV latent, without RoPE."""
 
@@ -122,15 +299,56 @@ class LatentAttention(nn.Module):
         self.value = nn.Linear(rank, width, bias=False)
         self.output = nn.Linear(width, width, bias=False)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor, *, block_cls_to_gene: bool = False) -> Tensor:
         latent = self.latent_norm(self.compress(x))
         shape = (*x.shape[:2], self.heads, self.head_width)
         q, k, v = [
             a.reshape(shape).transpose(1, 2)
             for a in (self.query(x), self.key(latent), self.value(latent))
         ]
+        if block_cls_to_gene:
+            genes = x.shape[1] - 1
+            y = torch.cat(
+                (
+                    F.scaled_dot_product_attention(
+                        q[:, :, :genes],
+                        k[:, :, :genes],
+                        v[:, :, :genes],
+                        dropout_p=self.dropout if self.training else 0.0,
+                    ),
+                    F.scaled_dot_product_attention(
+                        q[:, :, genes:],
+                        k,
+                        v,
+                        dropout_p=self.dropout if self.training else 0.0,
+                    ),
+                ),
+                dim=2,
+            )
+        else:
+            y = F.scaled_dot_product_attention(
+                q, k, v, dropout_p=self.dropout if self.training else 0.0
+            )
+        return cast(Tensor, self.output(y.transpose(1, 2).flatten(-2)))
+
+
+class LatentCrossAttention(LatentAttention):
+    """Response queries read the control gene states through compressed KV."""
+
+    def forward(
+        self, query: Tensor, memory: Tensor | None = None, *, block_cls_to_gene: bool = False
+    ) -> Tensor:
+        if memory is None:
+            return super().forward(query, block_cls_to_gene=block_cls_to_gene)
+        latent = self.latent_norm(self.compress(memory))
+        q = self.query(query).reshape(len(query), query.shape[1], self.heads, self.head_width)
+        k = self.key(latent).reshape(len(memory), memory.shape[1], self.heads, self.head_width)
+        v = self.value(latent).reshape(len(memory), memory.shape[1], self.heads, self.head_width)
         y = F.scaled_dot_product_attention(
-            q, k, v, dropout_p=self.dropout if self.training else 0.0
+            q.transpose(1, 2),
+            k.transpose(1, 2),
+            v.transpose(1, 2),
+            dropout_p=self.dropout if self.training else 0.0,
         )
         return cast(Tensor, self.output(y.transpose(1, 2).flatten(-2)))
 
@@ -335,12 +553,28 @@ class ManifoldResidual(nn.Module):
         c = sinkhorn((c * self.scales[2] + self.bias[2 * n :]).unflatten(-1, (n, n)))
         return a.to(x.dtype), b.to(x.dtype), c.to(x.dtype)
 
-    def forward(self, x: Tensor, *, has_cls: bool = True) -> Tensor:
+    def forward(
+        self,
+        x: Tensor,
+        *,
+        has_cls: bool = True,
+        order: Tensor | None = None,
+        block_cls_to_gene: bool = False,
+    ) -> Tensor:
         if self.streams == 1:
             h = self.norm(x.squeeze(-2))
             y = (
                 self.sublayer(h, has_cls=has_cls)
                 if isinstance(self.sublayer, IndexedLatentAttention)
+                else self.sublayer(
+                    h,
+                    order=order,
+                    has_cls=has_cls,
+                    block_cls_to_gene=block_cls_to_gene,
+                )
+                if isinstance(self.sublayer, RelayDeltaAttention)
+                else self.sublayer(h, block_cls_to_gene=block_cls_to_gene)
+                if isinstance(self.sublayer, LatentAttention)
                 else self.sublayer(h)
             )
             return x + cast(Tensor, y).unsqueeze(-2)
@@ -351,7 +585,50 @@ class ManifoldResidual(nn.Module):
             Tensor,
             self.sublayer(h, has_cls=has_cls)
             if isinstance(self.sublayer, IndexedLatentAttention)
+            else self.sublayer(
+                h,
+                order=order,
+                has_cls=has_cls,
+                block_cls_to_gene=block_cls_to_gene,
+            )
+            if isinstance(self.sublayer, RelayDeltaAttention)
+            else self.sublayer(h, block_cls_to_gene=block_cls_to_gene)
+            if isinstance(self.sublayer, LatentAttention)
             else self.sublayer(h),
+        )
+        return torch.einsum("...ij,...jd->...id", residual, x) + post.unsqueeze(-1) * y.unsqueeze(
+            -2
+        )
+
+
+class CrossManifoldResidual(ManifoldResidual):
+    """mHC response residual whose read memory comes from control genes."""
+
+    def forward(
+        self,
+        x: Tensor,
+        *,
+        has_cls: bool = True,
+        order: Tensor | None = None,
+        block_cls_to_gene: bool = False,
+        memory: Tensor | None = None,
+    ) -> Tensor:
+        if memory is None or order is None:
+            raise ValueError("cross residual needs aligned control memory and order")
+        if self.streams == 1:
+            h = self.norm(x.squeeze(-2))
+            y = (
+                self.sublayer.cross(h, memory, order=order)
+                if isinstance(self.sublayer, RelayDeltaAttention)
+                else self.sublayer(h, memory)
+            )
+            return x + cast(Tensor, y).unsqueeze(-2)
+        pre, post, residual = self.maps(x)
+        h = self.norm((pre.unsqueeze(-1) * x).sum(-2))
+        y = (
+            self.sublayer.cross(h, memory, order=order)
+            if isinstance(self.sublayer, RelayDeltaAttention)
+            else self.sublayer(h, memory)
         )
         return torch.einsum("...ij,...jd->...id", residual, x) + post.unsqueeze(-1) * y.unsqueeze(
             -2
@@ -387,13 +664,15 @@ class TokenEncoder(nn.Module):
                 attention_layer = nn.Sequential(
                     nn.Linear(width, width), nn.GELU(), nn.Linear(width, width)
                 )
+            elif index < kda_layers and attention == "relay_full":
+                attention_layer = RelayDeltaAttention(width, heads)
             elif index < kda_layers and attention in ("hybrid", "hybrid_sparse", "delta_full"):
                 attention_layer = DeltaAttention(width, heads)
             elif index == kda_layers and attention == "hybrid_sparse":
                 attention_layer = IndexedLatentAttention(
                     width, heads, rank, dropout, sparse_topk, sparse_index_dim, sparse_query_chunk
                 )
-            elif index == kda_layers and attention in ("hybrid", "full_latent"):
+            elif index == kda_layers and attention in ("hybrid", "full_latent", "relay_full"):
                 attention_layer = LatentAttention(width, heads, rank, dropout)
             else:
                 attention_layer = FullAttention(width, heads, dropout, causal=index < kda_layers)
@@ -419,22 +698,39 @@ class TokenEncoder(nn.Module):
         self.layers = nn.ModuleList(layers)
         self.norm = nn.RMSNorm(width)
 
-    def forward(self, x: Tensor, *, block_cls_to_gene: bool = False) -> Tensor:
+    def forward(
+        self,
+        x: Tensor,
+        *,
+        block_cls_to_gene: bool = False,
+        order: Tensor | tuple[Tensor, ...] | None = None,
+    ) -> Tensor:
         if block_cls_to_gene and self.training:
             raise ValueError("CLS edge intervention is an evaluation-only diagnostic")
         x = x.unsqueeze(-2).expand(*x.shape[:-1], self.streams, x.shape[-1])
         for index, layer in enumerate(self.layers):
+            layer_order = (
+                order[index // 2]
+                if isinstance(order, tuple) and index // 2 < len(order)
+                else order
+                if isinstance(order, Tensor)
+                else None
+            )
             if block_cls_to_gene and index == 2 * self.kda_layers:
                 # Only the final attention layer is noncausal. Earlier causal
                 # layers cannot transmit the tail CLS to preceding gene slots.
                 # Retain the normal CLS readout, while genes attend to genes only.
-                full = layer(x)
-                genes = layer(x[:, :-1], has_cls=False)
+                full = layer(x, order=layer_order)
+                genes = layer(x[:, :-1], has_cls=False, order=layer_order)
                 x = torch.cat((genes, full[:, -1:]), dim=1)
             elif self.checkpoint_layers and self.training and torch.is_grad_enabled():
-                x = checkpoint(layer, x, use_reentrant=False)
+                x = checkpoint(
+                    lambda z, block=layer, block_order=layer_order: block(z, order=block_order),
+                    x,
+                    use_reentrant=False,
+                )
             else:
-                x = layer(x)
+                x = layer(x, order=layer_order)
         result = self.norm(x.mean(-2))
         if self.per_gene:
             # The final slot is a readout only: its pooled summary never feeds

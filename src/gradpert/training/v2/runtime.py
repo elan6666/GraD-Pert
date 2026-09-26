@@ -47,7 +47,11 @@ class Runtime:
             raise RuntimeError("evaluation runtime cannot enter training")
         return self.data.steps_per_epoch(
             batch_size=self.batch_size,
-            max_unique_conditions=min(self.options.max_conditions, self.batch_size),
+            max_unique_conditions=(
+                0
+                if self.options.max_conditions == 0
+                else min(self.options.max_conditions, self.batch_size)
+            ),
         )
 
     def batches(self, epoch: int) -> Iterator[TrainingBatch]:
@@ -57,7 +61,11 @@ class Runtime:
             epoch=epoch,
             device=self.device,
             batch_size=self.batch_size,
-            max_unique_conditions=min(self.options.max_conditions, self.batch_size),
+            max_unique_conditions=(
+                0
+                if self.options.max_conditions == 0
+                else min(self.options.max_conditions, self.batch_size)
+            ),
         ):
             yield assemble_batch(
                 raw,
@@ -190,6 +198,7 @@ def prepare_runtime(
             loss_reduction=options.loss_reduction,
             ssl1_reduction=options.ssl1_reduction,
             prediction_reduction=options.prediction_loss,
+            koleo_exclude_same_condition=options.koleo_exclude_same_condition,
         ).to(device)
         optimizer = V2Optimizer(
             student,
@@ -211,9 +220,23 @@ def prepare_runtime(
             "run_seed": run_seed,
         }
         identity["loss_protocol"] = {
-            "version": "unified-global-population-v1",
+            "version": (
+                "unified-global-population-v2-relay"
+                if arch.attention == "relay_full"
+                else "unified-global-population-v1"
+            ),
             "reduction": options.loss_reduction,
             "koleo_population": "complete_global_effective_batch",
+            "koleo_exclusion": (
+                "same_perturbation_condition"
+                if options.koleo_exclude_same_condition
+                else "self_only"
+            ),
+            "batch_order": (
+                "random_mixed_seeded_v2"
+                if options.max_conditions == 0
+                else "condition_limited_seeded_v1"
+            ),
             "ibot": "masked_tokens_per_cell_then_valid_cell_population",
             "exceptions": ["ssl1_node", "ssl1_spread", "teacher_centers"],
         }
@@ -233,6 +256,7 @@ def prepare_runtime(
                 options.graph_expander_seed,
                 expander_type=options.graph_expander_type,
                 propagated=arch.graph_read_mode == "propagated",
+                relay=arch.graph_read_mode == "relay",
             ),
             objective,
             optimizer,

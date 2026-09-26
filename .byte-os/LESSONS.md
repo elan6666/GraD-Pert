@@ -1,5 +1,17 @@
 # Lessons
 
+## Relay masked-node queries need a nonzero learned initialization
+
+- Confirmed during the new relay full-update test: a zero graph mask token
+  stayed zero through bias-free query projections and relay blocks. Repeated
+  normalization derivatives produced nonfinite gradients although forward
+  losses were finite. Anomaly detection traced the failure to graph query
+  projection backward; nonzero normal initialization (std 0.02) removed it.
+- Prevention: test heavily masked graph views through a complete optimizer
+  update, with dropout and accumulation, and assert finite gradients. Forward
+  checks alone do not validate a masked multilayer recurrent mechanism.
+  Apply this initialization only to the new relay profile; keep history intact.
+
 ## Final-epoch reporting needs the actual final checkpoint
 
 - User correction 2026-09-10: automatically report both best-validation and

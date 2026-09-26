@@ -15,8 +15,7 @@ from gradpert.hashing import sha256_file
 
 GROUPS = ("B0", "H1", "H2", "H3", "P1", "L0", "L1", "L2", "A1", "A2", "A3", "A4", "S1", "S2", "G1")
 DEFAULT_PARENT = (
-    Path(__file__).resolve().parents[2]
-    / "configs/v2/hamiltonian_mla_jurkat/gradpert_v2/nadig_jurkat.yaml"
+    Path(__file__).resolve().parents[2] / "configs/v2/relay_jurkat/gradpert_v2/nadig_jurkat.yaml"
 )
 
 
@@ -25,7 +24,13 @@ def levels(
     batch_levels: list[int] | None = None,
     world_size: int = 1,
     holdout: dict | None = None,
+    base_attention: str = "hybrid",
 ) -> list[tuple[str, dict]]:
+    if group in ("A1", "A2") and base_attention == "relay_full":
+        raise ValueError(
+            "relay attention ablations need an explicit self/cross-preserving design; "
+            "legacy attention switches would also remove the new response path"
+        )
     if group == "G1":
         if not holdout or set(holdout) != {"path", "sha256"}:
             raise ValueError("G1 requires a sealed expression holdout")
@@ -67,10 +72,7 @@ def levels(
             for n in batch_levels
         ]
     if group == "B0":
-        return [
-            ("prediction_only", {"lambda1": 0, "lambda2": 0}),
-            ("joint_ssl", {"lambda1": 1, "lambda2": 0.1}),
-        ]
+        return [("full_baseline", {"lambda1": 1, "lambda2": 0.1})]
     if group == "H1":
         return [("lr_1e3", {"learning_rate": 0.001}), ("lr_1e4", {"learning_rate": 0.0001})]
     if group == "H2":
@@ -106,8 +108,8 @@ def levels(
             ("mixed_koleo_on", {"ssl2_koleo": 0.1}),
         ]
     key, values = {
-        "A1": ("attention", ("hybrid", "per_gene")),
-        "A2": ("attention", ("hybrid", "full_latent", "delta_full", "full")),
+        "A1": ("attention", (base_attention, "per_gene")),
+        "A2": ("attention", (base_attention, "full_latent", "delta_full", "full")),
         "A3": ("streams", (4, 1)),
         "A4": ("gene_initialization", ("genept", "random")),
         "S1": ("loss_reduction", ("row_mean", "condition_mean")),
@@ -178,7 +180,7 @@ def generate(
     raw = yaml.safe_load(parent.read_text())
     if raw["model_id"] != "gradpert_v2" or group not in GROUPS:
         raise ValueError("requires a v2 parent and a supported group")
-    if group == "S2" and raw["model"]["parameters"]["max_conditions"]["value"] <= 1:
+    if group == "S2" and raw["model"]["parameters"]["max_conditions"]["value"] == 1:
         raise ValueError("S2 needs a mixed-condition parent")
     if output.exists():
         raise FileExistsError("group output must be new; existing experiments are immutable")
@@ -192,7 +194,11 @@ def generate(
     if group == "G1" and raw["model"]["parameters"].get("expression_holdout_path", {}).get("value"):
         raise ValueError("G1 requires an unrestricted selected parent")
     for name, overrides in levels(
-        group, batch_levels, raw["model"]["parameters"]["world_size"]["value"], holdout
+        group,
+        batch_levels,
+        raw["model"]["parameters"]["world_size"]["value"],
+        holdout,
+        raw["model"]["parameters"]["attention"]["value"],
     ):
         config = row_configuration(raw, overrides)
         prepared.append((name, config, overrides))
@@ -249,6 +255,7 @@ def verify_group(manifest_path: Path, parent: Path) -> dict:
             batch_levels,
             raw["model"]["parameters"]["world_size"]["value"],
             manifest.get("expression_holdout"),
+            raw["model"]["parameters"]["attention"]["value"],
         )
     )
     rows = manifest["rows"]

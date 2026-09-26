@@ -167,6 +167,49 @@ def condition_limited_epoch_batches(
     return tuple(batches)
 
 
+def random_mixed_epoch_batches(
+    *, condition_ids: Sequence[str], run_seed: int, epoch: int, batch_size: int
+) -> tuple[tuple[int, ...], ...]:
+    """Random rows with at least two perturbations per effective batch.
+
+    A zero max_conditions config selects this protocol. There is no upper cap
+    on conditions. A one-row remainder borrows a row from the prior batch;
+    no batch exceeds the configured capacity and every input row occurs once.
+    """
+    if batch_size < 2 or len(set(condition_ids)) < 2:
+        raise ValueError("mixed batches need at least two conditions and two rows")
+    rng = np.random.default_rng(_stable_seed(run_seed, epoch, "mixed_rows"))
+    order = rng.permutation(len(condition_ids)).tolist()
+    batches = [order[start : start + batch_size] for start in range(0, len(order), batch_size)]
+    if len(batches) > 1 and len(batches[-1]) < 2:
+        if len(batches[-2]) <= 2:
+            raise ValueError("cannot cover this row count with mixed batches at this capacity")
+        batches[-1].insert(0, batches[-2].pop())
+    for index, batch in enumerate(batches):
+        if len({condition_ids[row] for row in batch}) >= 2:
+            continue
+        own_condition = condition_ids[batch[0]]
+        replacement = next(
+            (
+                (other_index, row_index)
+                for other_index, other in enumerate(batches)
+                if other_index != index
+                for row_index, row in enumerate(other)
+                if condition_ids[row] != own_condition
+                and len({condition_ids[r] for j, r in enumerate(other) if j != row_index}) >= 2
+            ),
+            None,
+        )
+        if replacement is None:
+            raise ValueError("cannot form all batches with two distinct perturbations")
+        other_index, row_index = replacement
+        batches[index][0], batches[other_index][row_index] = (
+            batches[other_index][row_index],
+            batches[index][0],
+        )
+    return tuple(tuple(batch) for batch in batches)
+
+
 class CanonicalTrainingData:
     """Read only train perturbations and compatible controls from one sealed H5AD."""
 
@@ -423,12 +466,21 @@ class CanonicalTrainingData:
         max_unique_conditions: int,
     ) -> tuple[_TrainingBatchSpec, ...]:
         train_conditions = tuple(self.condition_ids[index] for index in self.train_row_indices)
-        relative_batches = condition_limited_epoch_batches(
-            condition_ids=train_conditions,
-            run_seed=self.run_seed,
-            epoch=epoch,
-            batch_size=batch_size,
-            max_unique_conditions=max_unique_conditions,
+        relative_batches = (
+            random_mixed_epoch_batches(
+                condition_ids=train_conditions,
+                run_seed=self.run_seed,
+                epoch=epoch,
+                batch_size=batch_size,
+            )
+            if max_unique_conditions == 0
+            else condition_limited_epoch_batches(
+                condition_ids=train_conditions,
+                run_seed=self.run_seed,
+                epoch=epoch,
+                batch_size=batch_size,
+                max_unique_conditions=max_unique_conditions,
+            )
         )
         pairer = TrainingControlPairer(run_seed=self.run_seed)
         specs: list[_TrainingBatchSpec] = []
@@ -648,7 +700,14 @@ class CanonicalTrainingData:
             raise ValueError("batch_size must exceed one")
         train_conditions = tuple(self.condition_ids[index] for index in self.train_row_indices)
         steps = len(
-            condition_limited_epoch_batches(
+            random_mixed_epoch_batches(
+                condition_ids=train_conditions,
+                run_seed=self.run_seed,
+                epoch=0,
+                batch_size=batch_size,
+            )
+            if max_unique_conditions == 0
+            else condition_limited_epoch_batches(
                 condition_ids=train_conditions,
                 run_seed=self.run_seed,
                 epoch=0,

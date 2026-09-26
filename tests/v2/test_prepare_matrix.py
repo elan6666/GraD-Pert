@@ -46,7 +46,7 @@ def test_full_matrix_is_reviewable_but_no_later_winner_is_invented(tmp_path, mon
     )
     parent = output / result["parent"]
     assert result["measured_global_batches"] == [64, 128]
-    assert result["total_training_rows"] == 46
+    assert result["total_training_rows"] == 45
     assert set(result["groups"]) == set(api.GROUPS)
     assert set(result["diagnostics"]) == {"G1_context", "D1"}
     for group, row in result["groups"].items():

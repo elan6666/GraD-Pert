@@ -130,7 +130,10 @@ def optimizer_step(
         view_terms = []
         for view in range(2):
             values = gather_rows(torch.cat([item[view] for item in deferred_koleo]))
-            per_row = nearest_neighbor_terms(values)
+            per_row = nearest_neighbor_terms(
+                values,
+                ids if objective.koleo_exclude_same_condition else None,
+            )
             view_terms.append(
                 (
                     per_row[offset : offset + len(local_ids)]

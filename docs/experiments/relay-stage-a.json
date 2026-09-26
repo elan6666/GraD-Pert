@@ -1,0 +1,69 @@
+{
+  "schema": "relay-stage-a-local-v1",
+  "date": "2026-09-26",
+  "prechange_published_sha": "95388f5bd365ae3768080f5c2e39f1fc79e672ef",
+  "parameter_counts": {
+    "student": 27279662,
+    "teacher_frozen": 27279662,
+    "components": {
+      "graph": 6085672,
+      "expression": 66816,
+      "cell": 3415154,
+      "condition_fusion": 0,
+      "response": 4987539,
+      "prediction": 131585,
+      "ssl1_cls": 3148032,
+      "ssl1_node": 3148032,
+      "ssl2_cls": 3148032,
+      "ssl2_node": 3148032
+    },
+    "direct_parameters": {
+      "expression_mask": 256,
+      "control_cls": 256,
+      "response_cls": 256
+    }
+  },
+  "config_sha256": "a45aeec35daf5a2904535d414d7e417651d0e117f5be1b4cbad9e9ea6fe2f564",
+  "verification": {
+    "v2_suite_passed": 253,
+    "additional_two_rank_complete_update_passed": 1,
+    "legacy_passed": 1039,
+    "legacy_skipped": 7,
+    "legacy_failures": 5,
+    "same_baseline_failures_reproduced": 5,
+    "mypy_current_errors": 12,
+    "mypy_baseline_errors": 19,
+    "ruff": "passed",
+    "format": "passed",
+    "build": "wheel_and_sdist_passed"
+  },
+  "logs": {
+    "v2": {
+      "sha256": "701b2357fd2142e3266f9169c737e2e7f90207590d99f841e092ea6043fcc1e0",
+      "bytes": 940,
+      "local_diagnostic_path": "/tmp/gradpert-relay-stage-a-v2.log"
+    },
+    "legacy": {
+      "sha256": "3a85b602bbba58b7628c9ce8aa88c586984e00bf67c5f7873c0efdfd40775823",
+      "bytes": 12353,
+      "local_diagnostic_path": "/tmp/gradpert-relay-stage-a-legacy.log"
+    },
+    "mypy": {
+      "sha256": "44dd711a87eafff223a7d808572421f1818e2d8f08fb88d895ed0fa6144589e8",
+      "bytes": 2818,
+      "local_diagnostic_path": "/tmp/gradpert-relay-stage-a-mypy.log"
+    },
+    "build": {
+      "sha256": "3ddb81711012b464e75bcce670ea526cd57e5bc11f971d8367e510cd1f477846",
+      "bytes": 41312,
+      "local_diagnostic_path": "/tmp/gradpert-relay-stage-a-build.log"
+    }
+  },
+  "limitations": [
+    "local_python_3.11_not_supported_server_environment_proof",
+    "no_new_cuda_capacity_or_performance_evidence",
+    "test_metrics_not_available",
+    "old_A1_A2_gated_for_relay_profile"
+  ],
+  "next": "publish clean source then target environment integration and CPU/GPU profiling"
+}
