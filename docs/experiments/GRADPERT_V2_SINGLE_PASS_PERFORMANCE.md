@@ -106,3 +106,20 @@ launch API 1,281,076 次、5.5947s。CPU `logsumexp` 43,200 次、嵌套累计4.
 一定是第一优先级。三遍流式扫描只保留选定区间与关联ID，核验线程/进程，
 避免将 GPU annotation 与 CPU scope 混合；范围可能嵌套，不相加。
 采集不会再占 GPU，不改变任何模型、训练语义或性能默认配置。
+
+#### mHC融合候选：先独立验证，尚未采用
+
+关联归因结果见 costs/attribution-rank0.json：logsumexp CPU区间去重后1.5996s，
+launch API累计0.5293s，129600个GPU kernel累计0.1660s。GPU算术量小而发射多，
+验证融合20轮Sinkhorn的成本较低，故先检验此机制；KDA大临时量仍是后续候选。
+这些来自带profiling的窗口、仅覆盖logsumexp前向，不提供整模型加速比例。
+只消除此CPU区间的理想上限约31.74/(31.74-1.60)=1.053倍（假定区间全部位于
+关键路径；真实可能更小）；完整融合还包含减法和反向，但不能用该数外推。
+
+每步归一化 z'=z-logsumexp_axis(z)，反向为
+u'=u-exp(z')*sum_axis(u)。保存40次归一化后的概率，按逆序应用这个精确导数，
+不减少20轮、不改变4streams，不改随机数或目标。独立Triton前向/反向各一个kernel，
+避免每次归一化分解成许多小kernel；代价是保存每token40×16个FP32概率（2560bytes），
+后续要测其对checkpoint重计算、实际batch和内存的影响，不能只看微基准。
+FP32 libdevice exp/log，关闭FMA合并；CPU公式输出精确一致、解析梯度10项测试通过。
+代码独立opt-in且未接入ManifoldResidual。GPU严格数值、完整更新及吞吐尚未验证。

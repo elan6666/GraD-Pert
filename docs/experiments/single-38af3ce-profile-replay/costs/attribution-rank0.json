@@ -1,0 +1,46 @@
+{
+  "total_kernel_count": 1414510,
+  "selected_launch_correlations": 728414,
+  "scopes": {
+    "NativeDropoutBackward0": {
+      "cpu_scope_union_us_summed_across_threads": 5729170.240234375,
+      "launch_api_duration_sum_us": 952319.5039999912,
+      "gpu_kernel_count": 210141,
+      "gpu_kernel_duration_sum_us": 780568.2600001292
+    },
+    "aten::linalg_solve_triangular": {
+      "cpu_scope_union_us_summed_across_threads": 941631.56640625,
+      "launch_api_duration_sum_us": 237939.13700000313,
+      "gpu_kernel_count": 56232,
+      "gpu_kernel_duration_sum_us": 153194.24900001488
+    },
+    "aten::logsumexp": {
+      "cpu_scope_union_us_summed_across_threads": 1599560.9951171875,
+      "launch_api_duration_sum_us": 529315.262000006,
+      "gpu_kernel_count": 129600,
+      "gpu_kernel_duration_sum_us": 165970.39300000478
+    },
+    "gradpert/backward": {
+      "cpu_scope_union_us_summed_across_threads": 18699727.278320312,
+      "launch_api_duration_sum_us": 8.982,
+      "gpu_kernel_count": 2,
+      "gpu_kernel_duration_sum_us": 1.44
+    },
+    "gradpert/student/graph": {
+      "cpu_scope_union_us_summed_across_threads": 5184388.9443359375,
+      "launch_api_duration_sum_us": 837676.0600000032,
+      "gpu_kernel_count": 190106,
+      "gpu_kernel_duration_sum_us": 767918.5690001203
+    },
+    "gradpert/teacher/graph": {
+      "cpu_scope_union_us_summed_across_threads": 3194409.4765625,
+      "launch_api_duration_sum_us": 722368.1599999968,
+      "gpu_kernel_count": 169597,
+      "gpu_kernel_duration_sum_us": 662472.2770000194
+    }
+  },
+  "limits": "Inclusive overlapping scopes, launch-time attribution via correlation IDs; not disjoint critical path, unprofiled timing, or a predicted speedup. Single-process trace required (correlation IDs are process-local).",
+  "trace": "/data/yilangliu/GraD-Pert/development/single-38af3ce-profile-replay-profile/rank-0-trace.json",
+  "trace_sha256": "8cca79284525c36846e55a5b50638e887ecee2576757753e6f4b1ee72d112975",
+  "analysis_script_sha256": "893d728925a33cdb6da47616f29e6f1511c294e7f94eff486a7ba2398da05c4f"
+}
