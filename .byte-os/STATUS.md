@@ -14,6 +14,20 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+ABBA stopped terminal exit1: A1 passed12/12, B1 failed10/12 on both ranks,
+Dynamo recompile_limit64 exceeded at chunk_delta_final_state; no B2/A2 launched.
+Full-sequence static replay is rejected for current random-length views; do not
+raise cache limit and repeat or adopt synthetic speedups as training evidence.
+Small reviewed receipts saved docs/experiments/single-3a2980d-replay-abba/{A1,B1}/
+(88,989+75,379bytes); failure traceback remains server *-B1.log. GPUs cleared.
+Immediately launched independent checkpoint-removal parity PID3418239, stem
+`/data/yilangliu/GraD-Pert/development/single-473466d-checkpoint-parity`;
+source/publication473466d-standalone as below, bothGPUlocks,1200s timeout.
+.stage/.run.log/.exit/.pid and rank receipts at stem/. Both configs identical
+eager profiling_m2_a2, only candidate sequence checkpoints disabled; graph
+checkpoint retained. Deterministic two-update check, no throughput claim.
+Default eager/checkpointed unchanged. Inspect this result before new GPU job.
+
 Next diagnostic source ready (not launched while ABBA owns GPUs):
 `/data/yilangliu/GraD-Pert/development/source-v2-replay-473466d-standalone`,
 SHA473466d0b373b5486ed024adab69e538d18b6e16, publication
