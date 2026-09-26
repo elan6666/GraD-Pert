@@ -1,5 +1,16 @@
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Next diagnostic source ready (not launched while ABBA owns GPUs):
+`/data/yilangliu/GraD-Pert/development/source-v2-replay-473466d-standalone`,
+SHA473466d0b373b5486ed024adab69e538d18b6e16, publication
+`development/gradpert-replay-publication-473466d.json` SHA256
+d6b28c717edb24081ec1dafb2cde5bbc3a71a11d5b871c133511a55765fdf796.
+Clean identity verified. Uses --candidate-no-sequence-checkpoint with identical
+profiling_m2_a2 configs, --deterministic; reference checkpointing retained.
+Previous attempted shared clone source-v2-replay-473466d failed checkout because
+Git alternates nesting exceeded depth; preserved unused, never launched. Repaired
+by24MiB full source-only bundle and independent clone. No active source altered.
+
 ABBA live at B1 after A1 passed12/12. A1 median17.1801s, inclusive0.43615cells/s,
 peakallocated14,551,056,384bytes (13.55GiB), default checkpointed priorbaseline
 19.5796s /3,505,913,344bytes. This is one reference observation, not ABBA outcome.

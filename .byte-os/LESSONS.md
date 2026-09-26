@@ -282,3 +282,10 @@ can lazily materialize event objects after trace export, taking minutes and
 ~47GiB RSS per rank in the observed single-pass probe. Keep detailed operator
 tables opt-in; preserve raw traces and small summaries by default. Profiler
 overhead, including postprocessing, is not model training throughput.
+
+
+### Bound immutable-checkout object-store dependencies
+Repeated shared clones of previous shared clones eventually exceeded Git's
+alternates nesting limit and failed checkout (473466d staging). Use an independent
+source-only bundle/clone or a bounded stable object store; never repair by repacking
+an active immutable source. Verify clean source/publication identity after staging.
