@@ -10,6 +10,7 @@ import os
 import time
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 
 def probe_policy(
@@ -43,6 +44,10 @@ def main() -> None:
     parser.add_argument("--steps", type=int)
     parser.add_argument("--integration-only", action="store_true")
     parser.add_argument("--benchmark-only", action="store_true")
+    parser.add_argument("--warmup-steps", type=int)
+    parser.add_argument("--profile-last-update", action="store_true")
+    parser.add_argument("--profile-memory", action="store_true")
+    parser.add_argument("--sync-phase-timing", action="store_true")
     args = parser.parse_args()
     try:
         args.steps, warmup_steps, kind = probe_policy(
@@ -50,6 +55,17 @@ def main() -> None:
         )
     except ValueError as error:
         parser.error(str(error))
+    if args.warmup_steps is not None:
+        if not args.benchmark_only or not 1 <= args.warmup_steps < args.steps:
+            parser.error("custom warmup requires benchmark-only and measured updates")
+        warmup_steps = args.warmup_steps
+    if args.profile_last_update and (
+        not args.benchmark_only or args.steps - warmup_steps < 2 or args.sync_phase_timing
+    ):
+        parser.error("profile requires benchmark-only, two post-warmup updates and no sync timing")
+    if args.profile_memory and not args.profile_last_update:
+        parser.error("profile-memory requires profile-last-update")
+    measured_stop = args.steps - int(args.profile_last_update)
     if not args.output.resolve().is_relative_to("/data/yilangliu"):
         parser.error("capacity artifacts stay on the server")
     world = int(os.environ.get("WORLD_SIZE", "1"))
@@ -63,15 +79,21 @@ def main() -> None:
     ):
         parser.error("GPU list must match torchrun world size, using distinct physical GPUs")
     os.environ["CUDA_VISIBLE_DEVICES"] = devices[rank]
-    os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
+    if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
+        parser.error("launch requires PYTORCH_ALLOC_CONF=expandable_segments:True")
     import torch
+    from profile_capture import ProfileCapture, environment_snapshot, host_snapshot
 
     from gradpert.config import load_experiment_config
-    from gradpert.config.step_schedule import load_training_schedule
+    from gradpert.config.step_schedule import (
+        LRWarmupCosine,
+        StepWarmupCosine,
+        load_training_schedule,
+    )
     from gradpert.data._io import atomic_json
     from gradpert.evaluation.data import CanonicalEvaluationData
     from gradpert.execution.identity import inspect_environment, inspect_source_identity
-    from gradpert.hashing import sha256_file
+    from gradpert.hashing import sha256_file, sha256_json
     from gradpert.training.v2.checkpoint import load_checkpoint, save_checkpoint
     from gradpert.training.v2.distributed import primary_call
     from gradpert.training.v2.engine import optimizer_step, slice_cells
@@ -95,7 +117,7 @@ def main() -> None:
         torch.distributed.init_process_group("nccl", timeout=timedelta(minutes=30))
     primary_call(lambda: args.output.mkdir(parents=True, exist_ok=False))
     receipt = {
-        "kind": kind,
+        "kind": "profile_only" if args.profile_last_update else kind,
         "data_root": str(args.data_root.resolve()),
         "inference_exercised": kind == "capacity_only",
         "source": source.payload(),
@@ -106,24 +128,63 @@ def main() -> None:
         "steps_requested": args.steps,
         "steps_completed": 0,
         "status": "running",
+        "warmup_steps": warmup_steps,
+        "profile_last_update": args.profile_last_update,
+        "profile_memory": args.profile_memory,
+        "sync_phase_timing": args.sync_phase_timing,
+        "hardware": environment_snapshot(torch),
+        "host_before": host_snapshot(),
     }
     primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
+    capture = None
     try:
         schedule = load_training_schedule(config.training.scheduler.value)
-        if schedule is None:
-            raise ValueError("probe requires the sealed training schedule")
+        if not isinstance(schedule, (StepWarmupCosine, LRWarmupCosine)):
+            raise ValueError("probe requires a sealed step-based training schedule")
         with prepare_runtime(
             config,
             data_root=args.data_root,
             run_seed=config.training.run_seeds[0],
             device=torch.device("cuda:0"),
         ) as runtime:
+            if args.profile_last_update:
+                capture = ProfileCapture(runtime, args.output, rank)
             total_steps = int(config.training.max_epochs.value) * runtime.steps_per_epoch
             receipt["data"] = runtime.identity
             receipt["optimizer_routes"] = runtime.optimizer.routes
+            # Hash the exact ordered row schedule before timing; no expression
+            # arrays are read and this deterministic sampler does not advance RNG.
+            remaining = args.steps
+            schedule_hashes: list[str] = []
+            for epoch_number in itertools.count():
+                identities = runtime.data.training_batch_identity_specs(
+                    epoch=epoch_number,
+                    batch_size=runtime.batch_size,
+                    max_unique_conditions=runtime.options.max_conditions,
+                )[:remaining]
+                schedule_hashes.extend(
+                    sha256_json(
+                        {
+                            "epoch": epoch_number,
+                            "control": list(item.control_row_ids),
+                            "truth": list(item.perturbed_row_ids),
+                            "conditions": list(item.condition_ids),
+                        }
+                    )
+                    for item in identities
+                )
+                remaining -= len(identities)
+                if remaining <= 0:
+                    break
+            receipt["ordered_batch_schedule_sha256"] = sha256_json(schedule_hashes)
+            receipt["batch_schedule_hashes"] = schedule_hashes
+            receipt["view_generator_before_sha256"] = sha256_json(
+                runtime.generator.bit_generator.state
+            )
             durations = []
             data_wait_seconds = []
             cells = []
+            memory_samples = []
             gradient_reduction_seconds = []
             torch.cuda.reset_peak_memory_stats()
             step = 0
@@ -144,7 +205,7 @@ def main() -> None:
                         )
                     torch.cuda.synchronize()
                     started = time.perf_counter()
-                    timings = {}
+                    timings: dict[str, float] = {}
                     terms = optimizer_step(
                         runtime.objective,
                         runtime.optimizer,
@@ -157,18 +218,27 @@ def main() -> None:
                         / 2,
                         bf16=True,
                         global_condition_index=global_conditions,
-                        timings=timings,
+                        timings=timings if args.sync_phase_timing else None,
                     )
                     torch.cuda.synchronize()
                     durations.append(time.perf_counter() - started)
                     cells.append(global_cells)
-                    gradient_reduction_seconds.append(
-                        timings.get("gradient_reduction_seconds", 0.0)
+                    memory_samples.append(
+                        {
+                            "step": step + 1,
+                            "allocated_bytes": torch.cuda.memory_allocated(),
+                            "reserved_bytes": torch.cuda.memory_reserved(),
+                            "host": host_snapshot(),
+                        }
                     )
+                    if args.sync_phase_timing:
+                        gradient_reduction_seconds.append(
+                            timings["gradient_reduction_seconds"] if world > 1 else 0.0
+                        )
                     step += 1
                     receipt["steps_completed"] = step
                     receipt["last_terms"] = terms
-                    if step == max(1, args.steps // 2):
+                    if kind != "benchmark_only" and step == max(1, args.steps // 2):
                         path = args.output / "resume.pt"
                         save_checkpoint(
                             path,
@@ -190,20 +260,24 @@ def main() -> None:
                         receipt["resume_checkpoint_sha256"] = sha256_file(path)
                     if step % 8 == 0:
                         primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
+                    if capture is not None and step == args.steps - 1:
+                        capture.start(memory=args.profile_memory)
                     next_batch_ready = time.perf_counter()
                     if step >= args.steps:
                         break
                 if step >= args.steps:
                     break
             receipt["training_wall_seconds"] = time.perf_counter() - training_started
+            profile_summary = capture.close() if capture is not None else None
+            receipt["host_after"] = host_snapshot()
             receipt["end_to_end_training_cells_per_second"] = (
                 sum(cells) / receipt["training_wall_seconds"]
             )
 
             # Exercise the identical 300-control inference path on one validation
             # condition. No test truth, scientific score or hyperparameter selection.
-            def validation_probe():
-                validation = {}
+            def validation_probe() -> dict[str, Any]:
+                validation: dict[str, Any] = {}
                 with CanonicalEvaluationData(
                     dataset_id=config.dataset_id,
                     protocol_id=config.data.protocol_id,
@@ -256,11 +330,18 @@ def main() -> None:
                 "peak_allocated_bytes": torch.cuda.max_memory_allocated(),
                 "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
                 "training_wall_seconds": receipt["training_wall_seconds"],
-                "update_seconds": durations[warmup_steps:],
-                "data_wait_seconds": data_wait_seconds[warmup_steps:],
-                "gradient_reduction_seconds": gradient_reduction_seconds[warmup_steps:],
+                "update_seconds": durations[warmup_steps:measured_stop],
+                "data_wait_seconds": data_wait_seconds[warmup_steps:measured_stop],
+                "gradient_reduction_seconds": gradient_reduction_seconds[
+                    warmup_steps:measured_stop
+                ],
+                "host": host_snapshot(),
+                "profile": profile_summary,
+                "memory_after_update": memory_samples,
+                "view_generator_after_sha256": sha256_json(runtime.generator.bit_generator.state),
+                "profiled_update_seconds": durations[measured_stop:],
             }
-            measurements = [local_measurement]
+            measurements: list[Any] = [local_measurement]
             if world > 1:
                 measurements = [None] * world
                 torch.distributed.all_gather_object(measurements, local_measurement)
@@ -272,6 +353,22 @@ def main() -> None:
                 max(times)
                 for times in zip(*(m["data_wait_seconds"] for m in measurements), strict=True)
             ]
+            step_totals = [
+                max(row)
+                for row in zip(
+                    *(
+                        [
+                            gap + duration
+                            for gap, duration in zip(
+                                m["data_wait_seconds"], m["update_seconds"], strict=True
+                            )
+                        ]
+                        for m in measurements
+                    ),
+                    strict=True,
+                )
+            ]
+            receipt["measured_step_seconds_including_data_wait"] = step_totals
             receipt["rank_measurements"] = measurements
             receipt["measured_data_wait_seconds"] = gaps_measured
             receipt["data_wait_fraction"] = sum(gaps_measured) / max(
@@ -282,24 +379,38 @@ def main() -> None:
                 "excludes update math and includes batch preparation"
             )
             receipt["communication_timing_scope"] = (
-                "synchronized gradient averaging only; excludes center/metric collectives; "
-                "includes reduction packing and rank wait"
+                "synchronized gradient averaging diagnostic; includes packing and rank wait"
+                if args.sync_phase_timing
+                else "disabled; no extra mid-step barriers, use separate profiler trace"
             )
             receipt["end_to_end_training_cells_per_second"] = sum(cells) / max(
                 m["training_wall_seconds"] for m in measurements
+            )
+            import numpy as np
+
+            receipt["measured_update_median_seconds"] = float(np.median(durations_measured))
+            receipt["measured_update_p95_seconds"] = float(np.quantile(durations_measured, 0.95))
+            receipt["measured_cells_per_second_including_data_wait"] = sum(
+                cells[warmup_steps:measured_stop]
+            ) / sum(step_totals)
+            receipt["pipeline_stats"] = runtime.data.pipeline_stats.payload()
+            receipt["timing_limitations"] = (
+                "step-boundary synchronization; checkpoints excluded from measured update/gap "
+                "samples but included in wall time; profiled last update excluded from samples; "
+                "wall throughput with profiler enabled is diagnostic only"
             )
             receipt.update(
                 status="passed",
                 peak_allocated_bytes=max(m["peak_allocated_bytes"] for m in measurements),
                 peak_reserved_bytes=max(m["peak_reserved_bytes"] for m in measurements),
                 measured_update_seconds=durations_measured,
-                cells_per_second=sum(cells[warmup_steps:]) / sum(durations_measured),
+                cells_per_second=sum(cells[warmup_steps:measured_stop]) / sum(durations_measured),
                 coverage=(
                     "one optimizer update; checkpoint reload; "
                     "no sustained-capacity or inference evidence"
                     if kind == "integration_only"
                     else (
-                        "bounded training throughput only; checkpoint reload; "
+                        "bounded training only; no checkpoint in timed benchmark; "
                         "no sustained-capacity or inference evidence"
                         if kind == "benchmark_only"
                         else "128+ updates; checkpoint continuation; single-condition validation"
@@ -307,6 +418,8 @@ def main() -> None:
                 ),
             )
     except BaseException as error:
+        if capture is not None:
+            capture.close(export=False)
         receipt.update(status="failed", error_type=type(error).__name__, error=str(error))
         atomic_json(args.output / f"rank-{rank}-failure.json", receipt)
         if rank == 0:

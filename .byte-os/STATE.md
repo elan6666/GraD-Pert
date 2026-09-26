@@ -1,33 +1,43 @@
-# Current stage: relay method validated locally, publication in progress
+# Current stage: performance instrumentation and target preflight
 
-User explicitly resumed execution with byte-auto on 2026-09-26. Overall outcome:
-finish the new complete v2 method, then deeply profile/optimize CPU/GPU scheduling,
-validate dual RTX 5090 sustained capacity, then complete Jurkat B0 five epochs
-and best/last tests. Preserve v1 and every stopped run. Worktree:
-`/Users/elan/code/grad-pert-v2-build`; do not edit the separate dirty root checkout.
+User explicitly requested Goal-mode supervision on 2026-09-26 after restoring
+VPN. Goal is active for performance diagnosis/optimization and the dependent
+capacity/full-B0 workflow; no scheduled monitor and no new GPU job yet.
+Worktree `/Users/elan/code/grad-pert-v2-build`; preserve dirty root and old runs.
 
-Active bounded Goal: stage A implementation/correctness/publication. No scheduled
-monitor or new server/GPU job. Pre-change clean local/GitHub SHA:
-`95388f5bd365ae3768080f5c2e39f1fc79e672ef`. New edits await scoped publication.
-Plan and contract: `docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md`.
-Compact acceptance receipt: `docs/experiments/relay-stage-a.json`.
+Method stage A published: `7e4c669e5043986209339a0c8a613b02645356d3`.
+Local acceptance: `docs/experiments/relay-stage-a.json`; method/plan and stage B
+tool details: `docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md`.
+Student27,279,662, Teacher same frozen. New graph-local relay KDA, response
+self→cross, full prediction+SSL1+SSL2. v2 253+1 tests passed; same5 historical
+failures reproduced on baseline; no new regression. Local Python3.11 remains
+separate from supported target environment evidence.
 
-Fresh evidence: v2 suite253 passed plus added two-rank complete-update test1
-passed; historical1039 passed/7 skipped/5 failed, same5 failures reproduced in
-clean baseline. Current mypy12 errors vs baseline19; changed model/config/view
-scope passes. Ruff/format/build pass. Student27,279,662; frozen Teacher same.
-Checkpoint on/off complete optimizer/EMA/center/RNG parity, resume, best/last
-loading, eval cell-batch independence and distributed unlike-condition KoLeo
-validated. Local Python3.11 is not server Python>=3.12 proof. No CUDA speed,
-capacity or scientific claims. Old batch192 remains only a candidate.
+Stage B tools prepared locally: bounded last-update profiler, nested phase
+labels, GPU busy interval unions, optional memory trace, per-rank timing/RSS,
+ordered batch plan/RNG hashes, custom warmup and no default mid-step barriers.
+49 targeted tests plus5 additional CLI rejection tests pass; scoped tool mypy
+and all-tree lint/format pass. Profiled complete optimizer/EMA/center/RNG update
+matches unprofiled. Pending scoped publication then server integration.
+First probe config is full-size model at micro2×accum2×world2=batch8. This is
+only a conservative diagnostic candidate, not a new scientific default.
 
-Next: publish stage A; verify matching immutable server checkout and supported
-environment; then start stage B timeline diagnostics with conservative batch.
-Latest SSH attempt returned connection reset during key exchange; diagnose VPN
-UI/TCP/SSH separately and use authorized EasyConnect recovery if expired.
-Waiting monitors, once needed: test30min, formal training2h, every-check reports.
-Advance authorized dependent work as prerequisites pass; update this state and
-existing monitor at milestones/failures. Do not start other ablation groups.
+Fresh SSH recovered and authenticated to ubuntu-server; GPUs each2MiB, no
+compute process shown yet to be verified. GPU0 reported100% utilization despite
+2MiB; inspect topology/process/device health before admission. New-method source
+must be deployed to a fresh clean immutable checkout, never an old run checkout.
+Local build produced ignored egg-info; create publication receipt from a clean
+archive/worktree, not this packaging workspace (old temporary7e4c669 receipt
+includes build metadata and must not be used on server).
+
+Next: publish tools, seal clean source/receipt, supported-environment CPU checks,
+dual-GPU single-update+resume, short CPU/GPU timeline, then ranked measured
+optimizations with full-update parity/ABBA, sustained128+ batch search, then only
+complete Jurkat B0 five epochs and best/last tests. No other ablations. Preserve
+full run/source/config/data/environment identity. Old batch192 is uncertified.
+Update Byte and active execution state at each transition; testing30min/formal2h
+cadence applies if scheduled monitoring is later used; current user asked Goal
+mode supervision, so no duplicate timer is enabled.
 
 ## Historical state, superseded by the relay-method stage above
 

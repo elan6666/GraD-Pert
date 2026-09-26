@@ -127,3 +127,19 @@ Student 实际 **27,279,662** 个参数；同构 EMA Teacher **27,279,662**（�
 验证结果：v2全套253通过，随后新增双进程完整更新1项通过（合计254个不同用例）；历史目录1039通过、7跳过、5失败。基线独立快照复现完全相同5项失败，涉及旧配置矩阵及R50错误提示，不属于新增回归，未改v1来掩盖它们。全项目mypy当前12项错误，基线19项；变更的 operators/model/config/views 定向检查通过，缺失yaml stub等历史/环境错误仍保留。全树 Ruff、format、diff check及 wheel/sdist构建通过。
 
 本地验证环境为 Python3.11 + Torch2.13（辅助依赖在临时目录），不等同于项目要求的Python≥3.12服务器运行环境。CUDA数值、真实数据、内存、吞吐和目标环境预检尚无本版本证据。根目录一次性pytest收集有既有同名模块冲突，故v2与其余目录分开运行。
+
+
+## 阶段 B 工具准备（2026-09-26，尚无 CUDA 测量）
+
+方法参考提交为 `7e4c669e5043986209339a0c8a613b02645356d3`。性能采集复用 `scripts/v2/capacity_probe.py`，新增 `profile_capture.py` 仅在探针的最后一次更新临时包装调用，正常训练不加载或开启这些标记。记录 CPU 数据 materialize/transfer/view，Student/Teacher 图、Cell、Response/self/cross/四头，SSL1/SSL2、backward、gather/梯度归约、optimizer 和 EMA/center。异常退出恢复原方法。CPU 完整优化更新的参数、优化器、center、RNG 对照通过；这不替代 CUDA 验证。
+
+- `--benchmark-only --steps 40 --warmup-steps 10`：预热10、计时30；无profiler，无步内额外同步，不在计时段保存checkpoint。整步边界同步仍保留并明确记录。
+- `--benchmark-only --steps 3 --profile-last-update`：先预热、短基线、最后1次完整更新抓取trace。该短探针是最初的成本诊断，不充当重复ABBA提速证明；最后一次数据准备和更新都被捕获。receipt kind为profile_only，不可纳入容量证明。
+- `--profile-memory` 仅与上一选项联合：记录分配事件与小型时间线；不启用record_shapes/with_stack，避免不必要的tensor保留。无CUDA事件时报告unknown，不能报告GPU利用率0。
+- `--sync-phase-timing` 是另一次诊断性同步计时，与profile互斥；默认关闭。旧容量报告兼容缺少此字段的历史收据，明确关闭时不伪造零通信耗时。
+- 记录每卡更新时长、数据等待、CPU RSS/CPU时间、allocated/reserved、原始计时序列、中位数/p95、精确有序batch行计划hash、view RNG前后hash、硬件/NUMA/PCIe拓扑、source/config/data/environment身份。GPU忙碌时长对并发kernel取区间并集；嵌套CPU区域不能当作互斥阶段相加。
+- 首个保守配置 `configs/v2/relay_jurkat/profiling_m2_a2/gradpert_v2/nadig_jurkat.yaml`：完整27.28M模型，micro2×accum2×双卡=8，和候选192仅物理/global batch不同。先单步完整更新与恢复，再短trace，确认可测后执行充分预热的无profiler基准。
+
+工具本地定向验证49项通过，补充CLI非法组合/allocator失败关闭5项通过；三份工具mypy、全树Ruff和format通过。benchmark不含checkpoint，单步integration和128+capacity仍保留恢复验证；profile收据不能宣称容量。
+
+测量依据：[PyTorch Profiler](https://docs.pytorch.org/docs/stable/profiler.html)、[CUDA异步执行与stream语义](https://docs.pytorch.org/docs/main/notes/cuda.html)、[pin_memory/non_blocking说明](https://docs.pytorch.org/tutorials/intermediate/pinmem_nonblock.html)。Profiler开销与稳态吞吐严格分开，不能用“另开stream”或单个GPU利用率数字作为加速证明。

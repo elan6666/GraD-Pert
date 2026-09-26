@@ -8,13 +8,14 @@ import json
 import math
 import statistics
 from pathlib import Path
+from typing import Any
 
 from gradpert.config import load_experiment_config
 from gradpert.config.v2 import V2Options
 from gradpert.hashing import sha256_file
 
 
-def collect(receipt_path: Path, config_path: Path) -> dict:
+def collect(receipt_path: Path, config_path: Path) -> dict[str, Any]:
     receipt = json.loads(receipt_path.read_text())
     config = load_experiment_config(config_path)
     architecture, options = V2Options.parse_parameters(config.model.parameters)
@@ -54,6 +55,10 @@ def collect(receipt_path: Path, config_path: Path) -> dict:
         raise ValueError("invalid update throughput")
     ranks = receipt.get("rank_measurements", [])
     communication = [r.get("gradient_reduction_seconds", []) for r in ranks]
+    if receipt.get("sync_phase_timing") is False:
+        if any(communication):
+            raise ValueError("disabled communication timing must not contain measurements")
+        communication = []
     if communication and any(len(v) != len(durations) for v in communication):
         raise ValueError("communication timing population mismatch")
     return {

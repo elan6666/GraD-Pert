@@ -91,3 +91,16 @@ def test_report_rejects_changed_loss_population(tmp_path, field, value):
     path.write_text(json.dumps(data))
     with pytest.raises(ValueError, match="unified loss protocol"):
         collect(path, CONFIG)
+
+
+def test_report_distinguishes_disabled_communication_timing_from_zero(tmp_path):
+    data = valid_receipt()
+    data["sync_phase_timing"] = False
+    data["rank_measurements"] = [{"gradient_reduction_seconds": []}]
+    path = tmp_path / "receipt.json"
+    path.write_text(json.dumps(data))
+    assert collect(path, CONFIG)["gradient_reduction_mean_seconds"] is None
+    data["rank_measurements"][0]["gradient_reduction_seconds"] = [0.0] * 120
+    path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="disabled"):
+        collect(path, CONFIG)

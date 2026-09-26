@@ -2,28 +2,27 @@
 schema_version: 1
 mode: auto
 project_kind: existing_codebase
-stage: relay_method_publication
+stage: relay_performance_preflight
 current_workflow: byte-auto
 next_workflow: byte-auto
-review_verdict: local_method_checks_passed_with_baseline_failures_disclosed
+review_verdict: method_published_diagnostics_locally_validated
 hard_blocked: false
 updated_at: 2026-09-26
 ---
 
 # Current state
 
-User authorized execution. Method implementation and local correctness checks
-are complete; scoped Git publication is next. Full B0 uses prediction+SSL1+SSL2,
-not prediction_only. Student27,279,662 and same frozen Teacher; new method has no
-GPU capacity/speed evidence yet. v2 253+1 distinct tests pass; legacy failures
-were reproduced on the clean pre-change baseline. Details and test limitations:
-[method plan](../docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md) and
-[acceptance receipt](../docs/experiments/relay-stage-a.json).
+Method published as `7e4c669e5043986209339a0c8a613b02645356d3`; Student27,279,662,
+same frozen EMA Teacher. Full B0 retains prediction+SSL1+SSL2. Local acceptance
+and disclosed historical failures: [receipt](../docs/experiments/relay-stage-a.json).
 
-Active stage A Goal; no new server job or monitor. Next stages remain CPU/GPU
-critical-path measurement → measured optimization/parity → sustained batch
-capacity → full B0 five epochs and best/last tests. Current connectivity needs
-refresh after SSH key-exchange reset. STATE.md contains resumable details.
+User restored server access and requested Goal supervision. Goal active; SSH
+works again. No new GPU job/monitor yet. Performance instrumentation is locally
+validated and awaiting publication; first target probe is same full model at
+micro2/accum2/two GPUs. Inspect GPU0's anomalous idle100% utilization before
+launch. [Plan](../docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md) and STATE.md carry
+remaining diagnostics→optimization→capacity→five-epoch-B0 dependencies. No new
+CUDA throughput, capacity, or scientific results claimed.
 
 The material below is historical status for earlier variants and stopped runs.
 
