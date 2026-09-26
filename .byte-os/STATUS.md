@@ -14,6 +14,18 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Single-pass integration passed1/1 complete update on both GPUs with checkpoint
+save/reload; receipt dry-run reviewed79,212bytes then copied to
+`docs/experiments/single-c073a37-preflight/integration/receipt.json`.
+Baseline12updates now running, profile follows. Finite successor synthetic
+CUDA Graph probe queued behind both GPU locks: PID3400405, stem
+`development/single-c073a37-cudagraph-check` with `.stage/.log/.pid/.exit`.
+It requires all three preflight receipts passed and queue exit0 before GPU use.
+This unchanged generic kernel tool checks two live final-state invocations and
+carried-state gradients; it is not a model backend adoption or a two-pass model
+training run. Final-state write implementation and model default stay eager.
+Synthetic success alone will not establish end-to-end speed or update parity.
+
 Current live bounded queue: `/data/yilangliu/GraD-Pert/development/single-c073a37-preflight`,
 PID3399679; same stem `.sh/.pid/.log/.exit/.stage`. Stages: target30tests →
 dual-GPU full-loss integration+checkpoint reload → 12update baseline (3warmup)
