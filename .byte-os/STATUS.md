@@ -14,6 +14,21 @@ updated_at: 2026-09-26
 
 ## Resumed single-pass performance engineering — 2026-09-26
 
+Current live bounded queue: `/data/yilangliu/GraD-Pert/development/single-c073a37-preflight`,
+PID3399679; same stem `.sh/.pid/.log/.exit/.stage`. Stages: target30tests →
+dual-GPU full-loss integration+checkpoint reload → 12update baseline (3warmup)
+→ 4update bounded final-update profile. All stage success receipts gate the next.
+Training SHA `c073a37c3c038561fb3d167b2a8f53f8650544bd`, immutable
+`development/source-v2-single-c073a37`; publication
+`development/gradpert-single-clean-publication-c073a37.json`, SHA256
+`3287827f59329ea3be6185493c5e816e24d527027101cbad0277fbc1e7bf3ace`.
+Fresh target tests30passed; integration processes verified alive. GPUs0/1 locked.
+The first local publication receipt was rejected: ignored editable-install
+`src/gradpert.egg-info` altered the local tree hash. Fresh clean local clone and
+server now agree on tree a7d78edc8a11dc3f39a469247382dac0e612139bd7ed1ee47f25d57bfec52ca8.
+Rejected receipt retained; no identity checks bypassed. Use clean publication
+staging for subsequent releases, not the editable test worktree.
+
 User explicitly resumed the original Goal after the single-pass correction.
 The pause below is historical and superseded. Current method commit
 `f6d84bebb3519a5cf94c91e38ea0b90854e1a952`: single random-order writing pass,

@@ -265,3 +265,12 @@
 - Prevention: preserve thresholds, add an unchanged-reference control and
   diagnostic deterministic comparison, and inspect gradients/optimizer plus
   a nonzero-LR update. Do not claim equivalence or speed before those checks.
+
+## Clean publication staging
+
+2026-09-26: Git-clean editable test worktree can still contain ignored
+`src/gradpert.egg-info`, which participates in the source-tree identity hash.
+Publication from it differed from a fresh server checkout and correctly failed.
+Generate release receipts from a clean clone at the published SHA; compare tree
+hashes before any CUDA work. Never bypass the identity check or delete unrelated
+local artifacts merely to match a release.
