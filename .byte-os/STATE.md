@@ -158,7 +158,18 @@ locks. CUDA capture and speed remain unverified. Tool published3a05875bb43e88cf7
 clean server copy passed7 helper checks on supported Python3.12/Torch2.13.
 Pre-GPU review then kept the single-token CLS-like case active (mask starts at
 index1, not0); a length-one recurrence/gradient test now covers that boundary.
-Final corrected publication is required before its GPU probe.
+Corrected tool published279696a2c995d136d64838f3c3090fc4992a6839;
+source development/source-v2-relay-279696a is clean, supported-server3 probe
+checks pass (8 local probe+parity checks). Publication development/
+gradpert-relay-publication-279696a.json SHA256
+7905c5ffe67c47804d876e3a9b159006367f555cd7408a5fe85f3caf973b1a1f.
+Dependent wrapper development/relay-279696a-cudagraph-check,PID3389345,
+same-stem .sh/.log/.pid/.exit/.stage, waits up to14400s for ABBA's GPU locks.
+It requires ABBA queue exit0 plus all four passed40-step receipts before any
+CUDA call, then runs a bounded1800s GPU0 synthetic check (both locks held).
+Current stage waiting-for-abba-lock; no CUDA probe result yet. This is a finite
+prerequisite queue, not a timer or parallel GPU job. Inspect actual wrapper/rank
+processes and terminal receipts; do not restart based on a stale .stage file.
 No timer, Goal active. Remaining full-update/throughput/capacity/B0requirements
 unchanged. No new default optimization has been accepted.
 

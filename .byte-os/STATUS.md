@@ -34,7 +34,9 @@ also fails strict gradient tolerance (max1.3163e-4), with exact inputs/RNG.
 Deterministic reference/candidate diagnostic passed two complete updates on
 both GPUs with bitwise-equal losses/gradients/model/optimizer and exact RNG.
 Same-source ABBA throughput queue is now running (40updates each,global8);
-no throughput improvement or default adoption claimed. No formal training or timer; Goal continues. STATE.md has receipts
+no throughput improvement or default adoption claimed. Next CUDA Graph replay
+probe is published279696a, CPU helper checks pass, and queued behind ABBA with
+explicit successful-receipt/resource gates; its GPU behavior remains unverified. No formal training or timer; Goal continues. STATE.md has receipts
 and remaining gates. GPU0 idle100%
 telemetry is anomalous but both cards passed CUDA arithmetic; analyze traces. [Plan](../docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md) and STATE.md carry
 remaining diagnostics→optimization→capacity→five-epoch-B0 dependencies. No new
