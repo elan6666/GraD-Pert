@@ -128,6 +128,13 @@ def execution_changes(reference: Any, candidate: Any, repeat: bool) -> list[str]
     return changed
 
 
+def disable_sequence_checkpoint(objective: Any) -> None:
+    """Diagnostic override on BOTH sides; never changes graph checkpointing."""
+    for model in (objective.student, objective.teacher):
+        model.cell.checkpoint_layers = False
+        model.response.checkpoint_layers = False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
@@ -139,6 +146,7 @@ def main() -> None:
     parser.add_argument("--publication-sha256", required=True)
     parser.add_argument("--reference-repeat", action="store_true")
     parser.add_argument("--deterministic", action="store_true")
+    parser.add_argument("--no-sequence-checkpoint", action="store_true")
     args = parser.parse_args()
     world, rank = int(os.environ.get("WORLD_SIZE", "1")), int(os.environ.get("LOCAL_RANK", "0"))
     devices = args.gpu.split(",")
@@ -217,6 +225,7 @@ def main() -> None:
         "execution_change": {name: getattr(candidate_architecture, name) for name in changed},
         "reference_repeat": args.reference_repeat,
         "deterministic_diagnostic_only": args.deterministic,
+        "sequence_checkpoint_disabled_both_sides_diagnostic_only": args.no_sequence_checkpoint,
         "cublas_workspace_config": os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
     }
     receipt_path = args.output / f"rank-{rank}-receipt.json"
@@ -225,6 +234,8 @@ def main() -> None:
         with prepare_runtime(
             config, data_root=args.data_root, run_seed=1, device=torch.device("cuda:0")
         ) as runtime:
+            if args.no_sequence_checkpoint:
+                disable_sequence_checkpoint(runtime.objective)
             receipt["data"] = runtime.identity
             total_steps = int(config.training.max_epochs.value) * runtime.steps_per_epoch
             initial = args.output / "initial.pt"

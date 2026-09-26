@@ -1,5 +1,15 @@
 ## Resumed single-pass performance engineering — 2026-09-26
 
+835a9ad donation-disabled candidate also FAILED on both ranks with exactly
+same cudagraph lifetime invariant in first cell backward; exit1, no candidate
+update passed. Receipts saved under docs/experiments/single-835a9ad-replay-parity/
+after35,700byte dry-run. Buffer donation alone is not the fix.
+Next diagnostic isolates checkpoint interaction: --no-sequence-checkpoint on
+update_parity disables Cell/Response checkpointing on BOTH reference and
+candidate, graph checkpointing unchanged. Explicit diagnostic receipt flag;
+formal configs/runners untouched. This is fault isolation, not adoption or a
+claim of faster training.7 parity helper tests and scoped mypy/ruff pass.
+
 Ownership-repair hypothesis published835a9ad663ca0546b2cf36da02d1df69a1dc9521,
 clean immutable `development/source-v2-replay-835a9ad`, tree
 b3103a1d8457898db791584716a8abcefbdcf1ab6acfa0f5f9184b932eb74ccd;

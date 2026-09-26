@@ -72,3 +72,21 @@ def test_reference_repeat_cannot_hide_an_architecture_change():
         MODULE.execution_changes(original, original, False)
     with pytest.raises(AssertionError, match="one execution factor"):
         MODULE.execution_changes(original, replace(changed, relay_kernel="inductor"), False)
+
+
+def test_sequence_checkpoint_diagnostic_changes_both_sides_only():
+    from types import SimpleNamespace
+
+    def model():
+        return SimpleNamespace(
+            cell=SimpleNamespace(checkpoint_layers=True),
+            response=SimpleNamespace(checkpoint_layers=True),
+            graph=SimpleNamespace(checkpoint_chunks=True),
+        )
+
+    objective = SimpleNamespace(student=model(), teacher=model())
+    MODULE.disable_sequence_checkpoint(objective)
+    for network in (objective.student, objective.teacher):
+        assert not network.cell.checkpoint_layers
+        assert not network.response.checkpoint_layers
+        assert network.graph.checkpoint_chunks
