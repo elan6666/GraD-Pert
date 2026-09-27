@@ -1,5 +1,26 @@
 # 性能工程文献驱动矩阵
 
+## 2026-09-27：文献假设的双卡验证结论
+
+[PyTorch 官方 NUMA 绑定接口](https://docs.pytorch.org/docs/main/elastic/numa.html)解决多 socket 机器的 worker/设备局部性问题；我们仅适配其现有 `--numa-binding=node` 执行选项，非原创机制。真实双5090完整更新 A1/B1/B2/A2 各12步、同源码/配置/随机计划，B/A 配对含等待速度比1.05240和1.04927，几何均值1.05083，预留显存不变。因此在当前服务器采用；不能外推到其他拓扑或宣称长期模型效果。详见[性能报告](GRADPERT_V2_SINGLE_PASS_PERFORMANCE.md#numa-本地-cpu-绑定整步对照终态2026-09-27)。这项有实测收益的调度借鉴与失败的局部 CUDA Graph/图投影候选并列记录，不能抹去后者的精度反证。
+
+## 2026-09-27：机制证伪与 CPU/GPU 亲和调度
+
+区域捕获参照 [PyTorch `make_graphed_callables` 官方接口](https://docs.pytorch.org/docs/main/generated/torch.cuda.make_graphed_callables.html) 与 [CUDA Graph 内存生命周期说明](https://docs.pytorch.org/docs/main/user_guide/torch_compiler/torch.compiler_cudagraph_trees.html)。本项目的固定64目标图块在单次捕获能得到原值/梯度，但实际连续两块、前块状态仍参与反向时产生非有限梯度；`torch.compile(..., backend="cudagraphs")` 两种精度配置在 BF16 输入梯度也超过原阈值。前向图捕获＋原生重算反向仍在 BF16 两块链上超阈值。这些是本负载/当前实现的反证，不说明 PyTorch 机制本身有通用错误；当前候选淘汰，保留服务器隔离测试日志。
+
+对 [MLSys 2022 GNN 计算图重排](https://proceedings.mlsys.org/paper_files/paper/2022/hash/b559156047e50cf316207249d0b5a6c5-Abstract.html) 的更保守检验是**不做代数分配律，只把完全相同的 `(基因, 四位来源)` 投影算一次**。Jurkat 冻结图共有253371条合法边、27202个不同组合，理论重复9.31倍。128目标 BF16 局部探针四组前向张量完全相同，但反向对输入和多组投影权重的累加次序改变，既定3e-5/3e-4阈值失败；所以不做整步/容量/正式训练，也不把9.31倍重复误称为可实现的整步加速。
+
+下一调度假设依据 [PyTorch NUMA 绑定官方文档](https://docs.pytorch.org/docs/main/elastic/numa.html)、[PyTorch 性能调优指南](https://docs.pytorch.org/tutorials/recipes/recipes/tuning_guide)、[NCCL CPU/内存亲和说明](https://docs.nvidia.com/deeplearning/nccl/archives/nccl_2312/user-guide/docs/troubleshooting/performance_and_tuning.html)。本机 `nvidia-smi topo -m` 显示 GPU0 近 NUMA0、GPU1 近 NUMA3，现有 rank 可在0–127任意逻辑核调度，而当前完整更新约130万次 kernel、CPU 发射为显著成本。已用服务器 Torch2.13 `torchrun --numa-binding=node` 小探针验证 rank0 实际亲和 0–15/64–79、rank1 为48–63/112–127；它是官方已有机制，不是原创。现在同一干净源码/配置做 A1/B1/B2/A2 全更新计时，仅 B 开内建亲和。预期收益受 CPU 发射份额上限约束，可能因可用 CPU 缩小或数据线程拥塞变慢；只有总 cells/s、p95、启动与峰值内存整体证据才能决定是否采用。
+
+## 2026-09-27：图边重复投影的针对性新假设
+
+[Understanding GNN Computational Graph: A Coordinated Computation, IO, and Memory Perspective（MLSys 2022）](https://proceedings.mlsys.org/paper_files/paper/2022/hash/b559156047e50cf316207249d0b5a6c5-Abstract.html) 将“先在每条边重复做神经变换，再传播”改为可交换时“先对节点变换、后传播”，并结合融合和选择性重算。**论文结果不是本项目速度承诺。** 本项目实测 6,506 个图节点却产生 253,371 条合法目标—邻居边，单个基因平均参与约38.95个目标邻域；`RelayDeltaAttention.graph` 当前先 gather 邻居，加四位边来源投影，再逐边执行 key/value/decay/write 投影。因而重复投影是有明确规模的下一候选，而非泛泛尝试另一个开关。
+
+可研究的因式分解仅限线性层：若 `selected_{ij}=h_j+W_s s_{ij}`，则数学上 `W selected_{ij}=W h_j+W W_s s_{ij}`，可以对 6,506 个节点和至多16种来源组合先投影，再在边上索引/相加；非线性归一化、`decay_down→decay_up` 及 KDA 随机次序仍须维持原位置，不能把有顺序的状态写入变为可交换聚合。预期主要减少重复 GEMM/发射，代价是边上 gather/add、节点投影中间存储和 backward scatter；浮点结合顺序可能改变输出和梯度，故它**尚非已验证等价优化**。先用真实 BF16 图层微基准检查各投影/梯度误差与节省，再用既定双卡完整更新门槛检验 loss、KoLeo 最近邻、optimizer/EMA/center；若越界立即淘汰，不放宽误差或混入 B0。是否实施取决于当前常量缓存 ABBA 与更细的图投影成本归因。
+
+[PyTorch CUDA Graph 官方约束](https://docs.pytorch.org/docs/stable/notes/cuda.html#cuda-graphs)与[CUDA Graph Trees 的动态形状说明](https://docs.pytorch.org/docs/main/user_guide/torch_compiler/torch.compiler_cudagraph_trees.html)支持另一个**不同于失败的整段序列捕获**的候选：只捕获图 KDA 内大量重复、形状稳定的块，随机邻域排列与视图长度在捕获区外作为数据传入，变长尾块留 eager；保留相同初始状态、输出和反向。依据是当前一完整更新约130万GPU kernel、约116万次CUDA launch，而整段序列因随机长度在64次重编译后失败。若 64 行×固定邻域长度的核心图块覆盖绝大多数目标，可用少量 capture 分摊发射成本；但图裁剪长度、静态地址、checkpoint 的重算、RNG 与额外 graph pool 显存均是验收风险。先统计真实块形状及覆盖率、给单个无随机块做含 backward 的区域捕获小探针，记录编译/捕获次数和池显存；若不满足有限形状或完整更新校验，停止此路，不通过提高重编译上限回避失败。官方文档提供的是约束和机制，不构成本项目收益证明。
+
+
 ## 2026-09-27：按当前完整更新负载重排研究问题
 
 已重新核对 [Kimi Linear 原始技术报告](https://arxiv.org/abs/2510.26692)、[DeltaNet 的 NeurIPS 2024 并行算法](https://proceedings.neurips.cc/paper_files/paper/2024/hash/d13a3eae72366e61dfdc7eea82eeb685-Abstract-Conference.html)、[FLA 固定提交的 KDA 接口](https://github.com/fla-org/flash-linear-attention/blob/954438d1fcb5e1bb05c22f9908de9c5c2df74ae5/fla/ops/kda/chunk.py)、[FlashAttention 的 IO 分块论文](https://proceedings.neurips.cc/paper/2022/hash/67d57c32e20fd0a7a302cb81d36e40d5-Abstract-Conference.html)、[Checkmate](https://proceedings.mlsys.org/paper_files/paper/2020/hash/0b816ae8f06f8dd3543dc3d9ef196cab-Abstract.html)、[GNNAdvisor](https://www.usenix.org/conference/osdi21/presentation/wang-yuke)、[SALIENT](https://proceedings.mlsys.org/paper_files/paper/2022/hash/afacc5db3e0e85b446e6c7727cd7dca5-Abstract.html)以及[PyTorch DDP系统论文](https://arxiv.org/abs/2006.15704)。这是原始论文/作者代码的机制借鉴，不是移植性能结论。当前源码681d4fb的 m64 双卡持续128步已通过，旧38af3ce trace 仅显示图/KDA细粒度发射线索；新完整更新 profile 尚需确认关键路径。

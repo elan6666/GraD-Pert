@@ -1,6 +1,10 @@
+## 当前所有权／动作（2026-09-27 09:24 UTC）
+
+主会话持有性能阶段；NUMA A1/B1/B2/A2 队列 `complete`/`exit0`，Luna 短时监督已结束，两卡空闲。比较收据 SHA256 `813bd55bef4715ceb430944d251cc7ee7e319fbd29043996405d0cb3c2886ed4`，同源码 `32b2bfd88f36b9a7fad435c533dc825ef81942b4`、同配置 SHA256 `23a2942804b73cdf92871e36808846f50382ded41b1588a68da76ebc0e69985b`，同有序 batch/视图 RNG 起点；只变 rank 本地 NUMA 绑定。配对吞吐几何比 1.05083，显存无增加，决定采用于当前服务器。下一动作：将文档及自包含 m68 容量候选定向提交推送 main，在新干净不可变服务器 checkout 发布收据并做双卡128步持续容量；失败保留，安全回退 m64。容量门槛通过后新运行 ID 完整 B0 五轮与 best/last。旧 B0 中止不恢复；跨会话旧监督仍暂停。下方章节是历史快照。
+
 ## 当前所有权／动作（2026-09-27）
 
-主会话负责当前性能构建；无活动双卡任务或长时监督。短图融合 `27aec3643cc613b17f3b87eecebf05d1453743ba` 的双卡确定性完整更新失败，输入/RNG对齐而梯度/损失/center/optimizer不对齐，证据保留于 `/data/yilangliu/GraD-Pert/development/v2-short-27aec36-parity-m2-datafix-20260927/`；不进入ABBA/容量/B0。当前下一步：原算术路径的 KDA 形状常量复用通过相关60项严格测试和局部计时，封存新 opt-in 候选→双卡完整更新→同配置ABBA，如无整体收益则淘汰；随后按用户目标继续机制评估、持续最大batch及新ID完整B0五轮。旧已停止B0不恢复，旧跨会话监督保持暂停。当前正在运行的任务以实时进程/收据为准；下方旧状态是历史快照。
+主会话负责当前性能构建；无活动双卡任务或长时监督。短图融合 `27aec3643cc613b17f3b87eecebf05d1453743ba` 的双卡确定性完整更新失败，收据 `/data/yilangliu/GraD-Pert/development/v2-short-27aec36-parity-m2-datafix-20260927/` 保留，不进入容量/B0。KDA 形状常量复用在干净发布 `32b2bfd88f36b9a7fad435c533dc825ef81942b4` 上已双卡两步严格一致，A1/B1/B2/A2 各12步通过；含数据等待吞吐比 1.01051/1.01361，几何均值 1.01206，比较收据 `/data/yilangliu/GraD-Pert/development/v2-kda-constants-32b2bfd-abba-20260927T0826Z/comparison.json`。收益较小，保留 opt-in。后续区域 CUDA Graph 与图边相同基因/来源的预投影都已在局部梯度门槛失败，未推送/未用于正式更新；日志及诊断副本保留在服务器 development。当前下一步：针对双卡跨 NUMA 拓扑与约130万 kernel 发射检查各 rank CPU 亲和调度，做同源串行整步对照；若无收益即停止该方向。再决定持续最大batch与新ID完整B0五轮。旧已停止B0不恢复，旧跨会话监督保持暂停。当前正在运行的任务以实时进程/收据为准；下方旧状态是历史快照。
 
 ## 当前执行：主会话性能工程（2026-09-27，新授权）
 
@@ -129,3 +133,6 @@ SSH `ssh -S none -o BatchMode=yes -o ConnectTimeout=10 10.24.1.91`，当前可�
 共享Git克隆不可无限叠加；独立基底source-v2-replay-473466d-standalone可用。
 干净发布应从无ignored egg-info的独立本地克隆生成，保持源码身份核验。
 旧运行细节及已停止PID仅在STATUS/history/Git保留，不当作活动任务。
+## 当前所有权／动作（2026-09-27 08:27 UTC）
+
+主会话拥有当前性能阶段；已完成的双卡完整更新 parity 为 `32b2bfd88f36b9a7fad435c533dc825ef81942b4`、两 rank 两步 passed、输入/RNG/全部损失/梯度/optimizer/Teacher/center 差值零，第二步 LR 非零。短时 ABBA 队列 `/data/yilangliu/GraD-Pert/development/v2-kda-constants-32b2bfd-abba-20260927T0826Z` 正运行，PID `3668186`，顺序 A1/B1/B2/A2；仅本会话 Luna 子代理只读监督，旧跨会话心跳保持暂停。原 B0 中止且不恢复。队列终态后主会话立即审计总步时、含等待吞吐、峰值显存、启动成本与哈希；有效才进入新源码128步持续容量，否则淘汰并依据关键路径选择下一机制。用户授权范围仍含新 ID 完整 B0 五轮及 best/last，不启动其他消融。下方章节为历史快照。

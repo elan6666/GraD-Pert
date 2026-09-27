@@ -1,3 +1,7 @@
+## 2026-09-27：NUMA 调度验证通过，进入新容量边界测试
+
+双卡 m64×累积2、全局256的 A1/B1/B2/A2 各12/12完成且队列 exit0；B 只使用 PyTorch 内建 `torchrun --numa-binding=node`。两次配对含数据等待吞吐 B/A 为 1.05240 和 1.04927，几何均值 1.05083；A1/B1/B2/A2 为 11.7784/12.3956/12.3440/11.7644 cells/s。峰值预留显存四组均 28,974,252,032 bytes；启动分别 8.35/7.99/7.59/8.12 秒。比较收据 `/data/yilangliu/GraD-Pert/development/v2-numa-32b2bfd-abba-20260927T0903Z/comparison.json`，SHA256 `813bd55bef4715ceb430944d251cc7ee7e319fbd29043996405d0cb3c2886ed4`。两次计时是描述性证据，未证明长期模型效果或逐位更新相等。采用 NUMA 绑定作为这台双5090服务器的执行策略；不改模型数学与训练配置。下一步发布独立 m68（全局272）容量配置，完成128步持续、checkpoint续跑与300-control；若 OOM 保存收据并回退。旧 B0 已按用户要求停止，不恢复；后续只用新 ID 完整预测＋SSL1＋SSL2 五轮及 best/last，不启动其他消融。此条覆盖下方历史快照。
+
 ## 2026-09-27：短图融合完整更新失败；转入原算术路径常量复用
 
 `27aec3643cc613b17f3b87eecebf05d1453743ba` 已推送 GitHub main，并在独立干净服务器checkout及哈希封存发布收据后做双卡确定性完整更新。单步损失、图梯度、中心和优化器差异超出固定阈值，失败两rank收据 `/data/yilangliu/GraD-Pert/development/v2-short-27aec36-parity-m2-datafix-20260927/` 保留；此短图融合候选淘汰，不做吞吐/容量/B0。新 opt-in 的 KDA 形状常量复用保持原块求解，相关60项严格输出/梯度测试通过，局部BF16前后向2.738→2.632ms；仍未完成双卡完整更新和端到端吞吐。旧 B0 仍中止。Byte计划和性能报告记录失败与下一门槛。
@@ -654,3 +658,12 @@ this run ID; no other ablation row was launched. The detailed ledger is
 
 Historical R50 batch-1024 status from 2026-09-14 remains in Git history and
 its dedicated experiment documents. It does not describe this v2 run.
+## 2026-09-27：KDA 常量复用 ABBA 完成；转测图分块发射机制
+
+干净发布源码 `32b2bfd88f36b9a7fad435c533dc825ef81942b4` 的常量复用 A1/B1/B2/A2 均 `passed 12/12`，队列 `exit=0`。四组有序 batch 及视图随机数起点哈希相同；两次配对的 B/A 含数据等待吞吐比为 1.01051、1.01361，几何均值 1.01206。启动成本分别记录，峰值显存未降低；这是小幅描述性收益，保留 opt-in，但不把它当作主要性能突破或默认 B0 执行方案。比较收据 `/data/yilangliu/GraD-Pert/development/v2-kda-constants-32b2bfd-abba-20260927T0826Z/comparison.json`，SHA256 `aa594a8ab33ce2032ac81960ccfae92db2d31f9b77f7d33464604680f545aeef`。短时子代理已停止监督，双卡空闲。主会话现验证图 KDA 固定 64 目标分块的区域 CUDA Graph 候选，先局部输出/梯度，再双卡完整更新与整步吞吐；不改变默认、容量或 B0，直到验证通过。
+
+区域图分块候选随后在隔离测试副本中被淘汰：Inductor CUDA Graph 的 BF16 输入梯度在长度15/32均超原阈值（`v2-graph-replay-scratch-first-20260927.log`）；`emulate_precision_casts` 复测仍失败（`v2-graph-replay-scratch-precision-20260927.log`）。原算术 `make_graphed_callables` 单调用精确，但两次调用保持前次输出供反向时产生非有限梯度；前向捕获、原算术重算反向在 BF16 两块链上也超原阈值。未推送、未启动整步/容量/B0。图拓扑 253371 边对 27202 个不同 `(邻居基因, 四位边来源)` 组合，理论重复 9.31 倍；去重投影在128目标 BF16 局部前向四项完全一致，但多个参数/输入梯度超原阈值（某投影参数梯度最大差达2.0），故同样未接入。下一优先级转向实测双卡 CPU/GPU NUMA 调度和现有原算术路径，整步吞吐门槛不变。
+
+## 2026-09-27：KDA 常量复用双卡完整更新严格一致；ABBA 计时进行中（历史）
+
+干净发布源码 `32b2bfd88f36b9a7fad435c533dc825ef81942b4` 的 opt-in 形状常量复用，在双 RTX 5090 两步确定性完整更新上通过：两 rank 输入与随机状态一致，损失、参数梯度、目标、优化器、Teacher 和 center 状态差值均为零；第二步学习率 `7.796055196070788e-08` 非零。收据 `/data/yilangliu/GraD-Pert/development/v2-kda-constants-32b2bfd-parity-m2-20260927/rank-{0,1}-receipt.json`。这仍不是吞吐或长期模型效果证据。当前同一发布源码的 m64、全局256 串行 A1/B1/B2/A2 benchmark-only 队列在 `/data/yilangliu/GraD-Pert/development/v2-kda-constants-32b2bfd-abba-20260927T0826Z`，PID `3668186`；A 为原路径，B 只开启常量复用，各12步、预热3步。短时由本会话子代理只读监督；主会话完成收据/身份/吞吐审计后决定采用或淘汰，再推进容量与新 ID B0。
