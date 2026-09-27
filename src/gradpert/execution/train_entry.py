@@ -40,6 +40,7 @@ def resolve_plan(args: argparse.Namespace) -> dict[str, Any]:
         "r50_selection": 50,
         "v2_fixed_50": 50,
         "v2_fixed_5": 5,
+        "v2_fixed_3": 3,
         "v2_fixed_1": 1,
     }.get(config.training.formal_run_policy)
     if expected_epochs is None or config.training.max_epochs.value != expected_epochs:

@@ -22,6 +22,10 @@ SOURCE_GATE_DEFAULT = (
 SOURCE_GATE_CAPACITY = (
     Path(__file__).resolve().parents[2] / "configs/v2/source_key_gate_capacity_jurkat"
 )
+SOURCE_GATE_B0_THREE = (
+    Path(__file__).resolve().parents[2]
+    / "configs/v2/source_key_gate_b0_jurkat/three_epoch_m74_a2/gradpert_v2/nadig_jurkat.yaml"
+)
 
 
 @pytest.mark.parametrize("variant,topk,chunk", [("default", 500, 32), ("top100", 100, 8)])
@@ -95,6 +99,35 @@ def test_v2_five_epoch_protocol_is_explicit_and_does_not_reinterpret_old_runs():
     payload["training"]["max_epochs"]["value"] = 50
     with pytest.raises(ValueError, match="exactly 5 epochs"):
         ExperimentConfig.model_validate(payload)
+
+
+def test_v2_three_epoch_protocol_requires_exact_budget():
+    payload = load_experiment_config(ONE_EPOCH).model_dump(mode="json")
+    payload["training"]["formal_run_policy"] = "v2_fixed_3"
+    payload["training"]["max_epochs"]["value"] = 3
+    three = ExperimentConfig.model_validate(payload)
+    assert three.training.max_epochs.value == 3
+    assert three.training.early_stopping is False
+    payload["training"]["max_epochs"]["value"] = 5
+    with pytest.raises(ValueError, match="exactly 3 epochs"):
+        ExperimentConfig.model_validate(payload)
+
+
+def test_three_epoch_b0_preserves_the_measured_full_method():
+    source = yaml.safe_load(
+        (SOURCE_GATE_CAPACITY / "m74_rows64_seq16/gradpert_v2/nadig_jurkat.yaml").read_text()
+    )
+    formal = yaml.safe_load(SOURCE_GATE_B0_THREE.read_text())
+    assert formal["training"].pop("formal_run_policy") == "v2_fixed_3"
+    assert formal["training"].pop("max_epochs")["value"] == 3
+    source["training"].pop("formal_run_policy")
+    source["training"].pop("max_epochs")
+    assert formal == source
+    config = load_experiment_config(SOURCE_GATE_B0_THREE)
+    arch, options = V2Options.parse_parameters(config.model.parameters)
+    assert config.training.train_batch_size.value == 296
+    assert arch.graph_source_key_gate and arch.relay_sequence_chunk_size == 16
+    assert (options.lambda1, options.lambda2) == (1, 1)
 
 
 def test_v2_one_epoch_is_separate_policy_and_keeps_the_current_method():

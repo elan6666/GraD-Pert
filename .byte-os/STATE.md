@@ -1,3 +1,7 @@
+## 当前阶段：m74/chunk16 选定，三轮完整B0发布预检（2026-09-28）
+
+双RTX5090、完整预测＋SSL1＋SSL2、累积2下，来源门源码 `8dfb267adb25591393602066ef1226e7cbb76174` 的m74／图行64／序列16完成128/128步、checkpoint续跑和单条件300-control推理，exit0；峰值allocated/reserved 32,310,246,400/32,621,199,360 bytes。m76/78/80的持续测试OOM，失败原证据保留在服务器各独立ID。12步同路径吞吐排序m74两次13.794/13.791 cells/s，高于m66／序列32的12.687；m70／序列32短测OOM。选定全局batch296；收据与局限见 `docs/experiments/GRADPERT_V2_GATE_BATCH_CHUNK_20260928.md`。用户新授权独立3 epoch完整B0及best/last测试，本地已准备 `v2_fixed_3` 策略和 `configs/v2/source_key_gate_b0_jurkat/three_epoch_m74_a2/gradpert_v2/nadig_jurkat.yaml`；下一动作是定向测试、提交推送main、干净不可变服务器checkout、同配置预检，然后新运行ID启动。旧B0不恢复、不覆盖。当前无本任务GPU运行；下方更早阶段均为历史快照。
+
 ## 当前阶段：来源门容量与chunk配对（2026-09-28）
 
 目标是双RTX5090、累积2、完整损失下，最大经过128步持续验证的物理微批，同时比较可用chunk组合的含数据等待吞吐与峰值显存。先前新来源门m66全局264只通过单步；旧图版m66持续通过、m68第22步OOM不可移作新证明。第一组九项双卡单步已在不可变源码`f090b726ba0df0e02a2fb058e727236c9d9dfcef`全部通过，原始receipt在服务器`/data/yilangliu/GraD-Pert/development/v2-gate-capacity-f090b72-{variant}-integration-r1/`；m70 seq16较seq32少用约3.45GB峰值预留，rows32未减峰值且较慢，故追加seq16 m72/74/76/77/78/80及seq32 m72。配置设计与序贯预检→持续容量→同batch吞吐门槛在`docs/experiments/GRADPERT_V2_GATE_BATCH_CHUNK_20260928.md`。下一步发布扩展配置的干净提交，使用新服务器checkout及独立ID查上界，随后选择候选做128步持续容量。训练等待交同任务子代理只读监督，主会话不重复轮询。旧B0保持停止，非容量测试不启动。
