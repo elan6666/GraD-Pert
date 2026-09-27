@@ -185,13 +185,19 @@ def test_chunk_sweep_changes_one_execution_parameter(variant, field, value):
         ),
     ],
 )
-def test_source_gate_chunk_profiles_are_self_contained_and_factorial(variant, fields):
-    reference_path = SOURCE_GATE_CHUNK / "reference_m32_a2/gradpert_v2/nadig_jurkat.yaml"
-    candidate_path = SOURCE_GATE_CHUNK / variant / "gradpert_v2/nadig_jurkat.yaml"
+@pytest.mark.parametrize("microbatch", [16, 32])
+def test_source_gate_chunk_profiles_are_self_contained_and_factorial(variant, fields, microbatch):
+    reference_path = SOURCE_GATE_CHUNK / f"reference_m{microbatch}_a2/gradpert_v2/nadig_jurkat.yaml"
+    candidate_path = (
+        SOURCE_GATE_CHUNK
+        / variant.replace("_m32_a2", f"_m{microbatch}_a2")
+        / "gradpert_v2/nadig_jurkat.yaml"
+    )
     reference = yaml.safe_load(reference_path.read_text())
     current_one_epoch = yaml.safe_load(ONE_EPOCH.read_text())
-    current_one_epoch["model"]["parameters"]["microbatch"]["value"] = 32
-    current_one_epoch["training"]["train_batch_size"]["value"] = 128
+    current_one_epoch["model"]["parameters"]["microbatch"]["value"] = microbatch
+    current_one_epoch["training"]["train_batch_size"]["value"] = microbatch * 4
+    current_one_epoch["training"]["eval_batch_size"]["value"] = microbatch * 4
     assert reference == current_one_epoch
     candidate = yaml.safe_load(candidate_path.read_text())
     for name, value in fields.items():
@@ -200,9 +206,16 @@ def test_source_gate_chunk_profiles_are_self_contained_and_factorial(variant, fi
     config = load_experiment_config(candidate_path)
     arch, options = V2Options.parse_parameters(config.model.parameters)
     assert all(getattr(arch, name) == value for name, value in fields.items())
-    assert (options.microbatch, options.accumulation, options.world_size) == (32, 2, 2)
+    assert (options.microbatch, options.accumulation, options.world_size) == (
+        microbatch,
+        2,
+        2,
+    )
     assert (options.lambda1, options.lambda2) == (1.0, 1.0)
-    assert (config.training.max_epochs.value, config.training.train_batch_size.value) == (1, 128)
+    assert (config.training.max_epochs.value, config.training.train_batch_size.value) == (
+        1,
+        microbatch * 4,
+    )
 
 
 @pytest.mark.parametrize("change", ["version", "batch", "policy", "unknown"])
