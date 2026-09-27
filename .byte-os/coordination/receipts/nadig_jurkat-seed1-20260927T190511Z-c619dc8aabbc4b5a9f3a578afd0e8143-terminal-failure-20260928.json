@@ -1,0 +1,61 @@
+{
+  "schema": "gradpert-v2-supervision-terminal-failure-v1",
+  "timestamp": "2026-09-28T04:34:09+08:00",
+  "run_id": "nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143",
+  "attempt": 1,
+  "authority_before_handoff": {
+    "owner_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+    "stage": "supervise"
+  },
+  "result": "failed_incomplete",
+  "exit_code": 1,
+  "epoch_state": {
+    "epoch": 0,
+    "epochs": 3,
+    "updates_per_epoch": 434,
+    "best": null,
+    "history_rows": 0
+  },
+  "failure": {
+    "error_type": "OutOfMemoryError",
+    "cause_summary": "rank 0 CUDA OOM while dropout attempted allocation",
+    "gpu": 0,
+    "requested_mib": 128,
+    "free_mib_reported": 9.62,
+    "process_used_gib_reported": 31.34,
+    "rank1_followup": "NCCL ALLREDUCE sequence 5573 timed out after 300027 ms; SIGABRT"
+  },
+  "identity": {
+    "source_commit": "e821173b4d11268b621ac8299e45b8d6d272b7e7",
+    "source_clean": true,
+    "config_sha256": "3f1d3d9dde6bf151eeb3916809863eda0020fa89d8c82c74005d19c4d424dedd",
+    "resolved_config_sha256": "a9efb8533ce922e15af5a6a0179d3c738228381c7a0217eaf62bdeddb9abbea3",
+    "run_id": "nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143"
+  },
+  "evidence": {
+    "server_failure_json": "/data/yilangliu/GraD-Pert/runs-v2-b0-gate-m74-3ep-e821173/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143/FAILURE.json",
+    "failure_json_sha256": "f3f36227e26adab22144e51269c0dd984a26ab77b5941a521754d9fd3887ddf2",
+    "failure_json_local_copy": ".byte-os/coordination/receipts/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143-FAILURE.json",
+    "server_failure_json_bytes": 19977,
+    "server_epoch_state_sha256": "b28ecdbf78f4169e767589fb663f001bfb93de1edfe55c7f9f696a11f9014e26",
+    "server_run_manifest_sha256": "8b0e75c5162e54a9a11df7f3c60f72cc76eab778150fc156ecd69985118b8df3",
+    "server_log": "/data/yilangliu/GraD-Pert/development/v2-b0-gate-m74-3ep-e821173-formal-r1.log",
+    "server_log_sha256": "badd2122c81fcec37cd23b261bff35490d268aed045025869cc804b5839b2a3d",
+    "server_log_bytes": 37625,
+    "exit_file": "/data/yilangliu/GraD-Pert/development/v2-b0-gate-m74-3ep-e821173-formal-r1.exit",
+    "pid_file_value": "3829919"
+  },
+  "post_failure": {
+    "target_processes_present": false,
+    "gpu0_utilization_percent": 0,
+    "gpu0_memory_mib": 2,
+    "gpu1_utilization_percent": 0,
+    "gpu1_memory_mib": 2,
+    "compute_apps": 0,
+    "complete_present": false,
+    "best_last_test_receipts_present": false,
+    "test_root_present": false,
+    "pkl_count": 0
+  },
+  "constraint": "No retry, relaunch, evaluation, source/config mutation, or other run was performed."
+}

@@ -1,0 +1,83 @@
+{
+  "stage": "build",
+  "owner": "codex",
+  "owner_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+  "roles": {
+    "codex": "builder"
+  },
+  "participants": {
+    "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b": {
+      "harness": "codex",
+      "role": "builder",
+      "host_id": "local",
+      "reports_to": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b"
+    },
+    "codex:01a0df0b-4142-7df1-86c0-d959471d80a1": {
+      "harness": "codex",
+      "role": "supervisor",
+      "host_id": "local",
+      "reports_to": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b"
+    }
+  },
+  "next_action": "B0 attempt1 is terminally failed at epoch0/3 due rank0 GPU0 CUDA OOM; preserve the exact run ID and receipts. Diagnose the OOM and decide any future new ID/configuration. Do not restart/evaluate/overwrite this run or launch another group without explicit authorization.",
+  "acceptance": "exit1 verified; failure JSON preserved locally and on server; epoch_state=0/3; rank0 dropout OOM requested128MiB with9.62MiB free; rank1 NCCL seq5573 timeout300027ms then SIGABRT; no COMPLETE/best/last tests; zero PKL; target processes gone and GPUs idle; supervisor monitor PAUSED.",
+  "frozen_paths": [
+    "TxPert/official-repo/**",
+    "data/**",
+    "artifacts/**",
+    "runs/**",
+    "checkpoints/**",
+    ".server/**"
+  ],
+  "run": {
+    "id": "nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143",
+    "attempt": 1,
+    "source_commit": "e821173b4d11268b621ac8299e45b8d6d272b7e7",
+    "config_sha256": "3f1d3d9dde6bf151eeb3916809863eda0020fa89d8c82c74005d19c4d424dedd",
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-b0-gate-m74-3ep-e821173/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143"
+  },
+  "monitor": {
+    "id": "grad-pert-v2",
+    "status": "PAUSED",
+    "target_thread_id": "01a0df0b-4142-7df1-86c0-d959471d80a1",
+    "run_id": "nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143",
+    "interval_minutes": 20,
+    "last_check": {
+      "timestamp": "2026-09-28T04:12:23+08:00",
+      "receipt": ".byte-os/coordination/receipts/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143-supervise-check-20260928T2011Z.json",
+      "epoch": "0/3",
+      "processes": "wrapper+torchrun+2 ranks present",
+      "source_config_identity": "matched",
+      "connectivity": "TCP/22 and SSH restored"
+    },
+    "terminal_receipt": ".byte-os/coordination/receipts/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143-terminal-failure-20260928.json",
+    "handoff": ".byte-os/coordination/handoffs/2026-09-28-b0-m74-three-epoch-oom-return.md"
+  },
+  "updated_at": "2026-09-28T04:34:42+08:00",
+  "history": [
+    {
+      "ts": "2026-09-28T03:08:42+08:00",
+      "from": "codex",
+      "to": "codex",
+      "from_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "to_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+      "from_stage": "build",
+      "to_stage": "supervise",
+      "handoff": ".byte-os/coordination/handoffs/2026-09-28-codex-b0-m74-three-epoch-supervise.md",
+      "note": "Published three-epoch B0 launched; long-run observation transfers to exact supervisor"
+    },
+    {
+      "ts": "2026-09-28T04:34:42+08:00",
+      "from": "codex",
+      "to": "codex",
+      "from_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+      "to_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "from_stage": "supervise",
+      "to_stage": "build",
+      "handoff": ".byte-os/coordination/handoffs/2026-09-28-b0-m74-three-epoch-oom-return.md",
+      "note": "Terminal attempt1 failure. See terminal receipt and exact copied FAILURE.json; run is incomplete. Monitor paused; return ownership to main for diagnosis/next-step decision."
+    }
+  ],
+  "terminal_receipt": ".byte-os/coordination/receipts/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143-terminal-failure-20260928.json",
+  "terminal_handoff": ".byte-os/coordination/handoffs/2026-09-28-b0-m74-three-epoch-oom-return.md"
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "gradpert-v2-supervision-connectivity-incident-v1",
+  "timestamp": "2026-09-28T03:53:52+08:00",
+  "run_id": "nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143",
+  "attempt": 1,
+  "authority": {
+    "owner_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+    "stage": "supervise"
+  },
+  "server_state": "unknown; no current SSH session",
+  "last_successful_remote_observation": {
+    "timestamp": "2026-09-28T03:32:36+08:00",
+    "epoch": "0/3",
+    "wrapper_torchrun_two_ranks_present": true,
+    "exit_complete_failure_absent": true
+  },
+  "connectivity": {
+    "easyconnect_portal": "authenticated /portal/#!/service",
+    "research_resource_visible": "10.24.1.91",
+    "tcp_22": false,
+    "ssh": false,
+    "failure": "unreachable_or_protocol"
+  },
+  "recovery": {
+    "attempted_once": true,
+    "method": "authorized routine EasyConnect reopen and one login submission using prefilled account session",
+    "verified": false,
+    "ui_after_attempt": "/portal/#!/service; 10.24.1.91 tile reports L3VPN服务启动失败",
+    "further_actions": "none; no route, DNS, proxy or other VPN changes"
+  },
+  "scope": "No server mutation, run restart, evaluation, or other experiment."
+}

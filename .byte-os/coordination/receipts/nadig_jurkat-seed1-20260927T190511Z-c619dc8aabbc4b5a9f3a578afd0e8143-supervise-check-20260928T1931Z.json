@@ -1,0 +1,45 @@
+{
+  "schema": "gradpert-v2-supervision-check-v1",
+  "timestamp": "2026-09-28T03:32:36+08:00",
+  "run_id": "nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143",
+  "attempt": 1,
+  "authority": {
+    "owner_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+    "stage": "supervise"
+  },
+  "source_commit": "e821173b4d11268b621ac8299e45b8d6d272b7e7",
+  "source_clean": true,
+  "config_sha256": "3f1d3d9dde6bf151eeb3916809863eda0020fa89d8c82c74005d19c4d424dedd",
+  "processes": {
+    "wrapper_pid": 3829919,
+    "torchrun_pid": 3830019,
+    "rank_pids": [
+      3830095,
+      3830096
+    ],
+    "all_present": true
+  },
+  "epoch_state": {
+    "epoch": 0,
+    "planned_epochs": 3,
+    "updates_per_epoch": 434,
+    "best": null,
+    "history_rows": 0
+  },
+  "exit_file_present": false,
+  "complete_present": false,
+  "failure_present": false,
+  "test_root_present": false,
+  "gpu": {
+    "gpu0_utilization_percent": 36,
+    "gpu0_memory_mib": 31724,
+    "gpu1_utilization_percent": 38,
+    "gpu1_memory_mib": 31864,
+    "compute_pids": [
+      3830095,
+      3830096
+    ]
+  },
+  "identity": "server HEAD and clean status matched; config hash matched",
+  "log": "bounded tail contains launch plan and torchrun OMP notice; no error"
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "project": {
+    "root": "/Users/elan/.codex/worktrees/v2-short-publication/grad-pert"
+  },
+  "sessions": {
+    "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b": {
+      "harness": "codex",
+      "native_session_id": "01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "alias": "gradpert-v2-main",
+      "locator": "codex://threads/01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "host_id": "local",
+      "role": "builder",
+      "reports_to": null,
+      "stage": "build",
+      "provider": null,
+      "model": null,
+      "model_evidence": null,
+      "project_root": "/Users/elan/.codex/worktrees/v2-short-publication/grad-pert",
+      "branch": null,
+      "commit": "e821173b4d11268b621ac8299e45b8d6d272b7e7",
+      "status": "active",
+      "created_at": "2026-09-28T03:07:17+08:00",
+      "updated_at": "2026-09-28T03:07:17+08:00"
+    }
+  },
+  "active_by_harness": {
+    "codex": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b"
+  },
+  "updated_at": "2026-09-28T03:07:17+08:00"
+}

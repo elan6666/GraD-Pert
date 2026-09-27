@@ -1,3 +1,29 @@
+## 2026-09-28T04:39:59+08:00：m74 正式三轮 OOM 后的容量回退
+
+m74 已在首轮中途 OOM，128 步通过不能证明整轮安全；旧 run 和 FAILURE 保留，不恢复。当前用已发布来源门版本 `8dfb267adb25591393602066ef1226e7cbb76174`，对 m68／图目标行64／序列chunk16 启动独立双卡128步持续探针，服务器根 `/data/yilangliu/GraD-Pert/development/v2-gate-m68-r64-s16-128-after-b0-oom-r2`；r1 因启动环境缺少 PYTHONPATH 在导入阶段失败，r2 已补齐。准备了新的三轮 m68 自包含配置，但须以探针终态、显存余量与吞吐决定是否采用；不能把进行中视为通过。本次只改变物理/全局 batch，完整预测＋SSL1＋SSL2、累积2和既定图/序列chunk不变。
+
+
+## 2026-09-28T04:34:09+08:00：三轮 B0 attempt1 因 OOM 失败，交回主会话
+
+精确运行 `nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143` 退出码1，`fit/epoch_state.json`停在0/3（434 updates/epoch），无epoch-0001、history、COMPLETE、best/last测试或test root；全run根扫描0个PKL。rank0 在GPU0上 dropout 申请128 MiB时OOM，报告仅余9.62 MiB，进程占31.34 GiB；rank1随后在NCCL ALLREDUCE seq5573超时300027 ms并SIGABRT。训练进程已全部退出，双卡回到0%/2 MiB。源码与配置身份匹配。failure JSON原件保存在服务器且19,977字节已核验SHA；小型副本和日志哈希索引记录在 `.byte-os/coordination/receipts/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143-terminal-failure-20260928.json`。本run不重启、不评估、不修改配置；等待主会话决定新的有界步骤。监督心跳暂停并交回。详细handoff：`.byte-os/coordination/handoffs/2026-09-28-b0-m74-three-epoch-oom-return.md`。
+
+
+## 2026-09-28T04:12:23+08:00：服务器连接恢复，三轮 B0 仍在训练
+
+TCP/22与SSH已恢复。精确进程 wrapper3829919、torchrun3830019、rank3830095/3830096均存活；`epoch_state`仍0/3（434 updates/epoch），history为空，只有epoch-0000初始checkpoint；无exit、COMPLETE或failure，测试根尚未创建。源码干净且提交/config SHA匹配。GPU0 29%/31944 MiB，GPU1 29%/32084 MiB，compute PID与两个rank对应。有限日志无错误；继续按20分钟监督。收据：`.byte-os/coordination/receipts/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143-supervise-check-20260928T2011Z.json`。
+
+
+## 2026-09-28T03:53:52+08:00：服务器连接暂不可用
+
+当前 EasyConnect 服务门户已登录且列出 `10.24.1.91`，但该资源显示 L3VPN 服务启动失败；辅助检查 TCP/22 与 SSH 均不可达。执行一次常规恢复并从已填表单登录后，页面仍报告启动失败；未做路由/DNS/代理更改。训练状态未知；上次可达观察为 epoch 0/3、进程存活且无 exit/COMPLETE/failure，不可视为当前状态。连接证据：`.byte-os/coordination/receipts/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143-connectivity-incident-20260928.json`。主会话已被通知；监控保持 ACTIVE，下一周期再做有限连接核验。
+
+## 2026-09-28：三轮完整 B0 已启动，交监督会话
+
+已发布源码 `e821173b4d11268b621ac8299e45b8d6d272b7e7`，服务器干净checkout和发布收据校验一致；86项相关测试、同三轮配置双卡单步通过。正式运行 `nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143` 已在双RTX5090启动：预测＋SSL1＋SSL2、每卡微批74×累积2＝全局296、3 epoch；运行根 `/data/yilangliu/GraD-Pert/runs-v2-b0-gate-m74-3ep-e821173/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143`，日志 `/data/yilangliu/GraD-Pert/development/v2-b0-gate-m74-3ep-e821173-formal-r1.log`，父PID3829919。启动核对见 `.byte-os/coordination/receipts/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143-launch.json`。当前只有启动证据，尚无完成、best/last结果；旧B0不恢复。后续20分钟精确运行监督与终态交回主会话，手册 `.byte-os/coordination/handoffs/2026-09-28-codex-b0-m74-three-epoch-supervise.md`。以下选型段落为训练启动前状态，由本节覆盖。
+
+首次监督确认（2026-09-28T03:12:05+08:00）：Byte 所有权与 run ID/attempt 门禁匹配；服务器 wrapper、torchrun 与两个 rank 均存活，epoch 0/3；服务器源码干净且提交/配置哈希匹配。GPU0 为18%/30584 MiB，GPU1 为0%/30564 MiB。未见 COMPLETE、failure 或 exit 标记。20分钟心跳已启用。记录：`.byte-os/coordination/receipts/nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143-supervise-check-20260928.json`。
+
+
 ## 2026-09-28：来源门 B0 选型完成，准备独立三轮正式运行
 
 已发布源码 `8dfb267adb25591393602066ef1226e7cbb76174` 的双卡完整损失容量测试中，m74／图行64／序列chunk16完成128/128步、checkpoint续跑和一个验证条件300 control推理；峰值预留32.621GB/卡，含数据等待13.450 cells/s。更大m76/78/80分别在13/6/1步后OOM。12步同协议吞吐对照中m74两次13.794/13.791 cells/s，旧默认m66／序列32为12.687，约快8.7%；m70／序列32在第2步OOM。选定每卡微批74×累积2×双卡＝全局296，图扫描32、图行64、序列扫描16。用户授权下一步完整B0独立3 epoch，best/last测试；三轮策略与配置已在本地准备，待干净提交推送、服务器同源码测试和启动预检后运行。当前没有由本任务运行的GPU作业。旧一轮／五轮B0停训收据不改。详见 `docs/experiments/GRADPERT_V2_GATE_BATCH_CHUNK_20260928.md`。下方旧状态由本节覆盖。

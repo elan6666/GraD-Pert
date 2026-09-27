@@ -1,0 +1,48 @@
+{
+  "schema": "gradpert-v2-supervision-check-v1",
+  "timestamp": "2026-09-28T03:12:05+08:00",
+  "run_id": "nadig_jurkat-seed1-20260927T190511Z-c619dc8aabbc4b5a9f3a578afd0e8143",
+  "attempt": 1,
+  "authority": {
+    "owner_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+    "stage": "supervise"
+  },
+  "source_commit": "e821173b4d11268b621ac8299e45b8d6d272b7e7",
+  "source_clean": true,
+  "config_sha256": "3f1d3d9dde6bf151eeb3916809863eda0020fa89d8c82c74005d19c4d424dedd",
+  "training": {
+    "model": "full_prediction_ssl1_ssl2",
+    "epoch": 0,
+    "epochs": 3,
+    "global_batch": 296,
+    "world_size": 2,
+    "microbatch_per_gpu": 74,
+    "accumulation": 2
+  },
+  "processes": {
+    "wrapper_pid": 3829919,
+    "torchrun_pid": 3830019,
+    "rank_pids": [
+      3830095,
+      3830096
+    ],
+    "all_present": true
+  },
+  "run_manifest_present": true,
+  "epoch_state_present": true,
+  "complete_present": false,
+  "failure_present": false,
+  "exit_file_present": false,
+  "gpu": {
+    "gpu0_utilization_percent": 18,
+    "gpu0_memory_mib": 30584,
+    "gpu1_utilization_percent": 0,
+    "gpu1_memory_mib": 30564,
+    "compute_pids": [
+      3830095,
+      3830096
+    ]
+  },
+  "bounded_log_tail": "Only torch.distributed.run OMP_NUM_THREADS notice; no error in sampled tail.",
+  "scope": "Read-only supervision of this exact run; no source/run/config changes, relaunch, or other groups."
+}
