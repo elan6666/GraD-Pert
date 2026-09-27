@@ -130,9 +130,9 @@ model:
       source: project_preregistered
       reference: docs/design/GRADPERT_V2.md
     lambda2:
-      value: 0.1
-      source: project_preregistered
-      reference: docs/design/GRADPERT_V2.md
+      value: 1.0
+      source: user_locked
+      reference: user 2026-09-27 SSL2 overall weight 1
     ssl1_condition:
       value: 0.8
       source: project_preregistered

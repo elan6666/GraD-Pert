@@ -95,12 +95,20 @@ def test_v2_one_epoch_is_separate_policy_and_keeps_the_current_method():
     assert config.training.train_batch_size.value == 264
     assert config.training.monitor == "val/prediction_loss"
     assert config.training.early_stopping is False
+    _, options = V2Options.parse_parameters(config.model.parameters)
+    assert options.lambda2 == 1.0
+    assert (
+        options.lambda2 * options.ssl2_dino,
+        options.lambda2 * options.ssl2_ibot,
+        options.lambda2 * options.ssl2_koleo,
+    ) == (0.8, 0.4, 0.1)
     previous = yaml.safe_load(
         (ONE_EPOCH.parents[2] / "capacity_m66_a2/gradpert_v2/nadig_jurkat.yaml").read_text()
     )
     updated = yaml.safe_load(ONE_EPOCH.read_text())
     previous["training"]["formal_run_policy"] = "v2_fixed_1"
     previous["training"]["max_epochs"] = updated["training"]["max_epochs"]
+    previous["model"]["parameters"]["lambda2"] = updated["model"]["parameters"]["lambda2"]
     assert updated == previous
     payload = config.model_dump(mode="json")
     payload["training"]["max_epochs"]["value"] = 5

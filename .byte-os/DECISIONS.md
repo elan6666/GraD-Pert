@@ -15,6 +15,17 @@
   validation, best/last test, and zero-PKL lifecycle still applies. Do not
   start a new run merely because this policy was added.
 
+## 2026-09-27: Future v2 SSL2 scale
+
+- The user set future v2 SSL2 overall coefficient `lambda2=1`; the internal
+  DINO/iBOT/KoLeo coefficients stay `0.8/0.4/0.1`, making these the actual
+  weighted contributions. The stopped B0 used `lambda2=0.1` and retains its
+  original config, source SHA, and incomplete-run label.
+- The one-epoch m66 config is the future default for this experiment family.
+  Changing the SSL2 scale changes the objective, so chunk speed comparisons
+  must use the new configuration on both sides, and old throughput/result
+  receipts are historical context rather than like-for-like controls.
+
 ## 2026-08-31
 
 - Replace the successor A0 scientific coordinate from eight to four

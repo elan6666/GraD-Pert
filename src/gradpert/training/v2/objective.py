@@ -87,7 +87,7 @@ class JointObjective(nn.Module):
         self,
         student: GraDPertV2,
         lambda1: float = 1.0,
-        lambda2: float = 0.1,
+        lambda2: float = 1.0,
         ssl1_weights: tuple[float, float, float] = (0.8, 0.4, 0.1),
         ssl2_weights: tuple[float, float, float] = (0.8, 0.4, 0.1),
         ssl1_reduction: str = "condition_mean",
