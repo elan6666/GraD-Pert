@@ -1,3 +1,9 @@
+## 当前默认：图来源门开启、原分块、batch264（2026-09-28）
+
+用户要求结束大chunk默认尝试，同时保留新图编码器。新版本 `d2410efdc81a9690644ef2d165c2dea374ba0fbb` 已推送 main；自包含配置 `configs/v2/source_key_gate_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml` 只在先前 `optimized_single_pass_jurkat/one_epoch_m66_a2` 上增加 `graph_source_key_gate=true`。图邻域KDA scan32、序列继承scan32、图目标row64；旧配置和独立chunk对照保持可复现。每卡微批66×累积2×双卡，全局264；这是旧模型已通过128步容量的batch，**不是新门控已验证的持续容量**。
+
+新配置 SHA256 `f0f69871fdd8e797645d85b2faf434740d685be7c9370b6f063da4ac3fb3e844`；干净服务器源码 `/data/yilangliu/GraD-Pert/development/source-v2-gate-default-d2410ef-from-local`，publication收据SHA256 `020b778d4db5aa78e8ee7e7b31eec057c3a3f81a7c8d84782e3f0b8a3afd6dc8`。双卡单步完整更新1/1通过并重载checkpoint，峰值 allocated/reserved 31,064,793,600 / 31,427,919,872 bytes；收据 `/data/yilangliu/GraD-Pert/development/v2-gate-default-d2410ef-m66-integration-r1/receipt.json`。服务器81项定向测试通过，实验进程已退出、GPU空闲。下一次正式训练前须做新门控版本的持续容量验证；本轮未启动B0或其他消融。下方大chunk工程测试结论为历史，不能再读作后续默认。
+
 ## 当前任务完成：第四层来源门与图64／序列256分块（2026-09-28）
 
 用户指定的方法与工程配置已经实施：图第4层边来源逐维key门零初始化并保留来源偏置，图邻域KDA scan chunk64、Cell/Response序列KDA chunk256；图目标row chunk64/96/128各有独立配置。基线提交`9a820e1d2a2dfc38bdcfee9370ecb1e518733b2f`先验已推送；实现提交`657b63ad509f5511b3cb4a585be0dc44a92aff65`及回退微批配置提交`2043e09a4f4cb29317b9879da68e32e8d953ee1c`均推送main。最终干净不可变服务器源码`/data/yilangliu/GraD-Pert/development/source-v2-gate-chunks-2043e09`；publication收据`/data/yilangliu/GraD-Pert/development/gradpert-v2-gate-chunks-2043e09-publication.json`，SHA256`898df95cdfbcba7fb0e8ba54515ca317e4d08489d418a129c247d30d075b6734`。服务器定向80项测试通过。

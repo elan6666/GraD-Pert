@@ -1,5 +1,11 @@
 # GraD-Pert v2 邻域接力方法与交付计划
 
+## 2026-09-28 后续 v2 默认配置
+
+后续 v2 Jurkat 默认采用**图第 4 层来源逐维 key 门开启、原 KDA 分块恢复**：图邻域扫描 `relay_scan_chunk_size=32`，Cell/Response 序列不设单独覆盖（同为 32），图目标 `relay_graph_chunk_rows=64`。自包含配置为 `configs/v2/source_key_gate_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml`；历史配置与已完成的较大 chunk 工程对照原样保留。代码字段 `graph_source_key_gate` 缺省为 false，以免旧配置、旧 checkpoint 意外改变；**新默认由上述配置显式开启**。
+
+上一版持续容量通过的物理 batch 是每卡 66、累积 2、双卡，故全局 batch `66×2×2=264`。新门控沿用这个 batch 的配置已完成一次双卡优化器更新和 checkpoint 重载，峰值预留 31.43 GB/卡；它尚未完成 128 步持续容量或完整一轮，因此不得把上一版的持续容量收据移作新默认的证据。图扫描64／序列256在 m32（全局128）反向 OOM，在 m16（全局64）短程吞吐低于原分块；行块96/128虽有短程提速，但逐目标随机语义未验收。完整证据见 `docs/experiments/GRADPERT_V2_SOURCE_GATE_CHUNK_20260928.md`。
+
 ## 2026-09-27 第四层来源门与分块配置
 
 新方法候选只在图编码器第 4 层稀疏 MLA 的注意力分数加入逐维来源门。对头 \(h\)、合法边 \(i\leftarrow j\)，四位多热来源 \(s_{ij}=[\mathrm{GO},\mathrm{STRING},\mathrm{expander},\mathrm{self}]\)，定义

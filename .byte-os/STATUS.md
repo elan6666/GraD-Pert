@@ -1,3 +1,7 @@
+## 2026-09-28：后续 v2 默认恢复原 chunk，新图来源门开启
+
+新自包含 Jurkat 默认配置 `configs/v2/source_key_gate_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml` 只比先前一轮 m66 配置增加 `graph_source_key_gate=true`；图扫描/序列扫描沿用32，图目标行块64。旧配置与大chunk工程对照不改。此前 batch 为每卡66×累积2×双卡，即全局264；新门控在同一batch双卡单步优化器更新和checkpoint重载通过，峰值预留31.43GB/卡，但尚未做128步持续容量。发布源码 `d2410efdc81a9690644ef2d165c2dea374ba0fbb`，服务器81项定向测试通过，单步收据 `/data/yilangliu/GraD-Pert/development/v2-gate-default-d2410ef-m66-integration-r1/receipt.json`。未启动正式一轮B0；先前已停B0不恢复。方法默认与容量证据边界见 `docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md`。
+
 ## 2026-09-28：v2 第四层来源门与 chunk 工程测试完成
 
 图第 4 层稀疏 MLA 已支持零初始化的四位来源逐维 key 门，指定图扫描64、序列扫描256及图目标行块64/96/128均有自包含配置。代码与 m16 对照配置已分两次提交推送 main；最终测试源码 `2043e09a4f4cb29317b9879da68e32e8d953ee1c`，服务器80项定向测试通过，双卡4步完整损失测速均通过。m32×累积2时指定chunk反向OOM；统一 m16×累积2×双卡（全局64）下，参考/完整组合分别为3.373/3.201 cells/s，row128组合为3.963 cells/s；反向顺序复测参考/row128为3.376/3.978 cells/s。指定大chunk显存约26.39 GB/卡，参考约9.14 GB/卡。行块128短程有速度收益，但尚未通过逐目标随机语义、严格数值和持续容量验收，不能默认作为等价优化；指定扫描chunk也未产生端到端收益。未启动B0或其他消融，旧B0保持停止。完整身份、失败和通过收据及采用边界见 `docs/experiments/GRADPERT_V2_SOURCE_GATE_CHUNK_20260928.md`，下方旧chunk决定仍为历史对照。
