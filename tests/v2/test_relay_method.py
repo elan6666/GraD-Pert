@@ -106,7 +106,7 @@ def test_relay_graph_row_chunk_preserves_eval_target_outputs() -> None:
     ).eval()
     candidate.load_state_dict(reference.state_dict())
     view = small_index().view(
-        np.arange(9), [(0,)], rng=np.random.default_rng(3), device=torch.device("cpu")
+        np.arange(9), [(0,)], rng=np.random.default_rng(3), device=torch.device("cpu"), induced=False
     )
     assert view.context is not None
     actual = candidate.graph(
