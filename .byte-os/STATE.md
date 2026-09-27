@@ -1,3 +1,7 @@
+## 当前阶段：来源门容量与chunk配对（2026-09-28）
+
+目标是双RTX5090、累积2、完整损失下，最大经过128步持续验证的物理微批，同时比较可用chunk组合的含数据等待吞吐与峰值显存。先前新来源门m66全局264只通过单步；旧图版m66持续通过、m68第22步OOM不可移作新证明。配置设计与序贯预检→持续容量→同batch吞吐门槛在`docs/experiments/GRADPERT_V2_GATE_BATCH_CHUNK_20260928.md`。本阶段先发布配置代码，再在服务器用不可变源码和全新ID运行；训练等待交同任务子代理只读监督，主会话不重复轮询。旧B0保持停止，非容量测试不启动。
+
 ## 当前默认：图来源门开启、原分块、batch264（2026-09-28）
 
 用户要求结束大chunk默认尝试，同时保留新图编码器。新版本 `d2410efdc81a9690644ef2d165c2dea374ba0fbb` 已推送 main；自包含配置 `configs/v2/source_key_gate_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml` 只在先前 `optimized_single_pass_jurkat/one_epoch_m66_a2` 上增加 `graph_source_key_gate=true`。图邻域KDA scan32、序列继承scan32、图目标row64；旧配置和独立chunk对照保持可复现。每卡微批66×累积2×双卡，全局264；这是旧模型已通过128步容量的batch，**不是新门控已验证的持续容量**。

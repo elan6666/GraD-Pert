@@ -19,6 +19,9 @@ SOURCE_GATE_DEFAULT = (
     Path(__file__).resolve().parents[2]
     / "configs/v2/source_key_gate_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml"
 )
+SOURCE_GATE_CAPACITY = (
+    Path(__file__).resolve().parents[2] / "configs/v2/source_key_gate_capacity_jurkat"
+)
 
 
 @pytest.mark.parametrize("variant,topk,chunk", [("default", 500, 32), ("top100", 100, 8)])
@@ -236,6 +239,44 @@ def test_source_gate_default_retains_previous_chunks_and_batch():
     assert architecture.relay_graph_chunk_rows == 64
     assert (options.microbatch, options.accumulation, options.world_size) == (66, 2, 2)
     assert config.training.train_batch_size.value == 264
+
+
+@pytest.mark.parametrize(
+    "microbatch,rows,sequence",
+    [
+        (67, 64, 32),
+        (68, 64, 32),
+        (70, 64, 32),
+        (68, 32, 32),
+        (70, 32, 32),
+        (68, 64, 16),
+        (70, 64, 16),
+        (66, 96, 32),
+        (66, 128, 32),
+    ],
+)
+def test_source_gate_capacity_profiles_only_change_batch_and_chunks(microbatch, rows, sequence):
+    base = yaml.safe_load(SOURCE_GATE_DEFAULT.read_text())
+    path = (
+        SOURCE_GATE_CAPACITY
+        / f"m{microbatch}_rows{rows}_seq{sequence}/gradpert_v2/nadig_jurkat.yaml"
+    )
+    payload = yaml.safe_load(path.read_text())
+    payload["model"]["parameters"]["microbatch"]["value"] = 66
+    payload["training"]["train_batch_size"]["value"] = 264
+    if rows != 64:
+        assert payload["model"]["parameters"].pop("relay_graph_chunk_rows")["value"] == rows
+    if sequence != 32:
+        assert payload["model"]["parameters"].pop("relay_sequence_chunk_size")["value"] == sequence
+    assert payload == base
+    config = load_experiment_config(path)
+    architecture, options = V2Options.parse_parameters(config.model.parameters)
+    assert architecture.graph_source_key_gate
+    assert architecture.relay_scan_chunk_size == 32
+    assert architecture.relay_graph_chunk_rows == rows
+    assert (architecture.relay_sequence_chunk_size or 32) == sequence
+    assert (options.microbatch, options.accumulation, options.world_size) == (microbatch, 2, 2)
+    assert config.training.train_batch_size.value == 4 * microbatch
 
 
 @pytest.mark.parametrize("change", ["version", "batch", "policy", "unknown"])

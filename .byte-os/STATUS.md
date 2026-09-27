@@ -1,3 +1,7 @@
+## 2026-09-28：来源门新版本最大 batch／chunk 配对测试准备中
+
+本阶段固定双卡、累积2次和完整预测＋SSL1＋SSL2，查每卡物理微批的持续容量，不靠累积次数虚增。锚点是新来源门＋原 scan32/序列32/图行64、m66（全局264）单步通过；旧版本 m66 128步通过、m68 第22步OOM只作先验。候选 m67/68/70 和图行32/96/128、序列16的自包含配置及验收次序见 `docs/experiments/GRADPERT_V2_GATE_BATCH_CHUNK_20260928.md`。先发布干净代码配置，再以独立ID逐级预检和128步持续测试；本任务不启动正式B0。下方“后续默认”是进入本容量阶段前的状态。
+
 ## 2026-09-28：后续 v2 默认恢复原 chunk，新图来源门开启
 
 新自包含 Jurkat 默认配置 `configs/v2/source_key_gate_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml` 只比先前一轮 m66 配置增加 `graph_source_key_gate=true`；图扫描/序列扫描沿用32，图目标行块64。旧配置与大chunk工程对照不改。此前 batch 为每卡66×累积2×双卡，即全局264；新门控在同一batch双卡单步优化器更新和checkpoint重载通过，峰值预留31.43GB/卡，但尚未做128步持续容量。发布源码 `d2410efdc81a9690644ef2d165c2dea374ba0fbb`，服务器81项定向测试通过，单步收据 `/data/yilangliu/GraD-Pert/development/v2-gate-default-d2410ef-m66-integration-r1/receipt.json`。未启动正式一轮B0；先前已停B0不恢复。方法默认与容量证据边界见 `docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md`。
