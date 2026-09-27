@@ -307,6 +307,7 @@ class RelayDeltaAttention(DeltaAttention):
         self.short_graph_kernel = False
         self.cache_kda_constants = False
         self.scan_chunk_size = 32
+        self.sequence_chunk_size: int | None = None
 
     def random_order_enabled(self) -> bool:
         return self.training if self.randomize_order is None else self.randomize_order
@@ -341,6 +342,11 @@ class RelayDeltaAttention(DeltaAttention):
         self, writes: tuple[Tensor, Tensor, Tensor, Tensor], order: Tensor, *, sequence: bool = True
     ) -> Tensor:
         key, value, decay, beta = (self._ordered(t, order) for t in writes)
+        chunk_size = (
+            self.sequence_chunk_size
+            if sequence and self.sequence_chunk_size is not None
+            else self.scan_chunk_size
+        )
         if sequence and self.replay_sequences:
             if self.write_passes == 2:
                 key, value, decay, beta = (
@@ -353,7 +359,7 @@ class RelayDeltaAttention(DeltaAttention):
                 value,
                 decay,
                 beta,
-                chunk_size=self.scan_chunk_size,
+                chunk_size=chunk_size,
                 compiled=self.compiled_chunks,
                 fused_gram=self.fused_gram_diagnostic,
                 cache_constants=self.cache_kda_constants,
@@ -365,7 +371,7 @@ class RelayDeltaAttention(DeltaAttention):
             torch.cat((value, value.flip(1)), dim=1),
             torch.cat((decay, decay.flip(1)), dim=1),
             torch.cat((beta, beta.flip(1)), dim=1),
-            chunk_size=self.scan_chunk_size,
+            chunk_size=chunk_size,
             compiled=self.compiled_chunks,
             fused_gram=self.fused_gram_diagnostic,
             cache_constants=self.cache_kda_constants,

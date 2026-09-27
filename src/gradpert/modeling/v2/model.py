@@ -414,6 +414,7 @@ class GraDPertV2(nn.Module):
             if isinstance(module, RelayDeltaAttention):
                 module.write_passes = options.relay_passes
                 module.scan_chunk_size = options.relay_scan_chunk_size
+                module.sequence_chunk_size = options.relay_sequence_chunk_size
                 module.compiled_chunks = options.relay_kernel == "inductor"
                 module.replay_sequences = options.relay_kernel == "cudagraphs"
                 module.short_graph_kernel = options.short_graph_kernel

@@ -124,6 +124,8 @@ def test_v2_one_epoch_is_separate_policy_and_keeps_the_current_method():
         ("scan64_m32_a2", "relay_scan_chunk_size", 64),
         ("rows96_m32_a2", "relay_graph_chunk_rows", 96),
         ("rows128_m32_a2", "relay_graph_chunk_rows", 128),
+        ("sequence48_m32_a2", "relay_sequence_chunk_size", 48),
+        ("sequence64_m32_a2", "relay_sequence_chunk_size", 64),
     ],
 )
 def test_chunk_sweep_changes_one_execution_parameter(variant, field, value):

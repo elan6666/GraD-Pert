@@ -34,6 +34,7 @@ class V2Architecture:
     cache_kda_constants: bool = False
     relay_scan_chunk_size: int = 32
     relay_graph_chunk_rows: int = 64
+    relay_sequence_chunk_size: int | None = None
 
     def __post_init__(self) -> None:
         for name in (
@@ -112,13 +113,19 @@ class V2Architecture:
             raise ValueError("short graph kernel requires W64 single-pass eager relay graph")
         if type(self.cache_kda_constants) is not bool:
             raise ValueError("KDA constant cache must be boolean")
+        if self.relay_sequence_chunk_size is not None and (
+            type(self.relay_sequence_chunk_size) is not int or self.relay_sequence_chunk_size <= 0
+        ):
+            raise ValueError("relay sequence chunk size must be a positive integer")
         if self.cache_kda_constants and (
             self.attention != "relay_full" or self.relay_kernel != "eager"
         ):
             raise ValueError("KDA constant cache requires eager relay attention")
-        if (self.relay_scan_chunk_size != 32 or self.relay_graph_chunk_rows != 64) and (
-            self.attention != "relay_full" or self.relay_kernel != "eager"
-        ):
+        if (
+            self.relay_scan_chunk_size != 32
+            or self.relay_graph_chunk_rows != 64
+            or self.relay_sequence_chunk_size is not None
+        ) and (self.attention != "relay_full" or self.relay_kernel != "eager"):
             raise ValueError("relay chunk tuning requires eager relay attention")
 
     @classmethod
@@ -150,6 +157,8 @@ class V2Architecture:
             values.pop("relay_scan_chunk_size")
         if self.relay_graph_chunk_rows == 64:
             values.pop("relay_graph_chunk_rows")
+        if self.relay_sequence_chunk_size is None:
+            values.pop("relay_sequence_chunk_size")
         return values
 
 
@@ -221,6 +230,7 @@ class V2Options:
             "cache_kda_constants",
             "relay_scan_chunk_size",
             "relay_graph_chunk_rows",
+            "relay_sequence_chunk_size",
             "koleo_exclude_same_condition",
             "graph_view_mode",
         }

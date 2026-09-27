@@ -135,6 +135,25 @@ def test_chunk_factor_requires_only_the_selected_setting(factor, default, candid
         MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, factor)
 
 
+def test_sequence_only_chunk_factor_rejects_an_extra_graph_change():
+    payloads = [
+        {"model": {"parameters": {"width": {"value": 256}}}},
+        {
+            "model": {
+                "parameters": {
+                    "width": {"value": 256},
+                    "relay_sequence_chunk_size": {"value": 64},
+                }
+            }
+        },
+    ]
+    rows = [receipt(10) for _ in range(4)]
+    MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "relay_sequence_chunk_size")
+    payloads[1]["model"]["parameters"]["relay_scan_chunk_size"] = {"value": 48}
+    with pytest.raises(ValueError, match="configuration factor"):
+        MODULE.validate_execution_factor(payloads, rows, "relay_sequence_chunk_size")
+
+
 def test_fused_sinkhorn_rejects_hidden_prefetch_and_missing_activation():
     payloads = [{"model": {"parameters": {}}} for _ in range(2)]
     rows = [receipt(10) for _ in range(4)]

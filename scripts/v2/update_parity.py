@@ -132,6 +132,7 @@ def execution_changes(reference: Any, candidate: Any, repeat: bool) -> list[str]
             ["cache_kda_constants"],
             ["relay_scan_chunk_size"],
             ["relay_graph_chunk_rows"],
+            ["relay_sequence_chunk_size"],
         ), "one execution factor at a time"
     return changed
 
@@ -489,6 +490,9 @@ def main() -> None:
                                 if isinstance(module, RelayDeltaAttention):
                                     module.scan_chunk_size = (
                                         candidate_architecture.relay_scan_chunk_size
+                                    )
+                                    module.sequence_chunk_size = (
+                                        candidate_architecture.relay_sequence_chunk_size
                                     )
                                     module.replay_sequences = (
                                         candidate_architecture.relay_kernel == "cudagraphs"

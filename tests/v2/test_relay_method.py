@@ -98,6 +98,18 @@ def test_relay_scan_chunk_preserves_seeded_order_output_and_gradient() -> None:
     torch.testing.assert_close(grad_reference, grad_actual, atol=3e-5, rtol=3e-4)
 
 
+def test_sequence_chunk_override_leaves_graph_scan_unchanged() -> None:
+    torch.manual_seed(29)
+    layer = RelayDeltaAttention(8, 2).eval()
+    layer.write_passes = 1
+    writes = layer._project_writes(torch.randn(2, 47, 8))
+    order = torch.stack((torch.randperm(47), torch.randperm(47)))
+    reference = layer._write_state(writes, order, sequence=False)
+    layer.sequence_chunk_size = 64
+    candidate = layer._write_state(writes, order, sequence=False)
+    assert torch.equal(reference, candidate)
+
+
 def test_relay_graph_row_chunk_preserves_eval_target_outputs() -> None:
     torch.manual_seed(13)
     reference = GraDPertV2(torch.randn(9, 8), small_architecture()).eval()
@@ -106,7 +118,11 @@ def test_relay_graph_row_chunk_preserves_eval_target_outputs() -> None:
     ).eval()
     candidate.load_state_dict(reference.state_dict())
     view = small_index().view(
-        np.arange(9), [(0,)], rng=np.random.default_rng(3), device=torch.device("cpu"), induced=False
+        np.arange(9),
+        [(0,)],
+        rng=np.random.default_rng(3),
+        device=torch.device("cpu"),
+        induced=False,
     )
     assert view.context is not None
     actual = candidate.graph(

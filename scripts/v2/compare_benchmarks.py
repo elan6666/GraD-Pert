@@ -130,6 +130,14 @@ def validate_execution_factor(
         candidate = payloads[1]["model"]["parameters"].pop(factor, None)
         require(reference["value"] == default, "wrong reference chunk setting")
         require(candidate is not None and candidate["value"] in candidates, "wrong chunk candidate")
+    elif factor == "relay_sequence_chunk_size":
+        reference = payloads[0]["model"]["parameters"].pop(factor, None)
+        candidate = payloads[1]["model"]["parameters"].pop(factor, None)
+        require(reference is None, "wrong reference sequence chunk setting")
+        require(
+            candidate is not None and candidate["value"] in {48, 64},
+            "wrong sequence chunk candidate",
+        )
     elif factor not in {"cpu_prefetch", "fused_sinkhorn", "fused_gram", "teacher_no_grad_elision"}:
         raise ValueError("unsupported execution factor")
     require(payloads[0] == payloads[1], "more than one configuration factor changed")
@@ -183,6 +191,7 @@ def main() -> None:
             "relay_validate_once",
             "relay_scan_chunk_size",
             "relay_graph_chunk_rows",
+            "relay_sequence_chunk_size",
             "cpu_prefetch",
             "fused_sinkhorn",
             "fused_gram",
