@@ -129,6 +129,7 @@ def execution_changes(reference: Any, candidate: Any, repeat: bool) -> list[str]
             ["relay_validate_once"],
             ["sinkhorn_backend"],
             ["short_graph_kernel"],
+            ["cache_kda_constants"],
         ), "one execution factor at a time"
     return changed
 
@@ -492,6 +493,9 @@ def main() -> None:
                                     )
                                     module.short_graph_kernel = (
                                         candidate_architecture.short_graph_kernel
+                                    )
+                                    module.cache_kda_constants = (
+                                        candidate_architecture.cache_kda_constants
                                     )
                                 if isinstance(module, RelayGraphLayer):
                                     module.validate_once = (

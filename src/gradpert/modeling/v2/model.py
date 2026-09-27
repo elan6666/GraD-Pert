@@ -415,6 +415,7 @@ class GraDPertV2(nn.Module):
                 module.compiled_chunks = options.relay_kernel == "inductor"
                 module.replay_sequences = options.relay_kernel == "cudagraphs"
                 module.short_graph_kernel = options.short_graph_kernel
+                module.cache_kda_constants = options.cache_kda_constants
                 module.eval_seed = (
                     options.relay_eval_seed if options.relay_eval_seed is not None else 1
                 )

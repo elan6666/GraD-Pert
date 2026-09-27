@@ -100,6 +100,7 @@ def chunk_delta_final_state(
     *,
     compiled: bool = False,
     fused_gram: bool = False,
+    cache_constants: bool = False,
 ) -> Tensor:
     """Exact block solve for the final state only; avoids per-token query reads."""
     if state is None:
@@ -109,6 +110,10 @@ def chunk_delta_final_state(
     block = compiled_delta_block() if compiled else delta_final_block
     if fused_gram:
         block = partial(delta_final_block, fused_gram=True)
+    if cache_constants:
+        if compiled:
+            raise ValueError("constant cache is scoped to eager KDA")
+        block = partial(delta_final_block, fused_gram=fused_gram, cache_constants=True)
     for start in range(0, k.shape[1], chunk_size):
         end = min(start + chunk_size, k.shape[1])
         state = block(
@@ -125,6 +130,7 @@ def delta_final_block(
     state: Tensor,
     *,
     fused_gram: bool = False,
+    cache_constants: bool = False,
 ) -> Tensor:
     """One unchanged delta block; regional compilation can fuse elementwise work.
 
@@ -140,21 +146,41 @@ def delta_final_block(
 
         past_keys = fused_weighted_gram(key, gates)
     else:
-        causal = torch.ones(length, length, device=k.device, dtype=torch.bool).tril()
+        invalid = (
+            _delta_static_tensors(length, k.device, torch.get_default_dtype())[0]
+            if cache_constants
+            else ~torch.ones(length, length, device=k.device, dtype=torch.bool).tril()
+        )
         decay = (
             (gates.unsqueeze(-2) - gates.unsqueeze(-3))
-            .masked_fill(~causal[None, None, :, :, None], 0)
+            .masked_fill(invalid[None, None, :, :, None], 0)
             .exp()
         )
         past_keys = (key.unsqueeze(-2) * key.unsqueeze(-3) * decay).sum(-1)
     triangular = (past_keys * write_rate).tril(-1)
-    triangular = triangular + torch.eye(length, device=k.device)
+    identity = (
+        _delta_static_tensors(length, k.device, torch.get_default_dtype())[1]
+        if cache_constants
+        else torch.eye(length, device=k.device)
+    )
+    triangular = triangular + identity
     old_read = (key * gates.exp()) @ state
     writes = torch.linalg.solve_triangular(triangular, write_rate * (value - old_read), upper=False)
     final_keys = key * (gates[..., -1:, :] - gates).exp()
     return cast(
         Tensor,
         gates[..., -1, :].exp().unsqueeze(-1) * state + final_keys.transpose(-1, -2) @ writes,
+    )
+
+
+@lru_cache(maxsize=128)
+def _delta_static_tensors(
+    length: int, device: torch.device, default_dtype: torch.dtype
+) -> tuple[Tensor, Tensor]:
+    """Share immutable causal/identity buffers across repeated KDA block shapes."""
+    return (
+        ~torch.ones(length, length, device=device, dtype=torch.bool).tril(),
+        torch.eye(length, device=device, dtype=default_dtype),
     )
 
 
@@ -279,6 +305,7 @@ class RelayDeltaAttention(DeltaAttention):
         self.replay_sequences = False
         self.fused_gram_diagnostic = False
         self.short_graph_kernel = False
+        self.cache_kda_constants = False
 
     def random_order_enabled(self) -> bool:
         return self.training if self.randomize_order is None else self.randomize_order
@@ -327,6 +354,7 @@ class RelayDeltaAttention(DeltaAttention):
                 beta,
                 compiled=self.compiled_chunks,
                 fused_gram=self.fused_gram_diagnostic,
+                cache_constants=self.cache_kda_constants,
             )
         # A single scan preserves the exact forward final state as the reverse
         # initial state; reverse writes use the very same projected tokens.
@@ -337,6 +365,7 @@ class RelayDeltaAttention(DeltaAttention):
             torch.cat((beta, beta.flip(1)), dim=1),
             compiled=self.compiled_chunks,
             fused_gram=self.fused_gram_diagnostic,
+            cache_constants=self.cache_kda_constants,
         )
 
     def forward(
@@ -370,6 +399,7 @@ class RelayDeltaAttention(DeltaAttention):
                     state=state,
                     compiled=self.compiled_chunks,
                     fused_gram=self.fused_gram_diagnostic,
+                    cache_constants=self.cache_kda_constants,
                 )
         if block_cls_to_gene and has_cls:
             return torch.cat(

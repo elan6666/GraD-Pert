@@ -1,3 +1,7 @@
+## 当前所有权／动作（2026-09-27）
+
+主会话负责当前性能构建；无活动双卡任务或长时监督。短图融合 `27aec3643cc613b17f3b87eecebf05d1453743ba` 的双卡确定性完整更新失败，输入/RNG对齐而梯度/损失/center/optimizer不对齐，证据保留于 `/data/yilangliu/GraD-Pert/development/v2-short-27aec36-parity-m2-datafix-20260927/`；不进入ABBA/容量/B0。当前下一步：原算术路径的 KDA 形状常量复用通过相关60项严格测试和局部计时，封存新 opt-in 候选→双卡完整更新→同配置ABBA，如无整体收益则淘汰；随后按用户目标继续机制评估、持续最大batch及新ID完整B0五轮。旧已停止B0不恢复，旧跨会话监督保持暂停。当前正在运行的任务以实时进程/收据为准；下方旧状态是历史快照。
+
 ## 当前执行：主会话性能工程（2026-09-27，新授权）
 
 用户重新授权性能调研、双卡实测、等价机制优化及其后容量与全新 B0 正式运行；旧 B0 仍中止且不可覆盖。主会话拥有 build 阶段，当前无跨会话监督/定时监控；短时测试用 Luna 子代理只读监督。当前源码 `681d4fb609644d51c22f6b4e51dd61256adc3310` 的 m64 128步容量已通过，m72 OOM 保留。m32 完整更新 profile 已 exit0、6/6 passed，收据及 trace summary 位于 `/data/yilangliu/GraD-Pert/development/v2-mech-681d4fb-m32-profile-20260927T0727Z`；普通更新中位17.550秒，GPU/kernel与图发射详情已记录在 `docs/experiments/GRADPERT_V2_SINGLE_PASS_PERFORMANCE.md`。第一候选是独立短图邻域的融合最终状态递推：FP32局部加速约4.5倍，首版BF16 value梯度在极少量舍入边界失败；保留失败证据并采用原块求解计算该梯度的混合候选，相关服务器测试59项通过，BF16局部前后向2.803→1.782ms。尚未证明真实双卡完整更新等价或整体加速。临时checkout `/data/yilangliu/GraD-Pert/development/source-v2-short-provisional-20260927T0750Z` 仅用于不洁诊断测试，不能正式运行。下一动作：发布仅opt-in候选→双卡完整非零LR多步等价→同配置ABBA端到端，未通过则淘汰/修复。之后持续容量与新ID完整B0。细则见 `.byte-os/plans/GRADPERT_V2_MECHANISM_PERFORMANCE_20260927.plan.md`；若启动超过一小时的正式运行，再建立可返回主会话的耐久监控，不使用旧暂停心跳。

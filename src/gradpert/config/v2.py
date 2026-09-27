@@ -31,6 +31,7 @@ class V2Architecture:
     relay_kernel: str = "eager"
     relay_validate_once: bool = False
     short_graph_kernel: bool = False
+    cache_kda_constants: bool = False
 
     def __post_init__(self) -> None:
         for name in (
@@ -105,6 +106,12 @@ class V2Architecture:
             or self.width // self.heads != 64
         ):
             raise ValueError("short graph kernel requires W64 single-pass eager relay graph")
+        if type(self.cache_kda_constants) is not bool:
+            raise ValueError("KDA constant cache must be boolean")
+        if self.cache_kda_constants and (
+            self.attention != "relay_full" or self.relay_kernel != "eager"
+        ):
+            raise ValueError("KDA constant cache requires eager relay attention")
 
     @classmethod
     def parse(cls, values: dict[str, Any]) -> V2Architecture:
@@ -129,6 +136,8 @@ class V2Architecture:
             values.pop("relay_validate_once")
         if not self.short_graph_kernel:
             values.pop("short_graph_kernel")
+        if not self.cache_kda_constants:
+            values.pop("cache_kda_constants")
         return values
 
 
@@ -197,6 +206,7 @@ class V2Options:
             "relay_kernel",
             "relay_validate_once",
             "short_graph_kernel",
+            "cache_kda_constants",
             "koleo_exclude_same_condition",
             "graph_view_mode",
         }
