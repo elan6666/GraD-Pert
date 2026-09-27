@@ -278,6 +278,7 @@ class RelayDeltaAttention(DeltaAttention):
         self.write_passes = 2
         self.replay_sequences = False
         self.fused_gram_diagnostic = False
+        self.short_graph_kernel = False
 
     def random_order_enabled(self) -> bool:
         return self.training if self.randomize_order is None else self.randomize_order
@@ -412,7 +413,13 @@ class RelayDeltaAttention(DeltaAttention):
                 )
             )
             order = scores.masked_fill(~valid, float("inf")).argsort(-1)
-        state = self._write_state((key, value, decay, beta), order, sequence=False)
+        if self.short_graph_kernel:
+            from .short_graph_kda import short_graph_final_state
+
+            ordered = (self._ordered(t, order) for t in (key, value, decay, beta))
+            state = short_graph_final_state(*ordered)
+        else:
+            state = self._write_state((key, value, decay, beta), order, sequence=False)
         return self._read(query.unsqueeze(1), state).squeeze(1)
 
 

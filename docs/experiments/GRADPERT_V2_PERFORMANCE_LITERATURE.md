@@ -1,5 +1,19 @@
 # 性能工程文献驱动矩阵
 
+## 2026-09-27：按当前完整更新负载重排研究问题
+
+已重新核对 [Kimi Linear 原始技术报告](https://arxiv.org/abs/2510.26692)、[DeltaNet 的 NeurIPS 2024 并行算法](https://proceedings.neurips.cc/paper_files/paper/2024/hash/d13a3eae72366e61dfdc7eea82eeb685-Abstract-Conference.html)、[FLA 固定提交的 KDA 接口](https://github.com/fla-org/flash-linear-attention/blob/954438d1fcb5e1bb05c22f9908de9c5c2df74ae5/fla/ops/kda/chunk.py)、[FlashAttention 的 IO 分块论文](https://proceedings.neurips.cc/paper/2022/hash/67d57c32e20fd0a7a302cb81d36e40d5-Abstract-Conference.html)、[Checkmate](https://proceedings.mlsys.org/paper_files/paper/2020/hash/0b816ae8f06f8dd3543dc3d9ef196cab-Abstract.html)、[GNNAdvisor](https://www.usenix.org/conference/osdi21/presentation/wang-yuke)、[SALIENT](https://proceedings.mlsys.org/paper_files/paper/2022/hash/afacc5db3e0e85b446e6c7727cd7dca5-Abstract.html)以及[PyTorch DDP系统论文](https://arxiv.org/abs/2006.15704)。这是原始论文/作者代码的机制借鉴，不是移植性能结论。当前源码681d4fb的 m64 双卡持续128步已通过，旧38af3ce trace 仅显示图/KDA细粒度发射线索；新完整更新 profile 尚需确认关键路径。
+
+已进一步检查[FLA 同一冻结提交的 fused recurrent KDA](https://github.com/fla-org/flash-linear-attention/blob/954438d1fcb5e1bb05c22f9908de9c5c2df74ae5/fla/ops/kda/fused_recurrent.py)：该入口有短序列逐token递推、可返回最终状态，但其文件只提供前向入口且仍分配逐token输出；**不能直接替代**本项目只用最终S的训练算子。本轮自行根据本模型的状态方程推导短邻域解析反向，并保留现有图分块边界以限制重建状态的生命周期。来源是成熟递推/融合思想的适配，尚未声明直接复现或新方法贡献。新 `681d4fb` trace 证明图路径及其反向有大量细粒度调用；合成局部探针通过数值容差且前后向有局部收益，但全更新收益未证实。基于通信kernel约0.31秒、数据等待6.62%、旧预取ABBA负结果，调度/通信维持低优先级，若之后瓶颈转移再测。
+
+|研究问题|论文提供的可借鉴机制|与本模型的精确边界|首个证伪实验|
+|---|---|---|---|
+|图 KDA 是否消耗主要发射与HBM预算？|KDA/DeltaNet 块解、FlashAttention 片上复用、GNNAdvisor 形状感知任务组织|每个目标邻域各自维护 S；顺序随机且不可交换；只读最终 S。不能替换为普通可交换图聚合、不能直接复用逐token输出内核|681d4fb双卡 profile 的图scope launch/访存、邻域长短分布；分块/融合候选随后做严格完整更新和ABBA|
+|显存换重算是否优于当前全层checkpoint？|Checkmate的按子图时间/显存成本配置|当前m64峰分配30.65GB/卡；粗暴关闭重算可能OOM；随机视图/Teacher需保持原RNG时点|记录每子图重算次数、峰值生命周期及 m32/m64余量；仅重排保存策略不碰模型数学|
+|GPU空档能否由CPU流水或通信重叠消除？|SALIENT CPU采样/搬运流水、CUDA pinned memory/streams、DDP梯度桶|旧项目预取ABBA整体慢2.45%；KoLeo跨卡候选集合、同步梯度及center更新时点固定|对齐CPU发射、H2D、GPU kernel、NCCL时间线；若可重叠窗口不足，淘汰调度候选而非追求利用率|
+
+实验若采用算法思想是**针对最终状态/短图邻域的适配**，不是直接复现论文。增量是否构成论文新贡献需独立新颖性审查；当前目标只认真实完整训练吞吐、容量与等价验证。
+
 2026-09-26 首轮检索。以下区分已核对的原始论文/作者仓库入口与尚未逐函数审阅的实现。
 这是后续假设的依据，不是把已完成的工程工作追认为论文创新。不得仅因某方法在语言模型上快就移植。
 

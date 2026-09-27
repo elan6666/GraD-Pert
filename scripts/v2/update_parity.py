@@ -124,9 +124,12 @@ def execution_changes(reference: Any, candidate: Any, repeat: bool) -> list[str]
     if repeat:
         assert not changed, "reference repeat must use identical architecture"
     else:
-        assert changed in (["relay_kernel"], ["relay_validate_once"], ["sinkhorn_backend"]), (
-            "one execution factor at a time"
-        )
+        assert changed in (
+            ["relay_kernel"],
+            ["relay_validate_once"],
+            ["sinkhorn_backend"],
+            ["short_graph_kernel"],
+        ), "one execution factor at a time"
     return changed
 
 
@@ -486,6 +489,9 @@ def main() -> None:
                                     )
                                     module.compiled_chunks = (
                                         candidate_architecture.relay_kernel == "inductor"
+                                    )
+                                    module.short_graph_kernel = (
+                                        candidate_architecture.short_graph_kernel
                                     )
                                 if isinstance(module, RelayGraphLayer):
                                     module.validate_once = (

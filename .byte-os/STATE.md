@@ -1,6 +1,32 @@
+## 当前执行：主会话性能工程（2026-09-27，新授权）
+
+用户重新授权性能调研、双卡实测、等价机制优化及其后容量与全新 B0 正式运行；旧 B0 仍中止且不可覆盖。主会话拥有 build 阶段，当前无跨会话监督/定时监控；短时测试用 Luna 子代理只读监督。当前源码 `681d4fb609644d51c22f6b4e51dd61256adc3310` 的 m64 128步容量已通过，m72 OOM 保留。m32 完整更新 profile 已 exit0、6/6 passed，收据及 trace summary 位于 `/data/yilangliu/GraD-Pert/development/v2-mech-681d4fb-m32-profile-20260927T0727Z`；普通更新中位17.550秒，GPU/kernel与图发射详情已记录在 `docs/experiments/GRADPERT_V2_SINGLE_PASS_PERFORMANCE.md`。第一候选是独立短图邻域的融合最终状态递推：FP32局部加速约4.5倍，首版BF16 value梯度在极少量舍入边界失败；保留失败证据并采用原块求解计算该梯度的混合候选，相关服务器测试59项通过，BF16局部前后向2.803→1.782ms。尚未证明真实双卡完整更新等价或整体加速。临时checkout `/data/yilangliu/GraD-Pert/development/source-v2-short-provisional-20260927T0750Z` 仅用于不洁诊断测试，不能正式运行。下一动作：发布仅opt-in候选→双卡完整非零LR多步等价→同配置ABBA端到端，未通过则淘汰/修复。之后持续容量与新ID完整B0。细则见 `.byte-os/plans/GRADPERT_V2_MECHANISM_PERFORMANCE_20260927.plan.md`；若启动超过一小时的正式运行，再建立可返回主会话的耐久监控，不使用旧暂停心跳。
+
+## 当前交接：用户暂停实验及监督（2026-09-27）
+
+主会话 `01a0c01a-0611-7a90-b3e8-8ad7e017748b` 已接回所有权。B0 运行 `nadig_jurkat-seed1-20260927T041339Z-e35f5edb8e6248479462589ff3cef41f` 按用户要求 SIGTERM 中止，全部训练进程退出，双卡空闲；已提交 epoch 0/5，仅保留初始 `epoch-0000.pt`，无 COMPLETE、best/last 或测试收据。中止证据见 `.byte-os/coordination/receipts/b0-681d4fb-user-stop.json`（SHA256 `9e792365f37ec635483eb1da5a61dc993e65fa2bb30298e1bc68f09153af5451`）。监督会话停止工作，`grad-pert-v2`、`grad-pert-v2-b0-return` 两条自动化均暂停。下一步等待用户明确重新指示；不得自动恢复或启动实验、重启监督。下方运行中状态均为历史快照。
+
+## 当前交接：完整 B0 五轮双卡训练已启动，交监督会话
+
+m64 持续容量接受条件全部通过（exit0、128/128、checkpoint continuation、300-control、源码/配置身份），容量 receipt SHA256 `31a0798737a60bd318a861fd5e4d947a51f4d943ac0f613d0328ca4a3a7bfc04`。完整 B0 run ID `nadig_jurkat-seed1-20260927T041339Z-e35f5edb8e6248479462589ff3cef41f` 已启动，父 PID 3613045、双 rank 存活、`fit/epoch_state.json` 初始 epoch0/5；五轮及 best/last 未完成。源码 `681d4fb609644d51c22f6b4e51dd61256adc3310`，配置 SHA256 `23a2942804b73cdf92871e36808846f50382ded41b1588a68da76ebc0e69985b`。长时监督边界、路径与返程心跳见 `.byte-os/coordination/handoffs/2026-09-27-b0-681d4fb-supervise.md`。监督会话接手后才开启本运行的 20 分钟心跳；终态即暂停/删除。此节覆盖下方 m64 进行中记录。
+
+## 当前交接：m64 容量测试主会话接手监督
+
+活动 run `v2-teacher-681d4fb-m64-capacity-oomfallback-20260927-1203`，PID 3602712；2026-09-27T04:17:04Z 实查 32/128、双 rank 存活、无 exit/failure。主会话与子代理按新流程负责约1小时内测试的有界监督；跨对话监督心跳已暂停。m72 OOM 与 m64 fallback 证据见 `.byte-os/coordination/handoffs/2026-09-27-teacher-m64-capacity-return-main.md`。容量 acceptance 仍需 128/128、checkpoint reload 与300-control；未启动 B0。通过后主会话立即核验并启动此前已授权的完整 B0 五轮；失败则保存证据并决定修复/回退，不能把一次报告当作阶段终点。
+
+监督规则：预计约一小时以内的有界测试，由本会话子代理只读监督并向主会话回报；更长的训练/消融才交指定跨会话监督。跨会话定时心跳仅在其负责的活动后台任务期间启用；终态或交回主会话时暂停/删除，需要新长任务时再开启。主会话收到任何监督终态后，在同一轮推进已授权的下一依赖。规则已同步到两份项目 `AGENTS.md`。
+
+## 2026-09-27：m72 双卡128步容量测试已启动
+
+Teacher Sinkhorn 优化双卡ABBA comparable，描述性总耗时下降3.84%，保留；m72×2×2=全局288单步预检1/1 passed，峰值预留显存31,279,022,080 bytes。已在干净发布源码681d4fb609644d51c22f6b4e51dd61256adc3310上启动m72的128步持续容量工程测试，PID3599854、运行根`/data/yilangliu/GraD-Pert/development/v2-teacher-681d4fb-m72-capacity-20260927`；当前只确认进程和0/128初始收据。监督交接见`.byte-os/coordination/handoffs/2026-09-27-teacher-capacity.md`。容量/B0仍未完成；此节覆盖下方历史空闲记录。
+
+## 2026-09-27：Teacher Sinkhorn ABBA 已启动，交监督会话
+
+源码 681d4fb609644d51c22f6b4e51dd61256adc3310 的本地 v2 351 测试、服务器 CUDA 16 测试通过；双卡确定性两步完整更新精确通过。非确定性校验与同路径重复对照均未过严格梯度阈值，保留收据，不混作候选失效证据。A1/B1/B2/A2 全模型 12 步串行队列已启动，PID 3531359，A1 收据真实存在；运行根 `/data/yilangliu/GraD-Pert/development/v2-teacher-681d4fb-abba-20260927`。按 `.byte-os/coordination/handoffs/2026-09-27-teacher-abba.md` 交由指定监督会话观察，完成或失败立即交回主会话。容量持续测试与 B0 五轮未启动。此节覆盖下面历史“无活动任务”记录。
+
 ## 最新状态：主会话负责工程，监督会话负责后台等待（2026-09-27）
 
-主会话 `01a0c01a-0611-7a90-b3e8-8ad7e017748b` 负责模型设计、论文核对、性能实验设计、实现、验证、发布与启动；监督会话 `01a0df0b-4142-7df1-86c0-d959471d80a1` 只在有明确交接的后台阶段接管检查。当前没有活动 GPU 任务；下一主动工作仍是 Teacher 无梯度 Sinkhorn 存储候选的独立验证、完整更新对照和实测，然后双卡持续容量与完整 B0 五轮。B0/best/last 完成以前，整体任务不算完成；不自动启动其他消融。
+主会话 `01a0c01a-0611-7a90-b3e8-8ad7e017748b` 负责模型设计、论文核对、性能实验设计、实现、验证、发布与启动；监督会话 `01a0df0b-4142-7df1-86c0-d959471d80a1` 只在有明确交接的后台阶段接管检查。Teacher 无梯度 Sinkhorn 存储消除候选的双卡 ABBA 已于 2026-09-27 完成：四组 12/12、`queue.exit=0`、比较为 comparable，描述性总耗时下降 3.84%；这不是正式训练或科学结果。当前没有活动 GPU 任务，所有权已交回主会话，由主会话审阅并决定下一有界阶段。持续容量与完整 B0 五轮及 best/last 仍未完成；不自动启动其他消融。
 
 用户指定不用 Goal 模式；工具当前也报告无活动 Goal。已建立监督会话的 20 分钟心跳 `grad-pert-v2`，启动后立即触发一次。没有交接中的后台运行时仅核对状态并保持安静。主会话每次交接必须写清阶段、运行 ID/PID/日志、不可变源码与配置哈希、GPU/时间边界、预期完成收据、失败处理和下一步；监督会话以服务器实时证据核对。发现故障或里程碑后立即保存证据并消息唤起主会话，不等下一轮；主会话接回后监督会话停止对该任务重复操作。20 分钟是周期检查上界，单靠定时器无法在两次检查间瞬时发现故障；新后台任务如需故障发生即唤起，应在启动时加独立退出/失败事件通知，并先验证其可靠性。用户暂停/停止指令优先；全部任务完成时删除心跳。
 

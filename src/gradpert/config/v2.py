@@ -30,6 +30,7 @@ class V2Architecture:
     relay_passes: int = 2
     relay_kernel: str = "eager"
     relay_validate_once: bool = False
+    short_graph_kernel: bool = False
 
     def __post_init__(self) -> None:
         for name in (
@@ -94,6 +95,16 @@ class V2Architecture:
             raise ValueError("relay_validate_once must be boolean")
         if self.relay_validate_once and self.graph_read_mode != "relay":
             raise ValueError("single neighborhood validation requires relay graph")
+        if type(self.short_graph_kernel) is not bool:
+            raise ValueError("short graph kernel must be boolean")
+        if self.short_graph_kernel and (
+            self.attention != "relay_full"
+            or self.graph_read_mode != "relay"
+            or self.relay_passes != 1
+            or self.relay_kernel != "eager"
+            or self.width // self.heads != 64
+        ):
+            raise ValueError("short graph kernel requires W64 single-pass eager relay graph")
 
     @classmethod
     def parse(cls, values: dict[str, Any]) -> V2Architecture:
@@ -116,6 +127,8 @@ class V2Architecture:
             values.pop("relay_kernel")
         if not self.relay_validate_once:
             values.pop("relay_validate_once")
+        if not self.short_graph_kernel:
+            values.pop("short_graph_kernel")
         return values
 
 
@@ -183,6 +196,7 @@ class V2Options:
             "relay_passes",
             "relay_kernel",
             "relay_validate_once",
+            "short_graph_kernel",
             "koleo_exclude_same_condition",
             "graph_view_mode",
         }

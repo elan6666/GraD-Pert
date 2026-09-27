@@ -1,3 +1,33 @@
+## 2026-09-27：用户重新授权性能工程，原 B0 保持中止
+
+当前阶段仅做性能调研、关键路径实测和等价机制优化；之后按新源码/配置进行双卡持续容量测试，再用全新运行 ID 执行已授权的完整 B0 五轮和 best/last，不启动其他消融。已开有界 Goal；短时 GPU 测试由本会话 Luna 子代理只读监督，不重新启用旧跨会话定时任务。路线和验收见 `.byte-os/plans/GRADPERT_V2_MECHANISM_PERFORMANCE_20260927.plan.md`。旧 `681d4fb609644d51c22f6b4e51dd61256adc3310` 的 m64 全局256容量已有128/128通过收据（20.183秒/步中位，11.8629 cells/s含等待，数据等待6.23%），m72在2/128 OOM。新 m32 双卡完整更新 profile `/data/yilangliu/GraD-Pert/development/v2-mech-681d4fb-m32-profile-20260927T0727Z` 已 exit0、6/6 passed；配置 SHA256 `d4f5b9cdb6279e6ed74c2777cf942a95b79a048154d6678ecc4fa9e77c5e477c`，普通更新中位17.550秒、含等待6.812细胞/秒、峰值分配/预留15.324/15.576GB每卡；末步profile29.609秒已排除在稳态外。rank0窗口30.839秒、GPU kernel并集7.182秒、1305663个kernel，图前向和反向细粒度发射明显；GPU并集不是未profile利用率。图邻域6506节点/253371条边，长度中位44、最大47，统一填充17.14%。短邻域融合最终状态机制的FP32合成单块前向0.540→0.0366ms、前后向3.636→0.804ms；首版BF16 value梯度有少量舍入边界失败，保留该证据。BF16 value梯度暂沿用原块求解的混合候选在服务器相关测试59项通过，局部前后向2.803→1.782ms；只是局部探针。当前在独立不洁临时checkout执行全部v2测试，未发布、未应用到正式训练，双卡完整更新及吞吐尚未验证。
+
+## 2026-09-27：用户要求停止 B0 训练与定时监督
+
+完整 B0 消融基线运行 `nadig_jurkat-seed1-20260927T041339Z-e35f5edb8e6248479462589ff3cef41f` 已按用户要求停止；仅向核对过命令行的 torchrun PID 3613061 发送 SIGTERM，其父进程及双 rank 均已退出，双卡现为 0% 利用率、各 2 MiB。退出码 1 是主动中止的结果，不是模型故障。`fit/epoch_state.json` 仍为 epoch 0/5，仅有初始 `epoch-0000.pt`；没有 `COMPLETE.json`、best/last 检查点或测试结果。服务器运行目录、日志与检查点原样保留。中止收据：`.byte-os/coordination/receipts/b0-681d4fb-user-stop.json`，SHA256 `9e792365f37ec635483eb1da5a61dc993e65fa2bb30298e1bc68f09153af5451`。
+
+监督会话已停止查询并将 Byte 所有权交回主会话；`grad-pert-v2` 与 `grad-pert-v2-b0-return` 两条定时任务均为 `PAUSED`。此状态覆盖下方“已启动／交监督”历史记录。不要自动恢复该运行、启动新实验或重新启用定时监督，除非用户重新要求。
+
+## 2026-09-27：m64 容量通过；完整 B0 五轮已启动
+
+m64 双卡持续容量已 `exit=0`、`passed 128/128`，完成 checkpoint continuation 与 300-control `inference_shape=[300,5000]`，validation prediction loss `0.0009303691`；容量 receipt SHA256 `31a0798737a60bd318a861fd5e4d947a51f4d943ac0f613d0328ca4a3a7bfc04`。同一干净发布源码 `681d4fb609644d51c22f6b4e51dd61256adc3310` 和配置 SHA256 `23a2942804b73cdf92871e36808846f50382ded41b1588a68da76ebc0e69985b` 的完整 B0（预测+SSL1+SSL2）已启动，run ID `nadig_jurkat-seed1-20260927T041339Z-e35f5edb8e6248479462589ff3cef41f`，父 PID `3613045`；双卡、micro64×accum2、全局batch256、5 epoch、502更新/epoch。首次实查父进程、torchrun、双 rank、run manifest 和 `fit/epoch_state.json` 均存在，epoch 为0/5；训练及 best/last 尚未完成。长时监督交接和收据见 `.byte-os/coordination/handoffs/2026-09-27-b0-681d4fb-supervise.md`。本条覆盖下方容量测试进行中的旧状态。
+
+## 2026-09-27：m64 容量测试 32/128，已交回主会话监督
+
+m72 运行 `v2-teacher-681d4fb-m72-capacity-20260927` 因双 rank `torch.OutOfMemoryError` 在 2/128 失败，原运行、收据与日志保留。授权的 m64 新 ID `v2-teacher-681d4fb-m64-preflight-oom-20260927-1201` 双卡 integration-only 预检通过 1/1、exit 0，峰值 allocated/reserved 27,632,761,856/27,927,773,184 bytes。持续测试新 ID `v2-teacher-681d4fb-m64-capacity-oomfallback-20260927-1203`，PID 3602712；2026-09-27T04:17:04Z 实查进程及双 rank 仍运行，receipt 为 running 32/128、无 failure/error、无 exit 文件，两卡显存 29,796/29,878 MiB。源码 SHA `681d4fb609644d51c22f6b4e51dd61256adc3310` clean，配置 SHA256 `23a2942804b73cdf92871e36808846f50382ded41b1588a68da76ebc0e69985b`。按用户新流程（预计约1小时的测试由主会话和子代理监督）已把 owner 交回主会话，并暂停监督会话心跳以避免重复监督。详情见 `.byte-os/coordination/handoffs/2026-09-27-teacher-m64-capacity-return-main.md` 与容量收据。未启动 B0。
+
+工作流更新：短时测试使用本会话子代理监督；长时正式训练/消融才用跨会话监督。主会话在监督报告终态后直接执行已授权的下一步；跨会话定时心跳完成交接后暂停或删除，需要新长任务时再启用。当前心跳 `grad-pert-v2` 已暂停，只有本会话子代理监督 m64；B0 完整五轮的启动计划已封存，等待本次容量 acceptance。
+
+## 2026-09-27：m72 双卡128步容量测试已启动
+
+Teacher Sinkhorn 优化双卡ABBA comparable，描述性总耗时下降3.84%，保留；m72×2×2=全局288单步预检1/1 passed，峰值预留显存31,279,022,080 bytes。已在干净发布源码681d4fb609644d51c22f6b4e51dd61256adc3310上启动m72的128步持续容量工程测试，PID3599854、运行根`/data/yilangliu/GraD-Pert/development/v2-teacher-681d4fb-m72-capacity-20260927`；当前只确认进程和0/128初始收据。监督交接见`.byte-os/coordination/handoffs/2026-09-27-teacher-capacity.md`。容量/B0仍未完成；此节覆盖下方历史空闲记录。
+
+## 2026-09-27：Teacher Sinkhorn ABBA 已完成，交回主会话
+
+队列 PID 3531359 于 `2026-09-26T20:56:37Z` 结束，`queue.phase=complete`、`queue.exit=0`；A1/B1/B2/A2 四份收据均为 12/12 passed（每组预热3步），运行根 `/data/yilangliu/GraD-Pert/development/v2-teacher-681d4fb-abba-20260927`。四组源码均为干净提交 `681d4fb609644d51c22f6b4e51dd61256adc3310`，配置 SHA256 `85d4c571727950bd8af0e3e34dd2612d25b20f4b16e578ebe478bb70cbaeab14`；有序 batch 计划、batch schedule hashes、view RNG 起点、数据根和双卡配置一致。唯一切换因子 `save_no_grad_sinkhorn_diagnostic_only` 为 A1/A2=true、B1/B2=false；`comparison.json` 标记 `status=comparable`、`execution_factor=teacher_no_grad_elision`、两组 B 均快于配对 A。
+
+两组 A 的含等待总步中位数为 20.7562/19.4486 秒，两组 B 为 19.2542/19.2487 秒；A/B 总耗时比 1.0399、总耗时下降 3.84%，峰值 allocated/reserved 显存相同（3,505,913,344/3,867,148,288 bytes）。每种只有两次运行，属于描述性性能观察，不代表显著性、数值等价、持续容量或模型效果。它是 benchmark-only ABBA，不是正式训练完成；持续容量和 B0 五轮均未启动。完成证据与限制见 `.byte-os/coordination/handoffs/2026-09-27-teacher-abba-complete.md`。GPU 当前空闲；所有权已交回主会话决定下一阶段。
+
 ## 2026-09-27：主工程／监督查询双会话交接
 
 用户指定主会话 `01a0c01a-0611-7a90-b3e8-8ad7e017748b` 做设计、实现、验证和启动，监督会话 `01a0df0b-4142-7df1-86c0-d959471d80a1` 在后台等待阶段每 20 分钟检查，并在发现问题或完成时立即唤起主会话。心跳 ID `grad-pert-v2` 已建立；当前无活动 GPU 任务、无交接中的后台运行。Goal 模式关闭。具体交接合同与下一步见 STATE.md；旧记录中的 Goal/监控状态为历史快照。
