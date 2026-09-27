@@ -72,7 +72,7 @@ def completed(root, epochs=50):
     write(root / "COMPLETE.json", {**journal, "test_roles": ["best", "last"], "zero_pkl": True})
 
 
-@pytest.mark.parametrize("epochs", [5, 50])
+@pytest.mark.parametrize("epochs", [1, 5, 50])
 def test_keeps_both_roles_even_when_checkpoint_identical(tmp_path, epochs):
     completed(tmp_path, epochs)
     rows = collect(tmp_path)

@@ -9,6 +9,10 @@ from gradpert.config.v2 import V2Options
 
 PROBE = Path(__file__).resolve().parents[2] / "configs/v2/capacity/gradpert_v2/nadig_jurkat.yaml"
 GLM53 = Path(__file__).resolve().parents[2] / "configs/v2/glm53_flash_jurkat"
+ONE_EPOCH = (
+    Path(__file__).resolve().parents[2]
+    / "configs/v2/optimized_single_pass_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml"
+)
 
 
 @pytest.mark.parametrize("variant,topk,chunk", [("default", 500, 32), ("top100", 100, 8)])
@@ -81,6 +85,26 @@ def test_v2_five_epoch_protocol_is_explicit_and_does_not_reinterpret_old_runs():
     assert five.training.max_epochs.value == 5
     payload["training"]["max_epochs"]["value"] = 50
     with pytest.raises(ValueError, match="exactly 5 epochs"):
+        ExperimentConfig.model_validate(payload)
+
+
+def test_v2_one_epoch_is_separate_policy_and_keeps_the_current_method():
+    config = load_experiment_config(ONE_EPOCH)
+    assert config.training.formal_run_policy == "v2_fixed_1"
+    assert config.training.max_epochs.value == 1
+    assert config.training.train_batch_size.value == 264
+    assert config.training.monitor == "val/prediction_loss"
+    assert config.training.early_stopping is False
+    previous = yaml.safe_load(
+        (ONE_EPOCH.parents[2] / "capacity_m66_a2/gradpert_v2/nadig_jurkat.yaml").read_text()
+    )
+    updated = yaml.safe_load(ONE_EPOCH.read_text())
+    previous["training"]["formal_run_policy"] = "v2_fixed_1"
+    previous["training"]["max_epochs"] = updated["training"]["max_epochs"]
+    assert updated == previous
+    payload = config.model_dump(mode="json")
+    payload["training"]["max_epochs"]["value"] = 5
+    with pytest.raises(ValueError, match="exactly 1 epoch"):
         ExperimentConfig.model_validate(payload)
 
 

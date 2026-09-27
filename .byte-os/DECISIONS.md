@@ -1,5 +1,20 @@
 # Decision Log
 
+## 2026-09-27: GraD-Pert v2 single-epoch runs
+
+- The user changed the upcoming GraD-Pert v2 experiment budget to one full
+  epoch by default. The historical v1/R50 protocol and previously sealed 5/50
+  epoch v2 configs and run identities remain unchanged.
+- The running B0 started with a sealed five-epoch config. Its supervisor owns
+  stopping after epoch 1 has fully committed and preserving the checkpoint and
+  validation evidence. That interrupted run is not a completed one-epoch run:
+  its LR and EMA schedules were planned across five epochs, and it cannot gain
+  a one-epoch `COMPLETE.json` by relabeling its original config.
+- New v2 scientific launches must use the separately versioned
+  `v2_fixed_1` policy and self-contained one-epoch config. The existing fit,
+  validation, best/last test, and zero-PKL lifecycle still applies. Do not
+  start a new run merely because this policy was added.
+
 ## 2026-08-31
 
 - Replace the successor A0 scientific coordinate from eight to four

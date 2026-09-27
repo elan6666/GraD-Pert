@@ -135,6 +135,7 @@ class TrainingConfig(StrictModel):
         "r50_selection",
         "v2_fixed_50",
         "v2_fixed_5",
+        "v2_fixed_1",
         "inference_only",
         "vnext_combination_100",
         "vnext_combination_200",
@@ -160,7 +161,12 @@ class TrainingConfig(StrictModel):
         if isinstance(self.scheduler.value, dict):
             schedule = load_training_schedule(self.scheduler.value)
             if isinstance(schedule, LRWarmupCosine):
-                if self.formal_run_policy not in {"r50_selection", "v2_fixed_50", "v2_fixed_5"}:
+                if self.formal_run_policy not in {
+                    "r50_selection",
+                    "v2_fixed_50",
+                    "v2_fixed_5",
+                    "v2_fixed_1",
+                }:
                     raise ValueError("LR-only schedule requires R50 policy")
             elif self.formal_run_policy not in {"vnext_combination_100", "vnext_combination_200"}:
                 raise ValueError("native restart schedule is restricted to explicit combinations")
@@ -225,11 +231,14 @@ class TrainingConfig(StrictModel):
                     raise ValueError("vNext combination requires early-stopping patience=10")
                 if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
                     raise ValueError("vNext combination requires the common validation monitor")
-            elif self.formal_run_policy in {"v2_fixed_50", "v2_fixed_5"}:
-                expected_epochs = 5 if self.formal_run_policy == "v2_fixed_5" else 50
+            elif self.formal_run_policy in {"v2_fixed_50", "v2_fixed_5", "v2_fixed_1"}:
+                expected_epochs = {"v2_fixed_1": 1, "v2_fixed_5": 5, "v2_fixed_50": 50}[
+                    self.formal_run_policy
+                ]
                 if self.max_epochs.value != expected_epochs or self.early_stopping:
                     raise ValueError(
-                        f"v2 requires exactly {expected_epochs} epochs without early stopping"
+                        f"v2 requires exactly {expected_epochs} "
+                        f"epoch{'s' if expected_epochs != 1 else ''} without early stopping"
                     )
                 if self.monitor != "val/prediction_loss" or self.monitor_mode != "min":
                     raise ValueError("v2 selects best by validation prediction loss")
@@ -357,6 +366,7 @@ class ExperimentConfig(StrictModel):
                 "r50_selection",
                 "v2_fixed_50",
                 "v2_fixed_5",
+                "v2_fixed_1",
                 "fixed_epoch_pilot",
                 "vnext_combination_100",
                 "vnext_combination_200",
@@ -374,7 +384,7 @@ class ExperimentConfig(StrictModel):
         ):
             raise ValueError("external R50 is restricted to registered Jurkat metrics_only rows")
         if (
-            self.training.formal_run_policy in {"v2_fixed_50", "v2_fixed_5"}
+            self.training.formal_run_policy in {"v2_fixed_50", "v2_fixed_5", "v2_fixed_1"}
             and self.model_id != "gradpert_v2"
         ):
             raise ValueError("v2 policy cannot reinterpret a legacy model")
@@ -393,10 +403,13 @@ class ExperimentConfig(StrictModel):
             if self.training.formal_run_policy not in {
                 "v2_fixed_50",
                 "v2_fixed_5",
-            } or self.training.max_epochs.value != (
-                5 if self.training.formal_run_policy == "v2_fixed_5" else 50
-            ):
-                raise ValueError("v2 requires a fixed 5/50 epoch best/last protocol")
+                "v2_fixed_1",
+            } or self.training.max_epochs.value != {
+                "v2_fixed_1": 1,
+                "v2_fixed_5": 5,
+                "v2_fixed_50": 50,
+            }.get(self.training.formal_run_policy):
+                raise ValueError("v2 requires a fixed 1/5/50 epoch best/last protocol")
             if self.training.optimizer.value != "GLM5MuonSplit_v2":
                 raise ValueError("v2 requires its explicit parameter-route optimizer")
             if (
