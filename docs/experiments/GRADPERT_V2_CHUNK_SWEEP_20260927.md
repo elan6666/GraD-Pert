@@ -47,3 +47,25 @@
 | 128 | 45.55 s | 13.229 s | 9.676 cells/s | 15.324 / 15.576 GB |
 
 审计 A/B 总时间比为 1.27969（96，时间约减少 21.86%）与 1.48684（128，约减少 32.74%）。这证明当前图分块确有端到端发射开销，而不意味着可直接更换默认值。行块 128 尚未通过 128 步持续容量；更重要的是上面的 BF16 输出与随机分配未过既定严格语义门槛。**64 仍是默认，96/128 作为高收益但不合格候选保留。**若以后要追求行块收益，应单独设计与行块无关的按目标 RNG 和数值路径，再做完整 optimizer/EMA/center 等价与持续容量，不能把此次计时当作模型效果保证。
+
+
+## 仅长序列扫描的独立核对与最终决定
+
+版本 `d61af46d9e4282c8e5b69e9514d1134407d2b8e5` 将 `relay_sequence_chunk_size` 单独配置在 Cell/Response 的长序列 KDA，图邻域扫描仍为 32。服务器不可变源码位于 `/data/yilangliu/GraD-Pert/development/source-v2-chunk-d61af46`，发布收据 `/data/yilangliu/GraD-Pert/development/gradpert-v2-chunk-d61af46-publication.json` 的 SHA256 为 `10d35151f86fe84e3a1d0c6a850f162722113435e6bb8e1e7470e8ae50109add`。服务器定向测试 82 项通过。以下完整更新诊断均用双卡 0/1、m32×累积 2、同一初始 checkpoint、相同有序输入及前后 RNG；比较预测＋SSL1＋SSL2、非零学习率更新后的完整 `JointObjective.state_dict()` 和 optimizer state。该 objective 状态含 Student、EMA Teacher 和四个 center；诊断收据只给出整体 `objective` 比较，未单列 Teacher/center 最大误差。
+
+| 对照 | 执行模式 | 损失/目标状态 | 最大梯度绝对差 | 最大 optimizer 绝对差 | 严格验收 |
+| --- | --- | --- | ---: | ---: | --- |
+| 32 对 32 | 普通重复 | 通过/通过 | 0.000080829，4 个张量超阈值 | 0.000008083，通过 | 未过 |
+| 32 对 32 | 确定性重复 | 通过/通过，所有项差值 0 | 0 | 0 | 通过 |
+| 32 对 64，仅长序列 | 普通 | 通过/通过 | 0.00045906，20 个张量超阈值 | 0.000045906，2 个超阈值 | 未过 |
+| 32 对 48，仅长序列 | 普通 | 通过/通过 | 0.00048652，20 个张量超阈值 | 0.000048652，2 个超阈值 | 未过 |
+| 32 对 64，仅长序列 | 确定性 | 通过/通过 | 0.00047063，20 个张量超阈值 | 0.000047063，2 个超阈值 | 未过 |
+| 32 对 48，仅长序列 | 确定性 | 通过/通过 | 0.00048189，20 个张量超阈值 | 0.000048189，2 个超阈值 | 未过 |
+
+固定容差为 `atol=3e-5, rtol=3e-4`，没有因结果而放宽。普通模式的同配置重复本身有小幅梯度波动；确定性模式将该参照归零，而 48/64 在同一模式下仍有更广泛、更大的梯度差异。输入与随机状态哈希在各次对照两侧严格一致，因此不能把差异归因于不同细胞、视图或随机排列。分块改变 FP32 矩阵运算顺序是数值差异的可能来源，但这不等于已证明长期模型效果相同。所有候选都在第一步失去严格一致性，故没有第二步通过证据。完整收据与日志保留于服务器：
+
+- 普通对照：`/data/yilangliu/GraD-Pert/development/update-parity-sequence64-20260927T132100`、`update-parity-sequence48-20260927T132400`、`update-parity-reference-repeat-20260927T133000`；
+- 确定性对照：`/data/yilangliu/GraD-Pert/development/update-parity-deterministic-repeat-20260927T134000`、`update-parity-sequence64-deterministic-20260927T134400`、`update-parity-sequence48-deterministic-20260927T134800`；
+- 各次 stdout/stderr：`/data/yilangliu/GraD-Pert/development/update-parity-logs/`。
+
+**本轮不采用任何更大的 chunk。** 扫描 48/64 无论全路径还是仅长序列都未过严格完整更新门槛；图行 96/128 虽有短程端到端提速，但未保持同种子按目标随机分配及 BF16 输出一致。默认继续 `relay_scan_chunk_size=32`、`relay_graph_chunk_rows=64`，`relay_sequence_chunk_size` 留空。由于语义门槛未过，没有将这些候选送入 128 步持续容量，也不把微探针或 3 步 ABBA 当成可正式训练的性能收益。后续若重新研究图行并行，应先让随机抽样与目标 ID 绑定并解决 BF16 批形状敏感性，再重做输出、梯度、完整更新及持续容量；它是一项新的机制研究，不属于本轮已采纳优化。旧 B0 继续停止，新的一轮 B0 尚未启动。
