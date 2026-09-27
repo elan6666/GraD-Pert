@@ -1,3 +1,11 @@
+## 2026-09-27：m68 持续容量失败，回退测试 m66
+
+干净发布源码 `28f447a24a400659ea09f9c0f6d735ea7e4ec8f1` 的 NUMA 本地 m68×累积2×双卡（全局272）单步预检通过，但128步持续测试的 rank1 在第22步反向传播 OOM（需再分配120 MiB，卡上仅余53.62 MiB）；`rank-1-failure.json` 记录 failed/22，顶层 `receipt.json` 是较早落盘的 running/16，不能当作通过。退出码1，两卡已空闲；原 run ID、日志、收据保留于 `/data/yilangliu/GraD-Pert/development/v2-numa-m68-28f447a-capacity-20260927T0929Z`。下一步只改 batch 建立 m66×累积2×双卡（全局264）自包含配置，发布新 Git SHA 和不可变服务器源，以新 ID 做单步预检及128步持续容量；若失败，回退已在旧版通过的 m64，并在选定新发布源码上重验。完整 B0 五轮及 best/last 等容量通过后再以全新 ID 启动。此条覆盖下方 m68 进行中状态。
+
+## 2026-09-27：m68 双卡持续容量正在运行
+
+干净发布 `28f447a24a400659ea09f9c0f6d735ea7e4ec8f1` 的自包含 m68×累积2×双卡、全局272配置 SHA256 `ab8c358ecdd7d6ee398120ebcaafd048bb25814263eb5b2e8271f479662735a9` 已通过新 ID 单步预检1/1、exit0（仅工程预检，不含300-control），收据 SHA256 `99f32bfe4ca9fde658977903fbf99e6b32f7e82922571a8c3135b3cdb38364c7`。当前新 ID `/data/yilangliu/GraD-Pert/development/v2-numa-m68-28f447a-capacity-20260927T0929Z` 执行128步持续测试，父PID文件同stem `.pid`（启动为3689686），NUMA本地绑定；需要exit0、128/128、checkpoint续跑与300-control才可接受。Luna子代理只读监督短时任务。旧B0保持中止，正式五轮尚未启动。此条覆盖下面旧状态。
+
 ## 2026-09-27：NUMA 调度验证通过，进入新容量边界测试
 
 双卡 m64×累积2、全局256的 A1/B1/B2/A2 各12/12完成且队列 exit0；B 只使用 PyTorch 内建 `torchrun --numa-binding=node`。两次配对含数据等待吞吐 B/A 为 1.05240 和 1.04927，几何均值 1.05083；A1/B1/B2/A2 为 11.7784/12.3956/12.3440/11.7644 cells/s。峰值预留显存四组均 28,974,252,032 bytes；启动分别 8.35/7.99/7.59/8.12 秒。比较收据 `/data/yilangliu/GraD-Pert/development/v2-numa-32b2bfd-abba-20260927T0903Z/comparison.json`，SHA256 `813bd55bef4715ceb430944d251cc7ee7e319fbd29043996405d0cb3c2886ed4`。两次计时是描述性证据，未证明长期模型效果或逐位更新相等。采用 NUMA 绑定作为这台双5090服务器的执行策略；不改模型数学与训练配置。下一步发布独立 m68（全局272）容量配置，完成128步持续、checkpoint续跑与300-control；若 OOM 保存收据并回退。旧 B0 已按用户要求停止，不恢复；后续只用新 ID 完整预测＋SSL1＋SSL2 五轮及 best/last，不启动其他消融。此条覆盖下方历史快照。

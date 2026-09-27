@@ -1,3 +1,11 @@
+## 当前执行：m68 OOM 后验证 m66（2026-09-27）
+
+主会话拥有容量与后续 B0 启动。NUMA m68 全局272新 ID 128步测试在 rank1 第22步反向 OOM，exit1；`rank-1-failure.json` 是终态，顶层 receipt 停在16步旧状态。原始失败证据保留于 `/data/yilangliu/GraD-Pert/development/v2-numa-m68-28f447a-capacity-20260927T0929Z`；GPU0/1 已空闲。下一动作：从干净已推送 `28f447a24a400659ea09f9c0f6d735ea7e4ec8f1` 只变微批68→66、全局272→264，定向推送 main，建立干净不可变服务器源及发布收据，独立 ID 单步预检→128步持续、checkpoint 续跑及300-control。若 m66 OOM，保留失败并选 m64，在新源码复测。容量通过才启动新 ID 完整预测+SSL1+SSL2五轮及 best/last，长时训练交指定监督会话；旧停训 B0 不恢复。下方 m68 进行中快照是历史记录。
+
+## 当前执行：m68 128步持续容量（2026-09-27 09:29 UTC）
+
+主会话拥有容量阶段。干净发布源码 `28f447a24a400659ea09f9c0f6d735ea7e4ec8f1`、服务器 checkout `/data/yilangliu/GraD-Pert/development/source-v2-numa-m68-28f447a`、publication SHA256 `3e03290ea72f9d03fc05224413c07bbc012bc1213ebc47e44dcabb2a9aeee5e9`、配置 SHA256 `ab8c358ecdd7d6ee398120ebcaafd048bb25814263eb5b2e8271f479662735a9`。m68单步预检独立 run 1/1 exit0，持续 run `/data/yilangliu/GraD-Pert/development/v2-numa-m68-28f447a-capacity-20260927T0929Z` 已启动，父PID3689686；脚本 SHA256 `3c503b566a822048757ffb77e21d513512974f09b5e4d4b0097c746349ab8f42`。只读 Luna 短时监督，主会话收到失败/终态即推进：通过则核对128步、恢复、300-control及可用 batch 后启动新 ID 完整 B0；OOM则保留失败并评估m66或回退m64，不覆盖本 run。两张GPU由本测试占用，无其他消融；旧B0不恢复。下方是历史快照。
+
 ## 当前所有权／动作（2026-09-27 09:24 UTC）
 
 主会话持有性能阶段；NUMA A1/B1/B2/A2 队列 `complete`/`exit0`，Luna 短时监督已结束，两卡空闲。比较收据 SHA256 `813bd55bef4715ceb430944d251cc7ee7e319fbd29043996405d0cb3c2886ed4`，同源码 `32b2bfd88f36b9a7fad435c533dc825ef81942b4`、同配置 SHA256 `23a2942804b73cdf92871e36808846f50382ded41b1588a68da76ebc0e69985b`，同有序 batch/视图 RNG 起点；只变 rank 本地 NUMA 绑定。配对吞吐几何比 1.05083，显存无增加，决定采用于当前服务器。下一动作：将文档及自包含 m68 容量候选定向提交推送 main，在新干净不可变服务器 checkout 发布收据并做双卡128步持续容量；失败保留，安全回退 m64。容量门槛通过后新运行 ID 完整 B0 五轮与 best/last。旧 B0 中止不恢复；跨会话旧监督仍暂停。下方章节是历史快照。
