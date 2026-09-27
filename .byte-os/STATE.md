@@ -1,6 +1,8 @@
-## 当前任务：第四层来源门与图64／序列256分块（2026-09-27）
+## 当前任务完成：第四层来源门与图64／序列256分块（2026-09-28）
 
-用户已授权在图编码器第4层稀疏MLA加入零初始化逐维来源门，并将图邻域KDA scan chunk设为64、Cell/Response序列KDA chunk设为256。图目标row chunk=64作对照，另测96/128；这项后续请求只扩大工程测试候选，不预设默认采用。当前在独立干净工作树实施和验证；自包含Jurkat m32×累积2×双卡工程配置采用已确定的完整预测＋SSL1＋SSL2和λ₂=1。现阶段没有由本任务启动的GPU实验；旧B0和旧收据不改动。下一步是本地配置/静态检查、干净发布、服务器定向测试与双卡完整更新及端到端速度测量。此前较大chunk未过严格有限精度一致性，图row块改变同种子随机分配，本轮不得预设等价或收益；实时进程和收据优先于下方历史状态。
+用户指定的方法与工程配置已经实施：图第4层边来源逐维key门零初始化并保留来源偏置，图邻域KDA scan chunk64、Cell/Response序列KDA chunk256；图目标row chunk64/96/128各有独立配置。基线提交`9a820e1d2a2dfc38bdcfee9370ecb1e518733b2f`先验已推送；实现提交`657b63ad509f5511b3cb4a585be0dc44a92aff65`及回退微批配置提交`2043e09a4f4cb29317b9879da68e32e8d953ee1c`均推送main。最终干净不可变服务器源码`/data/yilangliu/GraD-Pert/development/source-v2-gate-chunks-2043e09`；publication收据`/data/yilangliu/GraD-Pert/development/gradpert-v2-gate-chunks-2043e09-publication.json`，SHA256`898df95cdfbcba7fb0e8ba54515ca317e4d08489d418a129c247d30d075b6734`。服务器定向80项测试通过。
+
+双RTX5090全局batch128（m32×累积2）下，门控单独单步通过，chunk-only与完整组合反向OOM；失败ID/收据均保留。统一全局batch64（m16×累积2）下六组4步完整预测＋SSL1＋SSL2均通过，最后一步学习率非零，细胞批次顺序哈希相同。参考3.373 cells/s、9.14GB/卡；完整组合3.201 cells/s、26.39GB/卡；row96组合3.716 cells/s，row128组合3.963 cells/s，row128反序复测3.978对参考3.376。图行块扩大虽有重复短程速度收益，但此前严格语义审计未通过逐目标随机分配与有限精度等价；本次无持续128步和一轮效果证明，不改变正式性能默认或启动B0。完整配置/结果/收据/限制见`docs/experiments/GRADPERT_V2_SOURCE_GATE_CHUNK_20260928.md`。当前没有由本任务运行的GPU进程；旧B0/收据原样保留。下一步若用户授权正式采用某候选，先解决随机语义与容量，再以新run ID继续；下方历史计划不表示正在运行。
 
 ## 当前阶段：chunk 对照已结案，B0 保持停止（2026-09-27）
 
