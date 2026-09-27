@@ -15,6 +15,10 @@ ONE_EPOCH = (
 )
 CHUNK_SWEEP = Path(__file__).resolve().parents[2] / "configs/v2/chunk_sweep_jurkat"
 SOURCE_GATE_CHUNK = Path(__file__).resolve().parents[2] / "configs/v2/source_key_gate_chunk_jurkat"
+SOURCE_GATE_DEFAULT = (
+    Path(__file__).resolve().parents[2]
+    / "configs/v2/source_key_gate_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml"
+)
 
 
 @pytest.mark.parametrize("variant,topk,chunk", [("default", 500, 32), ("top100", 100, 8)])
@@ -216,6 +220,22 @@ def test_source_gate_chunk_profiles_are_self_contained_and_factorial(variant, fi
         1,
         microbatch * 4,
     )
+
+
+def test_source_gate_default_retains_previous_chunks_and_batch():
+    previous = yaml.safe_load(ONE_EPOCH.read_text())
+    current = yaml.safe_load(SOURCE_GATE_DEFAULT.read_text())
+    gate = current["model"]["parameters"].pop("graph_source_key_gate")
+    assert gate["value"] is True
+    assert current == previous
+    config = load_experiment_config(SOURCE_GATE_DEFAULT)
+    architecture, options = V2Options.parse_parameters(config.model.parameters)
+    assert architecture.graph_source_key_gate
+    assert architecture.relay_scan_chunk_size == 32
+    assert architecture.relay_sequence_chunk_size is None
+    assert architecture.relay_graph_chunk_rows == 64
+    assert (options.microbatch, options.accumulation, options.world_size) == (66, 2, 2)
+    assert config.training.train_batch_size.value == 264
 
 
 @pytest.mark.parametrize("change", ["version", "batch", "policy", "unknown"])
