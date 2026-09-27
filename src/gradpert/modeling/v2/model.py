@@ -51,6 +51,8 @@ class SparseRead(nn.Module):
         dropout: float,
         rank: int | None = None,
         ffn_type: str = "gelu",
+        *,
+        source_key_gate: bool = False,
     ) -> None:
         super().__init__()
         self.heads, self.head_width = heads, width // heads
@@ -61,6 +63,9 @@ class SparseRead(nn.Module):
         self.value = nn.Linear(rank or width, width, bias=False)
         self.output = nn.Linear(width, width, bias=False)
         self.source_bias = nn.Parameter(torch.zeros(4, heads))
+        self.source_key_gate = (
+            nn.Parameter(torch.zeros(4, heads, self.head_width)) if source_key_gate else None
+        )
         self.norm1, self.norm2 = nn.LayerNorm(width), nn.LayerNorm(width)
         self.ffn = (
             GatedFeedForward(width, dropout)
@@ -89,6 +94,13 @@ class SparseRead(nn.Module):
             selected = self.latent_norm(self.compress(selected))
         key = self.key(selected).reshape(n, k, self.heads, self.head_width)
         value = self.value(selected).reshape(n, k, self.heads, self.head_width)
+        if self.source_key_gate is not None:
+            gate = 1 + torch.einsum(
+                "nks,shd->nkhd",
+                sources.to(self.source_key_gate.dtype),
+                self.source_key_gate,
+            )
+            key = key.float() * gate.float()
         score = torch.einsum("nhd,nkhd->nhk", q.float(), key.float()) / self.head_width**0.5
         bias = sources.to(self.source_bias.dtype) @ self.source_bias
         score = score + bias.permute(0, 2, 1).float()
@@ -290,6 +302,7 @@ class GeneGraph(nn.Module):
                         options.dropout,
                         options.latent_rank,
                         options.ffn_type,
+                        source_key_gate=options.graph_source_key_gate,
                     )
                 ]
             )

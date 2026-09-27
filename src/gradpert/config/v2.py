@@ -35,6 +35,7 @@ class V2Architecture:
     relay_scan_chunk_size: int = 32
     relay_graph_chunk_rows: int = 64
     relay_sequence_chunk_size: int | None = None
+    graph_source_key_gate: bool = False
 
     def __post_init__(self) -> None:
         for name in (
@@ -113,6 +114,10 @@ class V2Architecture:
             raise ValueError("short graph kernel requires W64 single-pass eager relay graph")
         if type(self.cache_kda_constants) is not bool:
             raise ValueError("KDA constant cache must be boolean")
+        if type(self.graph_source_key_gate) is not bool:
+            raise ValueError("graph source key gate must be boolean")
+        if self.graph_source_key_gate and self.graph_read_mode != "relay":
+            raise ValueError("graph source key gate requires four-layer relay graph")
         if self.relay_sequence_chunk_size is not None and (
             type(self.relay_sequence_chunk_size) is not int or self.relay_sequence_chunk_size <= 0
         ):
@@ -159,6 +164,8 @@ class V2Architecture:
             values.pop("relay_graph_chunk_rows")
         if self.relay_sequence_chunk_size is None:
             values.pop("relay_sequence_chunk_size")
+        if not self.graph_source_key_gate:
+            values.pop("graph_source_key_gate")
         return values
 
 
@@ -231,6 +238,7 @@ class V2Options:
             "relay_scan_chunk_size",
             "relay_graph_chunk_rows",
             "relay_sequence_chunk_size",
+            "graph_source_key_gate",
             "koleo_exclude_same_condition",
             "graph_view_mode",
         }

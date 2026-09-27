@@ -1,5 +1,18 @@
 # GraD-Pert v2 邻域接力方法与交付计划
 
+## 2026-09-27 第四层来源门与分块配置
+
+新方法候选只在图编码器第 4 层稀疏 MLA 的注意力分数加入逐维来源门。对头 \(h\)、合法边 \(i\leftarrow j\)，四位多热来源 \(s_{ij}=[\mathrm{GO},\mathrm{STRING},\mathrm{expander},\mathrm{self}]\)，定义
+
+\[
+g_{ij}^{h}=\mathbf1+\sum_{m=1}^{4}s_{ij,m}W_{E,m}^{h},\qquad
+\ell_{ij}^{h}=\frac{q_i^{h\top}(k_j^h\odot g_{ij}^{h})}{\sqrt{d_h}}+b_h^\top s_{ij}.
+\]
+
+\(W_E\in\mathbb R^{4\times4\times64}\) 从零初始化，因而新运行起点的前向与原来源偏置版相同；value、来源偏置、边并集和合法邻域掩码保持不变。多来源边把相应来源向量相加；\(1+W_Es\) 不是正值约束门。Student 增加 1,024 个可训练图参数，同构 Teacher 经 EMA 更新。该项是方法改动，旧 checkpoint 与训练身份不改写；与无门配置分开比较。
+
+本次同时指定图邻域 KDA 的 `relay_scan_chunk_size=64`，Cell/Response self 与 cross 的序列 KDA `relay_sequence_chunk_size=256`。独立图目标的 `relay_graph_chunk_rows=64` 为参照，并按用户后续要求试 96、128，不预设采用。六份自包含 Jurkat 工程配置位于 `configs/v2/source_key_gate_chunk_jurkat/`：参考、仅门、仅分块、两者组合及组合下两档更大的图目标行块。来源门、扫描块、行块的计算成本分别计量。不同扫描块在实数意义下求同一 KDA 末态，但有限精度结果、梯度和显存可能不同；改行块还可能改变按样本随机数的分配。此前较小块的严格完整更新差异已记录于 `docs/experiments/GRADPERT_V2_CHUNK_SWEEP_20260927.md`，本配置须重新测试，不能预设更快或等价。
+
 状态：2026-09-26 单向扫描修改通过本地验证；用户已明确恢复原性能工程目标。当前配置为 `configs/v2/single_pass_jurkat/gradpert_v2/nadig_jurkat.yaml`，显式 `relay_passes: 1`。此前 `relay_jurkat` 双遍配置及其性能记录保留为历史；缺省字段仍解释为历史双遍，保证旧 checkpoint 配置身份不变。除扫描遍数外，新旧自包含配置完全相同。更新后须重新测性能，不能用旧双遍收据证明新方法吞吐或容量。
 
 ## 方法合同
@@ -12,7 +25,7 @@ Cell 和 Response 各为 2 个单遍末态读取 self-KDA 块加一个全量、�
 
 Response 从 Cell 基因状态和独立 response CLS 开始。每层首先通过各层独立的 Linear(512,256)→GELU→Linear(256,256) 将每个 stream 与扰动图表示 e_p 融合，替换入口状态而不另加入口融合残差，再 self，再读取 control 基因状态的 cross，最后 FFN；前两层 cross 使用单遍 KDA 的 control K/V 写入与 response Q 末态读取，末层用全量 cross MLA。control CLS 不作为 cross K/V。响应末态基因表示与 e_p 再拼接预测 Δ，yhat=x_control+Δ；SSL2 使用最终 response CLS，SSL1 使用 e_p。不得把扰动真实表达输入预测路径。
 
-训练仍为完整 B0：主视图 1000 个表达基因上预测 MSE，SSL1 图 2 Global+2 Local，SSL2 表达 2 Global+2 Local，两套 Global 比例均为 60%–90%、Local 为 25%–50%，取 round 后的节点数；SSL1 分母是图节点、两种 Local 分别从 GO/STRING 扩展取节点诱导子图，SSL2 分母是本次1000查询基因、两种 Local 都是随机基因子集。图视图强制包含本次条件靶点（可能使极小图上的比例超出目标）；教师只读未遮蔽 Global，Student 读全部四视图。四个投影头均为 256→2048→256→8192。权重：MSE + 1×(0.8 condition + 0.4 node + 0.1 spread) + 0.1×(0.8 DINO + 0.4 iBOT + 0.1 KoLeo)。默认统一 row_mean；condition_mean 是整套 S1 消融。图 node、spread 和教师 center 按现有例外。KoLeo 的跨双卡/累积窗口候选排除**同一扰动条件**，至少两个非 control 条件进入每个有效比较集合，不设最多 8 条件。
+训练仍为完整 B0：主视图 1000 个表达基因上预测 MSE，SSL1 图 2 Global+2 Local，SSL2 表达 2 Global+2 Local，两套 Global 比例均为 60%–90%、Local 为 25%–50%，取 round 后的节点数；SSL1 分母是图节点、两种 Local 分别从 GO/STRING 扩展取节点诱导子图，SSL2 分母是本次1000查询基因、两种 Local 都是随机基因子集。图视图强制包含本次条件靶点（可能使极小图上的比例超出目标）；教师只读未遮蔽 Global，Student 读全部四视图。四个投影头均为 256→2048→256→8192。当前新配置权重：MSE + 1×(0.8 condition + 0.4 node + 0.1 spread) + 1×(0.8 DINO + 0.4 iBOT + 0.1 KoLeo)；旧 λ₂=0.1 运行保留其原配置身份。默认统一 row_mean；condition_mean 是整套 S1 消融。图 node、spread 和教师 center 按现有例外。KoLeo 的跨双卡/累积窗口候选排除**同一扰动条件**，至少两个非 control 条件进入每个有效比较集合，不设最多 8 条件。
 
 ## 单遍覆盖规则（2026-09-26）
 

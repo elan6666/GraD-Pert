@@ -14,6 +14,7 @@ ONE_EPOCH = (
     / "configs/v2/optimized_single_pass_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml"
 )
 CHUNK_SWEEP = Path(__file__).resolve().parents[2] / "configs/v2/chunk_sweep_jurkat"
+SOURCE_GATE_CHUNK = Path(__file__).resolve().parents[2] / "configs/v2/source_key_gate_chunk_jurkat"
 
 
 @pytest.mark.parametrize("variant,topk,chunk", [("default", 500, 32), ("top100", 100, 8)])
@@ -146,6 +147,62 @@ def test_chunk_sweep_changes_one_execution_parameter(variant, field, value):
     )
     assert config.training.max_epochs.value == 1
     assert config.training.train_batch_size.value == 128
+
+
+@pytest.mark.parametrize(
+    "variant,fields",
+    [
+        ("gate_only_m32_a2", {"graph_source_key_gate": True}),
+        (
+            "chunks_only_m32_a2",
+            {"relay_scan_chunk_size": 64, "relay_sequence_chunk_size": 256},
+        ),
+        (
+            "combined_m32_a2",
+            {
+                "graph_source_key_gate": True,
+                "relay_scan_chunk_size": 64,
+                "relay_sequence_chunk_size": 256,
+            },
+        ),
+        (
+            "combined_rows96_m32_a2",
+            {
+                "graph_source_key_gate": True,
+                "relay_scan_chunk_size": 64,
+                "relay_sequence_chunk_size": 256,
+                "relay_graph_chunk_rows": 96,
+            },
+        ),
+        (
+            "combined_rows128_m32_a2",
+            {
+                "graph_source_key_gate": True,
+                "relay_scan_chunk_size": 64,
+                "relay_sequence_chunk_size": 256,
+                "relay_graph_chunk_rows": 128,
+            },
+        ),
+    ],
+)
+def test_source_gate_chunk_profiles_are_self_contained_and_factorial(variant, fields):
+    reference_path = SOURCE_GATE_CHUNK / "reference_m32_a2/gradpert_v2/nadig_jurkat.yaml"
+    candidate_path = SOURCE_GATE_CHUNK / variant / "gradpert_v2/nadig_jurkat.yaml"
+    reference = yaml.safe_load(reference_path.read_text())
+    current_one_epoch = yaml.safe_load(ONE_EPOCH.read_text())
+    current_one_epoch["model"]["parameters"]["microbatch"]["value"] = 32
+    current_one_epoch["training"]["train_batch_size"]["value"] = 128
+    assert reference == current_one_epoch
+    candidate = yaml.safe_load(candidate_path.read_text())
+    for name, value in fields.items():
+        assert candidate["model"]["parameters"].pop(name)["value"] == value
+    assert candidate == reference
+    config = load_experiment_config(candidate_path)
+    arch, options = V2Options.parse_parameters(config.model.parameters)
+    assert all(getattr(arch, name) == value for name, value in fields.items())
+    assert (options.microbatch, options.accumulation, options.world_size) == (32, 2, 2)
+    assert (options.lambda1, options.lambda2) == (1.0, 1.0)
+    assert (config.training.max_epochs.value, config.training.train_batch_size.value) == (1, 128)
 
 
 @pytest.mark.parametrize("change", ["version", "batch", "policy", "unknown"])
