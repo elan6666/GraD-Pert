@@ -13,6 +13,7 @@ ONE_EPOCH = (
     Path(__file__).resolve().parents[2]
     / "configs/v2/optimized_single_pass_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml"
 )
+CHUNK_SWEEP = Path(__file__).resolve().parents[2] / "configs/v2/chunk_sweep_jurkat"
 
 
 @pytest.mark.parametrize("variant,topk,chunk", [("default", 500, 32), ("top100", 100, 8)])
@@ -114,6 +115,35 @@ def test_v2_one_epoch_is_separate_policy_and_keeps_the_current_method():
     payload["training"]["max_epochs"]["value"] = 5
     with pytest.raises(ValueError, match="exactly 1 epoch"):
         ExperimentConfig.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "variant,field,value",
+    [
+        ("scan48_m32_a2", "relay_scan_chunk_size", 48),
+        ("scan64_m32_a2", "relay_scan_chunk_size", 64),
+        ("rows96_m32_a2", "relay_graph_chunk_rows", 96),
+        ("rows128_m32_a2", "relay_graph_chunk_rows", 128),
+    ],
+)
+def test_chunk_sweep_changes_one_execution_parameter(variant, field, value):
+    reference_path = CHUNK_SWEEP / "reference_m32_a2/gradpert_v2/nadig_jurkat.yaml"
+    candidate_path = CHUNK_SWEEP / variant / "gradpert_v2/nadig_jurkat.yaml"
+    reference = yaml.safe_load(reference_path.read_text())
+    candidate = yaml.safe_load(candidate_path.read_text())
+    assert candidate["model"]["parameters"].pop(field)["value"] == value
+    assert candidate == reference
+    config = load_experiment_config(candidate_path)
+    arch, options = V2Options.parse_parameters(config.model.parameters)
+    assert getattr(arch, field) == value
+    assert (options.lambda2, options.ssl2_dino, options.ssl2_ibot, options.ssl2_koleo) == (
+        1.0,
+        0.8,
+        0.4,
+        0.1,
+    )
+    assert config.training.max_epochs.value == 1
+    assert config.training.train_batch_size.value == 128
 
 
 @pytest.mark.parametrize("change", ["version", "batch", "policy", "unknown"])

@@ -123,6 +123,13 @@ def validate_execution_factor(
         for i, payload in enumerate(payloads):
             option = payload["model"]["parameters"].pop("relay_validate_once", {"value": False})
             require(option["value"] is bool(i), "wrong reference/candidate execution setting")
+    elif factor in {"relay_scan_chunk_size", "relay_graph_chunk_rows"}:
+        default = 32 if factor == "relay_scan_chunk_size" else 64
+        candidates = {48, 64} if factor == "relay_scan_chunk_size" else {96, 128}
+        reference = payloads[0]["model"]["parameters"].pop(factor, {"value": default})
+        candidate = payloads[1]["model"]["parameters"].pop(factor, None)
+        require(reference["value"] == default, "wrong reference chunk setting")
+        require(candidate is not None and candidate["value"] in candidates, "wrong chunk candidate")
     elif factor not in {"cpu_prefetch", "fused_sinkhorn", "fused_gram", "teacher_no_grad_elision"}:
         raise ValueError("unsupported execution factor")
     require(payloads[0] == payloads[1], "more than one configuration factor changed")
@@ -174,6 +181,8 @@ def main() -> None:
         "--execution-factor",
         choices=(
             "relay_validate_once",
+            "relay_scan_chunk_size",
+            "relay_graph_chunk_rows",
             "cpu_prefetch",
             "fused_sinkhorn",
             "fused_gram",

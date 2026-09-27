@@ -115,6 +115,26 @@ def test_cpu_prefetch_factor_requires_identical_configs_and_only_expected_flags(
         MODULE.validate_execution_factor(payloads, rows, "cpu_prefetch")
 
 
+@pytest.mark.parametrize(
+    "factor,default,candidate",
+    [("relay_scan_chunk_size", 32, 64), ("relay_graph_chunk_rows", 64, 128)],
+)
+def test_chunk_factor_requires_only_the_selected_setting(factor, default, candidate):
+    payloads = [
+        {"model": {"parameters": {"width": {"value": 256}}}},
+        {"model": {"parameters": {"width": {"value": 256}, factor: {"value": candidate}}}},
+    ]
+    rows = [receipt(10) for _ in range(4)]
+    MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, factor)
+    payloads[0]["model"]["parameters"][factor] = {"value": default + 1}
+    with pytest.raises(ValueError, match="reference chunk"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, factor)
+    payloads[0]["model"]["parameters"][factor] = {"value": default}
+    payloads[1]["model"]["parameters"]["dropout"] = {"value": 0.2}
+    with pytest.raises(ValueError, match="configuration factor"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, factor)
+
+
 def test_fused_sinkhorn_rejects_hidden_prefetch_and_missing_activation():
     payloads = [{"model": {"parameters": {}}} for _ in range(2)]
     rows = [receipt(10) for _ in range(4)]

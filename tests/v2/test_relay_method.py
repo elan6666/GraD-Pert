@@ -53,13 +53,16 @@ def small_index(n: int = 9) -> NeighborhoodIndex:
     return NeighborhoodIndex(topology, 1, 7, expander_type="hamiltonian", relay=True)
 
 
-@pytest.mark.parametrize("chunk_size", [1, 3, 32])
-def test_chunk_final_state_and_carried_state_match_reference_gradients(chunk_size: int) -> None:
+@pytest.mark.parametrize("chunk_size", [1, 3, 32, 48, 64])
+@pytest.mark.parametrize("length", [9, 47])
+def test_chunk_final_state_and_carried_state_match_reference_gradients(
+    chunk_size: int, length: int
+) -> None:
     torch.manual_seed(4)
-    k = torch.randn(2, 9, 2, 4, requires_grad=True)
-    v = torch.randn(2, 9, 2, 4, requires_grad=True)
+    k = torch.randn(2, length, 2, 4, requires_grad=True)
+    v = torch.randn(2, length, 2, 4, requires_grad=True)
     decay = (-torch.rand_like(k)).requires_grad_()
-    beta = torch.rand(2, 9, 2, requires_grad=True)
+    beta = torch.rand(2, length, 2, requires_grad=True)
     initial = torch.randn(2, 2, 4, 4, requires_grad=True)
     reference = delta_final_state(k, v, decay, beta, initial)
     chunked = chunk_delta_final_state(k, v, decay, beta, initial, chunk_size=chunk_size)
@@ -72,6 +75,47 @@ def test_chunk_final_state_and_carried_state_match_reference_gradients(chunk_siz
         strict=True,
     ):
         torch.testing.assert_close(a, b, atol=3e-5, rtol=3e-4)
+
+
+def test_relay_scan_chunk_preserves_seeded_order_output_and_gradient() -> None:
+    torch.manual_seed(27)
+    layer = RelayDeltaAttention(8, 2).eval()
+    layer.write_passes = 1
+    x = torch.randn(2, 70, 8, requires_grad=True)
+    order = torch.stack((torch.randperm(69), torch.randperm(69)))
+    rng_before = torch.get_rng_state().clone()
+
+    layer.scan_chunk_size = 32
+    reference = layer(x, order=order)
+    grad_reference = torch.autograd.grad(reference.square().mean(), x, retain_graph=True)[0]
+    rng_reference = torch.get_rng_state().clone()
+    layer.scan_chunk_size = 64
+    actual = layer(x, order=order)
+    grad_actual = torch.autograd.grad(actual.square().mean(), x)[0]
+    assert torch.equal(rng_before, rng_reference)
+    assert torch.equal(rng_reference, torch.get_rng_state())
+    torch.testing.assert_close(reference, actual, atol=3e-5, rtol=3e-4)
+    torch.testing.assert_close(grad_reference, grad_actual, atol=3e-5, rtol=3e-4)
+
+
+def test_relay_graph_row_chunk_preserves_eval_target_outputs() -> None:
+    torch.manual_seed(13)
+    reference = GraDPertV2(torch.randn(9, 8), small_architecture()).eval()
+    candidate = GraDPertV2(
+        torch.randn(9, 8), replace(small_architecture(), relay_graph_chunk_rows=4)
+    ).eval()
+    candidate.load_state_dict(reference.state_dict())
+    view = small_index().view(
+        np.arange(9), [(0,)], rng=np.random.default_rng(3), device=torch.device("cpu")
+    )
+    assert view.context is not None
+    actual = candidate.graph(
+        view.ids, view.neighbors, view.valid, view.sources, context=view.context
+    )
+    expected = reference.graph(
+        view.ids, view.neighbors, view.valid, view.sources, context=view.context
+    )
+    torch.testing.assert_close(expected, actual, atol=3e-5, rtol=3e-4)
 
 
 @pytest.mark.parametrize("passes", [1, 2])

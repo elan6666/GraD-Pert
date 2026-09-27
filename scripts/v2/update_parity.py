@@ -130,6 +130,8 @@ def execution_changes(reference: Any, candidate: Any, repeat: bool) -> list[str]
             ["sinkhorn_backend"],
             ["short_graph_kernel"],
             ["cache_kda_constants"],
+            ["relay_scan_chunk_size"],
+            ["relay_graph_chunk_rows"],
         ), "one execution factor at a time"
     return changed
 
@@ -485,6 +487,9 @@ def main() -> None:
                                         candidate_architecture.sinkhorn_backend
                                     )
                                 if isinstance(module, RelayDeltaAttention):
+                                    module.scan_chunk_size = (
+                                        candidate_architecture.relay_scan_chunk_size
+                                    )
                                     module.replay_sequences = (
                                         candidate_architecture.relay_kernel == "cudagraphs"
                                     )
@@ -498,6 +503,9 @@ def main() -> None:
                                         candidate_architecture.cache_kda_constants
                                     )
                                 if isinstance(module, RelayGraphLayer):
+                                    module.chunk_rows = (
+                                        candidate_architecture.relay_graph_chunk_rows
+                                    )
                                     module.validate_once = (
                                         candidate_architecture.relay_validate_once
                                     )

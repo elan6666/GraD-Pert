@@ -32,6 +32,8 @@ class V2Architecture:
     relay_validate_once: bool = False
     short_graph_kernel: bool = False
     cache_kda_constants: bool = False
+    relay_scan_chunk_size: int = 32
+    relay_graph_chunk_rows: int = 64
 
     def __post_init__(self) -> None:
         for name in (
@@ -47,6 +49,8 @@ class V2Architecture:
             "sparse_index_dim",
             "sparse_query_chunk",
             "kda_layers",
+            "relay_scan_chunk_size",
+            "relay_graph_chunk_rows",
         ):
             if type(getattr(self, name)) is not int or getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be a positive integer")
@@ -112,6 +116,10 @@ class V2Architecture:
             self.attention != "relay_full" or self.relay_kernel != "eager"
         ):
             raise ValueError("KDA constant cache requires eager relay attention")
+        if (self.relay_scan_chunk_size != 32 or self.relay_graph_chunk_rows != 64) and (
+            self.attention != "relay_full" or self.relay_kernel != "eager"
+        ):
+            raise ValueError("relay chunk tuning requires eager relay attention")
 
     @classmethod
     def parse(cls, values: dict[str, Any]) -> V2Architecture:
@@ -138,6 +146,10 @@ class V2Architecture:
             values.pop("short_graph_kernel")
         if not self.cache_kda_constants:
             values.pop("cache_kda_constants")
+        if self.relay_scan_chunk_size == 32:
+            values.pop("relay_scan_chunk_size")
+        if self.relay_graph_chunk_rows == 64:
+            values.pop("relay_graph_chunk_rows")
         return values
 
 
@@ -207,6 +219,8 @@ class V2Options:
             "relay_validate_once",
             "short_graph_kernel",
             "cache_kda_constants",
+            "relay_scan_chunk_size",
+            "relay_graph_chunk_rows",
             "koleo_exclude_same_condition",
             "graph_view_mode",
         }

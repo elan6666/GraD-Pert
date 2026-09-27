@@ -278,6 +278,7 @@ class GeneGraph(nn.Module):
                         options.width,
                         options.heads,
                         options.dropout,
+                        chunk_rows=options.relay_graph_chunk_rows,
                         checkpoint_chunks=options.checkpoint_layers,
                     )
                     for _ in range(3)
@@ -412,6 +413,7 @@ class GraDPertV2(nn.Module):
                 module.validate_once = options.relay_validate_once
             if isinstance(module, RelayDeltaAttention):
                 module.write_passes = options.relay_passes
+                module.scan_chunk_size = options.relay_scan_chunk_size
                 module.compiled_chunks = options.relay_kernel == "inductor"
                 module.replay_sequences = options.relay_kernel == "cudagraphs"
                 module.short_graph_kernel = options.short_graph_kernel
