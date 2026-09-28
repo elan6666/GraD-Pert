@@ -6,6 +6,7 @@ import torch
 from test_components import fixture
 
 from gradpert.config.step_schedule import EndpointLRWarmupCosine
+from gradpert.data._io import read_json
 from gradpert.training.v2.lifecycle import fit
 from gradpert.training.v2.objective import JointObjective
 from gradpert.training.v2.optimizer import V2Optimizer
@@ -55,16 +56,26 @@ def test_interrupted_epoch_resume_matches_uninterrupted_and_keeps_best_last(tmp_
         from gradpert.training.v2.lifecycle import test_selected as evaluate_selected
 
         calls = []
+        roles = []
 
         def test():
             calls.append(1)
             return {"split": "test", "metric": 0.5}
 
         receipts = evaluate_selected(
-            objective, root=root, evaluation_identity={"source": "test"}, test=test
+            objective,
+            root=root,
+            evaluation_identity={"source": "test"},
+            test=test,
+            on_role_start=roles.append,
         )
         assert set(receipts) == {"best", "last"}
         assert len(calls) == 2
+        assert roles == ["best", "last"]
+        progress = read_json(root / "live_progress.json")
+        assert progress["phase"] == "training_complete"
+        assert progress["optimizer_steps_completed"] == 9
+        assert progress["epoch_steps_total"] == 3
         evaluate_selected(objective, root=root, evaluation_identity={"source": "test"}, test=test)
         assert len(calls) == 2
         return state, rng.random(), journal

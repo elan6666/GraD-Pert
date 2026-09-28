@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 import os
+import time
 from collections.abc import Callable, Iterable
 from dataclasses import asdict
 from functools import partial
@@ -127,6 +128,42 @@ def fit(
             },
         }
         primary_call(partial(atomic_json, journal_path, journal))
+    progress_started = time.monotonic()
+
+    def live(
+        phase: str,
+        epoch_number: int,
+        epoch_step: int,
+        terms: dict[str, float] | None = None,
+        throughput: dict[str, float] | None = None,
+    ) -> None:
+        """Publish diagnostics after committed updates without changing training collectives."""
+        if rank != 0:
+            return
+        completed = (epoch_number - 1) * steps_per_epoch + epoch_step
+        elapsed = max(0.0, time.monotonic() - progress_started)
+        payload = {
+            "schema_version": "gradpert-v2-live-progress-1",
+            "run_id": identity.get("run_id"),
+            "phase": phase,
+            "epoch": epoch_number,
+            "epochs_total": epochs,
+            "epoch_step": epoch_step,
+            "epoch_steps_total": steps_per_epoch,
+            "optimizer_steps_completed": completed,
+            "optimizer_steps_total": total,
+            "fraction_complete": completed / total,
+            "elapsed_seconds_this_process": elapsed,
+            "latest_training_terms": terms,
+            "throughput": throughput,
+        }
+        try:
+            atomic_json(root / "live_progress.json", payload)
+        except OSError as error:
+            # The progress display is diagnostic; a transient filesystem error
+            # cannot change model updates, EMA, centers, or checkpoint selection.
+            print(f"v2 live-progress write failed: {error}", flush=True)
+
     primary_call(lambda: atomic_json(root / "history.json", history))
     # Reuse native strict-improvement selection. Fixed-budget v2 deliberately
     # ignores the early-stop signal, just like native R50 selection runs.
@@ -137,6 +174,9 @@ def fit(
         )
     for epoch in range(len(history), epochs):
         sums: dict[str, float] = {}
+        epoch_started = time.monotonic()
+        epoch_cells = 0
+        live("training", epoch + 1, 0)
 
         def update(
             batch: TrainingBatch,
@@ -144,7 +184,9 @@ def fit(
             *,
             current_epoch: int = epoch,
             totals: dict[str, float] = sums,
+            start_epoch: float = epoch_started,
         ) -> None:
+            nonlocal epoch_cells
             step = current_epoch * steps_per_epoch + count
             momentum = (
                 teacher_end
@@ -153,11 +195,15 @@ def fit(
                 / 2
             )
             global_conditions = batch.condition_index if distributed else None
+            global_cells = len(batch.control)
             if distributed:
-                cells = len(batch.control)
-                if cells < world:
+                if global_cells < world:
                     raise ValueError("global batch must provide a row to every rank")
-                batch = slice_cells(batch, cells * rank // world, cells * (rank + 1) // world)
+                batch = slice_cells(
+                    batch,
+                    global_cells * rank // world,
+                    global_cells * (rank + 1) // world,
+                )
             terms = optimizer_step(
                 objective,
                 optimizer,
@@ -170,10 +216,30 @@ def fit(
             )
             for name, value in terms.items():
                 totals[name] = totals.get(name, 0.0) + value
+            epoch_cells += global_cells
+            live(
+                "training",
+                current_epoch + 1,
+                count + 1,
+                terms,
+                {
+                    "cells_completed_this_epoch": epoch_cells,
+                    "cells_per_second_this_epoch": epoch_cells
+                    / max(time.monotonic() - start_epoch, 1e-9),
+                },
+            )
+            if rank == 0 and ((count + 1) % 10 == 0 or count + 1 == steps_per_epoch):
+                print(
+                    f"v2 epoch {current_epoch + 1}/{epochs} step "
+                    f"{count + 1}/{steps_per_epoch} joint_loss="
+                    f"{terms.get('joint_loss', float('nan')):.6f}",
+                    flush=True,
+                )
 
         count = execute_epoch(batches(epoch), update, maximum_steps=steps_per_epoch)
         if count != steps_per_epoch:
             raise ValueError("epoch iterator shorter than sealed step budget")
+        live("validation", epoch + 1, steps_per_epoch)
         validation = primary_call(validate)
         if validation.get("split") != "val":
             raise ValueError("checkpoint selection requires validation-only results")
@@ -189,6 +255,7 @@ def fit(
             }
         )
         checkpoint = root / f"epoch-{epoch + 1:04d}.pt"
+        live("checkpointing", epoch + 1, steps_per_epoch)
         save_checkpoint(
             checkpoint,
             objective,
@@ -230,6 +297,8 @@ def fit(
                     old.unlink()
 
         primary_call(prune)
+        live("epoch_complete", epoch + 1, steps_per_epoch)
+    live("training_complete", epochs, steps_per_epoch)
     return journal
 
 
@@ -239,6 +308,7 @@ def _test_selected(
     root: Path,
     evaluation_identity: dict[str, Any],
     test: Callable[[], dict[str, Any]],
+    on_role_start: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     """Evaluate both selected roles after the full sealed epoch budget.
 
@@ -266,6 +336,8 @@ def _test_selected(
                 raise ValueError("existing test receipt belongs to another evaluation")
             receipts[role] = saved
             continue
+        if on_role_start is not None:
+            on_role_start(role)
         load_evaluation_checkpoint(
             root / selected["file"],
             objective,
@@ -286,9 +358,14 @@ def test_selected(
     root: Path,
     evaluation_identity: dict[str, Any],
     test: Callable[[], dict[str, Any]],
+    on_role_start: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     return primary_call(
         lambda: _test_selected(
-            objective, root=root, evaluation_identity=evaluation_identity, test=test
+            objective,
+            root=root,
+            evaluation_identity=evaluation_identity,
+            test=test,
+            on_role_start=on_role_start,
         )
     )

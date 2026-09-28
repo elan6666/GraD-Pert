@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import asdict
 from typing import Any, Literal
 
@@ -174,6 +175,7 @@ def evaluate(
     block_response_cls_to_gene: bool = False,
     selection_gene_ids: tuple[int, ...] | None = None,
     metric_gene_groups: dict[str, tuple[int, ...]] | None = None,
+    on_condition_complete: Callable[[int, int, str], None] | None = None,
 ) -> dict[str, Any]:
     if data.split_name != expected_split or data.control_manifest.split_name != expected_split:
         raise ValueError("evaluation split differs from requested lifecycle stage")
@@ -203,7 +205,8 @@ def evaluate(
     groups = metric_gene_groups or {}
     losses, metrics, rows = [], [], []
     group_metrics: dict[str, list[Any]] = {key: [] for key in groups}
-    for draw in data.control_manifest.draws:
+    total_conditions = len(data.control_manifest.draws)
+    for condition_number, draw in enumerate(data.control_manifest.draws, start=1):
         condition = draw.condition_id
         ids = tuple(draw.ordered_row_ids)
         controls = data.load_control_rows(ids)
@@ -267,6 +270,8 @@ def evaluate(
                 "truth_row_ids_sha256": sha256_json(list(truth.ordered_row_ids)),
             }
         )
+        if on_condition_complete is not None:
+            on_condition_complete(condition_number, total_conditions, condition)
     if not losses:
         raise ValueError("evaluation split is empty")
     return {

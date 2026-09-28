@@ -21,6 +21,14 @@ class DatasetArgs(TypedDict):
     data_root: Path
 
 
+def _write_live_progress(path: Path, payload: dict[str, Any]) -> None:
+    """Keep optional status I/O outside the scientific success criterion."""
+    try:
+        atomic_json(path, payload)
+    except OSError as error:
+        print(f"v2 live-progress write failed: {error}", flush=True)
+
+
 def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     """Run the sealed fixed-epoch lifecycle, then test both checkpoint roles."""
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
@@ -103,6 +111,23 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
         with CanonicalEvaluationData(**common, split_name="val") as data:
 
             def validate() -> dict[str, Any]:
+                current_epoch = runtime.optimizer.steps // runtime.steps_per_epoch
+
+                def val_progress(done: int, count: int, condition: str) -> None:
+                    _write_live_progress(
+                        root / "fit/live_progress.json",
+                        {
+                            "schema_version": "gradpert-v2-live-progress-1",
+                            "run_id": plan["run_id"],
+                            "phase": "validation",
+                            "epoch": current_epoch,
+                            "epochs_total": int(config.training.max_epochs.value),
+                            "conditions_completed": done,
+                            "conditions_total": count,
+                            "latest_condition": condition,
+                        },
+                    )
+
                 result = evaluate(
                     runtime.objective.student,
                     runtime.index,
@@ -117,6 +142,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                     device=device,
                     cell_batch=int(config.training.eval_batch_size.value),
                     query_count=runtime.options.eval_query_count,
+                    on_condition_complete=val_progress,
                 )
                 return compact_validation(result, root=root)
 
@@ -142,6 +168,35 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
         primary_call(lambda: prepare_evaluation_state(**common))
         reference = load_evaluation_state(**common)
         with CanonicalEvaluationData(**common, split_name="test") as data:
+            current_role = ["unknown"]
+
+            def start_role(role: str) -> None:
+                current_role[0] = role
+                _write_live_progress(
+                    root / "fit/live_progress.json",
+                    {
+                        "schema_version": "gradpert-v2-live-progress-1",
+                        "run_id": plan["run_id"],
+                        "phase": "test",
+                        "checkpoint_role": role,
+                        "conditions_completed": 0,
+                        "conditions_total": len(data.control_manifest.draws),
+                    },
+                )
+
+            def test_progress(done: int, count: int, condition: str) -> None:
+                _write_live_progress(
+                    root / "fit/live_progress.json",
+                    {
+                        "schema_version": "gradpert-v2-live-progress-1",
+                        "run_id": plan["run_id"],
+                        "phase": "test",
+                        "checkpoint_role": current_role[0],
+                        "conditions_completed": done,
+                        "conditions_total": count,
+                        "latest_condition": condition,
+                    },
+                )
 
             def test() -> dict[str, Any]:
                 return evaluate(
@@ -153,10 +208,15 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                     device=device,
                     cell_batch=int(config.training.eval_batch_size.value),
                     query_count=runtime.options.eval_query_count,
+                    on_condition_complete=test_progress,
                 )
 
             results = test_selected(
-                runtime.objective, root=root / "fit", evaluation_identity=identity, test=test
+                runtime.objective,
+                root=root / "fit",
+                evaluation_identity=identity,
+                test=test,
+                on_role_start=start_role,
             )
         if any(root.rglob("*.pkl")):
             raise ValueError("v2 successful run must contain zero PKL files")
@@ -169,6 +229,19 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             "zero_pkl": True,
         }
         primary_call(lambda: atomic_json(root / "COMPLETE.json", complete))
+        primary_call(
+            lambda: _write_live_progress(
+                root / "fit/live_progress.json",
+                {
+                    "schema_version": "gradpert-v2-live-progress-1",
+                    "run_id": plan["run_id"],
+                    "phase": "complete",
+                    "epoch": journal["epoch"],
+                    "epochs_total": int(config.training.max_epochs.value),
+                    "test_roles": list(results),
+                },
+            )
+        )
         return complete
 
 
