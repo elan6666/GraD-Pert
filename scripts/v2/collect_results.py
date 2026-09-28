@@ -37,6 +37,9 @@ def collect_run(root: Path) -> list[dict]:
     journal = read(journal_path) if journal_path.exists() else None
     if journal and journal["identity"] != manifest:
         raise ValueError("epoch journal training identity differs from manifest")
+    selection_metric = journal.get("selection_metric", "prediction_loss") if journal else None
+    if selection_metric not in (None, "prediction_loss", "joint_loss"):
+        raise ValueError("unsupported validation selection metric")
     complete_path = root / "COMPLETE.json"
     complete = read(complete_path) if complete_path.exists() else None
     if complete:
@@ -53,15 +56,15 @@ def collect_run(root: Path) -> list[dict]:
             raise ValueError("completion lacks all committed epochs")
         if any(
             h["validation"]["split"] != "val"
-            or not math.isfinite(h["validation"]["prediction_loss"])
+            or not math.isfinite(h["validation"][selection_metric])
             for h in history
         ):
             raise ValueError("selection history must contain finite validation losses")
-        best = min(history, key=lambda h: h["validation"]["prediction_loss"])
+        best = min(history, key=lambda h: h["validation"][selection_metric])
         for role, row in (("best", best), ("last", history[-1])):
             if (
                 journal[role]["epoch"] != row["epoch"]
-                or journal[role]["prediction_loss"] != row["validation"]["prediction_loss"]
+                or journal[role][selection_metric] != row["validation"][selection_metric]
             ):
                 raise ValueError("checkpoint selection differs from validation history")
         if set(complete["test_roles"]) != {"best", "last"} or not complete["zero_pkl"]:
@@ -94,6 +97,8 @@ def collect_run(root: Path) -> list[dict]:
         row.update(
             checkpoint_sha256=selected["sha256"],
             checkpoint_epoch=selected["epoch"],
+            validation_selection_metric=selection_metric,
+            validation_selection_loss=selected[selection_metric],
             validation_prediction_loss=selected["prediction_loss"],
             status="missing_test",
         )

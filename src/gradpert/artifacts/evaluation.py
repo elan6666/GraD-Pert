@@ -126,9 +126,11 @@ def _array_reference(path: Path, key: str, value: np.ndarray[Any, Any]) -> Array
 
 
 def _metric_contracts(metrics: ConditionMetrics) -> list[ConditionMetricValue]:
+    if len(metrics.results) != 3:
+        raise ValueError("legacy evaluation bundle requires three frozen metric roles")
     return [
         ConditionMetricValue(
-            metric_id=result.metric_id,
+            metric_id=cast(Any, result.metric_id),
             value=result.value,
             reason=result.reason,
             gene_count=result.gene_count,
@@ -147,7 +149,7 @@ def _availability(metrics: Sequence[ConditionMetrics]) -> list[MetricAvailabilit
             reason = ";".join(unique_reasons) or "no_finite_condition_values"
         contracts.append(
             MetricAvailability(
-                metric_id=summary.metric_id,
+                metric_id=cast(Any, summary.metric_id),
                 available=available,
                 macro_mean=summary.macro_mean,
                 reason=reason,
@@ -358,6 +360,8 @@ def seal_frozen_evaluation_bundle(
     """Join one prediction artifact to canonical truth through frozen evaluator state."""
 
     manifest = state.manifest
+    if manifest.schema_version != "evaluation-state-v1":
+        raise ValueError("legacy evaluation bundle requires evaluation-state-v1")
     prediction_manifest = prediction.manifest
     if (manifest.dataset_id, manifest.protocol_id) != (
         prediction_manifest.dataset_id,
@@ -409,7 +413,7 @@ def seal_frozen_evaluation_bundle(
         de_gene_indices_sha256=manifest.de_gene_indices_sha256,
         top_de_gene_indices_sha256=manifest.top_de_gene_indices_sha256,
         de_unavailable_reasons_sha256=manifest.de_unavailable_reasons_sha256,
-        de_method=manifest.de_method,
+        de_method=cast(Any, manifest.de_method),
         de_reference=manifest.de_reference,
         de_source_commit=manifest.de_source_commit,
         systema_reference_condition_ids=tuple(manifest.systema_reference_condition_ids),

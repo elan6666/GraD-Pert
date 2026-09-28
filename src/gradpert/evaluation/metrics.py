@@ -12,6 +12,12 @@ MetricId = Literal[
     "txpert_macro_pearson_delta",
     "trishift_pearson_delta",
     "systema_pearson",
+    "txpert_macro_pearson_delta_all",
+    "txpert_macro_pearson_delta_deg",
+    "trishift_pearson_delta_all",
+    "trishift_pearson_delta_deg",
+    "systema_pearson_all",
+    "systema_pearson_deg",
 ]
 
 
@@ -26,7 +32,7 @@ class ConditionMetricResult:
 @dataclass(frozen=True)
 class ConditionMetrics:
     condition_id: str
-    results: tuple[ConditionMetricResult, ConditionMetricResult, ConditionMetricResult]
+    results: tuple[ConditionMetricResult, ...]
 
 
 @dataclass(frozen=True)
@@ -168,6 +174,72 @@ def compute_condition_metrics(
     return ConditionMetrics(condition_id=condition_id, results=(txpert, trishift, systema))
 
 
+def compute_condition_metrics_v2(
+    *,
+    condition_id: str,
+    prediction: np.ndarray[Any, Any],
+    input_control: np.ndarray[Any, Any],
+    truth: np.ndarray[Any, Any],
+    metric_control_pool_mean: np.ndarray[Any, Any],
+    de_gene_indices: Sequence[int],
+    systema_reference: np.ndarray[Any, Any],
+    de_unavailable_reason: str | None = None,
+    gene_indices: Sequence[int] | None = None,
+) -> ConditionMetrics:
+    """Six v2 Pearsons: three references, each on all selected genes and one shared DEG set."""
+    if not condition_id:
+        raise ValueError("condition_id must be non-empty")
+    pred = _population(prediction, "prediction")
+    control = _population(input_control, "input_control")
+    observed = _population(truth, "truth")
+    if pred.shape != control.shape or pred.shape[0] != 300 or observed.shape[1] != pred.shape[1]:
+        raise ValueError("prediction/control/truth populations are not aligned")
+    n = pred.shape[1]
+    metric_control = _vector(metric_control_pool_mean, "metric_control_pool_mean")
+    reference = _vector(systema_reference, "systema_reference")
+    if metric_control.shape != (n,) or reference.shape != (n,):
+        raise ValueError("metric reference gene dimension differs")
+    selected = np.arange(n) if gene_indices is None else _indices(gene_indices, n, "gene_indices")
+    if de_unavailable_reason is None:
+        de = _indices(de_gene_indices, n, "de_gene_indices")
+        de = de[np.isin(de, selected)]
+    else:
+        if de_gene_indices:
+            raise ValueError("unavailable DE reason requires empty DE index set")
+        de = np.asarray([], dtype=np.int64)
+    pred_mean = pred.mean(axis=0)
+    truth_mean = observed.mean(axis=0)
+    input_mean = control.mean(axis=0)
+    axes = (
+        ("txpert_macro_pearson_delta", input_mean),
+        ("trishift_pearson_delta", metric_control),
+        ("systema_pearson", reference),
+    )
+    results: list[ConditionMetricResult] = []
+    for family, baseline in axes:
+        for suffix, indices in (("all", selected), ("deg", de)):
+            metric_id = cast(MetricId, f"{family}_{suffix}")
+            if suffix == "deg" and de_unavailable_reason is not None:
+                results.append(
+                    ConditionMetricResult(
+                        metric_id, None, f"de_unavailable:{de_unavailable_reason}", 0
+                    )
+                )
+            elif len(indices) < 2:
+                results.append(
+                    ConditionMetricResult(metric_id, None, "fewer_than_two_genes", len(indices))
+                )
+            else:
+                results.append(
+                    _result(
+                        metric_id,
+                        (pred_mean - baseline)[indices],
+                        (truth_mean - baseline)[indices],
+                    )
+                )
+    return ConditionMetrics(condition_id, tuple(results))
+
+
 def build_systema_reference(
     train_validation_noncontrol_populations: Mapping[str, np.ndarray[Any, Any]],
 ) -> np.ndarray[Any, Any]:
@@ -195,11 +267,11 @@ def build_systema_reference(
 def macro_summarize(condition_metrics: Sequence[ConditionMetrics]) -> tuple[MetricSummary, ...]:
     if not condition_metrics:
         raise ValueError("macro summary requires condition metrics")
-    expected: tuple[MetricId, ...] = (
-        "txpert_macro_pearson_delta",
-        "trishift_pearson_delta",
-        "systema_pearson",
-    )
+    expected = tuple(result.metric_id for result in condition_metrics[0].results)
+    if len(expected) not in (3, 6) or len(set(expected)) != len(expected):
+        raise ValueError("condition metric registry is incomplete or repeated")
+    if any(len(condition.results) != len(expected) for condition in condition_metrics):
+        raise ValueError("condition metric registry lengths differ")
     summaries = []
     for result_index, metric_id in enumerate(expected):
         results = [condition.results[result_index] for condition in condition_metrics]

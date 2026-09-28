@@ -9,7 +9,7 @@ import tempfile
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -31,6 +31,7 @@ class EvaluationStateLayout:
     dataset_id: str
     protocol_id: str
     validation_only: bool = False
+    evaluation_protocol: Literal["v1", "v2"] = "v1"
 
     @property
     def dataset(self) -> DatasetLayout:
@@ -38,6 +39,10 @@ class EvaluationStateLayout:
 
     @property
     def root(self) -> Path:
+        if self.evaluation_protocol == "v2":
+            return self.dataset.root / (
+                "validation_evaluation_v2" if self.validation_only else "evaluation_v2"
+            )
         return self.dataset.root / (
             "validation_evaluation_v1" if self.validation_only else "evaluation"
         )
@@ -106,22 +111,58 @@ def _condition_targets(condition_id: str, control_id: str) -> tuple[str, ...]:
     return targets
 
 
+def _ranked_de_indices(
+    ranked_genes: list[str],
+    gene_index: dict[str, int],
+    non_dropout: np.ndarray[Any, Any],
+    *,
+    condition: str,
+    control_id: str,
+    evaluation_protocol: Literal["v1", "v2"],
+) -> list[int]:
+    eligible = [
+        gene_index[gene]
+        for gene in ranked_genes
+        if gene in gene_index and non_dropout[gene_index[gene]]
+    ][:20]
+    if evaluation_protocol == "v1":
+        targets = {
+            gene_index[target]
+            for target in _condition_targets(condition, control_id)
+            if target in gene_index
+        }
+        eligible = [index for index in eligible if index not in targets]
+    return sorted(set(eligible))
+
+
+def _systema_reference_conditions(split: SplitManifest, *, validation_only: bool) -> list[str]:
+    return (
+        list(split.train_conditions)
+        if validation_only
+        else [*split.train_conditions, *split.val_conditions]
+    )
+
+
 def prepare_evaluation_state(
     *,
     dataset_id: str,
     protocol_id: str,
     data_root: str | Path,
     validation_only: bool = False,
+    evaluation_protocol: Literal["v1", "v2"] = "v1",
 ) -> EvaluationStateManifest:
     """Materialize one model-independent evaluation state from canonical data."""
 
-    layout = EvaluationStateLayout(Path(data_root), dataset_id, protocol_id, validation_only)
+    layout = EvaluationStateLayout(
+        Path(data_root), dataset_id, protocol_id, validation_only, evaluation_protocol
+    )
     if layout.manifest.is_file():
         return load_evaluation_state(
             dataset_id=dataset_id,
             protocol_id=protocol_id,
             data_root=data_root,
             validation_only=validation_only,
+            evaluation_protocol=evaluation_protocol,
         ).manifest
     canonical = CanonicalDataManifest.model_validate(
         read_json(layout.dataset.manifests / "canonical.json")
@@ -227,26 +268,19 @@ def prepare_evaluation_state(
         ranked = ranked_by_condition.get(condition)
         if ranked is None:
             raise ValueError(f"Scanpy DE output lacks condition: {condition}")
-        eligible = [
-            gene_index[gene_id]
-            for gene_id in ranked
-            if gene_id in gene_index and non_dropout[gene_index[gene_id]]
-        ][:20]
-        target_indices = {
-            gene_index[target]
-            for target in _condition_targets(condition, split.control_condition_id)
-            if target in gene_index
-        }
-        final = sorted(set(eligible) - target_indices)
+        final = _ranked_de_indices(
+            ranked,
+            gene_index,
+            non_dropout,
+            condition=condition,
+            control_id=split.control_condition_id,
+            evaluation_protocol=evaluation_protocol,
+        )
         if not final:
-            raise ValueError(f"condition has no DE genes after target exclusion: {condition}")
+            raise ValueError(f"condition has no eligible DE genes: {condition}")
         de_by_condition[condition] = final
 
-    reference_conditions = (
-        list(split.train_conditions)
-        if validation_only
-        else [*split.train_conditions, *split.val_conditions]
-    )
+    reference_conditions = _systema_reference_conditions(split, validation_only=validation_only)
     reference_sum = np.zeros(canonical.n_expression_genes, dtype=np.float64)
     for condition in reference_conditions:
         reference_sum += _mean_rows(adata, np.flatnonzero(conditions == condition))
@@ -284,7 +318,9 @@ def prepare_evaluation_state(
         Path("data") / dataset_id / protocol_id / layout.root.name / "state_arrays.npz"
     )
     manifest = EvaluationStateManifest(
-        schema_version="evaluation-state-v1",
+        schema_version=(
+            "evaluation-state-v2" if evaluation_protocol == "v2" else "evaluation-state-v1"
+        ),
         dataset_id=canonical.dataset_id,
         protocol_id=canonical.protocol_id,
         canonical_data_sha256=canonical.canonical_adata_sha256,
@@ -298,7 +334,11 @@ def prepare_evaluation_state(
         top_de_gene_indices_sha256=sha256_json(de_by_condition),
         de_unavailable_reasons=de_unavailable_reasons,
         de_unavailable_reasons_sha256=sha256_json(de_unavailable_reasons),
-        de_method="scanpy_t_test_rankby_abs_non_dropout_top20_exclude_targets",
+        de_method=(
+            "scanpy_t_test_rankby_abs_non_dropout_top20_include_targets"
+            if evaluation_protocol == "v2"
+            else "scanpy_t_test_rankby_abs_non_dropout_top20_exclude_targets"
+        ),
         de_reference="ctrl",
         de_source_commit=DE_SOURCE_COMMIT,
         systema_reference_condition_ids=reference_conditions,
@@ -314,6 +354,7 @@ def prepare_evaluation_state(
         protocol_id=protocol_id,
         data_root=data_root,
         validation_only=validation_only,
+        evaluation_protocol=evaluation_protocol,
     ).manifest
 
 
@@ -323,11 +364,16 @@ def load_evaluation_state(
     protocol_id: str,
     data_root: str | Path,
     validation_only: bool = False,
+    evaluation_protocol: Literal["v1", "v2"] = "v1",
 ) -> LoadedEvaluationState:
     """Verify and load an existing frozen evaluation state."""
 
-    layout = EvaluationStateLayout(Path(data_root), dataset_id, protocol_id, validation_only)
+    layout = EvaluationStateLayout(
+        Path(data_root), dataset_id, protocol_id, validation_only, evaluation_protocol
+    )
     manifest = EvaluationStateManifest.model_validate(read_json(layout.manifest))
+    if manifest.schema_version != f"evaluation-state-{evaluation_protocol}":
+        raise ValueError("evaluation-state schema differs from requested protocol")
     canonical = CanonicalDataManifest.model_validate(
         read_json(layout.dataset.manifests / "canonical.json")
     )
@@ -343,8 +389,10 @@ def load_evaluation_state(
         if validation_only
         else [*split.val_conditions, *split.test_conditions]
     )
-    if validation_only and manifest.systema_reference_condition_ids != list(split.train_conditions):
-        raise ValueError("validation Systema reference must contain training conditions only")
+    if validation_only and (
+        manifest.systema_reference_condition_ids != list(split.train_conditions)
+    ):
+        raise ValueError("Systema reference must contain training conditions only")
     if manifest.condition_ids != expected_conditions:
         raise ValueError("evaluation-state conditions differ from the split")
     if sha256_file(layout.arrays) != manifest.arrays_sha256:

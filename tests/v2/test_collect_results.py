@@ -111,3 +111,37 @@ def test_rejects_early_completion_under_five_epoch_contract(tmp_path):
     write(tmp_path / "COMPLETE.json", complete)
     with pytest.raises(ValueError, match="fixed-epoch contract"):
         collect(tmp_path)
+
+
+def test_joint_loss_selects_best_even_when_prediction_loss_prefers_last(tmp_path):
+    completed(tmp_path, 3)
+    fit = tmp_path / "fit"
+    journal = json.loads((fit / "epoch_state.json").read_text())
+    history = json.loads((fit / "history.json").read_text())
+    for row, joint_loss in zip(history, (0.1, 0.3, 0.2), strict=True):
+        row["validation"]["joint_loss"] = joint_loss
+    write(fit / "history.json", history)
+    best_checkpoint = fit / "epoch-0001.pt"
+    best_checkpoint.write_bytes(b"joint-selected checkpoint")
+    journal["selection_metric"] = "joint_loss"
+    journal["best"] = {
+        "file": best_checkpoint.name,
+        "sha256": sha256_file(best_checkpoint),
+        "epoch": 1,
+        "joint_loss": 0.1,
+        "prediction_loss": 1.0,
+    }
+    journal["last"]["joint_loss"] = 0.2
+    write(fit / "epoch_state.json", journal)
+    for role in ("best", "last"):
+        test = json.loads((fit / f"{role}-test.json").read_text())
+        test["identity"]["checkpoint"] = journal[role]
+        write(fit / f"{role}-test.json", test)
+    write(
+        tmp_path / "COMPLETE.json",
+        {**journal, "test_roles": ["best", "last"], "zero_pkl": True},
+    )
+    rows = collect(tmp_path)
+    assert [row["checkpoint_epoch"] for row in rows] == [1, 3]
+    assert [row["validation_selection_loss"] for row in rows] == [0.1, 0.2]
+    assert all(row["validation_selection_metric"] == "joint_loss" for row in rows)

@@ -11,6 +11,7 @@ from gradpert.hashing import sha256_file
 from gradpert.training.curves import render_curves
 
 METRICS = ("txpert_macro_pearson_delta", "trishift_pearson_delta", "systema_pearson")
+METRICS_V2 = tuple(f"{family}_{axis}" for family in METRICS for axis in ("all", "deg"))
 
 
 def export_curves(root: Path) -> dict[str, Any]:
@@ -23,6 +24,13 @@ def export_curves(root: Path) -> dict[str, Any]:
     identity = journal["identity"]
     source = identity["source"]["commit"]
     has_joint = "joint_loss" in history[0]["validation"]
+    observed = {metric["metric_id"] for metric in history[0]["validation"]["metrics"]}
+    if observed == set(METRICS_V2):
+        metrics_registry = METRICS_V2
+    elif observed == set(METRICS):
+        metrics_registry = METRICS
+    else:
+        raise ValueError("v2 validation metric registry is incomplete")
     rows = []
     for record in history:
         validation = record["validation"]
@@ -31,8 +39,8 @@ def export_curves(root: Path) -> dict[str, Any]:
         if ("joint_loss" in validation) != has_joint:
             raise ValueError("validation selection loss changed within the run")
         metrics = {m["metric_id"]: m["macro_mean"] for m in validation["metrics"]}
-        if set(metrics) != set(METRICS):
-            raise ValueError("v2 validation must report all three metric roles")
+        if set(metrics) != set(metrics_registry):
+            raise ValueError("v2 validation metric registry differs within the run")
         rows.append(
             {
                 "epoch": record["epoch"],
@@ -75,7 +83,7 @@ def export_curves(root: Path) -> dict[str, Any]:
                 "source_commit": source,
                 "prediction_loss": row["validation_prediction_loss"],
                 **({"joint_loss": row["validation_joint_loss"]} if has_joint else {}),
-                **{metric: row[metric] for metric in METRICS},
+                **{metric: row[metric] for metric in metrics_registry},
             }
             atomic_json(shared / f"validation.epoch-{row['epoch'] - 1:04d}.json", payload)
     expected = {f"validation.epoch-{row['epoch'] - 1:04d}.json" for row in rows}

@@ -151,6 +151,30 @@ def test_test_metrics_use_one_prediction_for_all_three_gene_axes(monkeypatch):
     assert result["metric_gene_groups"]["empty_probe"]["unavailable_reason"] == (
         "empty_expression_group"
     )
+    reference.manifest.schema_version = "evaluation-state-v2"
+    upgraded = evaluate(
+        fixture()[0],
+        index,
+        data,
+        reference,
+        expected_split="test",
+        device=torch.device("cpu"),
+        cell_batch=2,
+        query_count=4,
+        metric_gene_groups={"seen_expression": (0, 1)},
+    )
+    assert calls == [1, 1]
+    assert len(upgraded["metrics"]) == 6
+    assert len(upgraded["metric_gene_groups"]["seen_expression"]["metrics"]) == 6
+    assert {item["metric_id"] for item in upgraded["metrics"]} == {
+        f"{family}_{axis}"
+        for family in (
+            "txpert_macro_pearson_delta",
+            "trishift_pearson_delta",
+            "systema_pearson",
+        )
+        for axis in ("all", "deg")
+    }
 
 
 def test_context_budgets_are_nested_and_keep_evaluation_axis_fixed():

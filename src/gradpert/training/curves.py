@@ -23,12 +23,20 @@ def render_curves(small_root: Path) -> None:
     records = [json.loads(f.read_text()) for f in files]
     if not steps or not records:
         raise ValueError("curves require training and validation records")
-    metrics = [
-        "prediction_loss",
-        *(["joint_loss"] if any("joint_loss" in record for record in records) else []),
+    metric_families = (
         "txpert_macro_pearson_delta",
         "trishift_pearson_delta",
         "systema_pearson",
+    )
+    pearsons = (
+        [f"{family}_{axis}" for family in metric_families for axis in ("all", "deg")]
+        if any(f"{metric_families[0]}_all" in record for record in records)
+        else list(metric_families)
+    )
+    metrics = [
+        "prediction_loss",
+        *(["joint_loss"] if any("joint_loss" in record for record in records) else []),
+        *pearsons,
     ]
     columns = ["epoch", "global_step", "run_id", "source_commit", *metrics]
     csv_path = small_root / "validation_curves.csv"

@@ -1,3 +1,18 @@
+# Active 2026-09-29: v2 single-stream B0 and evaluation upgrade
+
+Outcome: publish a new three-epoch Jurkat B0 with mHC removed via streams=1,
+joint-loss validation/selection, and six Pearson variants using one DEG set;
+complete best/last tests. Systema reference remains train-only for validation
+and train+val for test. Work is isolated in the managed
+`v2-gene-exposure-eval` worktree; published baseline c255480600447a452519c7a73a323241afa15ff8
+was clean and matched origin/main before edits. Evaluation-state-v2 uses a
+separate artifact path; prior v1 states and run IDs remain immutable. Current
+stage: local implementation/testing, not published or running. Server GPUs
+were idle on 2026-09-29; local environment has no Torch. Next: finish tests,
+publish scoped commit, verify a clean immutable server checkout, run full CUDA
+integration/capacity, then launch fresh 3-epoch B0 and supervise to best/last
+receipts. Details: `docs/experiments/GRADPERT_V2_NO_MHC_B0.md`.
+
 ## 2026-09-29：主会话完成 v2 验证/测试输出协议更新
 
 主会话已发布 `10193b6edffca802410fef837fd918844d4cc6e3`：新 v2 运行的 checkpoint 选择改为固定视图完整 joint validation loss；best/last 默认分别输出全表达轴与按实际训练表达暴露划分的两组各三种 Pearson；进度显示总/轮内 step、速度、比例和验证/测试阶段。Teacher/center 在验证时只读，验证 RNG 不推进训练 RNG；一次条件推理同时形成三组指标。隔离服务器 v2 回归 434 通过，扩展相关测试 48 通过（既有缺配置测试 1 项跳过），最终定向 37 通过；Ruff 全仓通过。`mypy` 剩余 29 条位于未改旧模块，未宣称全仓 typecheck 通过。新源码已推送 main；**未启动训练或评估**。历史 B0 与已有分组结果保持原身份，不按新协议追认。若后续获授权启动新 B0，先使用新 ID、干净服务器 checkout、配置哈希与新 joint validation 容量预检；现无长时间监督租约。

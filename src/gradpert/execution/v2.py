@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 from gradpert.config import load_experiment_config
 from gradpert.config.step_schedule import EndpointLRWarmupCosine, load_training_schedule
@@ -108,8 +108,15 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             "protocol_id": config.data.protocol_id,
             "data_root": data_root,
         }
-        primary_call(lambda: prepare_evaluation_state(**common, validation_only=True))
-        reference = load_evaluation_state(**common, validation_only=True)
+        evaluation_protocol: Literal["v1", "v2"] = "v2"
+        primary_call(
+            lambda: prepare_evaluation_state(
+                **common, validation_only=True, evaluation_protocol=evaluation_protocol
+            )
+        )
+        reference = load_evaluation_state(
+            **common, validation_only=True, evaluation_protocol=evaluation_protocol
+        )
         with CanonicalEvaluationData(**common, split_name="val") as data:
 
             def validate() -> dict[str, Any]:
@@ -208,8 +215,10 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             )
         primary_call(lambda: export_curves(root / "fit"))
         # Test references and truth are accessed only after all training and selection.
-        primary_call(lambda: prepare_evaluation_state(**common))
-        reference = load_evaluation_state(**common)
+        primary_call(
+            lambda: prepare_evaluation_state(**common, evaluation_protocol=evaluation_protocol)
+        )
+        reference = load_evaluation_state(**common, evaluation_protocol=evaluation_protocol)
         with CanonicalEvaluationData(**common, split_name="test") as data:
             current_role = ["unknown"]
             current_groups: list[dict[str, tuple[int, ...]] | None] = [None]

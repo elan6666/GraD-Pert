@@ -11,7 +11,11 @@ import torch
 
 from gradpert.evaluation.data import CanonicalEvaluationData
 from gradpert.evaluation.gene_groups import grouped_condition_metrics
-from gradpert.evaluation.metrics import compute_condition_metrics, macro_summarize
+from gradpert.evaluation.metrics import (
+    compute_condition_metrics,
+    compute_condition_metrics_v2,
+    macro_summarize,
+)
 from gradpert.evaluation.state import LoadedEvaluationState
 from gradpert.hashing import sha256_json
 from gradpert.modeling.v2 import GraDPertV2
@@ -223,14 +227,20 @@ def evaluate(
             block_response_cls_to_gene=block_response_cls_to_gene,
         )
         truth = data.load_truth_rows(condition)
-        metric = compute_condition_metrics(
+        v2_metrics = getattr(reference.manifest, "schema_version", None) == "evaluation-state-v2"
+        metric_fn = compute_condition_metrics_v2 if v2_metrics else compute_condition_metrics
+        metric = metric_fn(
             condition_id=condition,
             prediction=prediction,
             input_control=controls.expression,
             truth=truth.expression,
             metric_control_pool_mean=reference.metric_control_means[reference_positions[condition]],
             de_gene_indices=reference.manifest.de_gene_indices[condition],
-            top_de_gene_indices=reference.manifest.top_de_gene_indices[condition],
+            **(
+                {}
+                if v2_metrics
+                else {"top_de_gene_indices": reference.manifest.top_de_gene_indices[condition]}
+            ),
             systema_reference=reference.systema_reference,
             de_unavailable_reason=reference.manifest.de_unavailable_reasons.get(condition),
         )
@@ -241,7 +251,8 @@ def evaluate(
             if not indices:
                 per_group[name] = None
                 continue
-            group_metric = grouped_condition_metrics(
+            group_fn = compute_condition_metrics_v2 if v2_metrics else grouped_condition_metrics
+            group_metric = group_fn(
                 condition_id=condition,
                 prediction=prediction,
                 input_control=controls.expression,
@@ -250,7 +261,11 @@ def evaluate(
                     reference_positions[condition]
                 ],
                 de_gene_indices=reference.manifest.de_gene_indices[condition],
-                top_de_gene_indices=reference.manifest.top_de_gene_indices[condition],
+                **(
+                    {}
+                    if v2_metrics
+                    else {"top_de_gene_indices": reference.manifest.top_de_gene_indices[condition]}
+                ),
                 systema_reference=reference.systema_reference,
                 gene_indices=indices,
                 de_unavailable_reason=reference.manifest.de_unavailable_reasons.get(condition),

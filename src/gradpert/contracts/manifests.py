@@ -206,7 +206,7 @@ class DatasetGraphManifest(StrictManifest):
 
 
 class EvaluationStateManifest(StrictManifest):
-    schema_version: Literal["evaluation-state-v1"]
+    schema_version: Literal["evaluation-state-v1", "evaluation-state-v2"]
     dataset_id: DatasetId
     protocol_id: NonEmpty
     canonical_data_sha256: Sha256
@@ -220,7 +220,10 @@ class EvaluationStateManifest(StrictManifest):
     top_de_gene_indices_sha256: Sha256
     de_unavailable_reasons: dict[NonEmpty, NonEmpty]
     de_unavailable_reasons_sha256: Sha256
-    de_method: Literal["scanpy_t_test_rankby_abs_non_dropout_top20_exclude_targets"]
+    de_method: Literal[
+        "scanpy_t_test_rankby_abs_non_dropout_top20_exclude_targets",
+        "scanpy_t_test_rankby_abs_non_dropout_top20_include_targets",
+    ]
     de_reference: Literal["ctrl"]
     de_source_commit: GitCommit
     systema_reference_condition_ids: list[NonEmpty]
@@ -232,6 +235,13 @@ class EvaluationStateManifest(StrictManifest):
 
     @model_validator(mode="after")
     def enforce_evaluation_state(self) -> EvaluationStateManifest:
+        expected_method = (
+            "scanpy_t_test_rankby_abs_non_dropout_top20_include_targets"
+            if self.schema_version == "evaluation-state-v2"
+            else "scanpy_t_test_rankby_abs_non_dropout_top20_exclude_targets"
+        )
+        if self.de_method != expected_method:
+            raise ValueError("evaluation-state schema and DEG target policy differ")
         _require_unique(self.condition_ids, "evaluation-state conditions")
         _require_unique(
             self.systema_reference_condition_ids,

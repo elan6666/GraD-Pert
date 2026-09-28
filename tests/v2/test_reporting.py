@@ -3,7 +3,7 @@ import csv
 import pytest
 
 from gradpert.data._io import atomic_json
-from gradpert.training.v2.reporting import METRICS, export_curves
+from gradpert.training.v2.reporting import METRICS, METRICS_V2, export_curves
 
 
 def test_curves_preserve_source_epoch_and_missing_metrics(tmp_path):
@@ -48,6 +48,34 @@ def test_uncommitted_history_is_rejected(tmp_path):
     atomic_json(tmp_path / "history.json", [])
     with pytest.raises(ValueError, match="committed"):
         export_curves(tmp_path)
+
+
+def test_six_metric_protocol_is_retained_in_curves(tmp_path):
+    atomic_json(
+        tmp_path / "epoch_state.json",
+        {"epoch": 1, "identity": {"source": {"commit": "a" * 40}, "run_id": "v2-six"}},
+    )
+    atomic_json(
+        tmp_path / "history.json",
+        [
+            {
+                "epoch": 1,
+                "optimizer_steps": 2,
+                "training": {"prediction": 0.3, "joint_loss": 0.5},
+                "validation": {
+                    "split": "val",
+                    "prediction_loss": 0.4,
+                    "joint_loss": 0.6,
+                    "metrics": [{"metric_id": metric, "macro_mean": 0.1} for metric in METRICS_V2],
+                },
+            }
+        ],
+    )
+    export_curves(tmp_path)
+    with (tmp_path / "curves" / "validation_curves.csv").open() as stream:
+        rows = list(csv.DictReader(stream))
+    assert set(METRICS_V2).issubset(rows[0])
+    assert rows[0]["systema_pearson_deg"] == "0.1"
 
 
 def test_adapter_uses_native_curve_epoch_convention(tmp_path):

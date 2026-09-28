@@ -163,6 +163,18 @@ def test_evaluation_state_records_unrankable_conditions_without_dropping_them() 
     )
 
     assert manifest.de_gene_indices["B"] == []
+    v2 = EvaluationStateManifest.model_validate(
+        {
+            **manifest.model_dump(mode="json"),
+            "schema_version": "evaluation-state-v2",
+            "de_method": "scanpy_t_test_rankby_abs_non_dropout_top20_include_targets",
+        }
+    )
+    assert v2.schema_version == "evaluation-state-v2"
+    with pytest.raises(ValidationError, match="schema and DEG target policy differ"):
+        EvaluationStateManifest.model_validate(
+            {**manifest.model_dump(mode="json"), "schema_version": "evaluation-state-v2"}
+        )
     with pytest.raises(ValidationError, match="availability and reason disagree"):
         EvaluationStateManifest.model_validate(
             {

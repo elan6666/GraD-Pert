@@ -250,8 +250,10 @@ class TrainingConfig(StrictModel):
                         f"v2 requires exactly {expected_epochs} "
                         f"epoch{'s' if expected_epochs != 1 else ''} without early stopping"
                     )
-                if self.monitor != "val/prediction_loss" or self.monitor_mode != "min":
-                    raise ValueError("v2 selects best by validation prediction loss")
+                if self.monitor not in {"val/prediction_loss", "val/joint_loss"} or (
+                    self.monitor_mode != "min"
+                ):
+                    raise ValueError("v2 requires a minimum-loss validation monitor")
                 if (
                     not self.run_seeds
                     or len(self.run_seeds) != len(set(self.run_seeds))

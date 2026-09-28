@@ -9,6 +9,7 @@ from gradpert.evaluation import (
     macro_summarize,
     pearson_correlation,
 )
+from gradpert.evaluation.metrics import compute_condition_metrics_v2
 
 
 def _repeat(vector: list[float], rows: int = 300) -> np.ndarray:
@@ -82,6 +83,53 @@ def test_systema_reference_weights_conditions_not_cells() -> None:
     )
 
     np.testing.assert_allclose(reference, [6.0, 4.0])
+
+
+def test_v2_uses_one_deg_set_for_all_three_reference_families() -> None:
+    prediction = _repeat([3.0, 5.0, 4.0, 8.0])
+    input_control = _repeat([1.0, 1.0, 2.0, 2.0])
+    truth = _repeat([4.0, 3.0, 6.0, 7.0], rows=7)
+    baselines = (
+        input_control.mean(0),
+        np.array([0.0, 2.0, 3.0, 1.0]),
+        np.array([2.0, 1.0, 1.0, 5.0]),
+    )
+    result = compute_condition_metrics_v2(
+        condition_id="PERT_A",
+        prediction=prediction,
+        input_control=input_control,
+        truth=truth,
+        metric_control_pool_mean=baselines[1],
+        de_gene_indices=[0, 1, 3],
+        systema_reference=baselines[2],
+    )
+    assert len(result.results) == 6
+    assert [metric.gene_count for metric in result.results] == [4, 3, 4, 3, 4, 3]
+    for family, baseline in enumerate(baselines):
+        for axis, indices in enumerate(([0, 1, 2, 3], [0, 1, 3])):
+            observed = result.results[2 * family + axis]
+            with np.errstate(divide="ignore", invalid="ignore"):
+                expected = np.corrcoef(
+                    (prediction.mean(0) - baseline)[indices],
+                    (truth.mean(0) - baseline)[indices],
+                )[0, 1]
+            if np.isnan(expected):
+                assert observed.value is None
+                assert observed.reason == "constant_vector"
+            else:
+                assert observed.value == pytest.approx(expected)
+    grouped = compute_condition_metrics_v2(
+        condition_id="PERT_A",
+        prediction=prediction,
+        input_control=input_control,
+        truth=truth,
+        metric_control_pool_mean=baselines[1],
+        de_gene_indices=[0, 1, 3],
+        systema_reference=baselines[2],
+        gene_indices=[1, 2, 3],
+    )
+    assert [metric.gene_count for metric in grouped.results] == [3, 2, 3, 2, 3, 2]
+    assert len(macro_summarize([result])) == 6
 
 
 def test_macro_summary_preserves_denominator_and_reasons() -> None:
