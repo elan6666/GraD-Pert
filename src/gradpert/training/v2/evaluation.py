@@ -200,8 +200,9 @@ def evaluate(
             or len(set.union(*axes)) != sum(map(len, axes))
         ):
             raise ValueError("metric gene groups must be nonempty, disjoint and in-axis")
+    groups = metric_gene_groups or {}
     losses, metrics, rows = [], [], []
-    group_metrics: dict[str, list[Any]] = {key: [] for key in metric_gene_groups or {}}
+    group_metrics: dict[str, list[Any]] = {key: [] for key in groups}
     for draw in data.control_manifest.draws:
         condition = draw.condition_id
         ids = tuple(draw.ordered_row_ids)
@@ -236,7 +237,7 @@ def evaluate(
         loss = prediction_selection_loss(prediction, truth.expression, selection_gene_ids)
         metrics.append(metric)
         per_group = {}
-        for name, indices in (metric_gene_groups or {}).items():
+        for name, indices in groups.items():
             group_metric = grouped_condition_metrics(
                 condition_id=condition,
                 prediction=prediction,
@@ -279,10 +280,8 @@ def evaluate(
         "metrics": [asdict(m) for m in macro_summarize(metrics)],
         "metric_gene_groups": {
             name: {
-                "gene_count": len(metric_gene_groups[name]),
-                "gene_ids_sha256": sha256_json(
-                    [data.expression_gene_ids[i] for i in metric_gene_groups[name]]
-                ),
+                "gene_count": len(groups[name]),
+                "gene_ids_sha256": sha256_json([data.expression_gene_ids[i] for i in groups[name]]),
                 "metrics": [asdict(m) for m in macro_summarize(values)],
             }
             for name, values in group_metrics.items()
