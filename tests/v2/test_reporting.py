@@ -21,6 +21,7 @@ def test_curves_preserve_source_epoch_and_missing_metrics(tmp_path):
                 "validation": {
                     "split": "val",
                     "prediction_loss": 0.4 / i,
+                    "joint_loss": 0.8 / i,
                     "metrics": [
                         {"metric_id": metric, "macro_mean": None if j == 1 else 0.1 * i}
                         for j, metric in enumerate(METRICS)
@@ -35,6 +36,7 @@ def test_curves_preserve_source_epoch_and_missing_metrics(tmp_path):
         rows = list(csv.DictReader(stream))
     assert [r["epoch"] for r in rows] == ["1", "2"]
     assert rows[0]["trishift_pearson_delta"] == ""
+    assert rows[0]["validation_joint_loss"] == "0.8"
     assert rows[0]["source_commit"] == "a" * 40
     assert len(receipt["outputs"]) == 7
     assert (tmp_path / "curves" / "training_loss.png").stat().st_size > 1000
@@ -54,6 +56,7 @@ def test_adapter_uses_native_curve_epoch_convention(tmp_path):
         rows = list(csv.DictReader(stream))
     assert [r["epoch"] for r in rows] == ["0", "1"]
     assert [r["global_step"] for r in rows] == ["5", "10"]
+    assert [r["joint_loss"] for r in rows] == ["0.8", "0.4"]
     assert rows[0]["trishift_pearson_delta"] == ""
     with (tmp_path / "curves" / "train_steps.csv").open() as stream:
         training = list(csv.DictReader(stream))

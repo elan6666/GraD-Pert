@@ -464,8 +464,10 @@ class CanonicalTrainingData:
         epoch: int,
         batch_size: int,
         max_unique_conditions: int,
+        row_indices: tuple[int, ...] | None = None,
     ) -> tuple[_TrainingBatchSpec, ...]:
-        train_conditions = tuple(self.condition_ids[index] for index in self.train_row_indices)
+        selected_rows = self.train_row_indices if row_indices is None else row_indices
+        train_conditions = tuple(self.condition_ids[index] for index in selected_rows)
         relative_batches = (
             random_mixed_epoch_batches(
                 condition_ids=train_conditions,
@@ -486,7 +488,7 @@ class CanonicalTrainingData:
         specs: list[_TrainingBatchSpec] = []
         identity_rows: list[dict[str, object]] = []
         for relative_indices in relative_batches:
-            perturbed_indices = tuple(self.train_row_indices[index] for index in relative_indices)
+            perturbed_indices = tuple(selected_rows[index] for index in relative_indices)
             perturbed_row_ids = tuple(self.row_ids[index] for index in perturbed_indices)
             contexts = tuple(self.context_ids[index] for index in perturbed_indices)
             pairing = pairer.pair_epoch(
@@ -516,7 +518,8 @@ class CanonicalTrainingData:
                     "control_row_ids_sha256": sha256_json(list(pairing.control_row_ids)),
                 }
             )
-        self.pipeline_stats.epoch_batch_identity_sha256 = sha256_json(identity_rows)
+        if row_indices is None:
+            self.pipeline_stats.epoch_batch_identity_sha256 = sha256_json(identity_rows)
         return tuple(specs)
 
     def training_batch_identity_specs(
@@ -553,7 +556,9 @@ class CanonicalTrainingData:
 
     def _materialize_cpu_batch(self, spec: _TrainingBatchSpec) -> _CpuTrainingBatch:
         started = time.perf_counter()
-        if self._control_expression_cache is not None:
+        if self._control_expression_cache is not None and all(
+            index in self._control_cache_position for index in spec.control_indices
+        ):
             positions = [self._control_cache_position[index] for index in spec.control_indices]
             control = np.ascontiguousarray(self._control_expression_cache[positions])
             target = self._read_expression_indices(spec.perturbed_indices)
@@ -734,6 +739,54 @@ class CanonicalTrainingData:
         )
         for cpu_batch in self._iter_cpu_batches(specs):
             yield self._to_training_batch(cpu_batch, device=device)
+
+    def iter_validation_epoch(
+        self,
+        *,
+        device: torch.device,
+        batch_size: int,
+        max_unique_conditions: int,
+    ) -> Iterator[GraDPertTrainingBatch]:
+        """Use only frozen validation perturbations with reproducible control pairing."""
+        val_set = set(self.split.val_conditions)
+        val_rows = tuple(
+            index for index, condition in enumerate(self.condition_ids) if condition in val_set
+        )
+        if not val_rows or {self.condition_ids[index] for index in val_rows} != val_set:
+            raise ValueError("canonical H5AD lacks one or more frozen validation conditions")
+        if any(self.context_ids[index] not in self.control_pools for index in val_rows):
+            raise ValueError("validation contexts lack compatible controls")
+        specs = self._batch_specs(
+            epoch=0,
+            batch_size=batch_size,
+            max_unique_conditions=max_unique_conditions,
+            row_indices=val_rows,
+        )
+        for cpu_batch in self._iter_cpu_batches(specs):
+            yield self._to_training_batch(cpu_batch, device=device)
+
+    def validation_steps_per_epoch(self, *, batch_size: int, max_unique_conditions: int) -> int:
+        val_set = set(self.split.val_conditions)
+        conditions = tuple(c for c in self.condition_ids if c in val_set)
+        if not conditions:
+            raise ValueError("validation partition is empty")
+        batches = (
+            random_mixed_epoch_batches(
+                condition_ids=conditions,
+                run_seed=self.run_seed,
+                epoch=0,
+                batch_size=batch_size,
+            )
+            if max_unique_conditions == 0
+            else condition_limited_epoch_batches(
+                condition_ids=conditions,
+                run_seed=self.run_seed,
+                epoch=0,
+                batch_size=batch_size,
+                max_unique_conditions=max_unique_conditions,
+            )
+        )
+        return len(batches)
 
 
 def write_training_data_receipt(data: CanonicalTrainingData, path: str | Path) -> None:

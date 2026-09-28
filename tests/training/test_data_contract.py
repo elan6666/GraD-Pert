@@ -140,3 +140,28 @@ def test_real_batch_spec_path_remains_expression_free() -> None:
         == {condition: (condition,) for condition in dict.fromkeys(identity.condition_ids)}
         for identity in identities
     )
+
+
+def test_joint_validation_schedule_reads_only_val_perturbations() -> None:
+    data = _unopened_data()
+    data.run_seed = 3
+    data.row_ids = ("train-0", "val-0", "val-1", "train-1", "val-2", "val-3", "control")
+    data.condition_ids = ("G0", "G2", "G3", "G1", "G2", "G3", "ctrl")
+    data.context_ids = ("ctx",) * len(data.row_ids)
+    data.train_row_indices = (0, 3)
+    data.split = SimpleNamespace(val_conditions=("G2", "G3"))
+    data.control_pools = {"ctx": ("control",)}
+    data._row_index = {row_id: index for index, row_id in enumerate(data.row_ids)}
+    data.anchors_by_condition = {"G2": (2,), "G3": (3,)}
+    data.pipeline_stats = TrainingPipelineStats()
+    data._iter_cpu_batches = lambda specs: iter(specs)  # type: ignore[method-assign]
+    data._to_training_batch = lambda spec, *, device: spec  # type: ignore[method-assign]
+    batches = list(data.iter_validation_epoch(device="cpu", batch_size=2, max_unique_conditions=0))
+    assert len(batches) == data.validation_steps_per_epoch(batch_size=2, max_unique_conditions=0)
+    assert {row for batch in batches for row in batch.perturbed_row_ids} == {
+        "val-0",
+        "val-1",
+        "val-2",
+        "val-3",
+    }
+    assert all(set(batch.control_row_ids) == {"control"} for batch in batches)

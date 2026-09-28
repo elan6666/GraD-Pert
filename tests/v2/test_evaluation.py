@@ -88,6 +88,71 @@ def test_validation_rejects_reference_including_test_conditions():
         )
 
 
+def test_test_metrics_use_one_prediction_for_all_three_gene_axes(monkeypatch):
+    from gradpert.training.v2 import evaluation as module
+
+    index = graph_index()
+    ids = tuple(f"control-{row}" for row in range(300))
+    controls = np.zeros((300, 4), dtype=np.float32)
+    truth = np.tile(np.array([[1.0, 2.0, 3.0, 4.0]], dtype=np.float32), (5, 1))
+    calls = []
+
+    def predict(*args, **kwargs):
+        calls.append(1)
+        return np.tile(np.array([[1.0, 2.0, 3.0, 4.0]], dtype=np.float32), (300, 1))
+
+    monkeypatch.setattr(module, "predict_controls", predict)
+    data = SimpleNamespace(
+        split_name="test",
+        control_manifest=SimpleNamespace(
+            split_name="test", draws=[SimpleNamespace(condition_id="g0", ordered_row_ids=ids)]
+        ),
+        expression_gene_ids=index.gene_ids[:4],
+        split=SimpleNamespace(control_condition_id="ctrl"),
+        load_control_rows=lambda ordered: SimpleNamespace(
+            ordered_row_ids=ordered, expression=controls
+        ),
+        load_truth_rows=lambda condition: SimpleNamespace(
+            ordered_row_ids=tuple(f"truth-{row}" for row in range(5)), expression=truth
+        ),
+        control_manifest_file_sha256="control-hash",
+    )
+    reference = SimpleNamespace(
+        manifest=SimpleNamespace(
+            condition_ids=["g0"],
+            de_gene_indices={"g0": [0, 1, 2, 3]},
+            top_de_gene_indices={"g0": [0, 1, 2, 3]},
+            de_unavailable_reasons={},
+        ),
+        metric_control_means=[np.zeros(4)],
+        systema_reference=np.zeros(4),
+        manifest_file_sha256="reference-hash",
+    )
+    result = evaluate(
+        fixture()[0],
+        index,
+        data,
+        reference,
+        expected_split="test",
+        device=torch.device("cpu"),
+        cell_batch=2,
+        query_count=4,
+        metric_gene_groups={
+            "seen_expression": (0, 1),
+            "unseen_expression": (2, 3),
+            "empty_probe": (),
+        },
+    )
+    assert calls == [1]
+    assert len(result["metrics"]) == 3
+    assert result["metric_gene_groups"]["seen_expression"]["gene_count"] == 2
+    assert result["metric_gene_groups"]["unseen_expression"]["gene_count"] == 2
+    assert len(result["metric_gene_groups"]["seen_expression"]["metrics"]) == 3
+    assert result["metric_gene_groups"]["empty_probe"]["unavailable_reason"] == (
+        "empty_expression_group"
+    )
+
+
 def test_context_budgets_are_nested_and_keep_evaluation_axis_fixed():
     from gradpert.training.v2.evaluation import context_queries
 

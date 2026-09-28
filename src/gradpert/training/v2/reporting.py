@@ -22,11 +22,14 @@ def export_curves(root: Path) -> dict[str, Any]:
         raise ValueError("epoch history is not contiguous")
     identity = journal["identity"]
     source = identity["source"]["commit"]
+    has_joint = "joint_loss" in history[0]["validation"]
     rows = []
     for record in history:
         validation = record["validation"]
         if validation["split"] != "val":
             raise ValueError("validation curves cannot contain test results")
+        if ("joint_loss" in validation) != has_joint:
+            raise ValueError("validation selection loss changed within the run")
         metrics = {m["metric_id"]: m["macro_mean"] for m in validation["metrics"]}
         if set(metrics) != set(METRICS):
             raise ValueError("v2 validation must report all three metric roles")
@@ -39,6 +42,7 @@ def export_curves(root: Path) -> dict[str, Any]:
                 "train_prediction_step_mean": record["training"]["prediction"],
                 "train_joint_step_mean": record["training"]["joint_loss"],
                 "validation_prediction_loss": validation["prediction_loss"],
+                **({"validation_joint_loss": validation["joint_loss"]} if has_joint else {}),
                 **metrics,
             }
         )
@@ -64,17 +68,16 @@ def export_curves(root: Path) -> dict[str, Any]:
                     "joint_loss_update_mean": row["train_joint_step_mean"],
                 }
             )
-            atomic_json(
-                shared / f"validation.epoch-{row['epoch'] - 1:04d}.json",
-                {
-                    "epoch": row["epoch"] - 1,
-                    "global_step": row["optimizer_steps"],
-                    "run_id": row["run_id"],
-                    "source_commit": source,
-                    "prediction_loss": row["validation_prediction_loss"],
-                    **{metric: row[metric] for metric in METRICS},
-                },
-            )
+            payload = {
+                "epoch": row["epoch"] - 1,
+                "global_step": row["optimizer_steps"],
+                "run_id": row["run_id"],
+                "source_commit": source,
+                "prediction_loss": row["validation_prediction_loss"],
+                **({"joint_loss": row["validation_joint_loss"]} if has_joint else {}),
+                **{metric: row[metric] for metric in METRICS},
+            }
+            atomic_json(shared / f"validation.epoch-{row['epoch'] - 1:04d}.json", payload)
     expected = {f"validation.epoch-{row['epoch'] - 1:04d}.json" for row in rows}
     if {p.name for p in shared.glob("validation.epoch-*.json")} != expected:
         raise ValueError("curve adapter contains validation epochs outside committed history")

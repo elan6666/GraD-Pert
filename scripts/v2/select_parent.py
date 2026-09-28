@@ -52,9 +52,15 @@ def choose(verified: dict, runs: dict[str, list[str]], seeds: list[int]) -> dict
                 or any(h["optimizer_steps"] != h["epoch"] * journal["budget"][1] for h in history)
             ):
                 raise ValueError("every candidate must finish all fifty committed epochs")
+            selection_metric = journal.get("selection_metric", "prediction_loss")
+            if selection_metric not in ("prediction_loss", "joint_loss"):
+                raise ValueError("unknown validation selection metric")
             validations = [h["validation"] for h in history]
             if any(
-                v["split"] != "val" or not math.isfinite(v["prediction_loss"]) for v in validations
+                v["split"] != "val"
+                or not math.isfinite(v[selection_metric])
+                or not math.isfinite(v["prediction_loss"])
+                for v in validations
             ):
                 raise ValueError("parent selection accepts finite validation losses only")
             contract = {
@@ -63,11 +69,29 @@ def choose(verified: dict, runs: dict[str, list[str]], seeds: list[int]) -> dict
                 "control_manifest_sha256": validations[0]["control_manifest_sha256"],
                 "reference_sha256": validations[0]["reference_sha256"],
                 "query_recipe": validations[0]["query_recipe"],
+                **(
+                    {
+                        "selection_metric": "joint_loss",
+                        "joint_validation": {
+                            key: validations[0]["joint_validation"][key]
+                            for key in ("batch_size", "view_seed", "batch_identity_sha256")
+                        },
+                    }
+                    if selection_metric == "joint_loss"
+                    else {}
+                ),
             }
             if any(
                 v["control_manifest_sha256"] != contract["control_manifest_sha256"]
                 or v["reference_sha256"] != contract["reference_sha256"]
                 or v["query_recipe"] != contract["query_recipe"]
+                or (
+                    selection_metric == "joint_loss"
+                    and any(
+                        v["joint_validation"][key] != contract["joint_validation"][key]
+                        for key in ("batch_size", "view_seed", "batch_identity_sha256")
+                    )
+                )
                 for v in validations
             ):
                 raise ValueError("validation protocol changed within a run")
@@ -81,12 +105,12 @@ def choose(verified: dict, runs: dict[str, list[str]], seeds: list[int]) -> dict
                 common = contract
             elif common != contract:
                 raise ValueError("candidate source/data/validation contracts differ")
-            best = min(history, key=lambda h: h["validation"]["prediction_loss"])
+            best = min(history, key=lambda h: h["validation"][selection_metric])
             selected = journal["best"]
             checkpoint = (root / "fit" / selected["file"]).resolve()
             if (
                 selected["epoch"] != best["epoch"]
-                or selected["prediction_loss"] != best["validation"]["prediction_loss"]
+                or selected[selection_metric] != best["validation"][selection_metric]
                 or not checkpoint.is_relative_to(root / "fit")
                 or sha256_file(checkpoint) != selected["sha256"]
             ):
@@ -95,7 +119,7 @@ def choose(verified: dict, runs: dict[str, list[str]], seeds: list[int]) -> dict
                 {
                     "seed": seed,
                     "run_root": str(root),
-                    "validation_prediction_loss": selected["prediction_loss"],
+                    f"validation_{selection_metric}": selected[selection_metric],
                     "history_sha256": sha256_file(history_path),
                     "journal_sha256": sha256_file(journal_path),
                     "run_manifest_sha256": sha256_file(manifest_path),
@@ -109,19 +133,25 @@ def choose(verified: dict, runs: dict[str, list[str]], seeds: list[int]) -> dict
                 "name": row["name"],
                 "config": row["config"],
                 "sha256": row["sha256"],
-                "mean_validation_prediction_loss": statistics.mean(
-                    e["validation_prediction_loss"] for e in evidence
+                f"mean_validation_{selection_metric}": statistics.mean(
+                    e[f"validation_{selection_metric}"] for e in evidence
                 ),
                 "evidence": evidence,
             }
         )
-    winner = min(scores, key=lambda r: r["mean_validation_prediction_loss"])
+    assert common is not None
+    selection_metric = common.get("selection_metric", "prediction_loss")
+    winner = min(scores, key=lambda r: r[f"mean_validation_{selection_metric}"])
     return {
         "schema_version": "gradpert-v2-validation-selection-1",
         "group": verified["group"],
         "group_manifest_sha256": verified["manifest_sha256"],
         "seeds": seeds,
-        "rule": "mean best validation prediction loss across paired seeds; ties use manifest order",
+        "rule": (
+            "mean best validation prediction loss across paired seeds; ties use manifest order"
+            if selection_metric == "prediction_loss"
+            else "mean best validation joint loss across paired seeds; ties use manifest order"
+        ),
         "test_data_read": False,
         "contract": common,
         "scores": scores,

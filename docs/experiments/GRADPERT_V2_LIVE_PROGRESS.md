@@ -1,10 +1,13 @@
 # GraD-Pert v2 live progress
 
 New v2 runs write `fit/live_progress.json` atomically from rank 0. Training
-updates record the epoch, completed optimizer steps, latest loss terms, elapsed
-time in the current process, and observed cells/second since the beginning of
-the current epoch (including data preparation between updates). Validation and
-best/last tests record completed and total perturbation conditions. The
+updates record the epoch, completed steps within the epoch and across the run,
+both progress percentages, latest joint loss, elapsed time in the current
+process, observed cells/second and optimizer steps/second since the beginning
+of the current epoch (including data preparation between updates). Fixed-view
+joint validation records completed/total batches and the running joint loss;
+the separate prediction validation and best/last tests record completed/total
+perturbation conditions. The
 diagnostic file does not participate in loss computation, checkpoint selection,
 or formal result receipts.
 

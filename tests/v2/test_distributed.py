@@ -267,7 +267,11 @@ def _lifecycle_worker(rank, rendezvous, root):
 
             def validate():
                 assert rank == 0
-                return {"split": "val", "prediction_loss": 0.2 if optimizer.steps == 3 else 0.3}
+                return {
+                    "split": "val",
+                    "prediction_loss": 0.3 if optimizer.steps == 3 else 0.2,
+                    "joint_loss": 0.2 if optimizer.steps == 3 else 0.3,
+                }
 
             path = Path(root) / name
             journal = fit(

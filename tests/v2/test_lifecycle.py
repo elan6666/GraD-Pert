@@ -33,7 +33,8 @@ def test_interrupted_epoch_resume_matches_uninterrupted_and_keeps_best_last(tmp_
 
         def validate():
             epoch = optimizer.steps // 3
-            return {"split": "val", "prediction_loss": 0.2 if epoch == 1 else later_loss}
+            loss = 0.2 if epoch == 1 else later_loss
+            return {"split": "val", "prediction_loss": 0.5 - loss, "joint_loss": loss}
 
         journal = fit(
             objective,
@@ -76,6 +77,7 @@ def test_interrupted_epoch_resume_matches_uninterrupted_and_keeps_best_last(tmp_
         assert progress["phase"] == "training_complete"
         assert progress["optimizer_steps_completed"] == 9
         assert progress["epoch_steps_total"] == 3
+        assert read_json(root / "history.json")[-1]["seen_expression_gene_indices"]
         evaluate_selected(objective, root=root, evaluation_identity={"source": "test"}, test=test)
         assert len(calls) == 2
         return state, rng.random(), journal
@@ -88,6 +90,7 @@ def test_interrupted_epoch_resume_matches_uninterrupted_and_keeps_best_last(tmp_
         torch.testing.assert_close(full[name], resumed[name], rtol=0, atol=0)
     assert full_rng == resumed_rng
     assert journal["best"]["epoch"] == 1
+    assert journal["selection_metric"] == "joint_loss"
     assert journal["last"]["epoch"] == 3
     assert (tmp_path / "resumed" / "best.pt").resolve().name == "epoch-0001.pt"
     assert (tmp_path / "resumed" / "last.pt").resolve().name == "epoch-0003.pt"

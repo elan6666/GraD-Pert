@@ -75,6 +75,36 @@ def test_parent_selection_reads_validation_only(selector, candidates):
     assert result["winner"]["name"] == "a"
     assert result["test_data_read"] is False
     assert len(result["scores"][0]["evidence"]) == 2
+    assert "selection_metric" not in result["contract"]
+    assert result["rule"] == (
+        "mean best validation prediction loss across paired seeds; ties use manifest order"
+    )
+
+
+def test_new_parent_selection_uses_joint_loss_and_fixed_view_contract(selector, candidates):
+    verified, runs = candidates
+    for name, roots in runs.items():
+        joint = 0.3 if name == "a" else 0.2
+        for run in roots:
+            root = Path(run)
+            history_path = root / "fit/history.json"
+            history = json.loads(history_path.read_text())
+            for record in history:
+                record["validation"]["joint_loss"] = joint
+                record["validation"]["joint_validation"] = {
+                    "batch_size": 32,
+                    "view_seed": 123,
+                    "batch_identity_sha256": "fixed-batches",
+                }
+            atomic_json(history_path, history)
+            journal_path = root / "fit/epoch_state.json"
+            journal = json.loads(journal_path.read_text())
+            journal["selection_metric"] = "joint_loss"
+            journal["best"]["joint_loss"] = joint
+            atomic_json(journal_path, journal)
+    result = selector(verified, runs, [1, 2])
+    assert result["winner"]["name"] == "b"
+    assert result["contract"]["selection_metric"] == "joint_loss"
 
 
 def test_missing_seed_cannot_win(selector, candidates):

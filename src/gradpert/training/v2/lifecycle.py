@@ -77,6 +77,7 @@ def fit(
         "teacher_end": teacher_end,
         "microbatch": microbatch,
         "bf16": bf16,
+        "selection_metric": "joint_loss",
     }
     if not resume and optimizer.steps:
         raise ValueError("new lifecycle requires an unstepped optimizer")
@@ -118,6 +119,7 @@ def fit(
             "identity": identity,
             "budget": [epochs, steps_per_epoch],
             "contract": contract,
+            "selection_metric": "joint_loss",
             "epoch": 0,
             "best": None,
             "last": {
@@ -170,8 +172,9 @@ def fit(
     selection = EarlyStoppingState(mode="min")
     for record in history:
         selection.update(
-            epoch=record["epoch"], validation_metric=float(record["validation"]["prediction_loss"])
+            epoch=record["epoch"], validation_metric=float(record["validation"]["joint_loss"])
         )
+    seen_expression_ids = set(history[-1]["seen_expression_gene_indices"]) if history else set()
     for epoch in range(len(history), epochs):
         sums: dict[str, float] = {}
         epoch_started = time.monotonic()
@@ -214,9 +217,13 @@ def fit(
                 bf16=bf16,
                 global_condition_index=global_conditions,
             )
+            seen_expression_ids.update(
+                int(gene) for gene in batch.graph.ids[batch.query_positions].tolist()
+            )
             for name, value in terms.items():
                 totals[name] = totals.get(name, 0.0) + value
             epoch_cells += global_cells
+            epoch_elapsed = max(time.monotonic() - start_epoch, 1e-9)
             live(
                 "training",
                 current_epoch + 1,
@@ -224,8 +231,8 @@ def fit(
                 terms,
                 {
                     "cells_completed_this_epoch": epoch_cells,
-                    "cells_per_second_this_epoch": epoch_cells
-                    / max(time.monotonic() - start_epoch, 1e-9),
+                    "cells_per_second_this_epoch": epoch_cells / epoch_elapsed,
+                    "optimizer_steps_per_second_this_epoch": (count + 1) / epoch_elapsed,
                 },
             )
             if rank == 0 and ((count + 1) % 10 == 0 or count + 1 == steps_per_epoch):
@@ -243,7 +250,7 @@ def fit(
         validation = primary_call(validate)
         if validation.get("split") != "val":
             raise ValueError("checkpoint selection requires validation-only results")
-        loss = float(validation["prediction_loss"])
+        loss = float(validation["joint_loss"])
         if not math.isfinite(loss):
             raise FloatingPointError("nonfinite validation selection loss")
         history.append(
@@ -252,6 +259,7 @@ def fit(
                 "optimizer_steps": optimizer.steps,
                 "training": {k: v / count for k, v in sums.items()},
                 "validation": validation,
+                "seen_expression_gene_indices": sorted(seen_expression_ids),
             }
         )
         checkpoint = root / f"epoch-{epoch + 1:04d}.pt"
@@ -268,7 +276,8 @@ def fit(
             "file": checkpoint.name,
             "sha256": sha256_file(checkpoint),
             "epoch": epoch + 1,
-            "prediction_loss": loss,
+            "joint_loss": loss,
+            "prediction_loss": float(validation["prediction_loss"]),
         }
         best = journal.get("best")
         improved, _ = selection.update(epoch=epoch + 1, validation_metric=loss)
@@ -280,6 +289,7 @@ def fit(
             "identity": identity,
             "budget": [epochs, steps_per_epoch],
             "contract": contract,
+            "selection_metric": "joint_loss",
             "epoch": epoch + 1,
             "best": best,
             "last": selected,

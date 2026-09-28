@@ -14,12 +14,23 @@ def render(progress: dict[str, object]) -> str:
         done = int(progress.get("epoch_step", 0))
         total = int(progress.get("epoch_steps_total", 0))
         detail = f"epoch {progress.get('epoch')}/{progress.get('epochs_total')} step {done}/{total}"
-    elif phase in {"validation", "test"}:
+        global_done = int(progress.get("optimizer_steps_completed", done))
+        global_total = int(progress.get("optimizer_steps_total", total))
+        if global_total:
+            detail += f" overall {global_done}/{global_total} ({global_done / global_total:.1%})"
+    elif phase == "validation_joint":
+        done = int(progress.get("batches_completed", 0))
+        total = int(progress.get("batches_total", 0))
+        detail = f"epoch {progress.get('epoch')} joint batches {done}/{total}"
+    elif phase in {"validation", "validation_prediction", "test"}:
         done = int(progress.get("conditions_completed", 0))
         total = int(progress.get("conditions_total", 0))
         detail = f"{done}/{total} conditions"
         if phase == "test":
             detail = f"{progress.get('checkpoint_role')} {detail}"
+    elif phase == "failed":
+        done, total = 0, 1
+        detail = f"{progress.get('error_type')}: {progress.get('error')}"
     else:
         done, total, detail = 1, 1, phase
     fraction = min(1.0, max(0.0, done / total)) if total else 0.0
@@ -37,7 +48,14 @@ def render(progress: dict[str, object]) -> str:
         if isinstance(throughput, dict) and "cells_per_second_this_epoch" in throughput
         else ""
     )
-    return f"{phase:>17} [{bar}] {fraction:5.1%} {detail}{loss}{speed}"
+    if isinstance(throughput, dict) and "optimizer_steps_per_second_this_epoch" in throughput:
+        speed += f" {float(throughput['optimizer_steps_per_second_this_epoch']):.3f} step/s"
+    joint = (
+        f" joint_loss={float(progress['joint_loss_running_mean']):.6f}"
+        if phase == "validation_joint" and "joint_loss_running_mean" in progress
+        else ""
+    )
+    return f"{phase:>21} [{bar}] {fraction:5.1%} {detail}{loss}{joint}{speed}"
 
 
 def main() -> None:

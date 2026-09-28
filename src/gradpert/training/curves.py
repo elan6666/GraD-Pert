@@ -25,6 +25,7 @@ def render_curves(small_root: Path) -> None:
         raise ValueError("curves require training and validation records")
     metrics = [
         "prediction_loss",
+        *(["joint_loss"] if any("joint_loss" in record for record in records) else []),
         "txpert_macro_pearson_delta",
         "trishift_pearson_delta",
         "systema_pearson",
@@ -55,13 +56,17 @@ def render_curves(small_root: Path) -> None:
         fig.savefig(path)
         outputs.append(path)
     plt.close(fig)
-    fig, axes = plt.subplots(2, 2, figsize=(11, 7))
-    for ax, key in zip(axes.flat, metrics, strict=True):
+    columns_count = 2
+    rows_count = (len(metrics) + columns_count - 1) // columns_count
+    fig, axes = plt.subplots(rows_count, columns_count, figsize=(11, 3.5 * rows_count))
+    for ax, key in zip(axes.flat, metrics, strict=False):
         ax.plot(
             [r["epoch"] + 1 for r in records],
             [r.get(key) if r.get(key) is not None else float("nan") for r in records],
         )
         ax.set(xlabel="Epoch (1-based)", ylabel=key, title=key)
+    for ax in list(axes.flat)[len(metrics) :]:
+        ax.axis("off")
     fig.tight_layout()
     for ext in ("png", "pdf"):
         path = small_root / f"validation_curves.{ext}"

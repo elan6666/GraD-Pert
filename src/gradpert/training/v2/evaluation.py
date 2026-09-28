@@ -194,10 +194,7 @@ def evaluate(
         axes = [set(indices) for indices in metric_gene_groups.values()]
         if (
             not metric_gene_groups
-            or any(
-                not indices or len(indices) != len(set(indices))
-                for indices in metric_gene_groups.values()
-            )
+            or any(len(indices) != len(set(indices)) for indices in metric_gene_groups.values())
             or any(i < 0 or i >= len(data.expression_gene_ids) for group in axes for i in group)
             or len(set.union(*axes)) != sum(map(len, axes))
         ):
@@ -239,8 +236,11 @@ def evaluate(
         )
         loss = prediction_selection_loss(prediction, truth.expression, selection_gene_ids)
         metrics.append(metric)
-        per_group = {}
+        per_group: dict[str, dict[str, Any] | None] = {}
         for name, indices in groups.items():
+            if not indices:
+                per_group[name] = None
+                continue
             group_metric = grouped_condition_metrics(
                 condition_id=condition,
                 prediction=prediction,
@@ -287,7 +287,8 @@ def evaluate(
             name: {
                 "gene_count": len(groups[name]),
                 "gene_ids_sha256": sha256_json([data.expression_gene_ids[i] for i in groups[name]]),
-                "metrics": [asdict(m) for m in macro_summarize(values)],
+                "metrics": [asdict(m) for m in macro_summarize(values)] if values else [],
+                "unavailable_reason": None if values else "empty_expression_group",
             }
             for name, values in group_metrics.items()
         },

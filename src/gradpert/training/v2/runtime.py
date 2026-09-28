@@ -92,6 +92,38 @@ class Runtime:
                 allowed_expression_ids=self.allowed_expression_ids,
             )
 
+    def validation_batches(self, *, batch_size: int) -> Iterator[tuple[TrainingBatch, str]]:
+        """Replay one fixed validation view recipe without consuming training RNG."""
+        if self.purpose != "training" or batch_size < 2:
+            raise ValueError("joint validation requires a training runtime and batch >= 2")
+        generator = np.random.default_rng(int(self.identity["run_seed"]) + 0x5A11D)
+        for raw in self.data.iter_validation_epoch(
+            device=self.device,
+            batch_size=batch_size,
+            max_unique_conditions=(
+                0
+                if self.options.max_conditions == 0
+                else min(self.options.max_conditions, batch_size)
+            ),
+        ):
+            identity = sha256_json(
+                {
+                    "perturbed_row_ids": list(raw.perturbed_row_ids),
+                    "control_row_ids": list(raw.control_row_ids),
+                    "condition_ids": list(raw.condition_ids),
+                }
+            )
+            yield (
+                assemble_batch(
+                    raw,
+                    self.index,
+                    self.options,
+                    generator,
+                    allowed_expression_ids=self.allowed_expression_ids,
+                ),
+                identity,
+            )
+
 
 def _move_batch_tree(value: Any, device: torch.device) -> Any:
     """Transfer immutable batch structure on the consumer thread, without RNG draws."""

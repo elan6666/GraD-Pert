@@ -69,6 +69,8 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     from gradpert.training.v2.artifacts import compact_validation
     from gradpert.training.v2.distributed import primary_call
     from gradpert.training.v2.evaluation import evaluate
+    from gradpert.training.v2.exposure import checkpoint_expression_groups
+    from gradpert.training.v2.joint_validation import evaluate_joint_loss
     from gradpert.training.v2.lifecycle import fit, test_selected
     from gradpert.training.v2.reporting import export_curves
     from gradpert.training.v2.runtime import prepare_runtime
@@ -112,6 +114,45 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
 
             def validate() -> dict[str, Any]:
                 current_epoch = runtime.optimizer.steps // runtime.steps_per_epoch
+                joint_batch_size = min(
+                    runtime.options.microbatch, int(config.training.eval_batch_size.value)
+                )
+                max_conditions = (
+                    0
+                    if runtime.options.max_conditions == 0
+                    else min(runtime.options.max_conditions, joint_batch_size)
+                )
+                joint_batch_count = runtime.data.validation_steps_per_epoch(
+                    batch_size=joint_batch_size,
+                    max_unique_conditions=max_conditions,
+                )
+
+                def joint_progress(done: int, mean_loss: float) -> None:
+                    _write_live_progress(
+                        root / "fit/live_progress.json",
+                        {
+                            "schema_version": "gradpert-v2-live-progress-1",
+                            "run_id": plan["run_id"],
+                            "phase": "validation_joint",
+                            "epoch": current_epoch,
+                            "epochs_total": int(config.training.max_epochs.value),
+                            "batches_completed": done,
+                            "batches_total": joint_batch_count,
+                            "joint_loss_running_mean": mean_loss,
+                        },
+                    )
+
+                joint_progress(0, 0.0)
+                joint = evaluate_joint_loss(
+                    runtime.objective,
+                    runtime.validation_batches(batch_size=joint_batch_size),
+                    bf16=True,
+                    on_batch_complete=joint_progress,
+                )
+                if joint["batch_count"] != joint_batch_count:
+                    raise ValueError("joint validation batch schedule changed")
+                joint["batch_size"] = joint_batch_size
+                joint["view_seed"] = int(runtime.identity["run_seed"]) + 0x5A11D
 
                 def val_progress(done: int, count: int, condition: str) -> None:
                     _write_live_progress(
@@ -119,7 +160,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                         {
                             "schema_version": "gradpert-v2-live-progress-1",
                             "run_id": plan["run_id"],
-                            "phase": "validation",
+                            "phase": "validation_prediction",
                             "epoch": current_epoch,
                             "epochs_total": int(config.training.max_epochs.value),
                             "conditions_completed": done,
@@ -144,6 +185,8 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                     query_count=runtime.options.eval_query_count,
                     on_condition_complete=val_progress,
                 )
+                result["joint_loss"] = joint["joint_loss"]
+                result["joint_validation"] = joint
                 return compact_validation(result, root=root)
 
             journal = fit(
@@ -169,9 +212,22 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
         reference = load_evaluation_state(**common)
         with CanonicalEvaluationData(**common, split_name="test") as data:
             current_role = ["unknown"]
+            current_groups: list[dict[str, tuple[int, ...]] | None] = [None]
+            current_exposure: list[dict[str, Any] | None] = [None]
+            history = primary_call(lambda: read_json(root / "fit/history.json"))
 
             def start_role(role: str) -> None:
                 current_role[0] = role
+                current_groups[0], current_exposure[0] = checkpoint_expression_groups(
+                    history,
+                    checkpoint_epoch=int(journal[role]["epoch"]),
+                    expression_gene_ids=data.expression_gene_ids,
+                    allowed_gene_indices=(
+                        tuple(int(i) for i in runtime.allowed_expression_ids)
+                        if runtime.allowed_expression_ids is not None
+                        else None
+                    ),
+                )
                 _write_live_progress(
                     root / "fit/live_progress.json",
                     {
@@ -199,7 +255,9 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                 )
 
             def test() -> dict[str, Any]:
-                return evaluate(
+                if current_groups[0] is None or current_exposure[0] is None:
+                    raise ValueError("test metric groups require checkpoint exposure evidence")
+                result = evaluate(
                     runtime.objective.student,
                     runtime.index,
                     data,
@@ -208,8 +266,11 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                     device=device,
                     cell_batch=int(config.training.eval_batch_size.value),
                     query_count=runtime.options.eval_query_count,
+                    metric_gene_groups=current_groups[0],
                     on_condition_complete=test_progress,
                 )
+                result["expression_exposure"] = current_exposure[0]
+                return result
 
             results = test_selected(
                 runtime.objective,
@@ -268,6 +329,16 @@ def run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                     "identity": read_json(manifest) if manifest.is_file() else None,
                     "planned_source_commit": plan.get("source_commit"),
                     "provenance_note": "planned commit is not a substitute for run identity",
+                },
+            )
+            _write_live_progress(
+                root / "fit/live_progress.json",
+                {
+                    "schema_version": "gradpert-v2-live-progress-1",
+                    "run_id": plan.get("run_id"),
+                    "phase": "failed",
+                    "error_type": type(error).__name__,
+                    "error": str(error),
                 },
             )
         raise
