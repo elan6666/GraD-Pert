@@ -1,3 +1,9 @@
+## 2026-09-28：best.pt 表达可见性评估完成；v2 实时进度已发布
+
+三轮 B0 的 best.pt 分组评估已 exit0，完整结果与身份见 `docs/experiments/GRADPERT_V2_EXPRESSION_EXPOSURE_20260928.md`。训练期见过表达的 4,775 个基因 TxPert/TriShift/Systema Pearson 为 0.422760/0.432257/0.257070；未见表达的 225 个基因为 0.138621/0.172251/0.119023，后两项仅 137/592 个条件有效。服务器结果 SHA256 `603ffa7e2cba7f78e53f0566a73b56fdceaab0af00eb99ba1fe791bc84e8f840`；原始全基因 best 指标逐项保持一致。旧训练/评估运行和产物不改，监督心跳已暂停。
+
+后续新 v2 运行的实时进度功能已发布为源码 `87b44c8c1e8840c876bb63cdf783486aa40f7364`：每步写 `fit/live_progress.json`，记录 epoch 内步数、loss、吞吐，验证及 best/last 测试写条件数；查看命令见 `docs/experiments/GRADPERT_V2_LIVE_PROGRESS.md`。隔离服务器副本相关 17 项测试通过，v2 全套为 429 通过、1 个既有配置配对测试失败（当前基线提交缺少其引用的旧 `single_pass_jurkat/one_epoch_m66_a2` 配置），与进度功能无关。未启动新训练。
+
 ## 2026-09-28T04:39:59+08:00：m74 正式三轮 OOM 后的容量回退
 
 m74 已在首轮中途 OOM，128 步通过不能证明整轮安全；旧 run 和 FAILURE 保留，不恢复。当前用已发布来源门版本 `8dfb267adb25591393602066ef1226e7cbb76174`，对 m68／图目标行64／序列chunk16 启动独立双卡128步持续探针，服务器根 `/data/yilangliu/GraD-Pert/development/v2-gate-m68-r64-s16-128-after-b0-oom-r2`；r1 因启动环境缺少 PYTHONPATH 在导入阶段失败，r2 已补齐。准备了新的三轮 m68 自包含配置，但须以探针终态、显存余量与吞吐决定是否采用；不能把进行中视为通过。本次只改变物理/全局 batch，完整预测＋SSL1＋SSL2、累积2和既定图/序列chunk不变。

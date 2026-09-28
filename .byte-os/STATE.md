@@ -1,3 +1,7 @@
+## 2026-09-28：主会话接回结果；当前无活动训练交接
+
+监督会话完成 `v2-best-expression-exposure-9ea0815-20260928` 终态核对并交回主会话：服务器结果 `best-stratified-test.json` SHA256 `603ffa7e2cba7f78e53f0566a73b56fdceaab0af00eb99ba1fe791bc84e8f840`，exit0、zero-PKL、GPU 空闲；`grad-pert-v2` 心跳 PAUSED。按先前授权已实现并发布后续 v2 运行的步数/阶段/损失/吞吐与验证、测试条件进度；源码 `87b44c8c1e8840c876bb63cdf783486aa40f7364`。当前没有新 GPU 任务或监督租约，旧 run 不重启。下一动作由主会话与用户讨论分组结果或安排明确授权的后续实验，不能以本分组指标调参测试集。
+
 ## 2026-09-28T04:39:59+08:00：m74 正式三轮 OOM 后的容量回退
 
 m74 已在首轮中途 OOM，128 步通过不能证明整轮安全；旧 run 和 FAILURE 保留，不恢复。当前用已发布来源门版本 `8dfb267adb25591393602066ef1226e7cbb76174`，对 m68／图目标行64／序列chunk16 启动独立双卡128步持续探针，服务器根 `/data/yilangliu/GraD-Pert/development/v2-gate-m68-r64-s16-128-after-b0-oom-r2`；r1 因启动环境缺少 PYTHONPATH 在导入阶段失败，r2 已补齐。准备了新的三轮 m68 自包含配置，但须以探针终态、显存余量与吞吐决定是否采用；不能把进行中视为通过。本次只改变物理/全局 batch，完整预测＋SSL1＋SSL2、累积2和既定图/序列chunk不变。
