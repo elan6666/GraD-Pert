@@ -9,6 +9,7 @@ import numpy as np
 import torch
 
 from gradpert.evaluation.data import CanonicalEvaluationData
+from gradpert.evaluation.gene_groups import grouped_condition_metrics
 from gradpert.evaluation.metrics import compute_condition_metrics, macro_summarize
 from gradpert.evaluation.state import LoadedEvaluationState
 from gradpert.hashing import sha256_json
@@ -172,6 +173,7 @@ def evaluate(
     query_count: int,
     block_response_cls_to_gene: bool = False,
     selection_gene_ids: tuple[int, ...] | None = None,
+    metric_gene_groups: dict[str, tuple[int, ...]] | None = None,
 ) -> dict[str, Any]:
     if data.split_name != expected_split or data.control_manifest.split_name != expected_split:
         raise ValueError("evaluation split differs from requested lifecycle stage")
@@ -186,7 +188,20 @@ def evaluate(
             raise ValueError("validation cannot use a combined test reference")
         if reference.manifest.systema_reference_condition_ids != list(data.split.train_conditions):
             raise ValueError("validation reference must be train-only")
+    if metric_gene_groups is not None:
+        axes = [set(indices) for indices in metric_gene_groups.values()]
+        if (
+            not metric_gene_groups
+            or any(
+                not indices or len(indices) != len(set(indices))
+                for indices in metric_gene_groups.values()
+            )
+            or any(i < 0 or i >= len(data.expression_gene_ids) for group in axes for i in group)
+            or len(set.union(*axes)) != sum(map(len, axes))
+        ):
+            raise ValueError("metric gene groups must be nonempty, disjoint and in-axis")
     losses, metrics, rows = [], [], []
+    group_metrics: dict[str, list[Any]] = {key: [] for key in metric_gene_groups or {}}
     for draw in data.control_manifest.draws:
         condition = draw.condition_id
         ids = tuple(draw.ordered_row_ids)
@@ -220,12 +235,31 @@ def evaluate(
         )
         loss = prediction_selection_loss(prediction, truth.expression, selection_gene_ids)
         metrics.append(metric)
+        per_group = {}
+        for name, indices in (metric_gene_groups or {}).items():
+            group_metric = grouped_condition_metrics(
+                condition_id=condition,
+                prediction=prediction,
+                input_control=controls.expression,
+                truth=truth.expression,
+                metric_control_pool_mean=reference.metric_control_means[
+                    reference_positions[condition]
+                ],
+                de_gene_indices=reference.manifest.de_gene_indices[condition],
+                top_de_gene_indices=reference.manifest.top_de_gene_indices[condition],
+                systema_reference=reference.systema_reference,
+                gene_indices=indices,
+                de_unavailable_reason=reference.manifest.de_unavailable_reasons.get(condition),
+            )
+            group_metrics[name].append(group_metric)
+            per_group[name] = asdict(group_metric)
         losses.append(loss)
         rows.append(
             {
                 "condition_id": condition,
                 "loss": loss,
                 "metrics": asdict(metric),
+                "metric_gene_groups": per_group,
                 "control_row_ids": list(ids),
                 "control_row_ids_sha256": sha256_json(list(ids)),
                 "truth_row_ids": list(truth.ordered_row_ids),
@@ -243,6 +277,16 @@ def evaluate(
             else None
         ),
         "metrics": [asdict(m) for m in macro_summarize(metrics)],
+        "metric_gene_groups": {
+            name: {
+                "gene_count": len(metric_gene_groups[name]),
+                "gene_ids_sha256": sha256_json(
+                    [data.expression_gene_ids[i] for i in metric_gene_groups[name]]
+                ),
+                "metrics": [asdict(m) for m in macro_summarize(values)],
+            }
+            for name, values in group_metrics.items()
+        },
         "conditions": rows,
         "control_manifest_sha256": data.control_manifest_file_sha256,
         "reference_sha256": reference.manifest_file_sha256,
