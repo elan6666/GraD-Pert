@@ -1,3 +1,9 @@
+## 2026-09-29：新 v2 默认 joint 验证、三组 best/last 测试与实时进度已发布
+
+源码 `10193b6edffca802410fef837fd918844d4cc6e3` 已推送 `main`。后续**新** v2 运行按固定 validation 视图计算完整预测＋SSL1＋SSL2 的 joint loss，并据此选择 best；原有 300-control prediction loss 和三种 Pearson 仍独立保存。每次成功训练更新累计真实数值表达基因，best/last 分别据各自 epoch 把同一次全基因测试推理汇总为全基因、见过表达、未见表达三组，每组各有 TxPert/TriShift/Systema Pearson 和有效条件数。实时文件/查看脚本显示 epoch 内与总 step、百分比、cells/s、step/s、joint 验证批次及 best/last 测试进度。协议与边界见 `docs/experiments/GRADPERT_V2_JOINT_VALIDATION_EXPOSURE_DEFAULT.md` 和 `docs/experiments/GRADPERT_V2_LIVE_PROGRESS.md`。v1、R50、旧 v2 运行和旧选择收据不追改。
+
+隔离服务器副本 v2 回归 434 通过；数据/曲线/选择相关 48 通过（另有 1 个既有配置配对测试因缺少旧配置而跳过）；最终改动定向 37 通过。本地 Ruff check/format 全仓通过。`mypy src` 尚有 29 个既有错误，均在本次未改动的 Triton、reductions 或旧训练 step 文件；本次新增的 2 个类型错误已修复。未启动新训练，当前没有此任务的 GPU 作业；后续若执行正式运行，须以本新源码、独立配置身份和新运行 ID 重新预检，不覆盖旧产物。
+
 ## 2026-09-28：best.pt 表达可见性评估完成；v2 实时进度已发布
 
 三轮 B0 的 best.pt 分组评估已 exit0，完整结果与身份见 `docs/experiments/GRADPERT_V2_EXPRESSION_EXPOSURE_20260928.md`。训练期见过表达的 4,775 个基因 TxPert/TriShift/Systema Pearson 为 0.422760/0.432257/0.257070；未见表达的 225 个基因为 0.138621/0.172251/0.119023，后两项仅 137/592 个条件有效。服务器结果 SHA256 `603ffa7e2cba7f78e53f0566a73b56fdceaab0af00eb99ba1fe791bc84e8f840`；原始全基因 best 指标逐项保持一致。旧训练/评估运行和产物不改，监督心跳已暂停。
