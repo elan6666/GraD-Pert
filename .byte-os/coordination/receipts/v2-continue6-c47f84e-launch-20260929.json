@@ -1,0 +1,44 @@
+{
+  "config_sha256": "66b6abdd0070d111a8275ba85739c6279cd5373559464b62eb0bb2be8473f956",
+  "driver_stem": "/data/yilangliu/GraD-Pert/development/v2-continue6-c47f84e-formal-r1",
+  "global_batch": 296,
+  "gpu": [
+    0,
+    1
+  ],
+  "launch_observation": {
+    "both_gpus_computing": true,
+    "complete": false,
+    "epoch_active": 4,
+    "epoch_committed": 3,
+    "exit": false,
+    "failure": false,
+    "wrapper_torchrun_and_two_ranks_alive": true
+  },
+  "learning_rate": 0.0002,
+  "main_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+  "monitor_id": "grad-pert-v2",
+  "monitor_interval_minutes": 20,
+  "parent_checkpoint_sha256": "5daef1bac40c19a20ba4ee54a2637e1f187e0d1f502010ba06708fc45a303978",
+  "parent_epoch": 3,
+  "parent_run_id": "nadig_jurkat-seed1-20260928T184412Z-2d6425f1e28e46b0b285af6096d03bd3",
+  "preflight": {
+    "dry_run_passed": true,
+    "dual_gpu_one_update_complete": true,
+    "optimizer_steps_after_probe": 1303,
+    "server_targeted_tests_passed": 79
+  },
+  "publication_sha256": "e1001c1e4a962d729c2feb57b2ca17e96716978b586aff0f9d6dc9e473c6b23b",
+  "recorded_at": "2026-09-29T22:32:42.278458+08:00",
+  "run_id": "nadig_jurkat-seed1-20260929T143029Z-d83c2632bba14bddb595f8b8c0734805",
+  "run_root": "/data/yilangliu/GraD-Pert/runs-v2-continue6-c47f84e/nadig_jurkat-seed1-20260929T143029Z-d83c2632bba14bddb595f8b8c0734805",
+  "runtime_sha256": "73d83138c6736337ffd25f1d495a3f9fd1a50fa2ace9f886b3016d48f4d1466f",
+  "schema_version": 1,
+  "seed": 1,
+  "source_checkout": "/data/yilangliu/GraD-Pert/development/source-v2-continue6-c47f84e",
+  "source_commit": "c47f84e796aed994fdd060a9afbe14a95fa64069",
+  "stage": "launched_for_supervision",
+  "supervisor_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+  "target_epoch": 6,
+  "wrapper_pid": 62070
+}

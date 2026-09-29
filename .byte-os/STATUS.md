@@ -1,3 +1,7 @@
+## 2026-09-29：no-mHC B0 全状态续训 3→6 已启动
+
+以三轮 B0 的 `last.pt` 开启独立 3+3 阶段，恒定 LR `2×10⁻⁴`、双 RTX 5090、全局 batch 296，原三轮训练与结果不改。新源码 `c47f84e796aed994fdd060a9afbe14a95fa64069` 已推送并在服务器干净发布；79 项服务器测试、正式配置 dry-run、同配置双卡真实一步更新及 checkpoint 重载通过。正式运行 ID `nadig_jurkat-seed1-20260929T143029Z-d83c2632bba14bddb595f8b8c0734805`，启动后已读到累计 epoch 3/6 与第 4 轮实时进度，双卡正在计算。完成须验 6/6、joint-loss best、best/last 测试及 zero-PKL；现在尚无完成收据。精确身份、路径和监督交接见 `.byte-os/STATE.md` 及对应 handoff。
+
 ## 2026-09-29：v2 checkpoint 评估与全状态／LoRA 续训接口完成
 
 已发布 `1cba4272f4d4c28281ab5efca0cf13057cb605d0`（核心功能）和 `5852acd46c9a1a8f1fa79827b76e4c502ad049fb`（评估进度及环境身份）。支持单卡／双卡配置、独立加载 `.pt` 评估，以及从三轮 B0 `last.pt` 开始的新训练阶段：全状态继续保留 Student、Teacher、center、优化器和 RNG，LoRA 作为单独微调分支；二者均采用新阶段恒定学习率 `2e-4`，不重新 warmup，也不声称与从零预设五轮完全等价。使用说明见 `docs/V2_WORKFLOWS.md`。本次没有启动正式 3+2 训练。
