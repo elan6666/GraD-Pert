@@ -99,6 +99,7 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
 
     from gradpert.evaluation.data import CanonicalEvaluationData
     from gradpert.evaluation.state import load_evaluation_state
+    from gradpert.execution.identity import inspect_environment
     from gradpert.training.v2.checkpoint import load_evaluation_checkpoint
     from gradpert.training.v2.evaluation import evaluate
     from gradpert.training.v2.exposure import checkpoint_expression_groups
@@ -108,6 +109,9 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
     if sha256_file(Path(plan["config"])) != plan["config_sha256"]:
         raise ValueError("evaluation configuration changed after planning")
     device = torch.device("cuda:0")
+    environment = inspect_environment(
+        plan["evaluation_source"]["repository_root"], device_name="cuda:0"
+    ).payload()
     with prepare_runtime(
         config,
         data_root=Path(plan["data_root"]),
@@ -158,9 +162,22 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
                 query_count=runtime.options.eval_query_count,
                 metric_gene_groups=groups,
                 condition_ids=selected,
+                on_condition_complete=lambda done, count, condition: atomic_json(
+                    Path(plan["output_root"]) / f"worker-{index}-progress.json",
+                    {
+                        "conditions_completed": done,
+                        "conditions_total": count,
+                        "latest_condition": condition,
+                        "checkpoint_sha256": plan["checkpoint_sha256"],
+                    },
+                ),
             )
             result["expression_exposure"] = exposure
-            return {"frozen_condition_order": list(frozen_order), "result": result}
+            return {
+                "frozen_condition_order": list(frozen_order),
+                "evaluation_environment": environment,
+                "result": result,
+            }
 
 
 def execute_evaluation_plan(plan: dict[str, Any]) -> dict[str, Any]:
@@ -216,11 +233,19 @@ def execute_evaluation_plan(plan: dict[str, Any]) -> dict[str, Any]:
         orders = [tuple(shard["frozen_condition_order"]) for shard in shards]
         if any(order != orders[0] for order in orders[1:]):
             raise ValueError("evaluation workers disagree on frozen condition order")
+        environments = [shard["evaluation_environment"] for shard in shards]
+        if any(environment != environments[0] for environment in environments[1:]):
+            raise ValueError("evaluation workers disagree on environment identity")
         result = merge_evaluation_shards(
             [shard["result"] for shard in shards], ordered_conditions=orders[0]
         )
         result["expression_exposure"] = shards[0]["result"]["expression_exposure"]
-        receipt = {"plan": plan, "result": result, "zero_pkl": not any(root.rglob("*.pkl"))}
+        receipt = {
+            "plan": plan,
+            "evaluation_environment": environments[0],
+            "result": result,
+            "zero_pkl": not any(root.rglob("*.pkl")),
+        }
         if not receipt["zero_pkl"]:
             raise ValueError("independent evaluation unexpectedly produced a PKL")
         atomic_json(root / "COMPLETE.json", receipt)

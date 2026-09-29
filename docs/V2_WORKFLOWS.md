@@ -88,7 +88,8 @@ worker uses the same frozen 300-control draws and its own single-GPU inference
 runtime; the coordinator verifies complete, non-overlapping condition coverage
 and recomputes the macro metrics in frozen manifest order. `--split val` is
 also available, with the train-only Systema reference. The output contains a
-small plan, worker receipts/logs and `COMPLETE.json`, with zero prediction PKLs.
+small plan, per-worker condition progress and logs, evaluation environment
+identity and `COMPLETE.json`, with zero prediction PKLs.
 Reusing an output directory is rejected.
 
 No new checkpoint, fine-tune run, or independent evaluation is launched by
