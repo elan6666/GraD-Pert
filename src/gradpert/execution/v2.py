@@ -38,6 +38,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
         "v2_fixed_1",
         "v2_fixed_3",
         "v2_fixed_5",
+        "v2_fixed_6",
         "v2_fixed_50",
     }:
         raise ValueError("v2 execution requires its explicit fixed-epoch configuration")

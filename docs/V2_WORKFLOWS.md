@@ -67,6 +67,15 @@ The original three epochs used a three-epoch endpoint cosine. The child does
 not relabel them as a five-epoch cosine run: it records a `3+2` parent hash and
 constant continuation LR. The parent run is never edited or overwritten.
 
+For the 3→6 full-state continuation, use
+`configs/v2/no_mhc_joint_eval_jurkat/continue_full_m74_a2_to6/gradpert_v2/nadig_jurkat.yaml`
+with the same dry-run and launch commands above. It restores the same parent
+`last.pt` and training state, retains the original three completed epochs,
+then adds epochs 4–6 with constant LR `0.0002`. This is recorded as a `3+3`
+stage, not retroactively as a six-epoch cosine run. Its best checkpoint is
+selected by joint validation loss across all six observed epochs; best and last
+are both tested at completion.
+
 ## Evaluate a saved v2 checkpoint without training
 
 The input must be a checksum-verified `best` or `last` checkpoint in its

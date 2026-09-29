@@ -57,6 +57,7 @@ def resolve_plan(args: argparse.Namespace) -> dict[str, Any]:
     expected_epochs = {
         "r50_selection": 50,
         "v2_fixed_50": 50,
+        "v2_fixed_6": 6,
         "v2_fixed_5": 5,
         "v2_fixed_3": 3,
         "v2_fixed_1": 1,

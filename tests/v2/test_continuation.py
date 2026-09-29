@@ -294,3 +294,30 @@ def test_continuation_configs_are_self_contained_and_old_payload_is_unchanged():
         assert config.continuation.mode == mode
         assert config.training.max_epochs.value == 5
         assert config.continuation.learning_rate == 0.0002
+
+
+def test_six_epoch_full_state_config_changes_only_continuation_budget():
+    from pathlib import Path
+
+    import yaml
+
+    from gradpert.config import load_experiment_config
+
+    base = Path("configs/v2/no_mhc_joint_eval_jurkat")
+    five_path = base / "continue_full_m74_a2/gradpert_v2/nadig_jurkat.yaml"
+    six_path = base / "continue_full_m74_a2_to6/gradpert_v2/nadig_jurkat.yaml"
+    five = yaml.safe_load(five_path.read_text())
+    six = yaml.safe_load(six_path.read_text())
+    assert six["training"]["formal_run_policy"] == "v2_fixed_6"
+    five["training"]["formal_run_policy"] = "v2_fixed_6"
+    assert six["training"]["max_epochs"]["value"] == 6
+    five["training"]["max_epochs"]["value"] = 6
+    five["training"]["max_epochs"]["reference"] = six["training"]["max_epochs"]["reference"]
+    assert six["continuation"]["additional_epochs"] == 3
+    five["continuation"]["additional_epochs"] = 3
+    assert six == five
+    config = load_experiment_config(six_path)
+    assert config.continuation is not None
+    assert config.continuation.mode == "full_state"
+    assert config.continuation.parent_epoch == 3
+    assert config.training.max_epochs.value == 6

@@ -134,6 +134,7 @@ class TrainingConfig(StrictModel):
         "fixed_epoch_pilot",
         "r50_selection",
         "v2_fixed_50",
+        "v2_fixed_6",
         "v2_fixed_5",
         "v2_fixed_3",
         "v2_fixed_1",
@@ -165,6 +166,7 @@ class TrainingConfig(StrictModel):
                 if self.formal_run_policy not in {
                     "r50_selection",
                     "v2_fixed_50",
+                    "v2_fixed_6",
                     "v2_fixed_5",
                     "v2_fixed_3",
                     "v2_fixed_1",
@@ -235,6 +237,7 @@ class TrainingConfig(StrictModel):
                     raise ValueError("vNext combination requires the common validation monitor")
             elif self.formal_run_policy in {
                 "v2_fixed_50",
+                "v2_fixed_6",
                 "v2_fixed_5",
                 "v2_fixed_3",
                 "v2_fixed_1",
@@ -243,6 +246,7 @@ class TrainingConfig(StrictModel):
                     "v2_fixed_1": 1,
                     "v2_fixed_3": 3,
                     "v2_fixed_5": 5,
+                    "v2_fixed_6": 6,
                     "v2_fixed_50": 50,
                 }[self.formal_run_policy]
                 if self.max_epochs.value != expected_epochs or self.early_stopping:
@@ -420,6 +424,7 @@ class ExperimentConfig(StrictModel):
                 "smoke_then_full",
                 "r50_selection",
                 "v2_fixed_50",
+                "v2_fixed_6",
                 "v2_fixed_5",
                 "v2_fixed_3",
                 "v2_fixed_1",
@@ -441,7 +446,7 @@ class ExperimentConfig(StrictModel):
             raise ValueError("external R50 is restricted to registered Jurkat metrics_only rows")
         if (
             self.training.formal_run_policy
-            in {"v2_fixed_50", "v2_fixed_5", "v2_fixed_3", "v2_fixed_1"}
+            in {"v2_fixed_50", "v2_fixed_6", "v2_fixed_5", "v2_fixed_3", "v2_fixed_1"}
             and self.model_id != "gradpert_v2"
         ):
             raise ValueError("v2 policy cannot reinterpret a legacy model")
@@ -459,6 +464,7 @@ class ExperimentConfig(StrictModel):
                 raise ValueError("v2 requires metrics_only with server-side best/last checkpoints")
             if self.training.formal_run_policy not in {
                 "v2_fixed_50",
+                "v2_fixed_6",
                 "v2_fixed_5",
                 "v2_fixed_3",
                 "v2_fixed_1",
@@ -466,9 +472,10 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_1": 1,
                 "v2_fixed_3": 3,
                 "v2_fixed_5": 5,
+                "v2_fixed_6": 6,
                 "v2_fixed_50": 50,
             }.get(self.training.formal_run_policy):
-                raise ValueError("v2 requires a fixed 1/3/5/50 epoch best/last protocol")
+                raise ValueError("v2 requires a fixed 1/3/5/6/50 epoch best/last protocol")
             if self.training.optimizer.value != "GLM5MuonSplit_v2":
                 raise ValueError("v2 requires its explicit parameter-route optimizer")
             if (

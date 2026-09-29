@@ -113,6 +113,17 @@ def test_v2_three_epoch_protocol_requires_exact_budget():
         ExperimentConfig.model_validate(payload)
 
 
+def test_v2_six_epoch_continuation_requires_exact_budget():
+    payload = load_experiment_config(ONE_EPOCH).model_dump(mode="json")
+    payload["training"]["formal_run_policy"] = "v2_fixed_6"
+    payload["training"]["max_epochs"]["value"] = 6
+    six = ExperimentConfig.model_validate(payload)
+    assert six.training.max_epochs.value == 6
+    payload["training"]["max_epochs"]["value"] = 5
+    with pytest.raises(ValueError, match="exactly 6 epochs"):
+        ExperimentConfig.model_validate(payload)
+
+
 def test_three_epoch_b0_preserves_the_measured_full_method():
     source = yaml.safe_load(
         (SOURCE_GATE_CAPACITY / "m74_rows64_seq16/gradpert_v2/nadig_jurkat.yaml").read_text()
