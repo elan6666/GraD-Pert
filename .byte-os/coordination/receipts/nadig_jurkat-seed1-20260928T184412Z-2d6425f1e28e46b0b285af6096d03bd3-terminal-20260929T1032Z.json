@@ -1,0 +1,140 @@
+{
+  "schema": "byte-supervise-terminal-v1",
+  "checked_at_utc": "2026-09-29T10:32:47Z",
+  "supervisor_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+  "run_id": "nadig_jurkat-seed1-20260928T184412Z-2d6425f1e28e46b0b285af6096d03bd3",
+  "attempt": 1,
+  "status": "passed",
+  "identity": {
+    "training_source_commit": "ca7884e4e9b70bb55a61d97442467ff2531337b3",
+    "evaluation_source_commit": "ca7884e4e9b70bb55a61d97442467ff2531337b3",
+    "source_tree_clean": true,
+    "config_sha256": "4c5ba9b39689b9d7993e023694cdedd0268668aa0f9e2f922e6c82e5cb25887e",
+    "runtime_sha256": "62b19c5701981d5039810ac196f37c5a3d542da476d695659910074d479e651e",
+    "data": {
+      "canonical_sha256": "f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861",
+      "split_sha256": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0",
+      "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+      "graph_manifest_sha256": "0de04502516318f835699683f0c95362386d7031cdefd99800ca3039eb392ae2"
+    }
+  },
+  "run_root": "/data/yilangliu/GraD-Pert/runs-v2-no-mhc-ca7884e/nadig_jurkat-seed1-20260928T184412Z-2d6425f1e28e46b0b285af6096d03bd3",
+  "wrapper_stem": "/data/yilangliu/GraD-Pert/development/v2-no-mhc-ca7884e-b0-3ep-r1",
+  "exit_code": 0,
+  "epochs_committed": 3,
+  "history_records": 3,
+  "selection_metric": "joint_loss",
+  "best": {
+    "epoch": 2,
+    "checkpoint": "epoch-0002.pt",
+    "joint_loss": 4.00763907922287,
+    "prediction_loss": 0.0030063230532144606,
+    "checkpoint_sha256": "08e931b0e69e45805193a5fdc08297cdde4113876520d9df66cc5ddc0926611d"
+  },
+  "last": {
+    "epoch": 3,
+    "checkpoint": "epoch-0003.pt",
+    "joint_loss": 4.051963834217914,
+    "prediction_loss": 0.002812049380823434,
+    "checkpoint_sha256": "5daef1bac40c19a20ba4ee54a2637e1f187e0d1f502010ba06708fc45a303978"
+  },
+  "complete_json": {
+    "path": "/data/yilangliu/GraD-Pert/runs-v2-no-mhc-ca7884e/nadig_jurkat-seed1-20260928T184412Z-2d6425f1e28e46b0b285af6096d03bd3/COMPLETE.json",
+    "sha256": "ea2a9ce95d3313003ec961db66aff1471ef9136296e933a1ac486c47400f6c12",
+    "epoch": 3,
+    "test_roles": [
+      "best",
+      "last"
+    ],
+    "zero_pkl": true
+  },
+  "test_receipts": {
+    "best": {
+      "path": "/data/yilangliu/GraD-Pert/runs-v2-no-mhc-ca7884e/nadig_jurkat-seed1-20260928T184412Z-2d6425f1e28e46b0b285af6096d03bd3/fit/best-test.json",
+      "sha256": "bf4a86b998483e7533e56debf43a3879d43c17c04342a0db8d9fced6878ef2a3",
+      "checkpoint_epoch": 2,
+      "checkpoint_sha256": "08e931b0e69e45805193a5fdc08297cdde4113876520d9df66cc5ddc0926611d",
+      "split": "test",
+      "overall_pearson": {
+        "txpert_all": 0.19423108812697001,
+        "txpert_deg": 0.35181534129179337,
+        "trishift_all": 0.14454107957918055,
+        "trishift_deg": 0.32393363698525146,
+        "systema_all": 0.07321943386642189,
+        "systema_deg": 0.19379983331481368
+      },
+      "seen_expression_4775": {
+        "txpert_all": 0.36782929228695793,
+        "txpert_deg": 0.43640341248851117,
+        "trishift_all": 0.2554452513348375,
+        "trishift_deg": 0.40011315863868063,
+        "systema_all": 0.19681572341943399,
+        "systema_deg": 0.22162000762688425
+      },
+      "unseen_expression_225": {
+        "txpert_all": 0.13889356879813036,
+        "txpert_deg": 0.16099818169896252,
+        "trishift_all": 0.13114336331784077,
+        "trishift_deg": 0.12587555320273144,
+        "systema_all": -0.021998359409821526,
+        "systema_deg": 0.026212413131811794
+      },
+      "valid_conditions": {
+        "all_gene": 592,
+        "deg": 590,
+        "unseen_deg": 147
+      }
+    },
+    "last": {
+      "path": "/data/yilangliu/GraD-Pert/runs-v2-no-mhc-ca7884e/nadig_jurkat-seed1-20260928T184412Z-2d6425f1e28e46b0b285af6096d03bd3/fit/last-test.json",
+      "sha256": "f90c189f5e1fb04f9728a6fb1a7aa7839a14d9b7bbf4bbd103b5a3bc0b5d716a",
+      "checkpoint_epoch": 3,
+      "checkpoint_sha256": "5daef1bac40c19a20ba4ee54a2637e1f187e0d1f502010ba06708fc45a303978",
+      "split": "test",
+      "overall_pearson": {
+        "txpert_all": 0.20535461860829515,
+        "txpert_deg": 0.3831095719380048,
+        "trishift_all": 0.15787418962767646,
+        "trishift_deg": 0.3636992660532411,
+        "systema_all": 0.07439330108429437,
+        "systema_deg": 0.2410105381378615
+      },
+      "seen_expression_4775": {
+        "txpert_all": 0.4175710000637566,
+        "txpert_deg": 0.49170931531636775,
+        "trishift_all": 0.3012514133539981,
+        "trishift_deg": 0.47084444851623214,
+        "systema_all": 0.22670523422478767,
+        "systema_deg": 0.3075386181081968
+      },
+      "unseen_expression_225": {
+        "txpert_all": 0.1478953438611707,
+        "txpert_deg": 0.1680096451687278,
+        "trishift_all": 0.14147549346488777,
+        "trishift_deg": 0.14717866773112642,
+        "systema_all": -0.020831611241181644,
+        "systema_deg": 0.04828848152043947
+      },
+      "valid_conditions": {
+        "all_gene": 592,
+        "deg": 590,
+        "unseen_deg": 147
+      }
+    }
+  },
+  "terminal_checks": {
+    "failure_json_absent": true,
+    "run_root_pkl_count": 0,
+    "run_process_pids": [
+      4088176,
+      4088178,
+      4088255,
+      4088333,
+      4088334
+    ],
+    "run_processes_absent": true,
+    "gpu_observation": "GPU 0 showed a separate PID 27666 (704 MiB); not one of this run PIDs; GPU 1 showed 2 MiB. No action taken."
+  },
+  "main_continuation": "unverified",
+  "monitor": "pause requested at terminal handback; app confirmation pending"
+}

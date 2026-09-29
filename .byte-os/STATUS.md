@@ -1,3 +1,15 @@
+## 2026-09-29：no-mHC B0 三轮训练及 best/last 测试完成
+
+run `nadig_jurkat-seed1-20260928T184412Z-2d6425f1e28e46b0b285af6096d03bd3` attempt 1 已通过终态验收：exit 0、epoch 3/3、history 3条、`COMPLETE.json` 存在、无 `FAILURE.json`，run 根递归 PKL 数为 0。源码训练/评估均为干净提交 `ca7884e4e9b70bb55a61d97442467ff2531337b3`；配置 SHA256 `4c5ba9b39689b9d7993e023694cdedd0268668aa0f9e2f922e6c82e5cb25887e`，runtime SHA256 `62b19c5701981d5039810ac196f37c5a3d542da476d695659910074d479e651e`。best 按 joint_loss 选为 epoch 2（4.0076391；checkpoint SHA256 `08e931b0e69e45805193a5fdc08297cdde4113876520d9df66cc5ddc0926611d`）；last 为 epoch 3（joint_loss 4.0519638；SHA256 `5daef1bac40c19a20ba4ee54a2637e1f187e0d1f502010ba06708fc45a303978`）。
+
+| Pearson | best all / DEG | last all / DEG |
+|---|---:|---:|
+| TxPert | 0.194231 / 0.351815 | 0.205355 / 0.383110 |
+| TriShift | 0.144541 / 0.323934 | 0.157874 / 0.363699 |
+| Systema | 0.073219 / 0.193800 | 0.074393 / 0.241011 |
+
+六项均分别按 592 all-gene 与 590 DEG 有效条件计算。seen/unseen 表达分组 Pearson 及身份、收据哈希记录于终态收据。远端末次核验时本 run 的五个进程均已退出；GPU0另见独立 PID 27666（704 MiB），不属于本 run，未操作。终态收据：`.byte-os/coordination/receipts/nadig_jurkat-seed1-20260928T184412Z-2d6425f1e28e46b0b285af6096d03bd3-terminal-20260929T1032Z.json`。主会话下一步：独立复核收据和原始结果，继续最终科学解释/交付；本 run 无需重跑。
+
 ## 2026-09-29：新 v2 默认 joint 验证、三组 best/last 测试与实时进度已发布
 
 源码 `10193b6edffca802410fef837fd918844d4cc6e3` 已推送 `main`。后续**新** v2 运行按固定 validation 视图计算完整预测＋SSL1＋SSL2 的 joint loss，并据此选择 best；原有 300-control prediction loss 和三种 Pearson 仍独立保存。每次成功训练更新累计真实数值表达基因，best/last 分别据各自 epoch 把同一次全基因测试推理汇总为全基因、见过表达、未见表达三组，每组各有 TxPert/TriShift/Systema Pearson 和有效条件数。实时文件/查看脚本显示 epoch 内与总 step、百分比、cells/s、step/s、joint 验证批次及 best/last 测试进度。协议与边界见 `docs/experiments/GRADPERT_V2_JOINT_VALIDATION_EXPOSURE_DEFAULT.md` 和 `docs/experiments/GRADPERT_V2_LIVE_PROGRESS.md`。v1、R50、旧 v2 运行和旧选择收据不追改。

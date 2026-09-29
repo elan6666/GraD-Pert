@@ -1,17 +1,7 @@
-# Active 2026-09-29: v2 single-stream B0 and evaluation upgrade
+# Current 2026-09-29: v2 no-mHC B0 complete; no active supervision lease
 
-Outcome: publish a new three-epoch Jurkat B0 with mHC removed via streams=1,
-joint-loss validation/selection, and six Pearson variants using one DEG set;
-complete best/last tests. Systema reference remains train-only for validation
-and train+val for test. Work is isolated in the managed
-`v2-gene-exposure-eval` worktree; published baseline c255480600447a452519c7a73a323241afa15ff8
-was clean and matched origin/main before edits. Evaluation-state-v2 uses a
-separate artifact path; prior v1 states and run IDs remain immutable. Current
-stage: local implementation/testing, not published or running. Server GPUs
-were idle on 2026-09-29; local environment has no Torch. Next: finish tests,
-publish scoped commit, verify a clean immutable server checkout, run full CUDA
-integration/capacity, then launch fresh 3-epoch B0 and supervise to best/last
-receipts. Details: `docs/experiments/GRADPERT_V2_NO_MHC_B0.md`.
+The no-mHC single-stream/joint-validation run `nadig_jurkat-seed1-20260928T184412Z-2d6425f1e28e46b0b285af6096d03bd3` attempt 1 has completed three epochs (1302 optimizer updates), exit 0, with `COMPLETE.json` and both best/last tests. The main chat independently re-read the server's `COMPLETE.json`, `fit/epoch_state.json`, `fit/history.json`, and best/last test JSON and matched their SHA256 values to the supervisor's terminal receipt. The entire run root contains zero PKLs. The clean training/evaluation source is `ca7884e4e9b70bb55a61d97442467ff2531337b3`; the config SHA256 is `4c5ba9b39689b9d7993e023694cdedd0268668aa0f9e2f922e6c82e5cb25887e`. The protocol-selected best is epoch 2 by minimum validation joint loss 4.0076390792; last is epoch 3 with validation joint loss 4.0519638342. Full results and their interpretation are in `docs/experiments/GRADPERT_V2_NO_MHC_B0_RESULT_20260929.md`. The `grad-pert-v2` monitor is PAUSED because this run is terminal. No rerun or further ablation was started. The supervisor's terminal receipt is `.byte-os/coordination/receipts/nadig_jurkat-seed1-20260928T184412Z-2d6425f1e28e46b0b285af6096d03bd3-terminal-20260929T1032Z.json`; the completed-run handoff is `.byte-os/coordination/handoffs/2026-09-29-codex-v2-no-mhc-b0-complete.md`. Earlier sections below are historical snapshots, not the current run state.
+
 
 ## 2026-09-29：主会话完成 v2 验证/测试输出协议更新
 
