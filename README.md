@@ -10,6 +10,7 @@ weights explicit self-contained config choices.
 The repository is under active implementation. Current authoritative material:
 
 - [simple train entry: default batch1024, dry-run, best/last and curves](docs/TRAIN_CLI.md)
+- [GraD-Pert v2 training, checkpoint continuation, LoRA and independent evaluation](docs/V2_WORKFLOWS.md)
 - [active model design](docs/design/GRADPERT_V1.md)
 - [B2-vNext ablation design](docs/design/GRADPERT_VNEXT_ABLATIONS.md)
 - [completed remaining ablations and audit status](docs/experiments/VNEXT_REMAINING_RESULTS_20260907.md)
@@ -18,6 +19,37 @@ The repository is under active implementation. Current authoritative material:
 - [reference alignment and licenses](docs/provenance/REFERENCE_ALIGNMENT.md)
 - [experiment architecture alignment](docs/provenance/TRISHIFT_ARCHITECTURE_ALIGNMENT.md)
 - [private Trackio loss/utilization dashboards](docs/experiments/HUGGING_FACE_TRACKIO.md)
+
+## GraD-Pert v2 checkpoint workflows
+
+On the `/data/yilangliu` training server, `python -m gradpert train --config
+CONFIG --gpu 0` runs a v2 config whose `model.parameters.world_size` is 1;
+`--gpu 0,1` requires world size 2. The self-contained config also fixes each
+GPU's microbatch, gradient accumulation and global train batch. Start with
+`--dry-run` to inspect the sealed run identity before training. The command
+trains, records per-epoch validation and curves, and tests both `best.pt` and
+`last.pt`. To resume an interrupted run with **the same** source, config and
+budget, use `python -m gradpert resume-v2 --launch RUN/launch.json`.
+
+For the completed Jurkat three-epoch checkpoint, two explicit example configs
+are provided: `configs/v2/no_mhc_joint_eval_jurkat/continue_full_m74_a2/`
+restores Student, Teacher, centers, optimizer and RNG for epochs 4–5; and
+`configs/v2/no_mhc_joint_eval_jurkat/finetune_lora_r8_m74_a2/` starts a LoRA
+branch with the same base weights and teacher/centers but a fresh adapter
+optimizer. Both use a declared constant `2e-4` learning rate after the parent
+checkpoint and create a **new** run ID. Full-state continuation preserves the
+parent two-GPU batch topology. The original three-epoch run and its tests stay
+unchanged. These are `3+2` stages, not results of a cosine schedule originally
+planned for five epochs. See [exact commands and receipt rules](docs/V2_WORKFLOWS.md).
+
+To re-evaluate one verified `.pt` without retraining, run
+`python -m gradpert evaluate-checkpoint --config CONFIG --training-run-root RUN
+--checkpoint RUN/fit/last.pt --checkpoint-sha256 SHA256 --runtime RUNTIME
+--output-root NEW_OUTPUT --gpu 0 --dry-run`, then omit `--dry-run` to execute.
+`--gpu 0,1` divides frozen perturbation conditions between two evaluation
+workers and recomputes the same condition-level macro metrics. It retains the
+frozen 300-control manifest and writes a small `COMPLETE.json` receipt; no
+prediction PKL is produced.
 
 ## Scope
 

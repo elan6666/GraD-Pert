@@ -12,6 +12,8 @@ import torch
 from gradpert.evaluation.data import CanonicalEvaluationData
 from gradpert.evaluation.gene_groups import grouped_condition_metrics
 from gradpert.evaluation.metrics import (
+    ConditionMetricResult,
+    ConditionMetrics,
     compute_condition_metrics,
     compute_condition_metrics_v2,
     macro_summarize,
@@ -179,6 +181,7 @@ def evaluate(
     block_response_cls_to_gene: bool = False,
     selection_gene_ids: tuple[int, ...] | None = None,
     metric_gene_groups: dict[str, tuple[int, ...]] | None = None,
+    condition_ids: tuple[str, ...] | None = None,
     on_condition_complete: Callable[[int, int, str], None] | None = None,
 ) -> dict[str, Any]:
     if data.split_name != expected_split or data.control_manifest.split_name != expected_split:
@@ -204,11 +207,21 @@ def evaluate(
         ):
             raise ValueError("metric gene groups must be nonempty, disjoint and in-axis")
     groups = metric_gene_groups or {}
+    all_ids = tuple(draw.condition_id for draw in data.control_manifest.draws)
+    if condition_ids is not None and (
+        not condition_ids
+        or len(set(condition_ids)) != len(condition_ids)
+        or not set(condition_ids).issubset(all_ids)
+    ):
+        raise ValueError("evaluation shard must be a nonempty unique subset of frozen conditions")
+    selected = set(all_ids if condition_ids is None else condition_ids)
     losses, metrics, rows = [], [], []
     group_metrics: dict[str, list[Any]] = {key: [] for key in groups}
-    total_conditions = len(data.control_manifest.draws)
-    for condition_number, draw in enumerate(data.control_manifest.draws, start=1):
+    total_conditions = len(selected)
+    for draw in data.control_manifest.draws:
         condition = draw.condition_id
+        if condition not in selected:
+            continue
         ids = tuple(draw.ordered_row_ids)
         controls = data.load_control_rows(ids)
         if controls.ordered_row_ids != ids:
@@ -286,7 +299,7 @@ def evaluate(
             }
         )
         if on_condition_complete is not None:
-            on_condition_complete(condition_number, total_conditions, condition)
+            on_condition_complete(len(rows), total_conditions, condition)
     if not losses:
         raise ValueError("evaluation split is empty")
     return {
@@ -317,3 +330,68 @@ def evaluate(
             "block_response_cls_to_gene": block_response_cls_to_gene,
         },
     }
+
+
+def merge_evaluation_shards(
+    shards: list[dict[str, Any]], *, ordered_conditions: tuple[str, ...]
+) -> dict[str, Any]:
+    """Recompute macros from unique condition rows in frozen manifest order."""
+    if (
+        not shards
+        or not ordered_conditions
+        or len(set(ordered_conditions)) != len(ordered_conditions)
+    ):
+        raise ValueError("complete ordered evaluation shards required")
+    first = shards[0]
+    for shard in shards[1:]:
+        for key in (
+            "split",
+            "selection_gene_ids",
+            "control_manifest_sha256",
+            "reference_sha256",
+            "query_recipe",
+        ):
+            if shard[key] != first[key]:
+                raise ValueError(f"evaluation shards differ in {key}")
+        if {
+            name: (group["gene_count"], group["gene_ids_sha256"])
+            for name, group in shard["metric_gene_groups"].items()
+        } != {
+            name: (group["gene_count"], group["gene_ids_sha256"])
+            for name, group in first["metric_gene_groups"].items()
+        }:
+            raise ValueError("evaluation shards differ in gene-group identity")
+    by_condition: dict[str, dict[str, Any]] = {}
+    for shard in shards:
+        for row in shard["conditions"]:
+            condition = row["condition_id"]
+            if condition in by_condition:
+                raise ValueError("evaluation shard condition is duplicated")
+            by_condition[condition] = row
+    if set(by_condition) != set(ordered_conditions):
+        raise ValueError("evaluation shards do not cover the frozen condition manifest")
+    rows = [by_condition[condition] for condition in ordered_conditions]
+
+    def summarize(key: str | None) -> list[dict[str, Any]]:
+        values = []
+        for row in rows:
+            entry = row["metrics"] if key is None else row["metric_gene_groups"][key]
+            if entry is None:
+                continue
+            values.append(
+                ConditionMetrics(
+                    condition_id=row["condition_id"],
+                    results=tuple(ConditionMetricResult(**item) for item in entry["results"]),
+                )
+            )
+        return [asdict(metric) for metric in macro_summarize(values)] if values else []
+
+    merged = dict(first)
+    merged["conditions"] = rows
+    merged["prediction_loss"] = float(np.mean([row["loss"] for row in rows]))
+    merged["metrics"] = summarize(None)
+    merged["metric_gene_groups"] = {
+        name: {**group, "metrics": summarize(name)}
+        for name, group in first["metric_gene_groups"].items()
+    }
+    return merged

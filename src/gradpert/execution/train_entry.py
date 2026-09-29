@@ -36,6 +36,24 @@ def resolve_plan(args: argparse.Namespace) -> dict[str, Any]:
     root = repository_root()
     config_path = (args.config or root / DEFAULT_CONFIG).resolve(strict=True)
     config = load_experiment_config(config_path)
+    if config.continuation is not None:
+        from gradpert.data._io import read_json
+
+        stage = config.continuation
+        parent = Path(stage.parent_run_root).resolve(strict=True)
+        checkpoint = Path(stage.parent_checkpoint).resolve(strict=True)
+        if not parent.is_relative_to(SERVER_ROOT) or not checkpoint.is_relative_to(parent / "fit"):
+            raise ValueError("continuation parent must be a server checkpoint")
+        journal = read_json(parent / "fit/epoch_state.json")
+        complete = read_json(parent / "COMPLETE.json")
+        if (
+            journal["epoch"] != stage.parent_epoch
+            or complete["epoch"] != stage.parent_epoch
+            or checkpoint != (parent / "fit" / journal["last"]["file"]).resolve(strict=True)
+            or journal["last"]["sha256"] != stage.parent_checkpoint_sha256
+            or sha256_file(checkpoint) != stage.parent_checkpoint_sha256
+        ):
+            raise ValueError("continuation parent is incomplete or checksum differs")
     expected_epochs = {
         "r50_selection": 50,
         "v2_fixed_50": 50,

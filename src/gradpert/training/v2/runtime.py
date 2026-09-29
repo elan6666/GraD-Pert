@@ -255,6 +255,16 @@ def prepare_runtime(
         if options.gene_initialization == "random":
             seed = torch.randn_like(seed) * 0.02
         student = GraDPertV2(seed, arch).to(device)
+        if config.continuation is not None and config.continuation.mode == "lora":
+            from gradpert.modeling.v2.lora import insert_lora
+
+            assert config.continuation.lora_rank is not None
+            assert config.continuation.lora_alpha is not None
+            insert_lora(
+                student,
+                rank=config.continuation.lora_rank,
+                alpha=config.continuation.lora_alpha,
+            )
         objective = JointObjective(
             student,
             lambda1=options.lambda1,

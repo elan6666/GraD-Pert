@@ -67,11 +67,12 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     from gradpert.evaluation.data import CanonicalEvaluationData
     from gradpert.evaluation.state import load_evaluation_state, prepare_evaluation_state
     from gradpert.training.v2.artifacts import compact_validation
+    from gradpert.training.v2.continuation import restore_parent
     from gradpert.training.v2.distributed import primary_call
     from gradpert.training.v2.evaluation import evaluate
     from gradpert.training.v2.exposure import checkpoint_expression_groups
     from gradpert.training.v2.joint_validation import evaluate_joint_loss
-    from gradpert.training.v2.lifecycle import fit, test_selected
+    from gradpert.training.v2.lifecycle import ConstantStageLR, fit, test_selected
     from gradpert.training.v2.reporting import export_curves
     from gradpert.training.v2.runtime import prepare_runtime
 
@@ -88,6 +89,18 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     with prepare_runtime(
         config, data_root=data_root, run_seed=plan["seed"], device=device
     ) as runtime:
+        bootstrap_history = None
+        bootstrap_best = None
+        continuation_provenance = None
+        if config.continuation is not None:
+            bootstrap_history, bootstrap_best, continuation_provenance = restore_parent(
+                config,
+                data_identity=runtime.identity,
+                objective=runtime.objective,
+                optimizer=runtime.optimizer,
+                generator=runtime.generator,
+                steps_per_epoch=runtime.steps_per_epoch,
+            )
         identity = {
             "source": source.payload(),
             "environment": environment.payload(),
@@ -96,6 +109,8 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             "resolved_config_sha256": sha256_json(config.model_dump(mode="json")),
             "run_id": plan["run_id"],
         }
+        if continuation_provenance is not None:
+            identity["continuation"] = continuation_provenance
         manifest_path = root / "run_manifest.json"
         if manifest_path.exists() and read_json(manifest_path) != identity:
             raise ValueError("existing run identity differs; results cannot be overwritten")
@@ -206,12 +221,22 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                 steps_per_epoch=runtime.steps_per_epoch,
                 batches=runtime.batches,
                 validate=validate,
-                schedule=schedule,
-                teacher_start=runtime.options.teacher_start,
+                schedule=(
+                    ConstantStageLR(config.continuation.learning_rate)
+                    if config.continuation is not None
+                    else schedule
+                ),
+                teacher_start=(
+                    runtime.options.teacher_end
+                    if config.continuation is not None
+                    else runtime.options.teacher_start
+                ),
                 teacher_end=runtime.options.teacher_end,
                 microbatch=runtime.options.microbatch,
                 bf16=True,
                 resume=resume,
+                bootstrap_history=bootstrap_history if not resume else None,
+                bootstrap_best=bootstrap_best if not resume else None,
             )
         primary_call(lambda: export_curves(root / "fit"))
         # Test references and truth are accessed only after all training and selection.
@@ -298,6 +323,8 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             "test_roles": list(results),
             "zero_pkl": True,
         }
+        if continuation_provenance is not None:
+            complete["continuation"] = continuation_provenance
         primary_call(lambda: atomic_json(root / "COMPLETE.json", complete))
         primary_call(
             lambda: _write_live_progress(

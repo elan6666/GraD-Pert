@@ -82,27 +82,38 @@ class V2Optimizer:
                 parts = [nn.Parameter(t) for t in p.detach().chunk(route["heads"], 0)]
                 self.views.append((p, parts))
                 matrix.extend(parts)
-        self.muon = torch.optim.Muon(
-            matrix,
-            lr=lr,
-            weight_decay=weight_decay,
-            momentum=0.95,
-            nesterov=True,
-            ns_steps=5,
-            ns_coefficients=(3.4445, -4.7750, 2.0315),
-            eps=1e-7,
-            adjust_lr_fn="match_rms_adamw",
+        self.muon = (
+            torch.optim.Muon(
+                matrix,
+                lr=lr,
+                weight_decay=weight_decay,
+                momentum=0.95,
+                nesterov=True,
+                ns_steps=5,
+                ns_coefficients=(3.4445, -4.7750, 2.0315),
+                eps=1e-7,
+                adjust_lr_fn="match_rms_adamw",
+            )
+            if matrix
+            else None
         )
-        self.adamw = torch.optim.AdamW(
-            auxiliary, lr=lr, weight_decay=weight_decay, betas=(0.9, 0.999), eps=1e-8
+        self.adamw = (
+            torch.optim.AdamW(
+                auxiliary, lr=lr, weight_decay=weight_decay, betas=(0.9, 0.999), eps=1e-8
+            )
+            if auxiliary
+            else None
         )
+        if self.muon is None and self.adamw is None:
+            raise ValueError("optimizer requires trainable parameters")
         self.model = model
         self.steps = 0
 
     def zero_grad(self) -> None:
         self.model.zero_grad(set_to_none=True)
-        self.muon.zero_grad(set_to_none=True)
-        self.adamw.zero_grad(set_to_none=True)
+        for opt in (self.muon, self.adamw):
+            if opt is not None:
+                opt.zero_grad(set_to_none=True)
 
     def step(self, lr: float) -> None:
         for p, parts in self.views:
@@ -110,6 +121,8 @@ class V2Optimizer:
             for part, grad in zip(parts, gradients, strict=True):
                 part.grad = None if grad is None else grad.detach().clone()
         for opt in (self.muon, self.adamw):
+            if opt is None:
+                continue
             for group in opt.param_groups:
                 group["lr"] = lr
             opt.step()  # type: ignore[no-untyped-call]
@@ -117,8 +130,8 @@ class V2Optimizer:
 
     def state_dict(self) -> dict[str, Any]:
         return {
-            "muon": self.muon.state_dict(),
-            "adamw": self.adamw.state_dict(),
+            "muon": self.muon.state_dict() if self.muon is not None else None,
+            "adamw": self.adamw.state_dict() if self.adamw is not None else None,
             "routes": self.routes,
             "steps": self.steps,
         }
@@ -126,6 +139,12 @@ class V2Optimizer:
     def load_state_dict(self, state: dict[str, Any]) -> None:
         if state["routes"] != self.routes:
             raise ValueError("checkpoint optimizer routes differ")
-        self.muon.load_state_dict(state["muon"])
-        self.adamw.load_state_dict(state["adamw"])
+        for key, opt in (("muon", self.muon), ("adamw", self.adamw)):
+            if opt is None:
+                if state[key] is not None:
+                    raise ValueError(f"checkpoint has unexpected {key} state")
+            else:
+                if state[key] is None:
+                    raise ValueError(f"checkpoint lacks {key} state")
+                opt.load_state_dict(state[key])
         self.steps = state["steps"]

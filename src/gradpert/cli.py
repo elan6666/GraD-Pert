@@ -44,6 +44,24 @@ def _parser() -> argparse.ArgumentParser:
     train.add_argument("--runtime", type=Path)
     train.add_argument("--dry-run", action="store_true")
 
+    resume_v2 = subparsers.add_parser(
+        "resume-v2", help="Resume an interrupted v2 run with its saved full state"
+    )
+    resume_v2.add_argument("--launch", type=Path, required=True)
+
+    checkpoint_eval = subparsers.add_parser(
+        "evaluate-checkpoint", help="Evaluate one verified v2 best/last checkpoint independently"
+    )
+    checkpoint_eval.add_argument("--config", type=Path, required=True)
+    checkpoint_eval.add_argument("--training-run-root", type=Path, required=True)
+    checkpoint_eval.add_argument("--checkpoint", type=Path, required=True)
+    checkpoint_eval.add_argument("--checkpoint-sha256", required=True)
+    checkpoint_eval.add_argument("--runtime", type=Path, required=True)
+    checkpoint_eval.add_argument("--output-root", type=Path, required=True)
+    checkpoint_eval.add_argument("--gpu", default="0")
+    checkpoint_eval.add_argument("--split", choices=("val", "test"), default="test")
+    checkpoint_eval.add_argument("--dry-run", action="store_true")
+
     benchmark = subparsers.add_parser("benchmark", help="Dispatch an isolated official runner")
     benchmark.add_argument(
         "--model", required=True, choices=["scouter_genept_seed", "gears", "txpert_public"]
@@ -432,6 +450,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         from gradpert.execution.train_entry import train_entry
 
         return train_entry(args)
+    if args.command == "resume-v2":
+        from gradpert.execution.train_entry import repository_root
+
+        launch = args.launch.resolve(strict=True)
+        return subprocess.run(
+            [
+                sys.executable,
+                str(repository_root() / "scripts/v2/resume.py"),
+                "--launch",
+                str(launch),
+            ],
+            check=False,
+        ).returncode
+    if args.command == "evaluate-checkpoint":
+        from gradpert.execution.v2_checkpoint_eval import (
+            execute_evaluation_plan,
+            resolve_evaluation_plan,
+        )
+
+        plan = resolve_evaluation_plan(args)
+        print(json.dumps({"dry_run": args.dry_run, **plan}, indent=2, ensure_ascii=False))
+        if not args.dry_run:
+            execute_evaluation_plan(plan)
+        return 0
     if args.command == "benchmark":
         root = args.repository_root.resolve(strict=True)
         executable = args.python.absolute()

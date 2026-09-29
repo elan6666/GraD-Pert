@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import math
 import os
+import shutil
 import time
 from collections.abc import Callable, Iterable
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,18 @@ from .distributed import primary_call
 from .engine import optimizer_step, slice_cells
 from .objective import JointObjective, TrainingBatch
 from .optimizer import V2Optimizer
+
+
+@dataclass(frozen=True)
+class ConstantStageLR:
+    """Explicit post-checkpoint LR; the completed parent cosine is not replayed."""
+
+    learning_rate: float
+
+    def at_step(self, step: int, total_steps: int) -> dict[str, float]:
+        if step < 0 or total_steps < 1 or self.learning_rate <= 0:
+            raise ValueError("invalid continuation learning-rate contract")
+        return {"learning_rate": self.learning_rate}
 
 
 def _role_links(root: Path, journal: dict[str, Any]) -> None:
@@ -56,12 +69,14 @@ def fit(
     steps_per_epoch: int,
     batches: Callable[[int], Iterable[TrainingBatch]],
     validate: Callable[[], dict[str, Any]],
-    schedule: EndpointLRWarmupCosine,
+    schedule: EndpointLRWarmupCosine | ConstantStageLR,
     teacher_start: float,
     teacher_end: float,
     microbatch: int,
     bf16: bool,
     resume: bool = False,
+    bootstrap_history: list[dict[str, Any]] | None = None,
+    bootstrap_best: tuple[dict[str, Any], Path] | None = None,
 ) -> dict[str, Any]:
     """Commit only complete epochs; resume replays an interrupted epoch exactly.
 
@@ -79,8 +94,17 @@ def fit(
         "bf16": bf16,
         "selection_metric": "joint_loss",
     }
-    if not resume and optimizer.steps:
+    if resume and bootstrap_history is not None:
+        raise ValueError("resume must use the committed child journal, not bootstrap again")
+    if not resume and bootstrap_history is None and optimizer.steps:
         raise ValueError("new lifecycle requires an unstepped optimizer")
+    if bootstrap_history is not None and (
+        not bootstrap_history
+        or len(bootstrap_history) >= epochs
+        or optimizer.steps != len(bootstrap_history) * steps_per_epoch
+        or any(record.get("epoch") != index for index, record in enumerate(bootstrap_history, 1))
+    ):
+        raise ValueError("parent progress differs from the continuation budget")
     total = epochs * steps_per_epoch
     schedule.at_step(0, total)  # Reject invalid timing before writing run state.
     distributed = torch.distributed.is_initialized()
@@ -106,26 +130,39 @@ def fit(
     elif journal_path.exists() or any(root.iterdir()):
         raise FileExistsError("new training requires an empty lifecycle directory")
     if not resume:
-        initial = root / "epoch-0000.pt"
+        history = list(bootstrap_history or [])
+        initial_epoch = len(history)
+        initial = root / f"epoch-{initial_epoch:04d}.pt"
         save_checkpoint(
             initial,
             objective,
             optimizer,
             identity=identity,
-            progress={"history": []},
+            progress={"history": history},
             generator=generator,
         )
+        best = None
+        if bootstrap_best is not None:
+            if not history:
+                raise ValueError("parent best requires parent history")
+            selected, source_path = bootstrap_best
+            if selected["epoch"] > initial_epoch or sha256_file(source_path) != selected["sha256"]:
+                raise ValueError("parent best checkpoint differs from the parent journal")
+            copied = root / f"parent-{selected['file']}"
+            primary_call(lambda: shutil.copyfile(source_path, copied))
+            best = {**selected, "file": copied.name}
         journal = {
             "identity": identity,
             "budget": [epochs, steps_per_epoch],
             "contract": contract,
             "selection_metric": "joint_loss",
-            "epoch": 0,
-            "best": None,
+            "epoch": initial_epoch,
+            "selection_start_epoch": 0 if best is not None else initial_epoch,
+            "best": best,
             "last": {
                 "file": initial.name,
                 "sha256": sha256_file(initial),
-                "epoch": 0,
+                "epoch": initial_epoch,
                 "prediction_loss": None,
             },
         }
@@ -170,7 +207,7 @@ def fit(
     # Reuse native strict-improvement selection. Fixed-budget v2 deliberately
     # ignores the early-stop signal, just like native R50 selection runs.
     selection = EarlyStoppingState(mode="min")
-    for record in history:
+    for record in history[journal.get("selection_start_epoch", 0) :]:
         selection.update(
             epoch=record["epoch"], validation_metric=float(record["validation"]["joint_loss"])
         )
@@ -291,6 +328,7 @@ def fit(
             "contract": contract,
             "selection_metric": "joint_loss",
             "epoch": epoch + 1,
+            "selection_start_epoch": journal.get("selection_start_epoch", 0),
             "best": best,
             "last": selected,
         }
@@ -334,7 +372,7 @@ def _test_selected(
     for role in ("best", "last"):
         selected = journal[role]
         identity = {
-            "training": journal["identity"],
+            "training": selected.get("training_identity", journal["identity"]),
             "evaluation": evaluation_identity,
             "checkpoint": selected,
             "role": role,
@@ -351,7 +389,7 @@ def _test_selected(
         load_evaluation_checkpoint(
             root / selected["file"],
             objective,
-            training_identity=journal["identity"],
+            training_identity=selected.get("training_identity", journal["identity"]),
             checkpoint_sha256=selected["sha256"],
         )
         result = test()

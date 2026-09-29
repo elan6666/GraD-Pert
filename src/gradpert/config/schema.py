@@ -348,6 +348,34 @@ class ArtifactConfig(StrictModel):
         return self
 
 
+class V2ContinuationConfig(StrictModel):
+    """An explicit new run descended from a complete v2 checkpoint."""
+
+    mode: Literal["full_state", "lora"]
+    parent_run_root: str
+    parent_checkpoint: str
+    parent_checkpoint_sha256: str
+    parent_epoch: int = Field(ge=1)
+    additional_epochs: int = Field(ge=1)
+    learning_rate: float = Field(gt=0)
+    lora_rank: int | None = None
+    lora_alpha: float | None = None
+
+    @model_validator(mode="after")
+    def enforce_mode(self) -> V2ContinuationConfig:
+        if self.mode == "full_state":
+            if self.lora_rank is not None or self.lora_alpha is not None:
+                raise ValueError("full-state continuation cannot add LoRA parameters")
+        elif (
+            self.lora_rank is None
+            or self.lora_rank < 1
+            or self.lora_alpha is None
+            or self.lora_alpha <= 0
+        ):
+            raise ValueError("LoRA continuation requires positive rank and alpha")
+        return self
+
+
 class ExperimentConfig(StrictModel):
     schema_version: Literal[1]
     experiment_id: str
@@ -359,9 +387,24 @@ class ExperimentConfig(StrictModel):
     training: TrainingConfig
     evaluation: EvaluationConfig
     artifacts: ArtifactConfig
+    continuation: V2ContinuationConfig | None = None
+
+    @model_serializer(mode="wrap")
+    def preserve_legacy_payload(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        if self.continuation is None:
+            payload.pop("continuation", None)
+        return cast(dict[str, Any], payload)
 
     @model_validator(mode="after")
     def enforce_identity(self) -> ExperimentConfig:
+        if self.continuation is not None:
+            if self.model_id != "gradpert_v2":
+                raise ValueError("checkpoint continuation is restricted to v2")
+            if self.training.max_epochs.value != (
+                self.continuation.parent_epoch + self.continuation.additional_epochs
+            ):
+                raise ValueError("continuation epochs must match the total training budget")
         if self.model_id != self.model.model_id:
             raise ValueError("top-level and nested model_id differ")
         if self.dataset_id != self.data.dataset_id:
