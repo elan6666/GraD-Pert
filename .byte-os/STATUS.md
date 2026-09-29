@@ -1,3 +1,9 @@
+## 2026-09-29：v2 checkpoint 评估与全状态／LoRA 续训接口完成
+
+已发布 `1cba4272f4d4c28281ab5efca0cf13057cb605d0`（核心功能）和 `5852acd46c9a1a8f1fa79827b76e4c502ad049fb`（评估进度及环境身份）。支持单卡／双卡配置、独立加载 `.pt` 评估，以及从三轮 B0 `last.pt` 开始的新训练阶段：全状态继续保留 Student、Teacher、center、优化器和 RNG，LoRA 作为单独微调分支；二者均采用新阶段恒定学习率 `2e-4`，不重新 warmup，也不声称与从零预设五轮完全等价。使用说明见 `docs/V2_WORKFLOWS.md`。本次没有启动正式 3+2 训练。
+
+双卡全状态和 LoRA 各完成一次真实优化器更新、参数改变及 checkpoint 保存／重载，均从旧 B0 的 1302 步推进到 1303 步。独立双卡评估完整跑过旧 `last.pt` 的 592 个测试条件，`COMPLETE.json` SHA256 为 `21fab046917048aa5cb5aa55cec485bbd2d1aa3bf7b0342ddc4d5259738ae7e4`；与原始测试结果的 9,920 个数值完全一致，control/reference 哈希、查询配方和表达暴露记录也一致。DEG 指标有效条件为 590/592；评估根目录零 PKL，进程已退出。此完整评估使用 `1cba427`；后续 `5852acd` 的元数据改动通过服务器定向测试与 dry-run，尚无完整 GPU 评估。测试和其余限制详见 `.byte-os/STATE.md`。
+
 ## 2026-09-29：no-mHC B0 三轮训练及 best/last 测试完成
 
 run `nadig_jurkat-seed1-20260928T184412Z-2d6425f1e28e46b0b285af6096d03bd3` attempt 1 已通过终态验收：exit 0、epoch 3/3、history 3条、`COMPLETE.json` 存在、无 `FAILURE.json`，run 根递归 PKL 数为 0。源码训练/评估均为干净提交 `ca7884e4e9b70bb55a61d97442467ff2531337b3`；配置 SHA256 `4c5ba9b39689b9d7993e023694cdedd0268668aa0f9e2f922e6c82e5cb25887e`，runtime SHA256 `62b19c5701981d5039810ac196f37c5a3d542da476d695659910074d479e651e`。best 按 joint_loss 选为 epoch 2（4.0076391；checkpoint SHA256 `08e931b0e69e45805193a5fdc08297cdde4113876520d9df66cc5ddc0926611d`）；last 为 epoch 3（joint_loss 4.0519638；SHA256 `5daef1bac40c19a20ba4ee54a2637e1f187e0d1f502010ba06708fc45a303978`）。
