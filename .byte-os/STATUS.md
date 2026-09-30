@@ -1,3 +1,7 @@
+## 2026-09-30：cap40＋mHC 完整 B0 六轮正式启动
+
+源码 `aeac5fd94123af0b73810259e5e2985228b11d65` 已推送main并干净发布；95项本地/服务器检查和同配置双卡一步更新/checkpoint重载通过。新run `nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad` 已启动，首轮2/176步、双rank和GPU身份确认；47836固定训练行/1335条件，mHC4、m68×累积2×双卡＝batch272、6epoch。每轮joint-only，最终best/last原冻结测试。整体尚未完成，正在交已有监督会话20min检查；下方未启动段为历史快照。精确身份与收据见 `docs/experiments/GRADPERT_V2_MHC_CAP40_SIX_EPOCH_20260930.md`。
+
 ## 2026-09-30：cap40＋mHC 六轮 B0 接入与预检
 
 用户已授权采用固定 cap40、开启 mHC、从头训练6 epoch。既有分析及旧B0保持原状；只限制v2训练扰动行，47836行/1335条件，全部control/val/test和评估reference不变。两canonical逐值X/obs/var完全一致，uns差异单独保存；绑定清单和新自包含配置已准备。下一步定向验证、main发布、同源码双卡m68×累积2预检，通过后正式启动并交已有监督会话20分钟检查。当前仍由主会话负责；未声称训练已启动。

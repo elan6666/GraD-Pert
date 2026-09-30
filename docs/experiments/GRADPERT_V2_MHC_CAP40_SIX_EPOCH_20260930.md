@@ -64,4 +64,22 @@ Synthetic schedule tests cover all six epochs' fixed IDs, unchanged validation
 and control pools, leakage, duplicates, bad hashes/parent/split/order/quota and
 atomic failure. Execution still uses existing runtime/runner/evaluator.
 
-Local verification:95 affected config/runtime/selection/joint-validation/data-contract tests pass; scoped Ruff check/format pass and config/selection typechecking pass. Formal server preflight/launch are next; not yet claimed complete.
+Local verification:95 affected config/runtime/selection/joint-validation/data-contract tests pass; scoped Ruff check/format pass and config/selection typechecking pass. The server repeated the95checks and the real dual-GPU integration gate passed. Formal launch is verified below; overall experiment completion remains pending.
+
+## Verified launch
+
+Training source `aeac5fd94123af0b73810259e5e2985228b11d65` was published on main and matched
+clean local release/server source tree8f4137da3330e636a557fb8c68525dcfcfe2247a55db86b8ac368edac2259f9d.
+95server tests and sameconfig dual-GPU one-update/checkpoint-reload passed.
+Fresh run `nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad` has started: epoch1 step2/176 observed, both ranks alive and
+GPU identity matched. There are1056planned optimizer updates over six epochs.
+No completed epoch or final metric is claimed yet.
+
+[Data preflight](data/v2-mhc-cap40-aeac5fd/v2-mhc-cap40-aeac5fd-data-preflight.json),
+[canonical equivalence](data/v2-mhc-cap40-aeac5fd/equivalence.json),
+[integration receipt](data/v2-mhc-cap40-aeac5fd/integration-receipt.json),
+[launch identity](data/v2-mhc-cap40-aeac5fd/v2-mhc-cap40-aeac5fd-launch.json),
+[start confirmation](data/v2-mhc-cap40-aeac5fd/v2-mhc-cap40-aeac5fd-start-confirmation.json).
+Only reviewed small receipts were copied; scientific files and row-ID lists remain
+on server. The20-minute designated supervisor monitor was saved ACTIVE for the exact newrun and target; substantive supervisor acknowledgement is still being checked. Terminal
+best/last results and overall acceptance remain pending.

@@ -1,3 +1,19 @@
+# Live cap40 mHC six-epoch B0 2026-09-30
+
+Run nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad, attempt1, source aeac5fd94123af0b73810259e5e2985228b11d65.
+Root /data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad.
+Source /data/yilangliu/GraD-Pert/development/source-v2-mhc-cap40-aeac5fd, configSHA 1401174171770bb5c7ae580db55f9dd9d4907d8da6a37a42b86a64d747f412d0.
+RuntimeSHA 19b87960e43dcd36bda67a87645c9b205e1ec55a4bf6b2817407034534e7b89c, publicationSHA 095782e81d633c3336ab7b2823d95f65e0be67fef82ab2ec569376bfaeb2b213.
+PID225555, log /data/yilangliu/GraD-Pert/development/v2-mhc-cap40-aeac5fd-six-formal-r1.log, same stem .pid/.exit.json.
+Dual RTX5090 GPU0,1: m68 x accumulation2 = global272. mHC4, full loss, seed1,
+6fresh epochs/176updates each; original val/test/reference, joint_only validation.
+95local/server checks and dual complete-objective integration/checkpoint reload pass.
+Start confirmation: epoch1 step2, ranks225585/225586 alive, no terminal markers.
+Luna verification ended. Main prepares exact supervisor20min lease; final result
+requires6/6,best/last true tests, hashes, COMPLETE/exit0 andzeroPKL.
+Handoff .byte-os/coordination/handoffs/2026-09-30-v2-mhc-cap40-six-supervise.md.
+Old no-auto-launch and old3+3 monitor states below are superseded history.
+
 # Active 2026-09-30: cap40 mHC fresh six-epoch B0
 
 User authorized cap40 and mHC. Implementation is v2-only frozen train row IDs,

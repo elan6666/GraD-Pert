@@ -1,0 +1,60 @@
+{
+  "X_dtype": "float32",
+  "comparison": {
+    "X_diff_count": 0,
+    "X_max_abs_diff": 0.0,
+    "X_values_equal": true,
+    "elapsed_seconds": 12.345,
+    "mode": "anndata_backed_chunked",
+    "obs_check": "assert_frame_equal(check_categorical=True,check_dtype=True,check_exact=True)",
+    "obs_equal": true,
+    "rows_per_chunk": 512,
+    "var_check": "assert_frame_equal(check_categorical=True,check_dtype=True,check_exact=True)",
+    "var_equal": true
+  },
+  "files": [
+    {
+      "path": "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/canonical/adata.h5ad",
+      "sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5"
+    },
+    {
+      "path": "/data/yilangliu/GraD-Pert/data-vnext-a942114/nadig_jurkat/within_cell_unseen_single/canonical/adata.h5ad",
+      "sha256": "f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861"
+    }
+  ],
+  "limitations": [
+    "X, obs, and var equality does not imply uns or full-file byte equality.",
+    "Canonical file SHA256 values differ and gradpert_preprocessing uns differs.",
+    "No matrix values or long identifiers included."
+  ],
+  "preprocessing_manifest": {
+    "found": false,
+    "searched_both_dataset_roots": true
+  },
+  "schema_version": "gradpert-canonical-equivalence-1",
+  "shape": [
+    238977,
+    6506
+  ],
+  "uns": {
+    "gradpert_preprocessing": {
+      "graph_only_candidate_targets": {
+        "dtype": "object",
+        "first_sha256": "5f32b0d94da2fd8a6224d9d9e3d105442a82dcd924dff7a6103bed8974ab7fc5",
+        "length_each": 229,
+        "second_sha256": "ab8fa68a996708d8c72592ed273fefe6422c582b7d455d2d09f291ef3d4738b5"
+      },
+      "v2_added_fields": {
+        "expression_scale_action": "normalize_total_4000_then_log1p",
+        "input_expression_audit": "finite_nonnegative_integer_counts_full_matrix",
+        "input_expression_state": "raw_integer_counts"
+      },
+      "value_differences": [
+        "gradpert_preprocessing"
+      ]
+    },
+    "keys_equal": true,
+    "keys_only_first": [],
+    "keys_only_second": []
+  }
+}

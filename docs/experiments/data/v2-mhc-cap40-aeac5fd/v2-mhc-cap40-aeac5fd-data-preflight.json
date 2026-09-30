@@ -1,0 +1,29 @@
+{
+  "analysis_selection_sha256": "a609d5aa4087d209dc62c1e8ed70dc7cff89ed6952b2afb18d0972cb477c94f2",
+  "analysis_source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+  "cap": 40,
+  "equivalence_sha256": "ca12b16967f77a06d96139ffaa23cd997af13aa1b2acbe7250ed1d8696b04f85",
+  "manifest_path": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-v2-binding-20260930/training_selection.json",
+  "manifest_sha256": "aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132",
+  "non_training_rows_changed": 0,
+  "original_train_rows": 128266,
+  "sampling": "condition_batch_largest_remainder_uniform_without_replacement",
+  "sampling_seed": 42,
+  "schema_version": "gradpert-v2-training-selection-1",
+  "selected_train_row_ids_sha256": "c8e79242336c194833ac329a807b7eeb76651707204b4ec1379f6a7483aa9a93",
+  "selected_train_rows": 47836,
+  "source": {
+    "commit": "aeac5fd94123af0b73810259e5e2985228b11d65",
+    "dirty": false,
+    "formal_eligibility_reason": null,
+    "formal_eligible": true,
+    "publication_receipt_sha256": "095782e81d633c3336ab7b2823d95f65e0be67fef82ab2ec569376bfaeb2b213",
+    "published_commit": "aeac5fd94123af0b73810259e5e2985228b11d65",
+    "remote_ref": "refs/heads/main",
+    "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+    "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-mhc-cap40-aeac5fd",
+    "tree_sha256": "8f4137da3330e636a557fb8c68525dcfcfe2247a55db86b8ac368edac2259f9d"
+  },
+  "steps_per_epoch": 176,
+  "train_condition_count": 1335
+}

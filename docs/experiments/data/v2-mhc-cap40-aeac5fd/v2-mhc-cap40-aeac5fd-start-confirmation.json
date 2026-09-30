@@ -1,0 +1,35 @@
+{
+  "config_sha256": "1401174171770bb5c7ae580db55f9dd9d4907d8da6a37a42b86a64d747f412d0",
+  "epoch": 1,
+  "epoch_state_budget": [
+    6,
+    176
+  ],
+  "epoch_step": 2,
+  "epoch_steps_total": 176,
+  "failure_absent": true,
+  "gpu_rank_processes": [
+    "225585, GPU-23bb1466-b82b-982d-8eaf-9a0002c6a4e7, 28978 MiB",
+    "225586, GPU-edd7484e-c71d-1938-4831-76c233466ccb, 28838 MiB"
+  ],
+  "non_training_rows_changed": 0,
+  "observed_utc_epoch_seconds": 1790767698.034501,
+  "optimizer_steps_completed": 2,
+  "optimizer_steps_total": 1056,
+  "phase": "training",
+  "processes": [
+    "225555 /data/yilangliu/GraD-Pert/source/.venv/bin/python /data/yilangliu/GraD-Pert/development/v2-mhc-cap40-aeac5fd-six-formal-r1.driver.py",
+    " 225569 /data/yilangliu/GraD-Pert/source/.venv/bin/python -m torch.distributed.run --standalone --nproc_per_node 2 /data/yilangliu/GraD-Pert/development/source-v2-mhc-cap40-aeac5fd/scripts/v2/distributed_train.py --plan /data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad.launch-plan.json",
+    " 225585 /data/yilangliu/GraD-Pert/source/.venv/bin/python -u /data/yilangliu/GraD-Pert/development/source-v2-mhc-cap40-aeac5fd/scripts/v2/distributed_train.py --plan /data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad.launch-plan.json",
+    " 225586 /data/yilangliu/GraD-Pert/source/.venv/bin/python -u /data/yilangliu/GraD-Pert/development/source-v2-mhc-cap40-aeac5fd/scripts/v2/distributed_train.py --plan /data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad.launch-plan.json"
+  ],
+  "run_exit_absent": true,
+  "run_id": "nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+  "run_root": "/data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+  "selected_train_rows": 47836,
+  "source_commit": "aeac5fd94123af0b73810259e5e2985228b11d65",
+  "status": "started_one_successful_optimizer_update_observed",
+  "torchrun_and_two_ranks_alive": true,
+  "train_condition_count": 1335,
+  "training_selection_manifest_sha256": "aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132"
+}
