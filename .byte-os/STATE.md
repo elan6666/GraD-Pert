@@ -1,3 +1,14 @@
+# Active 2026-09-30: cap40 mHC fresh six-epoch B0
+
+User authorized cap40 and mHC. Implementation is v2-only frozen train row IDs,
+47836/1335 conditions; canonical val/test/control and evaluation references unchanged.
+Exact X/obs/var parity verified between analysis/training canonical; uns differences
+remain separately recorded. Bound selection SHA aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132.
+Next: tests, scoped main publication, immutable server, dual m68 a2 integration,
+fresh six-epoch full B0 and designated20-min supervisor handoff. No run launched
+yet. Main owns build; old monitors paused. Plan GRADPERT_V2_MHC_CAP40_SIX_EPOCH_20260930.plan.md.
+This new authorized stage supersedes prior no-auto-launch analysis-only status.
+
 # Delivered 2026-09-30: Jurkat proportional sampling and four-version comparison
 
 Analysis SHA8638c6557d779ed2290a00b0882964597ca81d3b, clean local/GitHub/server.

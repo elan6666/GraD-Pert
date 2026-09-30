@@ -63,6 +63,34 @@ def test_new_b0_restores_mhc_and_explicitly_selects_loss_only_validation():
         replace(options, validation_mode="prediction_only")
 
 
+def test_cap40_six_epochs_preserves_mhc_and_all_other_training_protocol():
+    from dataclasses import replace
+
+    path = (
+        MHC_JOINT_ONLY.parents[3]
+        / "mhc_cap40_jurkat/six_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml"
+    )
+    config = load_experiment_config(path)
+    arch, options = V2Options.parse_parameters(config.model.parameters)
+    assert arch.streams == 4 and options.validation_mode == "joint_only"
+    assert config.training.max_epochs.value == 6
+    assert config.training.formal_run_policy == "v2_fixed_6"
+    assert config.continuation is None
+    assert options.train_selection_path.endswith("/training_selection.json")
+    assert len(options.train_selection_sha256) == 64
+    current = yaml.safe_load(path.read_text())
+    previous = yaml.safe_load(MHC_JOINT_ONLY.read_text())
+    for name in ("train_selection_path", "train_selection_sha256"):
+        current["model"]["parameters"].pop(name)
+    for name in ("max_epochs", "formal_run_policy"):
+        current["training"][name] = previous["training"][name]
+    assert current == previous
+    with pytest.raises(ValueError, match="supplied together"):
+        replace(options, train_selection_sha256="")
+    with pytest.raises(ValueError, match="lowercase SHA256"):
+        replace(options, train_selection_sha256="invalid")
+
+
 @pytest.mark.parametrize("variant,topk,chunk", [("default", 500, 32), ("top100", 100, 8)])
 def test_glm53_configs_keep_b1_seed_and_explicit_sparse_settings(variant, topk, chunk):
     path = GLM53 / variant / "gradpert_v2/nadig_jurkat.yaml"

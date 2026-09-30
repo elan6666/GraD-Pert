@@ -215,6 +215,16 @@ def prepare_runtime(
             raise ValueError("training and graph axes differ")
         if tuple(data.expression_gene_ids) != topology.gene_ids[: len(data.expression_gene_ids)]:
             raise ValueError("v2 expression axis must be the graph prefix")
+        train_selection_receipt = None
+        if options.train_selection_path:
+            from .train_selection import apply_train_selection
+
+            selection_path = Path(options.train_selection_path)
+            if not selection_path.resolve().is_relative_to("/data/yilangliu"):
+                raise ValueError("training row selection must be sealed on the server")
+            train_selection_receipt = apply_train_selection(
+                data, selection_path, options.train_selection_sha256
+            )
         allowed_expression_ids, expression_policy_receipt = expression_policy(
             tuple(data.expression_gene_ids),
             tuple(data.split.test_conditions),
@@ -317,6 +327,8 @@ def prepare_runtime(
             "exceptions": ["ssl1_node", "ssl1_spread", "teacher_centers"],
         }
         identity["training_expression_policy"] = expression_policy_receipt
+        if train_selection_receipt is not None:
+            identity["training_row_selection"] = train_selection_receipt
         if allowed_expression_ids is not None:
             identity["effective_training_expression_ids_sha256"] = sha256_json(
                 [data.expression_gene_ids[int(i)] for i in allowed_expression_ids]
