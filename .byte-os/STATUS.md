@@ -1,3 +1,7 @@
+## 2026-09-30：no-mHC B0 全状态 3＋3 续训完成并独立核验
+
+续训运行 `nadig_jurkat-seed1-20260929T143029Z-d83c2632bba14bddb595f8b8c0734805` attempt 1 已退出 0、累计 6/6 epoch、完成 best/last 测试，且成功运行根零 PKL。主会话独立核对服务器原始收据、身份和检查点哈希；best 按验证 joint loss 仍为 epoch 2（4.007639），last 为 epoch 6。last 的 TxPert/TriShift/Systema 全基因 Pearson 为 0.217347/0.170832/0.093160，DEG 为 0.372661/0.334027/0.231196；与父 epoch 3 last 比，全基因升高、DEG 降低。完整六指标、验收证据和日程差异见 `docs/experiments/GRADPERT_V2_NO_MHC_B0_CONTINUE6_RESULT_20260930.md`。本 run 的监督监控已暂停；下方“运行中”段落是历史快照。不启动新消融。
+
 ## 2026-09-29：no-mHC B0 全状态续训 3→6 已启动
 
 以三轮 B0 的 `last.pt` 开启独立 3+3 阶段，恒定 LR `2×10⁻⁴`、双 RTX 5090、全局 batch 296，原三轮训练与结果不改。新源码 `c47f84e796aed994fdd060a9afbe14a95fa64069` 已推送并在服务器干净发布；79 项服务器测试、正式配置 dry-run、同配置双卡真实一步更新及 checkpoint 重载通过。正式运行 ID `nadig_jurkat-seed1-20260929T143029Z-d83c2632bba14bddb595f8b8c0734805`，启动后已读到累计 epoch 3/6 与第 4 轮实时进度，双卡正在计算。完成须验 6/6、joint-loss best、best/last 测试及 zero-PKL；现在尚无完成收据。精确身份、路径和监督交接见 `.byte-os/STATE.md` 及对应 handoff。
