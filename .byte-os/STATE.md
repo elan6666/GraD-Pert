@@ -1,3 +1,39 @@
+# Delivered 2026-09-30: Jurkat proportional sampling and four-version comparison
+
+Analysis SHA8638c6557d779ed2290a00b0882964597ca81d3b, clean local/GitHub/server.
+Server source: /data/yilangliu/GraD-Pert/development/source-jurkat-proportions-8638c65.
+Queue development/jurkat-proportions-8638c65-20260930T103836Z, exit0.
+Runs development/jurkat-proportion50-8638c65-20260930T103836Z and proportion25
+same suffix; comparison jurkat-sampling-comparison-8638c65-20260930T103836Z.
+50%64475rows,delta=.262513065;25%32246rows,delta=.166474252.
+Original128266/.373931664;cap4047836/.261779657.100split repeats,1331valid,
+4singletons missing;sameoriginal5000genes/control/reference assignments.
+All1335conditions/nontrain110711rows/6506variables and retainedmatrix/metadata
+exact.12tests local/server; exit0/COMPLETE/source/hash/parity/quotas/CSV accepted.
+ConfigSHA50%=93201429299fb0bf8345f62d2adcb14f0286a5572526bd935672084b86367584.
+ConfigSHA25%=7d4cb61931b6aa4094abe8b8bfe9d5f64ec5a3717068d8cc87f190931a9da0aa.
+Acceptance and all complete artifact identity index:
+docs/experiments/data/jurkat-sampling-comparison-8638c65-20260930T103836Z/.
+Chinese report/PDF:docs/experiments/JURKAT_SAMPLING_COMPARISON_20260930.md.
+All small transfers reviewed/hash-verified; scientific large files serveronly.
+Luna supervisor ended; no active task/automation/training/defaultswitch.
+Current requested analysis delivered; do not auto-launch mHC B0 or new dataset.
+Prior states below are historical evidence, not active wait ownership.
+
+# Live CPU analysis 2026-09-30T10:38Z
+
+Source 8638c6557d779ed2290a00b0882964597ca81d3b, clean three-way identity.
+Server source /data/yilangliu/GraD-Pert/development/source-jurkat-proportions-8638c65.
+Queue /data/yilangliu/GraD-Pert/development/jurkat-proportions-8638c65-20260930T103836Z.
+PID214600, queue .plan.json/.pid/.exit.json/.driver.log.
+Runs: jurkat-proportion50-8638c65-20260930T103836Z, then proportion25 same suffix.
+Comparison: jurkat-sampling-comparison-8638c65-20260930T103836Z, same development root.
+Queue planSHA6778aa63bf88710ebb78a85ccc022c422eacd4535c7b27eab417b2e8030af8bd.
+CPU-only4threads, seed42,100splits. Local/server12checks pass.
+Luna cap40_cpu_watch owns bounded read-only supervision; main waits without
+repeat server querying. Next terminal main acceptance -> four-version report.
+No GPU training, default switch or scheduled monitor. Prior snapshots follow.
+
 # Active stage 2026-09-30: Jurkat proportional sampling analysis
 
 Additional methods recovered from prior discussion: condition-wise50% and25%.

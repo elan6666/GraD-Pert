@@ -1,0 +1,53 @@
+{
+  "cap": null,
+  "configuration_sha256": "7d4cb61931b6aa4094abe8b8bfe9d5f64ec5a3717068d8cc87f190931a9da0aa",
+  "data_root": "/data/yilangliu/GraD-Pert/data",
+  "elapsed_seconds": 82.55422515515238,
+  "fraction": 0.25,
+  "numpy": "2.5.2",
+  "output": "/data/yilangliu/GraD-Pert/development/jurkat-proportion25-8638c65-20260930T103836Z",
+  "outputs": {
+    "comparison.pdf": {
+      "bytes": 61340,
+      "sha256": "2b157a6b2dc0baefea3e4c8fe4bb7079722b632dd8de6f1a2eb4799ae44ceaf0"
+    },
+    "comparison.png": {
+      "bytes": 276599,
+      "sha256": "041c51f6ff0ed90343ffa7d5c05851574d20af2d75b07417ad5019c11c5dc939"
+    },
+    "conditions.json": {
+      "bytes": 939106,
+      "sha256": "302167f9650f8c89b3200caf8016d6e594963212d747ceb406c2e361e02225e4"
+    },
+    "proportion25.h5ad": {
+      "bytes": 3735601325,
+      "sha256": "8919420b0052065f65095327019b49ef4fac44f2452e6a48f18d0df37a55ac99"
+    },
+    "repeat_scores.csv": {
+      "bytes": 16858573,
+      "sha256": "5a3ea88462a52e8b0146ad3a107ba3bb03965759aa04ccd0a2ce18ac69fc7dd1"
+    },
+    "selection.json": {
+      "bytes": 1855336,
+      "sha256": "059c1ae46db53fbd18be9d0d3042e10ea5b98185a9c8e4b9b6686440401794aa"
+    },
+    "summary.json": {
+      "bytes": 5437,
+      "sha256": "d795ba2a34f9cb49148db0ff88497ec92b52a713df9e0f5aa64f1721a09ac2bc"
+    }
+  },
+  "pid": 214946,
+  "python": "3.12.3",
+  "repeats": 100,
+  "script_sha256": "126d16f6b19a3f16b24916ee8782703f738ad94f475f3277af3d98c53537bdd3",
+  "seed": 42,
+  "source_clean": true,
+  "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+  "status": "complete",
+  "summary_sha256": "d795ba2a34f9cb49148db0ff88497ec92b52a713df9e0f5aa64f1721a09ac2bc",
+  "thread_limits": {
+    "MKL_NUM_THREADS": "4",
+    "OMP_NUM_THREADS": "4",
+    "OPENBLAS_NUM_THREADS": "4"
+  }
+}

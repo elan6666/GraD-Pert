@@ -1,0 +1,16 @@
+{
+  "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+  "source_clean": true,
+  "bundle_sha256": "1558a329205a2c0b06a19d03b77de2c8534a55874322340bf3ec3d40f4b55843",
+  "command": [
+    "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+    "-m",
+    "pytest",
+    "-q",
+    "tests/analysis/test_train_downsample_reproducibility.py",
+    "tests/analysis/test_five_dataset_diagnostics.py"
+  ],
+  "exit_code": 0,
+  "stdout": "............                                                             [100%]\n12 passed in 3.23s\n",
+  "stderr": ""
+}

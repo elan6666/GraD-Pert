@@ -29,3 +29,20 @@ retained/removed (disjoint), cell-count strata and batch coverage loss.
 Acceptance: both complete exit0, all1335conditions and nontrain rows preserved,
 exact obs/var/matrix, original hashes unchanged, compatible references checked,
 zeroPKL, versioned report. This is dataset repeatability, not model scores.
+
+## Completed acceptance 2026-09-30
+
+Clean analysis/comparison SHA8638c6557d779ed2290a00b0882964597ca81d3b;
+server source development/source-jurkat-proportions-8638c65. Queue
+jurkat-proportions-8638c65-20260930T103836Z exit0,180.40seconds.
+50%:64475 training rows,175186total, split-halfdelta=.262513065.
+25%:32246 training rows,142957total, split-halfdelta=.166474252.
+Original/cap40=.373931664/.261779657. All1335conditions/6506variables;
+1331valid, same4singletons absent. Conditions losingbatches1309/1319.
+12local and server tests pass; full retained matrix/dtype/obs/var exact;
+originalhashesunchanged, all outputhashes/rows/quotas and267000CSVrows perrun
+independently accepted. Reference/control/split/gene/assignment identities match
+historicalcap40, originalscores atol1e-13.24smallfiles4.217MB reviewed and
+verified; H5AD/selection/repeatCSV serveronly. Both Luna wait leases ended.
+Report: docs/experiments/JURKAT_SAMPLING_COMPARISON_20260930.md;
+PDF and all plot-data/full artifact index linked. No model run/default switch.

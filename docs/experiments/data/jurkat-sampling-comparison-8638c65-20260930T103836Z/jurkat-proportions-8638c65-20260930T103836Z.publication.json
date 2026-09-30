@@ -1,0 +1,12 @@
+{
+  "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+  "source_clean": true,
+  "github_verified_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+  "server_source": "/data/yilangliu/GraD-Pert/development/source-jurkat-proportions-8638c65",
+  "bundle_sha256": "1558a329205a2c0b06a19d03b77de2c8534a55874322340bf3ec3d40f4b55843",
+  "tests_exit_code": 0,
+  "launch_plan": "/data/yilangliu/GraD-Pert/development/jurkat-proportions-8638c65-20260930T103836Z.plan.json",
+  "launch_plan_sha256": "6778aa63bf88710ebb78a85ccc022c422eacd4535c7b27eab417b2e8030af8bd",
+  "driver_sha256": "41e1e4c39feebce98e2ada7a88b026936631f3b5205166525f5d1c3199771f96",
+  "pid": 214600
+}

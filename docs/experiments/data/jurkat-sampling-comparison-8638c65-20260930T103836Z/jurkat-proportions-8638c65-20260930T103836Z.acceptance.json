@@ -1,0 +1,90 @@
+{
+  "status": "accepted",
+  "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+  "queue_exit": {
+    "exit_code": 0,
+    "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+    "elapsed_seconds": 180.4013083986938,
+    "plan_sha256": "6778aa63bf88710ebb78a85ccc022c422eacd4535c7b27eab417b2e8030af8bd"
+  },
+  "runs": [
+    {
+      "method": "proportion50",
+      "cells": 64475,
+      "total_cells": 175186,
+      "gene_count": 6506,
+      "delta": {
+        "finite_count": 1331,
+        "mean": 0.2625130651770132,
+        "median": 0.22060906709770606,
+        "p10": 0.02200060357118384,
+        "p90": 0.5876145510219782
+      },
+      "raw": {
+        "finite_count": 1331,
+        "mean": 0.9517648134972682,
+        "median": 0.9729094258447586,
+        "p10": 0.8988564470868587,
+        "p90": 0.9886702587011571
+      },
+      "batch_loss": 1309,
+      "affected": 1329,
+      "missing_conditions": [
+        "BIRC5+ctrl",
+        "RACGAP1+ctrl",
+        "ECT2+ctrl",
+        "SEC13+ctrl"
+      ],
+      "elapsed_seconds": 89.41786508820951,
+      "configuration_sha256": "93201429299fb0bf8345f62d2adcb14f0286a5572526bd935672084b86367584",
+      "receipt_sha256": "5e64279e15e2d3a9b185450740df8318d959f20f3ab06e199976649dc0f17a5c",
+      "derived_h5ad_sha256": "60b09901ce7a9645d047bbe98df9ebff3431a5c832967cab86809dbba80aa912",
+      "all_output_hashes_verified": true,
+      "nontrain_rows_exact": true,
+      "metadata_exact": true,
+      "all_condition_quotas_verified": true,
+      "csv_rows": 267000
+    },
+    {
+      "method": "proportion25",
+      "cells": 32246,
+      "total_cells": 142957,
+      "gene_count": 6506,
+      "delta": {
+        "finite_count": 1331,
+        "mean": 0.1664742515922663,
+        "median": 0.11717218565844202,
+        "p10": -0.0035312234634940565,
+        "p90": 0.4142187227050349
+      },
+      "raw": {
+        "finite_count": 1331,
+        "mean": 0.9160520380067174,
+        "median": 0.9467290563322867,
+        "p10": 0.8138035060576114,
+        "p90": 0.9775923964857184
+      },
+      "batch_loss": 1319,
+      "affected": 1329,
+      "missing_conditions": [
+        "BIRC5+ctrl",
+        "RACGAP1+ctrl",
+        "ECT2+ctrl",
+        "SEC13+ctrl"
+      ],
+      "elapsed_seconds": 82.55422515515238,
+      "configuration_sha256": "7d4cb61931b6aa4094abe8b8bfe9d5f64ec5a3717068d8cc87f190931a9da0aa",
+      "receipt_sha256": "ba16a36e4dbe5833b0b3c1495ec8c2c4444025f5af9f25c09daffbf29bdf1b4b",
+      "derived_h5ad_sha256": "8919420b0052065f65095327019b49ef4fac44f2452e6a48f18d0df37a55ac99",
+      "all_output_hashes_verified": true,
+      "nontrain_rows_exact": true,
+      "metadata_exact": true,
+      "all_condition_quotas_verified": true,
+      "csv_rows": 267000
+    }
+  ],
+  "comparison_complete_sha256": "6bd2174c08f0262f9750e5e0f5fc2d6aba7fc58f3e8d6bdba0946bd0adb475f1",
+  "references_match_historical_cap40": true,
+  "no_training_launched": true,
+  "large_files_remain_server": true
+}

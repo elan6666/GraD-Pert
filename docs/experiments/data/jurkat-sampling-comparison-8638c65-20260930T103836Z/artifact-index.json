@@ -1,0 +1,243 @@
+{
+  "scientific_analysis_source": "8638c6557d779ed2290a00b0882964597ca81d3b",
+  "historical_cap40_source": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+  "comparison": {
+    "server_root": "/data/yilangliu/GraD-Pert/development/jurkat-sampling-comparison-8638c65-20260930T103836Z",
+    "plot_source": "conditions.json",
+    "source_summary": "sources.json",
+    "terminal": "COMPLETE.json"
+  },
+  "runs": {
+    "cap40": {
+      "source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+      "server_root": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-5a8a7bb-20260930T094437Z",
+      "configuration_sha256": "1e692732fca3fad57a713ada9475be71a9bce785563d7a5d1b53ec01850cb80f",
+      "summary_sha256": "fb0200f1bbbd1b453e4da22c2aa5c55566da9589a440c5e9ebb20a4cb6c68ad6",
+      "scientific_outputs": {
+        "cap40.h5ad": {
+          "bytes": 4142763987,
+          "sha256": "9cb901ead750d82f96cf85016e409b863643e340c043ff8c3aef48d5e48ef98b"
+        },
+        "comparison.pdf": {
+          "bytes": 51699,
+          "sha256": "3077dede7d17e90ac72759b55018d7f638baadc90acf6e07d58f35c582ca6e61"
+        },
+        "comparison.png": {
+          "bytes": 265496,
+          "sha256": "83b40d3a3619987e8b1839d5689ad6f6de187aadf08d125aeb819f6d40d6f2de"
+        },
+        "conditions.json": {
+          "bytes": 930159,
+          "sha256": "dc33428e05f58c29c2fa3621f3e0ae80f8300718aa39d442d7660fd25c2716b6"
+        },
+        "repeat_scores.csv": {
+          "bytes": 16841325,
+          "sha256": "7d41d1e25bbb1111019c19de595257e4d8c17114911ef088aefaa2c703674c97"
+        },
+        "selection.json": {
+          "bytes": 2723219,
+          "sha256": "a609d5aa4087d209dc62c1e8ed70dc7cff89ed6952b2afb18d0972cb477c94f2"
+        },
+        "summary.json": {
+          "bytes": 5255,
+          "sha256": "fb0200f1bbbd1b453e4da22c2aa5c55566da9589a440c5e9ebb20a4cb6c68ad6"
+        }
+      },
+      "server_only_files": [
+        "cap40.h5ad",
+        "repeat_scores.csv",
+        "selection.json"
+      ]
+    },
+    "proportion25": {
+      "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+      "server_root": "/data/yilangliu/GraD-Pert/development/jurkat-proportion25-8638c65-20260930T103836Z",
+      "configuration_sha256": "7d4cb61931b6aa4094abe8b8bfe9d5f64ec5a3717068d8cc87f190931a9da0aa",
+      "summary_sha256": "d795ba2a34f9cb49148db0ff88497ec92b52a713df9e0f5aa64f1721a09ac2bc",
+      "scientific_outputs": {
+        "comparison.pdf": {
+          "bytes": 61340,
+          "sha256": "2b157a6b2dc0baefea3e4c8fe4bb7079722b632dd8de6f1a2eb4799ae44ceaf0"
+        },
+        "comparison.png": {
+          "bytes": 276599,
+          "sha256": "041c51f6ff0ed90343ffa7d5c05851574d20af2d75b07417ad5019c11c5dc939"
+        },
+        "conditions.json": {
+          "bytes": 939106,
+          "sha256": "302167f9650f8c89b3200caf8016d6e594963212d747ceb406c2e361e02225e4"
+        },
+        "proportion25.h5ad": {
+          "bytes": 3735601325,
+          "sha256": "8919420b0052065f65095327019b49ef4fac44f2452e6a48f18d0df37a55ac99"
+        },
+        "repeat_scores.csv": {
+          "bytes": 16858573,
+          "sha256": "5a3ea88462a52e8b0146ad3a107ba3bb03965759aa04ccd0a2ce18ac69fc7dd1"
+        },
+        "selection.json": {
+          "bytes": 1855336,
+          "sha256": "059c1ae46db53fbd18be9d0d3042e10ea5b98185a9c8e4b9b6686440401794aa"
+        },
+        "summary.json": {
+          "bytes": 5437,
+          "sha256": "d795ba2a34f9cb49148db0ff88497ec92b52a713df9e0f5aa64f1721a09ac2bc"
+        }
+      },
+      "server_only_files": [
+        "proportion25.h5ad",
+        "repeat_scores.csv",
+        "selection.json"
+      ]
+    },
+    "proportion50": {
+      "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+      "server_root": "/data/yilangliu/GraD-Pert/development/jurkat-proportion50-8638c65-20260930T103836Z",
+      "configuration_sha256": "93201429299fb0bf8345f62d2adcb14f0286a5572526bd935672084b86367584",
+      "summary_sha256": "d03c55eedc3c637b3ef103429e00228dd1055efc3151ee194a28b384560ef69f",
+      "scientific_outputs": {
+        "comparison.pdf": {
+          "bytes": 61242,
+          "sha256": "68288bbbcf245072da4eb330478104834976944b51d7bfa508a17c455910a4f1"
+        },
+        "comparison.png": {
+          "bytes": 251337,
+          "sha256": "892d6210b8c0589c7dacc959c1f3d19ee7098675ef15002c870c20980592af4f"
+        },
+        "conditions.json": {
+          "bytes": 938948,
+          "sha256": "6cee4a88487df0682de347b097016645570f073ffb09ae3215cc88f4e0b5b61a"
+        },
+        "proportion50.h5ad": {
+          "bytes": 4577325950,
+          "sha256": "60b09901ce7a9645d047bbe98df9ebff3431a5c832967cab86809dbba80aa912"
+        },
+        "repeat_scores.csv": {
+          "bytes": 16842687,
+          "sha256": "110175f42494545643a1ffb7b43b4784af4d0f5f9d03eddd1920a5ff6bc00f6b"
+        },
+        "selection.json": {
+          "bytes": 3649611,
+          "sha256": "7908e955ced277c0a2e7185996e420118d08dd943aec1ee20e67f73b0742dadd"
+        },
+        "summary.json": {
+          "bytes": 5418,
+          "sha256": "d03c55eedc3c637b3ef103429e00228dd1055efc3151ee194a28b384560ef69f"
+        }
+      },
+      "server_only_files": [
+        "proportion50.h5ad",
+        "repeat_scores.csv",
+        "selection.json"
+      ]
+    }
+  },
+  "local_small_files": {
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/COMPLETE.json": {
+      "bytes": 766,
+      "sha256": "6bd2174c08f0262f9750e5e0f5fc2d6aba7fc58f3e8d6bdba0946bd0adb475f1"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/comparison.pdf": {
+      "bytes": 43671,
+      "sha256": "aeacac16a12564a9cfa153878f916f33fc9dd8b5fbecef4234c67dc102d80b6e"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/comparison.png": {
+      "bytes": 258951,
+      "sha256": "3f47ebea18163874a2cb607db8f402a484bdd287ffb645d42e0a124f87f465eb"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/conditions.json": {
+      "bytes": 1344648,
+      "sha256": "dba1077c9f074181ffd3004c893ce9cf57e9952be9156ad0f24985865e0860be"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/jurkat-proportion25-8638c65-20260930T103836Z.exit.json": {
+      "bytes": 497,
+      "sha256": "0c1118ed7ad1e0cb1c4cbfd883553551daa58ff6bcbad716f0797c23954eb19a"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/jurkat-proportion50-8638c65-20260930T103836Z.exit.json": {
+      "bytes": 496,
+      "sha256": "4bfc77aec240e886295d3bf18652706c9db7d320780d031069d0f17f3df5d246"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/jurkat-proportions-8638c65-20260930T103836Z.acceptance.json": {
+      "bytes": 2969,
+      "sha256": "7cfbafd5c13171e4572244d82abfc78b08ffb38cb17a97697512e42784d062cf"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/jurkat-proportions-8638c65-20260930T103836Z.exit.json": {
+      "bytes": 199,
+      "sha256": "48cdaecd6b12f25f04df548e8bace110578fe4b656d4c18a72589e868a6313e1"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/jurkat-proportions-8638c65-20260930T103836Z.plan.json": {
+      "bytes": 1451,
+      "sha256": "6778aa63bf88710ebb78a85ccc022c422eacd4535c7b27eab417b2e8030af8bd"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/jurkat-proportions-8638c65-20260930T103836Z.publication.json": {
+      "bytes": 675,
+      "sha256": "27c1bc98e2d1935a4dfcd2367c7a860b453beabbfa7a6b580176cc338e49ad58"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/jurkat-proportions-8638c65-tests.json": {
+      "bytes": 556,
+      "sha256": "999039ceed487af209a76ced9390dbf003964e31ed65ef4060856d2d4ec6aae0"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/report.zh.pdf": {
+      "bytes": 411151,
+      "sha256": "3d4085279251bc0daa6390ebf66c4437cf27b425ae6db8b194484c9397ca3895"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/small-transfer.json": {
+      "bytes": 5322,
+      "sha256": "67711e0a0af556fe429514afa2e2b87e4206a5d210a1cf736630ced90fe88499"
+    },
+    "jurkat-sampling-comparison-8638c65-20260930T103836Z/sources.json": {
+      "bytes": 19197,
+      "sha256": "25c1ea5b9981b30962d7eec19b6e2ce17dcda4d45bd6456301ef49d6ca450b77"
+    },
+    "jurkat-proportion50-8638c65-20260930T103836Z/COMPLETE.json": {
+      "bytes": 178,
+      "sha256": "d5ba5d344cb147f870e1d4dbd39f575d5d0db5e28adaf656285ea0d163267fa9"
+    },
+    "jurkat-proportion50-8638c65-20260930T103836Z/comparison.pdf": {
+      "bytes": 61242,
+      "sha256": "68288bbbcf245072da4eb330478104834976944b51d7bfa508a17c455910a4f1"
+    },
+    "jurkat-proportion50-8638c65-20260930T103836Z/comparison.png": {
+      "bytes": 251337,
+      "sha256": "892d6210b8c0589c7dacc959c1f3d19ee7098675ef15002c870c20980592af4f"
+    },
+    "jurkat-proportion50-8638c65-20260930T103836Z/conditions.json": {
+      "bytes": 938948,
+      "sha256": "6cee4a88487df0682de347b097016645570f073ffb09ae3215cc88f4e0b5b61a"
+    },
+    "jurkat-proportion50-8638c65-20260930T103836Z/receipt.json": {
+      "bytes": 1796,
+      "sha256": "5e64279e15e2d3a9b185450740df8318d959f20f3ab06e199976649dc0f17a5c"
+    },
+    "jurkat-proportion50-8638c65-20260930T103836Z/summary.json": {
+      "bytes": 5418,
+      "sha256": "d03c55eedc3c637b3ef103429e00228dd1055efc3151ee194a28b384560ef69f"
+    },
+    "jurkat-proportion25-8638c65-20260930T103836Z/COMPLETE.json": {
+      "bytes": 178,
+      "sha256": "57af270f81017647290abbaa3f4e90e659da99ecd1456bb4524d602379bac6b6"
+    },
+    "jurkat-proportion25-8638c65-20260930T103836Z/comparison.pdf": {
+      "bytes": 61340,
+      "sha256": "2b157a6b2dc0baefea3e4c8fe4bb7079722b632dd8de6f1a2eb4799ae44ceaf0"
+    },
+    "jurkat-proportion25-8638c65-20260930T103836Z/comparison.png": {
+      "bytes": 276599,
+      "sha256": "041c51f6ff0ed90343ffa7d5c05851574d20af2d75b07417ad5019c11c5dc939"
+    },
+    "jurkat-proportion25-8638c65-20260930T103836Z/conditions.json": {
+      "bytes": 939106,
+      "sha256": "302167f9650f8c89b3200caf8016d6e594963212d747ceb406c2e361e02225e4"
+    },
+    "jurkat-proportion25-8638c65-20260930T103836Z/receipt.json": {
+      "bytes": 1797,
+      "sha256": "ba16a36e4dbe5833b0b3c1495ec8c2c4444025f5af9f25c09daffbf29bdf1b4b"
+    },
+    "jurkat-proportion25-8638c65-20260930T103836Z/summary.json": {
+      "bytes": 5437,
+      "sha256": "d795ba2a34f9cb49148db0ff88497ec92b52a713df9e0f5aa64f1721a09ac2bc"
+    }
+  },
+  "interpretation": "One fixed seed42 sample per method;100 split repetitions; observed repeatability, not model scores. All large scientific artifacts remain server-side.",
+  "report_renderer": "scripts/analysis/render_sampling_report.py"
+}

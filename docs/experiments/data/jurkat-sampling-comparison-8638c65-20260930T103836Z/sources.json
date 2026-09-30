@@ -1,0 +1,508 @@
+{
+  "cap40": {
+    "conditions_sha256": "dc33428e05f58c29c2fa3621f3e0ae80f8300718aa39d442d7660fd25c2716b6",
+    "root": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-5a8a7bb-20260930T094437Z",
+    "source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+    "summary": {
+      "affected_conditions": 1018,
+      "affected_retained_vs_removed": {
+        "finite_count": 1018,
+        "mean": 0.37355157486394636,
+        "median": 0.37472631988266847,
+        "p10": 0.04562887452721466,
+        "p90": 0.7366203148228088
+      },
+      "affected_sample_vs_full": {
+        "finite_count": 1018,
+        "mean": 0.7990692647804662,
+        "median": 0.8258224268720205,
+        "p10": 0.6059217931847535,
+        "p90": 0.9586790251594479
+      },
+      "cap": 40,
+      "cap40": {
+        "finite_count": 1331,
+        "mean": 0.2617796567088694,
+        "median": 0.22293866894752118,
+        "p10": 0.013001633594227801,
+        "p90": 0.5687476190101391
+      },
+      "cell_count_strata": {
+        "1-40": {
+          "cap": {
+            "finite_count": 313,
+            "mean": 0.26866071202196085,
+            "median": 0.25505212152082984,
+            "p10": 0.014427306453530311,
+            "p90": 0.5524943405327901
+          },
+          "conditions": 317,
+          "original": {
+            "finite_count": 313,
+            "mean": 0.26866071202196085,
+            "median": 0.25505212152082984,
+            "p10": 0.014427306453530311,
+            "p90": 0.5524943405327901
+          }
+        },
+        "41-80": {
+          "cap": {
+            "finite_count": 411,
+            "mean": 0.3022252976925301,
+            "median": 0.28943504374119294,
+            "p10": 0.026169917197314665,
+            "p90": 0.61800558762997
+          },
+          "conditions": 411,
+          "original": {
+            "finite_count": 411,
+            "mean": 0.3704223482441315,
+            "median": 0.3682341791975861,
+            "p10": 0.04799025918815809,
+            "p90": 0.7010194513826842
+          }
+        },
+        "81-160": {
+          "cap": {
+            "finite_count": 452,
+            "mean": 0.23838302183355073,
+            "median": 0.1980128844485317,
+            "p10": 0.00854395900855974,
+            "p90": 0.5411363989493931
+          },
+          "conditions": 452,
+          "original": {
+            "finite_count": 452,
+            "mean": 0.40279296832830275,
+            "median": 0.39720894199002854,
+            "p10": 0.04903960426177358,
+            "p90": 0.7750297781814707
+          }
+        },
+        ">160": {
+          "cap": {
+            "finite_count": 155,
+            "mean": 0.20886578707249429,
+            "median": 0.15595706822654287,
+            "p10": -0.0015622390588528514,
+            "p90": 0.4824345964290434
+          },
+          "conditions": 155,
+          "original": {
+            "finite_count": 155,
+            "mean": 0.5116531297525481,
+            "median": 0.5730849692114781,
+            "p10": 0.06388585200895108,
+            "p90": 0.8649691931463667
+          }
+        }
+      },
+      "conditions": 1335,
+      "control_cells": 12013,
+      "control_reference": "same_original_control_pool_within_original_condition_batch_contexts",
+      "control_reference_content_sha256": "cf42737418cbfff6f7cb4d1469e834835258dc4feda4164615ac86d09fd3079b",
+      "dataset_id": "nadig_jurkat",
+      "derivative_total_cells": 158547,
+      "derived_h5ad": {
+        "genes": 6506,
+        "obs_var_metadata_exact": true,
+        "retained_values_exact": true,
+        "rows": 158547,
+        "sha256": "9cb901ead750d82f96cf85016e409b863643e340c043ff8c3aef48d5e48ef98b"
+      },
+      "elapsed_seconds": 90.8522232240066,
+      "expression_genes": 5000,
+      "interpretation": "100 splits of one fixed sample; observed repeatability, not model scores or a theoretical upper bound",
+      "original": {
+        "finite_count": 1331,
+        "mean": 0.37393166400244143,
+        "median": 0.36441530741028166,
+        "p10": 0.04223087686484969,
+        "p90": 0.7449793193022377
+      },
+      "original_data_unchanged": true,
+      "original_train_cells": 128266,
+      "paired_condition_delta": {
+        "condition_bootstrap_95_interval": [
+          -0.1187795901316127,
+          -0.10582623723589932
+        ],
+        "conditions": 1331,
+        "interpretation": "condition-level descriptive interval, not biological-replicate uncertainty",
+        "mean": -0.11215200729357208
+      },
+      "parent_h5ad_sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5",
+      "parent_manifest_sha256": {
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/canonical.json": "3aeb295de28bcde1c0fb48e97951db5d2656ce407a51bb3c9ebc246bb8611f87",
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/evaluation_controls.test.json": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/evaluation_controls.val.json": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528",
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/split.json": "d8807af3f03f4ba6c57ddb4f77acdb915b3b180592bca4ba1619f3e49cbe6890"
+      },
+      "parent_split_sha256": "d8807af3f03f4ba6c57ddb4f77acdb915b3b180592bca4ba1619f3e49cbe6890",
+      "raw_expression": {
+        "cap": {
+          "finite_count": 1331,
+          "mean": 0.962970410485309,
+          "median": 0.9743085052445288,
+          "p10": 0.9451527556132807,
+          "p90": 0.9789780086222767
+        },
+        "original": {
+          "finite_count": 1331,
+          "mean": 0.9732260379676324,
+          "median": 0.9861681408434357,
+          "p10": 0.945478961115719,
+          "p90": 0.9943266246728928
+        }
+      },
+      "repeats": 100,
+      "sampled_train_cells": 47836,
+      "seed": 42,
+      "source_clean": true,
+      "source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+      "train_cells_removed_fraction": 0.6270562736812562,
+      "unchanged_nontrain_cells": 110711
+    },
+    "summary_sha256": "fb0200f1bbbd1b453e4da22c2aa5c55566da9589a440c5e9ebb20a4cb6c68ad6"
+  },
+  "proportion25": {
+    "conditions_sha256": "302167f9650f8c89b3200caf8016d6e594963212d747ceb406c2e361e02225e4",
+    "root": "/data/yilangliu/GraD-Pert/development/jurkat-proportion25-8638c65-20260930T103836Z",
+    "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+    "summary": {
+      "affected_conditions": 1329,
+      "affected_retained_vs_removed": {
+        "finite_count": 1329,
+        "mean": 0.33927901436471525,
+        "median": 0.3207034977206406,
+        "p10": 0.03637610390118177,
+        "p90": 0.6904051348430266
+      },
+      "affected_sample_vs_full": {
+        "finite_count": 1329,
+        "mean": 0.6632040446217867,
+        "median": 0.6560796383132197,
+        "p10": 0.5139794399560937,
+        "p90": 0.8350698201843191
+      },
+      "cap": null,
+      "cell_count_strata": {
+        "1-40": {
+          "cap": {
+            "finite_count": 313,
+            "mean": 0.0954227560796851,
+            "median": 0.0677706457892403,
+            "p10": -0.020854092255878646,
+            "p90": 0.24762536452568298
+          },
+          "conditions": 317,
+          "original": {
+            "finite_count": 313,
+            "mean": 0.26866071202196085,
+            "median": 0.25505212152082984,
+            "p10": 0.014427306453530311,
+            "p90": 0.5524943405327901
+          }
+        },
+        "41-80": {
+          "cap": {
+            "finite_count": 411,
+            "mean": 0.15791506493971436,
+            "median": 0.11549871204172538,
+            "p10": 0.0045422112048539055,
+            "p90": 0.37698765780065124
+          },
+          "conditions": 411,
+          "original": {
+            "finite_count": 411,
+            "mean": 0.3704223482441315,
+            "median": 0.3682341791975861,
+            "p10": 0.04799025918815809,
+            "p90": 0.7010194513826842
+          }
+        },
+        "81-160": {
+          "cap": {
+            "finite_count": 452,
+            "mean": 0.18503254388328041,
+            "median": 0.13239126884974436,
+            "p10": 0.00028236119276612567,
+            "p90": 0.44741271331606935
+          },
+          "conditions": 452,
+          "original": {
+            "finite_count": 452,
+            "mean": 0.40279296832830275,
+            "median": 0.39720894199002854,
+            "p10": 0.04903960426177358,
+            "p90": 0.7750297781814707
+          }
+        },
+        ">160": {
+          "cap": {
+            "finite_count": 155,
+            "mean": 0.2785297076832237,
+            "median": 0.23987991060955863,
+            "p10": 0.010170870654001712,
+            "p90": 0.5959475958726115
+          },
+          "conditions": 155,
+          "original": {
+            "finite_count": 155,
+            "mean": 0.5116531297525481,
+            "median": 0.5730849692114781,
+            "p10": 0.06388585200895108,
+            "p90": 0.8649691931463667
+          }
+        }
+      },
+      "conditions": 1335,
+      "conditions_losing_batches": 1319,
+      "control_cells": 12013,
+      "control_reference": "same_original_control_pool_within_original_condition_batch_contexts",
+      "control_reference_content_sha256": "cf42737418cbfff6f7cb4d1469e834835258dc4feda4164615ac86d09fd3079b",
+      "dataset_id": "nadig_jurkat",
+      "derivative_total_cells": 142957,
+      "derived_h5ad": {
+        "genes": 6506,
+        "obs_var_metadata_exact": true,
+        "retained_values_exact": true,
+        "rows": 142957,
+        "sha256": "8919420b0052065f65095327019b49ef4fac44f2452e6a48f18d0df37a55ac99"
+      },
+      "elapsed_seconds": 82.55422515515238,
+      "expression_genes": 5000,
+      "fraction": 0.25,
+      "interpretation": "100 splits of one fixed sample; observed repeatability, not model scores or a theoretical upper bound",
+      "legacy_record_keys": "cap_* denote the sampled version for every method",
+      "method": "proportion25",
+      "original": {
+        "finite_count": 1331,
+        "mean": 0.37393166400244143,
+        "median": 0.36441530741028166,
+        "p10": 0.04223087686484969,
+        "p90": 0.7449793193022377
+      },
+      "original_data_unchanged": true,
+      "original_train_cells": 128266,
+      "paired_condition_delta": {
+        "condition_bootstrap_95_interval": [
+          -0.21376542209914162,
+          -0.20082525778667998
+        ],
+        "conditions": 1331,
+        "interpretation": "condition-level descriptive interval, not biological-replicate uncertainty",
+        "mean": -0.20745741241017512
+      },
+      "parent_h5ad_sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5",
+      "parent_manifest_sha256": {
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/canonical.json": "3aeb295de28bcde1c0fb48e97951db5d2656ce407a51bb3c9ebc246bb8611f87",
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/evaluation_controls.test.json": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/evaluation_controls.val.json": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528",
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/split.json": "d8807af3f03f4ba6c57ddb4f77acdb915b3b180592bca4ba1619f3e49cbe6890"
+      },
+      "parent_split_sha256": "d8807af3f03f4ba6c57ddb4f77acdb915b3b180592bca4ba1619f3e49cbe6890",
+      "proportion25": {
+        "finite_count": 1331,
+        "mean": 0.1664742515922663,
+        "median": 0.11717218565844202,
+        "p10": -0.0035312234634940565,
+        "p90": 0.4142187227050349
+      },
+      "raw_expression": {
+        "cap": {
+          "finite_count": 1331,
+          "mean": 0.9160520380067174,
+          "median": 0.9467290563322867,
+          "p10": 0.8138035060576114,
+          "p90": 0.9775923964857184
+        },
+        "original": {
+          "finite_count": 1331,
+          "mean": 0.9732260379676324,
+          "median": 0.9861681408434357,
+          "p10": 0.945478961115719,
+          "p90": 0.9943266246728928
+        }
+      },
+      "repeats": 100,
+      "sampled_train_cells": 32246,
+      "seed": 42,
+      "source_clean": true,
+      "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+      "train_cells_removed_fraction": 0.7486005644519982,
+      "unchanged_nontrain_cells": 110711
+    },
+    "summary_sha256": "d795ba2a34f9cb49148db0ff88497ec92b52a713df9e0f5aa64f1721a09ac2bc"
+  },
+  "proportion50": {
+    "conditions_sha256": "6cee4a88487df0682de347b097016645570f073ffb09ae3215cc88f4e0b5b61a",
+    "root": "/data/yilangliu/GraD-Pert/development/jurkat-proportion50-8638c65-20260930T103836Z",
+    "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+    "summary": {
+      "affected_conditions": 1329,
+      "affected_retained_vs_removed": {
+        "finite_count": 1329,
+        "mean": 0.3740912674359201,
+        "median": 0.36957093423344106,
+        "p10": 0.03838213193372713,
+        "p90": 0.7469239633795431
+      },
+      "affected_sample_vs_full": {
+        "finite_count": 1329,
+        "mean": 0.828943996151257,
+        "median": 0.8328471559730707,
+        "p10": 0.72368823069757,
+        "p90": 0.933747990130197
+      },
+      "cap": null,
+      "cell_count_strata": {
+        "1-40": {
+          "cap": {
+            "finite_count": 313,
+            "mean": 0.16885095512347253,
+            "median": 0.13062197870082115,
+            "p10": 0.00082462115027179,
+            "p90": 0.37723143134177334
+          },
+          "conditions": 317,
+          "original": {
+            "finite_count": 313,
+            "mean": 0.26866071202196085,
+            "median": 0.25505212152082984,
+            "p10": 0.014427306453530311,
+            "p90": 0.5524943405327901
+          }
+        },
+        "41-80": {
+          "cap": {
+            "finite_count": 411,
+            "mean": 0.2546932842163829,
+            "median": 0.22060906709770606,
+            "p10": 0.025661014186142184,
+            "p90": 0.5403678032650113
+          },
+          "conditions": 411,
+          "original": {
+            "finite_count": 411,
+            "mean": 0.3704223482441315,
+            "median": 0.3682341791975861,
+            "p10": 0.04799025918815809,
+            "p90": 0.7010194513826842
+          }
+        },
+        "81-160": {
+          "cap": {
+            "finite_count": 452,
+            "mean": 0.2882496430913402,
+            "median": 0.2544834691596556,
+            "p10": 0.028436304168701836,
+            "p90": 0.6229121369635
+          },
+          "conditions": 452,
+          "original": {
+            "finite_count": 452,
+            "mean": 0.40279296832830275,
+            "median": 0.39720894199002854,
+            "p10": 0.04903960426177358,
+            "p90": 0.7750297781814707
+          }
+        },
+        ">160": {
+          "cap": {
+            "finite_count": 155,
+            "mean": 0.3973339503660552,
+            "median": 0.40157907494928646,
+            "p10": 0.05010848691574992,
+            "p90": 0.7588323612266152
+          },
+          "conditions": 155,
+          "original": {
+            "finite_count": 155,
+            "mean": 0.5116531297525481,
+            "median": 0.5730849692114781,
+            "p10": 0.06388585200895108,
+            "p90": 0.8649691931463667
+          }
+        }
+      },
+      "conditions": 1335,
+      "conditions_losing_batches": 1309,
+      "control_cells": 12013,
+      "control_reference": "same_original_control_pool_within_original_condition_batch_contexts",
+      "control_reference_content_sha256": "cf42737418cbfff6f7cb4d1469e834835258dc4feda4164615ac86d09fd3079b",
+      "dataset_id": "nadig_jurkat",
+      "derivative_total_cells": 175186,
+      "derived_h5ad": {
+        "genes": 6506,
+        "obs_var_metadata_exact": true,
+        "retained_values_exact": true,
+        "rows": 175186,
+        "sha256": "60b09901ce7a9645d047bbe98df9ebff3431a5c832967cab86809dbba80aa912"
+      },
+      "elapsed_seconds": 89.41786508820951,
+      "expression_genes": 5000,
+      "fraction": 0.5,
+      "interpretation": "100 splits of one fixed sample; observed repeatability, not model scores or a theoretical upper bound",
+      "legacy_record_keys": "cap_* denote the sampled version for every method",
+      "method": "proportion50",
+      "original": {
+        "finite_count": 1331,
+        "mean": 0.37393166400244143,
+        "median": 0.36441530741028166,
+        "p10": 0.04223087686484969,
+        "p90": 0.7449793193022377
+      },
+      "original_data_unchanged": true,
+      "original_train_cells": 128266,
+      "paired_condition_delta": {
+        "condition_bootstrap_95_interval": [
+          -0.11498022886743918,
+          -0.10762595110147678
+        ],
+        "conditions": 1331,
+        "interpretation": "condition-level descriptive interval, not biological-replicate uncertainty",
+        "mean": -0.11141859882542823
+      },
+      "parent_h5ad_sha256": "65b32637b24e6ee6d3399b3280d914dcedc34bf787098c3e9e14a47ebe80cbb5",
+      "parent_manifest_sha256": {
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/canonical.json": "3aeb295de28bcde1c0fb48e97951db5d2656ce407a51bb3c9ebc246bb8611f87",
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/evaluation_controls.test.json": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/evaluation_controls.val.json": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528",
+        "/data/yilangliu/GraD-Pert/data/nadig_jurkat/within_cell_unseen_single/manifests/split.json": "d8807af3f03f4ba6c57ddb4f77acdb915b3b180592bca4ba1619f3e49cbe6890"
+      },
+      "parent_split_sha256": "d8807af3f03f4ba6c57ddb4f77acdb915b3b180592bca4ba1619f3e49cbe6890",
+      "proportion50": {
+        "finite_count": 1331,
+        "mean": 0.2625130651770132,
+        "median": 0.22060906709770606,
+        "p10": 0.02200060357118384,
+        "p90": 0.5876145510219782
+      },
+      "raw_expression": {
+        "cap": {
+          "finite_count": 1331,
+          "mean": 0.9517648134972682,
+          "median": 0.9729094258447586,
+          "p10": 0.8988564470868587,
+          "p90": 0.9886702587011571
+        },
+        "original": {
+          "finite_count": 1331,
+          "mean": 0.9732260379676324,
+          "median": 0.9861681408434357,
+          "p10": 0.945478961115719,
+          "p90": 0.9943266246728928
+        }
+      },
+      "repeats": 100,
+      "sampled_train_cells": 64475,
+      "seed": 42,
+      "source_clean": true,
+      "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+      "train_cells_removed_fraction": 0.49733366597539486,
+      "unchanged_nontrain_cells": 110711
+    },
+    "summary_sha256": "d03c55eedc3c637b3ef103429e00228dd1055efc3151ee194a28b384560ef69f"
+  }
+}

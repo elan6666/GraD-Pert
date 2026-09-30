@@ -1,0 +1,32 @@
+{
+  "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+  "source_clean": true,
+  "source": "/data/yilangliu/GraD-Pert/development/source-jurkat-proportions-8638c65",
+  "publication_bundle_sha256": "1558a329205a2c0b06a19d03b77de2c8534a55874322340bf3ec3d40f4b55843",
+  "tests_sha256": "999039ceed487af209a76ced9390dbf003964e31ed65ef4060856d2d4ec6aae0",
+  "python": "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+  "queue": "/data/yilangliu/GraD-Pert/development/jurkat-proportions-8638c65-20260930T103836Z",
+  "methods": [
+    {
+      "fraction": 0.5,
+      "output": "/data/yilangliu/GraD-Pert/development/jurkat-proportion50-8638c65-20260930T103836Z"
+    },
+    {
+      "fraction": 0.25,
+      "output": "/data/yilangliu/GraD-Pert/development/jurkat-proportion25-8638c65-20260930T103836Z"
+    }
+  ],
+  "comparison": "/data/yilangliu/GraD-Pert/development/jurkat-sampling-comparison-8638c65-20260930T103836Z",
+  "historical_cap40": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-5a8a7bb-20260930T094437Z",
+  "data_root": "/data/yilangliu/GraD-Pert/data",
+  "seed": 42,
+  "repeats": 100,
+  "environment": {
+    "PYTHONPATH": "/data/yilangliu/GraD-Pert/development/source-jurkat-proportions-8638c65/src:/data/yilangliu/GraD-Pert/development/source-jurkat-proportions-8638c65",
+    "OMP_NUM_THREADS": "4",
+    "OPENBLAS_NUM_THREADS": "4",
+    "MKL_NUM_THREADS": "4",
+    "NUMBA_NUM_THREADS": "4",
+    "CUDA_VISIBLE_DEVICES": ""
+  }
+}

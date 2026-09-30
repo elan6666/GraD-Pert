@@ -1,0 +1,24 @@
+{
+  "outputs": {
+    "comparison.pdf": {
+      "bytes": 43671,
+      "sha256": "aeacac16a12564a9cfa153878f916f33fc9dd8b5fbecef4234c67dc102d80b6e"
+    },
+    "comparison.png": {
+      "bytes": 258951,
+      "sha256": "3f47ebea18163874a2cb607db8f402a484bdd287ffb645d42e0a124f87f465eb"
+    },
+    "conditions.json": {
+      "bytes": 1344648,
+      "sha256": "dba1077c9f074181ffd3004c893ce9cf57e9952be9156ad0f24985865e0860be"
+    },
+    "sources.json": {
+      "bytes": 19197,
+      "sha256": "25c1ea5b9981b30962d7eec19b6e2ce17dcda4d45bd6456301ef49d6ca450b77"
+    }
+  },
+  "reference_parity": "identities and half assignments exact; scores atol1e-13 rtol0",
+  "source_clean": true,
+  "source_commit": "8638c6557d779ed2290a00b0882964597ca81d3b",
+  "status": "complete"
+}
