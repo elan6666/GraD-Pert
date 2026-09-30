@@ -1,0 +1,83 @@
+{
+  "status": "prepared_not_launched",
+  "date": "2026-10-01",
+  "pre_change_published_git_sha": "9b8fd666e8d91b5ca5f79f1ec385775ff594f377",
+  "baseline_training_sha": "aeac5fd94123af0b73810259e5e2985228b11d65",
+  "baseline_config_path": "configs/v2/mhc_cap40_jurkat/six_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml",
+  "baseline_config_sha256": "1401174171770bb5c7ae580db55f9dd9d4907d8da6a37a42b86a64d747f412d0",
+  "verification": "native load_experiment_config, V2Options.parse_parameters and full config parity except listed fields and their explicit provenance; epoch/batch/selection/evaluation contracts verified",
+  "configs": [
+    {
+      "name": "E1_no_mhc",
+      "config_path": "configs/v2/cap40_ablations_jurkat/E1_no_mhc/gradpert_v2/nadig_jurkat.yaml",
+      "config_sha256": "5718b2c298aaed31ae796205be5f8597a060da4106e4b0017e35f605dff68686",
+      "architecture_differences": {
+        "streams": [
+          4,
+          1
+        ]
+      },
+      "options_differences": {},
+      "complete_config_parity_except_listed_fields": true,
+      "status": "local_config_verified_cuda_not_run"
+    },
+    {
+      "name": "E2_prototypes16384",
+      "config_path": "configs/v2/cap40_ablations_jurkat/E2_prototypes16384/gradpert_v2/nadig_jurkat.yaml",
+      "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f",
+      "architecture_differences": {
+        "prototypes": [
+          8192,
+          16384
+        ]
+      },
+      "options_differences": {},
+      "complete_config_parity_except_listed_fields": true,
+      "status": "local_config_verified_cuda_not_run"
+    },
+    {
+      "name": "E3_unit_distillation_no_spread_koleo",
+      "config_path": "configs/v2/cap40_ablations_jurkat/E3_unit_distillation_no_spread_koleo/gradpert_v2/nadig_jurkat.yaml",
+      "config_sha256": "6982785ffac1b5ac3f681956ddf8ad51af2aa505e3f02e22572876cb7d34cb2a",
+      "architecture_differences": {},
+      "options_differences": {
+        "ssl1_condition": [
+          0.8,
+          1.0
+        ],
+        "ssl1_node": [
+          0.4,
+          1.0
+        ],
+        "ssl1_spread": [
+          0.1,
+          0.0
+        ],
+        "ssl2_dino": [
+          0.8,
+          1.0
+        ],
+        "ssl2_ibot": [
+          0.4,
+          1.0
+        ],
+        "ssl2_koleo": [
+          0.1,
+          0.0
+        ]
+      },
+      "complete_config_parity_except_listed_fields": true,
+      "status": "local_config_verified_cuda_not_run"
+    }
+  ],
+  "existing_config_regressions": {
+    "command": "PYTHONPATH=src /Users/elan/code/grad-pert/.venv/bin/python -m pytest -q tests/v2/test_config.py -k \"cap40 or restores_mhc\"",
+    "exit_code": 0,
+    "passed": 2,
+    "deselected": 65
+  },
+  "preparation_repair": "initial unique experiment_id rejected by existing schema; restored canonical gradpert_v2__nadig_jurkat in all three configs without changing schema; variant paths/hashes and fresh run IDs distinguish experiments",
+  "gpu_preflight": "not_run",
+  "new_formal_training": "not_launched",
+  "current_run_unchanged": true
+}

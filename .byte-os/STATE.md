@@ -1,3 +1,15 @@
+# Planned 2026-10-01: three independent cap40 B0 ablations
+
+E1 streams1; E2 four independent prototype heads16384 with hidden2048/bottleneck256;
+E3 SSL1(1,1,0), SSL2(1,1,0), both stage multipliers1. User corrected SSL2 DINO/iBOT
+from2 to1. Each compares directly to currentcap40+mHC B0; six fresh epochs,seed1,
+targetm68×accum2×world2=272,existing val/test/selection. No new runs or monitors.
+Three self-contained configs passed schema/options/full-parity checks and2 existing
+cap40/mHC config tests. GPU integration and E2 sustained capacity remain unverified.
+Current run/owner/20-minute monitor remain unchanged; after its terminal acceptance,
+return to main for the next stage. Plan:.byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md.
+Local evidence:.byte-os/evidence/v2-cap40-three-ablations-20261001/config-validation.json.
+
 # Live cap40 mHC six-epoch B0 2026-09-30
 
 Run nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad, attempt1, source aeac5fd94123af0b73810259e5e2985228b11d65.

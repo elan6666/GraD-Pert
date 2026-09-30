@@ -1,3 +1,15 @@
+## 2026-10-01：当前 cap40 B0 后的三组对照已设计
+
+用户确认 E1 关闭mHC；E2 四个头原型8192→16384、MLP宽度不变；
+E3 关闭spread/KoLeo，condition/node/DINO/iBOT四项实际权重均为1
+（DINO/iBOT先前的2已纠正）。三组各自直接对照当前cap40+mHC B0，
+从头六轮、seed1、目标global272、joint-only与原best/last评估不变。
+三个自包含配置已经通过本地schema/V2Options与完整差异范围核对；
+现有cap40/mHC配置回归2项通过。配置根`configs/v2/cap40_ablations_jurkat/`。
+E2容量未验证，E3是组合配方而非单项正则消融；三组均未启动。
+当前训练继续归原监督会话，原run/源码/监控不变；等其终态交回主会话。
+设计和后续依赖：`.byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md`。
+
 ## 2026-09-30：cap40＋mHC 完整 B0 六轮正式启动
 
 源码 `aeac5fd94123af0b73810259e5e2985228b11d65` 已推送main并干净发布；95项本地/服务器检查和同配置双卡一步更新/checkpoint重载通过。新run `nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad` 已启动，首轮2/176步、双rank和GPU身份确认；47836固定训练行/1335条件，mHC4、m68×累积2×双卡＝batch272、6epoch。每轮joint-only，最终best/last原冻结测试。整体尚未完成，正在交已有监督会话20min检查；下方未启动段为历史快照。精确身份与收据见 `docs/experiments/GRADPERT_V2_MHC_CAP40_SIX_EPOCH_20260930.md`。
