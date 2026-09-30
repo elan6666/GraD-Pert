@@ -1,0 +1,51 @@
+{
+  "cap": 40,
+  "data_root": "/data/yilangliu/GraD-Pert/data",
+  "elapsed_seconds": 90.8522232240066,
+  "numpy": "2.5.2",
+  "output": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-5a8a7bb-20260930T094437Z",
+  "outputs": {
+    "cap40.h5ad": {
+      "bytes": 4142763987,
+      "sha256": "9cb901ead750d82f96cf85016e409b863643e340c043ff8c3aef48d5e48ef98b"
+    },
+    "comparison.pdf": {
+      "bytes": 51699,
+      "sha256": "3077dede7d17e90ac72759b55018d7f638baadc90acf6e07d58f35c582ca6e61"
+    },
+    "comparison.png": {
+      "bytes": 265496,
+      "sha256": "83b40d3a3619987e8b1839d5689ad6f6de187aadf08d125aeb819f6d40d6f2de"
+    },
+    "conditions.json": {
+      "bytes": 930159,
+      "sha256": "dc33428e05f58c29c2fa3621f3e0ae80f8300718aa39d442d7660fd25c2716b6"
+    },
+    "repeat_scores.csv": {
+      "bytes": 16841325,
+      "sha256": "7d41d1e25bbb1111019c19de595257e4d8c17114911ef088aefaa2c703674c97"
+    },
+    "selection.json": {
+      "bytes": 2723219,
+      "sha256": "a609d5aa4087d209dc62c1e8ed70dc7cff89ed6952b2afb18d0972cb477c94f2"
+    },
+    "summary.json": {
+      "bytes": 5255,
+      "sha256": "fb0200f1bbbd1b453e4da22c2aa5c55566da9589a440c5e9ebb20a4cb6c68ad6"
+    }
+  },
+  "pid": 206483,
+  "python": "3.12.3",
+  "repeats": 100,
+  "script_sha256": "de00dfdf34bedadb2afa1806b6fa13c83f43ddb608e77b1769937e2c5e92f3d3",
+  "seed": 42,
+  "source_clean": true,
+  "source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+  "status": "complete",
+  "summary_sha256": "fb0200f1bbbd1b453e4da22c2aa5c55566da9589a440c5e9ebb20a4cb6c68ad6",
+  "thread_limits": {
+    "MKL_NUM_THREADS": "4",
+    "OMP_NUM_THREADS": "4",
+    "OPENBLAS_NUM_THREADS": "4"
+  }
+}

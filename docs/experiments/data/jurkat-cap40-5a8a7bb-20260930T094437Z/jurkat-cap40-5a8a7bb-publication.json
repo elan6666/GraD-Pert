@@ -1,0 +1,8 @@
+{
+  "source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+  "source_clean": true,
+  "source": "/data/yilangliu/GraD-Pert/development/source-jurkat-cap40-5a8a7bb",
+  "transport": "verified incremental Git bundle over SSH",
+  "bundle_sha256": "286ab088643260af0fd4d7de89ac53cf3705f5cacbe566a2dd936e9b7827cc97",
+  "published_at_utc": "2026-09-30T09:44:35.069094+00:00"
+}

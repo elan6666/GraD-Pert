@@ -1,0 +1,58 @@
+{
+  "run_id": "jurkat-cap40-5a8a7bb-20260930T094437Z",
+  "analysis_source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+  "server_root": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-5a8a7bb-20260930T094437Z",
+  "files": {
+    "cap40.h5ad": {
+      "bytes": 4142763987,
+      "sha256": "9cb901ead750d82f96cf85016e409b863643e340c043ff8c3aef48d5e48ef98b"
+    },
+    "comparison.pdf": {
+      "bytes": 51699,
+      "sha256": "3077dede7d17e90ac72759b55018d7f638baadc90acf6e07d58f35c582ca6e61"
+    },
+    "comparison.png": {
+      "bytes": 265496,
+      "sha256": "83b40d3a3619987e8b1839d5689ad6f6de187aadf08d125aeb819f6d40d6f2de"
+    },
+    "conditions.json": {
+      "bytes": 930159,
+      "sha256": "dc33428e05f58c29c2fa3621f3e0ae80f8300718aa39d442d7660fd25c2716b6"
+    },
+    "repeat_scores.csv": {
+      "bytes": 16841325,
+      "sha256": "7d41d1e25bbb1111019c19de595257e4d8c17114911ef088aefaa2c703674c97"
+    },
+    "selection.json": {
+      "bytes": 2723219,
+      "sha256": "a609d5aa4087d209dc62c1e8ed70dc7cff89ed6952b2afb18d0972cb477c94f2"
+    },
+    "summary.json": {
+      "bytes": 5255,
+      "sha256": "fb0200f1bbbd1b453e4da22c2aa5c55566da9589a440c5e9ebb20a4cb6c68ad6"
+    }
+  },
+  "locally_retrieved": [
+    "summary.json",
+    "conditions.json",
+    "comparison.png",
+    "comparison.pdf",
+    "receipt.json",
+    "COMPLETE.json"
+  ],
+  "large_files_remain_server": [
+    "cap40.h5ad",
+    "selection.json",
+    "repeat_scores.csv"
+  ],
+  "plot_source": "conditions.json",
+  "replicate_source": "repeat_scores.csv",
+  "notes": "No H5AD, row-ID selection or per-repeat raw file retrieved locally.",
+  "locally_generated_report": {
+    "file": "report.zh.pdf",
+    "bytes": 410880,
+    "sha256": "b09677793ca3b63699b7f8c9824b802db68a0e0ce58f07d22a8e940a0cb8ba5f",
+    "renderer": "scripts/analysis/render_cap40_report.py",
+    "note": "Chinese document rendering only; scientific statistics and plots materialized on server."
+  }
+}

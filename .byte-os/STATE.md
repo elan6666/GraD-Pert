@@ -1,3 +1,32 @@
+# Current 2026-09-30: Jurkat train-only cap40 analysis delivered
+
+Accepted run: jurkat-cap40-5a8a7bb-20260930T094437Z.
+Server root: /data/yilangliu/GraD-Pert/development/ plus that run ID.
+Clean analysis SHA: 5a8a7bb6712bc4facdfeb13d8dd629bd0f250880.
+Configuration SHA256: 1e692732fca3fad57a713ada9475be71a9bce785563d7a5d1b53ec01850cb80f.
+Derived H5AD SHA256: 9cb901ead750d82f96cf85016e409b863643e340c043ff8c3aef48d5e48ef98b.
+Source directory: /data/yilangliu/GraD-Pert/development/source-jurkat-cap40-5a8a7bb.
+Acceptance receipt: docs/experiments/data/jurkat-cap40-5a8a7bb-20260930T094437Z/
+jurkat-cap40-5a8a7bb-20260930T094437Z-acceptance.json.
+
+128266→47836 training rows, all 1335 conditions; total158547×6506.
+100 split repetitions, seed42, same original context-matched control pool;
+original/cap condition-equal Pearson delta=.373931664/.261779657 (1331 valid).
+Four singleton conditions omitted; 866 conditions lose at least one batch.
+Full retained values and obs/var exact, original H5AD/manifests unchanged,
+exit0/COMPLETE/source-clean/zero-PKL accepted. Main independently verified
+identity, all rows/partitions/quotas/metadata and267000 score rows.
+All small downloads had explicit size/hash checks; H5AD/selection/repeat CSV
+remain on server. Report and full plot-data index:
+docs/experiments/JURKAT_CAP40_RESULT_20260930.md (Chinese two-column PDF linked).
+
+Luna bounded supervisor finished; no monitor, GPU training or automatic B0
+launch remains assigned. No default dataset or model/training setting changed.
+Analysis-only derivative is not canonical_ready. Next action is scientific
+review of this tradeoff; the mHC joint-only B0 remains ready and unlaunched.
+The prior two failed analysis directories/source and transport evidence remain
+preserved; following sections are historical snapshots.
+
 # Current repair: preserve categorical metadata on cap40 export
 
 Run jurkat-cap40-af41538-20260930T093845Z computed all scores but failed strict

@@ -32,3 +32,14 @@ This estimates repeatability, not a model score or mathematical performance ceil
 It is not TxPert's raw-count multinomial sampling estimator. Cap40 changes row-mean
 condition weights. Rare batches may disappear because their quota is below one;
 record batch coverage instead of claiming exact preservation of every batch.
+
+## Completed acceptance 2026-09-30
+
+All five steps completed. Success run `jurkat-cap40-5a8a7bb-20260930T094437Z`,
+analysis SHA `5a8a7bb6712bc4facdfeb13d8dd629bd0f250880`; original/derived rows,
+conditions, identities, all retained matrix values and obs/var metadata verified.
+8 local and server tests pass, exit0/COMPLETE, original hashes stable, no PKL.
+Main independent terminal receipt, two-column Chinese PDF and all plot-data
+index are linked from `docs/experiments/JURKAT_CAP40_RESULT_20260930.md`.
+Luna supervision ended. Prior two failures preserved and repaired with new SHAs
+and run IDs; never weakened equality. No model training or default-data switch.

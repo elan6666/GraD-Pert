@@ -1,0 +1,40 @@
+{
+  "run_id": "jurkat-cap40-5a8a7bb-20260930T094437Z",
+  "analysis_source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+  "configuration_sha256": "1e692732fca3fad57a713ada9475be71a9bce785563d7a5d1b53ec01850cb80f",
+  "receipt_sha256": "6c4a6642ed5e93e327e9c48184acb01c0b1e22dbb2c4ef23ab50833779426bbf",
+  "summary_sha256": "fb0200f1bbbd1b453e4da22c2aa5c55566da9589a440c5e9ebb20a4cb6c68ad6",
+  "derivative_h5ad_sha256": "9cb901ead750d82f96cf85016e409b863643e340c043ff8c3aef48d5e48ef98b",
+  "terminal_accepted": true,
+  "independent_metadata_row_partition_checks": true,
+  "unchanged_conditions": 317,
+  "affected_conditions": 1018,
+  "missing_conditions": [
+    {
+      "condition": "BIRC5+ctrl",
+      "cells": 1
+    },
+    {
+      "condition": "RACGAP1+ctrl",
+      "cells": 1
+    },
+    {
+      "condition": "ECT2+ctrl",
+      "cells": 1
+    },
+    {
+      "condition": "SEC13+ctrl",
+      "cells": 1
+    }
+  ],
+  "conditions_losing_batch_coverage": 866,
+  "score_rows": 267000,
+  "partition_cells": {
+    "train": 128266,
+    "val": 41235,
+    "test": 54658
+  },
+  "all_expression_values_verified_by_run": true,
+  "parent_hash_verified_before_and_after_by_run": true,
+  "zero_pkl": true
+}

@@ -1,0 +1,12 @@
+{
+  "status": "source_transport_failed",
+  "source_commit": "1af419582884519c8c24ed66aa42de7126d79d7b",
+  "reason": "remote GitHub clone remained without HEAD while git-remote-https waited",
+  "elapsed_at_observation_seconds": 166,
+  "partial_checkout": "/data/yilangliu/GraD-Pert/development/source-jurkat-cap40-1af4195",
+  "stopped_exact_transport_pids": [
+    202681,
+    202683
+  ],
+  "time_utc": "2026-09-30T09:29:26.925997+00:00"
+}

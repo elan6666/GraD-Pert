@@ -1,0 +1,30 @@
+{
+  "run_id": "jurkat-cap40-5a8a7bb-20260930T094437Z",
+  "root": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-5a8a7bb-20260930T094437Z",
+  "source": "/data/yilangliu/GraD-Pert/development/source-jurkat-cap40-5a8a7bb",
+  "source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+  "command": [
+    "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+    "scripts/analysis/train_downsample_reproducibility.py",
+    "--data-root",
+    "/data/yilangliu/GraD-Pert/data",
+    "--output",
+    "/data/yilangliu/GraD-Pert/development/jurkat-cap40-5a8a7bb-20260930T094437Z",
+    "--repeats",
+    "100",
+    "--seed",
+    "42"
+  ],
+  "cpu_threads": 4,
+  "cap": 40,
+  "seed": 42,
+  "repeats": 100,
+  "gpu": false,
+  "supersedes_failed_run": "jurkat-cap40-af41538-20260930T093845Z",
+  "configuration_sha256": "1e692732fca3fad57a713ada9475be71a9bce785563d7a5d1b53ec01850cb80f",
+  "wrapper_pid": 206482,
+  "log": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-5a8a7bb-20260930T094437Z-driver.log",
+  "exit": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-5a8a7bb-20260930T094437Z-driver.exit.json",
+  "pidfile": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-5a8a7bb-20260930T094437Z-driver.pid",
+  "launch_utc": "2026-09-30T09:44:37.864338+00:00"
+}
