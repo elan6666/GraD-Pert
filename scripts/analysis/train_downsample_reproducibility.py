@@ -20,6 +20,7 @@ from pathlib import Path
 import numpy as np
 
 from gradpert.data._io import atomic_json
+from gradpert.data.registry import load_dataset_registry
 from gradpert.evaluation.metrics import pearson_correlation
 from gradpert.hashing import sha256_file, sha256_json
 
@@ -246,7 +247,18 @@ def analyze(root: Path, output: Path, *, repeats: int, seed: int, source: str) -
         if data.shape != (canonical["n_cells"], canonical["n_graph_genes"]):
             raise ValueError("canonical shape differs from its manifest")
         gene_ids = (root / "canonical/expression_gene_ids.txt").read_text().splitlines()
-        if list(data.var_names[:genes]) != gene_ids or not data.obs_names.is_unique:
+        registry = load_dataset_registry(
+            Path(__file__).resolve().parents[2] / "registry/datasets/nadig_jurkat.yaml"
+        )
+        symbol_column = registry.canonical_metadata.gene_symbol_column
+        symbols = data.var[symbol_column].astype(str)
+        if (
+            symbols.iloc[:genes].tolist() != gene_ids
+            or not symbols.is_unique
+            or not data.obs_names.is_unique
+            or sha256_json(gene_ids) != canonical["expression_gene_order_sha256"]
+            or sha256_json(data.obs_names.tolist()) != canonical["observation_order_sha256"]
+        ):
             raise ValueError("expression axis or observation identities differ")
         conditions = data.obs["condition"].astype(str).to_numpy()
         batches = data.obs["batch"].astype(str).to_numpy()

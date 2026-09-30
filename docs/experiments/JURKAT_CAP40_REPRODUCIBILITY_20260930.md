@@ -89,3 +89,17 @@ CPU-only，最多4个数值库线程。输出目录须为新目录，不能覆�
 batch/整体拆半平衡和 singleton 随机化、向量化统计与直接计算一致、
 全量 retained 表达和元数据导出一致，以及完整合成数据分析。
 服务器同源码复核和实际数据结果待发布后执行；不把合成检查当作数据集分析完成。
+
+## 实际数据接口修复
+
+首轮 `jurkat-cap40-1af4195-20260930T093216Z` 以源码
+`1af419582884519c8c24ed66aa42de7126d79d7b` 启动，退出1。
+在采样前的基因轴校验停止，原始文件无写入：Jurkat H5AD 的 var index 是 ENSG ID，
+canonical expression_gene_ids 是 gene_name 符号，脚本错误地把两者直接比较。
+修复按已冻结 registry 的 gene_symbol_column 对齐表达列，并核对符号/观测顺序哈希；
+保留原 ENSG index 和 gene_name 元数据，不改数据值或统计方法。
+合成端到端测试也使用 ENSG index 与 gene_name 两种身份，8项定向检查重新通过。
+旧失败收据、日志和目录保留，新源码和新 run ID 另行执行。
+
+服务器直接 GitHub 克隆因 TCP/443 超时失败；保留传输失败收据，改用已推送提交的
+完整 Git bundle 经 SSH 传输并核验 SHA256，不修改既有服务器 checkout。

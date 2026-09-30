@@ -1,3 +1,7 @@
+## 2026-09-30：cap40 实际接口修复后重新发布
+
+首轮在采样前因 ENSG var index 与 canonical gene_name 符号比较错误而退出1，旧run、FAILURE和日志保留。修复按冻结registry符号列及顺序哈希对齐，合成测试改为双身份轴，8项重新通过。GitHub直连超时后使用已发布Git bundle经SSH核验传输；下一步发布修复版本、服务器同源码检查和独立CPU重跑。原数据与训练协议不改。
+
 ## 2026-09-30：Jurkat train-only cap40 分析执行中
 
 用户已确认每训练扰动条件最多40行，并授权执行。本次仅生成分析衍生数据与原/采样100次分层拆半 Pearson 对比，不启动模型训练，不切换默认数据。原control、val/test、其他行及6506变量/表达值保持精确不变，统计在原5000表达基因上计算。代码与合成端到端检查8项通过；待干净发布、服务器复核、一次CPU分析和终态验收。前一mHC B0配置已交付但尚未运行，该状态不变。计划与统计边界：`.byte-os/plans/GRADPERT_JURKAT_CAP40_20260930.plan.md`、`docs/experiments/JURKAT_CAP40_REPRODUCIBILITY_20260930.md`。本节覆盖当前任务优先级，不覆盖历史实验身份。

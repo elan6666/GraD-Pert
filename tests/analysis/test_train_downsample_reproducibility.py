@@ -87,7 +87,7 @@ def test_h5ad_export_preserves_nontrain_rows_gene_identity_and_all_values(tmp_pa
 def test_complete_synthetic_analysis_keeps_split_controls_and_skips_one_cell_condition(tmp_path):
     import json
 
-    from gradpert.hashing import sha256_file
+    from gradpert.hashing import sha256_file, sha256_json
 
     ad = pytest.importorskip("anndata")
     pd = pytest.importorskip("pandas")
@@ -106,7 +106,10 @@ def test_complete_synthetic_analysis_keeps_split_controls_and_skips_one_cell_con
             },
             index=[f"row{i}" for i in range(len(labels))],
         ),
-        var=pd.DataFrame(index=[f"g{i}" for i in range(6)]),
+        var=pd.DataFrame(
+            {"gene_name": [f"g{i}" for i in range(6)]},
+            index=[f"ENSG{i}" for i in range(6)],
+        ),
     )
     data.write_h5ad(root / "canonical/adata.h5ad")
     (root / "canonical/expression_gene_ids.txt").write_text("g0\ng1\ng2\ng3\n")
@@ -116,6 +119,8 @@ def test_complete_synthetic_analysis_keeps_split_controls_and_skips_one_cell_con
             "n_cells": len(labels),
             "n_graph_genes": 6,
             "n_expression_genes": 4,
+            "expression_gene_order_sha256": sha256_json([f"g{i}" for i in range(4)]),
+            "observation_order_sha256": sha256_json(data.obs_names.tolist()),
         },
         "split.json": {
             "train_conditions": ["A", "B"],

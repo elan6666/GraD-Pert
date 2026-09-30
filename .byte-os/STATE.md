@@ -1,3 +1,14 @@
+# Current repair: cap40 canonical gene-symbol identity
+
+The first CPU run jurkat-cap40-1af4195-20260930T093216Z failed before
+sampling: H5AD var index uses ENSG while the canonical gene axis uses gene_name.
+Fix uses the frozen registry symbol column and validates expression/observation
+order hashes. The same 8 tests now include distinct ENSG/symbol metadata and pass.
+Failure evidence remains under its old run ID. The server GitHub transport also
+timed out; a hash-verified Git bundle restored publication without touching old
+checkouts. Next: publish this repair, same-source server tests and a new CPU run.
+No GPU training or default dataset change. Original cap40 scope stays intact.
+
 # Current 2026-09-30: approved train-only Jurkat cap40 analysis
 
 Main owns implementation/publication and terminal acceptance. A single bounded CPU
