@@ -4,3 +4,6 @@
 registry/prepared/superseded/**/*.csv -text -diff
 registry/prepared/**/graphs/graph_coverage/*.csv -text -diff
 results/superseded/**/*.csv -text -diff
+
+# Small generated reports are opaque artifacts; preserve their PDF bytes.
+docs/experiments/data/**/*.pdf binary
