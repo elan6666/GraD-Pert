@@ -69,7 +69,14 @@ def test_h5ad_export_preserves_nontrain_rows_gene_identity_and_all_values(tmp_pa
     data = ad.AnnData(
         expression,
         obs=pd.DataFrame(
-            {"condition": pd.Categorical(["A"] * 5 + ["B"] * 2 + ["ctrl"] * 3)},
+            {
+                "condition": pd.Categorical(["A"] * 5 + ["B"] * 2 + ["ctrl"] * 3),
+                "annotation": pd.Categorical(
+                    ["kept", "removed", "kept", "removed", "removed"] + ["kept"] * 5,
+                    categories=["removed", "kept", "unused"],
+                    ordered=True,
+                ),
+            },
             index=[f"row{i}" for i in range(10)],
         ),
         var=pd.DataFrame(index=[f"g{i}" for i in range(6)]),
@@ -81,6 +88,7 @@ def test_h5ad_export_preserves_nontrain_rows_gene_identity_and_all_values(tmp_pa
     output = ad.read_h5ad(tmp_path / "cap.h5ad")
     np.testing.assert_array_equal(output.X, expression[kept])
     assert output.obs_names.tolist() == [f"row{i}" for i in kept]
+    pd.testing.assert_frame_equal(output.obs, data.obs.iloc[kept])
     assert output.uns["gradpert_downsample"]["purpose"] == "synthetic"
 
 

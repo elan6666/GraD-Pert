@@ -193,6 +193,9 @@ def export_subset(adata, kept_rows: np.ndarray, output: Path, provenance: dict) 
 
     original = adata.to_memory()
     subset = original[kept_rows].copy()
+    # AnnData slicing prunes unused categories; retain the original dictionaries.
+    subset.obs = original.obs.iloc[kept_rows].copy()
+    subset.var = original.var.copy()
     subset.uns["gradpert_downsample"] = provenance
     subset.write_h5ad(output)
     del subset

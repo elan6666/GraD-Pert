@@ -1,3 +1,12 @@
+# Current repair: preserve categorical metadata on cap40 export
+
+Run jurkat-cap40-af41538-20260930T093845Z computed all scores but failed strict
+obs metadata equality after AnnData slicing pruned unused categories. Old outputs
+are unaccepted and preserved. The repair restores original obs/var dictionaries
+before native writing; no weakened assertions or changed expression/statistics.
+Regression includes removed-only and unused ordered levels; 8 tests pass.
+Next: publish, server tests, new CPU run and full terminal acceptance. No training.
+
 # Current repair: cap40 canonical gene-symbol identity
 
 The first CPU run jurkat-cap40-1af4195-20260930T093216Z failed before
