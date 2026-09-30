@@ -6,6 +6,8 @@ This supersedes the no-mHC config as the next B0 choice. Historical no-mHC
 three-epoch and 3+3 results retain their original identities and protocols.
 The pre-change source is the published main commit
 `6d5cb7e4d05dcaeb7c8105dc04562a2627e9459a`.
+The implementation is published on main as
+`49456353927ea893f470247a9e4d13e547041dc8`; its remote identity was verified.
 The new config SHA256 is
 `156c7a0314073fb2901f6d56f8667c657a1d4878c283a1d28ac67b3bdd1ba01c`.
 

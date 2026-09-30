@@ -1,7 +1,9 @@
 # Current 2026-09-30: next fresh B0 restores mHC and uses joint-only validation
 
 Owner: main chat. The requested bounded update is implemented and locally
-verified; no training, server mutation or monitor was started by this update.
+verified and published on main as
+`49456353927ea893f470247a9e4d13e547041dc8` (remote identity verified).
+No training, server mutation or monitor was started by this update.
 The next B0 config is
 `configs/v2/mhc_joint_only_jurkat/three_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml`,
 SHA256 `156c7a0314073fb2901f6d56f8667c657a1d4878c283a1d28ac67b3bdd1ba01c`.
@@ -20,7 +22,7 @@ Pre-change pushed main identity was independently verified as
 Ruff/format and six-source-module mypy pass; wheel/sdist build pass. Expanded
 checks: 538 passed, 11 CUDA/Triton skips, five unrelated failures reproduced
 at the exact baseline. Details: `docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md`.
-Next action after publication is delivery of this update; any future formal run
+Next action is delivery of this update; any future formal run
 needs a clean matching server release, same-config CUDA integration check and
 new run ID. No supervision lease is needed while no job is assigned. Existing
 unrelated coordination state/receipts are excluded from this code publication.

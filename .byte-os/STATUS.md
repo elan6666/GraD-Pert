@@ -2,7 +2,7 @@
 
 新版自包含配置 `configs/v2/mhc_joint_only_jurkat/three_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml` 已完成本地实现与检查：Student/Teacher 同为 4 个 mHC streams，完整预测＋SSL1＋SSL2；每轮仅计算固定视图 joint loss 及分项，按 joint loss 选择 best，省去验证阶段 300-control 推理与 Pearson。训练结束的 best/last 仍执行原冻结测试及六项 all/DEG Pearson、表达暴露分组。双卡每卡微批68×累积2＝全局272、3 epoch；该 batch 依据此前 mHC 三轮证据，新源码正式启动前仍须重新 CUDA 预检。旧 no-mHC 运行、续训和 v1 不改。
 
-107 项定向测试通过，改动文件 Ruff/format 与六个源模块类型检查通过，wheel/sdist 构建通过。扩展检查 538 通过、11 个 CUDA/Triton 跳过、5 项失败；五项在改动前已推送基线 `6d5cb7e4d05dcaeb7c8105dc04562a2627e9459a` 同样复现，详见 `docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md`。本次只更新与发布代码/配置，未启动训练或监控。下一动作若获得正式运行授权：新源码干净发布、同配置双卡预检、独立 run ID 启动；不恢复历史运行。
+107 项定向测试通过，改动文件 Ruff/format 与六个源模块类型检查通过，wheel/sdist 构建通过。扩展检查 538 通过、11 个 CUDA/Triton 跳过、5 项失败；五项在改动前已推送基线 `6d5cb7e4d05dcaeb7c8105dc04562a2627e9459a` 同样复现，详见 `docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md`。实现已推送 main，提交 `49456353927ea893f470247a9e4d13e547041dc8` 并核对远端一致。本次只更新与发布代码/配置，未启动训练或监控。下一动作若获得正式运行授权：新源码干净发布、同配置双卡预检、独立 run ID 启动；不恢复历史运行。
 
 ## 2026-09-30：no-mHC B0 全状态 3＋3 续训完成并独立核验
 
