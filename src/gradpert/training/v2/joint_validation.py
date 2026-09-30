@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Iterable
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -11,6 +12,41 @@ import torch
 from gradpert.hashing import sha256_json
 
 from .objective import JointObjective, TrainingBatch
+
+
+def evaluate_epoch_validation(
+    objective: JointObjective,
+    batches: Iterable[tuple[TrainingBatch, str]],
+    *,
+    root: Path,
+    batch_size: int,
+    batch_count: int,
+    view_seed: int,
+    bf16: bool,
+    on_batch_complete: Callable[[int, float], None] | None = None,
+    prediction: Callable[[], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Run the complete loss; population prediction is an explicit optional pass."""
+    joint = evaluate_joint_loss(objective, batches, bf16=bf16, on_batch_complete=on_batch_complete)
+    if joint["batch_count"] != batch_count:
+        raise ValueError("joint validation batch schedule changed")
+    joint.update(batch_size=batch_size, view_seed=view_seed)
+    if prediction is None:
+        return {
+            "split": "val",
+            "validation_mode": "joint_only",
+            "joint_loss": joint["joint_loss"],
+            "joint_validation": joint,
+        }
+    from .artifacts import compact_validation
+
+    result = prediction()
+    result.update(
+        validation_mode="joint_and_prediction",
+        joint_loss=joint["joint_loss"],
+        joint_validation=joint,
+    )
+    return compact_validation(result, root=root)
 
 
 def evaluate_joint_loss(

@@ -11,7 +11,7 @@ from gradpert.data._io import atomic_json
 from gradpert.hashing import sha256_file
 
 
-def render_curves(small_root: Path) -> None:
+def render_curves(small_root: Path, *, validation_metrics: tuple[str, ...] | None = None) -> None:
     """Keep raw values and independent metric axes; never replace missing with zero."""
     mpl = importlib.import_module("matplotlib")
     mpl.use("Agg")
@@ -38,6 +38,10 @@ def render_curves(small_root: Path) -> None:
         *(["joint_loss"] if any("joint_loss" in record for record in records) else []),
         *pearsons,
     ]
+    if validation_metrics is not None:
+        if not validation_metrics or len(set(validation_metrics)) != len(validation_metrics):
+            raise ValueError("validation curve metrics must be nonempty and unique")
+        metrics = list(validation_metrics)
     columns = ["epoch", "global_step", "run_id", "source_commit", *metrics]
     csv_path = small_root / "validation_curves.csv"
     with csv_path.open("w", newline="") as stream:

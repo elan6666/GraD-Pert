@@ -107,6 +107,39 @@ def test_new_parent_selection_uses_joint_loss_and_fixed_view_contract(selector, 
     assert result["contract"]["selection_metric"] == "joint_loss"
 
 
+def test_joint_only_parent_selection_needs_no_prediction_receipts(selector, candidates):
+    test_new_parent_selection_uses_joint_loss_and_fixed_view_contract(selector, candidates)
+    verified, runs = candidates
+    for roots in runs.values():
+        for run in roots:
+            root = Path(run)
+            history = json.loads((root / "fit/history.json").read_text())
+            for record in history:
+                validation = record["validation"]
+                for name in (
+                    "prediction_loss",
+                    "control_manifest_sha256",
+                    "reference_sha256",
+                    "query_recipe",
+                ):
+                    validation.pop(name)
+                validation["validation_mode"] = "joint_only"
+            atomic_json(root / "fit/history.json", history)
+            journal = json.loads((root / "fit/epoch_state.json").read_text())
+            journal["best"].pop("prediction_loss")
+            atomic_json(root / "fit/epoch_state.json", journal)
+    result = selector(verified, runs, [1, 2])
+    assert result["winner"]["name"] == "b"
+    assert result["contract"]["validation_mode"] == "joint_only"
+    assert "control_manifest_sha256" not in result["contract"]
+    path = Path(runs["a"][0]) / "fit/history.json"
+    history = json.loads(path.read_text())
+    history[-1]["validation"]["joint_validation"]["batch_identity_sha256"] = "changed"
+    atomic_json(path, history)
+    with pytest.raises(ValueError, match="protocol changed"):
+        selector(verified, runs, [1, 2])
+
+
 def test_missing_seed_cannot_win(selector, candidates):
     verified, runs = candidates
     runs["a"].pop()

@@ -145,3 +145,25 @@ def test_joint_loss_selects_best_even_when_prediction_loss_prefers_last(tmp_path
     assert [row["checkpoint_epoch"] for row in rows] == [1, 3]
     assert [row["validation_selection_loss"] for row in rows] == [0.1, 0.2]
     assert all(row["validation_selection_metric"] == "joint_loss" for row in rows)
+
+
+def test_joint_only_completion_retains_both_test_roles(tmp_path):
+    test_joint_loss_selects_best_even_when_prediction_loss_prefers_last(tmp_path)
+    fit = tmp_path / "fit"
+    history = json.loads((fit / "history.json").read_text())
+    for record in history:
+        record["validation"].pop("prediction_loss")
+        record["validation"]["validation_mode"] = "joint_only"
+    write(fit / "history.json", history)
+    journal = json.loads((fit / "epoch_state.json").read_text())
+    for role in ("best", "last"):
+        journal[role].pop("prediction_loss")
+        test = json.loads((fit / f"{role}-test.json").read_text())
+        test["identity"]["checkpoint"] = journal[role]
+        write(fit / f"{role}-test.json", test)
+    write(fit / "epoch_state.json", journal)
+    write(tmp_path / "COMPLETE.json", {**journal, "test_roles": ["best", "last"], "zero_pkl": True})
+    rows = collect(tmp_path)
+    assert all(row["status"] == "complete" for row in rows)
+    assert all(row["validation_prediction_loss"] is None for row in rows)
+    assert all(row["test_prediction_loss"] == 0.3 for row in rows)

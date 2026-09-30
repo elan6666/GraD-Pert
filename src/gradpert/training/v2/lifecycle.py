@@ -314,7 +314,11 @@ def fit(
             "sha256": sha256_file(checkpoint),
             "epoch": epoch + 1,
             "joint_loss": loss,
-            "prediction_loss": float(validation["prediction_loss"]),
+            **(
+                {"prediction_loss": float(validation["prediction_loss"])}
+                if "prediction_loss" in validation
+                else {}
+            ),
         }
         best = journal.get("best")
         improved, _ = selection.update(epoch=epoch + 1, validation_metric=loss)

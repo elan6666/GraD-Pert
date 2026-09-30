@@ -212,6 +212,7 @@ class V2Options:
     expression_holdout_sha256: str = ""
     koleo_exclude_same_condition: bool = False
     graph_view_mode: str = "legacy"
+    validation_mode: str = "joint_and_prediction"
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -241,6 +242,7 @@ class V2Options:
             "graph_source_key_gate",
             "koleo_exclude_same_condition",
             "graph_view_mode",
+            "validation_mode",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -261,6 +263,8 @@ class V2Options:
             raise ValueError("KoLeo condition exclusion must be boolean")
         if self.graph_view_mode not in ("legacy", "multiscale"):
             raise ValueError("unknown graph view mode")
+        if self.validation_mode not in ("joint_and_prediction", "joint_only"):
+            raise ValueError("unknown v2 validation mode")
         if bool(self.expression_holdout_path) != bool(self.expression_holdout_sha256):
             raise ValueError("expression holdout manifest path and hash must be supplied together")
         if self.expression_holdout_sha256 and (

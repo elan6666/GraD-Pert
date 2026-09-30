@@ -1,3 +1,30 @@
+# Current 2026-09-30: next fresh B0 restores mHC and uses joint-only validation
+
+Owner: main chat. The requested bounded update is implemented and locally
+verified; no training, server mutation or monitor was started by this update.
+The next B0 config is
+`configs/v2/mhc_joint_only_jurkat/three_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml`,
+SHA256 `156c7a0314073fb2901f6d56f8667c657a1d4878c283a1d28ac67b3bdd1ba01c`.
+It restores Student/EMA Teacher four-stream mHC, retains full prediction + SSL1
++ SSL2, and chooses `validation_mode=joint_only`: fixed-view joint validation
+and its components only, joint-loss best selection, no val population prediction
+or Pearson/reference materialization. Terminal best/last tests retain the frozen
+300-control, six all/DEG Pearson, exposure groups and zero-PKL protocol. Global
+batch272 is micro68 per GPU × accumulation2 × two GPUs; three epochs, seed1,
+existing warmup/cosine and loss weights. The historical mHC m74 OOM and m68
+three-epoch completion justify the config choice but do not prove new-source
+capacity. Historical no-mHC configs/checkpoints and v1 remain unchanged.
+
+Pre-change pushed main identity was independently verified as
+`6d5cb7e4d05dcaeb7c8105dc04562a2627e9459a`. Targeted tests: 107 passed; scoped
+Ruff/format and six-source-module mypy pass; wheel/sdist build pass. Expanded
+checks: 538 passed, 11 CUDA/Triton skips, five unrelated failures reproduced
+at the exact baseline. Details: `docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md`.
+Next action after publication is delivery of this update; any future formal run
+needs a clean matching server release, same-config CUDA integration check and
+new run ID. No supervision lease is needed while no job is assigned. Existing
+unrelated coordination state/receipts are excluded from this code publication.
+
 # Current 2026-09-30: full-state v2 B0 3→6 continuation accepted
 
 The exact run `nadig_jurkat-seed1-20260929T143029Z-d83c2632bba14bddb595f8b8c0734805` completed attempt 1 with exit 0, cumulative 6/6 epochs, protocol-selected joint-loss best epoch 2, epoch-6 last, both six-Pearson test receipts, matching clean source/config/checkpoint identities, no failure marker and zero PKL. The main chat independently verified the server artifacts and hashes against `.byte-os/coordination/receipts/v2-continue6-c47f84e-terminal-20260930.json`. The run-specific `grad-pert-v2` monitor is PAUSED; no training or ablation was started on handback. Results and interpretation: `docs/experiments/GRADPERT_V2_NO_MHC_B0_CONTINUE6_RESULT_20260930.md`. The next action is scientific discussion or a separately authorized experiment, not further polling of this terminal run. The prior “running” section below is historical.

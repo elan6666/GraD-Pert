@@ -22,6 +22,13 @@ The repository is under active implementation. Current authoritative material:
 
 ## GraD-Pert v2 checkpoint workflows
 
+The current fresh Jurkat B0 config is
+`configs/v2/mhc_joint_only_jurkat/three_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml`:
+four mHC streams, full prediction + SSL1 + SSL2, three epochs, dual-GPU global
+batch272. Per-epoch validation computes joint loss and its components only;
+best/last still receive the frozen 300-control test and all/DEG Pearson outputs.
+See [current B0 protocol](docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md).
+
 On the `/data/yilangliu` training server, `python -m gradpert train --config
 CONFIG --gpu 0` runs a v2 config whose `model.parameters.world_size` is 1;
 `--gpu 0,1` requires world size 2. The self-contained config also fixes each

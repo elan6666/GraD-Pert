@@ -32,8 +32,22 @@ python -m gradpert resume-v2 --launch /data/yilangliu/GraD-Pert/RUN/launch.json
 
 The regular run retains `fit/epoch_state.json`, `fit/history.json`, curves,
 `best.pt`, `last.pt`, best/last test receipts, and `COMPLETE.json`. Every
-committed epoch records joint-loss validation and prediction metrics. An exit
+committed epoch records joint-loss validation; population prediction metrics
+are optional and controlled by `model.parameters.validation_mode`. An exit
 or a live progress file alone does not prove scientific completion.
+
+## Current fresh Jurkat B0 (2026-09-30)
+
+Use `configs/v2/mhc_joint_only_jurkat/three_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml`
+for the next fresh B0. It restores four mHC residual streams in Student/Teacher,
+retains the complete prediction + SSL1 + SSL2 objective, and uses global batch272
+(68 per GPU × accumulation2 × two GPUs), three epochs and seed1.
+Each epoch runs only full joint-loss validation (`validation_mode: joint_only`)
+and selects best by that loss. Joint and component loss curves remain available.
+The frozen 300-control test still runs for both best and last at completion,
+including the six all/DEG Pearson outputs and exposure groups.
+The no-mHC three-epoch/continuation configs below are historical examples.
+See [protocol and capacity boundary](experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md).
 
 ## Continue the completed 3-epoch Jurkat B0
 

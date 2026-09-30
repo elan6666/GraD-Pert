@@ -99,7 +99,7 @@ def collect_run(root: Path) -> list[dict]:
             checkpoint_epoch=selected["epoch"],
             validation_selection_metric=selection_metric,
             validation_selection_loss=selected[selection_metric],
-            validation_prediction_loss=selected["prediction_loss"],
+            validation_prediction_loss=selected.get("prediction_loss"),
             status="missing_test",
         )
         path = root / "fit" / f"{role}-test.json"

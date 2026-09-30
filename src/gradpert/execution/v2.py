@@ -67,12 +67,11 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
 
     from gradpert.evaluation.data import CanonicalEvaluationData
     from gradpert.evaluation.state import load_evaluation_state, prepare_evaluation_state
-    from gradpert.training.v2.artifacts import compact_validation
     from gradpert.training.v2.continuation import restore_parent
     from gradpert.training.v2.distributed import primary_call
     from gradpert.training.v2.evaluation import evaluate
     from gradpert.training.v2.exposure import checkpoint_expression_groups
-    from gradpert.training.v2.joint_validation import evaluate_joint_loss
+    from gradpert.training.v2.joint_validation import evaluate_epoch_validation
     from gradpert.training.v2.lifecycle import ConstantStageLR, fit, test_selected
     from gradpert.training.v2.reporting import export_curves
     from gradpert.training.v2.runtime import prepare_runtime
@@ -125,74 +124,35 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             "data_root": data_root,
         }
         evaluation_protocol: Literal["v1", "v2"] = "v2"
-        primary_call(
-            lambda: prepare_evaluation_state(
+
+        def prediction_validation() -> dict[str, Any]:
+            # Called only by the primary rank's validation callback. Loss-only
+            # validation never constructs the 300-control population or reference.
+            prepare_evaluation_state(
                 **common, validation_only=True, evaluation_protocol=evaluation_protocol
             )
-        )
-        reference = load_evaluation_state(
-            **common, validation_only=True, evaluation_protocol=evaluation_protocol
-        )
-        with CanonicalEvaluationData(**common, split_name="val") as data:
+            reference = load_evaluation_state(
+                **common, validation_only=True, evaluation_protocol=evaluation_protocol
+            )
+            current_epoch = runtime.optimizer.steps // runtime.steps_per_epoch
 
-            def validate() -> dict[str, Any]:
-                current_epoch = runtime.optimizer.steps // runtime.steps_per_epoch
-                joint_batch_size = min(
-                    runtime.options.microbatch, int(config.training.eval_batch_size.value)
+            def val_progress(done: int, count: int, condition: str) -> None:
+                _write_live_progress(
+                    root / "fit/live_progress.json",
+                    {
+                        "schema_version": "gradpert-v2-live-progress-1",
+                        "run_id": plan["run_id"],
+                        "phase": "validation_prediction",
+                        "epoch": current_epoch,
+                        "epochs_total": int(config.training.max_epochs.value),
+                        "conditions_completed": done,
+                        "conditions_total": count,
+                        "latest_condition": condition,
+                    },
                 )
-                max_conditions = (
-                    0
-                    if runtime.options.max_conditions == 0
-                    else min(runtime.options.max_conditions, joint_batch_size)
-                )
-                joint_batch_count = runtime.data.validation_steps_per_epoch(
-                    batch_size=joint_batch_size,
-                    max_unique_conditions=max_conditions,
-                )
 
-                def joint_progress(done: int, mean_loss: float) -> None:
-                    _write_live_progress(
-                        root / "fit/live_progress.json",
-                        {
-                            "schema_version": "gradpert-v2-live-progress-1",
-                            "run_id": plan["run_id"],
-                            "phase": "validation_joint",
-                            "epoch": current_epoch,
-                            "epochs_total": int(config.training.max_epochs.value),
-                            "batches_completed": done,
-                            "batches_total": joint_batch_count,
-                            "joint_loss_running_mean": mean_loss,
-                        },
-                    )
-
-                joint_progress(0, 0.0)
-                joint = evaluate_joint_loss(
-                    runtime.objective,
-                    runtime.validation_batches(batch_size=joint_batch_size),
-                    bf16=True,
-                    on_batch_complete=joint_progress,
-                )
-                if joint["batch_count"] != joint_batch_count:
-                    raise ValueError("joint validation batch schedule changed")
-                joint["batch_size"] = joint_batch_size
-                joint["view_seed"] = int(runtime.identity["run_seed"]) + 0x5A11D
-
-                def val_progress(done: int, count: int, condition: str) -> None:
-                    _write_live_progress(
-                        root / "fit/live_progress.json",
-                        {
-                            "schema_version": "gradpert-v2-live-progress-1",
-                            "run_id": plan["run_id"],
-                            "phase": "validation_prediction",
-                            "epoch": current_epoch,
-                            "epochs_total": int(config.training.max_epochs.value),
-                            "conditions_completed": done,
-                            "conditions_total": count,
-                            "latest_condition": condition,
-                        },
-                    )
-
-                result = evaluate(
+            with CanonicalEvaluationData(**common, split_name="val") as data:
+                return evaluate(
                     runtime.objective.student,
                     runtime.index,
                     data,
@@ -208,37 +168,81 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                     query_count=runtime.options.eval_query_count,
                     on_condition_complete=val_progress,
                 )
-                result["joint_loss"] = joint["joint_loss"]
-                result["joint_validation"] = joint
-                return compact_validation(result, root=root)
 
-            journal = fit(
-                runtime.objective,
-                runtime.optimizer,
-                root=root / "fit",
-                identity=identity,
-                generator=runtime.generator,
-                epochs=int(config.training.max_epochs.value),
-                steps_per_epoch=runtime.steps_per_epoch,
-                batches=runtime.batches,
-                validate=validate,
-                schedule=(
-                    ConstantStageLR(config.continuation.learning_rate)
-                    if config.continuation is not None
-                    else schedule
-                ),
-                teacher_start=(
-                    runtime.options.teacher_end
-                    if config.continuation is not None
-                    else runtime.options.teacher_start
-                ),
-                teacher_end=runtime.options.teacher_end,
-                microbatch=runtime.options.microbatch,
-                bf16=True,
-                resume=resume,
-                bootstrap_history=bootstrap_history if not resume else None,
-                bootstrap_best=bootstrap_best if not resume else None,
+        def validate() -> dict[str, Any]:
+            current_epoch = runtime.optimizer.steps // runtime.steps_per_epoch
+            joint_batch_size = min(
+                runtime.options.microbatch, int(config.training.eval_batch_size.value)
             )
+            max_conditions = (
+                0
+                if runtime.options.max_conditions == 0
+                else min(runtime.options.max_conditions, joint_batch_size)
+            )
+            joint_batch_count = runtime.data.validation_steps_per_epoch(
+                batch_size=joint_batch_size,
+                max_unique_conditions=max_conditions,
+            )
+
+            def joint_progress(done: int, mean_loss: float) -> None:
+                _write_live_progress(
+                    root / "fit/live_progress.json",
+                    {
+                        "schema_version": "gradpert-v2-live-progress-1",
+                        "run_id": plan["run_id"],
+                        "phase": "validation_joint",
+                        "epoch": current_epoch,
+                        "epochs_total": int(config.training.max_epochs.value),
+                        "batches_completed": done,
+                        "batches_total": joint_batch_count,
+                        "joint_loss_running_mean": mean_loss,
+                    },
+                )
+
+            joint_progress(0, 0.0)
+            return evaluate_epoch_validation(
+                runtime.objective,
+                runtime.validation_batches(batch_size=joint_batch_size),
+                root=root,
+                batch_size=joint_batch_size,
+                batch_count=joint_batch_count,
+                view_seed=int(runtime.identity["run_seed"]) + 0x5A11D,
+                bf16=True,
+                on_batch_complete=joint_progress,
+                prediction=(
+                    prediction_validation
+                    if runtime.options.validation_mode == "joint_and_prediction"
+                    else None
+                ),
+            )
+
+        journal = fit(
+            runtime.objective,
+            runtime.optimizer,
+            root=root / "fit",
+            identity=identity,
+            generator=runtime.generator,
+            epochs=int(config.training.max_epochs.value),
+            steps_per_epoch=runtime.steps_per_epoch,
+            batches=runtime.batches,
+            validate=validate,
+            schedule=(
+                ConstantStageLR(config.continuation.learning_rate)
+                if config.continuation is not None
+                else schedule
+            ),
+            teacher_start=(
+                runtime.options.teacher_end
+                if config.continuation is not None
+                else runtime.options.teacher_start
+            ),
+            teacher_end=runtime.options.teacher_end,
+            microbatch=runtime.options.microbatch,
+            bf16=True,
+            resume=resume,
+            bootstrap_history=bootstrap_history if not resume else None,
+            bootstrap_best=bootstrap_best if not resume else None,
+        )
         primary_call(lambda: export_curves(root / "fit"))
         # Test references and truth are accessed only after all training and selection.
         primary_call(

@@ -26,6 +26,41 @@ SOURCE_GATE_B0_THREE = (
     Path(__file__).resolve().parents[2]
     / "configs/v2/source_key_gate_b0_jurkat/three_epoch_m74_a2/gradpert_v2/nadig_jurkat.yaml"
 )
+MHC_JOINT_ONLY = (
+    Path(__file__).resolve().parents[2]
+    / "configs/v2/mhc_joint_only_jurkat/three_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml"
+)
+
+
+def test_new_b0_restores_mhc_and_explicitly_selects_loss_only_validation():
+    from dataclasses import replace
+
+    config = load_experiment_config(MHC_JOINT_ONLY)
+    arch, options = V2Options.parse_parameters(config.model.parameters)
+    assert arch.streams == 4
+    assert options.validation_mode == "joint_only"
+    assert (options.microbatch, options.accumulation, options.world_size) == (68, 2, 2)
+    assert config.training.train_batch_size.value == 272
+    assert config.training.max_epochs.value == 3
+    assert config.training.monitor == "val/joint_loss"
+    assert (options.lambda1, options.lambda2) == (1, 1)
+    previous_path = (
+        MHC_JOINT_ONLY.parents[3]
+        / "no_mhc_joint_eval_jurkat/three_epoch_m74_a2/gradpert_v2/nadig_jurkat.yaml"
+    )
+    previous = yaml.safe_load(previous_path.read_text())
+    current = yaml.safe_load(MHC_JOINT_ONLY.read_text())
+    current["model"]["parameters"].pop("validation_mode")
+    for name in ("streams", "microbatch"):
+        current["model"]["parameters"][name] = previous["model"]["parameters"][name]
+    current["training"]["train_batch_size"] = previous["training"]["train_batch_size"]
+    assert current == previous
+    _, old_options = V2Options.parse_parameters(
+        load_experiment_config(previous_path).model.parameters
+    )
+    assert old_options.validation_mode == "joint_and_prediction"
+    with pytest.raises(ValueError, match="validation mode"):
+        replace(options, validation_mode="prediction_only")
 
 
 @pytest.mark.parametrize("variant,topk,chunk", [("default", 500, 32), ("top100", 100, 8)])

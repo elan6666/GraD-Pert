@@ -24,13 +24,23 @@ def export_curves(root: Path) -> dict[str, Any]:
     identity = journal["identity"]
     source = identity["source"]["commit"]
     has_joint = "joint_loss" in history[0]["validation"]
-    observed = {metric["metric_id"] for metric in history[0]["validation"]["metrics"]}
-    if observed == set(METRICS_V2):
+    validation_mode = history[0]["validation"].get("validation_mode", "joint_and_prediction")
+    joint_only = validation_mode == "joint_only"
+    observed = {metric["metric_id"] for metric in history[0]["validation"].get("metrics", [])}
+    metrics_registry: tuple[str, ...]
+    if joint_only and has_joint and not observed:
+        metrics_registry = ()
+    elif joint_only:
+        raise ValueError("joint-only validation cannot contain population metrics")
+    elif observed == set(METRICS_V2):
         metrics_registry = METRICS_V2
     elif observed == set(METRICS):
         metrics_registry = METRICS
     else:
         raise ValueError("v2 validation metric registry is incomplete")
+    components = tuple(
+        sorted(history[0]["validation"].get("joint_validation", {}).get("components", {}))
+    )
     rows = []
     for record in history:
         validation = record["validation"]
@@ -38,9 +48,16 @@ def export_curves(root: Path) -> dict[str, Any]:
             raise ValueError("validation curves cannot contain test results")
         if ("joint_loss" in validation) != has_joint:
             raise ValueError("validation selection loss changed within the run")
-        metrics = {m["metric_id"]: m["macro_mean"] for m in validation["metrics"]}
+        if validation.get("validation_mode", "joint_and_prediction") != validation_mode:
+            raise ValueError("validation mode changed within the run")
+        if joint_only and "prediction_loss" in validation:
+            raise ValueError("joint-only validation cannot contain population prediction loss")
+        metrics = {m["metric_id"]: m["macro_mean"] for m in validation.get("metrics", [])}
         if set(metrics) != set(metrics_registry):
             raise ValueError("v2 validation metric registry differs within the run")
+        terms = validation.get("joint_validation", {}).get("components", {})
+        if set(terms) != set(components):
+            raise ValueError("joint validation component registry differs within the run")
         rows.append(
             {
                 "epoch": record["epoch"],
@@ -49,8 +66,13 @@ def export_curves(root: Path) -> dict[str, Any]:
                 "run_id": identity["run_id"],
                 "train_prediction_step_mean": record["training"]["prediction"],
                 "train_joint_step_mean": record["training"]["joint_loss"],
-                "validation_prediction_loss": validation["prediction_loss"],
+                **(
+                    {"validation_prediction_loss": validation["prediction_loss"]}
+                    if not joint_only
+                    else {}
+                ),
                 **({"validation_joint_loss": validation["joint_loss"]} if has_joint else {}),
+                **{f"validation_joint_component_{name}": terms[name] for name in components},
                 **metrics,
             }
         )
@@ -81,15 +103,26 @@ def export_curves(root: Path) -> dict[str, Any]:
                 "global_step": row["optimizer_steps"],
                 "run_id": row["run_id"],
                 "source_commit": source,
-                "prediction_loss": row["validation_prediction_loss"],
+                **(
+                    {"prediction_loss": row["validation_prediction_loss"]} if not joint_only else {}
+                ),
                 **({"joint_loss": row["validation_joint_loss"]} if has_joint else {}),
+                **{
+                    f"joint_component_{name}": row[f"validation_joint_component_{name}"]
+                    for name in components
+                },
                 **{metric: row[metric] for metric in metrics_registry},
             }
             atomic_json(shared / f"validation.epoch-{row['epoch'] - 1:04d}.json", payload)
     expected = {f"validation.epoch-{row['epoch'] - 1:04d}.json" for row in rows}
     if {p.name for p in shared.glob("validation.epoch-*.json")} != expected:
         raise ValueError("curve adapter contains validation epochs outside committed history")
-    render_curves(shared)
+    render_curves(
+        shared,
+        validation_metrics=("joint_loss", *(f"joint_component_{name}" for name in components))
+        if joint_only
+        else None,
+    )
     outputs = [output, shared / "curves_manifest.json"]
     outputs.extend(shared / name for name in read_json(shared / "curves_manifest.json")["outputs"])
     receipt = {
@@ -99,6 +132,7 @@ def export_curves(root: Path) -> dict[str, Any]:
         "journal_sha256": sha256_file(root / "epoch_state.json"),
         "outputs": {str(p.relative_to(root)): sha256_file(p) for p in outputs},
         "training_reduction": "arithmetic_mean_over_optimizer_updates",
+        "validation_mode": validation_mode,
         "missing_metric_policy": "blank_csv_nan_plot_gap; reasons retained in history.json",
     }
     atomic_json(root / "curves_receipt.json", receipt)

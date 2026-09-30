@@ -13,7 +13,10 @@ from gradpert.training.v2.optimizer import V2Optimizer
 
 
 @pytest.mark.parametrize("later_loss", [0.3, 0.2])
-def test_interrupted_epoch_resume_matches_uninterrupted_and_keeps_best_last(tmp_path, later_loss):
+@pytest.mark.parametrize("joint_only", [False, True])
+def test_interrupted_epoch_resume_matches_uninterrupted_and_keeps_best_last(
+    tmp_path, later_loss, joint_only
+):
     model, batch = fixture()
     original = copy.deepcopy(model.state_dict())
 
@@ -34,7 +37,15 @@ def test_interrupted_epoch_resume_matches_uninterrupted_and_keeps_best_last(tmp_
         def validate():
             epoch = optimizer.steps // 3
             loss = 0.2 if epoch == 1 else later_loss
-            return {"split": "val", "prediction_loss": 0.5 - loss, "joint_loss": loss}
+            return {
+                "split": "val",
+                "joint_loss": loss,
+                **(
+                    {"validation_mode": "joint_only"}
+                    if joint_only
+                    else {"prediction_loss": 0.5 - loss}
+                ),
+            }
 
         journal = fit(
             objective,
@@ -92,6 +103,7 @@ def test_interrupted_epoch_resume_matches_uninterrupted_and_keeps_best_last(tmp_
     assert journal["best"]["epoch"] == 1
     assert journal["selection_metric"] == "joint_loss"
     assert journal["last"]["epoch"] == 3
+    assert ("prediction_loss" in journal["last"]) is not joint_only
     assert (tmp_path / "resumed" / "best.pt").resolve().name == "epoch-0001.pt"
     assert (tmp_path / "resumed" / "last.pt").resolve().name == "epoch-0003.pt"
     assert len(list((tmp_path / "resumed").glob("epoch-*.pt"))) == 2

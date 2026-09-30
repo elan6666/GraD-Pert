@@ -1,6 +1,10 @@
 # GraD-Pert v2 邻域接力方法与交付计划
 
-## 2026-09-28 后续 v2 默认配置
+## 2026-09-30 当前 B0 覆盖规则
+
+下一次新的 Jurkat B0 恢复 `streams=4` 的 mHC，Student/Teacher 同构；每轮仅做完整 joint loss 验证与分项记录，不做 300-control 预测/Pearson 验证。best 按 joint loss 选，训练结束仍测试 best/last。最新自包含配置为 `configs/v2/mhc_joint_only_jurkat/three_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml`：双卡每卡微批68、累积2、全局272、3 epoch；图scan32/行64、序列scan16。原 no-mHC 三轮和 3＋3 续训保留为历史。配置的 m68 依据此前 mHC 三轮完成证据，新源码正式启动前仍须重新预检。完整规则见 `docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md`。
+
+## 2026-09-28 后续 v2 默认配置（历史）
 
 后续 v2 Jurkat 默认采用**图第 4 层来源逐维 key 门开启、原 KDA 分块恢复**：图邻域扫描 `relay_scan_chunk_size=32`，Cell/Response 序列不设单独覆盖（同为 32），图目标 `relay_graph_chunk_rows=64`。自包含配置为 `configs/v2/source_key_gate_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml`；历史配置与已完成的较大 chunk 工程对照原样保留。代码字段 `graph_source_key_gate` 缺省为 false，以免旧配置、旧 checkpoint 意外改变；**新默认由上述配置显式开启**。
 

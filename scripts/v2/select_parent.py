@@ -13,6 +13,32 @@ from generate_group import verify_group
 from gradpert.hashing import sha256_file
 
 
+def validation_contract(validation: dict, selection_metric: str) -> dict:
+    mode = validation.get("validation_mode", "joint_and_prediction")
+    if mode not in ("joint_only", "joint_and_prediction"):
+        raise ValueError("unknown validation mode")
+    if mode == "joint_only":
+        if selection_metric != "joint_loss" or "prediction_loss" in validation:
+            raise ValueError("joint-only validation requires joint-loss selection")
+        contract = {"validation_mode": mode}
+    else:
+        if not math.isfinite(validation["prediction_loss"]):
+            raise ValueError("parent selection accepts finite validation losses only")
+        contract = {
+            key: validation[key]
+            for key in ("control_manifest_sha256", "reference_sha256", "query_recipe")
+        }
+    if selection_metric == "joint_loss":
+        contract.update(
+            selection_metric="joint_loss",
+            joint_validation={
+                key: validation["joint_validation"][key]
+                for key in ("batch_size", "view_seed", "batch_identity_sha256")
+            },
+        )
+    return contract
+
+
 def choose(verified: dict, runs: dict[str, list[str]], seeds: list[int]) -> dict:
     if verified["group"] not in ("H1", "H2", "H3"):
         raise ValueError("automatic parent selection is restricted to hyperparameter groups")
@@ -57,41 +83,17 @@ def choose(verified: dict, runs: dict[str, list[str]], seeds: list[int]) -> dict
                 raise ValueError("unknown validation selection metric")
             validations = [h["validation"] for h in history]
             if any(
-                v["split"] != "val"
-                or not math.isfinite(v[selection_metric])
-                or not math.isfinite(v["prediction_loss"])
-                for v in validations
+                v["split"] != "val" or not math.isfinite(v[selection_metric]) for v in validations
             ):
                 raise ValueError("parent selection accepts finite validation losses only")
             contract = {
                 "training_sha": source["commit"],
                 "data": {k: v for k, v in identity["data"].items() if k != "run_seed"},
-                "control_manifest_sha256": validations[0]["control_manifest_sha256"],
-                "reference_sha256": validations[0]["reference_sha256"],
-                "query_recipe": validations[0]["query_recipe"],
-                **(
-                    {
-                        "selection_metric": "joint_loss",
-                        "joint_validation": {
-                            key: validations[0]["joint_validation"][key]
-                            for key in ("batch_size", "view_seed", "batch_identity_sha256")
-                        },
-                    }
-                    if selection_metric == "joint_loss"
-                    else {}
-                ),
+                **validation_contract(validations[0], selection_metric),
             }
             if any(
-                v["control_manifest_sha256"] != contract["control_manifest_sha256"]
-                or v["reference_sha256"] != contract["reference_sha256"]
-                or v["query_recipe"] != contract["query_recipe"]
-                or (
-                    selection_metric == "joint_loss"
-                    and any(
-                        v["joint_validation"][key] != contract["joint_validation"][key]
-                        for key in ("batch_size", "view_seed", "batch_identity_sha256")
-                    )
-                )
+                validation_contract(v, selection_metric)
+                != validation_contract(validations[0], selection_metric)
                 for v in validations
             ):
                 raise ValueError("validation protocol changed within a run")
