@@ -7,11 +7,66 @@ from gradpert.evaluation.metrics import pearson_correlation
 from scripts.analysis.train_downsample_reproducibility import (
     analyze,
     export_subset,
+    fraction_count,
     half_assignments,
     proportional_sample,
     repeatability,
     row_pearson,
 )
+
+
+def test_fraction_rounding_minimum_and_stratified_quota():
+    assert [fraction_count(n, 0.5) for n in range(1, 8)] == [1, 2, 2, 2, 3, 3, 4]
+    assert [fraction_count(n, 0.25) for n in range(1, 10)] == [1, 2, 2, 2, 2, 2, 2, 2, 2]
+    batches = np.asarray(["a"] * 61 + ["b"] * 23 + ["c"] * 17)
+    for fraction in (0.5, 0.25):
+        count = fraction_count(len(batches), fraction)
+        rows = proportional_sample(batches, count, seed=42)
+        assert len(rows) == count and len(np.unique(rows)) == count
+        for name in np.unique(batches):
+            quota = (batches == name).sum() * count / len(batches)
+            assert (batches[rows] == name).sum() in (np.floor(quota), np.ceil(quota))
+    for n, fraction in ((0, 0.5), (3, 0), (3, np.nan), (3, 1.1)):
+        with pytest.raises(ValueError):
+            fraction_count(n, fraction)
+
+
+def test_cross_run_comparison_rejects_incompatible_control_reference(tmp_path):
+    import json
+    from pathlib import Path
+
+    from gradpert.hashing import sha256_file
+    from scripts.analysis.compare_train_sampling import collect
+
+    fixture = (
+        Path(__file__).resolve().parents[2]
+        / "docs/experiments/data/jurkat-cap40-5a8a7bb-20260930T094437Z"
+    )
+    inputs = []
+    for method in ("cap40", "proportion50", "proportion25"):
+        root = tmp_path / method
+        root.mkdir()
+        for name in ("summary.json", "conditions.json", "receipt.json", "COMPLETE.json"):
+            (root / name).write_bytes((fixture / name).read_bytes())
+        summary = json.loads((root / "summary.json").read_text())
+        summary["method"] = method
+        (root / "summary.json").write_text(json.dumps(summary))
+        for name in ("receipt.json", "COMPLETE.json"):
+            payload = json.loads((root / name).read_text())
+            payload["summary_sha256"] = sha256_file(root / "summary.json")
+            (root / name).write_text(json.dumps(payload))
+        inputs.append(root)
+    sources, records = collect(inputs)
+    assert set(sources) == {"cap40", "proportion50", "proportion25"}
+    assert len(records) == 1335
+    summary["control_reference_content_sha256"] = "invalid-control"
+    (inputs[-1] / "summary.json").write_text(json.dumps(summary))
+    for name in ("receipt.json", "COMPLETE.json"):
+        payload = json.loads((inputs[-1] / name).read_text())
+        payload["summary_sha256"] = sha256_file(inputs[-1] / "summary.json")
+        (inputs[-1] / name).write_text(json.dumps(payload))
+    with pytest.raises(ValueError, match="incompatible reference"):
+        collect(inputs)
 
 
 def test_cap_keeps_small_conditions_and_preserves_batch_quotas():
@@ -92,7 +147,10 @@ def test_h5ad_export_preserves_nontrain_rows_gene_identity_and_all_values(tmp_pa
     assert output.uns["gradpert_downsample"]["purpose"] == "synthetic"
 
 
-def test_complete_synthetic_analysis_keeps_split_controls_and_skips_one_cell_condition(tmp_path):
+@pytest.mark.parametrize("fraction,expected", [(None, 40), (0.5, 23), (0.25, 11)])
+def test_complete_synthetic_analysis_keeps_split_controls_and_skips_one_cell_condition(
+    tmp_path, fraction, expected
+):
     import json
 
     from gradpert.hashing import sha256_file, sha256_json
@@ -143,15 +201,17 @@ def test_complete_synthetic_analysis_keeps_split_controls_and_skips_one_cell_con
         (root / "manifests" / name).write_text(json.dumps(payload))
     output = tmp_path / "analysis"
     output.mkdir()
-    result = analyze(root, output, repeats=5, seed=42, source="a" * 40)
+    result = analyze(root, output, repeats=5, seed=42, source="a" * 40, fraction=fraction)
+    method = "cap40" if fraction is None else f"proportion{int(fraction * 100)}"
     assert result["original_train_cells"] == 46
-    assert result["sampled_train_cells"] == 41
+    assert result["sampled_train_cells"] == expected + 1
     assert result["original_data_unchanged"]
-    assert result["original"]["finite_count"] == result["cap40"]["finite_count"] == 1
+    assert result["original"]["finite_count"] == result[method]["finite_count"] == 1
     selected = json.loads((output / "selection.json").read_text())
-    assert len(selected["by_condition"]["A"]) == 40
+    assert len(selected["by_condition"]["A"]) == expected
+    assert selected["fraction"] == fraction
     assert selected["by_condition"]["B"] == ["row45"]
-    derivative = ad.read_h5ad(output / "cap40.h5ad")
+    derivative = ad.read_h5ad(output / f"{method}.h5ad")
     original = ad.read_h5ad(root / "canonical/adata.h5ad")
     keep = original.obs_names.isin(derivative.obs_names)
     np.testing.assert_array_equal(derivative.X, original.X[keep])

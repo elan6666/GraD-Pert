@@ -1,3 +1,15 @@
+# Active stage 2026-09-30: Jurkat proportional sampling analysis
+
+Additional methods recovered from prior discussion: condition-wise50% and25%.
+Only training perturbations sampled, round-half-up and minimum2whenpossible;
+all controls/nontrain rows and retained values remain exact. CPU-only4threads,
+100balancedhalf-splits, same original control/gene reference as cap40.
+12local checks passed. Next: scoped main publication, clean server tests,
+sequential new analysis IDs with Luna read-only bounded waiting; terminal
+acceptance and four-version Chinese report. No training/default change.
+Plan: .byte-os/plans/GRADPERT_JURKAT_PROPORTIONS_20260930.plan.md.
+Historical states below remain original evidence.
+
 # Current 2026-09-30: Jurkat train-only cap40 analysis delivered
 
 Accepted run: jurkat-cap40-5a8a7bb-20260930T094437Z.

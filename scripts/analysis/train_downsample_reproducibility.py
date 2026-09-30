@@ -1,4 +1,4 @@
-"""Train-only condition-cap sampling and observed-versus-observed repeatability.
+"""Train-only condition sampling and observed-versus-observed repeatability.
 
 Scientific data and the derived H5AD stay on the server. No training config,
 canonical manifest, gene selection, or evaluation population is replaced.
@@ -30,6 +30,13 @@ PROTOCOL = "within_cell_unseen_single"
 
 def stable_seed(seed: int, key: str) -> int:
     return int.from_bytes(hashlib.sha256(f"{seed}:{key}".encode()).digest()[:8], "little")
+
+
+def fraction_count(cells: int, fraction: float) -> int:
+    """Round half up, retaining two cells when possible and every singleton."""
+    if cells < 1 or not np.isfinite(fraction) or not 0 < fraction <= 1:
+        raise ValueError("fraction sampling requires positive cells and fraction in (0,1]")
+    return min(cells, max(min(cells, 2), int(np.floor(cells * fraction + 0.5))))
 
 
 def proportional_sample(batches: np.ndarray, cap: int, *, seed: int) -> np.ndarray:
@@ -136,7 +143,7 @@ def csv_row(writer: csv.DictWriter, payload: dict) -> None:
     )
 
 
-def plot_comparison(records: list[dict], output: Path) -> None:
+def plot_comparison(records: list[dict], output: Path, *, label: str = "Cap40") -> None:
     import matplotlib
 
     matplotlib.use("Agg")
@@ -149,9 +156,9 @@ def plot_comparison(records: list[dict], output: Path) -> None:
     ]
     fig, axes = plt.subplots(1, 3, figsize=(14, 4), constrained_layout=True)
     bins = np.linspace(-1, 1, 41)
-    for version, label, color in (("original", "Original", "#235f9a"), ("cap", "Cap40", "#d5762c")):
+    for version, name, color in (("original", "Original", "#235f9a"), ("cap", label, "#d5762c")):
         values = [r[f"{version}_delta"] for r in records if r[f"{version}_delta"] is not None]
-        axes[0].hist(values, bins=bins, histtype="step", linewidth=2, label=label, color=color)
+        axes[0].hist(values, bins=bins, histtype="step", linewidth=2, label=name, color=color)
     axes[0].set(xlabel="Mean split-half Pearson delta (100 splits)", ylabel="Conditions")
     axes[0].legend()
     axes[1].scatter(
@@ -164,8 +171,8 @@ def plot_comparison(records: list[dict], output: Path) -> None:
     axes[1].plot([-1, 1], [-1, 1], "--", color="gray")
     axes[1].set(
         xlabel="Original Pearson delta",
-        ylabel="Cap40 Pearson delta",
-        title="Conditions with >40 cells",
+        ylabel=f"{label} Pearson delta",
+        title="Conditions affected by sampling",
     )
     axes[2].scatter(
         [r["original_cells"] for r in paired],
@@ -178,7 +185,7 @@ def plot_comparison(records: list[dict], output: Path) -> None:
     axes[2].set(
         xscale="log",
         xlabel="Original cells per condition",
-        ylabel="Cap40 minus original Pearson delta",
+        ylabel=f"{label} minus original Pearson delta",
     )
     for suffix in ("png", "pdf"):
         fig.savefig(output / f"comparison.{suffix}", dpi=180)
@@ -223,11 +230,22 @@ def export_subset(adata, kept_rows: np.ndarray, output: Path, provenance: dict) 
         check.file.close()
 
 
-def analyze(root: Path, output: Path, *, repeats: int, seed: int, source: str) -> dict:
+def analyze(
+    root: Path,
+    output: Path,
+    *,
+    repeats: int,
+    seed: int,
+    source: str,
+    fraction: float | None = None,
+) -> dict:
     import anndata as ad
     from scipy import sparse
 
     started = time.monotonic()
+    if fraction is not None and fraction not in (0.5, 0.25):
+        raise ValueError("only preregistered fractions0.5 and0.25 are supported")
+    method = "cap40" if fraction is None else f"proportion{int(fraction * 100)}"
     manifest_paths = [
         root / "manifests" / name
         for name in (
@@ -304,8 +322,9 @@ def analyze(root: Path, output: Path, *, repeats: int, seed: int, source: str) -
                 if not len(rows):
                     raise ValueError(f"training condition has no source cells: {condition}")
                 batch = batches[rows]
+                count = 40 if fraction is None else fraction_count(len(rows), fraction)
                 chosen = proportional_sample(
-                    batch, 40, seed=stable_seed(seed, f"sample:{condition}")
+                    batch, count, seed=stable_seed(seed, f"sample:{condition}")
                 )
                 selected_rows.extend(rows[chosen].tolist())
                 per_condition_selection[condition] = data.obs_names[rows[chosen]].tolist()
@@ -319,7 +338,7 @@ def analyze(root: Path, output: Path, *, repeats: int, seed: int, source: str) -
                     "condition": condition,
                     "original_cells": len(rows),
                     "cap_cells": len(chosen),
-                    "affected": len(rows) > 40,
+                    "affected": len(chosen) < len(rows),
                     "original_batches": len(set(batch)),
                     "cap_batches": len(set(batch[chosen])),
                 }
@@ -372,12 +391,15 @@ def analyze(root: Path, output: Path, *, repeats: int, seed: int, source: str) -
         kept_rows = np.flatnonzero(kept)
         row_ids = data.obs_names[selected_rows].tolist()
         selection = {
-            "schema_version": "gradpert-train-cap-selection-1",
+            "schema_version": "gradpert-train-sampling-selection-2",
             "dataset_id": DATASET,
             "state": "analysis_derivative_not_canonical_ready",
             "source_commit": source,
             "parent_h5ad_sha256": parent_sha,
-            "cap": 40,
+            "method": method,
+            "cap": 40 if fraction is None else None,
+            "fraction": fraction,
+            "fraction_rounding": "half_up_minimum_two_when_possible",
             "seed": seed,
             "sampling": "condition_batch_largest_remainder_uniform_without_replacement",
             "train_condition_ids": names,
@@ -420,13 +442,19 @@ def analyze(root: Path, output: Path, *, repeats: int, seed: int, source: str) -
             "parent_split_sha256": before[str(manifest_paths[1])],
             "seed": seed,
             "repeats": repeats,
-            "cap": 40,
+            "method": method,
+            "cap": 40 if fraction is None else None,
+            "fraction": fraction,
+            "legacy_record_keys": "cap_* denote the sampled version for every method",
             "expression_genes": genes,
             "original_train_cells": len(train_rows),
             "sampled_train_cells": len(selected_rows),
             "train_cells_removed_fraction": 1 - len(selected_rows) / len(train_rows),
             "conditions": len(names),
             "affected_conditions": sum(r["affected"] for r in records),
+            "conditions_losing_batches": sum(
+                r["cap_batches"] < r["original_batches"] for r in records
+            ),
             "unchanged_nontrain_cells": int((~train_mask).sum()),
             "control_cells": int(control_mask.sum()),
             "derivative_total_cells": len(kept_rows),
@@ -435,7 +463,7 @@ def analyze(root: Path, output: Path, *, repeats: int, seed: int, source: str) -
             ),
             "control_reference_content_sha256": hashes.hexdigest(),
             "original": summarize([r["original_delta"] for r in records]),
-            "cap40": summarize([r["cap_delta"] for r in records]),
+            method: summarize([r["cap_delta"] for r in records]),
             "raw_expression": {
                 v: summarize([r[f"{v}_expression"] for r in records]) for v in ("original", "cap")
             },
@@ -459,21 +487,24 @@ def analyze(root: Path, output: Path, *, repeats: int, seed: int, source: str) -
                 "not model scores or a theoretical upper bound"
             ),
         }
-        plot_comparison(records, output)
+        plot_comparison(records, output, label="Cap40" if fraction is None else f"{fraction:.0%}")
         del values
         gc.collect()
         print("EXPORT H5AD", flush=True)
         atomic_json(output / "progress.json", {"phase": "export_h5ad"})
         provenance = {
-            "purpose": "train_only_cap40_analysis",
+            "purpose": f"train_only_{method}_analysis",
             "state": "analysis_derivative_not_canonical_ready",
             "source_commit": source,
             "parent_h5ad_sha256": parent_sha,
-            "cap": 40,
+            "cap": 40 if fraction is None else 0,
+            "fraction": fraction if fraction is not None else 0.0,
             "seed": seed,
             "selection_sha256": sha256_file(output / "selection.json"),
         }
-        summary["derived_h5ad"] = export_subset(data, kept_rows, output / "cap40.h5ad", provenance)
+        summary["derived_h5ad"] = export_subset(
+            data, kept_rows, output / f"{method}.h5ad", provenance
+        )
         after = {str(p): sha256_file(p) for p in manifest_paths}
         if after != before or sha256_file(path) != parent_sha:
             raise ValueError("original data/manifests changed during analysis")
@@ -492,6 +523,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--repeats", type=int, default=100)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--fraction", type=float, choices=(0.5, 0.25), default=None)
     args = parser.parse_args()
     if args.output.exists() or not args.output.resolve().is_relative_to("/data/yilangliu"):
         parser.error("output must be a new directory under /data/yilangliu")
@@ -518,12 +550,19 @@ def main() -> None:
         "output": str(args.output),
         "seed": args.seed,
         "repeats": args.repeats,
-        "cap": 40,
+        "cap": 40 if args.fraction is None else None,
+        "fraction": args.fraction,
         "thread_limits": {
             k: os.environ.get(k)
             for k in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS")
         },
     }
+    receipt["configuration_sha256"] = sha256_json(
+        {
+            k: receipt[k]
+            for k in ("data_root", "seed", "repeats", "cap", "fraction", "thread_limits")
+        }
+    )
     atomic_json(args.output / "receipt.json", receipt)
     try:
         summary = analyze(
@@ -532,6 +571,7 @@ def main() -> None:
             repeats=args.repeats,
             seed=args.seed,
             source=source,
+            fraction=args.fraction,
         )
         receipt.update(
             status="complete",
