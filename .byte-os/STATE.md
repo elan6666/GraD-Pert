@@ -1,3 +1,21 @@
+# Current 2026-09-30: approved train-only Jurkat cap40 analysis
+
+Main owns implementation/publication and terminal acceptance. A single bounded CPU
+analysis will be supervised read-only by a Luna same-task agent; no cross-chat
+monitor or new training is assigned. Cap40 selects min(40, Np) perturbation rows
+per frozen training condition with proportional batch quotas, seed42, without
+replacement. All other rows/genes/values stay exact. Compare original/fixed sample
+with 100 disjoint batch-balanced half splits and condition-equal Pearson delta;
+same original context-matched control pool for both. Full-expression Pearson,
+retained/removed and overlapping sample/full diagnostics are auxiliary.
+
+Pre-change published source: 5d602a02158af679a4d384f677176ec910fa238a.
+8 targeted local tests pass. Next: publish scoped code/docs to main, immutable
+server checkout and same-source tests, launch exactly one CPU analysis, inspect
+COMPLETE/exit0 and exact data invariants, retrieve only small summary/figure files,
+then deliver Chinese comparison report. No model/default data change or GPU run.
+The mHC joint-only B0 implementation below remains ready but unlaunched.
+
 # Current 2026-09-30: next fresh B0 restores mHC and uses joint-only validation
 
 Owner: main chat. The requested bounded update is implemented and locally

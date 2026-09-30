@@ -1,3 +1,7 @@
+## 2026-09-30：Jurkat train-only cap40 分析执行中
+
+用户已确认每训练扰动条件最多40行，并授权执行。本次仅生成分析衍生数据与原/采样100次分层拆半 Pearson 对比，不启动模型训练，不切换默认数据。原control、val/test、其他行及6506变量/表达值保持精确不变，统计在原5000表达基因上计算。代码与合成端到端检查8项通过；待干净发布、服务器复核、一次CPU分析和终态验收。前一mHC B0配置已交付但尚未运行，该状态不变。计划与统计边界：`.byte-os/plans/GRADPERT_JURKAT_CAP40_20260930.plan.md`、`docs/experiments/JURKAT_CAP40_REPRODUCIBILITY_20260930.md`。本节覆盖当前任务优先级，不覆盖历史实验身份。
+
 ## 2026-09-30：下一次 B0 恢复 mHC，每轮只验证 joint loss
 
 新版自包含配置 `configs/v2/mhc_joint_only_jurkat/three_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml` 已完成本地实现与检查：Student/Teacher 同为 4 个 mHC streams，完整预测＋SSL1＋SSL2；每轮仅计算固定视图 joint loss 及分项，按 joint loss 选择 best，省去验证阶段 300-control 推理与 Pearson。训练结束的 best/last 仍执行原冻结测试及六项 all/DEG Pearson、表达暴露分组。双卡每卡微批68×累积2＝全局272、3 epoch；该 batch 依据此前 mHC 三轮证据，新源码正式启动前仍须重新 CUDA 预检。旧 no-mHC 运行、续训和 v1 不改。
