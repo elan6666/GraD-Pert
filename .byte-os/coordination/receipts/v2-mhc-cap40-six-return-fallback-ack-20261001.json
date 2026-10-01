@@ -1,0 +1,23 @@
+{
+  "schema": "return-fallback-ack-v1",
+  "observed_at": "2026-10-01T02:46:54.565154+00:00",
+  "run_id": "nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+  "attempt": 1,
+  "owner_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+  "requested_guard": "main_continuation=pending",
+  "observed_guard": "pending_fallback_active",
+  "guard_passed": false,
+  "action": "Pause stale fallback and record local handoff acknowledgement only",
+  "server_queried": false,
+  "experiment_launched": false,
+  "independent_terminal_acceptance_completed": false,
+  "terminal_receipt_sha256": "8f6ad6913daf887a3778121d22826e245cdff9561d5afd8d7dbe9a26ecd868b2",
+  "supervisor_reported_outcome": "success",
+  "automation": {
+    "id": "grad-pert-v2-b0-return",
+    "status": "PAUSED",
+    "tool_verified": true,
+    "saved_status_verified": true
+  },
+  "remaining": "Independent main terminal verification remains pending; no ablation is authorized by this heartbeat."
+}
