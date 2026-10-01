@@ -1,3 +1,7 @@
+# 2026-10-01: cap40+mHC terminal independently accepted by main
+
+Read-only server audit verified6/6,1056updates,minimum-joint best=last=epoch6,real best/last tests,source/config/data/selection/checkpoint identities,exit0,COMPLETE,noFAILURE,zeroPKL,and stopped target PIDs. Receipt:.byte-os/evidence/v2-mhc-cap40-six-acceptance-20261001/receipt.json. Both monitors PAUSED. No ablation launched; three configs remain design-only with E2capacity unverified. Earlier pending independent review and heartbeat guard mismatch are superseded by this explicit main acceptance.
+
 # Planned 2026-10-01: three independent cap40 B0 ablations
 
 E1 streams1; E2 four independent prototype heads16384 with hidden2048/bottleneck256;

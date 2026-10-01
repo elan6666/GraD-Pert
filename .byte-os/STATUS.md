@@ -1,3 +1,7 @@
+## 2026-10-01：cap40＋mHC 六轮已由主会话独立验收
+
+SSH原始journal/history/COMPLETE/exit、best/last测试收据及实际checkpoint哈希全部核对通过，6/6、1056次更新、best=last=epoch6；零PKL、无FAILURE、本轮进程退出。训练/评估SHA `aeac5fd94123af0b73810259e5e2985228b11d65`；新结果文档与小验收收据已保存。训练joint第6轮0.422775，验证joint4.058603，测试MSE0.00650953；全基因/DEG TxPert0.212492/0.380273、TriShift0.166488/0.351775、Systema0.079602/0.232675。两个监控均PAUSED，无本项目活动后台任务；GPU1存在其他程序，不视为本轮训练。三组消融仅设计和配置完成，未启动。此前guard不匹配仅影响旧heartbeat；本次用户查询下已完成独立验收，不再待验收。
+
 ## 2026-10-01：当前 cap40 B0 后的三组对照已设计
 
 用户确认 E1 关闭mHC；E2 四个头原型8192→16384、MLP宽度不变；
