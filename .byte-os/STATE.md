@@ -1,3 +1,7 @@
+# 2026-10-01: active approved cap40 three-ablation queue
+
+Owner is exact supervisor codex:01a0df0b-4142-7df1-86c0-d959471d80a1. Queue v2-cap40-ablations-ac220f5-20261001T060835Z attempt1/controller368656, source ac220f5e90e9e5c0c9900cdb2c285a629297c93d clean. CPU waiting_for_idle_gpus is verified; no GPU child. Native preflights then E1/E2/E3 fresh6epochs and best/last tests advance automatically. No E2 capacity claim or silent fallback. Supervisor-owned ACK saved and future monitor grad-pert-v2 ACTIVE20min confirmed; return fallback PAUSED until terminal handback. Queue/source/config identities and exact row roots in coordination/state.json and launch receipt. Main accepts terminal outcomes, fixes core failures, compares final results to accepted B0. No other experiments authorized; historical stopped/completed states below remain historical.
+
 # 2026-10-01: execute approved cap40 three-ablation stage
 
 Main owns build/publish/launch. Existing B0 is accepted; E1/E2/E3 execution now authorized. CPU-only resource wait controller will preserve occupied GPUs and automatically advance exact preflights then formal rows. E2 capacity failure stops without changing batch or losses. New row/run identities and long-run supervision must be verified after launch. No Goal requested.

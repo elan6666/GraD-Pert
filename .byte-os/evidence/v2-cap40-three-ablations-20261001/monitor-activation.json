@@ -1,0 +1,14 @@
+{
+  "grad-pert-v2": {
+    "id": "grad-pert-v2",
+    "status": "ACTIVE",
+    "rrule": "FREQ=MINUTELY;INTERVAL=20",
+    "target_thread_id": "01a0df0b-4142-7df1-86c0-d959471d80a1"
+  },
+  "grad-pert-v2-b0-return": {
+    "id": "grad-pert-v2-b0-return",
+    "status": "PAUSED",
+    "rrule": "FREQ=MINUTELY;INTERVAL=5",
+    "target_thread_id": "01a0c01a-0611-7a90-b3e8-8ad7e017748b"
+  }
+}

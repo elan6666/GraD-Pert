@@ -1,0 +1,74 @@
+{
+  "schema": "cap40-ablations-supervisor-ack-v1",
+  "observed_at": "2026-10-01T14:17:42+08:00",
+  "queue_id": "v2-cap40-ablations-ac220f5-20261001T060835Z",
+  "attempt": 1,
+  "owner_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+  "stage": "supervise",
+  "handoff_path": ".byte-os/coordination/handoffs/2026-10-01-v2-cap40-three-ablations-supervise.md",
+  "launch_verification_receipt": ".byte-os/evidence/v2-cap40-three-ablations-20261001/queue-launch-verification.json",
+  "queue_controller": {
+    "pid": 368656,
+    "pid_file": "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z.pid",
+    "alive": true,
+    "phase": "waiting_for_idle_gpus",
+    "row": "E1_no_mhc",
+    "pending_stage": "preflight",
+    "child_pid": null,
+    "log": "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z.log"
+  },
+  "source": {
+    "commit": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+    "clean": true,
+    "porcelain_status_count": 0,
+    "path": "/data/yilangliu/GraD-Pert/development/source-v2-cap40-ablations-ac220f5"
+  },
+  "runtime_sha256": "fb327a18d0f93cdc5dba968e38dc8031a64c18ff6040998bc71ae18b5ce84eeb",
+  "publication_sha256": "3e850573eba4c7d36d379b49326fa913bc27f6241d9389f1345a8edcc90073b7",
+  "rows": [
+    {
+      "name": "E1_no_mhc",
+      "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+      "config_sha256": "5718b2c298aaed31ae796205be5f8597a060da4106e4b0017e35f605dff68686"
+    },
+    {
+      "name": "E2_prototypes16384",
+      "run_id": "nadig_jurkat-seed1-20261001T060836Z-4abe0ca0b78a4130aaa4470a33461b13",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-4abe0ca0b78a4130aaa4470a33461b13",
+      "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f"
+    },
+    {
+      "name": "E3_unit_distillation_no_spread_koleo",
+      "run_id": "nadig_jurkat-seed1-20261001T060836Z-26ce673c50704a59aea53535363c4fd5",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-26ce673c50704a59aea53535363c4fd5",
+      "config_sha256": "6982785ffac1b5ac3f681956ddf8ad51af2aa505e3f02e22572876cb7d34cb2a"
+    }
+  ],
+  "gpu_gate": {
+    "gpu0_memory_mib": 728,
+    "gpu1_memory_mib": 728,
+    "limit_mib_each": 512,
+    "gate_open": false,
+    "observed_gpu_utilization_percent": [
+      8,
+      8
+    ],
+    "occupants": [
+      "scbutterfly:364871 on GPU0",
+      "scbutterfly:363587 on GPU1"
+    ],
+    "queue_action": "CPU controller waits; no child process/training started; unrelated jobs untouched"
+  },
+  "automation": {
+    "id": "grad-pert-v2",
+    "status": "ACTIVE",
+    "interval_minutes": 20,
+    "target_thread_id": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+    "activation": "verified_active",
+    "verified_app_tool_update": true,
+    "fallback_id": "grad-pert-v2-b0-return",
+    "fallback_status": "PAUSED"
+  },
+  "acceptance": "Bounded independent acknowledgement complete: exact owner/run guard, controller PID/live waiting state, clean immutable source identity, closed GPU resource gate, and saved ACTIVE supervisor automation verified. This acknowledges supervision only; no GPU training has begun."
+}

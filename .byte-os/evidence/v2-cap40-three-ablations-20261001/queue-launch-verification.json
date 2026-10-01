@@ -1,0 +1,74 @@
+{
+  "checked_at_local": "2026-10-01",
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z",
+  "controller": {
+    "pid": 368656,
+    "alive": true,
+    "argv0": "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+    "argv_tail": [
+      "--queue-root",
+      "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z",
+      "--execute"
+    ]
+  },
+  "queue_rows": [
+    {
+      "name": "E1_no_mhc",
+      "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+      "config_sha256": "5718b2c298aaed31ae796205be5f8597a060da4106e4b0017e35f605dff68686"
+    },
+    {
+      "name": "E2_prototypes16384",
+      "run_id": "nadig_jurkat-seed1-20261001T060836Z-4abe0ca0b78a4130aaa4470a33461b13",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-4abe0ca0b78a4130aaa4470a33461b13",
+      "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f"
+    },
+    {
+      "name": "E3_unit_distillation_no_spread_koleo",
+      "run_id": "nadig_jurkat-seed1-20261001T060836Z-26ce673c50704a59aea53535363c4fd5",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-26ce673c50704a59aea53535363c4fd5",
+      "config_sha256": "6982785ffac1b5ac3f681956ddf8ad51af2aa505e3f02e22572876cb7d34cb2a"
+    }
+  ],
+  "state": {
+    "schema": "cap40-three-ablations-queue-v1",
+    "pid": 368656,
+    "status": "running",
+    "phase": "waiting_for_idle_gpus",
+    "row": "E1_no_mhc",
+    "pending_stage": "preflight",
+    "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+    "child_pid": null,
+    "gpu_memory_snapshot": "0, 728\n1, 728"
+  },
+  "terminal_receipts": {
+    "FAILURE.json": "absent",
+    "COMPLETE.json": "absent"
+  },
+  "source": {
+    "path": "/data/yilangliu/GraD-Pert/development/source-v2-cap40-ablations-ac220f5",
+    "sha": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+    "clean": true,
+    "status_count": 0
+  },
+  "gpu_snapshot": [
+    {
+      "index": "0",
+      "memory_used_mib": 728,
+      "utilization_percent": 11
+    },
+    {
+      "index": "1",
+      "memory_used_mib": 728,
+      "utilization_percent": 22
+    }
+  ],
+  "external_log_tail": [],
+  "independent_main_recheck": {
+    "all_three_runtime_hashes_match": true,
+    "runtime_sha256": "fb327a18d0f93cdc5dba968e38dc8031a64c18ff6040998bc71ae18b5ce84eeb",
+    "all_three_run_roots_match_runtime": true,
+    "note": "Luna transcribed E2/E3 root incorrectly; server queue.json independently re-read, no server files changed."
+  }
+}
