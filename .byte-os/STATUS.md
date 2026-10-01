@@ -1,3 +1,7 @@
+## 2026-10-01: cap40 ablations execution authorized and prepared
+
+User authorized E1/E2/E3 execution after accepted B0. New native CPU queue preserves three pinned configs and model src; E1/E3 integration, E2 sustained128-update capacity, then three fresh6-epoch formal runs with frozen best/last tests. GPU0/1 currently host unrelated processes; enforce <=512MiB per GPU, project leases and no duplicate runs. Short test supervision Luna reported76 initial checks, then11 changed queue checks; Ruff check/format passed. Pending publication, clean server repeat, actual queue launch and exact supervisor handoff. No GPU experiment started yet.
+
 ## 2026-10-01：cap40＋mHC 六轮已由主会话独立验收
 
 SSH原始journal/history/COMPLETE/exit、best/last测试收据及实际checkpoint哈希全部核对通过，6/6、1056次更新、best=last=epoch6；零PKL、无FAILURE、本轮进程退出。训练/评估SHA `aeac5fd94123af0b73810259e5e2985228b11d65`；新结果文档与小验收收据已保存。训练joint第6轮0.422775，验证joint4.058603，测试MSE0.00650953；全基因/DEG TxPert0.212492/0.380273、TriShift0.166488/0.351775、Systema0.079602/0.232675。两个监控均PAUSED，无本项目活动后台任务；GPU1存在其他程序，不视为本轮训练。三组消融仅设计和配置完成，未启动。此前guard不匹配仅影响旧heartbeat；本次用户查询下已完成独立验收，不再待验收。

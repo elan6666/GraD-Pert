@@ -1,3 +1,7 @@
+# 2026-10-01: execute approved cap40 three-ablation stage
+
+Main owns build/publish/launch. Existing B0 is accepted; E1/E2/E3 execution now authorized. CPU-only resource wait controller will preserve occupied GPUs and automatically advance exact preflights then formal rows. E2 capacity failure stops without changing batch or losses. New row/run identities and long-run supervision must be verified after launch. No Goal requested.
+
 # 2026-10-01: cap40+mHC terminal independently accepted by main
 
 Read-only server audit verified6/6,1056updates,minimum-joint best=last=epoch6,real best/last tests,source/config/data/selection/checkpoint identities,exit0,COMPLETE,noFAILURE,zeroPKL,and stopped target PIDs. Receipt:.byte-os/evidence/v2-mhc-cap40-six-acceptance-20261001/receipt.json. Both monitors PAUSED. No ablation launched; three configs remain design-only with E2capacity unverified. Earlier pending independent review and heartbeat guard mismatch are superseded by this explicit main acceptance.

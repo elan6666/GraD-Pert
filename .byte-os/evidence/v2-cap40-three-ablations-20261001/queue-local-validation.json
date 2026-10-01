@@ -1,0 +1,14 @@
+{
+  "schema": "cap40-ablation-queue-local-validation-v1",
+  "baseline_commit": "7d3b0fe091a7231a0b8106da0cf3fe596d6b0dc4",
+  "runner": "scripts/v2/run_cap40_ablations.py",
+  "model_src_changed": false,
+  "initial_pytest": "tests/v2/test_cap40_ablation_queue.py tests/v2/test_config.py:76 passed",
+  "after_race_fix_pytest": "tests/v2/test_cap40_ablation_queue.py:11 passed",
+  "ruff_check": "passed",
+  "ruff_format_check": "passed",
+  "executor": "same-task cap40_queue_test_watch requested gpt-6-luna",
+  "source_of_verification": "subagent tool execution and report",
+  "scope": "local synthetic resource,preflight and duplicate-run boundary checks;not CUDA evidence",
+  "gpu_stage": "not_started"
+}
