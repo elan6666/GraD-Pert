@@ -1,3 +1,7 @@
+# Fixed-epoch protocols must cover terminal collection and queue advancement
+
+Confirmed 2026-10-02/03: training/CLI/schema accepted v2_fixed_6, but result collector retained only1/3/5/50 and failed after a successful six-epoch E1. Individual launch/capacity checks did not exercise post-training next_action. Prevention: every supported protocol needs a synthetic complete history/journal/checkpoint/test fixture traversing collector and queue skip_complete, including joint-only selection and invalid evidence. Collector rejection must preserve completed runs; recovery imports validated completed rows and gives remaining rows fresh IDs instead of rerunning successful work.
+
 # Lessons
 
 ## Relay masked-node queries need a nonzero learned initialization

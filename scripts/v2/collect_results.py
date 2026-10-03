@@ -28,9 +28,13 @@ def collect_run(root: Path) -> list[dict]:
         raise ValueError("training source is not clean and published")
     resolved = read(root / "resolved_config.json")
     policy = resolved["training"]["formal_run_policy"]
-    expected_epochs = {"v2_fixed_1": 1, "v2_fixed_3": 3, "v2_fixed_5": 5, "v2_fixed_50": 50}.get(
-        policy
-    )
+    expected_epochs = {
+        "v2_fixed_1": 1,
+        "v2_fixed_3": 3,
+        "v2_fixed_5": 5,
+        "v2_fixed_6": 6,
+        "v2_fixed_50": 50,
+    }.get(policy)
     if expected_epochs is None or resolved["training"]["max_epochs"]["value"] != expected_epochs:
         raise ValueError("run has no supported fixed-epoch v2 contract")
     journal_path = root / "fit/epoch_state.json"

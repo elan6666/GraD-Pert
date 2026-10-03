@@ -11,8 +11,10 @@ import sys
 import time
 from pathlib import Path
 
+from collect_results import collect_run
 from run_group import lock, next_action, validate_preflight
 
+from gradpert.config import load_experiment_config
 from gradpert.data._io import atomic_json
 from gradpert.execution.train_entry import resolve_plan
 from gradpert.hashing import sha256_file
@@ -41,12 +43,49 @@ def require_fresh_formal(plan: dict) -> None:
         raise ValueError("fresh queue cannot resume or replace an existing experiment")
 
 
-def prepare(runtime: Path, baseline: Path) -> dict:
+def validate_completed_e1(root: Path, baseline: Path) -> dict:
+    """Accept a terminal E1 without training or rewriting its historical identity."""
+    source = Path(__file__).resolve().parents[2]
+    config = source / "configs/v2/cap40_ablations_jurkat/E1_no_mhc/gradpert_v2/nadig_jurkat.yaml"
+    rows = collect_run(root)
+    if (
+        len(rows) != 2
+        or {row["role"] for row in rows} != {"best", "last"}
+        or any(row["status"] != "complete" or row["config_sha256"] != ROWS[0][1] for row in rows)
+        or (root / "FAILURE.json").exists()
+    ):
+        raise ValueError("completed E1 lacks the exact approved terminal contract")
+    if json.loads((root / "resolved_config.json").read_text()) != load_experiment_config(
+        config
+    ).model_dump(mode="json"):
+        raise ValueError("completed E1 resolved configuration differs from approved config")
+    manifest = json.loads((root / "run_manifest.json").read_text())
+    parent = json.loads((baseline / "run_manifest.json").read_text())
+    if manifest["data"] != parent["data"]:
+        raise ValueError("completed E1 data/selection/seed differs from baseline")
+    prior_tree = subprocess.check_output(
+        ["git", "rev-parse", manifest["source"]["commit"] + ":src"], cwd=source, text=True
+    ).strip()
+    current_tree = subprocess.check_output(
+        ["git", "rev-parse", "HEAD:src"], cwd=source, text=True
+    ).strip()
+    if prior_tree != current_tree:
+        raise ValueError("completed E1 native source differs from the remaining queue")
+    return {
+        "root": str(root),
+        "complete_sha256": sha256_file(root / "COMPLETE.json"),
+        "native_src_tree": prior_tree,
+        "collected_rows": rows,
+    }
+
+
+def prepare(runtime: Path, baseline: Path, completed_e1: Path | None = None) -> dict:
     complete = json.loads((baseline / "COMPLETE.json").read_text())
     journal = json.loads((baseline / "fit/epoch_state.json").read_text())
     if complete["epoch"] != 6 or journal["epoch"] != 6 or not complete["zero_pkl"]:
         raise ValueError("cap40 B0 terminal prerequisite is incomplete")
     source = Path(__file__).resolve().parents[2]
+    imported = validate_completed_e1(completed_e1, baseline) if completed_e1 else None
     rows = []
     for name, digest in ROWS:
         config = (
@@ -54,6 +93,8 @@ def prepare(runtime: Path, baseline: Path) -> dict:
         )
         if sha256_file(config) != digest:
             raise ValueError("approved cap40 configuration changed")
+        if imported and name == "E1_no_mhc":
+            continue
         plan = resolve_plan(
             argparse.Namespace(config=config, runtime=runtime, data_root=None, gpu="0,1", seed=1)
         )
@@ -72,6 +113,7 @@ def prepare(runtime: Path, baseline: Path) -> dict:
         "schema": "cap40-three-ablations-queue-v1",
         "baseline": str(baseline),
         "baseline_complete_sha256": sha256_file(baseline / "COMPLETE.json"),
+        "completed_e1": imported,
         "rows": rows,
     }
 
@@ -158,6 +200,10 @@ def execute(queue: dict, directory: Path) -> None:
             baseline = Path(queue["baseline"])
             if sha256_file(baseline / "COMPLETE.json") != queue["baseline_complete_sha256"]:
                 raise ValueError("baseline terminal receipt changed")
+            if queue.get("completed_e1"):
+                imported = queue["completed_e1"]
+                if validate_completed_e1(Path(imported["root"]), baseline) != imported:
+                    raise ValueError("imported E1 terminal evidence changed")
             for row in queue["rows"]:
                 plan = row["plan"]
                 probe = directory / (row["name"] + "-preflight")
@@ -210,6 +256,10 @@ def execute(queue: dict, directory: Path) -> None:
                 run_child(command, row, "formal")
                 if next_action(plan) != "skip_complete":
                     raise RuntimeError("formal child exited without matching best/last completion")
+            if queue.get("completed_e1"):
+                imported = queue["completed_e1"]
+                if validate_completed_e1(Path(imported["root"]), baseline) != imported:
+                    raise ValueError("imported E1 terminal evidence changed")
             record(status="complete", phase="complete", child_pid=None)
             atomic_json(directory / "COMPLETE.json", state)
     except BaseException as error:
@@ -223,13 +273,16 @@ def main() -> None:
     parser.add_argument("--runtime", type=Path, required=True)
     parser.add_argument("--baseline", type=Path, required=True)
     parser.add_argument("--queue-root", type=Path, required=True)
+    parser.add_argument("--completed-e1", type=Path)
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args()
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         parser.error("required allocator contract is missing")
     if not args.queue_root.resolve().is_relative_to("/data/yilangliu"):
         parser.error("queue outputs stay on server")
-    queue = prepare(args.runtime, args.baseline)
+    if args.completed_e1 and not args.completed_e1.resolve().is_relative_to("/data/yilangliu"):
+        parser.error("completed E1 evidence stays on server")
+    queue = prepare(args.runtime, args.baseline, args.completed_e1)
     args.queue_root.mkdir(parents=True, exist_ok=False)
     atomic_json(args.queue_root / "queue.json", queue)
     if args.execute:

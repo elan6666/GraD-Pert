@@ -1,3 +1,11 @@
+## 2026-10-03: terminal collector repair and remaining queue
+
+Original queue attempt1 reached E1 formal exit0/six epochs/tests then failed because collect_results did not recognize the already-supported v2_fixed_6 policy. E2/E3 preflights completed in the original attempt; their formal runs never started. Supervisor returned ownership, both monitors paused, main began repair. E1 terminal identity still needs independent server acceptance when connectivity returns.
+
+Repair adds fixed6 acceptance with existing strict history/checkpoint/test/zeroPKL gates. Regression traverses six-epoch joint-only completion through next_action=skip_complete; corrupted budget/history/checkpoint/test remain rejected. New --completed-e1 input imports only validated pinned E1 config/full terminal evidence with identical data/selection/seed and unchanged native src Git tree. Old E1 is never rewritten/retrained. New queue creates fresh E2/E3 plans/run IDs, redoes same-source E2 sustained128 and E3 integration, then their fresh6epoch formals. Original failed controller/source/results remain immutable. No batch/weights/method changes.
+
+110 targeted local tests and Ruff passed. Pending: published clean repair source/runtime; server collector acceptance of old E1/B0; same-source server checks; durable remaining queue launch/verification; explicit supervisor ACK+ACTIVE20min monitor for new queue. SSH reset and Mac locked prevent VPN UI recovery; user asked only to unlock Mac, recovery itself remains agent-owned. No new run launched during connectivity block.
+
 # Jurkat cap40：当前 B0 后的三组独立对照
 
 用户 2026-10-01 指定三组实验；已确认实验②指四个投影头的原型数翻倍，

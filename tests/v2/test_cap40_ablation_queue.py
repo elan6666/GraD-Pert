@@ -83,3 +83,78 @@ def test_valid_committed_run_is_not_implicitly_resumed(tmp_path):
     (tmp_path / "fit/epoch_state.json").write_text("{}")
     with pytest.raises(ValueError, match="cannot resume"):
         queue.require_fresh_formal(plan)
+
+
+def imported_e1(tmp_path, monkeypatch):
+    root, baseline = tmp_path / "e1", tmp_path / "baseline"
+    root.mkdir()
+    baseline.mkdir()
+    manifest = {"data": {"selection": "frozen", "run_seed": 1}, "source": {"commit": "a" * 40}}
+    for path in (root, baseline):
+        (path / "run_manifest.json").write_text(json.dumps(manifest))
+    (root / "COMPLETE.json").write_text(json.dumps({"epoch": 6}))
+    config = ROOT / "configs/v2/cap40_ablations_jurkat/E1_no_mhc/gradpert_v2/nadig_jurkat.yaml"
+    resolved = queue.load_experiment_config(config).model_dump(mode="json")
+    (root / "resolved_config.json").write_text(json.dumps(resolved))
+    rows = [
+        {"role": role, "status": "complete", "config_sha256": queue.ROWS[0][1]}
+        for role in ("best", "last")
+    ]
+    monkeypatch.setattr(queue, "collect_run", lambda path: rows)
+    monkeypatch.setattr(queue.subprocess, "check_output", lambda *args, **kwargs: "same-src-tree\n")
+    return root, baseline, rows
+
+
+def test_completed_e1_is_reused_only_with_same_data_config_and_native_src(tmp_path, monkeypatch):
+    root, baseline, rows = imported_e1(tmp_path, monkeypatch)
+    accepted = queue.validate_completed_e1(root, baseline)
+    assert accepted["collected_rows"] == rows
+    assert accepted["complete_sha256"] == queue.sha256_file(root / "COMPLETE.json")
+    assert accepted["native_src_tree"] == "same-src-tree"
+
+
+@pytest.mark.parametrize("corruption", ["data", "config", "source", "failure", "partial"])
+def test_completed_e1_import_fails_closed(tmp_path, monkeypatch, corruption):
+    root, baseline, rows = imported_e1(tmp_path, monkeypatch)
+    if corruption == "data":
+        path = root / "run_manifest.json"
+        manifest = json.loads(path.read_text())
+        manifest["data"]["selection"] = "different"
+        path.write_text(json.dumps(manifest))
+    elif corruption == "config":
+        (root / "resolved_config.json").write_text("{}")
+    elif corruption == "source":
+        trees = iter(["old-tree", "new-tree"])
+        monkeypatch.setattr(queue.subprocess, "check_output", lambda *a, **kw: next(trees))
+    elif corruption == "failure":
+        (root / "FAILURE.json").write_text("{}")
+    else:
+        rows[0]["status"] = "missing_test"
+    with pytest.raises(ValueError):
+        queue.validate_completed_e1(root, baseline)
+
+
+def test_repaired_queue_plans_only_remaining_e2_e3(tmp_path, monkeypatch):
+    baseline = tmp_path / "baseline"
+    (baseline / "fit").mkdir(parents=True)
+    (baseline / "COMPLETE.json").write_text(json.dumps({"epoch": 6, "zero_pkl": True}))
+    (baseline / "fit/epoch_state.json").write_text(json.dumps({"epoch": 6}))
+    for role in ("best", "last"):
+        (baseline / "fit" / f"{role}-test.json").write_text(
+            json.dumps({"identity": {"role": role}, "result": {"split": "test"}})
+        )
+    monkeypatch.setattr(queue, "validate_completed_e1", lambda *args: {"verified": True})
+    configs = []
+
+    def resolver(args):
+        configs.append(args.config)
+        return {"run_id": "new-distinct-" + args.config.parents[1].name}
+
+    monkeypatch.setattr(queue, "resolve_plan", resolver)
+    planned = queue.prepare(Path("runtime"), baseline, Path("completed-e1"))
+    assert [row["name"] for row in planned["rows"]] == [
+        "E2_prototypes16384",
+        "E3_unit_distillation_no_spread_koleo",
+    ]
+    assert len(configs) == 2
+    assert planned["completed_e1"] == {"verified": True}

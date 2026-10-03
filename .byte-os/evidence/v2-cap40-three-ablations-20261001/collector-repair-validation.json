@@ -1,0 +1,11 @@
+{
+  "baseline_sha": "c85bf94a603a49cf833bf06d97447641f3f71b92",
+  "baseline_published_verified": true,
+  "root_cause": "collector missing v2_fixed_6 accepted by training/schema/CLI",
+  "targeted_tests": 110,
+  "ruff": "passed",
+  "src_changed": false,
+  "configs_changed": false,
+  "new_server_run_started": false,
+  "remaining_gate": "Mac locked / SSH reset, E1 live acceptance and new immutable server source"
+}
