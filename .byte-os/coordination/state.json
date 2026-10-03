@@ -1,5 +1,5 @@
 {
-  "acceptance": "Three pinned preflights including E2 sustained128; each exact6epochs and best/last real tests; COMPLETE/noFAILURE/zeroPKL and version identities.",
+  "acceptance": "Accepted unchanged E1 plus exact E2/E3 preflights,6epochs,best/last true tests/identity/noFAILURE/zeroPKL and queue COMPLETE.",
   "frozen_paths": [
     "TxPert/official-repo/**",
     "data/**",
@@ -118,20 +118,42 @@
       "to_stage": "supervise",
       "handoff": ".byte-os/coordination/handoffs/2026-10-01-v2-cap40-three-ablations-supervise.md",
       "note": "Supervisor exact queue/run ownership and live CPU wait verified; controller PID/source/resource gate checked, ACTIVE20min monitor tool-confirmed, supervisor ACK receipt saved."
+    },
+    {
+      "from": "codex",
+      "from_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+      "from_stage": "supervise",
+      "to": "codex",
+      "to_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "to_stage": "build",
+      "handoff": ".byte-os/coordination/handoffs/2026-10-01-v2-cap40-three-ablations-failure-return.md",
+      "note": "E1 completed 6/6 with best/last tests and zero-PKL; queue controller failed during result collection with unsupported fixed-epoch v2 contract. Monitor paused and baton returned for diagnosis/attempt decision.",
+      "ts": "2026-10-01T23:42:08+00:00"
+    },
+    {
+      "ts": "2026-10-03T15:29:48+08:00",
+      "from": "codex",
+      "to": "codex",
+      "from_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "to_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+      "from_stage": "build",
+      "to_stage": "supervise",
+      "handoff": ".byte-os/coordination/handoffs/2026-10-03-v2-cap40-remaining-supervise.md",
+      "note": "Collector fixed6 repair published,110checks/localserver; E1 independent accepted and preserved; durable remaining queue alive/E2preflight live, no duplicate E1."
     }
   ],
-  "main_continuation": "supervisor_acknowledged_active_wake_verified",
+  "main_continuation": "not_pending",
   "monitor": {
     "id": "grad-pert-v2",
     "status": "ACTIVE",
-    "activation": "verified_active",
+    "activation": "verified_active_20261003T0735Z",
+    "activation_receipt": ".byte-os/coordination/receipts/v2-cap40-remaining-supervisor-ack-20261003T0735Z.json",
     "interval_minutes": 20,
-    "target_thread_id": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
-    "run_id": "v2-cap40-ablations-ac220f5-20261001T060835Z",
-    "attempt": 1,
-    "activation_receipt": ".byte-os/coordination/receipts/v2-cap40-three-ablations-supervisor-ack-20261001.json"
+    "target_thread_id": "01a0df0b-4142-7df1-86c0-d959471d80a1",
+    "run_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
+    "attempt": 1
   },
-  "next_action": "Continue bounded 20-minute supervision of exact queue; GPU gate remains closed until both GPUs are <=512 MiB, then allow existing controller to advance its pinned preflight sequence.",
+  "next_action": "Supervise existing remaining E2/E3 queue, ACK future20min wake; terminal return to main.",
   "owner": "codex",
   "owner_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
   "participants": {
@@ -152,53 +174,86 @@
     "codex": "builder"
   },
   "run": {
-    "id": "v2-cap40-ablations-ac220f5-20261001T060835Z",
-    "kind": "cap40_three_ablation_queue",
+    "id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
     "attempt": 1,
-    "root": "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z",
-    "pid": 368656,
-    "log": "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z.log",
-    "pid_file": "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z.pid",
-    "source_root": "/data/yilangliu/GraD-Pert/development/source-v2-cap40-ablations-ac220f5",
-    "source_commit": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
-    "runtime_sha256": "fb327a18d0f93cdc5dba968e38dc8031a64c18ff6040998bc71ae18b5ce84eeb",
-    "publication_sha256": "3e850573eba4c7d36d379b49326fa913bc27f6241d9389f1345a8edcc90073b7",
-    "gpu": "0,1",
+    "kind": "cap40_remaining_e2_e3_queue",
+    "parent_queue_id": "v2-cap40-ablations-ac220f5-20261001T060835Z",
+    "root": "/data/yilangliu/GraD-Pert/development/v2-cap40-remaining-2871c4e-20261003T072407Z",
+    "pid": 742925,
+    "log": "/data/yilangliu/GraD-Pert/development/v2-cap40-remaining-2871c4e-20261003T072407Z.log",
+    "pid_file": "/data/yilangliu/GraD-Pert/development/v2-cap40-remaining-2871c4e-20261003T072407Z.pid",
+    "source_root": "/data/yilangliu/GraD-Pert/development/source-v2-cap40-repair-2871c4e",
+    "source_commit": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+    "runtime_sha256": "de87592aa86462e843dfa65ce0960ab78c4c1ea2e999dae144eaed1d3210ae60",
+    "publication_sha256": "1956abd0f30b2a1895461bc34993ede55287a1c803d0194594d5029a258d367b",
     "rows": [
       {
-        "name": "E1_no_mhc",
-        "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
-        "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
-        "config_sha256": "5718b2c298aaed31ae796205be5f8597a060da4106e4b0017e35f605dff68686"
-      },
-      {
         "name": "E2_prototypes16384",
-        "run_id": "nadig_jurkat-seed1-20261001T060836Z-4abe0ca0b78a4130aaa4470a33461b13",
-        "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-4abe0ca0b78a4130aaa4470a33461b13",
+        "run_id": "nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+        "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-remaining-2871c4e/nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
         "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f"
       },
       {
         "name": "E3_unit_distillation_no_spread_koleo",
-        "run_id": "nadig_jurkat-seed1-20261001T060836Z-26ce673c50704a59aea53535363c4fd5",
-        "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-26ce673c50704a59aea53535363c4fd5",
+        "run_id": "nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+        "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-remaining-2871c4e/nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
         "config_sha256": "6982785ffac1b5ac3f681956ddf8ad51af2aa505e3f02e22572876cb7d34cb2a"
       }
     ],
-    "phase": "waiting_for_idle_gpus",
-    "baseline": "/data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad"
+    "completed_e1": {
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+      "complete_sha256": "b07436c72959d4b4bdb387b0cb68c803a66381ee387cbf96d32b90e3a4238bae",
+      "native_src_tree": "ed919ee6eaed01aa7a778c7fa276f87f2a496758",
+      "collected_rows": [
+        {
+          "role": "best",
+          "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+          "training_sha": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+          "status": "complete"
+        },
+        {
+          "role": "last",
+          "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+          "training_sha": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+          "status": "complete"
+        }
+      ],
+      "receipt_check": {
+        "path": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea/COMPLETE.json",
+        "exists": true,
+        "sha256": "b07436c72959d4b4bdb387b0cb68c803a66381ee387cbf96d32b90e3a4238bae",
+        "sha_matches": true
+      }
+    },
+    "phase": "preflight",
+    "gpu": "0,1"
   },
   "stage": "supervise",
-  "updated_at": "2026-10-01T14:17:42+08:00",
-  "main_continuation_verified_at": "2026-10-01T14:17:42+08:00",
-  "main_continuation_evidence": ".byte-os/coordination/receipts/v2-cap40-three-ablations-supervisor-ack-20261001.json",
-  "run_id": "v2-cap40-ablations-ac220f5-20261001T060835Z",
+  "updated_at": "2026-10-03T15:35:43+08:00",
+  "last_supervision_ack": {
+    "observed_at": "2026-10-03T07:35:43Z",
+    "receipt": ".byte-os/coordination/receipts/v2-cap40-remaining-supervisor-ack-20261003T0735Z.json",
+    "controller_pid": 742925,
+    "controller_alive": true,
+    "phase": "E2 capacity preflight",
+    "preflight_child_pid": 742960,
+    "preflight_alive": true,
+    "steps_completed": 24,
+    "steps_requested": 128,
+    "formal_training_started": false
+  },
+  "main_continuation_verified_at": null,
+  "main_continuation_evidence": ".byte-os/evidence/v2-cap40-three-ablations-20261001/remaining-queue-launch-20261003.json",
+  "run_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
   "attempt": 1,
   "return_fallback": {
     "id": "grad-pert-v2-b0-return",
     "status": "PAUSED",
     "interval_minutes": 5,
     "target_thread_id": "01a0c01a-0611-7a90-b3e8-8ad7e017748b",
-    "rule": "Activate on terminal handback only; keep main_continuation exactly pending; main pauses on substantive acceptance."
+    "rule": "Activate only on terminal handback with main_continuation exactly pending."
   },
   "archived_runs": [
     {
@@ -218,6 +273,45 @@
       "plan_sha256": "0cebf9e4d80e934069b58d3fbc3d9b878901d0c236f950dfab204253db5c86e3",
       "publication_sha256": "095782e81d633c3336ab7b2823d95f65e0be67fef82ab2ec569376bfaeb2b213",
       "selection_sha256": "aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132"
+    },
+    {
+      "id": "v2-cap40-ablations-ac220f5-20261001T060835Z",
+      "kind": "cap40_three_ablation_queue",
+      "attempt": 1,
+      "root": "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z",
+      "pid": 368656,
+      "log": "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z.log",
+      "pid_file": "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z.pid",
+      "source_root": "/data/yilangliu/GraD-Pert/development/source-v2-cap40-ablations-ac220f5",
+      "source_commit": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+      "runtime_sha256": "fb327a18d0f93cdc5dba968e38dc8031a64c18ff6040998bc71ae18b5ce84eeb",
+      "publication_sha256": "3e850573eba4c7d36d379b49326fa913bc27f6241d9389f1345a8edcc90073b7",
+      "gpu": "0,1",
+      "rows": [
+        {
+          "name": "E1_no_mhc",
+          "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+          "config_sha256": "5718b2c298aaed31ae796205be5f8597a060da4106e4b0017e35f605dff68686"
+        },
+        {
+          "name": "E2_prototypes16384",
+          "run_id": "nadig_jurkat-seed1-20261001T060836Z-4abe0ca0b78a4130aaa4470a33461b13",
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-4abe0ca0b78a4130aaa4470a33461b13",
+          "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f"
+        },
+        {
+          "name": "E3_unit_distillation_no_spread_koleo",
+          "run_id": "nadig_jurkat-seed1-20261001T060836Z-26ce673c50704a59aea53535363c4fd5",
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-26ce673c50704a59aea53535363c4fd5",
+          "config_sha256": "6982785ffac1b5ac3f681956ddf8ad51af2aa505e3f02e22572876cb7d34cb2a"
+        }
+      ],
+      "phase": "waiting_for_idle_gpus",
+      "baseline": "/data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+      "status": "failed",
+      "failure_receipt": ".byte-os/coordination/receipts/v2-cap40-three-ablations-queue-failure-20261001T2141Z.json",
+      "failure_handoff": ".byte-os/coordination/handoffs/2026-10-01-v2-cap40-three-ablations-failure-return.md"
     }
   ]
 }

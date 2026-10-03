@@ -1,0 +1,104 @@
+{
+  "checked_date": "2026-10-03",
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-cap40-remaining-2871c4e-20261003T072407Z",
+  "controller": {
+    "pid": 742925,
+    "alive": true,
+    "argv0": "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+    "queue_root_arg": "/data/yilangliu/GraD-Pert/development/v2-cap40-remaining-2871c4e-20261003T072407Z",
+    "execute": true
+  },
+  "state": {
+    "status": "running",
+    "phase": "preflight",
+    "row": "E2_prototypes16384",
+    "pending_stage": "preflight",
+    "run_id": "nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+    "child_pid": 742960,
+    "updated_unix": 1791012250.2728112
+  },
+  "queue_rows": [
+    {
+      "name": "E2_prototypes16384",
+      "run_id": "nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-remaining-2871c4e/nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+      "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f"
+    },
+    {
+      "name": "E3_unit_distillation_no_spread_koleo",
+      "run_id": "nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-remaining-2871c4e/nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+      "config_sha256": "6982785ffac1b5ac3f681956ddf8ad51af2aa505e3f02e22572876cb7d34cb2a"
+    }
+  ],
+  "new_e1_plan_present": false,
+  "completed_e1": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+    "complete_sha256": "b07436c72959d4b4bdb387b0cb68c803a66381ee387cbf96d32b90e3a4238bae",
+    "native_src_tree": "ed919ee6eaed01aa7a778c7fa276f87f2a496758",
+    "collected_rows": [
+      {
+        "role": "best",
+        "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+        "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+        "training_sha": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+        "status": "complete"
+      },
+      {
+        "role": "last",
+        "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+        "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+        "training_sha": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+        "status": "complete"
+      }
+    ],
+    "receipt_check": {
+      "path": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea/COMPLETE.json",
+      "exists": true,
+      "sha256": "b07436c72959d4b4bdb387b0cb68c803a66381ee387cbf96d32b90e3a4238bae",
+      "sha_matches": true
+    }
+  },
+  "baseline": {
+    "path": "/data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+    "complete_sha256": "eed7639df43cd20c62292b612aa4c8044267cc84078ba876243b7f8b5efd7306"
+  },
+  "terminal_receipts": {
+    "FAILURE.json": "absent",
+    "COMPLETE.json": "absent"
+  },
+  "source": {
+    "path": "/data/yilangliu/GraD-Pert/development/source-v2-cap40-repair-2871c4e",
+    "sha": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+    "clean": true,
+    "status_count": 0
+  },
+  "runtime": {
+    "path": "/data/yilangliu/GraD-Pert/development/v2-cap40-remaining-2871c4e.runtime.json",
+    "sha256": "de87592aa86462e843dfa65ce0960ab78c4c1ea2e999dae144eaed1d3210ae60"
+  },
+  "preflight_child": {
+    "pid": 742960,
+    "alive": true,
+    "ppid": 742925,
+    "output": "/data/yilangliu/GraD-Pert/development/v2-cap40-remaining-2871c4e-20261003T072407Z/E2_prototypes16384-preflight",
+    "steps": "128"
+  },
+  "gpu_snapshot": [
+    {
+      "index": "0",
+      "memory_used_mib": 30388,
+      "utilization_percent": 38
+    },
+    {
+      "index": "1",
+      "memory_used_mib": 30128,
+      "utilization_percent": 34
+    }
+  ],
+  "logs": {
+    "external_tail": [],
+    "E2_preflight_tail": []
+  },
+  "note": "Correction: completed_e1.root and collected_rows were read using their actual field names; best and last rows both report complete, and root/COMPLETE.json SHA256 matches completed_e1.complete_sha256."
+}

@@ -1,0 +1,23 @@
+{
+  "schema": "cap40-remaining-supervisor-ack-v1",
+  "observed_at": "2026-10-03T07:35:43Z",
+  "queue_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
+  "attempt": 1,
+  "owner_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+  "stage": "supervise",
+  "handoff_path": ".byte-os/coordination/handoffs/2026-10-03-v2-cap40-remaining-supervise.md",
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-cap40-remaining-2871c4e-20261003T072407Z",
+  "controller": {"pid": 742925, "alive": true, "phase": "preflight", "row": "E2_prototypes16384", "child_pid": 742960},
+  "preflight": {"pid": 742960, "alive": true, "parent_pid": 742925, "kind": "capacity_only", "status": "running", "steps_completed": 24, "steps_requested": 128, "inference_exercised": true, "formal_training_started": false, "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f", "source_commit": "2871c4e79a70b7d0d4f900866ce019316b68670f", "formal_eligible": true},
+  "source": {"commit": "2871c4e79a70b7d0d4f900866ce019316b68670f", "clean": true, "porcelain_status_count": 0},
+  "runtime_sha256": "de87592aa86462e843dfa65ce0960ab78c4c1ea2e999dae144eaed1d3210ae60",
+  "publication_sha256": "1956abd0f30b2a1895461bc34993ede55287a1c803d0194594d5029a258d367b",
+  "queue_rows": {
+    "E2_prototypes16384": {"run_id": "nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f", "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f"},
+    "E3_unit_distillation_no_spread_koleo": {"run_id": "nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c", "config_sha256": "6982785ffac1b5ac3f681956ddf8ad51af2aa505e3f02e22572876cb7d34cb2a"}
+  },
+  "preserved_e1": {"root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea", "complete_sha256": "b07436c72959d4b4bdb387b0cb68c803a66381ee387cbf96d32b90e3a4238bae", "native_source_tree": "ed919ee6eaed01aa7a778c7fa276f87f2a496758", "best_and_last_status": "complete", "training_and_evaluation_sha": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d", "old_failed_queue_resumed": false, "e1_retrained": false},
+  "gpu_snapshot": [{"index": 0, "memory_used_mib": 31712, "utilization_percent": 28}, {"index": 1, "memory_used_mib": 31452, "utilization_percent": 28}],
+  "automation": {"id": "grad-pert-v2", "local_automation_status": "ACTIVE", "interval_minutes": 20, "target_thread_id": "01a0df0b-4142-7df1-86c0-d959471d80a1", "view_tool_invoked": true, "view_tool_reported": "Rendered automation card in the app"},
+  "acceptance": "Bounded independent ACK: exact owner/run/attempt matched; controller and live E2 128-step capacity preflight were verified; source, runtime, publication, queue rows, and accepted imported E1 identity matched. Preflight is still running at 24/128; formal E2/E3 training has not begun. Existing queue and unrelated GPU work were left untouched."
+}

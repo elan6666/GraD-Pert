@@ -1,0 +1,48 @@
+{
+  "outcome": "accepted_complete",
+  "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+  "root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+  "training_evaluation_sha": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+  "collector_validation_sha": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+  "config_sha256": "5718b2c298aaed31ae796205be5f8597a060da4106e4b0017e35f605dff68686",
+  "resolved_sha256": "ba77db19861c7e65b3f9b0bf99a0e5dcfffa0dbaa10e861019a801d48da2b92a",
+  "run_manifest_sha256": "6f2ed1e4e40dd35cc4ff9d85c3e88e1fbdd218b81d16867a3a6e9e4cc4e2a391",
+  "complete_sha256": "b07436c72959d4b4bdb387b0cb68c803a66381ee387cbf96d32b90e3a4238bae",
+  "native_src_git_tree": "ed919ee6eaed01aa7a778c7fa276f87f2a496758",
+  "best_last_epoch": 6,
+  "checkpoint_sha256": "9f18f995f16e9d7852c8fff377cc2ccad9ed845cce210b8be8c24b37041bb86d",
+  "best_joint_loss": 4.235658792155981,
+  "test_prediction_loss": 0.00616327746926784,
+  "best_test_receipt_sha256": "f00734e7ca33dc2ef7ada70aef05abab6276091cfc0c340407c0077f504104db",
+  "last_test_receipt_sha256": "099cdd61ada3d060ddd9b6524c1029e098e68db109d0a8bd22f062c8ce06fc25",
+  "pearson_all_deg": {
+    "TxPert": [
+      0.2180073754690289,
+      0.3813368993303338
+    ],
+    "TriShift": [
+      0.16987936935407638,
+      0.3539306890383695
+    ],
+    "Systema": [
+      0.07527136331787235,
+      0.21456557835263368
+    ]
+  },
+  "all_finite_conditions": 592,
+  "deg_finite_conditions": 590,
+  "all_test_conditions": 592,
+  "checks": {
+    "complete_history6": true,
+    "min_joint_best6_and_last6": true,
+    "both_checkpoint_hashes_validated_by_collector": true,
+    "identical_data_selection_seed_to_b0": true,
+    "resolved_config_exact": true,
+    "test_identity_training_and_evaluation_data_match": true,
+    "native_src_tree_unchanged": true,
+    "zero_pkl_recursive_scan": true
+  },
+  "original_queue_failed_not_model_run": true,
+  "original_e2_e3_formal_not_started": true,
+  "old_source_config_results_preserved": true
+}

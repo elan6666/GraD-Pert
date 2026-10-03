@@ -1,0 +1,52 @@
+{
+  "schema": "cap40-three-ablations-terminal-receipt-v1",
+  "observed_at": "2026-10-01T21:41:20.661Z",
+  "queue_id": "v2-cap40-ablations-ac220f5-20261001T060835Z",
+  "attempt": 1,
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z",
+  "source_commit": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+  "runtime_sha256": "fb327a18d0f93cdc5dba968e38dc8031a64c18ff6040998bc71ae18b5ce84eeb",
+  "publication_sha256": "3e850573eba4c7d36d379b49326fa913bc27f6241d9389f1345a8edcc90073b7",
+  "queue_state": {
+    "status": "failed",
+    "phase": "formal",
+    "row": "E1_no_mhc",
+    "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+    "controller_pid": 368656,
+    "controller_alive_at_observation": false,
+    "failure_json": "/data/yilangliu/GraD-Pert/development/v2-cap40-ablations-ac220f5-20261001T060835Z/FAILURE.json",
+    "error_type": "ValueError",
+    "error": "run has no supported fixed-epoch v2 contract",
+    "failure_location": "scripts/v2/run_group.py:next_action -> collect_results.py:collect_run"
+  },
+  "e1": {
+    "config_sha256": "5718b2c298aaed31ae796205be5f8597a060da4106e4b0017e35f605dff68686",
+    "formal_exit_code": 0,
+    "complete_json": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea/COMPLETE.json",
+    "epochs_complete": 6,
+    "selection_metric": "joint_loss",
+    "best_epoch": 6,
+    "best_joint_loss": 4.235658792155981,
+    "best_checkpoint_sha256": "9f18f995f16e9d7852c8fff377cc2ccad9ed845cce210b8be8c24b37041bb86d",
+    "last_epoch": 6,
+    "last_checkpoint_sha256": "9f18f995f16e9d7852c8fff377cc2ccad9ed845cce210b8be8c24b37041bb86d",
+    "test_role_receipts": [
+      "fit/best-test.json",
+      "fit/last-test.json"
+    ],
+    "test_roles": ["best", "last"],
+    "zero_pkl": true
+  },
+  "remaining_rows": {
+    "E2_formal_started": false,
+    "E3_formal_started": false
+  },
+  "zero_pkl_scan": {
+    "scope": "all three pinned run roots",
+    "pkl_files_found": 0
+  },
+  "queue_complete": false,
+  "monitor": "paused via automation_update; tool returned status=PAUSED; local automation.toml confirmed PAUSED",
+  "next_owner": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+  "main_continuation": "pending"
+}

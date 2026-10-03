@@ -1,3 +1,27 @@
+## 2026-10-03: remaining supervision armed and acknowledged
+
+Queue/controller identity and source/runtime confirmed independently by Luna, then designated supervisor. E2 sustained128 capacity probe is active24/128 at independent ACK (formal training not yet begun). Its dual-GPU memory snapshot31712/31452MiB is an instantaneous observation, not peak capacity acceptance. Existing grad-pert-v2 monitor ACTIVE20min on exact supervisor/queue/attempt1; mainreturnfallback PAUSED. ACK .byte-os/coordination/receipts/v2-cap40-remaining-supervisor-ack-20261003T0735Z.json. This supersedes pending-ACK and connectivity-block notes below; no second long supervisor remains.
+
+# 2026-10-03 repair and E1 accepted result
+
+Old queue attempt1 failed after successful E1 because the terminal collector omitted v2_fixed_6. Its failure marker/log and all old identities remain intact. Main independently re-read server terminal/test receipts, exact data identity, zeroPKL and hashes. Repaired collector at2871c4e79a70b7d0d4f900866ce019316b68670f accepted E1; its training/evaluation SHA stays ac220f5e90e9e5c0c9900cdb2c285a629297c93d. Collector repair is not a new model evaluation. Native src tree ed919ee6eaed01aa7a778c7fa276f87f2a496758 is unchanged.
+
+Best and last are both epoch6 (checkpoint9f18f995f16e9d7852c8fff377cc2ccad9ed845cce210b8be8c24b37041bb86d). Test prediction loss0.0061632775. All metrics592 finite conditions; DEG590 of592, matching B0's insufficient-cell DE omissions.
+
+| Metric | B0 mHC all / DEG | E1 no-mHC all / DEG |
+|---|---|---|
+| TxPert | 0.212492 / 0.380273 | 0.218007 / 0.381337 |
+| TriShift | 0.166488 / 0.351775 | 0.169879 / 0.353931 |
+| Systema | 0.079602 / 0.232675 | 0.075271 / 0.214566 |
+
+These are one-seed descriptive comparisons, not significance or a hyperparameter-selection rule. mHC/no-mHC differences are mixed across metrics. Test results do not change the remaining frozen designs. Identity and acceptance: .byte-os/evidence/v2-cap40-three-ablations-20261001/e1-independent-acceptance-20261003.json.
+
+110 local/server checks passed for collector fixed6 and completed-E1 import; Ruff passed. New immutable server source /data/yilangliu/GraD-Pert/development/source-v2-cap40-repair-2871c4e, matching published repairSHA. Runtime SHA de87592aa86462e843dfa65ce0960ab78c4c1ea2e999dae144eaed1d3210ae60, publication SHA1956abd0f30b2a1895461bc34993ede55287a1c803d0194594d5029a258d367b.
+
+Remaining queue v2-cap40-remaining-2871c4e-20261003T072407Z, controller742925, root/data/yilangliu/GraD-Pert/development/v2-cap40-remaining-2871c4e-20261003T072407Z. --completed-e1 references accepted old E1; no new E1 plan. E2/E3 get fresh IDs. Both original preflights passed (E2 sustained128 atpeak31972887040bytes); they are repeated under the repaired full source identity to satisfy existing exact-source gates. Formal budget/microbatch/losses stay unchanged. Queue launch exists, live startup verification and new supervisor lease pending at this record; later dated acknowledgement supersedes it.
+
+---
+
 # Jurkat cap40 three-ablation execution
 
 Execution authorized on 2026-10-01 after independent acceptance of the cap40 mHC six-epoch B0. This is an execution record; new scientific results are not yet available.
