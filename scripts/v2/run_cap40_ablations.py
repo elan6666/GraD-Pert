@@ -29,6 +29,14 @@ ROWS = (
 )
 
 
+COMBINED_ROWS = (
+    (
+        "E23_prototypes16384_unit_distillation",
+        "7214e3e382232ae8856998544514c54aecd048aeec2ab3cb8f329c7157c08df8",
+    ),
+)
+
+
 def idle_devices(output: str) -> bool:
     usage = {
         p[0].strip(): int(p[1])
@@ -79,7 +87,15 @@ def validate_completed_e1(root: Path, baseline: Path) -> dict:
     }
 
 
-def prepare(runtime: Path, baseline: Path, completed_e1: Path | None = None) -> dict:
+def prepare(
+    runtime: Path,
+    baseline: Path,
+    completed_e1: Path | None = None,
+    *,
+    combined_twenty: bool = False,
+) -> dict:
+    if combined_twenty and completed_e1 is not None:
+        raise ValueError("combined twenty-epoch run does not import an E1")
     complete = json.loads((baseline / "COMPLETE.json").read_text())
     journal = json.loads((baseline / "fit/epoch_state.json").read_text())
     if complete["epoch"] != 6 or journal["epoch"] != 6 or not complete["zero_pkl"]:
@@ -87,10 +103,10 @@ def prepare(runtime: Path, baseline: Path, completed_e1: Path | None = None) -> 
     source = Path(__file__).resolve().parents[2]
     imported = validate_completed_e1(completed_e1, baseline) if completed_e1 else None
     rows = []
-    for name, digest in ROWS:
-        config = (
-            source / "configs/v2/cap40_ablations_jurkat" / name / "gradpert_v2/nadig_jurkat.yaml"
-        )
+    family = "cap40_combined_jurkat" if combined_twenty else "cap40_ablations_jurkat"
+    approved = COMBINED_ROWS if combined_twenty else ROWS
+    for name, digest in approved:
+        config = source / "configs/v2" / family / name / "gradpert_v2/nadig_jurkat.yaml"
         if sha256_file(config) != digest:
             raise ValueError("approved cap40 configuration changed")
         if imported and name == "E1_no_mhc":
@@ -110,7 +126,11 @@ def prepare(runtime: Path, baseline: Path, completed_e1: Path | None = None) -> 
         if result["identity"]["role"] != role or result["result"]["split"] != "test":
             raise ValueError("baseline frozen test role is missing")
     return {
-        "schema": "cap40-three-ablations-queue-v1",
+        "schema": (
+            "cap40-combined-twenty-queue-v1"
+            if combined_twenty
+            else "cap40-three-ablations-queue-v1"
+        ),
         "baseline": str(baseline),
         "baseline_complete_sha256": sha256_file(baseline / "COMPLETE.json"),
         "completed_e1": imported,
@@ -274,6 +294,7 @@ def main() -> None:
     parser.add_argument("--baseline", type=Path, required=True)
     parser.add_argument("--queue-root", type=Path, required=True)
     parser.add_argument("--completed-e1", type=Path)
+    parser.add_argument("--combined-twenty", action="store_true")
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args()
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
@@ -282,7 +303,9 @@ def main() -> None:
         parser.error("queue outputs stay on server")
     if args.completed_e1 and not args.completed_e1.resolve().is_relative_to("/data/yilangliu"):
         parser.error("completed E1 evidence stays on server")
-    queue = prepare(args.runtime, args.baseline, args.completed_e1)
+    queue = prepare(
+        args.runtime, args.baseline, args.completed_e1, combined_twenty=args.combined_twenty
+    )
     args.queue_root.mkdir(parents=True, exist_ok=False)
     atomic_json(args.queue_root / "queue.json", queue)
     if args.execute:

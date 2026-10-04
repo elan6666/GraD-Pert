@@ -1,3 +1,7 @@
+## 2026-10-05：组合实验与并行实验需区分
+
+用户“2、3开启”在本次明确指②＋③同时作用于同一模型，单次从头20轮，不能据编号自动拆为两组训练。将是否组合的含义写进配置名、计划和队列行数；启动核验必须确认仅一行E23。
+
 # Fixed-epoch protocols must cover terminal collection and queue advancement
 
 Confirmed 2026-10-02/03: training/CLI/schema accepted v2_fixed_6, but result collector retained only1/3/5/50 and failed after a successful six-epoch E1. Individual launch/capacity checks did not exercise post-training next_action. Prevention: every supported protocol needs a synthetic complete history/journal/checkpoint/test fixture traversing collector and queue skip_complete, including joint-only selection and invalid evidence. Collector rejection must preserve completed runs; recovery imports validated completed rows and gives remaining rows fresh IDs instead of rerunning successful work.

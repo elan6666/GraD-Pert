@@ -158,3 +158,46 @@ def test_repaired_queue_plans_only_remaining_e2_e3(tmp_path, monkeypatch):
     ]
     assert len(configs) == 2
     assert planned["completed_e1"] == {"verified": True}
+
+
+def test_combined_twenty_plans_one_capacity_row(tmp_path, monkeypatch):
+    baseline = tmp_path / "baseline"
+    (baseline / "fit").mkdir(parents=True)
+    (baseline / "COMPLETE.json").write_text(json.dumps({"epoch": 6, "zero_pkl": True}))
+    (baseline / "fit/epoch_state.json").write_text(json.dumps({"epoch": 6}))
+    for role in ("best", "last"):
+        (baseline / "fit" / f"{role}-test.json").write_text(
+            json.dumps({"identity": {"role": role}, "result": {"split": "test"}})
+        )
+    configs = []
+
+    def resolver(args):
+        configs.append(args.config)
+        cfg = queue.load_experiment_config(args.config)
+        assert cfg.continuation is None
+        assert cfg.training.formal_run_policy == "v2_fixed_20"
+        assert cfg.training.max_epochs.value == 20
+        return {"run_id": "fresh-combined-twenty"}
+
+    monkeypatch.setattr(queue, "resolve_plan", resolver)
+    planned = queue.prepare(Path("runtime"), baseline, combined_twenty=True)
+    assert planned["schema"] == "cap40-combined-twenty-queue-v1"
+    assert len(configs) == len(planned["rows"]) == 1
+    assert planned["rows"][0]["probe_kind"] == "capacity_only"
+    assert planned["rows"][0]["name"] == "E23_prototypes16384_unit_distillation"
+    combined = queue.load_experiment_config(configs[0]).model_dump(mode="json")
+    parent = queue.load_experiment_config(
+        ROOT
+        / "configs/v2/cap40_ablations_jurkat"
+        / "E3_unit_distillation_no_spread_koleo/gradpert_v2/nadig_jurkat.yaml"
+    ).model_dump(mode="json")
+    assert combined["model"]["parameters"]["prototypes"]["value"] == 16384
+    combined["model"]["parameters"]["prototypes"]["value"] = 8192
+    combined["training"]["formal_run_policy"] = parent["training"]["formal_run_policy"]
+    combined["training"]["max_epochs"] = parent["training"]["max_epochs"]
+    assert combined == parent
+
+
+def test_combined_twenty_cannot_import_e1():
+    with pytest.raises(ValueError, match="does not import"):
+        queue.prepare(Path("runtime"), Path("baseline"), Path("e1"), combined_twenty=True)

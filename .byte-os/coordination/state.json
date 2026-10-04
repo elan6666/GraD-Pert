@@ -1,5 +1,5 @@
 {
-  "acceptance": "Accepted unchanged E1 plus exact E2/E3 preflights,6epochs,best/last true tests/identity/noFAILURE/zeroPKL and queue COMPLETE.",
+  "acceptance": "One combined E23: exact128 preflight,20 committed epochs,best/last frozen tests,hashes,noFAILURE,zeroPKL.",
   "frozen_paths": [
     "TxPert/official-repo/**",
     "data/**",
@@ -164,7 +164,7 @@
     "run_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
     "attempt": 1
   },
-  "next_action": "Resolve fresh20 versus complete-state continuation6-to20; then publish exact configs and launch E2/E3 only.",
+  "next_action": "Publish and launch one combined E23 fresh20-epoch queue with exact sustained preflight and supervision.",
   "owner": "codex",
   "owner_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
   "participants": {
@@ -340,11 +340,10 @@
   },
   "pending_request": {
     "arms": [
-      "E2",
-      "E3"
+      "E23_combined"
     ],
     "total_epochs": 20,
-    "training_origin": "awaiting_user_choice",
+    "training_origin": "fresh",
     "plan": ".byte-os/plans/GRADPERT_V2_CAP40_E2_E3_TWENTY_EPOCH_20261005.plan.md",
     "new_run_launched": false
   }

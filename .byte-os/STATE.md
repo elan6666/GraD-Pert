@@ -1,3 +1,7 @@
+## 2026-10-05：用户澄清为②＋③合并、从头20轮
+
+仅一个E23配置：prototypes16384，SSL1/SSL2各(1,1,0)，mHC4；其余cap40/global272/joint-only/frozen tests保持。此前两条20轮请求解释已被覆盖。准备合并配置和资源门槛队列，尚未启动新作业。
+
 ## 2026-10-05：E2/E3 20轮新请求准备中
 
 用户授权②③20epoch；从头20轮或完整状态6→20的起点待用户选择。fixed20 schema/planner/native/collector已发布，代码SHA f3620b0d439778a7f1ed21d894e3d06bcdea0b3f；本地112、服务器119定向检查及Ruff通过，服务器源码前后干净。旧六轮结果冻结，新配置/双卡预检/正式队列待起点确定后准备。当前GPU1有其他任务，继续既有空闲门槛。没有新训练或监控启动。计划 `.byte-os/plans/GRADPERT_V2_CAP40_E2_E3_TWENTY_EPOCH_20261005.plan.md`。
