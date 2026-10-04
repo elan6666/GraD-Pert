@@ -1,0 +1,46 @@
+{
+  "scope": "one combined E23 fresh20 run",
+  "baseline_sha": "067c23e781e2efe64b3f6e8b4a435b123328c4a0",
+  "training_sha": "e27f49166dae688eb35444331a1ef1916238efe7",
+  "config_sha256": "7214e3e382232ae8856998544514c54aecd048aeec2ab3cb8f329c7157c08df8",
+  "source_root": "/data/yilangliu/GraD-Pert/development/source-v2-cap40-e23-e27f491",
+  "runtime": "/data/yilangliu/GraD-Pert/development/v2-cap40-e23-e27f491.runtime.json",
+  "runtime_sha256": "498d94a1b6cb533753d2eb34bdc5db9b3fc2ba079119e20b9a044c23245b4fe0",
+  "publication": "/data/yilangliu/GraD-Pert/development/gradpert-cap40-e23-e27f491-publication.json",
+  "publication_sha256": "2ce7ccd3aa519990f6ca63d0e356c7dfe7a52e00c83f65977c6d5a4dbd0dcbb5",
+  "local_checks": {
+    "pytest": 114,
+    "ruff": "passed",
+    "train_entry_requires_server_torch": true
+  },
+  "server_checks": {
+    "pytest": 133,
+    "ruff": "passed",
+    "clean_before_after": true
+  },
+  "training_origin": "fresh",
+  "total_epochs": 20,
+  "global_batch": 272,
+  "prototypes": 16384,
+  "mhc_streams": 4,
+  "ssl1_weights": [
+    1,
+    1,
+    0
+  ],
+  "ssl2_weights": [
+    1,
+    1,
+    0
+  ],
+  "lambda1": 1,
+  "lambda2": 1,
+  "training_launched": false,
+  "vpn_recovery": {
+    "live_ui": "expired logout -> relogin -> authenticated SMBU service with10.24.1.91 resource",
+    "tcp22": true,
+    "key_ssh": true
+  },
+  "pipeline_launched": true,
+  "startup_receipt": "startup.json"
+}

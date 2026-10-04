@@ -1,0 +1,55 @@
+{
+  "schema": "v2-cap40-e23-twenty-supervisor-ack-v1",
+  "observed_at_utc": "2026-10-04T20:47:28Z",
+  "owner_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+  "stage": "supervise",
+  "queue_id": "v2-cap40-e23-twenty-e27f491-20261004T203648Z-5d34d6ae",
+  "attempt": 1,
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-cap40-e23-twenty-e27f491-20261004T203648Z-5d34d6ae",
+  "formal_run_id": "nadig_jurkat-seed1-20261004T203649Z-92795c7f9d624474a884450c675d2d80",
+  "row": "E23_prototypes16384_unit_distillation",
+  "source": {
+    "commit": "e27f49166dae688eb35444331a1ef1916238efe7",
+    "dirty": false,
+    "config_sha256": "7214e3e382232ae8856998544514c54aecd048aeec2ab3cb8f329c7157c08df8"
+  },
+  "live_check": {
+    "controller_pid": 1035599,
+    "controller_alive": true,
+    "child_pid": 1035616,
+    "child_alive": true,
+    "phase": "preflight",
+    "queue_status": "running",
+    "preflight": {
+      "kind": "capacity_only",
+      "status": "running",
+      "steps_completed": 24,
+      "steps_requested": 128,
+      "world_size": 2,
+      "gpu": "0,1",
+      "inference_exercised": true
+    },
+    "gpu_compute_processes": [
+      {
+        "pid": 1035632,
+        "used_memory_mib": 19820
+      },
+      {
+        "pid": 1035633,
+        "used_memory_mib": 19820
+      }
+    ],
+    "complete_marker": false,
+    "failure_marker": false
+  },
+  "monitor": {
+    "id": "grad-pert-e23-twenty",
+    "status": "ACTIVE",
+    "interval_minutes": 20,
+    "rrule": "FREQ=MINUTELY;INTERVAL=20",
+    "target_thread_id": "01a0df0b-4142-7df1-86c0-d959471d80a1",
+    "saved_automation_verified": true,
+    "automation_toml": "/Users/elan/.codex/automations/grad-pert-e23-twenty/automation.toml"
+  },
+  "assessment": "Supervisor acknowledges exact run and scope. Capacity preflight is in progress, not formal 20-epoch training or a scientific result. No restart or new run launched."
+}

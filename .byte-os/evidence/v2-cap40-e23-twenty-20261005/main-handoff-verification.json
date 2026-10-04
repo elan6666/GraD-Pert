@@ -1,0 +1,19 @@
+{
+  "queue_id": "v2-cap40-e23-twenty-e27f491-20261004T203648Z-5d34d6ae",
+  "attempt": 1,
+  "supervisor_ack": ".byte-os/coordination/receipts/v2-cap40-e23-twenty-supervisor-ack-20261005T0447Z.json",
+  "main_verified_monitor": {
+    "status": "ACTIVE",
+    "target": "01a0df0b-4142-7df1-86c0-d959471d80a1",
+    "interval_minutes": 20,
+    "exact_run_in_prompt": true
+  },
+  "return_fallback": {
+    "id": "grad-pert-e23-twenty-return",
+    "status": "PAUSED",
+    "target": "01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+    "interval_minutes": 5
+  },
+  "phase_at_ack": "capacity128 preflight24/128; formal training not yet started",
+  "training_sha": "e27f49166dae688eb35444331a1ef1916238efe7"
+}

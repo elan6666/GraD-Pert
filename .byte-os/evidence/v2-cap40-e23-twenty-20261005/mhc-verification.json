@@ -1,0 +1,12 @@
+{
+  "startup_receipt": "startup.json",
+  "mHC_enabled": true,
+  "streams": 4,
+  "explanation": "mHC is configured by model.parameters.streams, not by an mHC-named field. streams=4 selects learned ManifoldResidual/CrossManifoldResidual; streams=1 bypasses routing. The startup helper name-only check is superseded by this code/config verification.",
+  "code": [
+    "src/gradpert/modeling/v2/model.py:395",
+    "src/gradpert/modeling/v2/operators.py:718",
+    "src/gradpert/modeling/v2/operators.py:754"
+  ],
+  "training_sha": "e27f49166dae688eb35444331a1ef1916238efe7"
+}

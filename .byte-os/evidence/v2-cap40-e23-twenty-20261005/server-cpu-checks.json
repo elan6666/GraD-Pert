@@ -1,0 +1,24 @@
+{
+  "expected_sha": "e27f49166dae688eb35444331a1ef1916238efe7",
+  "pre_sha": "e27f49166dae688eb35444331a1ef1916238efe7",
+  "post_sha": "e27f49166dae688eb35444331a1ef1916238efe7",
+  "pre_worktree_clean": true,
+  "post_worktree_clean": true,
+  "pytest_summary": "133 passed, 2 warnings in 13.87s",
+  "checks": [
+    {
+      "name": "pytest",
+      "returncode": 0
+    },
+    {
+      "name": "ruff_check",
+      "returncode": 0
+    },
+    {
+      "name": "ruff_format",
+      "returncode": 0
+    }
+  ],
+  "log_file": "/data/yilangliu/GraD-Pert/development/v2-e23-e27f491-cpu-checks.log",
+  "completed_unix": 1791146150
+}

@@ -1,0 +1,48 @@
+{
+  "queue_id": "v2-cap40-e23-twenty-e27f491-20261004T203648Z-5d34d6ae",
+  "attempt": 1,
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-cap40-e23-twenty-e27f491-20261004T203648Z-5d34d6ae",
+  "controller_pid": 1035599,
+  "log": "/data/yilangliu/GraD-Pert/development/v2-cap40-e23-twenty-e27f491-20261004T203648Z-5d34d6ae.log",
+  "pid_file": "/data/yilangliu/GraD-Pert/development/v2-cap40-e23-twenty-e27f491-20261004T203648Z-5d34d6ae.pid",
+  "command": [
+    "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+    "/data/yilangliu/GraD-Pert/development/source-v2-cap40-e23-e27f491/scripts/v2/run_cap40_ablations.py",
+    "--runtime",
+    "/data/yilangliu/GraD-Pert/development/v2-cap40-e23-e27f491.runtime.json",
+    "--baseline",
+    "/data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+    "--queue-root",
+    "/data/yilangliu/GraD-Pert/development/v2-cap40-e23-twenty-e27f491-20261004T203648Z-5d34d6ae",
+    "--combined-twenty",
+    "--execute"
+  ],
+  "training_sha": "e27f49166dae688eb35444331a1ef1916238efe7",
+  "source_root": "/data/yilangliu/GraD-Pert/development/source-v2-cap40-e23-e27f491",
+  "cpu_checks": {
+    "expected_sha": "e27f49166dae688eb35444331a1ef1916238efe7",
+    "pre_sha": "e27f49166dae688eb35444331a1ef1916238efe7",
+    "post_sha": "e27f49166dae688eb35444331a1ef1916238efe7",
+    "pre_worktree_clean": true,
+    "post_worktree_clean": true,
+    "pytest_summary": "133 passed, 2 warnings in 13.87s",
+    "checks": [
+      {
+        "name": "pytest",
+        "returncode": 0
+      },
+      {
+        "name": "ruff_check",
+        "returncode": 0
+      },
+      {
+        "name": "ruff_format",
+        "returncode": 0
+      }
+    ],
+    "log_file": "/data/yilangliu/GraD-Pert/development/v2-e23-e27f491-cpu-checks.log",
+    "completed_unix": 1791146150
+  },
+  "status": "launched_startup_verification_pending",
+  "gpu": "0,1"
+}
