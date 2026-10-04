@@ -1,3 +1,7 @@
+## 2026-10-05 最终验收
+
+B0/E1/E2/E3 六轮、best/last真测试和身份核验全部完成；E2持续128容量通过。E1保留原结果，替换队列仅重做E2/E3。三组对照、表达可见性分组及所有分项loss已归档，监控删除，无下一运行。正式阶段分离墙时/全程峰值没有保存，诚实记为缺失；预检性能单独标注，不补跑或推测。见 `docs/experiments/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.md` 与最终验收证据目录。以下计划为冻结的历史设计，未因测试结果修改配置。
+
 ## 2026-10-03: terminal collector repair and remaining queue
 
 Original queue attempt1 reached E1 formal exit0/six epochs/tests then failed because collect_results did not recognize the already-supported v2_fixed_6 policy. E2/E3 preflights completed in the original attempt; their formal runs never started. Supervisor returned ownership, both monitors paused, main began repair. E1 terminal identity still needs independent server acceptance when connectivity returns.

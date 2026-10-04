@@ -1,0 +1,86 @@
+{
+  "E2_prototypes16384": {
+    "preflight_receipt_sha256": "8abfc81a76aa515def861fbe7a71a5e19dda013c60140bc78abadeceb1faa738",
+    "status": "passed",
+    "steps_completed": 128,
+    "steps_requested": 128,
+    "inference_exercised": true,
+    "measured_update_median_seconds": 22.990874597802758,
+    "measured_update_p95_seconds": 24.113540505617856,
+    "peak_allocated_bytes": 31972887040,
+    "peak_reserved_bytes": 32281460736,
+    "cells_per_second": 11.82791985880034,
+    "end_to_end_training_cells_per_second": 11.177460826886144,
+    "startup_seconds_until_training": 7.719302827492356,
+    "training_wall_seconds": 3114.8398137306795,
+    "timing_limitations": "step-boundary synchronization; checkpoints excluded from measured update/gap samples but included in wall time; profiled last update excluded from samples; wall throughput with profiler enabled is diagnostic only",
+    "rank_memory": [
+      {
+        "rank": 0,
+        "physical_gpu": "0",
+        "peak_allocated_bytes": 31972887040,
+        "peak_reserved_bytes": 32281460736
+      },
+      {
+        "rank": 1,
+        "physical_gpu": "1",
+        "peak_allocated_bytes": 31722863104,
+        "peak_reserved_bytes": 32008830976
+      }
+    ],
+    "formal_live_progress": {
+      "epoch": 6,
+      "epochs_total": 6,
+      "phase": "complete",
+      "run_id": "nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+      "schema_version": "gradpert-v2-live-progress-1",
+      "test_roles": [
+        "best",
+        "last"
+      ]
+    },
+    "available_log_files": []
+  },
+  "E3_unit_distillation_no_spread_koleo": {
+    "preflight_receipt_sha256": "bb870b34359184cc4b04ed363acaf6a4a100b6d1ba7757091aed1b01ee9b4e81",
+    "status": "passed",
+    "steps_completed": 1,
+    "steps_requested": 1,
+    "inference_exercised": false,
+    "measured_update_median_seconds": 28.020756578072906,
+    "measured_update_p95_seconds": 28.020756578072906,
+    "peak_allocated_bytes": 16604860416,
+    "peak_reserved_bytes": 16852713472,
+    "cells_per_second": 9.707089786892059,
+    "end_to_end_training_cells_per_second": 8.666889565692587,
+    "startup_seconds_until_training": 6.660676647908986,
+    "training_wall_seconds": 31.383808220736682,
+    "timing_limitations": "step-boundary synchronization; checkpoints excluded from measured update/gap samples but included in wall time; profiled last update excluded from samples; wall throughput with profiler enabled is diagnostic only",
+    "rank_memory": [
+      {
+        "rank": 0,
+        "physical_gpu": "0",
+        "peak_allocated_bytes": 16604860416,
+        "peak_reserved_bytes": 16852713472
+      },
+      {
+        "rank": 1,
+        "physical_gpu": "1",
+        "peak_allocated_bytes": 16604860416,
+        "peak_reserved_bytes": 16852713472
+      }
+    ],
+    "formal_live_progress": {
+      "epoch": 6,
+      "epochs_total": 6,
+      "phase": "complete",
+      "run_id": "nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+      "schema_version": "gradpert-v2-live-progress-1",
+      "test_roles": [
+        "best",
+        "last"
+      ]
+    },
+    "available_log_files": []
+  }
+}

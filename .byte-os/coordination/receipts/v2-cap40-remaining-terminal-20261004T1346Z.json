@@ -1,0 +1,113 @@
+{
+  "schema": "v2-cap40-remaining-terminal-supervision-v1",
+  "observed_at": "2026-10-04T17:13:29Z",
+  "queue_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
+  "attempt": 1,
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-cap40-remaining-2871c4e-20261003T072407Z",
+  "terminal": {
+    "status": "complete",
+    "phase": "complete",
+    "row": "E3_unit_distillation_no_spread_koleo",
+    "controller_pid": 742925,
+    "child_pid": null,
+    "finished_at_utc": "2026-10-04T13:46:26Z",
+    "complete_sha256": "4c2ff13cee70a74b5e19359541ab556dfdb8fbe99d3326b145c71d42937892e1",
+    "failure_json": false,
+    "queue_pkl_count": 0,
+    "gpu_memory_snapshot": "0:2MiB,1:2MiB"
+  },
+  "source": {
+    "commit": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+    "dirty": false,
+    "runtime_sha256": "de87592aa86462e843dfa65ce0960ab78c4c1ea2e999dae144eaed1d3210ae60",
+    "publication_sha256": "1956abd0f30b2a1895461bc34993ede55287a1c803d0194594d5029a258d367b"
+  },
+  "completed_e1": {
+    "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+    "training_and_evaluation_commit": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+    "complete_sha256": "b07436c72959d4b4bdb387b0cb68c803a66381ee387cbf96d32b90e3a4238bae",
+    "best_last_epoch": 6,
+    "best_joint_loss": 4.235658792155981,
+    "zero_pkl": true,
+    "test_roles": [
+      "best",
+      "last"
+    ],
+    "acceptance": "Previously independently accepted by main; imported into replacement queue without rerunning E1."
+  },
+  "runs": {
+    "E2_prototypes16384": {
+      "run_id": "nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+      "run_complete_sha256": "f83b92636b13f4167306eccc0c97312df6debe5087a076855e13671367d0ec10",
+      "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f",
+      "resolved_config_sha256": "e26c453d79fbc56df93501b13f454ac51cdb9b2d5891e5da84049c707070c5b5",
+      "formal_exit_code": 0,
+      "preflight_exit_code": 0,
+      "epoch_history": 6,
+      "best_epoch": 6,
+      "best_joint_loss": 4.218106863307016,
+      "last_epoch": 6,
+      "checkpoint_sha256": "35349edebeba8014c45758ddd4e868081d5da25fb89155e12ebbf1f126863339",
+      "best_test_sha256": "a1f2ec282c38d02279b083a9b0a3b9ad8579cd0313b996585af312137792971c",
+      "last_test_sha256": "5a2942ea2a3a60d4ba3e8a65a17bc06cb6f1765d8155557156d38830f59f23ca",
+      "metrics": {
+        "best": {
+          "txpert_all": 0.2091930552962766,
+          "txpert_deg": 0.355426610527317,
+          "trishift_all": 0.16447842421345127,
+          "trishift_deg": 0.31986182524023066,
+          "systema_all": 0.0813265475824916,
+          "systema_deg": 0.20100133683381713
+        },
+        "last": "same checkpoint and metrics as best"
+      },
+      "seen_unseen_receipts": true,
+      "training_evaluation_commit": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+      "zero_pkl": true,
+      "pkl_count": 0,
+      "failure_json": false
+    },
+    "E3_unit_distillation_no_spread_koleo": {
+      "run_id": "nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+      "run_complete_sha256": "37eff162d4bed3793990a6d98fcea7de2eb635344d0e2779e583fc5806c179f8",
+      "config_sha256": "6982785ffac1b5ac3f681956ddf8ad51af2aa505e3f02e22572876cb7d34cb2a",
+      "resolved_config_sha256": "5dbd38542976b83ba3dd8653bbc28ae47ab5af589b82f0ccf9293b0579ff1855",
+      "formal_exit_code": 0,
+      "preflight_exit_code": 0,
+      "epoch_history": 6,
+      "best_epoch": 6,
+      "best_joint_loss": 5.493815783175379,
+      "last_epoch": 6,
+      "checkpoint_sha256": "bd1cd79887f77034eb24b419eed229953db52c2efaafe67662efd6859a79e4c6",
+      "best_test_sha256": "cadca326737fd0b2149d4822fcb449c0e935d9d7d6810c1a283fd852286d0598",
+      "last_test_sha256": "ae0253deedf05e900cc59a52b2bf9159627fbb10531a8712c96fc9f049d75fa9",
+      "metrics": {
+        "best": {
+          "txpert_all": 0.21707474234637678,
+          "txpert_deg": 0.38158045500178117,
+          "trishift_all": 0.16872787473402662,
+          "trishift_deg": 0.3463911237720077,
+          "systema_all": 0.08842398279731388,
+          "systema_deg": 0.2170858498729859
+        },
+        "last": "same checkpoint and metrics as best"
+      },
+      "seen_unseen_receipts": true,
+      "training_evaluation_commit": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+      "zero_pkl": true,
+      "pkl_count": 0,
+      "failure_json": false
+    }
+  },
+  "identity_checks": {
+    "m68_accum2_world2_global_batch272": true,
+    "run_seed": 1,
+    "cap40_selected_train_rows": 47836,
+    "train_conditions": 1335,
+    "selection_sha256": "aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132",
+    "training_evaluation_sources_match_within_each_new_run": true,
+    "evaluation_control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+    "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770"
+  },
+  "monitor_action": "Terminal; heartbeat deleted, one-shot return fallback ACTIVE pending main substantive acknowledgement; ownership returned to main."
+}

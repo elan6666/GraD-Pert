@@ -140,12 +140,23 @@
       "to_stage": "supervise",
       "handoff": ".byte-os/coordination/handoffs/2026-10-03-v2-cap40-remaining-supervise.md",
       "note": "Collector fixed6 repair published,110checks/localserver; E1 independent accepted and preserved; durable remaining queue alive/E2preflight live, no duplicate E1."
+    },
+    {
+      "from": "codex",
+      "from_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+      "from_stage": "supervise",
+      "handoff": ".byte-os/coordination/handoffs/2026-10-05-v2-cap40-remaining-terminal-return.md",
+      "note": "Queue COMPLETE; E2/E3 six-epoch formal runs and best/last evaluations verified, terminal receipt saved; ownership returned for independent main acceptance.",
+      "to": "codex",
+      "to_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "to_stage": "build",
+      "ts": "2026-10-05T00:00:00Z"
     }
   ],
-  "main_continuation": "not_pending",
+  "main_continuation": "complete",
   "monitor": {
     "id": "grad-pert-v2",
-    "status": "ACTIVE",
+    "status": "DELETED",
     "activation": "verified_active_20261003T0735Z",
     "activation_receipt": ".byte-os/coordination/receipts/v2-cap40-remaining-supervisor-ack-20261003T0735Z.json",
     "interval_minutes": 20,
@@ -153,9 +164,9 @@
     "run_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
     "attempt": 1
   },
-  "next_action": "Supervise existing remaining E2/E3 queue, ACK future20min wake; terminal return to main.",
+  "next_action": "None. Authorized cap40 B0/E1/E2/E3 accepted; no additional experiment authorized.",
   "owner": "codex",
-  "owner_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+  "owner_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
   "participants": {
     "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b": {
       "harness": "codex",
@@ -227,30 +238,27 @@
         "sha_matches": true
       }
     },
-    "phase": "preflight",
-    "gpu": "0,1"
+    "phase": "complete",
+    "gpu": "0,1",
+    "status": "complete",
+    "terminal_receipt": ".byte-os/coordination/receipts/v2-cap40-remaining-terminal-20261004T1346Z.json"
   },
-  "stage": "supervise",
-  "updated_at": "2026-10-03T15:35:43+08:00",
+  "stage": "build",
+  "updated_at": "2026-10-04T17:16:54.849757+00:00",
   "last_supervision_ack": {
-    "observed_at": "2026-10-03T07:35:43Z",
-    "receipt": ".byte-os/coordination/receipts/v2-cap40-remaining-supervisor-ack-20261003T0735Z.json",
-    "controller_pid": 742925,
-    "controller_alive": true,
-    "phase": "E2 capacity preflight",
-    "preflight_child_pid": 742960,
-    "preflight_alive": true,
-    "steps_completed": 24,
-    "steps_requested": 128,
-    "formal_training_started": false
+    "observed_at": "2026-10-04T17:13:29Z",
+    "receipt": ".byte-os/coordination/receipts/v2-cap40-remaining-terminal-20261004T1346Z.json",
+    "server_query_succeeded": true,
+    "terminal": "queue COMPLETE; E2/E3 formal exit 0; best/last true tests; zero PKL",
+    "handoff": ".byte-os/coordination/handoffs/2026-10-05-v2-cap40-remaining-terminal-return.md"
   },
-  "main_continuation_verified_at": null,
-  "main_continuation_evidence": ".byte-os/evidence/v2-cap40-three-ablations-20261001/remaining-queue-launch-20261003.json",
+  "main_continuation_verified_at": "2026-10-04T17:13:54.281902+00:00",
+  "main_continuation_evidence": ".byte-os/coordination/receipts/v2-cap40-three-ablations-main-acceptance-20261005.json",
   "run_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
   "attempt": 1,
   "return_fallback": {
     "id": "grad-pert-v2-b0-return",
-    "status": "PAUSED",
+    "status": "DELETED",
     "interval_minutes": 5,
     "target_thread_id": "01a0c01a-0611-7a90-b3e8-8ad7e017748b",
     "rule": "Activate only on terminal handback with main_continuation exactly pending."
@@ -313,5 +321,21 @@
       "failure_receipt": ".byte-os/coordination/receipts/v2-cap40-three-ablations-queue-failure-20261001T2141Z.json",
       "failure_handoff": ".byte-os/coordination/handoffs/2026-10-01-v2-cap40-three-ablations-failure-return.md"
     }
-  ]
+  ],
+  "terminal_handoff": ".byte-os/coordination/handoffs/2026-10-05-v2-cap40-remaining-terminal-return.md",
+  "main_ack": {
+    "run_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
+    "attempt": 1,
+    "session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+    "at": "2026-10-04T17:13:54.281902+00:00",
+    "action": "Independent server receipt verification and B0/E1/E2/E3 comparison; return fallback deleted."
+  },
+  "overall_task_status": "complete",
+  "terminal_acceptance": {
+    "receipt": ".byte-os/coordination/receipts/v2-cap40-three-ablations-main-acceptance-20261005.json",
+    "queue_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
+    "attempt": 1,
+    "comparison_report": "docs/experiments/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.md",
+    "accepted": true
+  }
 }

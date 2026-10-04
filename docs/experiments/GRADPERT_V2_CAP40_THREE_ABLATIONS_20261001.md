@@ -1,3 +1,75 @@
+# 2026-10-05：三组消融已独立验收，最终对照
+
+B0/E1/E2/E3 均完成六轮、1056 次优化；每轮只做 joint loss 验证，best 按本组最小验证 joint 选择，四组 best=last=epoch6。best/last 均有真实冻结测试收据，逐一重算 checkpoint SHA256；source/config/data/selection/environment lock 与评估身份已核对。四组有序 condition/control/truth 哈希相同，每条件均为原定300 control。无失败标记、成功运行根无 PKL；E1 沿用已完成旧运行，没有重跑。替换队列于北京时间2026-10-04 21:46:26 COMPLETE，SHA256 `4c2ff13cee70a74b5e19359541ab556dfdb8fbe99d3326b145c71d42937892e1`。监督监控及主返回提醒均已删除；没有启动其他实验。
+
+## 总体测试指标
+
+下表是相同5000表达基因轴上的条件宏平均；all 有592个有效条件，统一DEG有590个（另2个真值细胞数为1，不能做既定差异检验）。best/last 内容与指标相同，仍分别保留两个角色收据。
+
+| 配置 | TxPert all / DEG | TriShift all / DEG | Systema all / DEG |
+|---|---:|---:|---:|
+| B0：mHC 完整基线 | 0.212492 / 0.380273 | 0.166488 / 0.351775 | 0.079602 / 0.232675 |
+| E1：关闭 mHC | 0.218007 / 0.381337 | 0.169879 / 0.353931 | 0.075271 / 0.214566 |
+| E2：原型数 16384 | 0.209193 / 0.355427 | 0.164478 / 0.319862 | 0.081327 / 0.201001 |
+| E3：蒸馏 1/1，关闭 spread/KoLeo | 0.217075 / 0.381580 | 0.168728 / 0.346391 | 0.088424 / 0.217086 |
+
+| 配置 | 测试预测 MSE | 第6轮验证 joint |
+|---|---:|---:|
+| B0 | 0.006509533 | 4.058603 |
+| E1 | 0.006163277 | 4.235659 |
+| E2 | 0.006657580 | 4.218107 |
+| E3 | 0.006096135 | 5.493816 |
+
+原型数量、权重及删除负值正则会改变 joint 的尺度；上列 joint 用于检查本组 checkpoint 选择，不能用来跨组评价预测质量。
+
+## 按训练表达可见性分组
+
+“见过”指完成的训练更新中实际输入/监督过该基因的表达数值，不是图节点身份是否可见。四组分组 ID/hash 完全一致：seen=4775，unseen=225；先取同一套 truth-defined DEG，再与各组基因集合求交。两组 all 均有592个有效条件；seen DEG有590个，unseen DEG仅147个。unseen 的多数条件DEG交集不足2个基因，跳过并保留原因，不能当作零相关纳入分母。
+
+### 已见表达的4775个基因
+
+| 配置 | TxPert all / DEG | TriShift all / DEG | Systema all / DEG |
+|---|---:|---:|---:|
+| B0：mHC 完整基线 | 0.418995 / 0.467207 | 0.311421 / 0.431089 | 0.216256 / 0.273443 |
+| E1：关闭 mHC | 0.412188 / 0.480475 | 0.304615 / 0.448660 | 0.204864 / 0.263426 |
+| E2：原型数 16384 | 0.415944 / 0.453574 | 0.304656 / 0.408301 | 0.228912 / 0.253869 |
+| E3：蒸馏 1/1，关闭 spread/KoLeo | 0.420603 / 0.458886 | 0.307178 / 0.417023 | 0.247550 / 0.265329 |
+
+### 未见表达的225个基因
+
+| 配置 | TxPert all / DEG | TriShift all / DEG | Systema all / DEG |
+|---|---:|---:|---:|
+| B0：mHC 完整基线 | 0.113987 / 0.181124 | 0.105858 / 0.131780 | -0.019707 / 0.073539 |
+| E1：关闭 mHC | 0.134265 / 0.171988 | 0.126095 / 0.118031 | -0.024319 / 0.032462 |
+| E2：原型数 16384 | 0.126889 / 0.119297 | 0.119852 / 0.095778 | -0.022012 / 0.008502 |
+| E3：蒸馏 1/1，关闭 spread/KoLeo | 0.141498 / 0.237078 | 0.133446 / 0.184957 | -0.028283 / 0.106016 |
+
+## 解释边界
+
+- E1 关闭 mHC 后总体 TxPert/TriShift 上升、Systema下降，方向混合；不能据单seed结果断言 mHC普遍有效或无效。
+- E2 原型翻倍后总体6项Pearson中的5项低于B0，MSE略高；当前六轮预算下没有普遍收益证据。不同输出维度还改变初始化随机数消耗，此对照代表完整配置效果，不是逐更新同随机路径的算子等价测试。
+- E3 总体 all 三项及 TxPert DEG 高于B0，TriShift/Systema DEG低于B0，MSE低约6.35%。在unseen组，TxPert/TriShift all与DEG、Systema DEG高于B0，但Systema all更负。它同时改四项权重并删除spread/KoLeo，无法单独识别任何一项的作用。
+- 所有结果来自seed1；best/last是同一checkpoint，不能当作两个独立重复。未做跨seed显著性结论，未依据测试分数选择配置或启动追加实验。
+
+## Loss、性能与完整身份
+
+所有24个epoch的训练/验证分项见 [epoch-loss-components.csv](../../.byte-os/evidence/v2-cap40-three-ablations-20261001/final-comparison-20261005/epoch-loss-components.csv)。所有144条best/last×总体/seen/unseen×六项指标及run/config/checkpoint/test收据SHA见 [pearson-all-groups-best-last.csv](../../.byte-os/evidence/v2-cap40-three-ablations-20261001/final-comparison-20261005/pearson-all-groups-best-last.csv)。原逐轮曲线继续保存在各服务器fit目录；无需下载权重或表达矩阵。
+
+E2在相同正式配置m68×accum2×双卡（全局272）完成128/128持续预检、checkpoint重载和300-control验证。更新中位22.991秒，P95 24.114秒；预检训练墙时3114.840秒，对应端到端11.177细胞/秒；rank0/1峰值allocated分别31,972,887,040/31,722,863,104 bytes，reserved分别32,281,460,736/32,008,830,976 bytes。数据来自持续预检，不冒称正式六轮峰值或长期吞吐。E3的一步预检只证明完整更新/重载可运行，不适合与E2持续吞吐比较。正式日志未保存可可靠分离的训练、验证、测试墙时或全程峰值；这些分项标为缺失，不用进程间隔或预检外推代替。详情 [performance-evidence.json](../../.byte-os/evidence/v2-cap40-three-ablations-20261001/final-comparison-20261005/performance-evidence.json)。
+
+| 配置 | 训练/评估 commit（两者同版本） |
+|---|---|
+| B0 | `aeac5fd94123af0b73810259e5e2985228b11d65` |
+| E1 | `ac220f5e90e9e5c0c9900cdb2c285a629297c93d` |
+| E2 | `2871c4e79a70b7d0d4f900866ce019316b68670f` |
+| E3 | `2871c4e79a70b7d0d4f900866ce019316b68670f` |
+
+不同发布版本明确保留。四者native `src` Git tree均为 `ed919ee6eaed01aa7a778c7fa276f87f2a496758`；E2/E3的2871c4e只修复收集器/队列，不是换模型后重新评估E1。完整身份及逐项核验见 [independent-acceptance.json](../../.byte-os/evidence/v2-cap40-three-ablations-20261001/final-comparison-20261005/independent-acceptance.json)。监督终态收据 `.byte-os/coordination/receipts/v2-cap40-remaining-terminal-20261004T1346Z.json`；主验收收据 `.byte-os/coordination/receipts/v2-cap40-three-ablations-main-acceptance-20261005.json`。
+
+---
+
+以下为历史执行记录，启动/等待/未知容量状态已被上述最终验收覆盖；旧失败队列和旧运行身份保持不变。
+
 ## 2026-10-03: remaining supervision armed and acknowledged
 
 Queue/controller identity and source/runtime confirmed independently by Luna, then designated supervisor. E2 sustained128 capacity probe is active24/128 at independent ACK (formal training not yet begun). Its dual-GPU memory snapshot31712/31452MiB is an instantaneous observation, not peak capacity acceptance. Existing grad-pert-v2 monitor ACTIVE20min on exact supervisor/queue/attempt1; mainreturnfallback PAUSED. ACK .byte-os/coordination/receipts/v2-cap40-remaining-supervisor-ack-20261003T0735Z.json. This supersedes pending-ACK and connectivity-block notes below; no second long supervisor remains.

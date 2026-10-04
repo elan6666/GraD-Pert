@@ -1,0 +1,27 @@
+{
+  "owner_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+  "queue_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
+  "attempt": 1,
+  "observed_at_utc": "2026-10-04T17:16:54.849757+00:00",
+  "outcome": "accepted_complete",
+  "checks": {
+    "all_four_runs_accepted": true,
+    "queue_complete_no_failure": true,
+    "all_four_exit_codes_zero": true,
+    "all_data_and_metric_protocols_identical": true
+  },
+  "audit_path": ".byte-os/evidence/v2-cap40-three-ablations-20261001/final-comparison-20261005/independent-acceptance.json",
+  "audit_sha256": "1abf56fc70690d7ae2484da2eebe21ac9739e0434532702e4d72fbe18a944698",
+  "report": "docs/experiments/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.md",
+  "monitor_cleanup": {
+    "grad-pert-v2": "deleted_by_supervisor_verified_in_chat",
+    "grad-pert-v2-b0-return": "deleted_by_main_tool_confirmed",
+    "both_saved_automation_files_absent": true
+  },
+  "no_new_run_launched": true,
+  "limitations": [
+    "single_seed_no_inferential_significance",
+    "E3_combined_recipe",
+    "formal_phase_walltimes_and_peaks_not_recorded"
+  ]
+}

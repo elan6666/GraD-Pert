@@ -1,0 +1,3248 @@
+{
+  "observed_at_utc": "2026-10-04T17:16:54.849757+00:00",
+  "collector_sha": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+  "queue": {
+    "id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
+    "attempt": 1,
+    "complete_sha256": "4c2ff13cee70a74b5e19359541ab556dfdb8fbe99d3326b145c71d42937892e1",
+    "exits": {
+      "E3_unit_distillation_no_spread_koleo-formal.exit.json": {
+        "exit_code": 0,
+        "finished_unix": 1791121584.6760085,
+        "run_id": "nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+        "stage": "formal"
+      },
+      "E3_unit_distillation_no_spread_koleo-preflight.exit.json": {
+        "exit_code": 0,
+        "finished_unix": 1791015428.8402007,
+        "run_id": "nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+        "stage": "preflight"
+      },
+      "E2_prototypes16384-preflight.exit.json": {
+        "exit_code": 0,
+        "finished_unix": 1791015387.428038,
+        "run_id": "nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+        "stage": "preflight"
+      },
+      "E2_prototypes16384-formal.exit.json": {
+        "exit_code": 0,
+        "finished_unix": 1791068193.678117,
+        "run_id": "nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+        "stage": "formal"
+      }
+    },
+    "pkl_count": 0
+  },
+  "runs": {
+    "B0": {
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+      "complete_sha256": "eed7639df43cd20c62292b612aa4c8044267cc84078ba876243b7f8b5efd7306",
+      "config_sha256": "1401174171770bb5c7ae580db55f9dd9d4907d8da6a37a42b86a64d747f412d0",
+      "resolved_config_sha256": "a4781514139c578418db75000111f16e5f4ff69e30d57d0ac3be20e900ad7108",
+      "native_src_tree": "ed919ee6eaed01aa7a778c7fa276f87f2a496758",
+      "environment": {
+        "cuda_runtime": "13.0",
+        "cudnn_version": 92000,
+        "device_name": "NVIDIA GeForce RTX 5090",
+        "lock_file": "/data/yilangliu/GraD-Pert/development/source-v2-mhc-cap40-aeac5fd/uv.lock",
+        "lock_file_sha256": "313e9dbbd63ab8405d77ae991a724081fe6fa4ed26b0ae8047321733e015375d",
+        "payload_sha256": "662e72652a44f30db1052a5aa45861b93050785f0b6d41439c321b88cf866d74",
+        "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39",
+        "python_version": "3.12.3",
+        "torch_version": "2.13.0+cu130"
+      },
+      "data": {
+        "canonical_sha256": "f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861",
+        "effective_training_expression_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+        "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+        "genept_sha256": "2460d7757a25aa31f2f06a5c80f1151d2b4fb1a8eba22159658fe62f1ab7cf3d",
+        "graph_gene_order_sha256": "c1d0c76822d5c7ac1f561457010065fa3a195d27954f3c959d6732d107124e10",
+        "graph_manifest_sha256": "0de04502516318f835699683f0c95362386d7031cdefd99800ca3039eb392ae2",
+        "loss_protocol": {
+          "batch_order": "random_mixed_seeded_v2",
+          "exceptions": [
+            "ssl1_node",
+            "ssl1_spread",
+            "teacher_centers"
+          ],
+          "ibot": "masked_tokens_per_cell_then_valid_cell_population",
+          "koleo_exclusion": "same_perturbation_condition",
+          "koleo_population": "complete_global_effective_batch",
+          "reduction": "row_mean",
+          "version": "unified-global-population-v2-relay"
+        },
+        "run_seed": 1,
+        "split_sha256": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0",
+        "training_row_selection": {
+          "analysis_selection_sha256": "a609d5aa4087d209dc62c1e8ed70dc7cff89ed6952b2afb18d0972cb477c94f2",
+          "analysis_source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+          "cap": 40,
+          "equivalence_sha256": "ca12b16967f77a06d96139ffaa23cd997af13aa1b2acbe7250ed1d8696b04f85",
+          "manifest_path": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-v2-binding-20260930/training_selection.json",
+          "manifest_sha256": "aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132",
+          "non_training_rows_changed": 0,
+          "original_train_rows": 128266,
+          "sampling": "condition_batch_largest_remainder_uniform_without_replacement",
+          "sampling_seed": 42,
+          "schema_version": "gradpert-v2-training-selection-1",
+          "selected_train_row_ids_sha256": "c8e79242336c194833ac329a807b7eeb76651707204b4ec1379f6a7483aa9a93",
+          "selected_train_rows": 47836,
+          "train_condition_count": 1335
+        }
+      },
+      "training_expression_policy": {
+        "allowed_expression_gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+        "evaluation_control_expression": "available",
+        "exclude_test_target_expression": true,
+        "excluded_expression_gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+        "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+        "graph_identity_visibility": "unchanged",
+        "schema": "training-expression-policy-v1",
+        "test_conditions_sha256": "35a94c9c3793a80d74db0392696d74d5d5645928692f5c365d17b28f6d3da6aa"
+      },
+      "roles": [
+        {
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+          "run_id": "nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+          "role": "best",
+          "training_sha": "aeac5fd94123af0b73810259e5e2985228b11d65",
+          "config_sha256": "1401174171770bb5c7ae580db55f9dd9d4907d8da6a37a42b86a64d747f412d0",
+          "resolved_config_sha256": "a4781514139c578418db75000111f16e5f4ff69e30d57d0ac3be20e900ad7108",
+          "run_manifest_sha256": "361280de3152f264aa81c58191f19425dc78f3ad80424842220dd6e43fb7284a",
+          "status": "complete",
+          "checkpoint_sha256": "8a258885784f45d010c0d1c8fabce6c8ac46252bd0292de71a53ea69133b97e3",
+          "checkpoint_epoch": 6,
+          "validation_selection_metric": "joint_loss",
+          "validation_selection_loss": 4.058602797763918,
+          "validation_prediction_loss": null,
+          "evaluation_sha": "aeac5fd94123af0b73810259e5e2985228b11d65",
+          "test_receipt_sha256": "79edb3d649050f8031318fcac422ba450b92f4105017c8463c32ae123750874d",
+          "test_prediction_loss": 0.0065095328161766134,
+          "txpert_macro_pearson_delta_all": 0.21249176275211287,
+          "txpert_macro_pearson_delta_all_finite_conditions": 592,
+          "txpert_macro_pearson_delta_deg": 0.38027282098553944,
+          "txpert_macro_pearson_delta_deg_finite_conditions": 590,
+          "trishift_pearson_delta_all": 0.16648813463423495,
+          "trishift_pearson_delta_all_finite_conditions": 592,
+          "trishift_pearson_delta_deg": 0.3517749634161541,
+          "trishift_pearson_delta_deg_finite_conditions": 590,
+          "systema_pearson_all": 0.0796018410915958,
+          "systema_pearson_all_finite_conditions": 592,
+          "systema_pearson_deg": 0.23267451229159072,
+          "systema_pearson_deg_finite_conditions": 590
+        },
+        {
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+          "run_id": "nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+          "role": "last",
+          "training_sha": "aeac5fd94123af0b73810259e5e2985228b11d65",
+          "config_sha256": "1401174171770bb5c7ae580db55f9dd9d4907d8da6a37a42b86a64d747f412d0",
+          "resolved_config_sha256": "a4781514139c578418db75000111f16e5f4ff69e30d57d0ac3be20e900ad7108",
+          "run_manifest_sha256": "361280de3152f264aa81c58191f19425dc78f3ad80424842220dd6e43fb7284a",
+          "status": "complete",
+          "checkpoint_sha256": "8a258885784f45d010c0d1c8fabce6c8ac46252bd0292de71a53ea69133b97e3",
+          "checkpoint_epoch": 6,
+          "validation_selection_metric": "joint_loss",
+          "validation_selection_loss": 4.058602797763918,
+          "validation_prediction_loss": null,
+          "evaluation_sha": "aeac5fd94123af0b73810259e5e2985228b11d65",
+          "test_receipt_sha256": "31c617e0589f23a8b6583002db8e9baeed97fd58d921795df899edaff8f95897",
+          "test_prediction_loss": 0.0065095328161766134,
+          "txpert_macro_pearson_delta_all": 0.21249176275211287,
+          "txpert_macro_pearson_delta_all_finite_conditions": 592,
+          "txpert_macro_pearson_delta_deg": 0.38027282098553944,
+          "txpert_macro_pearson_delta_deg_finite_conditions": 590,
+          "trishift_pearson_delta_all": 0.16648813463423495,
+          "trishift_pearson_delta_all_finite_conditions": 592,
+          "trishift_pearson_delta_deg": 0.3517749634161541,
+          "trishift_pearson_delta_deg_finite_conditions": 590,
+          "systema_pearson_all": 0.0796018410915958,
+          "systema_pearson_all_finite_conditions": 592,
+          "systema_pearson_deg": 0.23267451229159072,
+          "systema_pearson_deg_finite_conditions": 590
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch": 1,
+          "optimizer_steps": 176,
+          "training": {
+            "gradient_norm": 0.5371918309141289,
+            "joint_loss": 19.966109758681807,
+            "learning_rate": 0.0005198843679940412,
+            "prediction": 0.09909921974494038,
+            "ssl1_condition": 8.134353324770927,
+            "ssl1_node": 8.94964435967532,
+            "ssl1_spread": -0.09235761655409905,
+            "ssl2_dino": 8.134364287284287,
+            "ssl2_ibot": 8.201992681080645,
+            "ssl2_koleo": 0.006173946457155663,
+            "teacher_momentum": 0.9902238701963405
+          },
+          "validation": {
+            "joint_loss": 15.630725346418732,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.06459294380246328,
+                "ssl1_condition": 6.108345772937614,
+                "ssl1_node": 8.711830485059346,
+                "ssl1_spread": -0.1290933385377539,
+                "ssl2_dino": 5.9730999530872255,
+                "ssl2_ibot": 6.094073413544978,
+                "ssl2_koleo": -0.08476702661863439
+              },
+              "joint_loss": 15.630725346418732,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 2,
+          "optimizer_steps": 352,
+          "training": {
+            "gradient_norm": 0.6506979394365441,
+            "joint_loss": 5.43224783579036,
+            "learning_rate": 0.0009712560344656438,
+            "prediction": 0.05901356929891997,
+            "ssl1_condition": 1.1900056505110115,
+            "ssl1_node": 7.04965370351618,
+            "ssl1_spread": -0.10412256627089599,
+            "ssl2_dino": 1.285094496026762,
+            "ssl2_ibot": 1.4830185754584486,
+            "ssl2_koleo": -0.09502505701543255,
+            "teacher_momentum": 0.9915021885931665
+          },
+          "validation": {
+            "joint_loss": 6.0433613712055925,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05916596549016874,
+                "ssl1_condition": 1.9277791975598864,
+                "ssl1_node": 4.370189473469127,
+                "ssl1_spread": -0.1639998070952588,
+                "ssl2_dino": 2.28405436904008,
+                "ssl2_ibot": 2.243362355292949,
+                "ssl2_koleo": -0.1429228940515413
+              },
+              "joint_loss": 6.0433613712055925,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 3,
+          "optimizer_steps": 528,
+          "training": {
+            "gradient_norm": 0.27996156517077575,
+            "joint_loss": 1.199990612717176,
+            "learning_rate": 0.0008251945369227132,
+            "prediction": 0.056867630697194145,
+            "ssl1_condition": 0.050336585691018794,
+            "ssl1_node": 2.7478174855085937,
+            "ssl1_spread": -0.16279283474961465,
+            "ssl2_dino": 0.030790200738093434,
+            "ssl2_ibot": 0.03865052339097019,
+            "ssl2_koleo": -0.20086367208171974,
+            "teacher_momentum": 0.9937194794491436
+          },
+          "validation": {
+            "joint_loss": 4.561331407792846,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05642853663920113,
+                "ssl1_condition": 1.649996478279764,
+                "ssl1_node": 1.7027392550614497,
+                "ssl1_spread": -0.19576853850732878,
+                "ssl2_dino": 2.1341645699523357,
+                "ssl2_ibot": 2.0944495367052713,
+                "ssl2_koleo": -0.21724705703911584
+              },
+              "joint_loss": 4.561331407792846,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 4,
+          "optimizer_steps": 704,
+          "training": {
+            "gradient_norm": 0.20117355942387471,
+            "joint_loss": 0.5919369640678765,
+            "learning_rate": 0.0005944245814416718,
+            "prediction": 0.055725159091790294,
+            "ssl1_condition": 0.007526520986919588,
+            "ssl1_node": 1.4258621053939515,
+            "ssl1_spread": -0.19641486568037758,
+            "ssl2_dino": 0.002049559754430613,
+            "ssl2_ibot": 0.006606658051003416,
+            "ssl2_koleo": -0.24795078426938166,
+            "teacher_momentum": 0.9962805205508553
+          },
+          "validation": {
+            "joint_loss": 4.188528826812896,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.054313088250807794,
+                "ssl1_condition": 1.5964259953647437,
+                "ssl1_node": 1.1663979134733669,
+                "ssl1_spread": -0.20849719774048012,
+                "ssl2_dino": 1.9898589604866783,
+                "ssl2_ibot": 2.1070335395815762,
+                "ssl2_koleo": -0.2333515994748564
+              },
+              "joint_loss": 4.188528826812896,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 5,
+          "optimizer_steps": 880,
+          "training": {
+            "gradient_norm": 0.1643335560590706,
+            "joint_loss": 0.460472834630888,
+            "learning_rate": 0.00036575185760261174,
+            "prediction": 0.05510980532165955,
+            "ssl1_condition": 0.0035580945983714296,
+            "ssl1_node": 1.1170799068429254,
+            "ssl1_spread": -0.21212810231372714,
+            "ssl2_dino": 0.0009697091073493622,
+            "ssl2_ibot": 0.005395021819574388,
+            "ssl2_koleo": -0.2603637488897551,
+            "teacher_momentum": 0.9984978114068332
+          },
+          "validation": {
+            "joint_loss": 4.072660651009806,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05423447713644357,
+                "ssl1_condition": 1.5872663505730433,
+                "ssl1_node": 1.0181221041460247,
+                "ssl1_spread": -0.21388498757540914,
+                "ssl2_dino": 1.9186430868646283,
+                "ssl2_ibot": 2.128917398975447,
+                "ssl2_koleo": -0.23728740639913237
+              },
+              "joint_loss": 4.072660651009806,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 6,
+          "optimizer_steps": 1056,
+          "training": {
+            "gradient_norm": 0.14502958322621204,
+            "joint_loss": 0.42277547149252237,
+            "learning_rate": 0.00022519316702786498,
+            "prediction": 0.054933792668056085,
+            "ssl1_condition": 0.0025891273737877122,
+            "ssl1_node": 1.0286495763469825,
+            "ssl1_spread": -0.21935913114893166,
+            "ssl2_dino": 0.0007703834499724591,
+            "ssl2_ibot": 0.005678444422466617,
+            "ssl2_koleo": -0.26641225027428433,
+            "teacher_momentum": 0.9997761298036607
+          },
+          "validation": {
+            "joint_loss": 4.058602797763918,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.0539544314718816,
+                "ssl1_condition": 1.564023727492967,
+                "ssl1_node": 0.9831192880019688,
+                "ssl1_spread": -0.2163142753996039,
+                "ssl2_dino": 1.9166447206050594,
+                "ssl2_ibot": 2.180657057937339,
+                "ssl2_koleo": -0.23765579026815342
+              },
+              "joint_loss": 4.058602797763918,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        }
+      ],
+      "tests": {
+        "best": {
+          "checkpoint": {
+            "epoch": 6,
+            "file": "epoch-0006.pt",
+            "joint_loss": 4.058602797763918,
+            "sha256": "8a258885784f45d010c0d1c8fabce6c8ac46252bd0292de71a53ea69133b97e3"
+          },
+          "receipt_sha256": "79edb3d649050f8031318fcac422ba450b92f4105017c8463c32ae123750874d",
+          "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+          "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+          "metrics": [
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.21249176275211287,
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.38027282098553944,
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.16648813463423495,
+              "metric_id": "trishift_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.3517749634161541,
+              "metric_id": "trishift_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.0796018410915958,
+              "metric_id": "systema_pearson_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.23267451229159072,
+              "metric_id": "systema_pearson_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            }
+          ],
+          "prediction_loss": 0.0065095328161766134,
+          "expression_exposure": {
+            "checkpoint_epoch": 6,
+            "definition": "numeric_control_and_truth_expression_in_completed_training_updates",
+            "groups": {
+              "seen_expression": {
+                "gene_count": 4775,
+                "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+              },
+              "unseen_expression": {
+                "gene_count": 225,
+                "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+              }
+            }
+          },
+          "metric_gene_groups": {
+            "seen_expression": {
+              "gene_count": 4775,
+              "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.41899491777509296,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.4672073536635258,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.3114207775556997,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.4310887512536966,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.21625558568905778,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.27344326811275477,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                }
+              ]
+            },
+            "unseen_expression": {
+              "gene_count": 225,
+              "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.1139871760196415,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.18112415501006277,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.10585811519342676,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.13177971364774796,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": -0.019706616704646063,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.07353875218649117,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                }
+              ]
+            }
+          },
+          "query_recipe": {
+            "block_response_cls_to_gene": false,
+            "expression_gene_count": 5000,
+            "name": "ordered_disjoint_blocks",
+            "query_count": 1000
+          }
+        },
+        "last": {
+          "checkpoint": {
+            "epoch": 6,
+            "file": "epoch-0006.pt",
+            "joint_loss": 4.058602797763918,
+            "sha256": "8a258885784f45d010c0d1c8fabce6c8ac46252bd0292de71a53ea69133b97e3"
+          },
+          "receipt_sha256": "31c617e0589f23a8b6583002db8e9baeed97fd58d921795df899edaff8f95897",
+          "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+          "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+          "metrics": [
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.21249176275211287,
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.38027282098553944,
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.16648813463423495,
+              "metric_id": "trishift_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.3517749634161541,
+              "metric_id": "trishift_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.0796018410915958,
+              "metric_id": "systema_pearson_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.23267451229159072,
+              "metric_id": "systema_pearson_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            }
+          ],
+          "prediction_loss": 0.0065095328161766134,
+          "expression_exposure": {
+            "checkpoint_epoch": 6,
+            "definition": "numeric_control_and_truth_expression_in_completed_training_updates",
+            "groups": {
+              "seen_expression": {
+                "gene_count": 4775,
+                "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+              },
+              "unseen_expression": {
+                "gene_count": 225,
+                "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+              }
+            }
+          },
+          "metric_gene_groups": {
+            "seen_expression": {
+              "gene_count": 4775,
+              "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.41899491777509296,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.4672073536635258,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.3114207775556997,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.4310887512536966,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.21625558568905778,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.27344326811275477,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                }
+              ]
+            },
+            "unseen_expression": {
+              "gene_count": 225,
+              "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.1139871760196415,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.18112415501006277,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.10585811519342676,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.13177971364774796,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": -0.019706616704646063,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.07353875218649117,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                }
+              ]
+            }
+          },
+          "query_recipe": {
+            "block_response_cls_to_gene": false,
+            "expression_gene_count": 5000,
+            "name": "ordered_disjoint_blocks",
+            "query_count": 1000
+          }
+        }
+      },
+      "checks": {
+        "collector_full_terminal_and_checkpoint_hashes": true,
+        "data_identical_to_B0": true,
+        "eval_data_and_config_match_training": true,
+        "control_reference_query_recipe_groups_identical_to_B0": true,
+        "min_joint_best_and_last_epoch6": true,
+        "native_src_tree_same_across_commits": true,
+        "zero_pkl": true,
+        "history6_updates1056": true
+      },
+      "ordered_rows_check": {
+        "best": {
+          "ordered_condition_control_truth_hash": "736f9ea8df8d922f2a48a68d73ea7be3fb614688cef0ac07db30e68a2e51f547",
+          "conditions": 592,
+          "exact300controls_each": true
+        },
+        "last": {
+          "ordered_condition_control_truth_hash": "736f9ea8df8d922f2a48a68d73ea7be3fb614688cef0ac07db30e68a2e51f547",
+          "conditions": 592,
+          "exact300controls_each": true
+        }
+      }
+    },
+    "E1": {
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+      "complete_sha256": "b07436c72959d4b4bdb387b0cb68c803a66381ee387cbf96d32b90e3a4238bae",
+      "config_sha256": "5718b2c298aaed31ae796205be5f8597a060da4106e4b0017e35f605dff68686",
+      "resolved_config_sha256": "ba77db19861c7e65b3f9b0bf99a0e5dcfffa0dbaa10e861019a801d48da2b92a",
+      "native_src_tree": "ed919ee6eaed01aa7a778c7fa276f87f2a496758",
+      "environment": {
+        "cuda_runtime": "13.0",
+        "cudnn_version": 92000,
+        "device_name": "NVIDIA GeForce RTX 5090",
+        "lock_file": "/data/yilangliu/GraD-Pert/development/source-v2-cap40-ablations-ac220f5/uv.lock",
+        "lock_file_sha256": "313e9dbbd63ab8405d77ae991a724081fe6fa4ed26b0ae8047321733e015375d",
+        "payload_sha256": "216fe7e3833e5ec67705ff38cc72c09dd1a9f0bc1253c86cd258cbd9759081a1",
+        "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39",
+        "python_version": "3.12.3",
+        "torch_version": "2.13.0+cu130"
+      },
+      "data": {
+        "canonical_sha256": "f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861",
+        "effective_training_expression_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+        "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+        "genept_sha256": "2460d7757a25aa31f2f06a5c80f1151d2b4fb1a8eba22159658fe62f1ab7cf3d",
+        "graph_gene_order_sha256": "c1d0c76822d5c7ac1f561457010065fa3a195d27954f3c959d6732d107124e10",
+        "graph_manifest_sha256": "0de04502516318f835699683f0c95362386d7031cdefd99800ca3039eb392ae2",
+        "loss_protocol": {
+          "batch_order": "random_mixed_seeded_v2",
+          "exceptions": [
+            "ssl1_node",
+            "ssl1_spread",
+            "teacher_centers"
+          ],
+          "ibot": "masked_tokens_per_cell_then_valid_cell_population",
+          "koleo_exclusion": "same_perturbation_condition",
+          "koleo_population": "complete_global_effective_batch",
+          "reduction": "row_mean",
+          "version": "unified-global-population-v2-relay"
+        },
+        "run_seed": 1,
+        "split_sha256": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0",
+        "training_row_selection": {
+          "analysis_selection_sha256": "a609d5aa4087d209dc62c1e8ed70dc7cff89ed6952b2afb18d0972cb477c94f2",
+          "analysis_source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+          "cap": 40,
+          "equivalence_sha256": "ca12b16967f77a06d96139ffaa23cd997af13aa1b2acbe7250ed1d8696b04f85",
+          "manifest_path": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-v2-binding-20260930/training_selection.json",
+          "manifest_sha256": "aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132",
+          "non_training_rows_changed": 0,
+          "original_train_rows": 128266,
+          "sampling": "condition_batch_largest_remainder_uniform_without_replacement",
+          "sampling_seed": 42,
+          "schema_version": "gradpert-v2-training-selection-1",
+          "selected_train_row_ids_sha256": "c8e79242336c194833ac329a807b7eeb76651707204b4ec1379f6a7483aa9a93",
+          "selected_train_rows": 47836,
+          "train_condition_count": 1335
+        }
+      },
+      "training_expression_policy": {
+        "allowed_expression_gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+        "evaluation_control_expression": "available",
+        "exclude_test_target_expression": true,
+        "excluded_expression_gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+        "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+        "graph_identity_visibility": "unchanged",
+        "schema": "training-expression-policy-v1",
+        "test_conditions_sha256": "35a94c9c3793a80d74db0392696d74d5d5645928692f5c365d17b28f6d3da6aa"
+      },
+      "roles": [
+        {
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+          "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+          "role": "best",
+          "training_sha": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+          "config_sha256": "5718b2c298aaed31ae796205be5f8597a060da4106e4b0017e35f605dff68686",
+          "resolved_config_sha256": "ba77db19861c7e65b3f9b0bf99a0e5dcfffa0dbaa10e861019a801d48da2b92a",
+          "run_manifest_sha256": "6f2ed1e4e40dd35cc4ff9d85c3e88e1fbdd218b81d16867a3a6e9e4cc4e2a391",
+          "status": "complete",
+          "checkpoint_sha256": "9f18f995f16e9d7852c8fff377cc2ccad9ed845cce210b8be8c24b37041bb86d",
+          "checkpoint_epoch": 6,
+          "validation_selection_metric": "joint_loss",
+          "validation_selection_loss": 4.235658792155981,
+          "validation_prediction_loss": null,
+          "evaluation_sha": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+          "test_receipt_sha256": "f00734e7ca33dc2ef7ada70aef05abab6276091cfc0c340407c0077f504104db",
+          "test_prediction_loss": 0.00616327746926784,
+          "txpert_macro_pearson_delta_all": 0.2180073754690289,
+          "txpert_macro_pearson_delta_all_finite_conditions": 592,
+          "txpert_macro_pearson_delta_deg": 0.3813368993303338,
+          "txpert_macro_pearson_delta_deg_finite_conditions": 590,
+          "trishift_pearson_delta_all": 0.16987936935407638,
+          "trishift_pearson_delta_all_finite_conditions": 592,
+          "trishift_pearson_delta_deg": 0.3539306890383695,
+          "trishift_pearson_delta_deg_finite_conditions": 590,
+          "systema_pearson_all": 0.07527136331787235,
+          "systema_pearson_all_finite_conditions": 592,
+          "systema_pearson_deg": 0.21456557835263368,
+          "systema_pearson_deg_finite_conditions": 590
+        },
+        {
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-ablations-ac220f5/nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+          "run_id": "nadig_jurkat-seed1-20261001T060836Z-725056771bb54902b4a82316cacbcdea",
+          "role": "last",
+          "training_sha": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+          "config_sha256": "5718b2c298aaed31ae796205be5f8597a060da4106e4b0017e35f605dff68686",
+          "resolved_config_sha256": "ba77db19861c7e65b3f9b0bf99a0e5dcfffa0dbaa10e861019a801d48da2b92a",
+          "run_manifest_sha256": "6f2ed1e4e40dd35cc4ff9d85c3e88e1fbdd218b81d16867a3a6e9e4cc4e2a391",
+          "status": "complete",
+          "checkpoint_sha256": "9f18f995f16e9d7852c8fff377cc2ccad9ed845cce210b8be8c24b37041bb86d",
+          "checkpoint_epoch": 6,
+          "validation_selection_metric": "joint_loss",
+          "validation_selection_loss": 4.235658792155981,
+          "validation_prediction_loss": null,
+          "evaluation_sha": "ac220f5e90e9e5c0c9900cdb2c285a629297c93d",
+          "test_receipt_sha256": "099cdd61ada3d060ddd9b6524c1029e098e68db109d0a8bd22f062c8ce06fc25",
+          "test_prediction_loss": 0.00616327746926784,
+          "txpert_macro_pearson_delta_all": 0.2180073754690289,
+          "txpert_macro_pearson_delta_all_finite_conditions": 592,
+          "txpert_macro_pearson_delta_deg": 0.3813368993303338,
+          "txpert_macro_pearson_delta_deg_finite_conditions": 590,
+          "trishift_pearson_delta_all": 0.16987936935407638,
+          "trishift_pearson_delta_all_finite_conditions": 592,
+          "trishift_pearson_delta_deg": 0.3539306890383695,
+          "trishift_pearson_delta_deg_finite_conditions": 590,
+          "systema_pearson_all": 0.07527136331787235,
+          "systema_pearson_all_finite_conditions": 592,
+          "systema_pearson_deg": 0.21456557835263368,
+          "systema_pearson_deg_finite_conditions": 590
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch": 1,
+          "optimizer_steps": 176,
+          "training": {
+            "gradient_norm": 0.42865900915454735,
+            "joint_loss": 20.07411673761519,
+            "learning_rate": 0.0005198843679940412,
+            "prediction": 0.09910541264848276,
+            "ssl1_condition": 8.170851012522524,
+            "ssl1_node": 8.950149988586253,
+            "ssl1_spread": -0.09457282986576585,
+            "ssl2_dino": 8.192183562977748,
+            "ssl2_ibot": 8.285830687392842,
+            "ssl2_koleo": -0.003513228385682768,
+            "teacher_momentum": 0.9902238701963405
+          },
+          "validation": {
+            "joint_loss": 15.871618176651417,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.06992068693585665,
+                "ssl1_condition": 6.072285463461027,
+                "ssl1_node": 8.717176631674473,
+                "ssl1_spread": -0.1293094354682913,
+                "ssl2_dino": 6.1306185350109335,
+                "ssl2_ibot": 6.435368619312644,
+                "ssl2_koleo": -0.08713147568369513
+              },
+              "joint_loss": 15.871618176651417,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 2,
+          "optimizer_steps": 352,
+          "training": {
+            "gradient_norm": 0.6560973230410706,
+            "joint_loss": 5.557556020952131,
+            "learning_rate": 0.0009712560344656438,
+            "prediction": 0.05993156138786369,
+            "ssl1_condition": 1.2422827728177337,
+            "ssl1_node": 6.996100536801598,
+            "ssl1_spread": -0.1054618483282287,
+            "ssl2_dino": 1.3644627852958033,
+            "ssl2_ibot": 1.5848839194672606,
+            "ssl2_koleo": -0.09619584601287814,
+            "teacher_momentum": 0.9915021885931665
+          },
+          "validation": {
+            "joint_loss": 6.1056478693598875,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.058443200468070236,
+                "ssl1_condition": 1.9064900541877954,
+                "ssl1_node": 4.342044322563256,
+                "ssl1_spread": -0.1635122040842495,
+                "ssl2_dino": 2.274561602016702,
+                "ssl2_ibot": 2.489056773536694,
+                "ssl2_koleo": -0.13725976534752438
+              },
+              "joint_loss": 6.1056478693598875,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 3,
+          "optimizer_steps": 528,
+          "training": {
+            "gradient_norm": 0.28201049396937544,
+            "joint_loss": 1.1995150834988721,
+            "learning_rate": 0.0008251945369227132,
+            "prediction": 0.05699544420613992,
+            "ssl1_condition": 0.05237408970027569,
+            "ssl1_node": 2.716922516511245,
+            "ssl1_spread": -0.1625870582012629,
+            "ssl2_dino": 0.038280325613331195,
+            "ssl2_ibot": 0.047139461639744695,
+            "ssl2_koleo": -0.19369978398423304,
+            "teacher_momentum": 0.9937194794491436
+          },
+          "validation": {
+            "joint_loss": 4.5687543293136645,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05533565670573467,
+                "ssl1_condition": 1.6412584928681637,
+                "ssl1_node": 1.6629368344841544,
+                "ssl1_spread": -0.19600880205472251,
+                "ssl2_dino": 2.0734578664684147,
+                "ssl2_ibot": 2.2915772550450364,
+                "ssl2_koleo": -0.20559256245356494
+              },
+              "joint_loss": 4.5687543293136645,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 4,
+          "optimizer_steps": 704,
+          "training": {
+            "gradient_norm": 0.1967827777632258,
+            "joint_loss": 0.573699858957843,
+            "learning_rate": 0.0005944245814416718,
+            "prediction": 0.05593864119146019,
+            "ssl1_condition": 0.008485322959049054,
+            "ssl1_node": 1.373198139057918,
+            "ssl1_spread": -0.1963044838471846,
+            "ssl2_dino": 0.004671440163292573,
+            "ssl2_ibot": 0.00499018106876809,
+            "ssl2_koleo": -0.2440907239744609,
+            "teacher_momentum": 0.9962805205508553
+          },
+          "validation": {
+            "joint_loss": 4.323047515269669,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05464340100721893,
+                "ssl1_condition": 1.5744895891173618,
+                "ssl1_node": 1.1124608229735091,
+                "ssl1_spread": -0.20867363449601212,
+                "ssl2_dino": 2.0113639375000445,
+                "ssl2_ibot": 2.4956708229743048,
+                "ssl2_koleo": -0.2266407253468443
+              },
+              "joint_loss": 4.323047515269669,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 5,
+          "optimizer_steps": 880,
+          "training": {
+            "gradient_norm": 0.1602906001816419,
+            "joint_loss": 0.4398644330848173,
+            "learning_rate": 0.00036575185760261174,
+            "prediction": 0.05527240346418694,
+            "ssl1_condition": 0.003537519996329634,
+            "ssl1_node": 1.062112434682521,
+            "ssl1_spread": -0.21200151106512005,
+            "ssl2_dino": 0.0024052696638715465,
+            "ssl2_ibot": 0.00520788045626184,
+            "ssl2_koleo": -0.25890177056532016,
+            "teacher_momentum": 0.9984978114068332
+          },
+          "validation": {
+            "joint_loss": 4.241362021991928,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05433024885427653,
+                "ssl1_condition": 1.5373681159196977,
+                "ssl1_node": 0.9677709262356897,
+                "ssl1_spread": -0.2139813133983507,
+                "ssl2_dino": 1.9950264744777686,
+                "ssl2_ibot": 2.54639047162669,
+                "ssl2_koleo": -0.23150396888380673
+              },
+              "joint_loss": 4.241362021991928,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 6,
+          "optimizer_steps": 1056,
+          "training": {
+            "gradient_norm": 0.1418188869614493,
+            "joint_loss": 0.4042655250193175,
+            "learning_rate": 0.00022519316702786498,
+            "prediction": 0.0550682913586074,
+            "ssl1_condition": 0.002379192284107293,
+            "ssl1_node": 0.9800571069460023,
+            "ssl1_spread": -0.21905310794880445,
+            "ssl2_dino": 0.0018886070888997479,
+            "ssl2_ibot": 0.0055701917016532125,
+            "ssl2_koleo": -0.26562614501877263,
+            "teacher_momentum": 0.9997761298036607
+          },
+          "validation": {
+            "joint_loss": 4.235658792155981,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05404120169962133,
+                "ssl1_condition": 1.52746801385883,
+                "ssl1_node": 0.9338584851102713,
+                "ssl1_spread": -0.21612884473754404,
+                "ssl2_dino": 1.978010180075414,
+                "ssl2_ibot": 2.6216430325934246,
+                "ssl2_koleo": -0.23352763101059235
+              },
+              "joint_loss": 4.235658792155981,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        }
+      ],
+      "tests": {
+        "best": {
+          "checkpoint": {
+            "epoch": 6,
+            "file": "epoch-0006.pt",
+            "joint_loss": 4.235658792155981,
+            "sha256": "9f18f995f16e9d7852c8fff377cc2ccad9ed845cce210b8be8c24b37041bb86d"
+          },
+          "receipt_sha256": "f00734e7ca33dc2ef7ada70aef05abab6276091cfc0c340407c0077f504104db",
+          "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+          "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+          "metrics": [
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.2180073754690289,
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.3813368993303338,
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.16987936935407638,
+              "metric_id": "trishift_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.3539306890383695,
+              "metric_id": "trishift_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.07527136331787235,
+              "metric_id": "systema_pearson_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.21456557835263368,
+              "metric_id": "systema_pearson_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            }
+          ],
+          "prediction_loss": 0.00616327746926784,
+          "expression_exposure": {
+            "checkpoint_epoch": 6,
+            "definition": "numeric_control_and_truth_expression_in_completed_training_updates",
+            "groups": {
+              "seen_expression": {
+                "gene_count": 4775,
+                "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+              },
+              "unseen_expression": {
+                "gene_count": 225,
+                "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+              }
+            }
+          },
+          "metric_gene_groups": {
+            "seen_expression": {
+              "gene_count": 4775,
+              "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.41218783138088305,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.4804747544458349,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.30461540804878395,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.4486597292359589,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.2048639493077881,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.26342569761093754,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                }
+              ]
+            },
+            "unseen_expression": {
+              "gene_count": 225,
+              "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.13426487089066452,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.17198821831427405,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.1260947848422563,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.11803110401856629,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": -0.024319112534092947,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.032461502913340615,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                }
+              ]
+            }
+          },
+          "query_recipe": {
+            "block_response_cls_to_gene": false,
+            "expression_gene_count": 5000,
+            "name": "ordered_disjoint_blocks",
+            "query_count": 1000
+          }
+        },
+        "last": {
+          "checkpoint": {
+            "epoch": 6,
+            "file": "epoch-0006.pt",
+            "joint_loss": 4.235658792155981,
+            "sha256": "9f18f995f16e9d7852c8fff377cc2ccad9ed845cce210b8be8c24b37041bb86d"
+          },
+          "receipt_sha256": "099cdd61ada3d060ddd9b6524c1029e098e68db109d0a8bd22f062c8ce06fc25",
+          "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+          "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+          "metrics": [
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.2180073754690289,
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.3813368993303338,
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.16987936935407638,
+              "metric_id": "trishift_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.3539306890383695,
+              "metric_id": "trishift_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.07527136331787235,
+              "metric_id": "systema_pearson_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.21456557835263368,
+              "metric_id": "systema_pearson_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            }
+          ],
+          "prediction_loss": 0.00616327746926784,
+          "expression_exposure": {
+            "checkpoint_epoch": 6,
+            "definition": "numeric_control_and_truth_expression_in_completed_training_updates",
+            "groups": {
+              "seen_expression": {
+                "gene_count": 4775,
+                "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+              },
+              "unseen_expression": {
+                "gene_count": 225,
+                "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+              }
+            }
+          },
+          "metric_gene_groups": {
+            "seen_expression": {
+              "gene_count": 4775,
+              "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.41218783138088305,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.4804747544458349,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.30461540804878395,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.4486597292359589,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.2048639493077881,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.26342569761093754,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                }
+              ]
+            },
+            "unseen_expression": {
+              "gene_count": 225,
+              "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.13426487089066452,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.17198821831427405,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.1260947848422563,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.11803110401856629,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": -0.024319112534092947,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.032461502913340615,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                }
+              ]
+            }
+          },
+          "query_recipe": {
+            "block_response_cls_to_gene": false,
+            "expression_gene_count": 5000,
+            "name": "ordered_disjoint_blocks",
+            "query_count": 1000
+          }
+        }
+      },
+      "checks": {
+        "collector_full_terminal_and_checkpoint_hashes": true,
+        "data_identical_to_B0": true,
+        "eval_data_and_config_match_training": true,
+        "control_reference_query_recipe_groups_identical_to_B0": true,
+        "min_joint_best_and_last_epoch6": true,
+        "native_src_tree_same_across_commits": true,
+        "zero_pkl": true,
+        "history6_updates1056": true
+      },
+      "ordered_rows_check": {
+        "best": {
+          "ordered_condition_control_truth_hash": "736f9ea8df8d922f2a48a68d73ea7be3fb614688cef0ac07db30e68a2e51f547",
+          "conditions": 592,
+          "exact300controls_each": true
+        },
+        "last": {
+          "ordered_condition_control_truth_hash": "736f9ea8df8d922f2a48a68d73ea7be3fb614688cef0ac07db30e68a2e51f547",
+          "conditions": 592,
+          "exact300controls_each": true
+        }
+      }
+    },
+    "E2": {
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-remaining-2871c4e/nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+      "complete_sha256": "f83b92636b13f4167306eccc0c97312df6debe5087a076855e13671367d0ec10",
+      "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f",
+      "resolved_config_sha256": "e26c453d79fbc56df93501b13f454ac51cdb9b2d5891e5da84049c707070c5b5",
+      "native_src_tree": "ed919ee6eaed01aa7a778c7fa276f87f2a496758",
+      "environment": {
+        "cuda_runtime": "13.0",
+        "cudnn_version": 92000,
+        "device_name": "NVIDIA GeForce RTX 5090",
+        "lock_file": "/data/yilangliu/GraD-Pert/development/source-v2-cap40-repair-2871c4e/uv.lock",
+        "lock_file_sha256": "313e9dbbd63ab8405d77ae991a724081fe6fa4ed26b0ae8047321733e015375d",
+        "payload_sha256": "879d17b62387c96a28024ee129d0595a3fdee8b2feb40e54a91342298d0b125c",
+        "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39",
+        "python_version": "3.12.3",
+        "torch_version": "2.13.0+cu130"
+      },
+      "data": {
+        "canonical_sha256": "f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861",
+        "effective_training_expression_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+        "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+        "genept_sha256": "2460d7757a25aa31f2f06a5c80f1151d2b4fb1a8eba22159658fe62f1ab7cf3d",
+        "graph_gene_order_sha256": "c1d0c76822d5c7ac1f561457010065fa3a195d27954f3c959d6732d107124e10",
+        "graph_manifest_sha256": "0de04502516318f835699683f0c95362386d7031cdefd99800ca3039eb392ae2",
+        "loss_protocol": {
+          "batch_order": "random_mixed_seeded_v2",
+          "exceptions": [
+            "ssl1_node",
+            "ssl1_spread",
+            "teacher_centers"
+          ],
+          "ibot": "masked_tokens_per_cell_then_valid_cell_population",
+          "koleo_exclusion": "same_perturbation_condition",
+          "koleo_population": "complete_global_effective_batch",
+          "reduction": "row_mean",
+          "version": "unified-global-population-v2-relay"
+        },
+        "run_seed": 1,
+        "split_sha256": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0",
+        "training_row_selection": {
+          "analysis_selection_sha256": "a609d5aa4087d209dc62c1e8ed70dc7cff89ed6952b2afb18d0972cb477c94f2",
+          "analysis_source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+          "cap": 40,
+          "equivalence_sha256": "ca12b16967f77a06d96139ffaa23cd997af13aa1b2acbe7250ed1d8696b04f85",
+          "manifest_path": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-v2-binding-20260930/training_selection.json",
+          "manifest_sha256": "aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132",
+          "non_training_rows_changed": 0,
+          "original_train_rows": 128266,
+          "sampling": "condition_batch_largest_remainder_uniform_without_replacement",
+          "sampling_seed": 42,
+          "schema_version": "gradpert-v2-training-selection-1",
+          "selected_train_row_ids_sha256": "c8e79242336c194833ac329a807b7eeb76651707204b4ec1379f6a7483aa9a93",
+          "selected_train_rows": 47836,
+          "train_condition_count": 1335
+        }
+      },
+      "training_expression_policy": {
+        "allowed_expression_gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+        "evaluation_control_expression": "available",
+        "exclude_test_target_expression": true,
+        "excluded_expression_gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+        "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+        "graph_identity_visibility": "unchanged",
+        "schema": "training-expression-policy-v1",
+        "test_conditions_sha256": "35a94c9c3793a80d74db0392696d74d5d5645928692f5c365d17b28f6d3da6aa"
+      },
+      "roles": [
+        {
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-remaining-2871c4e/nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+          "run_id": "nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+          "role": "best",
+          "training_sha": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+          "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f",
+          "resolved_config_sha256": "e26c453d79fbc56df93501b13f454ac51cdb9b2d5891e5da84049c707070c5b5",
+          "run_manifest_sha256": "79376fb2e08bcd956800827261aa4f92cd7418b814e37e60eb0ced38f90f4f8a",
+          "status": "complete",
+          "checkpoint_sha256": "35349edebeba8014c45758ddd4e868081d5da25fb89155e12ebbf1f126863339",
+          "checkpoint_epoch": 6,
+          "validation_selection_metric": "joint_loss",
+          "validation_selection_loss": 4.218106863307016,
+          "validation_prediction_loss": null,
+          "evaluation_sha": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+          "test_receipt_sha256": "a1f2ec282c38d02279b083a9b0a3b9ad8579cd0313b996585af312137792971c",
+          "test_prediction_loss": 0.0066575801826269905,
+          "txpert_macro_pearson_delta_all": 0.2091930552962766,
+          "txpert_macro_pearson_delta_all_finite_conditions": 592,
+          "txpert_macro_pearson_delta_deg": 0.355426610527317,
+          "txpert_macro_pearson_delta_deg_finite_conditions": 590,
+          "trishift_pearson_delta_all": 0.16447842421345127,
+          "trishift_pearson_delta_all_finite_conditions": 592,
+          "trishift_pearson_delta_deg": 0.31986182524023066,
+          "trishift_pearson_delta_deg_finite_conditions": 590,
+          "systema_pearson_all": 0.0813265475824916,
+          "systema_pearson_all_finite_conditions": 592,
+          "systema_pearson_deg": 0.20100133683381713,
+          "systema_pearson_deg_finite_conditions": 590
+        },
+        {
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-remaining-2871c4e/nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+          "run_id": "nadig_jurkat-seed1-20261003T072409Z-ba327c39fdfb46c2b3a9c8023d5e409f",
+          "role": "last",
+          "training_sha": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+          "config_sha256": "5197a3e3d7bfe57a7545b4cc1dad8ff7b5c666dd521bb298cec1ed2d9dabe64f",
+          "resolved_config_sha256": "e26c453d79fbc56df93501b13f454ac51cdb9b2d5891e5da84049c707070c5b5",
+          "run_manifest_sha256": "79376fb2e08bcd956800827261aa4f92cd7418b814e37e60eb0ced38f90f4f8a",
+          "status": "complete",
+          "checkpoint_sha256": "35349edebeba8014c45758ddd4e868081d5da25fb89155e12ebbf1f126863339",
+          "checkpoint_epoch": 6,
+          "validation_selection_metric": "joint_loss",
+          "validation_selection_loss": 4.218106863307016,
+          "validation_prediction_loss": null,
+          "evaluation_sha": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+          "test_receipt_sha256": "5a2942ea2a3a60d4ba3e8a65a17bc06cb6f1765d8155557156d38830f59f23ca",
+          "test_prediction_loss": 0.0066575801826269905,
+          "txpert_macro_pearson_delta_all": 0.2091930552962766,
+          "txpert_macro_pearson_delta_all_finite_conditions": 592,
+          "txpert_macro_pearson_delta_deg": 0.355426610527317,
+          "txpert_macro_pearson_delta_deg_finite_conditions": 590,
+          "trishift_pearson_delta_all": 0.16447842421345127,
+          "trishift_pearson_delta_all_finite_conditions": 592,
+          "trishift_pearson_delta_deg": 0.31986182524023066,
+          "trishift_pearson_delta_deg_finite_conditions": 590,
+          "systema_pearson_all": 0.0813265475824916,
+          "systema_pearson_all_finite_conditions": 592,
+          "systema_pearson_deg": 0.20100133683381713,
+          "systema_pearson_deg_finite_conditions": 590
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch": 1,
+          "optimizer_steps": 176,
+          "training": {
+            "gradient_norm": 0.526830371807922,
+            "joint_loss": 21.700686840562412,
+            "learning_rate": 0.0005198843679940412,
+            "prediction": 0.09881247661012987,
+            "ssl1_condition": 8.875491310249675,
+            "ssl1_node": 9.63911629535935,
+            "ssl1_spread": -0.09283223107922822,
+            "ssl2_dino": 8.843237503685735,
+            "ssl2_ibot": 8.950295318256725,
+            "ssl2_koleo": 0.004098904654463034,
+            "teacher_momentum": 0.9902238701963405
+          },
+          "validation": {
+            "joint_loss": 17.285648116843404,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.06365060688991235,
+                "ssl1_condition": 6.810332264766645,
+                "ssl1_node": 9.396318626519447,
+                "ssl1_spread": -0.12883736880183783,
+                "ssl2_dino": 6.600570530334617,
+                "ssl2_ibot": 6.8904866664355,
+                "ssl2_koleo": -0.08563353807471283
+              },
+              "joint_loss": 17.285648116843404,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 2,
+          "optimizer_steps": 352,
+          "training": {
+            "gradient_norm": 0.6356161126697605,
+            "joint_loss": 6.060557554058985,
+            "learning_rate": 0.0009712560344656438,
+            "prediction": 0.058869781004349614,
+            "ssl1_condition": 1.432651974514804,
+            "ssl1_node": 7.610385724089363,
+            "ssl1_spread": -0.10368511262773113,
+            "ssl2_dino": 1.423871852584522,
+            "ssl2_ibot": 1.731043046626093,
+            "ssl2_koleo": -0.09734285648234865,
+            "teacher_momentum": 0.9915021885931665
+          },
+          "validation": {
+            "joint_loss": 6.251680587695933,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05856172049137351,
+                "ssl1_condition": 2.0296298316771932,
+                "ssl1_node": 4.715956884582823,
+                "ssl1_spread": -0.16493043113625006,
+                "ssl2_dino": 2.2523912152044843,
+                "ssl2_ibot": 2.2802881739595464,
+                "ssl2_koleo": -0.14503035797261318
+              },
+              "joint_loss": 6.251680587695933,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 3,
+          "optimizer_steps": 528,
+          "training": {
+            "gradient_norm": 0.2818961590528488,
+            "joint_loss": 1.2783230505952483,
+            "learning_rate": 0.0008251945369227132,
+            "prediction": 0.05680421165148304,
+            "ssl1_condition": 0.06308371107496152,
+            "ssl1_node": 2.8990116397088226,
+            "ssl1_spread": -0.16210605635900388,
+            "ssl2_dino": 0.03458810068696039,
+            "ssl2_ibot": 0.05035847077008591,
+            "ssl2_koleo": -0.20156049021435055,
+            "teacher_momentum": 0.9937194794491436
+          },
+          "validation": {
+            "joint_loss": 4.672978689471953,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05592344751340108,
+                "ssl1_condition": 1.6843119016427393,
+                "ssl1_node": 1.7372822211845955,
+                "ssl1_spread": -0.1950890000554971,
+                "ssl2_dino": 2.1857507314135036,
+                "ssl2_ibot": 2.1685011271463677,
+                "ssl2_koleo": -0.21799373326228433
+              },
+              "joint_loss": 4.672978689471953,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 4,
+          "optimizer_steps": 704,
+          "training": {
+            "gradient_norm": 0.200691011141647,
+            "joint_loss": 0.5967546235687963,
+            "learning_rate": 0.0005944245814416718,
+            "prediction": 0.05566805077251047,
+            "ssl1_condition": 0.010400182721654843,
+            "ssl1_node": 1.427316469902342,
+            "ssl1_spread": -0.19617235749451953,
+            "ssl2_dino": 0.004428570795508594,
+            "ssl2_ibot": 0.006838911775048473,
+            "ssl2_koleo": -0.2482134693894874,
+            "teacher_momentum": 0.9962805205508553
+          },
+          "validation": {
+            "joint_loss": 4.416839596186462,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05424334575107376,
+                "ssl1_condition": 1.620226292935692,
+                "ssl1_node": 1.1511781924360953,
+                "ssl1_spread": -0.20886192053820243,
+                "ssl2_dino": 2.188082534610336,
+                "ssl2_ibot": 2.249381735137814,
+                "ssl2_koleo": -0.23388674247658034
+              },
+              "joint_loss": 4.416839596186462,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 5,
+          "optimizer_steps": 880,
+          "training": {
+            "gradient_norm": 0.16302903568033467,
+            "joint_loss": 0.4531421088919819,
+            "learning_rate": 0.00036575185760261174,
+            "prediction": 0.05505498621972616,
+            "ssl1_condition": 0.004268060157879849,
+            "ssl1_node": 1.0962558105926623,
+            "ssl1_spread": -0.21197603714906357,
+            "ssl2_dino": 0.0021146013171098525,
+            "ssl2_ibot": 0.004304561975004617,
+            "ssl2_koleo": -0.26045551819896157,
+            "teacher_momentum": 0.9984978114068332
+          },
+          "validation": {
+            "joint_loss": 4.246628177523021,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05412644798522633,
+                "ssl1_condition": 1.5908379209681947,
+                "ssl1_node": 0.997284191941527,
+                "ssl1_spread": -0.2139085336968554,
+                "ssl2_dino": 2.093937131016272,
+                "ssl2_ibot": 2.226648731308011,
+                "ssl2_koleo": -0.23500694672606331
+              },
+              "joint_loss": 4.246628177523021,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 6,
+          "optimizer_steps": 1056,
+          "training": {
+            "gradient_norm": 0.14201609417796135,
+            "joint_loss": 0.41431861780444984,
+            "learning_rate": 0.00022519316702786498,
+            "prediction": 0.05487855077742345,
+            "ssl1_condition": 0.002854119177506866,
+            "ssl1_node": 1.00719688849693,
+            "ssl1_spread": -0.21909777430648153,
+            "ssl2_dino": 0.0016504610719659302,
+            "ssl2_ibot": 0.003806230822275128,
+            "ssl2_koleo": -0.26655067469586025,
+            "teacher_momentum": 0.9997761298036607
+          },
+          "validation": {
+            "joint_loss": 4.218106863307016,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05386925467262994,
+                "ssl1_condition": 1.5911981675037112,
+                "ssl1_node": 0.9626370376726491,
+                "ssl1_spread": -0.21622000938764527,
+                "ssl2_dino": 2.0524890696885327,
+                "ssl2_ibot": 2.2735047068641565,
+                "ssl2_koleo": -0.23546942881964272
+              },
+              "joint_loss": 4.218106863307016,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        }
+      ],
+      "tests": {
+        "best": {
+          "checkpoint": {
+            "epoch": 6,
+            "file": "epoch-0006.pt",
+            "joint_loss": 4.218106863307016,
+            "sha256": "35349edebeba8014c45758ddd4e868081d5da25fb89155e12ebbf1f126863339"
+          },
+          "receipt_sha256": "a1f2ec282c38d02279b083a9b0a3b9ad8579cd0313b996585af312137792971c",
+          "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+          "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+          "metrics": [
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.2091930552962766,
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.355426610527317,
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.16447842421345127,
+              "metric_id": "trishift_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.31986182524023066,
+              "metric_id": "trishift_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.0813265475824916,
+              "metric_id": "systema_pearson_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.20100133683381713,
+              "metric_id": "systema_pearson_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            }
+          ],
+          "prediction_loss": 0.0066575801826269905,
+          "expression_exposure": {
+            "checkpoint_epoch": 6,
+            "definition": "numeric_control_and_truth_expression_in_completed_training_updates",
+            "groups": {
+              "seen_expression": {
+                "gene_count": 4775,
+                "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+              },
+              "unseen_expression": {
+                "gene_count": 225,
+                "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+              }
+            }
+          },
+          "metric_gene_groups": {
+            "seen_expression": {
+              "gene_count": 4775,
+              "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.41594392037844957,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.45357445689648895,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.30465555941375366,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.4083012893552633,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.22891160960081516,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.2538691755098781,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                }
+              ]
+            },
+            "unseen_expression": {
+              "gene_count": 225,
+              "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.1268885425984865,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.11929696956379572,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.11985159708922258,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.09577759160564386,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": -0.02201231838915027,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.008502318226356767,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                }
+              ]
+            }
+          },
+          "query_recipe": {
+            "block_response_cls_to_gene": false,
+            "expression_gene_count": 5000,
+            "name": "ordered_disjoint_blocks",
+            "query_count": 1000
+          }
+        },
+        "last": {
+          "checkpoint": {
+            "epoch": 6,
+            "file": "epoch-0006.pt",
+            "joint_loss": 4.218106863307016,
+            "sha256": "35349edebeba8014c45758ddd4e868081d5da25fb89155e12ebbf1f126863339"
+          },
+          "receipt_sha256": "5a2942ea2a3a60d4ba3e8a65a17bc06cb6f1765d8155557156d38830f59f23ca",
+          "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+          "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+          "metrics": [
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.2091930552962766,
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.355426610527317,
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.16447842421345127,
+              "metric_id": "trishift_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.31986182524023066,
+              "metric_id": "trishift_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.0813265475824916,
+              "metric_id": "systema_pearson_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.20100133683381713,
+              "metric_id": "systema_pearson_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            }
+          ],
+          "prediction_loss": 0.0066575801826269905,
+          "expression_exposure": {
+            "checkpoint_epoch": 6,
+            "definition": "numeric_control_and_truth_expression_in_completed_training_updates",
+            "groups": {
+              "seen_expression": {
+                "gene_count": 4775,
+                "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+              },
+              "unseen_expression": {
+                "gene_count": 225,
+                "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+              }
+            }
+          },
+          "metric_gene_groups": {
+            "seen_expression": {
+              "gene_count": 4775,
+              "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.41594392037844957,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.45357445689648895,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.30465555941375366,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.4083012893552633,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.22891160960081516,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.2538691755098781,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                }
+              ]
+            },
+            "unseen_expression": {
+              "gene_count": 225,
+              "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.1268885425984865,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.11929696956379572,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.11985159708922258,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.09577759160564386,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": -0.02201231838915027,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.008502318226356767,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                }
+              ]
+            }
+          },
+          "query_recipe": {
+            "block_response_cls_to_gene": false,
+            "expression_gene_count": 5000,
+            "name": "ordered_disjoint_blocks",
+            "query_count": 1000
+          }
+        }
+      },
+      "checks": {
+        "collector_full_terminal_and_checkpoint_hashes": true,
+        "data_identical_to_B0": true,
+        "eval_data_and_config_match_training": true,
+        "control_reference_query_recipe_groups_identical_to_B0": true,
+        "min_joint_best_and_last_epoch6": true,
+        "native_src_tree_same_across_commits": true,
+        "zero_pkl": true,
+        "history6_updates1056": true
+      },
+      "ordered_rows_check": {
+        "best": {
+          "ordered_condition_control_truth_hash": "736f9ea8df8d922f2a48a68d73ea7be3fb614688cef0ac07db30e68a2e51f547",
+          "conditions": 592,
+          "exact300controls_each": true
+        },
+        "last": {
+          "ordered_condition_control_truth_hash": "736f9ea8df8d922f2a48a68d73ea7be3fb614688cef0ac07db30e68a2e51f547",
+          "conditions": 592,
+          "exact300controls_each": true
+        }
+      }
+    },
+    "E3": {
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-remaining-2871c4e/nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+      "complete_sha256": "37eff162d4bed3793990a6d98fcea7de2eb635344d0e2779e583fc5806c179f8",
+      "config_sha256": "6982785ffac1b5ac3f681956ddf8ad51af2aa505e3f02e22572876cb7d34cb2a",
+      "resolved_config_sha256": "5dbd38542976b83ba3dd8653bbc28ae47ab5af589b82f0ccf9293b0579ff1855",
+      "native_src_tree": "ed919ee6eaed01aa7a778c7fa276f87f2a496758",
+      "environment": {
+        "cuda_runtime": "13.0",
+        "cudnn_version": 92000,
+        "device_name": "NVIDIA GeForce RTX 5090",
+        "lock_file": "/data/yilangliu/GraD-Pert/development/source-v2-cap40-repair-2871c4e/uv.lock",
+        "lock_file_sha256": "313e9dbbd63ab8405d77ae991a724081fe6fa4ed26b0ae8047321733e015375d",
+        "payload_sha256": "879d17b62387c96a28024ee129d0595a3fdee8b2feb40e54a91342298d0b125c",
+        "platform": "Linux-6.8.0-136-generic-x86_64-with-glibc2.39",
+        "python_version": "3.12.3",
+        "torch_version": "2.13.0+cu130"
+      },
+      "data": {
+        "canonical_sha256": "f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861",
+        "effective_training_expression_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+        "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+        "genept_sha256": "2460d7757a25aa31f2f06a5c80f1151d2b4fb1a8eba22159658fe62f1ab7cf3d",
+        "graph_gene_order_sha256": "c1d0c76822d5c7ac1f561457010065fa3a195d27954f3c959d6732d107124e10",
+        "graph_manifest_sha256": "0de04502516318f835699683f0c95362386d7031cdefd99800ca3039eb392ae2",
+        "loss_protocol": {
+          "batch_order": "random_mixed_seeded_v2",
+          "exceptions": [
+            "ssl1_node",
+            "ssl1_spread",
+            "teacher_centers"
+          ],
+          "ibot": "masked_tokens_per_cell_then_valid_cell_population",
+          "koleo_exclusion": "same_perturbation_condition",
+          "koleo_population": "complete_global_effective_batch",
+          "reduction": "row_mean",
+          "version": "unified-global-population-v2-relay"
+        },
+        "run_seed": 1,
+        "split_sha256": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0",
+        "training_row_selection": {
+          "analysis_selection_sha256": "a609d5aa4087d209dc62c1e8ed70dc7cff89ed6952b2afb18d0972cb477c94f2",
+          "analysis_source_commit": "5a8a7bb6712bc4facdfeb13d8dd629bd0f250880",
+          "cap": 40,
+          "equivalence_sha256": "ca12b16967f77a06d96139ffaa23cd997af13aa1b2acbe7250ed1d8696b04f85",
+          "manifest_path": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-v2-binding-20260930/training_selection.json",
+          "manifest_sha256": "aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132",
+          "non_training_rows_changed": 0,
+          "original_train_rows": 128266,
+          "sampling": "condition_batch_largest_remainder_uniform_without_replacement",
+          "sampling_seed": 42,
+          "schema_version": "gradpert-v2-training-selection-1",
+          "selected_train_row_ids_sha256": "c8e79242336c194833ac329a807b7eeb76651707204b4ec1379f6a7483aa9a93",
+          "selected_train_rows": 47836,
+          "train_condition_count": 1335
+        }
+      },
+      "training_expression_policy": {
+        "allowed_expression_gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+        "evaluation_control_expression": "available",
+        "exclude_test_target_expression": true,
+        "excluded_expression_gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+        "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+        "graph_identity_visibility": "unchanged",
+        "schema": "training-expression-policy-v1",
+        "test_conditions_sha256": "35a94c9c3793a80d74db0392696d74d5d5645928692f5c365d17b28f6d3da6aa"
+      },
+      "roles": [
+        {
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-remaining-2871c4e/nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+          "run_id": "nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+          "role": "best",
+          "training_sha": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+          "config_sha256": "6982785ffac1b5ac3f681956ddf8ad51af2aa505e3f02e22572876cb7d34cb2a",
+          "resolved_config_sha256": "5dbd38542976b83ba3dd8653bbc28ae47ab5af589b82f0ccf9293b0579ff1855",
+          "run_manifest_sha256": "c7be2f4071d781b64174c94d1456042b2c7c5798c4944e05717d5b8887a1f71c",
+          "status": "complete",
+          "checkpoint_sha256": "bd1cd79887f77034eb24b419eed229953db52c2efaafe67662efd6859a79e4c6",
+          "checkpoint_epoch": 6,
+          "validation_selection_metric": "joint_loss",
+          "validation_selection_loss": 5.493815783175379,
+          "validation_prediction_loss": null,
+          "evaluation_sha": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+          "test_receipt_sha256": "cadca326737fd0b2149d4822fcb449c0e935d9d7d6810c1a283fd852286d0598",
+          "test_prediction_loss": 0.006096134814349134,
+          "txpert_macro_pearson_delta_all": 0.21707474234637678,
+          "txpert_macro_pearson_delta_all_finite_conditions": 592,
+          "txpert_macro_pearson_delta_deg": 0.38158045500178117,
+          "txpert_macro_pearson_delta_deg_finite_conditions": 590,
+          "trishift_pearson_delta_all": 0.16872787473402662,
+          "trishift_pearson_delta_all_finite_conditions": 592,
+          "trishift_pearson_delta_deg": 0.3463911237720077,
+          "trishift_pearson_delta_deg_finite_conditions": 590,
+          "systema_pearson_all": 0.08842398279731388,
+          "systema_pearson_all_finite_conditions": 592,
+          "systema_pearson_deg": 0.2170858498729859,
+          "systema_pearson_deg_finite_conditions": 590
+        },
+        {
+          "run_root": "/data/yilangliu/GraD-Pert/runs-v2-cap40-remaining-2871c4e/nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+          "run_id": "nadig_jurkat-seed1-20261003T072409Z-9571028ddb9543e89f1f5e2583cac59c",
+          "role": "last",
+          "training_sha": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+          "config_sha256": "6982785ffac1b5ac3f681956ddf8ad51af2aa505e3f02e22572876cb7d34cb2a",
+          "resolved_config_sha256": "5dbd38542976b83ba3dd8653bbc28ae47ab5af589b82f0ccf9293b0579ff1855",
+          "run_manifest_sha256": "c7be2f4071d781b64174c94d1456042b2c7c5798c4944e05717d5b8887a1f71c",
+          "status": "complete",
+          "checkpoint_sha256": "bd1cd79887f77034eb24b419eed229953db52c2efaafe67662efd6859a79e4c6",
+          "checkpoint_epoch": 6,
+          "validation_selection_metric": "joint_loss",
+          "validation_selection_loss": 5.493815783175379,
+          "validation_prediction_loss": null,
+          "evaluation_sha": "2871c4e79a70b7d0d4f900866ce019316b68670f",
+          "test_receipt_sha256": "ae0253deedf05e900cc59a52b2bf9159627fbb10531a8712c96fc9f049d75fa9",
+          "test_prediction_loss": 0.006096134814349134,
+          "txpert_macro_pearson_delta_all": 0.21707474234637678,
+          "txpert_macro_pearson_delta_all_finite_conditions": 592,
+          "txpert_macro_pearson_delta_deg": 0.38158045500178117,
+          "txpert_macro_pearson_delta_deg_finite_conditions": 590,
+          "trishift_pearson_delta_all": 0.16872787473402662,
+          "trishift_pearson_delta_all_finite_conditions": 592,
+          "trishift_pearson_delta_deg": 0.3463911237720077,
+          "trishift_pearson_delta_deg_finite_conditions": 590,
+          "systema_pearson_all": 0.08842398279731388,
+          "systema_pearson_all_finite_conditions": 592,
+          "systema_pearson_deg": 0.2170858498729859,
+          "systema_pearson_deg_finite_conditions": 590
+        }
+      ],
+      "epoch_history": [
+        {
+          "epoch": 1,
+          "optimizer_steps": 176,
+          "training": {
+            "gradient_norm": 0.656209256161343,
+            "joint_loss": 33.34896281057313,
+            "learning_rate": 0.0005198843679940412,
+            "prediction": 0.09952025149885396,
+            "ssl1_condition": 8.117279816757549,
+            "ssl1_node": 8.92543422092091,
+            "ssl1_spread": 0.0,
+            "ssl2_dino": 8.084518030285835,
+            "ssl2_ibot": 8.122210491109978,
+            "ssl2_koleo": 0.0,
+            "teacher_momentum": 0.9902238701963405
+          },
+          "validation": {
+            "joint_loss": 26.40473203181469,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.06704761482602656,
+                "ssl1_condition": 6.119932383873455,
+                "ssl1_node": 8.642691681025692,
+                "ssl1_spread": 0.0,
+                "ssl2_dino": 5.769560645140343,
+                "ssl2_ibot": 5.805499626891431,
+                "ssl2_koleo": 0.0
+              },
+              "joint_loss": 26.40473203181469,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 2,
+          "optimizer_steps": 352,
+          "training": {
+            "gradient_norm": 1.07468387179754,
+            "joint_loss": 10.777284812176896,
+            "learning_rate": 0.0009712560344656438,
+            "prediction": 0.059350779904475945,
+            "ssl1_condition": 1.1680565996688197,
+            "ssl1_node": 6.954557723619721,
+            "ssl1_spread": 0.0,
+            "ssl2_dino": 1.2498738273914733,
+            "ssl2_ibot": 1.3454458815924062,
+            "ssl2_koleo": 0.0,
+            "teacher_momentum": 0.9915021885931665
+          },
+          "validation": {
+            "joint_loss": 10.240121841708197,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05900090856668919,
+                "ssl1_condition": 1.9185154069130588,
+                "ssl1_node": 4.230995161339371,
+                "ssl1_spread": 0.0,
+                "ssl2_dino": 1.9735930803372266,
+                "ssl2_ibot": 2.058017231303012,
+                "ssl2_koleo": 0.0
+              },
+              "joint_loss": 10.240121841708197,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 3,
+          "optimizer_steps": 528,
+          "training": {
+            "gradient_norm": 0.5810159014707262,
+            "joint_loss": 2.7040942280861846,
+            "learning_rate": 0.0008251945369227132,
+            "prediction": 0.056869285810865804,
+            "ssl1_condition": 0.05145866643711501,
+            "ssl1_node": 2.5230892453004015,
+            "ssl1_spread": 0.0,
+            "ssl2_dino": 0.03440252372522743,
+            "ssl2_ibot": 0.03827450681257522,
+            "ssl2_koleo": 0.0,
+            "teacher_momentum": 0.9937194794491436
+          },
+          "validation": {
+            "joint_loss": 6.606606054970954,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05604320309917985,
+                "ssl1_condition": 1.6293106037008989,
+                "ssl1_node": 1.4565860848607795,
+                "ssl1_spread": 0.0,
+                "ssl2_dino": 1.7340245373396204,
+                "ssl2_ibot": 1.7306416207983435,
+                "ssl2_koleo": 0.0
+              },
+              "joint_loss": 6.606606054970954,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 4,
+          "optimizer_steps": 704,
+          "training": {
+            "gradient_norm": 0.40695685876364057,
+            "joint_loss": 1.22600620804236,
+            "learning_rate": 0.0005944245814416718,
+            "prediction": 0.05572609798665243,
+            "ssl1_condition": 0.00950184158798286,
+            "ssl1_node": 1.1560132401910694,
+            "ssl1_spread": 0.0,
+            "ssl2_dino": 0.0016349828923177317,
+            "ssl2_ibot": 0.0031300453843372948,
+            "ssl2_koleo": 0.0,
+            "teacher_momentum": 0.9962805205508553
+          },
+          "validation": {
+            "joint_loss": 5.739752033844678,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05440473560602055,
+                "ssl1_condition": 1.5813024076965052,
+                "ssl1_node": 0.9091373801477117,
+                "ssl1_spread": 0.0,
+                "ssl2_dino": 1.5865843620504974,
+                "ssl2_ibot": 1.6083231528397688,
+                "ssl2_koleo": 0.0
+              },
+              "joint_loss": 5.739752033844678,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 5,
+          "optimizer_steps": 880,
+          "training": {
+            "gradient_norm": 0.32867047343064437,
+            "joint_loss": 0.9104890568716076,
+            "learning_rate": 0.00036575185760261174,
+            "prediction": 0.05508793542288582,
+            "ssl1_condition": 0.0038735634132701143,
+            "ssl1_node": 0.8490383164449171,
+            "ssl1_spread": 0.0,
+            "ssl2_dino": 0.0005627649925786086,
+            "ssl2_ibot": 0.0019264765979559425,
+            "ssl2_koleo": 0.0,
+            "teacher_momentum": 0.9984978114068332
+          },
+          "validation": {
+            "joint_loss": 5.5294857424563375,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05426099739387872,
+                "ssl1_condition": 1.525860464585916,
+                "ssl1_node": 0.7669372787761214,
+                "ssl1_spread": 0.0,
+                "ssl2_dino": 1.5300349550101486,
+                "ssl2_ibot": 1.6523920456076935,
+                "ssl2_koleo": 0.0
+              },
+              "joint_loss": 5.5294857424563375,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        },
+        {
+          "epoch": 6,
+          "optimizer_steps": 1056,
+          "training": {
+            "gradient_norm": 0.2851618181236766,
+            "joint_loss": 0.8319111124027668,
+            "learning_rate": 0.00022519316702786498,
+            "prediction": 0.054887727680827746,
+            "ssl1_condition": 0.002658082587169536,
+            "ssl1_node": 0.7721120874312791,
+            "ssl1_spread": 0.0,
+            "ssl2_dino": 0.0004912624529176603,
+            "ssl2_ibot": 0.001761952250572821,
+            "ssl2_koleo": 0.0,
+            "teacher_momentum": 0.9997761298036607
+          },
+          "validation": {
+            "joint_loss": 5.493815783175379,
+            "joint_validation": {
+              "batch_count": 607,
+              "batch_identity_sha256": "66c0c7ed4512384a12c028fc16ce538adc0980e9e278522ff968cafd6a0acf2f",
+              "batch_size": 68,
+              "cell_count": 41235,
+              "components": {
+                "prediction": 0.05394113555982415,
+                "ssl1_condition": 1.5297251082744485,
+                "ssl1_node": 0.7377004260147819,
+                "ssl1_spread": 0.0,
+                "ssl2_dino": 1.5218893705895125,
+                "ssl2_ibot": 1.650559754739953,
+                "ssl2_koleo": 0.0
+              },
+              "joint_loss": 5.493815783175379,
+              "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
+              "teacher_update": "none",
+              "view_seed": 368926
+            },
+            "split": "val",
+            "validation_mode": "joint_only"
+          }
+        }
+      ],
+      "tests": {
+        "best": {
+          "checkpoint": {
+            "epoch": 6,
+            "file": "epoch-0006.pt",
+            "joint_loss": 5.493815783175379,
+            "sha256": "bd1cd79887f77034eb24b419eed229953db52c2efaafe67662efd6859a79e4c6"
+          },
+          "receipt_sha256": "cadca326737fd0b2149d4822fcb449c0e935d9d7d6810c1a283fd852286d0598",
+          "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+          "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+          "metrics": [
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.21707474234637678,
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.38158045500178117,
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.16872787473402662,
+              "metric_id": "trishift_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.3463911237720077,
+              "metric_id": "trishift_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.08842398279731388,
+              "metric_id": "systema_pearson_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.2170858498729859,
+              "metric_id": "systema_pearson_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            }
+          ],
+          "prediction_loss": 0.006096134814349134,
+          "expression_exposure": {
+            "checkpoint_epoch": 6,
+            "definition": "numeric_control_and_truth_expression_in_completed_training_updates",
+            "groups": {
+              "seen_expression": {
+                "gene_count": 4775,
+                "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+              },
+              "unseen_expression": {
+                "gene_count": 225,
+                "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+              }
+            }
+          },
+          "metric_gene_groups": {
+            "seen_expression": {
+              "gene_count": 4775,
+              "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.4206025903129807,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.45888631030673066,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.30717769426367647,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.41702256124922454,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.24755006041970334,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.2653291587189606,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                }
+              ]
+            },
+            "unseen_expression": {
+              "gene_count": 225,
+              "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.1414984341404239,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.23707822880856888,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.1334461338557927,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.18495709243110905,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": -0.02828301914194876,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.10601591583186387,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                }
+              ]
+            }
+          },
+          "query_recipe": {
+            "block_response_cls_to_gene": false,
+            "expression_gene_count": 5000,
+            "name": "ordered_disjoint_blocks",
+            "query_count": 1000
+          }
+        },
+        "last": {
+          "checkpoint": {
+            "epoch": 6,
+            "file": "epoch-0006.pt",
+            "joint_loss": 5.493815783175379,
+            "sha256": "bd1cd79887f77034eb24b419eed229953db52c2efaafe67662efd6859a79e4c6"
+          },
+          "receipt_sha256": "ae0253deedf05e900cc59a52b2bf9159627fbb10531a8712c96fc9f049d75fa9",
+          "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+          "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+          "metrics": [
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.21707474234637678,
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.38158045500178117,
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.16872787473402662,
+              "metric_id": "trishift_pearson_delta_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.3463911237720077,
+              "metric_id": "trishift_pearson_delta_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            },
+            {
+              "finite_condition_count": 592,
+              "macro_mean": 0.08842398279731388,
+              "metric_id": "systema_pearson_all",
+              "total_condition_count": 592,
+              "unavailable_reasons": []
+            },
+            {
+              "finite_condition_count": 590,
+              "macro_mean": 0.2170858498729859,
+              "metric_id": "systema_pearson_deg",
+              "total_condition_count": 592,
+              "unavailable_reasons": [
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1",
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1"
+              ]
+            }
+          ],
+          "prediction_loss": 0.006096134814349134,
+          "expression_exposure": {
+            "checkpoint_epoch": 6,
+            "definition": "numeric_control_and_truth_expression_in_completed_training_updates",
+            "groups": {
+              "seen_expression": {
+                "gene_count": 4775,
+                "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+              },
+              "unseen_expression": {
+                "gene_count": 225,
+                "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+              }
+            }
+          },
+          "metric_gene_groups": {
+            "seen_expression": {
+              "gene_count": 4775,
+              "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.4206025903129807,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.45888631030673066,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.30717769426367647,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.41702256124922454,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.24755006041970334,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 590,
+                  "macro_mean": 0.2653291587189606,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+                  }
+                }
+              ]
+            },
+            "unseen_expression": {
+              "gene_count": 225,
+              "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+              "unavailable_reason": null,
+              "metrics": [
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.1414984341404239,
+                  "metric_id": "txpert_macro_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.23707822880856888,
+                  "metric_id": "txpert_macro_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": 0.1334461338557927,
+                  "metric_id": "trishift_pearson_delta_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.18495709243110905,
+                  "metric_id": "trishift_pearson_delta_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                },
+                {
+                  "finite_condition_count": 592,
+                  "macro_mean": -0.02828301914194876,
+                  "metric_id": "systema_pearson_all",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {}
+                },
+                {
+                  "finite_condition_count": 147,
+                  "macro_mean": 0.10601591583186387,
+                  "metric_id": "systema_pearson_deg",
+                  "total_condition_count": 592,
+                  "unavailable_reason_counts": {
+                    "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2,
+                    "fewer_than_two_genes": 443
+                  }
+                }
+              ]
+            }
+          },
+          "query_recipe": {
+            "block_response_cls_to_gene": false,
+            "expression_gene_count": 5000,
+            "name": "ordered_disjoint_blocks",
+            "query_count": 1000
+          }
+        }
+      },
+      "checks": {
+        "collector_full_terminal_and_checkpoint_hashes": true,
+        "data_identical_to_B0": true,
+        "eval_data_and_config_match_training": true,
+        "control_reference_query_recipe_groups_identical_to_B0": true,
+        "min_joint_best_and_last_epoch6": true,
+        "native_src_tree_same_across_commits": true,
+        "zero_pkl": true,
+        "history6_updates1056": true
+      },
+      "ordered_rows_check": {
+        "best": {
+          "ordered_condition_control_truth_hash": "736f9ea8df8d922f2a48a68d73ea7be3fb614688cef0ac07db30e68a2e51f547",
+          "conditions": 592,
+          "exact300controls_each": true
+        },
+        "last": {
+          "ordered_condition_control_truth_hash": "736f9ea8df8d922f2a48a68d73ea7be3fb614688cef0ac07db30e68a2e51f547",
+          "conditions": 592,
+          "exact300controls_each": true
+        }
+      }
+    }
+  },
+  "checks": {
+    "all_four_runs_accepted": true,
+    "queue_complete_no_failure": true,
+    "all_four_exit_codes_zero": true,
+    "all_data_and_metric_protocols_identical": true
+  }
+}
