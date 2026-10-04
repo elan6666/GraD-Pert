@@ -1,0 +1,25 @@
+{
+  "commit_expected": "f3620b0d439778a7f1ed21d894e3d06bcdea0b3f",
+  "before": {
+    "sha": "f3620b0d439778a7f1ed21d894e3d06bcdea0b3f",
+    "clean": true,
+    "status": []
+  },
+  "after": {
+    "sha": "f3620b0d439778a7f1ed21d894e3d06bcdea0b3f",
+    "clean": true,
+    "status": []
+  },
+  "commands": {
+    "pytest": 0,
+    "ruff": 0
+  },
+  "pytest_counts": {
+    "passed": 119,
+    "skipped": 0,
+    "xfailed": 0,
+    "xpassed": 0
+  },
+  "started_at_epoch": 1791136198,
+  "passed": true
+}
