@@ -72,7 +72,7 @@ def completed(root, epochs=50):
     write(root / "COMPLETE.json", {**journal, "test_roles": ["best", "last"], "zero_pkl": True})
 
 
-@pytest.mark.parametrize("epochs", [1, 3, 5, 6, 50])
+@pytest.mark.parametrize("epochs", [1, 3, 5, 6, 20, 50])
 def test_keeps_both_roles_even_when_checkpoint_identical(tmp_path, epochs):
     completed(tmp_path, epochs)
     rows = collect(tmp_path)
@@ -169,10 +169,13 @@ def test_joint_only_completion_retains_both_test_roles(tmp_path):
     assert all(row["test_prediction_loss"] == 0.3 for row in rows)
 
 
-def test_six_epoch_joint_only_completion_advances_queue_without_retraining(tmp_path, monkeypatch):
+@pytest.mark.parametrize("epochs", [6, 20])
+def test_fixed_epoch_joint_only_completion_advances_queue_without_retraining(
+    tmp_path, monkeypatch, epochs
+):
     monkeypatch.syspath_prepend(str(ROOT / "scripts/v2"))
     next_action = runpy.run_path(str(ROOT / "scripts/v2/run_group.py"))["next_action"]
-    completed(tmp_path, 6)
+    completed(tmp_path, epochs)
     fit = tmp_path / "fit"
     journal = json.loads((fit / "epoch_state.json").read_text())
     history = json.loads((fit / "history.json").read_text())
@@ -181,7 +184,7 @@ def test_six_epoch_joint_only_completion_advances_queue_without_retraining(tmp_p
         record["validation"]["joint_loss"] = record["validation"].pop("prediction_loss")
         record["validation"]["validation_mode"] = "joint_only"
     for role in ("best", "last"):
-        journal[role]["joint_loss"] = journal[role].pop("prediction_loss", 1 / 6)
+        journal[role]["joint_loss"] = journal[role].pop("prediction_loss", 1 / epochs)
         test = json.loads((fit / f"{role}-test.json").read_text())
         test["identity"]["checkpoint"] = journal[role]
         write(fit / f"{role}-test.json", test)
@@ -191,12 +194,13 @@ def test_six_epoch_joint_only_completion_advances_queue_without_retraining(tmp_p
     plan = {"run_root": str(tmp_path), "config_sha256": "c" * 64, "source_commit": "a" * 40}
     write(tmp_path / "launch.json", plan)
     assert next_action(plan) == "skip_complete"
-    assert all(row["checkpoint_epoch"] == 6 for row in collect(tmp_path))
+    assert all(row["checkpoint_epoch"] == epochs for row in collect(tmp_path))
 
 
+@pytest.mark.parametrize("epochs", [6, 20])
 @pytest.mark.parametrize("corruption", ["budget", "history", "checkpoint", "test"])
-def test_six_epoch_policy_still_requires_exact_terminal_evidence(tmp_path, corruption):
-    completed(tmp_path, 6)
+def test_fixed_epoch_policy_still_requires_exact_terminal_evidence(tmp_path, corruption, epochs):
+    completed(tmp_path, epochs)
     if corruption == "budget":
         resolved = json.loads((tmp_path / "resolved_config.json").read_text())
         resolved["training"]["max_epochs"]["value"] = 5
@@ -205,7 +209,7 @@ def test_six_epoch_policy_still_requires_exact_terminal_evidence(tmp_path, corru
         history = json.loads((tmp_path / "fit/history.json").read_text())
         write(tmp_path / "fit/history.json", history[:-1])
     elif corruption == "checkpoint":
-        (tmp_path / "fit/epoch-0006.pt").write_bytes(b"corrupt")
+        (tmp_path / f"fit/epoch-{epochs:04d}.pt").write_bytes(b"corrupt")
     else:
         (tmp_path / "fit/best-test.json").unlink()
     with pytest.raises(ValueError):

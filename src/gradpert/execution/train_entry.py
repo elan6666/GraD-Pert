@@ -56,6 +56,7 @@ def resolve_plan(args: argparse.Namespace) -> dict[str, Any]:
             raise ValueError("continuation parent is incomplete or checksum differs")
     expected_epochs = {
         "r50_selection": 50,
+        "v2_fixed_20": 20,
         "v2_fixed_50": 50,
         "v2_fixed_6": 6,
         "v2_fixed_5": 5,

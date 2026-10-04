@@ -434,3 +434,21 @@ def test_expression_visibility_defaults_and_legacy_serialization():
             assert changed.excludes_test_target_expression is value
         with pytest.raises(ValueError):
             ModelConfig.model_validate({**payload, "exclude_test_target_expression": "false"})
+
+
+@pytest.mark.parametrize("epochs", [19, 20, 21])
+def test_twenty_epoch_policy_enforces_exact_budget_and_retains_joint_protocol(epochs):
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "configs/v2/cap40_ablations_jurkat/E2_prototypes16384/gradpert_v2/nadig_jurkat.yaml"
+    )
+    payload = yaml.safe_load(path.read_text())
+    payload["training"]["formal_run_policy"] = "v2_fixed_20"
+    payload["training"]["max_epochs"]["value"] = epochs
+    if epochs != 20:
+        with pytest.raises(ValueError, match="exactly 20"):
+            ExperimentConfig.model_validate(payload)
+    else:
+        config = ExperimentConfig.model_validate(payload)
+        assert config.training.monitor == "val/joint_loss"
+        assert not config.training.early_stopping

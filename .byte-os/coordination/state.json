@@ -153,7 +153,7 @@
       "ts": "2026-10-05T00:00:00Z"
     }
   ],
-  "main_continuation": "complete",
+  "main_continuation": "in_progress",
   "monitor": {
     "id": "grad-pert-v2",
     "status": "DELETED",
@@ -164,7 +164,7 @@
     "run_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
     "attempt": 1
   },
-  "next_action": "None. Authorized cap40 B0/E1/E2/E3 accepted; no additional experiment authorized.",
+  "next_action": "Resolve fresh20 versus complete-state continuation6-to20; then publish exact configs and launch E2/E3 only.",
   "owner": "codex",
   "owner_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
   "participants": {
@@ -330,12 +330,22 @@
     "at": "2026-10-04T17:13:54.281902+00:00",
     "action": "Independent server receipt verification and B0/E1/E2/E3 comparison; return fallback deleted."
   },
-  "overall_task_status": "complete",
+  "overall_task_status": "in_progress",
   "terminal_acceptance": {
     "receipt": ".byte-os/coordination/receipts/v2-cap40-three-ablations-main-acceptance-20261005.json",
     "queue_id": "v2-cap40-remaining-2871c4e-20261003T072407Z",
     "attempt": 1,
     "comparison_report": "docs/experiments/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.md",
     "accepted": true
+  },
+  "pending_request": {
+    "arms": [
+      "E2",
+      "E3"
+    ],
+    "total_epochs": 20,
+    "training_origin": "awaiting_user_choice",
+    "plan": ".byte-os/plans/GRADPERT_V2_CAP40_E2_E3_TWENTY_EPOCH_20261005.plan.md",
+    "new_run_launched": false
   }
 }

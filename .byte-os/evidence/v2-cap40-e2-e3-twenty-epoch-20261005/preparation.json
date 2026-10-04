@@ -1,0 +1,20 @@
+{
+  "stage": "twenty_epoch_contract_preparation",
+  "baseline_sha": "75e9ea07bcc6d20c50c1a4250cd7683a24efaeb4",
+  "local_checks": {
+    "pytest": 112,
+    "ruff": "passed"
+  },
+  "changed_scope": [
+    "schema fixed20",
+    "train planner fixed20",
+    "native fixed20 entry",
+    "collector fixed20",
+    "exact-budget/joint-only terminal tests"
+  ],
+  "model_loss_data_parameters_changed": false,
+  "decision_pending": "fresh20 or complete-state continuation6-to20",
+  "formal_training_launched": false,
+  "local_torch_suite": "continuation suite unavailable in lightweight local venv; server verification pending",
+  "gpu_snapshot": "GPU0 2MiB idle; GPU1 6116MiB occupied; existing idle gate preserved"
+}

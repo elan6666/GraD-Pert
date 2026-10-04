@@ -1,0 +1,9 @@
+# E2/E3 cap40 twenty-epoch training
+
+User authorized E2 and E3 only, twenty epochs. Training origin is pending: fresh twenty-epoch schedule or full-state continuation from six through twenty. Do not launch until this scientific choice is resolved. Existing six-epoch source/results are frozen. No E1/B0 rerun or new ablation is authorized.
+
+Keep approved E2/E3 architecture/loss weights, cap40 selection, seed1, m68 x accum2 x two GPUs = global272, joint-only validation/min-joint best, last epoch20 and automatic frozen best/last all/DEG plus seen/unseen tests. Fresh training has3520updates; continuation resumes from1056 and reaches3520, with separately declared extension LR. It cannot retroactively equal a fresh twenty-epoch cosine run.
+
+Added fixed20 support throughout schema/planner/native entry/collector; exact budget/history/checkpoint/test-role safeguards remain. Local directed112checks and Ruff pass. Server CPU checks and exact self-contained configurations are pending. No GPU job or monitor is active for this new request.
+
+After the choice: generate/config-validate isolated twenty-epoch files, publish clean commit, stage immutable server checkout/runtime, validate exact-config dual-card preflight, then sequential E2/E3 under unchanged GPU<=512MiB/project leases/allocator gate. GPU1 is occupied at initial check; preserve other users. Use distinct queue/run IDs and source/config hashes, no overwrite or silent batch fallback. Designated supervisor observes only the launched long queue at20min; verify ACK/recurring registration and return route. A short preflight may use Luna. Terminal main acceptance/comparison closes the run and deletes monitors.

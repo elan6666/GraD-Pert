@@ -33,6 +33,7 @@ def collect_run(root: Path) -> list[dict]:
         "v2_fixed_3": 3,
         "v2_fixed_5": 5,
         "v2_fixed_6": 6,
+        "v2_fixed_20": 20,
         "v2_fixed_50": 50,
     }.get(policy)
     if expected_epochs is None or resolved["training"]["max_epochs"]["value"] != expected_epochs:

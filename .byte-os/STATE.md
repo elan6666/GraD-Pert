@@ -1,3 +1,7 @@
+## 2026-10-05：E2/E3 20轮新请求准备中
+
+用户授权②③20epoch；从头20轮或完整状态6→20的起点待用户选择。fixed20 schema/planner/native/collector已补齐，本地112定向检查和Ruff通过；旧六轮结果冻结，新配置/不可变发布/服务器验证/双卡预检/正式队列尚待准备。当前GPU1有其他任务，继续既有空闲门槛。没有新训练或监控启动。计划 `.byte-os/plans/GRADPERT_V2_CAP40_E2_E3_TWENTY_EPOCH_20261005.plan.md`。
+
 ## 2026-10-05：cap40 三组消融全部完成并独立验收
 
 B0/E1/E2/E3均6/6、1056更新、min-joint best=last epoch6、真实best/last测试、相同冻结数据/300-control有序清单与表达分组、checkpoint哈希/来源核验、zeroPKL。替换队列COMPLETE；E1未重跑。最终比较和loss分项已归档：`docs/experiments/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.md`；独立证据 `.byte-os/evidence/v2-cap40-three-ablations-20261001/final-comparison-20261005/independent-acceptance.json`。单seed描述性结果，E3为组合消融，不按测试调参。正式墙时分解/峰值缺失已明确记录；E2预检128通过。Owner为主会话，整体任务已完成，无后续作业；监督及返回监控均DELETED。此记录覆盖以下未完成/等待/监督状态。
