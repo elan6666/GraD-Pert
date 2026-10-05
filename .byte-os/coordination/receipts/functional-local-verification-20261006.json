@@ -1,0 +1,52 @@
+{
+  "schema": "gradpert-functional-local-verification-v1",
+  "baseline_commit": "5d6db5735c1bcb3f6a62ab88dc40a67227026a2f",
+  "implementation_worktree": "/Users/elan/.codex/worktrees/v2-functional-ablation/grad-pert",
+  "directed_tests": {
+    "passed": 202
+  },
+  "broader_regression": {
+    "passed": 590,
+    "failed": 5,
+    "skipped": 11,
+    "all_five_failures_reproduced_on_clean_baseline": true
+  },
+  "final_affected_tests": {
+    "passed": 20
+  },
+  "ruff": "passed",
+  "format": "passed",
+  "mypy_six_changed_source_files": "passed",
+  "git_diff_check": "passed",
+  "cuda_and_formal_launch": "not_yet_performed",
+  "logs": [
+    {
+      "path": "/tmp/gradpert-functional-tests-20261006-deps.log",
+      "sha256": "a20e46d5e663c2ce7eb49a8edaee223a2eccbd48a619796d3e5c074cc54af22e"
+    },
+    {
+      "path": "/tmp/gradpert-functional-all-tests-20261006.log",
+      "sha256": "1d3908ca21bc5431f5f5c61e4000508feaef224ab8b89aa198fc8bc7461d040b"
+    },
+    {
+      "path": "/tmp/gradpert-functional-baseline-tests-20261006.log",
+      "sha256": "0e63a34a7cbf067a490433db032171e6a36c215ef99d261aa38274e3e965bb11"
+    },
+    {
+      "path": "/tmp/gradpert-functional-final-tests-20261006.log",
+      "sha256": "266351a8348e052772ead27d016b625d7fdf064b64b8034aa144ef0acf75a202"
+    },
+    {
+      "path": "/tmp/gradpert-functional-final-ruff-20261006.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "/tmp/gradpert-functional-final-format-20261006.log",
+      "sha256": "d41ae50829b47e318b0787bc39d2a2ea2d52b518cfc7900d2efd569e6d26ab88"
+    },
+    {
+      "path": "/tmp/gradpert-functional-mypy-20261006-final.log",
+      "sha256": "ab35ee42183d4d6d3ba483825ab037d18a5a15622d03be01d82220b1564851ff"
+    }
+  ]
+}

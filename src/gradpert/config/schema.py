@@ -258,8 +258,14 @@ class TrainingConfig(StrictModel):
                         f"v2 requires exactly {expected_epochs} "
                         f"epoch{'s' if expected_epochs != 1 else ''} without early stopping"
                     )
-                if self.monitor not in {"val/prediction_loss", "val/joint_loss"} or (
-                    self.monitor_mode != "min"
+                final_only = (
+                    self.formal_run_policy == "v2_fixed_6"
+                    and self.monitor == "none"
+                    and self.monitor_mode == "none"
+                )
+                if not final_only and (
+                    self.monitor not in {"val/prediction_loss", "val/joint_loss"}
+                    or self.monitor_mode != "min"
                 ):
                     raise ValueError("v2 requires a minimum-loss validation monitor")
                 if (
@@ -472,6 +478,11 @@ class ExperimentConfig(StrictModel):
             from gradpert.config.v2 import V2Options
 
             _, options = V2Options.parse_parameters(self.model.parameters)
+            disabled = options.validation_mode == "disabled"
+            if disabled != (self.training.monitor == "none") or (
+                disabled and (self.training.formal_run_policy != "v2_fixed_6" or self.continuation)
+            ):
+                raise ValueError("disabled validation requires fresh fixed6 and monitor=none")
             if self.artifacts.result_mode != "metrics_only":
                 raise ValueError("v2 requires metrics_only with server-side best/last checkpoints")
             if self.training.formal_run_policy not in {

@@ -68,7 +68,7 @@ def fit(
     epochs: int,
     steps_per_epoch: int,
     batches: Callable[[int], Iterable[TrainingBatch]],
-    validate: Callable[[], dict[str, Any]],
+    validate: Callable[[], dict[str, Any]] | None,
     schedule: EndpointLRWarmupCosine | ConstantStageLR,
     teacher_start: float,
     teacher_end: float,
@@ -86,13 +86,16 @@ def fit(
     """
     if epochs < 1 or steps_per_epoch < 1 or not 0 < teacher_start <= teacher_end <= 1:
         raise ValueError("invalid lifecycle budget or teacher momentum")
+    selection_metric = "joint_loss" if validate is not None else "final_epoch"
+    if validate is None and (bootstrap_history is not None or bootstrap_best is not None):
+        raise ValueError("train-only lifecycle cannot reinterpret validated parent history")
     contract = {
         "schedule": asdict(schedule),
         "teacher_start": teacher_start,
         "teacher_end": teacher_end,
         "microbatch": microbatch,
         "bf16": bf16,
-        "selection_metric": "joint_loss",
+        "selection_metric": selection_metric,
     }
     if resume and bootstrap_history is not None:
         raise ValueError("resume must use the committed child journal, not bootstrap again")
@@ -155,7 +158,7 @@ def fit(
             "identity": identity,
             "budget": [epochs, steps_per_epoch],
             "contract": contract,
-            "selection_metric": "joint_loss",
+            "selection_metric": selection_metric,
             "epoch": initial_epoch,
             "selection_start_epoch": 0 if best is not None else initial_epoch,
             "best": best,
@@ -207,7 +210,7 @@ def fit(
     # Reuse native strict-improvement selection. Fixed-budget v2 deliberately
     # ignores the early-stop signal, just like native R50 selection runs.
     selection = EarlyStoppingState(mode="min")
-    for record in history[journal.get("selection_start_epoch", 0) :]:
+    for record in history[journal.get("selection_start_epoch", 0) :] if validate else []:
         selection.update(
             epoch=record["epoch"], validation_metric=float(record["validation"]["joint_loss"])
         )
@@ -283,13 +286,16 @@ def fit(
         count = execute_epoch(batches(epoch), update, maximum_steps=steps_per_epoch)
         if count != steps_per_epoch:
             raise ValueError("epoch iterator shorter than sealed step budget")
-        live("validation", epoch + 1, steps_per_epoch)
-        validation = primary_call(validate)
-        if validation.get("split") != "val":
-            raise ValueError("checkpoint selection requires validation-only results")
-        loss = float(validation["joint_loss"])
-        if not math.isfinite(loss):
-            raise FloatingPointError("nonfinite validation selection loss")
+        loss: float | None = None
+        validation: dict[str, Any] = {"validation_mode": "disabled", "performed": False}
+        if validate is not None:
+            live("validation", epoch + 1, steps_per_epoch)
+            validation = primary_call(validate)
+            if validation.get("split") != "val":
+                raise ValueError("checkpoint selection requires validation-only results")
+            loss = float(validation["joint_loss"])
+            if not math.isfinite(loss):
+                raise FloatingPointError("nonfinite validation selection loss")
         history.append(
             {
                 "epoch": epoch + 1,
@@ -313,7 +319,7 @@ def fit(
             "file": checkpoint.name,
             "sha256": sha256_file(checkpoint),
             "epoch": epoch + 1,
-            "joint_loss": loss,
+            **({"joint_loss": loss} if loss is not None else {}),
             **(
                 {"prediction_loss": float(validation["prediction_loss"])}
                 if "prediction_loss" in validation
@@ -321,16 +327,17 @@ def fit(
             ),
         }
         best = journal.get("best")
-        improved, _ = selection.update(epoch=epoch + 1, validation_metric=loss)
-        if improved:
-            best = selected
-        if best is None:  # The first finite validation must select a checkpoint.
-            raise AssertionError("native selection did not select an initial checkpoint")
+        if loss is not None:
+            improved, _ = selection.update(epoch=epoch + 1, validation_metric=loss)
+            if improved:
+                best = selected
+            if best is None:  # The first finite validation must select a checkpoint.
+                raise AssertionError("native selection did not select an initial checkpoint")
         journal = {
             "identity": identity,
             "budget": [epochs, steps_per_epoch],
             "contract": contract,
-            "selection_metric": "joint_loss",
+            "selection_metric": selection_metric,
             "epoch": epoch + 1,
             "selection_start_epoch": journal.get("selection_start_epoch", 0),
             "best": best,
@@ -341,7 +348,7 @@ def fit(
         primary_call(partial(atomic_json, journal_path, journal))
         primary_call(partial(_role_links, root, journal))
         primary_call(lambda: atomic_json(root / "history.json", history))
-        retained = {str(best["file"]), str(selected["file"])}
+        retained = {str(selected["file"])} | ({str(best["file"])} if best else set())
 
         def prune(retained_files: set[str] = retained) -> None:
             for old in root.glob("epoch-*.pt"):
@@ -375,6 +382,10 @@ def _test_selected(
     receipts = {}
     for role in ("best", "last"):
         selected = journal[role]
+        if selected is None:
+            if role != "best" or journal.get("selection_metric") != "final_epoch":
+                raise ValueError("selected checkpoint is missing")
+            continue
         identity = {
             "training": selected.get("training_identity", journal["identity"]),
             "evaluation": evaluation_identity,

@@ -43,7 +43,20 @@ def collect_run(root: Path) -> list[dict]:
     if journal and journal["identity"] != manifest:
         raise ValueError("epoch journal training identity differs from manifest")
     selection_metric = journal.get("selection_metric", "prediction_loss") if journal else None
-    if selection_metric not in (None, "prediction_loss", "joint_loss"):
+    train_only = (
+        resolved.get("model", {}).get("parameters", {}).get("validation_mode", {}).get("value")
+        == "disabled"
+    )
+    roles = ("last",) if train_only else ("best", "last")
+    if train_only and (
+        policy != "v2_fixed_6"
+        or resolved["training"]["monitor"] != "none"
+        or (journal and (selection_metric != "final_epoch" or journal.get("best") is not None))
+    ):
+        raise ValueError("invalid train-only fixed-six checkpoint contract")
+    if selection_metric not in (None, "prediction_loss", "joint_loss", "final_epoch") or (
+        selection_metric == "final_epoch" and not train_only
+    ):
         raise ValueError("unsupported validation selection metric")
     complete_path = root / "COMPLETE.json"
     complete = read(complete_path) if complete_path.exists() else None
@@ -59,25 +72,34 @@ def collect_run(root: Path) -> list[dict]:
         history = read(root / "fit/history.json")
         if [h["epoch"] for h in history] != list(range(1, expected_epochs + 1)):
             raise ValueError("completion lacks all committed epochs")
-        if any(
+        if train_only:
+            if any(
+                h["validation"] != {"validation_mode": "disabled", "performed": False}
+                for h in history
+            ):
+                raise ValueError("train-only history contains validation results")
+            if complete.get("best") is not None or journal["last"]["epoch"] != expected_epochs:
+                raise ValueError("train-only must test the final epoch without a best role")
+        elif any(
             h["validation"]["split"] != "val"
             or not math.isfinite(h["validation"][selection_metric])
             for h in history
         ):
             raise ValueError("selection history must contain finite validation losses")
-        best = min(history, key=lambda h: h["validation"][selection_metric])
-        for role, row in (("best", best), ("last", history[-1])):
-            if (
-                journal[role]["epoch"] != row["epoch"]
-                or journal[role][selection_metric] != row["validation"][selection_metric]
-            ):
-                raise ValueError("checkpoint selection differs from validation history")
-        if set(complete["test_roles"]) != {"best", "last"} or not complete["zero_pkl"]:
+        if not train_only:
+            best = min(history, key=lambda h: h["validation"][selection_metric])
+            for role, row in (("best", best), ("last", history[-1])):
+                if (
+                    journal[role]["epoch"] != row["epoch"]
+                    or journal[role][selection_metric] != row["validation"][selection_metric]
+                ):
+                    raise ValueError("checkpoint selection differs from validation history")
+        if set(complete["test_roles"]) != set(roles) or not complete["zero_pkl"]:
             raise ValueError("completion lacks both test roles or zero-PKL evidence")
         if any(root.rglob("*.pkl")):
             raise ValueError("completed run contains PKL files")
     rows = []
-    for role in ("best", "last"):
+    for role in roles:
         row = {
             "run_root": str(root.resolve()),
             "run_id": manifest["run_id"],
@@ -102,8 +124,9 @@ def collect_run(root: Path) -> list[dict]:
         row.update(
             checkpoint_sha256=selected["sha256"],
             checkpoint_epoch=selected["epoch"],
-            validation_selection_metric=selection_metric,
-            validation_selection_loss=selected[selection_metric],
+            checkpoint_selection_metric=selection_metric,
+            validation_selection_metric=None if train_only else selection_metric,
+            validation_selection_loss=None if train_only else selected[selection_metric],
             validation_prediction_loss=selected.get("prediction_loss"),
             status="missing_test",
         )

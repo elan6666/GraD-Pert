@@ -12,6 +12,7 @@ from torch.utils.checkpoint import checkpoint
 
 from gradpert.config.v2 import V2Architecture
 
+from .attention_ablation import ReplacementAttention, retention_normalize
 from .operators import (
     CrossManifoldResidual,
     GatedFeedForward,
@@ -53,9 +54,12 @@ class SparseRead(nn.Module):
         ffn_type: str = "gelu",
         *,
         source_key_gate: bool = False,
+        retention: bool = False,
     ) -> None:
         super().__init__()
         self.heads, self.head_width = heads, width // heads
+        self.retention = retention
+        self.output_gate = nn.Linear(width, width, bias=False) if retention else None
         self.query = nn.Linear(width, width, bias=False)
         self.compress = nn.Linear(width, rank, bias=False) if rank is not None else None
         self.latent_norm = nn.RMSNorm(rank) if rank is not None else None
@@ -104,8 +108,21 @@ class SparseRead(nn.Module):
         score = torch.einsum("nhd,nkhd->nhk", q.float(), key.float()) / self.head_width**0.5
         bias = sources.to(self.source_bias.dtype) @ self.source_bias
         score = score + bias.permute(0, 2, 1).float()
-        weights = score.masked_fill(~valid[:, None, :], float("-inf")).softmax(-1)
+        if self.retention:
+            # Local retention adaptation: edge bias becomes a multiplicative
+            # positive weight; the source gate modulates K before ReLU.
+            weights = torch.einsum("nhd,nkhd->nhk", F.relu(q).float(), F.relu(key).float())
+            weights = weights / self.head_width * bias.permute(0, 2, 1).float().exp()
+            weights = weights.masked_fill(~valid[:, None, :], 0)
+        else:
+            weights = score.masked_fill(~valid[:, None, :], float("-inf")).softmax(-1)
         read = torch.einsum("nhk,nkhd->nhd", weights.to(value.dtype), value).flatten(-2)
+        if self.retention:
+            assert self.output_gate is not None
+            read = retention_normalize(
+                read.reshape(*read.shape[:-1], self.heads, self.head_width)
+            ).flatten(-2)
+            read = read * F.silu(self.output_gate(self.norm1(query)))
         x = query + self.dropout(self.output(read))
         return cast(Tensor, x + self.dropout(self.ffn(self.norm2(x))))
 
@@ -300,9 +317,10 @@ class GeneGraph(nn.Module):
                         options.width,
                         options.heads,
                         options.dropout,
-                        options.latent_rank,
+                        options.latent_rank if options.attention_replacement == "none" else None,
                         options.ffn_type,
                         source_key_gate=options.graph_source_key_gate,
+                        retention=options.attention_replacement == "retention",
                     )
                 ]
             )
@@ -417,6 +435,28 @@ class GraDPertV2(nn.Module):
         self.ssl1_node = Projector(options)
         self.ssl2_cls = Projector(options)
         self.ssl2_node = Projector(options)
+        if options.attention_replacement != "none":
+            if not isinstance(self.response, RelayResponseEncoder):
+                raise ValueError("complete replacement requires the relay response path")
+            for layer in self.cell.layers[::2]:
+                layer.sublayer = ReplacementAttention(
+                    d, options.heads, options.dropout, options.attention_replacement
+                )
+            for layer in (*self.response.self_layers, *self.response.cross_layers):
+                layer.sublayer = ReplacementAttention(
+                    d, options.heads, options.dropout, options.attention_replacement
+                )
+            for layer in self.graph.layers[:3]:
+                layer.read = ReplacementAttention(
+                    d, options.heads, options.dropout, options.attention_replacement
+                )
+        elif options.self_readout == "position":
+            if not isinstance(self.response, RelayResponseEncoder):
+                raise ValueError("position readout requires the relay response path")
+            for layers in (self.cell.layers[::2], self.response.self_layers):
+                for layer in layers:
+                    if isinstance(layer.sublayer, RelayDeltaAttention):
+                        layer.sublayer.self_readout = "position"
         if options.attention == "relay_full":
             self.set_relay_order_randomization(self.training)
         for module in self.modules():

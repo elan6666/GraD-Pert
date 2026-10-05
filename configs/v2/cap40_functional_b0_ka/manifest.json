@@ -1,0 +1,53 @@
+{
+  "schema": "gradpert-v2-functional-b0-ka-1",
+  "parent": "configs/v2/cap40_combined_jurkat/E23_prototypes16384_unit_distillation/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "7214e3e382232ae8856998544514c54aecd048aeec2ab3cb8f329c7157c08df8",
+  "rows": [
+    {
+      "name": "B0",
+      "config": "configs/v2/cap40_functional_b0_ka/B0/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "8961c93fd42bf0141722a42e23a3577c9209e5cdfb9aea1e8bba3c5de92467a5",
+      "changes": {}
+    },
+    {
+      "name": "K1",
+      "config": "configs/v2/cap40_functional_b0_ka/K1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "9dc4030718d725aa0e8940344323211bdf210f080ca1993344cd95c9022ea5da",
+      "changes": {
+        "relay_passes": 2
+      }
+    },
+    {
+      "name": "K2",
+      "config": "configs/v2/cap40_functional_b0_ka/K2/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "a315cc5c1c7142a988ab4e2117fd6131c2c4cbe0ef096c875284524090eb6bfc",
+      "changes": {
+        "self_readout": "position"
+      }
+    },
+    {
+      "name": "A1",
+      "config": "configs/v2/cap40_functional_b0_ka/A1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "3389a9b4064622143bddd0cfdb44e5447f7315a8adcc6073cc2a0c3fb0bafaac",
+      "changes": {
+        "attention_replacement": "softmax"
+      }
+    },
+    {
+      "name": "A2",
+      "config": "configs/v2/cap40_functional_b0_ka/A2/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "4b3d3351682c8eef7314857abf6e1d0d40c0bc475dae7cc66fb34bb85c4fd102",
+      "changes": {
+        "attention_replacement": "retention"
+      }
+    }
+  ],
+  "epochs": 6,
+  "validation": "disabled",
+  "test_roles": [
+    "last"
+  ],
+  "common_microbatch": 68,
+  "global_batch": 272,
+  "seed": 1
+}

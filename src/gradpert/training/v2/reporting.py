@@ -14,6 +14,60 @@ METRICS = ("txpert_macro_pearson_delta", "trishift_pearson_delta", "systema_pear
 METRICS_V2 = tuple(f"{family}_{axis}" for family in METRICS for axis in ("all", "deg"))
 
 
+def _export_train_only(
+    root: Path, journal: dict[str, Any], history: list[dict[str, Any]]
+) -> dict[str, Any]:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from matplotlib import pyplot as plt
+
+    if journal.get("selection_metric") != "final_epoch" or journal.get("best") is not None:
+        raise ValueError("train-only curves require final-epoch selection without a best role")
+    if any(r["validation"] != {"validation_mode": "disabled", "performed": False} for r in history):
+        raise ValueError("train-only history contains validation results")
+    identity = journal["identity"]
+    keys = sorted(history[0]["training"])
+    rows = [
+        {
+            "epoch": r["epoch"],
+            "optimizer_steps": r["optimizer_steps"],
+            "source_commit": identity["source"]["commit"],
+            "run_id": identity["run_id"],
+            **{f"train_{k}_step_mean": r["training"][k] for k in keys},
+        }
+        for r in history
+    ]
+    output = root / "epoch_curves.csv"
+    with output.open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+    for ax, key in zip(axes, ("prediction", "joint_loss"), strict=True):
+        ax.plot([r["epoch"] for r in history], [r["training"][key] for r in history])
+        ax.set(xlabel="Epoch", ylabel=key, title=f"Training {key} (update mean)")
+    fig.tight_layout()
+    outputs = [output]
+    for ext in ("png", "pdf"):
+        path = root / f"training_loss.{ext}"
+        fig.savefig(path)
+        outputs.append(path)
+    plt.close(fig)
+    receipt = {
+        "source_commit": identity["source"]["commit"],
+        "run_id": identity["run_id"],
+        "history_sha256": sha256_file(root / "history.json"),
+        "journal_sha256": sha256_file(root / "epoch_state.json"),
+        "outputs": {p.name: sha256_file(p) for p in outputs},
+        "training_reduction": "arithmetic_mean_over_optimizer_updates",
+        "validation_mode": "disabled",
+        "validation_performed": False,
+    }
+    atomic_json(root / "curves_receipt.json", receipt)
+    return receipt
+
+
 def export_curves(root: Path) -> dict[str, Any]:
     journal = read_json(root / "epoch_state.json")
     history = read_json(root / "history.json")
@@ -22,6 +76,8 @@ def export_curves(root: Path) -> dict[str, Any]:
     if [r["epoch"] for r in history] != list(range(1, len(history) + 1)):
         raise ValueError("epoch history is not contiguous")
     identity = journal["identity"]
+    if history[0]["validation"].get("validation_mode") == "disabled":
+        return _export_train_only(root, journal, history)
     source = identity["source"]["commit"]
     has_joint = "joint_loss" in history[0]["validation"]
     validation_mode = history[0]["validation"].get("validation_mode", "joint_and_prediction")

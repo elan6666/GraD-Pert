@@ -7,6 +7,7 @@ from typing import Any
 import torch
 from torch import nn
 
+from gradpert.modeling.v2.attention_ablation import ReplacementAttention
 from gradpert.modeling.v2.model import SparseRead
 from gradpert.modeling.v2.operators import (
     DeltaAttention,
@@ -36,7 +37,9 @@ def routes(model: nn.Module) -> list[dict[str, Any]]:
         heads = 1
         if (
             hidden
-            and isinstance(owner, (SparseRead, DeltaAttention, LatentAttention))
+            and isinstance(
+                owner, (SparseRead, DeltaAttention, LatentAttention, ReplacementAttention)
+            )
             and projection in ("query", "key", "value")
         ):
             heads = owner.heads

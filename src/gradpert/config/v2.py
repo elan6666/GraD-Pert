@@ -36,6 +36,8 @@ class V2Architecture:
     relay_graph_chunk_rows: int = 64
     relay_sequence_chunk_size: int | None = None
     graph_source_key_gate: bool = False
+    attention_replacement: str = "none"
+    self_readout: str = "final"
 
     def __post_init__(self) -> None:
         for name in (
@@ -118,6 +120,22 @@ class V2Architecture:
             raise ValueError("graph source key gate must be boolean")
         if self.graph_source_key_gate and self.graph_read_mode != "relay":
             raise ValueError("graph source key gate requires four-layer relay graph")
+        if self.attention_replacement not in ("none", "softmax", "retention"):
+            raise ValueError("unknown complete attention replacement")
+        if self.self_readout not in ("final", "position"):
+            raise ValueError("unknown self-KDA readout")
+        if (self.attention_replacement != "none" or self.self_readout != "final") and (
+            self.attention != "relay_full" or self.relay_kernel != "eager"
+        ):
+            raise ValueError("functional attention ablations require eager relay architecture")
+        if self.self_readout == "position" and (
+            self.relay_passes != 1 or self.attention_replacement != "none"
+        ):
+            raise ValueError("position readout requires single-pass self-KDA")
+        if self.attention_replacement != "none" and (
+            self.short_graph_kernel or self.cache_kda_constants or self.relay_passes != 1
+        ):
+            raise ValueError("replacement cannot enable KDA-only execution changes")
         if self.relay_sequence_chunk_size is not None and (
             type(self.relay_sequence_chunk_size) is not int or self.relay_sequence_chunk_size <= 0
         ):
@@ -166,6 +184,10 @@ class V2Architecture:
             values.pop("relay_sequence_chunk_size")
         if not self.graph_source_key_gate:
             values.pop("graph_source_key_gate")
+        if self.attention_replacement == "none":
+            values.pop("attention_replacement")
+        if self.self_readout == "final":
+            values.pop("self_readout")
         return values
 
 
@@ -242,6 +264,8 @@ class V2Options:
             "relay_graph_chunk_rows",
             "relay_sequence_chunk_size",
             "graph_source_key_gate",
+            "attention_replacement",
+            "self_readout",
             "koleo_exclude_same_condition",
             "graph_view_mode",
             "validation_mode",
@@ -267,7 +291,7 @@ class V2Options:
             raise ValueError("KoLeo condition exclusion must be boolean")
         if self.graph_view_mode not in ("legacy", "multiscale"):
             raise ValueError("unknown graph view mode")
-        if self.validation_mode not in ("joint_and_prediction", "joint_only"):
+        if self.validation_mode not in ("joint_and_prediction", "joint_only", "disabled"):
             raise ValueError("unknown v2 validation mode")
         if bool(self.train_selection_path) != bool(self.train_selection_sha256):
             raise ValueError("training row selection path and hash must be supplied together")

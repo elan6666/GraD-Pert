@@ -18,7 +18,7 @@ CONFIG = (
 )
 
 
-@pytest.mark.parametrize("mode", ["joint_only", "joint_and_prediction"])
+@pytest.mark.parametrize("mode", ["joint_only", "joint_and_prediction", "disabled"])
 def test_formal_orchestration_keeps_test_evaluation_after_optional_validation(
     tmp_path, monkeypatch, mode
 ):
@@ -94,12 +94,20 @@ def test_formal_orchestration_keeps_test_evaluation_after_optional_validation(
     )
 
     def fit(*args, **kwargs):
-        validation = kwargs["validate"]()
-        assert validation["validation_mode"] == mode
-        assert validation["joint_loss"] == 0.1
+        if mode == "disabled":
+            assert kwargs["validate"] is None
+            validation = {"validation_mode": "disabled", "performed": False}
+        else:
+            validation = kwargs["validate"]()
+            assert validation["validation_mode"] == mode
+            assert validation["joint_loss"] == 0.1
         atomic_json(kwargs["root"] / "history.json", [{"validation": validation}])
         calls.append(("fit", "complete"))
-        return {"epoch": 3, "best": {"epoch": 2}, "last": {"epoch": 3}}
+        return {
+            "epoch": 3,
+            "best": None if mode == "disabled" else {"epoch": 2},
+            "last": {"epoch": 3},
+        }
 
     monkeypatch.setattr(lifecycle, "fit", fit)
     monkeypatch.setattr(reporting, "export_curves", lambda _: None)
@@ -107,7 +115,7 @@ def test_formal_orchestration_keeps_test_evaluation_after_optional_validation(
 
     def test_selected(*args, **kwargs):
         results = {}
-        for role in ("best", "last"):
+        for role in ("last",) if mode == "disabled" else ("best", "last"):
             kwargs["on_role_start"](role)
             results[role] = kwargs["test"]()
         return results
@@ -126,8 +134,8 @@ def test_formal_orchestration_keeps_test_evaluation_after_optional_validation(
         "run_id": "synthetic",
     }
     complete = execution._run_v2(plan)
-    assert complete["test_roles"] == ["best", "last"]
-    assert calls.count(("prediction", "test")) == 2
+    assert complete["test_roles"] == (["last"] if mode == "disabled" else ["best", "last"])
+    assert calls.count(("prediction", "test")) == (1 if mode == "disabled" else 2)
     assert calls.index(("fit", "complete")) < calls.index(("prepare", "test"))
     for action in ("prepare", "data", "prediction"):
         assert ((action, "val") in calls) is (mode == "joint_and_prediction")

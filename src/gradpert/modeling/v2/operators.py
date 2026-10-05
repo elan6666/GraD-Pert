@@ -16,6 +16,8 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint
 
+from .attention_ablation import ReplacementAttention
+
 
 def delta_scan(q: Tensor, k: Tensor, v: Tensor, log_decay: Tensor, beta: Tensor) -> Tensor:
     """Channel-decayed delta recurrence; [batch,time,head,channel].
@@ -37,6 +39,12 @@ def delta_scan(q: Tensor, k: Tensor, v: Tensor, log_decay: Tensor, beta: Tensor)
 def chunk_delta_scan(
     q: Tensor, k: Tensor, v: Tensor, log_decay: Tensor, beta: Tensor, chunk_size: int = 32
 ) -> Tensor:
+    return chunk_delta_scan_state(q, k, v, log_decay, beta, chunk_size)[0]
+
+
+def chunk_delta_scan_state(
+    q: Tensor, k: Tensor, v: Tensor, log_decay: Tensor, beta: Tensor, chunk_size: int = 32
+) -> tuple[Tensor, Tensor]:
     """Native differentiable block solve of the same delta recurrence.
 
     The strict lower triangle encodes past writes erased by subsequent keys.
@@ -73,7 +81,7 @@ def chunk_delta_scan(
             gates[..., -1, :].exp().unsqueeze(-1) * state + final_keys.transpose(-1, -2) @ writes
         )
         chunks.append(outputs.transpose(1, 2))
-    return torch.cat(chunks, dim=1).to(v.dtype)
+    return torch.cat(chunks, dim=1).to(v.dtype), state
 
 
 def delta_final_state(
@@ -308,6 +316,7 @@ class RelayDeltaAttention(DeltaAttention):
         self.cache_kda_constants = False
         self.scan_chunk_size = 32
         self.sequence_chunk_size: int | None = None
+        self.self_readout = "final"
 
     def random_order_enabled(self) -> bool:
         return self.training if self.randomize_order is None else self.randomize_order
@@ -392,7 +401,27 @@ class RelayDeltaAttention(DeltaAttention):
             )
         if order.shape != (len(x), genes):
             raise ValueError("relay permutation must cover every gene exactly once")
-        state = self._write_state(self._project_writes(x[:, :genes]), order)
+        position_output = None
+        writes = self._project_writes(x[:, :genes])
+        if self.self_readout == "position":
+            if self.write_passes != 1:
+                raise ValueError("position readout is single-pass only")
+            ordered_x = self._ordered(x[:, :genes], order)
+            shape = (*ordered_x.shape[:2], self.heads, self.head_width)
+            query = F.normalize(self.query(ordered_x).reshape(shape).float(), dim=-1)
+            key, value, decay, beta = (self._ordered(t, order) for t in writes)
+            y, state = chunk_delta_scan_state(
+                query / math.sqrt(self.head_width),
+                key,
+                value,
+                decay,
+                beta,
+                chunk_size=self.sequence_chunk_size or self.scan_chunk_size,
+            )
+            y = self.head_norm(y).flatten(-2) * F.silu(self.output_gate(ordered_x))
+            position_output = self._ordered(self.output(y), order.argsort(-1))
+        else:
+            state = self._write_state(writes, order)
         gene_state = state
         if has_cls:
             # CLS writes exactly once after all configured gene writes.
@@ -410,6 +439,12 @@ class RelayDeltaAttention(DeltaAttention):
                     fused_gram=self.fused_gram_diagnostic,
                     cache_constants=self.cache_kda_constants,
                 )
+        if position_output is not None:
+            return (
+                torch.cat((position_output, self._read(x[:, genes:], state)), dim=1)
+                if has_cls
+                else position_output
+            )
         if block_cls_to_gene and has_cls:
             return torch.cat(
                 (self._read(x[:, :genes], gene_state), self._read(x[:, genes:], state)), dim=1
@@ -764,7 +799,7 @@ class ManifoldResidual(nn.Module):
                 )
                 if isinstance(self.sublayer, RelayDeltaAttention)
                 else self.sublayer(h, block_cls_to_gene=block_cls_to_gene)
-                if isinstance(self.sublayer, LatentAttention)
+                if isinstance(self.sublayer, (LatentAttention, ReplacementAttention))
                 else self.sublayer(h)
             )
             return x + cast(Tensor, y).unsqueeze(-2)
@@ -783,7 +818,7 @@ class ManifoldResidual(nn.Module):
             )
             if isinstance(self.sublayer, RelayDeltaAttention)
             else self.sublayer(h, block_cls_to_gene=block_cls_to_gene)
-            if isinstance(self.sublayer, LatentAttention)
+            if isinstance(self.sublayer, (LatentAttention, ReplacementAttention))
             else self.sublayer(h),
         )
         return torch.einsum("...ij,...jd->...id", residual, x) + post.unsqueeze(-1) * y.unsqueeze(

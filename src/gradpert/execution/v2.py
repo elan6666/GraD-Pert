@@ -226,7 +226,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             epochs=int(config.training.max_epochs.value),
             steps_per_epoch=runtime.steps_per_epoch,
             batches=runtime.batches,
-            validate=validate,
+            validate=validate if runtime.options.validation_mode != "disabled" else None,
             schedule=(
                 ConstantStageLR(config.continuation.learning_rate)
                 if config.continuation is not None
