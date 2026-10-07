@@ -1,0 +1,42 @@
+{
+  "schema": "gradpert-v2-loss-main-verification-1",
+  "session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+  "published_baseline": "72e36e8eefa5be7ba25172fd2c0a89f45296f9f1",
+  "baseline_remote_verified_before_changes": true,
+  "parent_b0": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+  "scope": "retain inherited prediction-weighted tail diagnostic, add four analytic tests, correct sole-main workflow documents",
+  "training_objective_changed": false,
+  "weights": {
+    "M1": {
+      "gene": 1,
+      "cls": 0
+    },
+    "M2": {
+      "gene": 1,
+      "cls": 1
+    }
+  },
+  "local_tests": {
+    "command": ".venv/bin/python -m pytest -q tests/v2/test_loss_ablation.py tests/v2/test_train_only.py tests/v2/test_reporting.py",
+    "passed": 39,
+    "warnings": 1,
+    "exit_code": 0,
+    "seconds": 18.42
+  },
+  "ruff_check_format": "passed",
+  "mypy": "1 source passed --follow-imports=silent",
+  "server_previous_failure": {
+    "candidate": "72e36e8",
+    "parent": "3d3f5ad",
+    "test": "test_overfit_opposite_responses_for_identical_controls[1.0-0.1]",
+    "both_initial": 0.099605992436409,
+    "both_fitted": 0.001123790629208088,
+    "threshold": 0.001,
+    "reproduced_exact": true,
+    "candidate_log": "/data/yilangliu/GraD-Pert/development/loss-72e36e8-server-cpu.log",
+    "parent_log": "/data/yilangliu/GraD-Pert/development/loss-72e36e8-parent-overfit-check.log",
+    "new_source_repeat_exclusion": "exclude only this pre-existing failing parameterization; preserve threshold and failure evidence"
+  },
+  "scientific_result": false,
+  "recorded_at": "2026-10-07T12:01:38.505623+00:00"
+}

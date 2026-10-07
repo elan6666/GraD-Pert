@@ -9,6 +9,7 @@ import torch
 from gradpert.hashing import sha256_json
 
 from .objective import JointObjective, TrainingBatch
+from .reductions import population_weights
 
 
 def evaluate_loss_diagnostics(
@@ -89,10 +90,19 @@ def evaluate_loss_diagnostics(
                 output = objective.student.encode_response(
                     graph[batch.query_positions], batch.control, conditions[batch.condition_index]
                 )
-                residual = (output["prediction"].float() - batch.truth.float()).abs().flatten()
-                contributions = residual.square()
+                residual_matrix = (output["prediction"].float() - batch.truth.float()).abs()
+                contributions = residual_matrix.square()
                 if objective.prediction_error_power == 4:
                     contributions = contributions.square()
+                row_weights = population_weights(
+                    batch.condition_index,
+                    torch.ones_like(batch.condition_index, dtype=torch.bool),
+                    objective.prediction_strategy,
+                )
+                contributions = (
+                    contributions * row_weights[:, None] / residual_matrix.shape[1]
+                ).flatten()
+                residual = residual_matrix.flatten()
                 tail = max(1, (len(contributions) + 99) // 100)
                 total = float(contributions.sum())
                 tail_fraction = (

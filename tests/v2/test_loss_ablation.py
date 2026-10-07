@@ -179,6 +179,32 @@ def test_fixed_training_diagnostic_preserves_state_rng_and_gradients():
         torch.testing.assert_close(objective.state_dict()[name], value, atol=0, rtol=0)
 
 
+@pytest.mark.parametrize("power", [2, 4])
+@pytest.mark.parametrize("strategy", ["row_mean", "condition_mean"])
+def test_diagnostic_extreme_tail_uses_actual_prediction_population_weights(power, strategy):
+    model, batch = four_rows()
+    objective = JointObjective(
+        model,
+        0,
+        0,
+        loss_reduction="row_mean",
+        prediction_error_power=power,
+        prediction_reduction_override=strategy,
+    ).eval()
+    with torch.no_grad():
+        graph, conditions = objective._graph(model, batch.graph, False)
+        prediction = model.encode_response(
+            graph[batch.query_positions], batch.control, conditions[batch.condition_index]
+        )["prediction"]
+    batch = replace(batch, truth=prediction + torch.tensor([1, 1, 1, 3])[:, None])
+    result = evaluate_loss_diagnostics(objective, batch, bf16=False)
+    # Sixteen gene errors: the top one percent rounds to one position. Under
+    # condition_mean the one-row rare condition gets half of the total weight.
+    weights = [0.25] * 4 if strategy == "row_mean" else [1 / 6] * 3 + [0.5]
+    expected = weights[-1] * 3**power / (4 * (sum(weights[:3]) + weights[-1] * 3**power))
+    assert result["top_one_percent_loss_fraction"] == pytest.approx(expected, rel=2e-6)
+
+
 @pytest.mark.parametrize("cls", [0, 1])
 def test_auxiliary_counter_heads_optimizer_and_rng_resume_exactly(tmp_path, cls):
     objective, batch = masked_objective(cls=cls)

@@ -1,12 +1,12 @@
 # GraD-Pert v2：预测 loss 与掩码重建消融设计
 
-日期：2026-10-07。状态：**IMPLEMENTED_LOCAL，原生实现与自包含配置已写入；权重1本地验证通过，尚未发布/启动，无新科学结果。**
+日期：2026-10-07。状态：**IMPLEMENTED，权重1实现已发布为72e36e8；主会话接回后补齐诊断权重修正验收，尚未启动GPU队列，无新科学结果。**
 用户范围：设计此前讨论的 L0–L3、M1–M2 六组消融。本文件不改变已有运行、注意力消融队列或论文正文。
 
 后续用户指令（2026-10-07）：**“等下优先跑这些实验”**。六组列为下一批优先执行范围；建议顺序 L0→L1→L2→M2→L3→M1。父队列已成功结束并独立验收，继续实现/验证/发布/容量/启动。执行安排见 [优先执行记录](../../.byte-os/plans/GRADPERT_V2_LOSS_PRIORITY_20261007.plan.md)。
 最新安排：**当前A2的6epoch及final测试完成并验收后立即续接本消融**，不等待其他未来实验。已有返回监控已更新；实现/验证/发布与容量门槛仍须通过。
 
-执行分工：主会话 `codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b`；本轮执行会话 `codex:01a10391-22a3-78e1-9799-93ea9d6ffdd9` reports_to 主会话；长任务监督 `codex:01a0df0b-4142-7df1-86c0-d959471d80a1`。完成/失败/需设计决策时最终返回主会话，执行会话不是长期 main。
+执行分工（用户最终纠正）：主会话 `codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b` 独自完成设计、实现、测试、发布和启动；只由 `codex:01a0df0b-4142-7df1-86c0-d959471d80a1` 监督长任务并返回主会话。之前的阅读会话已撤销执行权，已有实现和收据保留。
 
 ## 1. 科学问题与证据边界
 
@@ -249,3 +249,7 @@ The native heads are initialized after the main model and Teacher, using a priva
 Fixed diagnostics use the first four rows of a privately sampled training batch, at initialization and epoch boundaries in eval mode. The gradient scope is shared Cell, expression and control CLS parameters. Diagnostics do not update optimizer, EMA or centers, and preserve the main RNG. Timing separates training and diagnostics; peak memory is explicitly rank0 only.
 
 The frozen parent and candidate L0 matched bit-for-bit across two nonzero-LR relay updates in the same CPU environment: main model, Teacher, centers, original metrics and Torch RNG. See the loss-l0-parity receipt. Weight1 tests cover M1/M2 multistep updates, shared encoder and active-head gradients, hidden-value exclusion, checkpoint/optimizer/RNG continuation, recomputation and evaluation loading. Changing auxiliary heads leaves inference output identical. Scientific results remain absent until formal runs and final tests complete.
+
+## 启动前核验（2026-10-07主会话接回）
+
+72e36e8已在本地/GitHub/服务器同一干净版本核对。服务器181项通过，1项既有160步过拟合阈值失败；父3d3f5ad复现相同拟合值0.001123790629208088与阈值0.001。失败记录保留，不放宽阈值，后继定向回归明确排除该既有失败并报告。主会话仅修正预测尾部贡献统计、补公式验证和当前会话分工；不改变训练目标或六组参数。
