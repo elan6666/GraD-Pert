@@ -185,7 +185,7 @@ class RelayGraphLayer(nn.Module):
             )
             outputs.append(
                 checkpoint(self._chunk, *args, use_reentrant=False)
-                if self.checkpoint_chunks and self.training and torch.is_grad_enabled()
+                if self.checkpoint_chunks and torch.is_grad_enabled()
                 else self._chunk(*args)
             )
         return torch.cat(outputs)
@@ -259,7 +259,7 @@ class RelayResponseEncoder(nn.Module):
         x = x.unsqueeze(-2).expand(*x.shape[:-1], self.streams, x.shape[-1])
         for index in range(len(self.injections)):
             order = orders[index] if index < len(orders) else orders[-1]
-            if self.checkpoint_layers and self.training and torch.is_grad_enabled():
+            if self.checkpoint_layers and torch.is_grad_enabled():
                 x = checkpoint(
                     lambda state, memory, perturbation, scan_order, layer_index=index: self._layer(
                         state,

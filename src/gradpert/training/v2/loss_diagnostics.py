@@ -35,23 +35,28 @@ def evaluate_loss_diagnostics(
             objective.eval()
             if counter is not None:
                 objective.auxiliary_rng_counter.zero_()
+            # Graph SSL has no path to the Cell/expression parameters diagnosed
+            # below. Compute its values without retaining graph-encoder activations.
+            graph_metrics = {}
+            if objective.lambda1:
+                with (
+                    torch.no_grad(),
+                    torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=bf16),
+                ):
+                    graph_terms = objective.graph_loss(batch.graph_views, batch.condition_index)
+                    graph_metrics = {
+                        f"ssl1_{name}": float(value) for name, value in graph_terms.items()
+                    }
+                del graph_terms
+                objective.pending.clear()
             with torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=bf16):
-                _, terms = objective(batch)
+                loss, terms = objective(batch, include_ssl1=False)
+                del loss
                 zero = terms["prediction"] * 0
                 ssl = sum(
-                    scale
-                    * sum(
-                        weight * terms.get(f"ssl{stage}_{name}", zero)
-                        for weight, name in zip(weights, names, strict=True)
-                    )
-                    for stage, scale, weights, names in (
-                        (
-                            1,
-                            objective.lambda1,
-                            objective.weights[0],
-                            ("condition", "node", "spread"),
-                        ),
-                        (2, objective.lambda2, objective.weights[1], ("dino", "ibot", "koleo")),
+                    objective.lambda2 * weight * terms.get(f"ssl2_{name}", zero)
+                    for weight, name in zip(
+                        objective.weights[1], ("dino", "ibot", "koleo"), strict=True
                     )
                 )
                 weighted = {"prediction": terms["prediction"], "ssl": ssl}
@@ -67,14 +72,22 @@ def evaluate_loss_diagnostics(
                         for p, g in zip(
                             parameters,
                             torch.autograd.grad(
-                                value, parameters, retain_graph=True, allow_unused=True
+                                value,
+                                parameters,
+                                retain_graph=index + 1 < len(weighted),
+                                allow_unused=True,
                             ),
                             strict=True,
                         )
                     ]
                 )
-                for name, value in weighted.items()
+                for index, (name, value) in enumerate(weighted.items())
             }
+            components = {name: float(value.detach()) for name, value in terms.items()}
+            components.update(graph_metrics)
+            # Release every differentiable objective before the residual-only read.
+            del terms, weighted, ssl, zero
+            objective.pending.clear()
             norms = {name: float(value.norm()) for name, value in gradients.items()}
             denominator = norms["prediction"] * norms["ssl"]
             cosine = (
@@ -110,8 +123,8 @@ def evaluate_loss_diagnostics(
                 )
                 quantiles = residual.quantile(residual.new_tensor([0.5, 0.9, 0.99])).tolist()
             copy_mse, model_mse = (
-                float(terms["control_copy_mse"].detach()),
-                float(terms["prediction_mse"].detach()),
+                components["control_copy_mse"],
+                components["prediction_mse"],
             )
             return {
                 "split": "train",
@@ -126,7 +139,7 @@ def evaluate_loss_diagnostics(
                 ),
                 "cells": len(batch.control),
                 "query_genes": batch.control.shape[1],
-                "components": {name: float(value.detach()) for name, value in terms.items()},
+                "components": components,
                 "control_copy_mse": copy_mse,
                 "prediction_mse": model_mse,
                 "mse_gain_over_copy": 1 - model_mse / copy_mse if copy_mse else None,

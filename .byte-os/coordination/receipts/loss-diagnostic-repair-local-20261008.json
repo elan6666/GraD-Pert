@@ -1,0 +1,40 @@
+{
+  "schema": "gradpert-v2-loss-diagnostic-repair-validation-1",
+  "session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+  "baseline_commit": "0d8b88a1b2a48bd8a3a7276084654699645895de",
+  "baseline_pushed_before_edit": true,
+  "changes": [
+    "autograd-active checkpointing applies in eval with dropout still disabled",
+    "graph-only SSL1 diagnostic values no_grad; shared Cell/expression gradient remains zero",
+    "release objective graph before residual read",
+    "capacity initial and updated diagnostics required before formal launch"
+  ],
+  "model_or_loss_math_changed": false,
+  "protocol_changes": false,
+  "batch": 272,
+  "directed_checks": [
+    {
+      "passed": 70,
+      "seconds": 29.98
+    },
+    {
+      "passed": 76,
+      "seconds": 23.29
+    }
+  ],
+  "nonzero_update_parity": "exact model/optimizer/Teacher/center/RNG and existing gradients across two updates, baseline/M1/M2",
+  "reference_diagnostic_parity": "component scalars, shared gradient L2 and cosine, existing tolerances",
+  "full_local_v2_regression": {
+    "passed": 551,
+    "skipped": 11,
+    "deselected": 1,
+    "seconds": 120.38,
+    "command": ".venv/bin/python -m pytest -q tests/v2 -k 'not test_new_configs_only_select_execution_backend'",
+    "log_sha256": "8f5f453ec87e78ff742301d05f5c646fc3193296d449bb5786a419297967cef0"
+  },
+  "ruff": "7 modified code/test/script files check and format passed",
+  "mypy": "3 modified source files passed",
+  "server_gpu_validation": "pending",
+  "recorded_at": "2026-10-07T17:45:04.323243+00:00",
+  "scientific_result": false
+}

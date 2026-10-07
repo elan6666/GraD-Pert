@@ -682,7 +682,7 @@ class IndexedLatentAttention(nn.Module):
         for start in range(0, genes, self.query_chunk):
             end = min(start + self.query_chunk, genes)
             args = (q, k, v, iq, ik, start, end, genes, has_cls)
-            if self.checkpoint_chunks and self.training and torch.is_grad_enabled():
+            if self.checkpoint_chunks and torch.is_grad_enabled():
                 # Exact recomputation trades extra FLOPs for bounded saved
                 # activations, even when the outer encoder is checkpointed.
                 outputs.append(checkpoint(self._chunk, *args, use_reentrant=False))
@@ -948,7 +948,7 @@ class TokenEncoder(nn.Module):
                 full = layer(x, order=layer_order)
                 genes = layer(x[:, :-1], has_cls=False, order=layer_order)
                 x = torch.cat((genes, full[:, -1:]), dim=1)
-            elif self.checkpoint_layers and self.training and torch.is_grad_enabled():
+            elif self.checkpoint_layers and torch.is_grad_enabled():
                 x = checkpoint(
                     lambda z, block=layer, block_order=layer_order: block(z, order=block_order),
                     x,

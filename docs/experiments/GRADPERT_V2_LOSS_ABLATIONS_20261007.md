@@ -253,3 +253,13 @@ The frozen parent and candidate L0 matched bit-for-bit across two nonzero-LR rel
 ## 启动前核验（2026-10-07主会话接回）
 
 72e36e8已在本地/GitHub/服务器同一干净版本核对。服务器181项通过，1项既有160步过拟合阈值失败；父3d3f5ad复现相同拟合值0.001123790629208088与阈值0.001。失败记录保留，不放宽阈值，后继定向回归明确排除该既有失败并报告。主会话仅修正预测尾部贡献统计、补公式验证和当前会话分工；不改变训练目标或六组参数。
+
+## Diagnostic OOM repair (2026-10-08)
+
+The0d8b88a six-arm queue passed every128-update capacity/checkpoint/inference gate, then L0 formal startup failed before epoch1 in its initial fixed-training diagnostic. The original failure and source are preserved; no scientific metric exists. GPU0 held30.11GiB PyTorch allocations when64MiB could not be allocated.
+
+Configured activation checkpointing was incorrectly tied to training mode, so the gradient-bearing eval diagnostic bypassed it. Graph-only SSL1 values are now evaluated without autograd because their shared Cell/expression-parameter derivative is zero; SSL2 still supplies its original gradient contribution. Prediction/auxiliary/SSL2 gradients retain the same targets and weights. Objective graphs are released before the residual-only read. Checkpointing follows autograd activity; dropout and random-order evaluation semantics remain unchanged.
+
+Tests compare the original full joint diagnostic values and shared gradient norms/cosine, and require exact model/optimizer/Teacher/center/RNG equality when diagnostics are inserted between two nonzero-LR updates (baseline, M1, M2). Capacity probes for this family must now successfully execute initial and post-update diagnostics on the same fixed training inputs; the queue rejects receipts missing that coverage. Local70 and76 directed checks passed (overlapping selections), plus three source files Mypy; full local regression551passed/11hardware-dependency skipped/1known missing-config deselected now passed; real GPU memory acceptance is pending. This is a diagnostic memory repair, not a change to the mathematical model, training objective, batch272 or six-epoch protocol.
+
+Plan: `.byte-os/plans/GRADPERT_V2_LOSS_DIAGNOSTIC_REPAIR_20261008.plan.md`. New behavior will use a new published SHA and fresh run lineage; previous gates/results keep their original hashes.

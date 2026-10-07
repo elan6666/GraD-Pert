@@ -94,6 +94,38 @@ def test_preflight_cannot_admit_another_source_seed_topology_or_config(tmp_path,
         api["validate_preflight"](plan, entry)
 
 
+@pytest.mark.parametrize(
+    "missing",
+    [
+        "initial_loss_diagnostic",
+        "updated_loss_diagnostic",
+        "initial_loss_diagnostic_peak_allocated_bytes",
+        "training_and_diagnostic_peak_allocated_bytes",
+    ],
+)
+def test_loss_preflight_requires_the_formal_diagnostic_path(tmp_path, api, missing):
+    receipt, entry, plan = preflight(tmp_path)
+    receipt["data"]["loss_protocol"] = {"prediction_task": {"reduction_override": "row_mean"}}
+    diagnostic = {"split": "train", "selection_use": "none", "input_sha256": "d" * 64}
+    receipt.update(
+        initial_loss_diagnostic=diagnostic,
+        updated_loss_diagnostic=diagnostic,
+        initial_loss_diagnostic_peak_allocated_bytes=1024,
+        training_and_diagnostic_peak_allocated_bytes=2048,
+    )
+
+    def write():
+        Path(entry["receipt"]).write_text(json.dumps(receipt))
+        entry["sha256"] = sha256_file(Path(entry["receipt"]))
+
+    write()
+    api["validate_preflight"](plan, entry)
+    receipt.pop(missing)
+    write()
+    with pytest.raises(ValueError, match="fixed-training diagnostics"):
+        api["validate_preflight"](plan, entry)
+
+
 def test_resume_preserves_owned_run_and_requires_committed_epoch(tmp_path, api):
     root = tmp_path / "run"
     plan = {"run_root": str(root)}

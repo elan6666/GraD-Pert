@@ -214,6 +214,16 @@ def main() -> None:
             total_steps = int(config.training.max_epochs.value) * runtime.steps_per_epoch
             receipt["data"] = runtime.identity
             receipt["optimizer_routes"] = runtime.optimizer.routes
+            loss_diagnostics_enabled = runtime.options.prediction_reduction_override != "inherit"
+            if loss_diagnostics_enabled and kind in ("capacity_only", "integration_only"):
+                torch.cuda.reset_peak_memory_stats()
+                started = time.perf_counter()
+                receipt["initial_loss_diagnostic"] = primary_call(runtime.loss_diagnostics)
+                receipt["initial_loss_diagnostic_seconds"] = time.perf_counter() - started
+                receipt["initial_loss_diagnostic_peak_allocated_bytes"] = (
+                    torch.cuda.max_memory_allocated()
+                )
+                primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
             # Hash the exact ordered row schedule before timing; no expression
             # arrays are read and this deterministic sampler does not advance RNG.
             remaining = args.steps
@@ -331,6 +341,13 @@ def main() -> None:
                 if step >= args.steps:
                     break
             receipt["training_wall_seconds"] = time.perf_counter() - training_started
+            if loss_diagnostics_enabled and kind in ("capacity_only", "integration_only"):
+                started = time.perf_counter()
+                receipt["updated_loss_diagnostic"] = primary_call(runtime.loss_diagnostics)
+                receipt["updated_loss_diagnostic_seconds"] = time.perf_counter() - started
+                receipt["training_and_diagnostic_peak_allocated_bytes"] = (
+                    torch.cuda.max_memory_allocated()
+                )
             profile_summary = (
                 capture.close(operator_table=args.profile_operator_table)
                 if capture is not None

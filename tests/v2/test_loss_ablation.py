@@ -205,6 +205,113 @@ def test_diagnostic_extreme_tail_uses_actual_prediction_population_weights(power
     assert result["top_one_percent_loss_fraction"] == pytest.approx(expected, rel=2e-6)
 
 
+@pytest.mark.parametrize("auxiliary", ["off", "gene", "gene_cls"])
+def test_checkpointed_eval_diagnostic_matches_joint_reference_and_keeps_next_update(auxiliary):
+    from test_relay_method import relay_training_fixture
+
+    base, batch = relay_training_fixture(checkpointed=False)
+    objective = JointObjective(
+        base.student,
+        loss_reduction="row_mean",
+        ssl1_weights=(1, 1, 0),
+        ssl2_weights=(1, 1, 0),
+        auxiliary_mask_ratio=0 if auxiliary == "off" else 0.2,
+        lambda_gene_mask=0 if auxiliary == "off" else 1,
+        lambda_cls_mask=int(auxiliary == "gene_cls"),
+    )
+    reference = copy.deepcopy(objective).eval()
+    parameters = tuple(
+        p
+        for name, p in reference.student.named_parameters()
+        if name.startswith(("cell.", "expression.")) or name == "control_cls"
+    )
+    _, terms = reference(batch)
+    ssl = sum(terms[name] for name in ("ssl1_condition", "ssl1_node", "ssl2_dino", "ssl2_ibot"))
+    weighted = {"prediction": terms["prediction"], "ssl": ssl}
+    if auxiliary != "off":
+        weighted.update(
+            gene_mask=terms["gene_mask"], cls_mask=terms["cls_mask"] * int(auxiliary == "gene_cls")
+        )
+    expected_gradients = {}
+    for name, term in weighted.items():
+        gradients = torch.autograd.grad(term, parameters, retain_graph=True, allow_unused=True)
+        expected_gradients[name] = torch.cat(
+            [
+                (torch.zeros_like(p) if g is None else g).flatten()
+                for p, g in zip(parameters, gradients, strict=True)
+            ]
+        )
+    graph_only = terms["ssl1_condition"] + terms["ssl1_node"]
+    assert all(g is None for g in torch.autograd.grad(graph_only, parameters, allow_unused=True))
+    for model in (objective.student, objective.teacher):
+        for module in model.modules():
+            if hasattr(module, "checkpoint_layers"):
+                module.checkpoint_layers = True
+            if hasattr(module, "checkpoint_chunks"):
+                module.checkpoint_chunks = True
+    actual = evaluate_loss_diagnostics(objective, batch, bf16=False)
+    for name, value in terms.items():
+        assert actual["components"][name] == pytest.approx(
+            float(value.detach()), rel=2e-5, abs=2e-6
+        )
+    for name, gradient in expected_gradients.items():
+        assert actual["shared_basal_weighted_gradient_l2"][name] == pytest.approx(
+            float(gradient.norm()), rel=2e-5, abs=2e-6
+        )
+    expected_cosine = torch.nn.functional.cosine_similarity(
+        expected_gradients["prediction"], expected_gradients["ssl"], dim=0
+    )
+    assert actual["prediction_ssl_gradient_cosine"] == pytest.approx(
+        float(expected_cosine), abs=2e-6
+    )
+
+    # A diagnostic between nonzero-LR updates must not change optimizer/EMA,
+    # centers, existing .grad tensors, auxiliary counters, or random streams.
+    without = copy.deepcopy(objective)
+    snapshots = []
+    for version, diagnose in [(without, False), (objective, True)]:
+        torch.manual_seed(402)
+        optimizer = V2Optimizer(version.student, 0.001, 0)
+        metrics = []
+        for _ in range(2):
+            metrics.append(
+                optimizer_step(
+                    version, optimizer, batch, microbatch=2, lr=0.001, momentum=0.99, bf16=False
+                )
+            )
+            if diagnose:
+                before = [None if p.grad is None else p.grad.clone() for p in version.parameters()]
+                evaluate_loss_diagnostics(version, batch, bf16=False)
+                for p, previous in zip(version.parameters(), before, strict=True):
+                    assert (p.grad is None) == (previous is None)
+                    if previous is not None:
+                        torch.testing.assert_close(p.grad, previous, atol=0, rtol=0)
+        snapshots.append(
+            (
+                metrics,
+                copy.deepcopy(version.state_dict()),
+                optimizer.state_dict(),
+                torch.get_rng_state().clone(),
+            )
+        )
+
+    def exact(left, right):
+        if isinstance(left, torch.Tensor):
+            torch.testing.assert_close(left, right, atol=0, rtol=0)
+        elif isinstance(left, dict):
+            assert left.keys() == right.keys()
+            for key in left:
+                exact(left[key], right[key])
+        elif isinstance(left, (list, tuple)):
+            assert len(left) == len(right)
+            for a, b in zip(left, right, strict=True):
+                exact(a, b)
+        else:
+            assert left == right
+
+    exact(snapshots[0], snapshots[1])
+
+
 @pytest.mark.parametrize("cls", [0, 1])
 def test_auxiliary_counter_heads_optimizer_and_rng_resume_exactly(tmp_path, cls):
     objective, batch = masked_objective(cls=cls)

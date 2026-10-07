@@ -51,6 +51,23 @@ def validate_preflight(plan: dict, entry: dict) -> None:
         receipt.get("last_terms", {}).get("gradient_norm", float("nan"))
     ):
         raise ValueError("preflight memory or finite-gradient evidence missing")
+    if receipt["data"].get("loss_protocol", {}).get("prediction_task"):
+        diagnostics = [
+            receipt.get("initial_loss_diagnostic", {}),
+            receipt.get("updated_loss_diagnostic", {}),
+        ]
+        if (
+            any(
+                d.get("split") != "train"
+                or d.get("selection_use") != "none"
+                or not d.get("input_sha256")
+                for d in diagnostics
+            )
+            or diagnostics[0].get("input_sha256") != diagnostics[1].get("input_sha256")
+            or receipt.get("initial_loss_diagnostic_peak_allocated_bytes", 0) <= 0
+            or receipt.get("training_and_diagnostic_peak_allocated_bytes", 0) <= 0
+        ):
+            raise ValueError("loss preflight needs initial and updated fixed-training diagnostics")
 
 
 def prepare_queue(
