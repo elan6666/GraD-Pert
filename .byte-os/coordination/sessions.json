@@ -1,31 +1,41 @@
 {
   "schema_version": 1,
   "project": {
-    "root": "/Users/elan/.codex/worktrees/v2-short-publication/grad-pert"
+    "root": "/Users/elan/.codex/worktrees/v2-loss-ablation/grad-pert"
   },
   "sessions": {
     "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b": {
       "harness": "codex",
       "native_session_id": "01a0c01a-0611-7a90-b3e8-8ad7e017748b",
-      "alias": "gradpert-v2-main",
-      "locator": "codex://threads/01a0c01a-0611-7a90-b3e8-8ad7e017748b",
-      "host_id": "local",
-      "role": "builder",
+      "role": "main",
       "reports_to": null,
-      "stage": "build",
-      "provider": null,
-      "model": null,
-      "model_evidence": null,
-      "project_root": "/Users/elan/.codex/worktrees/v2-short-publication/grad-pert",
-      "branch": null,
-      "commit": "e821173b4d11268b621ac8299e45b8d6d272b7e7",
+      "final_return": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
       "status": "active",
-      "created_at": "2026-09-28T03:07:17+08:00",
-      "updated_at": "2026-09-28T03:07:17+08:00"
+      "project_root": "/Users/elan/.codex/worktrees/v2-loss-ablation/grad-pert",
+      "updated_at": "2026-10-07T11:46:36.854274+00:00"
+    },
+    "codex:01a10391-22a3-78e1-9799-93ea9d6ffdd9": {
+      "harness": "codex",
+      "native_session_id": "01a10391-22a3-78e1-9799-93ea9d6ffdd9",
+      "role": "executor",
+      "reports_to": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "final_return": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "status": "active",
+      "project_root": "/Users/elan/.codex/worktrees/v2-loss-ablation/grad-pert",
+      "updated_at": "2026-10-07T11:46:36.854386+00:00"
+    },
+    "codex:01a0df0b-4142-7df1-86c0-d959471d80a1": {
+      "harness": "codex",
+      "native_session_id": "01a0df0b-4142-7df1-86c0-d959471d80a1",
+      "role": "supervisor",
+      "reports_to": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "final_return": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "status": "idle",
+      "project_root": "/Users/elan/.codex/worktrees/v2-loss-ablation/grad-pert",
+      "updated_at": "2026-10-07T11:46:36.854389+00:00"
     }
   },
   "active_by_harness": {
-    "codex": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b"
-  },
-  "updated_at": "2026-09-28T03:07:17+08:00"
+    "codex": "codex:01a10391-22a3-78e1-9799-93ea9d6ffdd9"
+  }
 }

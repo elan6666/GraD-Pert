@@ -31,7 +31,7 @@ def routes(model: nn.Module) -> list[dict[str, Any]]:
             isinstance(module, nn.Linear)
             and field == "weight"
             and "prototypes" not in path
-            and path != "prediction.2"
+            and path not in ("prediction.2", "control_reconstruction.gene")
             and projection != "route"
         )
         heads = 1

@@ -12,6 +12,7 @@ from torch.nn import functional as F
 
 from gradpert.modeling.v2 import GraDPertV2
 from gradpert.modeling.v2.model import GraphContext
+from gradpert.modeling.v2.reconstruction import ControlReconstruction
 
 from .reductions import nearest_neighbor_terms, population_weights
 
@@ -78,6 +79,7 @@ class JointObjective(nn.Module):
     pending statistics. An external accumulator must retain them until commit.
     """
 
+    auxiliary_rng_counter: Tensor
     ssl1_cls_center: Tensor
     ssl1_node_center: Tensor
     ssl2_cls_center: Tensor
@@ -94,12 +96,40 @@ class JointObjective(nn.Module):
         prediction_reduction: str = "cell_mean",
         loss_reduction: str | None = None,
         koleo_exclude_same_condition: bool = False,
+        prediction_error_power: int = 2,
+        prediction_reduction_override: str = "inherit",
+        auxiliary_mask_ratio: float = 0.0,
+        lambda_gene_mask: float = 0.0,
+        lambda_cls_mask: float = 0.0,
+        auxiliary_seed: int = 1,
     ) -> None:
         super().__init__()
         if min(lambda1, lambda2, *ssl1_weights, *ssl2_weights) < 0:
             raise ValueError("loss weights must be nonnegative")
         self.student = student
         self.teacher = copy.deepcopy(student).requires_grad_(False).eval()
+        if prediction_error_power not in (2, 4):
+            raise ValueError("prediction error power must be 2 or 4")
+        if prediction_reduction_override not in ("inherit", "row_mean", "condition_mean"):
+            raise ValueError("unknown prediction-only reduction")
+        if not 0 <= auxiliary_mask_ratio < 1 or min(lambda_gene_mask, lambda_cls_mask) < 0:
+            raise ValueError("invalid reconstruction settings")
+        if bool(auxiliary_mask_ratio) != bool(lambda_gene_mask or lambda_cls_mask):
+            raise ValueError("reconstruction mask and supervision must be enabled together")
+        self.prediction_error_power = prediction_error_power
+        self.prediction_reduction_override = prediction_reduction_override
+        self.auxiliary_mask_ratio = auxiliary_mask_ratio
+        self.lambda_gene_mask, self.lambda_cls_mask = lambda_gene_mask, lambda_cls_mask
+        self.auxiliary_seed = auxiliary_seed
+        if auxiliary_mask_ratio:
+            # Initialize after the complete main model/Teacher, without consuming
+            # their CPU/CUDA random streams. Auxiliary heads belong only to Student.
+            with torch.random.fork_rng(devices=[]):
+                torch.default_generator.manual_seed(auxiliary_seed)
+                student.control_reconstruction = ControlReconstruction(student.options.width).to(
+                    next(student.parameters()).device
+                )
+            self.register_buffer("auxiliary_rng_counter", torch.zeros((), dtype=torch.long))
         self.lambda1, self.lambda2 = lambda1, lambda2
         self.weights = (ssl1_weights, ssl2_weights)
         if loss_reduction not in (None, "row_mean", "condition_mean"):
@@ -153,14 +183,27 @@ class JointObjective(nn.Module):
         include_ssl1: bool = True,
         ibot_population: Tensor | None = None,
         reduction_weights: tuple[Tensor, Tensor] | None = None,
+        prediction_weights: Tensor | None = None,
+        row_weights: Tensor | None = None,
         deferred_koleo: list[tuple[Tensor, Tensor, Tensor]] | None = None,
     ) -> tuple[Tensor, dict[str, Tensor]]:
         model = self.student
         graph, conditions = self._graph(model, batch.graph, False)
         condition = conditions[batch.condition_index]
         response = model.encode_response(graph[batch.query_positions], batch.control, condition)
-        errors = (response["prediction"].float() - batch.truth.float()).square().mean(-1)
-        if self.loss_reduction is not None:
+        squared = (response["prediction"].float() - batch.truth.float()).square()
+        mse_rows = squared.mean(-1)
+        errors = mse_rows if self.prediction_error_power == 2 else squared.square().mean(-1)
+        if prediction_weights is not None:
+            loss = (errors * prediction_weights).sum()
+        elif self.prediction_reduction_override != "inherit":
+            weights = population_weights(
+                batch.condition_index,
+                torch.ones_like(batch.condition_index, dtype=torch.bool),
+                self.prediction_reduction_override,
+            )
+            loss = (errors * weights).sum()
+        elif self.loss_reduction is not None:
             if reduction_weights is None:
                 reduction_weights = self.local_reduction_weights(batch)
             loss = (errors * reduction_weights[0]).sum()
@@ -172,6 +215,19 @@ class JointObjective(nn.Module):
         else:
             loss = errors.mean()
         metrics = {"prediction": loss}
+        if row_weights is None:
+            row_weights = torch.full_like(mse_rows, 1.0 / len(mse_rows))
+        metrics["prediction_mse"] = (mse_rows * row_weights).sum()
+        metrics["control_copy_mse"] = (
+            (batch.control.float() - batch.truth.float()).square().mean(-1) * row_weights
+        ).sum()
+        if self.auxiliary_mask_ratio:
+            auxiliary = self.control_reconstruction_loss(batch, graph, row_weights)
+            metrics.update(auxiliary)
+            if self.lambda_gene_mask:
+                loss = loss + self.lambda_gene_mask * auxiliary["gene_mask"]
+            if self.lambda_cls_mask:
+                loss = loss + self.lambda_cls_mask * auxiliary["cls_mask"]
         if self.lambda1 and include_ssl1:
             ssl1 = self.graph_loss(batch.graph_views, batch.condition_index)
             metrics.update({f"ssl1_{k}": v for k, v in ssl1.items()})
@@ -243,6 +299,47 @@ class JointObjective(nn.Module):
                 else zero
             ),
         }
+
+    @property
+    def prediction_strategy(self) -> str:
+        if self.prediction_reduction_override != "inherit":
+            return self.prediction_reduction_override
+        return self.loss_reduction or (
+            "row_mean" if self.prediction_reduction == "cell_mean" else "condition_mean"
+        )
+
+    def control_reconstruction_loss(
+        self, batch: TrainingBatch, graph: Tensor, row_weights: Tensor
+    ) -> dict[str, Tensor]:
+        decoder = self.student.control_reconstruction
+        if decoder is None:
+            raise ValueError("control reconstruction decoder is absent")
+        device = batch.control.device
+        cuda_devices = [device.index or 0] if device.type == "cuda" else []
+        counter = int(self.auxiliary_rng_counter.item())
+        rank = torch.distributed.get_rank() if torch.distributed.is_initialized() else 0
+        seed = self.auxiliary_seed + 104729 * counter + 1000003 * rank
+        with torch.random.fork_rng(devices=cuda_devices):
+            torch.default_generator.manual_seed(seed)
+            if device.type == "cuda":
+                with torch.cuda.device(device):
+                    torch.cuda.manual_seed(seed)
+            count = max(1, int(batch.control.shape[1] * self.auxiliary_mask_ratio))
+            positions = torch.rand(batch.control.shape, device=device).argsort(-1)[:, :count]
+            mask = torch.zeros_like(batch.control, dtype=torch.bool).scatter_(1, positions, True)
+            gene = graph[batch.query_positions]
+            basal, cls, _ = self.student.encode_control(
+                gene, batch.control, mask, mask_token=decoder.mask_token
+            )
+            token, cell = decoder(basal, cls, gene)
+            targets = batch.control.float()
+            losses = {
+                "gene_mask": ((token.float() - targets).square() * mask).sum(-1) / count,
+                "cls_mask": ((cell.float() - targets).square() * mask).sum(-1) / count,
+            }
+        if self.training:
+            self.auxiliary_rng_counter.add_(1)
+        return {name: (value * row_weights).sum() for name, value in losses.items()}
 
     def local_reduction_weights(self, batch: TrainingBatch) -> tuple[Tensor, Tensor]:
         strategy = self.loss_reduction or "row_mean"
@@ -394,10 +491,9 @@ class JointObjective(nn.Module):
     def commit_statistics(self, momentum: float) -> None:
         if not 0 <= momentum <= 1:
             raise ValueError("invalid teacher EMA momentum")
-        for teacher, student in zip(
-            self.teacher.parameters(), self.student.parameters(), strict=True
-        ):
-            teacher.lerp_(student, 1 - momentum)
+        parameters = dict(self.student.named_parameters())
+        for name, teacher in self.teacher.named_parameters():
+            teacher.lerp_(parameters[name], 1 - momentum)
         # Every rank enters the same collectives, even when its masked-token
         # population is empty. Aggregate sums/counts, not rank means.
         for name in ("ssl1_cls", "ssl1_node", "ssl2_cls", "ssl2_node"):

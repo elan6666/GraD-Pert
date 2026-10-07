@@ -1,0 +1,53 @@
+{
+  "acceptance": "PASS",
+  "arms": [
+    {
+      "arm": "B0",
+      "run_id": "nadig_jurkat-seed1-20261005T193537Z-17cddf00a8b3413d8e4cb9cbf8eb8a3a",
+      "checkpoint_sha256": "e9b62dc1c802396bcf84e8734ab7b43f780b2cec9b6f557e56df918541adcf2e",
+      "test_sha256": "dc5499bf8187f51f3af5631069378afddd78ebcda08c384784f8a971bd088ae6",
+      "epochs": 6,
+      "conditions": 592,
+      "zero_pkl": true
+    },
+    {
+      "arm": "K1",
+      "run_id": "nadig_jurkat-seed1-20261005T193538Z-ac491d2a121047d1b12cb6fd71d52c3a",
+      "checkpoint_sha256": "da881b5de2d36ef2a08d316e8c680499b43e3cec2003f30f0b7a681ae1f19f7c",
+      "test_sha256": "7dd69b92a734ed0cef729edd6b42b38e663e92b361c86de978a20a48e7ef90fd",
+      "epochs": 6,
+      "conditions": 592,
+      "zero_pkl": true
+    },
+    {
+      "arm": "K2",
+      "run_id": "nadig_jurkat-seed1-20261005T193538Z-828c82f5e39548748b81247dd3b019d4",
+      "checkpoint_sha256": "ef1f9820ef3be0c0584c71c0a48355981dafa30f366f6576f1689a73b9aacb1d",
+      "test_sha256": "71454eb660d69addadb1d49fc625b6ea9b007ead27cd2fb980be99a2d1f42b1a",
+      "epochs": 6,
+      "conditions": 592,
+      "zero_pkl": true
+    },
+    {
+      "arm": "A1",
+      "run_id": "nadig_jurkat-seed1-20261005T193538Z-dc7dbdbd591a4b2b9a645cd462d37c51",
+      "checkpoint_sha256": "4ece1ed591614b3dc1c129930e7b85911c4aa0ce73c7e11621b8996a0277f441",
+      "test_sha256": "033589bec2b16034628645517ef6a861f783b3784ac1b6055bfcc4b04ee8adc2",
+      "epochs": 6,
+      "conditions": 592,
+      "zero_pkl": true
+    },
+    {
+      "arm": "A2",
+      "run_id": "nadig_jurkat-seed1-20261005T193538Z-f6364ab30a2d4b668590e2594c5c81bb",
+      "checkpoint_sha256": "dd80aa9bc9b9887904b4bc7e70395aff9ed842c963356dc64aa25b62a6027114",
+      "test_sha256": "96709002d442338805bcdefdf1ecdbeca7a47497c4b59b49f42ea340bd26f106",
+      "epochs": 6,
+      "conditions": 592,
+      "zero_pkl": true
+    }
+  ],
+  "controller_exit_present": true,
+  "verified_at": "2026-10-07T10:43:36.331139+00:00",
+  "source_commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33"
+}

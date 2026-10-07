@@ -1,0 +1,73 @@
+{
+  "test_kind": "synthetic_two_update_B0_parity",
+  "parent_commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+  "parent_published_verified": true,
+  "candidate_source_dirty": true,
+  "scientific_run": false,
+  "parent": {
+    "state_sha256": "665779c8304a91cafea2247dcafedfb9ab916633fb79da4a307836352585edfd",
+    "rng_sha256": "72ec02e188bd40b8d6330e4d90f7d964338e5bf6204ed5176bb0c4ca76f855a7",
+    "metrics": [
+      {
+        "prediction": 1.6911996603012085,
+        "ssl2_dino": 0.6031972169876099,
+        "ssl2_ibot": 0.24278229475021362,
+        "ssl2_koleo": 0.0,
+        "ssl1_condition": 1.548153281211853,
+        "ssl1_node": 3.3313753604888916,
+        "ssl1_spread": -0.0,
+        "joint_loss": 7.416707813739777,
+        "gradient_norm": 32.81890869140625,
+        "learning_rate": 0.001,
+        "teacher_momentum": 0.99
+      },
+      {
+        "prediction": 1.7054215669631958,
+        "ssl2_dino": 0.5987843573093414,
+        "ssl2_ibot": 0.2022806778550148,
+        "ssl2_koleo": 0.0,
+        "ssl1_condition": 1.558211326599121,
+        "ssl1_node": 3.2183871269226074,
+        "ssl1_spread": -0.0,
+        "joint_loss": 7.2830850556492805,
+        "gradient_norm": 17.858531951904297,
+        "learning_rate": 0.001,
+        "teacher_momentum": 0.99
+      }
+    ]
+  },
+  "candidate": {
+    "state_sha256": "665779c8304a91cafea2247dcafedfb9ab916633fb79da4a307836352585edfd",
+    "rng_sha256": "72ec02e188bd40b8d6330e4d90f7d964338e5bf6204ed5176bb0c4ca76f855a7",
+    "metrics": [
+      {
+        "prediction": 1.6911996603012085,
+        "ssl2_dino": 0.6031972169876099,
+        "ssl2_ibot": 0.24278229475021362,
+        "ssl2_koleo": 0.0,
+        "ssl1_condition": 1.548153281211853,
+        "ssl1_node": 3.3313753604888916,
+        "ssl1_spread": -0.0,
+        "joint_loss": 7.416707813739777,
+        "gradient_norm": 32.81890869140625,
+        "learning_rate": 0.001,
+        "teacher_momentum": 0.99
+      },
+      {
+        "prediction": 1.7054215669631958,
+        "ssl2_dino": 0.5987843573093414,
+        "ssl2_ibot": 0.2022806778550148,
+        "ssl2_koleo": 0.0,
+        "ssl1_condition": 1.558211326599121,
+        "ssl1_node": 3.2183871269226074,
+        "ssl1_spread": -0.0,
+        "joint_loss": 7.2830850556492805,
+        "gradient_norm": 17.858531951904297,
+        "learning_rate": 0.001,
+        "teacher_momentum": 0.99
+      }
+    ]
+  },
+  "passed": true,
+  "verified_at": "2026-10-07T11:01:42.064508+00:00"
+}

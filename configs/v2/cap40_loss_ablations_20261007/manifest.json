@@ -1,0 +1,89 @@
+{
+  "schema": "gradpert-v2-loss-six-1",
+  "parent": "configs/v2/cap40_functional_b0_ka/B0/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "8961c93fd42bf0141722a42e23a3577c9209e5cdfb9aea1e8bba3c5de92467a5",
+  "parent_source_commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+  "rows": [
+    {
+      "name": "L0",
+      "config": "configs/v2/cap40_loss_ablations_20261007/L0/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "705d962aa1182a6ccedd99096d2af2c3b0531a61dc62bb36d1fea974c4a9322c",
+      "changes": {
+        "prediction_error_power": 2,
+        "prediction_reduction_override": "row_mean",
+        "auxiliary_mask_ratio": 0.0,
+        "lambda_gene_mask": 0.0,
+        "lambda_cls_mask": 0.0
+      }
+    },
+    {
+      "name": "L1",
+      "config": "configs/v2/cap40_loss_ablations_20261007/L1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "b062e9563f2c1696ac6a28e6adac9120bd30514a471a4675618a1a19f8d94ced",
+      "changes": {
+        "prediction_error_power": 4,
+        "prediction_reduction_override": "row_mean",
+        "auxiliary_mask_ratio": 0.0,
+        "lambda_gene_mask": 0.0,
+        "lambda_cls_mask": 0.0
+      }
+    },
+    {
+      "name": "L2",
+      "config": "configs/v2/cap40_loss_ablations_20261007/L2/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "dbc50b3efabccf25d15419f11ba91f3db2a9e25aa961a76d9c86b29ab14f3c2d",
+      "changes": {
+        "prediction_error_power": 2,
+        "prediction_reduction_override": "condition_mean",
+        "auxiliary_mask_ratio": 0.0,
+        "lambda_gene_mask": 0.0,
+        "lambda_cls_mask": 0.0
+      }
+    },
+    {
+      "name": "M2",
+      "config": "configs/v2/cap40_loss_ablations_20261007/M2/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "716aba3fb6489de745fdb8d84663fe22acefec659253f2d40a00c030bd8f0d27",
+      "changes": {
+        "prediction_error_power": 2,
+        "prediction_reduction_override": "row_mean",
+        "auxiliary_mask_ratio": 0.2,
+        "lambda_gene_mask": 1.0,
+        "lambda_cls_mask": 1.0
+      }
+    },
+    {
+      "name": "L3",
+      "config": "configs/v2/cap40_loss_ablations_20261007/L3/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "a2656765cfd949ad7e5fe81d0974cb4515d52af739fc17d7369a4412e813dd82",
+      "changes": {
+        "prediction_error_power": 4,
+        "prediction_reduction_override": "condition_mean",
+        "auxiliary_mask_ratio": 0.0,
+        "lambda_gene_mask": 0.0,
+        "lambda_cls_mask": 0.0
+      }
+    },
+    {
+      "name": "M1",
+      "config": "configs/v2/cap40_loss_ablations_20261007/M1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "654dc8a31dc227c9a3d7beb7ba89d645e5a62b68cffb6f14c1a122db0b637d0b",
+      "changes": {
+        "prediction_error_power": 2,
+        "prediction_reduction_override": "row_mean",
+        "auxiliary_mask_ratio": 0.2,
+        "lambda_gene_mask": 1.0,
+        "lambda_cls_mask": 0.0
+      }
+    }
+  ],
+  "epochs": 6,
+  "validation": "disabled",
+  "test_roles": [
+    "last"
+  ],
+  "common_microbatch": 68,
+  "global_batch": 272,
+  "seed": 1,
+  "primary_metric": "txpert_macro_pearson_delta_deg"
+}

@@ -77,6 +77,7 @@ def fit(
     resume: bool = False,
     bootstrap_history: list[dict[str, Any]] | None = None,
     bootstrap_best: tuple[dict[str, Any], Path] | None = None,
+    diagnose: Callable[[], dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Commit only complete epochs; resume replays an interrupted epoch exactly.
 
@@ -215,10 +216,19 @@ def fit(
             epoch=record["epoch"], validation_metric=float(record["validation"]["joint_loss"])
         )
     seen_expression_ids = set(history[-1]["seen_expression_gene_indices"]) if history else set()
+    if diagnose is not None and not history:
+        initial_diagnostic = primary_call(diagnose)
+        primary_call(
+            lambda: atomic_json(root / "loss-diagnostic-epoch-0000.json", initial_diagnostic)
+        )
     for epoch in range(len(history), epochs):
         sums: dict[str, float] = {}
         epoch_started = time.monotonic()
         epoch_cells = 0
+        condition_audit: dict[str, dict[str, float]] = {}
+        device = next(objective.student.parameters()).device
+        if diagnose is not None and device.type == "cuda":
+            torch.cuda.reset_peak_memory_stats(device)
         live("training", epoch + 1, 0)
 
         def update(
@@ -228,6 +238,7 @@ def fit(
             current_epoch: int = epoch,
             totals: dict[str, float] = sums,
             start_epoch: float = epoch_started,
+            exposure_audit: dict[str, dict[str, float]] = condition_audit,
         ) -> None:
             nonlocal epoch_cells
             step = current_epoch * steps_per_epoch + count
@@ -239,6 +250,19 @@ def fit(
             )
             global_conditions = batch.condition_index if distributed else None
             global_cells = len(batch.control)
+            if diagnose is not None:
+                conditions, counts = torch.unique(batch.condition_index, return_counts=True)
+                for condition, cells in zip(conditions.tolist(), counts.tolist(), strict=True):
+                    positions = batch.graph.target_positions[condition]
+                    targets = positions[batch.graph.target_valid[condition]]
+                    key = ",".join(str(x) for x in batch.graph.ids[targets].tolist())
+                    record = exposure_audit.setdefault(key, {"rows": 0.0, "weight": 0.0})
+                    record["rows"] += cells
+                    record["weight"] += (
+                        1 / len(conditions)
+                        if objective.prediction_strategy == "condition_mean"
+                        else cells / global_cells
+                    )
             if distributed:
                 if global_cells < world:
                     raise ValueError("global batch must provide a row to every rank")
@@ -296,12 +320,33 @@ def fit(
             loss = float(validation["joint_loss"])
             if not math.isfinite(loss):
                 raise FloatingPointError("nonfinite validation selection loss")
+        training_seconds = time.monotonic() - epoch_started
+        peak_bytes = torch.cuda.max_memory_allocated(device) if device.type == "cuda" else 0
+        diagnostic_started = time.monotonic()
+        diagnostic = primary_call(diagnose) if diagnose is not None else None
+        if diagnostic is not None:
+            primary_call(
+                partial(
+                    atomic_json, root / f"loss-diagnostic-epoch-{epoch + 1:04d}.json", diagnostic
+                )
+            )
         history.append(
             {
                 "epoch": epoch + 1,
                 "optimizer_steps": optimizer.steps,
                 "training": {k: v / count for k, v in sums.items()},
                 "validation": validation,
+                **(
+                    {
+                        "training_diagnostic": diagnostic,
+                        "condition_prediction_weight_audit": condition_audit,
+                        "training_seconds": training_seconds,
+                        "diagnostic_seconds": time.monotonic() - diagnostic_started,
+                        "rank0_peak_allocated_bytes": peak_bytes,
+                    }
+                    if diagnostic is not None
+                    else {}
+                ),
                 "seen_expression_gene_indices": sorted(seen_expression_ids),
             }
         )

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import asdict, dataclass, fields
 from typing import Any
 
@@ -237,6 +238,11 @@ class V2Options:
     validation_mode: str = "joint_and_prediction"
     train_selection_path: str = ""
     train_selection_sha256: str = ""
+    prediction_error_power: int = 2
+    prediction_reduction_override: str = "inherit"
+    auxiliary_mask_ratio: float = 0.0
+    lambda_gene_mask: float = 0.0
+    lambda_cls_mask: float = 0.0
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -271,6 +277,11 @@ class V2Options:
             "validation_mode",
             "train_selection_path",
             "train_selection_sha256",
+            "prediction_error_power",
+            "prediction_reduction_override",
+            "auxiliary_mask_ratio",
+            "lambda_gene_mask",
+            "lambda_cls_mask",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -283,6 +294,25 @@ class V2Options:
         return arch, cls(**{name: plain[name] for name in names if name in plain})
 
     def __post_init__(self) -> None:
+        if type(self.prediction_error_power) is not int or self.prediction_error_power not in (
+            2,
+            4,
+        ):
+            raise ValueError("prediction error power must be 2 or 4")
+        if self.prediction_reduction_override not in ("inherit", "row_mean", "condition_mean"):
+            raise ValueError("unknown prediction-only reduction")
+        if not all(
+            math.isfinite(x)
+            for x in (self.auxiliary_mask_ratio, self.lambda_gene_mask, self.lambda_cls_mask)
+        ):
+            raise ValueError("reconstruction settings must be finite")
+        if (
+            not 0 <= self.auxiliary_mask_ratio < 1
+            or min(self.lambda_gene_mask, self.lambda_cls_mask) < 0
+        ):
+            raise ValueError("invalid control reconstruction mask or weights")
+        if bool(self.auxiliary_mask_ratio) != bool(self.lambda_gene_mask or self.lambda_cls_mask):
+            raise ValueError("control reconstruction mask and supervision must be enabled together")
         if self.loss_reduction not in ("row_mean", "condition_mean"):
             raise ValueError("unknown unified loss reduction")
         if self.graph_expander_type not in ("permutation", "hamiltonian"):

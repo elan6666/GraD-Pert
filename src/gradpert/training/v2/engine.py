@@ -94,6 +94,7 @@ def optimizer_step(
             torch.distributed.all_reduce(ibot_population)
         ibot_population = ibot_population.float()
     reduction_weights = None
+    prediction_weights = row_weights = None
     deferred_koleo: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] | None = (
         [] if unified and objective.lambda2 and objective.weights[1][2] else None
     )
@@ -117,6 +118,12 @@ def optimizer_step(
             else row.new_zeros((0, total))
         )
         reduction_weights = (row[offset : offset + total], nodes[:, offset : offset + total])
+        prediction_weights = population_weights(
+            ids, torch.ones_like(ids, dtype=torch.bool), objective.prediction_strategy
+        )[offset : offset + total]
+        row_weights = population_weights(ids, torch.ones_like(ids, dtype=torch.bool), "row_mean")[
+            offset : offset + total
+        ]
     finite = True
 
     def global_koleo() -> torch.Tensor:
@@ -159,6 +166,12 @@ def optimizer_step(
                         reduction_weights[0][start : start + len(micro.control)],
                         reduction_weights[1][:, start : start + len(micro.control)],
                     ),
+                    prediction_weights=None
+                    if prediction_weights is None
+                    else prediction_weights[start : start + len(micro.control)],
+                    row_weights=None
+                    if row_weights is None
+                    else row_weights[start : start + len(micro.control)],
                     deferred_koleo=deferred_koleo,
                 )
             if not torch.isfinite(loss):
@@ -256,7 +269,11 @@ def optimizer_step(
                 (2, objective.lambda2, objective.weights[1], ("dino", "ibot", "koleo")),
             )
         )
+        metrics["joint_loss"] += objective.lambda_gene_mask * metrics.get(
+            "gene_mask", 0.0
+        ) + objective.lambda_cls_mask * metrics.get("cls_mask", 0.0)
         metrics["gradient_norm"] = float(norm)
+        metrics["gradient_clipped"] = float(norm > 1.0)
         metrics["learning_rate"] = lr
         metrics["teacher_momentum"] = momentum
         return metrics

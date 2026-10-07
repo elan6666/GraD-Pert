@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, fields, is_dataclass, replace
 from functools import cached_property
@@ -71,7 +71,7 @@ class Runtime:
 
     def _batches(
         self, epoch: int, device: torch.device, generator: np.random.Generator
-    ) -> Iterator[TrainingBatch]:
+    ) -> Generator[TrainingBatch, None, None]:
         if self.purpose != "training":
             raise RuntimeError("evaluation runtime cannot enter training")
         for raw in self.data.iter_train_epoch(
@@ -91,6 +91,21 @@ class Runtime:
                 generator,
                 allowed_expression_ids=self.allowed_expression_ids,
             )
+
+    def loss_diagnostics(self) -> dict[str, Any]:
+        """Use four fixed training rows and private views; never validation/test rows."""
+        from .engine import slice_cells
+        from .loss_diagnostics import evaluate_loss_diagnostics
+
+        generator = np.random.default_rng(int(self.identity["run_seed"]) + 0x71A1)
+        stream = self._batches(0, self.device, generator)
+        try:
+            batch = next(stream)
+        finally:
+            stream.close()
+        return evaluate_loss_diagnostics(
+            self.objective, slice_cells(batch, 0, min(4, len(batch.control))), bf16=True
+        )
 
     def validation_batches(self, *, batch_size: int) -> Iterator[tuple[TrainingBatch, str]]:
         """Replay one fixed validation view recipe without consuming training RNG."""
@@ -285,6 +300,12 @@ def prepare_runtime(
             ssl1_reduction=options.ssl1_reduction,
             prediction_reduction=options.prediction_loss,
             koleo_exclude_same_condition=options.koleo_exclude_same_condition,
+            prediction_error_power=options.prediction_error_power,
+            prediction_reduction_override=options.prediction_reduction_override,
+            auxiliary_mask_ratio=options.auxiliary_mask_ratio,
+            lambda_gene_mask=options.lambda_gene_mask,
+            lambda_cls_mask=options.lambda_cls_mask,
+            auxiliary_seed=run_seed + 0x4A51,
         ).to(device)
         optimizer = V2Optimizer(
             student,
@@ -326,6 +347,24 @@ def prepare_runtime(
             "ibot": "masked_tokens_per_cell_then_valid_cell_population",
             "exceptions": ["ssl1_node", "ssl1_spread", "teacher_centers"],
         }
+        if (
+            options.prediction_error_power != 2
+            or options.prediction_reduction_override != "inherit"
+            or options.auxiliary_mask_ratio
+        ):
+            identity["loss_protocol"]["prediction_task"] = {
+                "error_power": options.prediction_error_power,
+                "reduction_override": options.prediction_reduction_override,
+                "ssl_reduction_unchanged": options.loss_reduction,
+            }
+            identity["loss_protocol"]["control_reconstruction"] = {
+                "mask_ratio": options.auxiliary_mask_ratio,
+                "lambda_gene": options.lambda_gene_mask,
+                "lambda_cls": options.lambda_cls_mask,
+                "auxiliary_seed": run_seed + 0x4A51,
+                "target": "training_control_expression",
+                "inference_use": False,
+            }
         identity["training_expression_policy"] = expression_policy_receipt
         if train_selection_receipt is not None:
             identity["training_row_selection"] = train_selection_receipt

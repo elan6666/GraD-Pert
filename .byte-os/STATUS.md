@@ -1,3 +1,11 @@
+# Active loss stage (2026-10-07)
+
+Six matched Jurkat cap40 arms, order L0/L1/L2/M2/L3/M1. M1 gene=1/CLS=0, M2 gene=1/CLS=1, mask20%. Native implementation and CPU synthetic validation complete; publication/server checks/capacity/launch pending. No new scientific results. Local tests 39 directed and 540 v2 regression passed, 11 dependency/hardware skips, 1 reproduced parent missing-config test excluded. See `.byte-os/coordination/receipts/loss-weight1-local-verification-20261007.json`.
+
+Main: codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b. Executor: codex:01a10391-22a3-78e1-9799-93ea9d6ffdd9 reports_to main. Supervisor: codex:01a0df0b-4142-7df1-86c0-d959471d80a1. Completion/failure/design decisions return to main. Shared mutable authority remains `/Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/state.json`.
+
+Prior snapshot below is historical.
+
 ## 2026-10-05：唯一合并E23从头20轮队列已交监督
 
 训练SHA e27f49166dae688eb35444331a1ef1916238efe7，固定config7214e3…c08df8。合并四头16384和SSL1/SSL2各(1,1,0)，mHC4/global272/cap40；本地114、服务器133检查通过。队列 v2-cap40-e23-twenty-e27f491-20261004T203648Z-5d34d6ae attempt1 已真实启动，监督ACK时容量预检24/128，尚非正式epoch。通过后自动fresh20及best/last测试。指定监督会话 owner；20min监控ACTIVE与exacttarget/run已由主会话复核，返回fallback PAUSED。无需主会话重复查服务器。当前共享权威状态位于 /Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/state.json；发布状态只是交接快照。证据 .byte-os/evidence/v2-cap40-e23-twenty-20261005/、ACK .byte-os/coordination/receipts/v2-cap40-e23-twenty-supervisor-ack-20261005T0447Z.json。历史六轮结果不变，旧分别两臂20轮解释已覆盖。

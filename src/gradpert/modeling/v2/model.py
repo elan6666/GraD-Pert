@@ -23,6 +23,7 @@ from .operators import (
     TokenEncoder,
     relay_order,
 )
+from .reconstruction import ControlReconstruction
 
 
 @dataclass
@@ -398,6 +399,7 @@ class GraDPertV2(nn.Module):
         super().__init__()
         self.options = options
         self.randomize_relay_order = False
+        self.control_reconstruction: ControlReconstruction | None = None
         d = options.width
         self.graph = GeneGraph(seeds, options)
         self.expression = nn.Sequential(
@@ -496,15 +498,15 @@ class GraDPertV2(nn.Module):
         values = graph[positions.clamp_min(0)] * valid.unsqueeze(-1)
         return values.sum(-2) / valid.sum(-1, keepdim=True)
 
-    def encode_response(
+    def encode_control(
         self,
         gene: Tensor,
         control: Tensor,
-        condition: Tensor,
         expression_mask: Tensor | None = None,
         *,
-        block_response_cls_to_gene: bool = False,
-    ) -> dict[str, Tensor]:
+        mask_token: Tensor | None = None,
+    ) -> tuple[Tensor, Tensor, tuple[Tensor, ...] | None]:
+        """Basal encoding without perturbation targets or a raw-expression skip."""
         if control.ndim != 2 or control.shape[1] != gene.shape[0]:
             raise ValueError("control expression must align with query gene IDs")
         expression = self.expression(control.unsqueeze(-1))
@@ -512,7 +514,9 @@ class GraDPertV2(nn.Module):
             if expression_mask.shape != control.shape or expression_mask.dtype != torch.bool:
                 raise ValueError("expression mask must be aligned boolean tensor")
             expression = torch.where(
-                expression_mask.unsqueeze(-1), self.expression_mask, expression
+                expression_mask.unsqueeze(-1),
+                self.expression_mask if mask_token is None else mask_token,
+                expression,
             )
         x = expression + gene.unsqueeze(0)
         relay = self.options.attention == "relay_full"
@@ -535,6 +539,19 @@ class GraDPertV2(nn.Module):
             torch.cat((x, self.control_cls.expand(len(control), -1, -1)), dim=1), order=order
         )
         basal, control_cls = encoded[:, :-1], encoded[:, -1]
+        return basal, control_cls, order
+
+    def encode_response(
+        self,
+        gene: Tensor,
+        control: Tensor,
+        condition: Tensor,
+        expression_mask: Tensor | None = None,
+        *,
+        block_response_cls_to_gene: bool = False,
+    ) -> dict[str, Tensor]:
+        basal, control_cls, order = self.encode_control(gene, control, expression_mask)
+        relay = self.options.attention == "relay_full"
         if relay:
             if not isinstance(order, tuple):
                 raise AssertionError("relay order was not initialized")

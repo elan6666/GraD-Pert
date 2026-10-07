@@ -227,6 +227,9 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             steps_per_epoch=runtime.steps_per_epoch,
             batches=runtime.batches,
             validate=validate if runtime.options.validation_mode != "disabled" else None,
+            diagnose=runtime.loss_diagnostics
+            if runtime.options.prediction_reduction_override != "inherit"
+            else None,
             schedule=(
                 ConstantStageLR(config.continuation.learning_rate)
                 if config.continuation is not None

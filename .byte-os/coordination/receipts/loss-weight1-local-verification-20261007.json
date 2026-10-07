@@ -1,0 +1,38 @@
+{
+  "schema": "gradpert-v2-loss-local-verification-1",
+  "baseline_commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+  "baseline_published_before_edits": true,
+  "baseline_clean_before_edits": true,
+  "candidate_status": "uncommitted synthetic validation",
+  "weight_revision": {
+    "M1": {
+      "gene": 1,
+      "CLS": 0
+    },
+    "M2": {
+      "gene": 1,
+      "CLS": 1
+    },
+    "mask": 0.2
+  },
+  "directed_tests": "39 passed",
+  "local_environment": {
+    "python": "3.13.13",
+    "torch": "2.14.1",
+    "role": "CPU synthetic only"
+  },
+  "ruff": "14 files passed check and format",
+  "mypy": "11 changed source files passed --follow-imports=silent",
+  "build": "sdist and wheel passed, /tmp/gradpert-v2-loss-weight1-build-20261007",
+  "baseline_broad_suite_failure": {
+    "test": "test_new_configs_only_select_execution_backend",
+    "missing_path": "configs/v2/single_pass_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml",
+    "reproduced_on_frozen_parent": true,
+    "excluded_from_candidate_repeat": true
+  },
+  "scientific_result": false,
+  "recorded_at_utc": "2026-10-07T11:47:05.069801+00:00",
+  "v2_regression": "540 passed, 11 skipped (8 missing Triton, 3 NVIDIA-only), 1 deselected baseline missing config",
+  "v2_regression_command": ".venv/bin/python -m pytest -q tests/v2 -k 'not test_new_configs_only_select_execution_backend'",
+  "config_execution_regression": "36 passed"
+}
