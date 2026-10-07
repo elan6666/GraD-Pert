@@ -54,11 +54,11 @@ def setup_font():
     plt.rcParams.update(
         {
             "font.family": name,
-            "font.size": 8,
+            "font.size": 9,
             "axes.titlesize": 9,
-            "axes.labelsize": 8,
-            "xtick.labelsize": 7.5,
-            "ytick.labelsize": 7.5,
+            "axes.labelsize": 9,
+            "xtick.labelsize": 8.7,
+            "ytick.labelsize": 8.7,
             "legend.fontsize": 7,
             "axes.spines.top": False,
             "axes.spines.right": False,
@@ -299,7 +299,13 @@ def main():
         1, 2, figsize=(7.6, 3.4), layout="constrained", gridspec_kw={"width_ratios": [1.3, 1]}
     )
     ax = axes[0]
-    image = ax.imshow([r["values"] for r in norman], aspect="auto", cmap="viridis", vmin=-1, vmax=1)
+    image = ax.imshow(
+        np.asarray([r["values"] for r in norman], dtype=float),
+        aspect="auto",
+        cmap="viridis",
+        vmin=-1,
+        vmax=1,
+    )
     ax.set_yticks(
         range(len(norman)), [r["condition"].replace("+ctrl", "") for r in norman], fontsize=7
     )
@@ -379,7 +385,11 @@ def main():
         rows = sorted(splits[dataset]["conditions"], key=lambda r: r.get("median", -2))
         fig, ax = plt.subplots(figsize=(7.6, 3.6), layout="constrained")
         image = ax.imshow(
-            [r["values"] for r in rows], aspect="auto", cmap="viridis", vmin=-1, vmax=1
+            np.asarray([r["values"] for r in rows], dtype=float),
+            aspect="auto",
+            cmap="viridis",
+            vmin=-1,
+            vmax=1,
         )
         ax.set(
             xlabel="随机划分编号",
