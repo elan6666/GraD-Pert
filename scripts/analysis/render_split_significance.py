@@ -74,7 +74,7 @@ def main():
                 lw=1,
             )
         table = pd.read_csv(args.results / f"{name}-control-sensitivity-long.csv.gz")
-        complete = table.dropna(subset=["shared_symmetric_300", "disjoint_300"])
+        complete = table.dropna(subset=["shared_symmetric_300", "disjoint_300"]).copy()
         complete["shared_minus_disjoint"] = (
             complete["shared_symmetric_300"] - complete["disjoint_300"]
         )
@@ -170,8 +170,8 @@ def main():
             )
     a.set(xticks=range(5), xticklabels=NAMES, ylabel="每次条件中位 Pearson", ylim=(-0.05, 1.02))
     handles = [
-        Line2D([], [], color="#555555", marker=m, linestyle="", label=l)
-        for m, l in [("x", "原固定对照"), ("o", "重新抽样共享对照"), ("s", "互斥对照")]
+        Line2D([], [], color="#555555", marker=marker, linestyle="", label=label)
+        for marker, label in [("x", "原固定对照"), ("o", "重新抽样共享对照"), ("s", "互斥对照")]
     ]
     a.legend(handles=handles, loc="upper left", frameon=False, fontsize=8)
     panel(a, "a", "300 次对照抽样：20 次划分的全部总体值")
