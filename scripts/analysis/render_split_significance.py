@@ -36,11 +36,11 @@ def main():
     setup_font()
     plt.rcParams.update(
         {
-            "font.size": 10,
-            "axes.labelsize": 10,
-            "axes.titlesize": 10,
-            "xtick.labelsize": 9,
-            "ytick.labelsize": 9,
+            "font.size": 13,
+            "axes.labelsize": 14,
+            "axes.titlesize": 13,
+            "xtick.labelsize": 12,
+            "ytick.labelsize": 12,
         }
     )
     results = json.loads((args.results / "summary.json").read_text())
@@ -157,23 +157,14 @@ def main():
                 transform=ax.get_xaxis_transform(),
                 ha="center",
                 va="top",
-                fontsize=8,
-            )
-            ax.text(
-                i,
-                0.035,
-                f"校正 p={test['p_holm']:.4f}",
-                transform=ax.get_xaxis_transform(),
-                ha="center",
-                va="bottom",
-                fontsize=7.5,
+                fontsize=11,
             )
     a.set(xticks=range(5), xticklabels=NAMES, ylabel="每次条件中位 Pearson", ylim=(-0.05, 1.02))
     handles = [
         Line2D([], [], color="#555555", marker=marker, linestyle="", label=label)
         for marker, label in [("x", "原固定对照"), ("o", "重新抽样共享对照"), ("s", "互斥对照")]
     ]
-    a.legend(handles=handles, loc="upper left", frameon=False, fontsize=8)
+    a.legend(handles=handles, loc="upper left", frameon=False, fontsize=11)
     panel(a, "a", "300 次对照抽样：20 次划分的全部总体值")
     b.plot([-1, 1], [-1, 1], ls="--", color="#999999", lw=1)
     b.set(
@@ -182,7 +173,7 @@ def main():
         xlim=(-0.35, 1),
         ylim=(-0.35, 1),
     )
-    b.legend(frameon=False, fontsize=8, loc="upper left")
+    b.legend(frameon=False, fontsize=11, loc="upper left")
     panel(b, "b", "同条件配对：对照误差敏感性")
     for ax, letter, title in [
         (c, "c", "同批次等细胞数：每半 2 个扰动细胞"),
@@ -193,11 +184,14 @@ def main():
             xticks=range(5), xticklabels=NAMES, ylabel="条件等权平均 Pearson", ylim=(-0.04, 0.46)
         )
         ax.axhline(0, color="#BBBBBB", lw=0.6)
+        ax.text(
+            0.5, 0.02, "Holm 校正 p 均为 0.0005", transform=ax.transAxes, ha="center", fontsize=11
+        )
     legend = [
         Line2D([], [], color="#555555", marker="D", linestyle="", label="同扰动；点为20次值"),
         Line2D([], [], color="#AAAAAA", marker="s", linestyle="", label="9999次身份重排参照"),
     ]
-    fig.legend(handles=legend, loc="outside lower center", ncol=2, frameon=False, fontsize=9)
+    fig.legend(handles=legend, loc="outside lower center", ncol=2, frameon=False, fontsize=11)
     save(fig, args.output, "fig5-split-significance")
     (args.output / "publication_summary.json").write_text(json.dumps(publication, indent=2))
     outputs = {
