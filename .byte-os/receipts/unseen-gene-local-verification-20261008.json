@@ -1,0 +1,51 @@
+{
+  "main": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+  "base_commit": "47c36faf08505898aa7d6ef2bcf65be387673db8",
+  "historical_training_commit": "ab022caa57a3b45dc5a14c6ae38bc280702112e4",
+  "local_test": {
+    "new_mechanisms": {
+      "passed": 13,
+      "command": ".venv/bin/python -m pytest -q tests/v2/test_unseen_gene_mechanisms.py"
+    },
+    "all_v2": {
+      "passed": 564,
+      "skipped": 11,
+      "failed": 1,
+      "failure": "test_sinkhorn_backend.py::test_new_configs_only_select_execution_backend; pre-existing absent configs/v2/single_pass_jurkat/one_epoch_m66_a2/gradpert_v2/nadig_jurkat.yaml",
+      "log": "/tmp/gradpert-unseen-v2-tests.log"
+    },
+    "queue_contracts": {
+      "passed": 7
+    },
+    "lint": "changed files passed",
+    "format": "changed files passed",
+    "mypy": "17 inherited errors in4 unrelated dependency modules; changed modules have no errors",
+    "off_path_parity": "prechange synthetic snapshots; init, RNG, output; exact objective state after3 full nonzero-LR optimizer/EMA/center updates; optimizer terms/state verified",
+    "review": "authorized GPT-6 Luna read-only helper; no scoped findings"
+  },
+  "parameter_census": {
+    "L0": {
+      "student_total": 35669294,
+      "student_trainable": 35669294,
+      "fixed_prior_buffer": 0
+    },
+    "U1": {
+      "student_total": 35702382,
+      "student_trainable": 34036846,
+      "fixed_prior_buffer": 0
+    },
+    "U2": {
+      "student_total": 35702382,
+      "student_trainable": 35702382,
+      "fixed_prior_buffer": 1665536
+    },
+    "U3": {
+      "student_total": 35669550,
+      "student_trainable": 35669550,
+      "fixed_prior_buffer": 0
+    }
+  },
+  "cuda_validation": "pending immutable publication and128-step exact-config probes",
+  "scientific_results": "not yet produced",
+  "observed_at": "2026-10-08T15:56:57.636616+00:00"
+}

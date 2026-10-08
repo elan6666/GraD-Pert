@@ -365,6 +365,15 @@ def prepare_runtime(
                 "target": "training_control_expression",
                 "inference_use": False,
             }
+        if any((arch.prior_shared_adapter, arch.gene_conditioned_readout, arch.direct_target_flag)):
+            identity["unseen_gene_mechanisms"] = {
+                "prior_shared_adapter": arch.prior_shared_adapter,
+                "gene_conditioned_readout": arch.gene_conditioned_readout,
+                "direct_target_flag": arch.direct_target_flag,
+                "prior_source": "initial_reduced_genept_only",
+                "adapter_bottleneck": max(1, arch.width // 4),
+                "initialization": "zero_final_layer_separate_rng_stream",
+            }
         identity["training_expression_policy"] = expression_policy_receipt
         if train_selection_receipt is not None:
             identity["training_row_selection"] = train_selection_receipt

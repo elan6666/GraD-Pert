@@ -39,6 +39,9 @@ class V2Architecture:
     graph_source_key_gate: bool = False
     attention_replacement: str = "none"
     self_readout: str = "final"
+    prior_shared_adapter: bool = False
+    gene_conditioned_readout: bool = False
+    direct_target_flag: bool = False
 
     def __post_init__(self) -> None:
         for name in (
@@ -59,6 +62,14 @@ class V2Architecture:
         ):
             if type(getattr(self, name)) is not int or getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be a positive integer")
+        for name in ("prior_shared_adapter", "gene_conditioned_readout", "direct_target_flag"):
+            if type(getattr(self, name)) is not bool:
+                raise ValueError(f"{name} must be boolean")
+        if (
+            any((self.prior_shared_adapter, self.gene_conditioned_readout, self.direct_target_flag))
+            and self.attention != "relay_full"
+        ):
+            raise ValueError("unseen-gene mechanisms require the relay profile")
         if self.sinkhorn_backend not in ("native", "auto", "triton"):
             raise ValueError("unknown Sinkhorn backend")
         if self.width % self.heads or not 0 <= self.dropout < 1:
@@ -189,6 +200,9 @@ class V2Architecture:
             values.pop("attention_replacement")
         if self.self_readout == "final":
             values.pop("self_readout")
+        for name in ("prior_shared_adapter", "gene_conditioned_readout", "direct_target_flag"):
+            if not getattr(self, name):
+                values.pop(name)
         return values
 
 
@@ -272,6 +286,9 @@ class V2Options:
             "graph_source_key_gate",
             "attention_replacement",
             "self_readout",
+            "prior_shared_adapter",
+            "gene_conditioned_readout",
+            "direct_target_flag",
             "koleo_exclude_same_condition",
             "graph_view_mode",
             "validation_mode",
@@ -291,7 +308,12 @@ class V2Options:
             )
         plain = {name: value.value for name, value in values.items()}
         arch = V2Architecture.parse({name: plain[name] for name in arch_names if name in plain})
-        return arch, cls(**{name: plain[name] for name in names if name in plain})
+        options = cls(**{name: plain[name] for name in names if name in plain})
+        if (arch.prior_shared_adapter or arch.gene_conditioned_readout) and (
+            options.gene_initialization != "genept"
+        ):
+            raise ValueError("prior mechanisms require GenePT initialization")
+        return arch, options
 
     def __post_init__(self) -> None:
         if type(self.prediction_error_power) is not int or self.prediction_error_power not in (

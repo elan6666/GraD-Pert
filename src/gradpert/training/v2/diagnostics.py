@@ -24,6 +24,9 @@ def response_diagnostics(
     *,
     truth: Tensor | None = None,
     cell_batch: int = 2,
+    query_gene_ids: Tensor | None = None,
+    target_mask: Tensor | None = None,
+    alternative_target_mask: Tensor | None = None,
 ) -> dict[str, Any]:
     """Compare fixed query embeddings; callers supply frozen population identities.
 
@@ -55,7 +58,11 @@ def response_diagnostics(
     try:
 
         def population_mean(
-            cells: Tensor, perturbation: Tensor, *, blocked: bool = False
+            cells: Tensor,
+            perturbation: Tensor,
+            *,
+            blocked: bool = False,
+            targets: Tensor | None = target_mask,
         ) -> dict[str, Tensor]:
             totals: dict[str, Tensor] = {}
             for start in range(0, len(cells), cell_batch):
@@ -64,6 +71,8 @@ def response_diagnostics(
                     cells[start : start + cell_batch],
                     perturbation[start : start + cell_batch],
                     block_response_cls_to_gene=blocked,
+                    query_gene_ids=query_gene_ids,
+                    target_mask=None if targets is None else targets[start : start + cell_batch],
                 )
                 for key in ("prediction", "delta", "control_cls", "response_cls"):
                     value = output[key].double().sum(0, keepdim=True)
@@ -75,7 +84,9 @@ def response_diagnostics(
         baseline = population_mean(control, condition)
         variants = {
             "change_control": population_mean(alternative_control, condition),
-            "change_perturbation": population_mean(control, alternative_condition),
+            "change_perturbation": population_mean(
+                control, alternative_condition, targets=alternative_target_mask
+            ),
             "block_response_cls_to_gene": population_mean(control, condition, blocked=True),
         }
 
@@ -171,6 +182,14 @@ def evaluate_response_diagnostics(
             for rows in loaded
         ]
         truth = data.load_truth_rows(condition_id)
+        query_ids = torch.tensor(queries, device=device)
+        masks = [
+            model.prediction_metadata(
+                query_ids,
+                torch.tensor(t, device=device)[None, :].expand(len(controls[0]), -1),
+            ).get("target_mask")
+            for t in targets
+        ]
         result = response_diagnostics(
             model,
             gene,
@@ -180,6 +199,9 @@ def evaluate_response_diagnostics(
             conditions[1].expand(len(controls[1]), -1),
             truth=torch.from_numpy(np.ascontiguousarray(truth.expression[:, queries])).to(device),
             cell_batch=cell_batch,
+            query_gene_ids=query_ids,
+            target_mask=masks[0],
+            alternative_target_mask=masks[1],
         )
         result.update(
             {

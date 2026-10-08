@@ -1,0 +1,48 @@
+{
+  "schema": "gradpert-v2-unseen-three-1",
+  "parent": "configs/v2/cap40_loss_ablations_20261007/L0/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "705d962aa1182a6ccedd99096d2af2c3b0531a61dc62bb36d1fea974c4a9322c",
+  "reference_training_commit": "ab022caa57a3b45dc5a14c6ae38bc280702112e4",
+  "reference_comparison": "cross_version_disabled_path_parity_verified",
+  "rows": [
+    {
+      "name": "U1",
+      "config": "configs/v2/cap40_unseen_20261008/U1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "10b9c6d2fc53f42519dd9edc589f891bfad18ac6ac44933ab06a3741ffc138f0",
+      "changes": {
+        "prior_shared_adapter": true,
+        "gene_conditioned_readout": false,
+        "direct_target_flag": false
+      }
+    },
+    {
+      "name": "U2",
+      "config": "configs/v2/cap40_unseen_20261008/U2/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "7b4f50a2e7ee2dc9a7868709d22cd10ae4ca5db7985512d2e14d0cc8b8a1ba69",
+      "changes": {
+        "prior_shared_adapter": false,
+        "gene_conditioned_readout": true,
+        "direct_target_flag": false
+      }
+    },
+    {
+      "name": "U3",
+      "config": "configs/v2/cap40_unseen_20261008/U3/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "df12e80517a83dd9c4307a15645ae19cbfbb1063df025d0b39e09c0d752b3c2b",
+      "changes": {
+        "prior_shared_adapter": false,
+        "gene_conditioned_readout": false,
+        "direct_target_flag": true
+      }
+    }
+  ],
+  "epochs": 6,
+  "validation": "disabled",
+  "test_roles": [
+    "last"
+  ],
+  "common_microbatch": 68,
+  "global_batch": 272,
+  "seed": 1,
+  "primary_metric": "txpert_macro_pearson_delta_deg"
+}

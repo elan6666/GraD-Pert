@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
+from typing import TypedDict, cast
 
 import torch
 from torch import Tensor, nn
@@ -36,6 +36,11 @@ class GraphContext:
     sources: Tensor
     query_positions: Tensor
     query_neighbors: Tensor
+
+
+class PredictionMetadata(TypedDict, total=False):
+    query_gene_ids: Tensor
+    target_mask: Tensor
 
 
 class SparseRead(nn.Module):
@@ -285,6 +290,13 @@ class GeneGraph(nn.Module):
         super().__init__()
         if seeds.ndim != 2 or not torch.isfinite(seeds).all():
             raise ValueError("finite aligned gene seed table required")
+        if (options.prior_shared_adapter or options.gene_conditioned_readout) and seeds.shape[
+            1
+        ] != options.width:
+            raise ValueError(
+                "unseen-gene prior mechanisms require the reduced model-width seed table"
+            )
+        self.prior_adapter: nn.Sequential | None = None
         self.embedding = nn.Embedding(seeds.shape[0], seeds.shape[1])
         with torch.no_grad():
             self.embedding.weight.copy_(seeds)
@@ -342,7 +354,10 @@ class GeneGraph(nn.Module):
         masked_ids: Tensor | None = None,
         context: GraphContext | None = None,
     ) -> Tensor:
-        memory = self.norm(self.adapter(self.embedding.weight))
+        seeds = self.embedding.weight
+        if self.prior_adapter is not None:
+            seeds = seeds + self.prior_adapter(seeds)
+        memory = self.norm(self.adapter(seeds))
         if masked_ids is not None:
             memory = memory.index_copy(0, masked_ids, self.mask_token.expand(len(masked_ids), -1))
         if self.read_mode == "static":
@@ -394,6 +409,7 @@ class Projector(nn.Module):
 class GraDPertV2(nn.Module):
     model_version = "v2"
     randomize_relay_order: bool
+    readout_prior: Tensor
 
     def __init__(self, seeds: Tensor, options: V2Architecture) -> None:
         super().__init__()
@@ -478,6 +494,91 @@ class GraDPertV2(nn.Module):
                     options.relay_eval_seed if options.relay_eval_seed is not None else 1
                 )
 
+        # Additions are initialized after every historical module, on a separate
+        # RNG stream. Enabling one arm does not reinitialize the common backbone.
+        self.prior_readout: nn.Sequential | None = None
+        if any(
+            (
+                options.prior_shared_adapter,
+                options.gene_conditioned_readout,
+                options.direct_target_flag,
+            )
+        ):
+            devices = [seeds.device.index] if seeds.is_cuda else []
+            with torch.random.fork_rng(devices=devices):
+                torch.manual_seed((torch.initial_seed() + 0x71E0) % (2**63))
+                if options.prior_shared_adapter:
+                    self.graph.embedding.weight.requires_grad_(False)
+                    self.graph.prior_adapter = self._prior_mlp(d)
+                if options.gene_conditioned_readout:
+                    self.register_buffer("readout_prior", seeds.detach().clone())
+                    self.prior_readout = self._prior_mlp(d)
+                if options.direct_target_flag:
+                    original = cast(nn.Linear, self.prediction[0])
+                    expanded = nn.Linear(prediction_width + 1, d)
+                    with torch.no_grad():
+                        expanded.weight[:, :-1].copy_(original.weight)
+                        expanded.weight[:, -1].zero_()
+                        expanded.bias.copy_(original.bias)
+                    self.prediction[0] = expanded
+
+    @staticmethod
+    def _prior_mlp(width: int) -> nn.Sequential:
+        final = nn.Linear(max(1, width // 4), width)
+        result = nn.Sequential(nn.Linear(width, max(1, width // 4)), nn.GELU(), final)
+        nn.init.zeros_(final.weight)
+        nn.init.zeros_(final.bias)
+        return result
+
+    def prediction_metadata(
+        self, query_ids: Tensor, target_ids: Tensor, target_valid: Tensor | None = None
+    ) -> PredictionMetadata:
+        """Identity-only metadata on the output axis; never infer IDs from embeddings."""
+        metadata: PredictionMetadata = {}
+        if self.options.gene_conditioned_readout:
+            metadata["query_gene_ids"] = query_ids
+        if self.options.direct_target_flag:
+            if query_ids.ndim != 1 or target_ids.ndim != 2:
+                raise ValueError("target metadata must use a query axis and per-cell target rows")
+            valid = target_ids >= 0 if target_valid is None else target_valid
+            if valid.shape != target_ids.shape or valid.dtype != torch.bool:
+                raise ValueError("target validity must align with target IDs")
+            metadata["target_mask"] = (
+                (query_ids[None, :, None] == target_ids[:, None, :]) & valid[:, None, :]
+            ).any(-1)
+        return metadata
+
+    def decode_delta(
+        self,
+        joint: Tensor,
+        *,
+        query_gene_ids: Tensor | None = None,
+        target_mask: Tensor | None = None,
+    ) -> Tensor:
+        if self.options.direct_target_flag:
+            if (
+                target_mask is None
+                or target_mask.shape != joint.shape[:2]
+                or target_mask.dtype != torch.bool
+            ):
+                raise ValueError("direct-target readout requires an aligned boolean target mask")
+            joint = torch.cat((joint, target_mask.to(joint.dtype).unsqueeze(-1)), -1)
+        if self.prior_readout is None:
+            return cast(Tensor, self.prediction(joint).squeeze(-1))
+        if (
+            query_gene_ids is None
+            or query_gene_ids.shape != (joint.shape[1],)
+            or query_gene_ids.dtype != torch.long
+        ):
+            raise ValueError("prior readout requires explicit int64 query gene IDs")
+        features = cast(Tensor, self.prediction[1](self.prediction[0](joint)))
+        # Base linear plus a correction keeps the zero-adapter starting output.
+        weights = self.prior_readout(self.readout_prior[query_gene_ids])
+        return cast(
+            Tensor,
+            self.prediction[2](features).squeeze(-1) + (features * weights.unsqueeze(0)).sum(-1),
+        )
+
     def set_relay_order_randomization(self, enabled: bool) -> None:
         """Teacher can remain in eval mode while receiving randomized training views."""
         self.randomize_relay_order = enabled
@@ -549,6 +650,8 @@ class GraDPertV2(nn.Module):
         expression_mask: Tensor | None = None,
         *,
         block_response_cls_to_gene: bool = False,
+        query_gene_ids: Tensor | None = None,
+        target_mask: Tensor | None = None,
     ) -> dict[str, Tensor]:
         basal, control_cls, order = self.encode_control(gene, control, expression_mask)
         relay = self.options.attention == "relay_full"
@@ -565,7 +668,7 @@ class GraDPertV2(nn.Module):
                 block_cls_to_gene=block_response_cls_to_gene,
             )
             joint = torch.cat((response[:, :-1], condition[:, None, :].expand_as(basal)), dim=-1)
-            delta = self.prediction(joint).squeeze(-1)
+            delta = self.decode_delta(joint, query_gene_ids=query_gene_ids, target_mask=target_mask)
             return {
                 "prediction": control + delta,
                 "delta": delta,

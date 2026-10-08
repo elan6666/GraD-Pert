@@ -100,6 +100,12 @@ def predict_query_set(
             chunk,
             condition.expand(len(chunk), -1),
             block_response_cls_to_gene=block_response_cls_to_gene,
+            **model.prediction_metadata(
+                view.ids[positions],
+                torch.tensor(targets, dtype=torch.long, device=device)[None, :].expand(
+                    len(chunk), -1
+                ),
+            ),
         )
         result[row : row + len(chunk)] = output["prediction"].float().cpu().numpy()
     if not np.isfinite(result).all():

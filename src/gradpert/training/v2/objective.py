@@ -11,7 +11,7 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 from gradpert.modeling.v2 import GraDPertV2
-from gradpert.modeling.v2.model import GraphContext
+from gradpert.modeling.v2.model import GraphContext, PredictionMetadata
 from gradpert.modeling.v2.reconstruction import ControlReconstruction
 
 from .reductions import nearest_neighbor_terms, population_weights
@@ -176,6 +176,23 @@ class JointObjective(nn.Module):
         condition = model.aggregate_targets(graph, view.target_positions, view.target_valid)
         return graph, condition
 
+    def response_metadata(
+        self, batch: TrainingBatch, positions: Tensor | None = None
+    ) -> PredictionMetadata:
+        if not (
+            self.student.options.gene_conditioned_readout or self.student.options.direct_target_flag
+        ):
+            return {}
+        query_positions = (
+            batch.query_positions if positions is None else batch.query_positions[positions]
+        )
+        targets = batch.graph.ids[batch.graph.target_positions.clamp_min(0)]
+        return self.student.prediction_metadata(
+            batch.graph.ids[query_positions],
+            targets[batch.condition_index],
+            batch.graph.target_valid[batch.condition_index],
+        )
+
     def forward(
         self,
         batch: TrainingBatch,
@@ -190,7 +207,9 @@ class JointObjective(nn.Module):
         model = self.student
         graph, conditions = self._graph(model, batch.graph, False)
         condition = conditions[batch.condition_index]
-        response = model.encode_response(graph[batch.query_positions], batch.control, condition)
+        response = model.encode_response(
+            graph[batch.query_positions], batch.control, condition, **self.response_metadata(batch)
+        )
         squared = (response["prediction"].float() - batch.truth.float()).square()
         mse_rows = squared.mean(-1)
         errors = mse_rows if self.prediction_error_power == 2 else squared.square().mean(-1)
@@ -369,7 +388,8 @@ class JointObjective(nn.Module):
         for i, view in enumerate(active_views):
             p = view.positions
             args = (graph[batch.query_positions[p]], batch.control[:, p], condition, view.mask)
-            student_outputs.append(self.student.encode_response(*args))
+            metadata = self.response_metadata(batch, p)
+            student_outputs.append(self.student.encode_response(*args, **metadata))
             if i < 2:
                 with torch.no_grad():
                     teacher_outputs.append(
@@ -377,6 +397,7 @@ class JointObjective(nn.Module):
                             teacher_graph[batch.query_positions[p]],
                             batch.control[:, p],
                             teacher_condition,
+                            **metadata,
                         )
                     )
         source_logits = (

@@ -101,7 +101,10 @@ def evaluate_loss_diagnostics(
             ):
                 graph, conditions = objective._graph(objective.student, batch.graph, False)
                 output = objective.student.encode_response(
-                    graph[batch.query_positions], batch.control, conditions[batch.condition_index]
+                    graph[batch.query_positions],
+                    batch.control,
+                    conditions[batch.condition_index],
+                    **objective.response_metadata(batch),
                 )
                 residual_matrix = (output["prediction"].float() - batch.truth.float()).abs()
                 contributions = residual_matrix.square()
