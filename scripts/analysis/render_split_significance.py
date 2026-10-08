@@ -184,9 +184,18 @@ def main():
             xticks=range(5), xticklabels=NAMES, ylabel="条件等权平均 Pearson", ylim=(-0.04, 0.46)
         )
         ax.axhline(0, color="#BBBBBB", lw=0.6)
-        ax.text(
-            0.5, 0.02, "Holm 校正 p 均为 0.0005", transform=ax.transAxes, ha="center", fontsize=11
+        index = 0 if letter == "c" else 1
+        p_values = [
+            item["tests"][index]["p_holm"]
+            for item in results.values()
+            if item["tests"][index]["status"] == "complete"
+        ]
+        p_label = (
+            f"Holm 校正 p = {p_values[0]:.4f}"
+            if p_values and len(set(p_values)) == 1
+            else "Holm 校正 p 见检验表"
         )
+        ax.text(0.5, 0.02, p_label, transform=ax.transAxes, ha="center", fontsize=11)
     legend = [
         Line2D([], [], color="#555555", marker="D", linestyle="", label="同扰动；点为20次值"),
         Line2D([], [], color="#AAAAAA", marker="s", linestyle="", label="9999次身份重排参照"),
