@@ -190,7 +190,7 @@ def main():
     ]:
         panel(ax, letter, title)
         ax.set(
-            xticks=range(5), xticklabels=NAMES, ylabel="条件等权平均 Pearson", ylim=(-0.22, 1.02)
+            xticks=range(5), xticklabels=NAMES, ylabel="条件等权平均 Pearson", ylim=(-0.04, 0.46)
         )
         ax.axhline(0, color="#BBBBBB", lw=0.6)
     legend = [
