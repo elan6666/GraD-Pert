@@ -148,3 +148,40 @@ def test_queue_lease_prevents_simultaneous_owner(tmp_path, api):
         api["lock"](tmp_path / "queue.lock"),
     ):
         pass
+
+
+@pytest.mark.parametrize(
+    "steps,inference,accepted", [(10, True, True), (9, True, False), (10, False, False)]
+)
+def test_ten_step_preflight_requires_restore_and_inference(
+    tmp_path, api, steps, inference, accepted
+):
+    receipt, entry, plan = preflight(tmp_path)
+    receipt.update(
+        kind="preflight_only",
+        steps_completed=steps,
+        inference_exercised=inference,
+        inference_shape=[300, 5000],
+    )
+    Path(entry["receipt"]).write_text(json.dumps(receipt))
+    entry["sha256"] = sha256_file(entry["receipt"])
+    if accepted:
+        api["validate_preflight"](plan, entry)
+    else:
+        with pytest.raises(ValueError):
+            api["validate_preflight"](plan, entry)
+
+
+def test_short_preflight_cannot_skip_checkpoint_reload(tmp_path, api):
+    receipt, entry, plan = preflight(tmp_path)
+    receipt.update(
+        kind="preflight_only",
+        steps_completed=10,
+        inference_exercised=True,
+        inference_shape=[300, 5000],
+    )
+    receipt.pop("resume_checkpoint_sha256")
+    Path(entry["receipt"]).write_text(json.dumps(receipt))
+    entry["sha256"] = sha256_file(entry["receipt"])
+    with pytest.raises(ValueError, match="checkpoint"):
+        api["validate_preflight"](plan, entry)

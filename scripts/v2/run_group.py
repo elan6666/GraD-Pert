@@ -26,13 +26,25 @@ def validate_preflight(plan: dict, entry: dict) -> None:
         raise ValueError("preflight receipt checksum mismatch")
     receipt = json.loads(path.read_text())
     kind = receipt.get("kind")
-    if kind not in ("integration_only", "capacity_only") or receipt.get("status") != "passed":
+    if (
+        kind not in ("integration_only", "preflight_only", "capacity_only")
+        or receipt.get("status") != "passed"
+    ):
         raise ValueError("preflight must be a passed integration or capacity probe")
-    minimum = 128 if kind == "capacity_only" else 1
+    minimum = {"capacity_only": 128, "preflight_only": 10, "integration_only": 1}[kind]
     if receipt.get("steps_completed", 0) < minimum or not receipt.get("resume_checkpoint_sha256"):
         raise ValueError("preflight update/checkpoint evidence missing")
     if kind == "integration_only" and receipt["steps_completed"] != 1:
         raise ValueError("integration preflight must contain exactly one update")
+    if kind == "preflight_only":
+        shape = receipt.get("inference_shape", [])
+        if (
+            not receipt.get("inference_exercised")
+            or len(shape) != 2
+            or shape[0] != 300
+            or shape[1] < 1
+        ):
+            raise ValueError("short preflight requires 300-control inference evidence")
     source = receipt["source"]
     if (
         source["dirty"]

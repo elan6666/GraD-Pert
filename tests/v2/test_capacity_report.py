@@ -104,3 +104,12 @@ def test_report_distinguishes_disabled_communication_timing_from_zero(tmp_path):
     path.write_text(json.dumps(data))
     with pytest.raises(ValueError, match="disabled"):
         collect(path, CONFIG)
+
+
+def test_short_report_is_not_labeled_sustained_capacity(tmp_path):
+    receipt = valid_receipt()
+    receipt.update(kind="preflight_only", steps_completed=10, measured_update_seconds=[2.0] * 8)
+    path = tmp_path / "receipt.json"
+    path.write_text(json.dumps(receipt))
+    row = collect(path, CONFIG)
+    assert row["evidence_kind"] == "preflight_only" and row["sustained_capacity_claim"] is False

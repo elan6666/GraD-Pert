@@ -1,0 +1,18 @@
+{
+  "base_commit": "da310a75a54eae87c47499caca84ee8c8169513f",
+  "default_updates": 10,
+  "receipt_kind": "preflight_only",
+  "warmup_updates": 2,
+  "checks": [
+    "fulloptimizerupdates",
+    "checkpointsave_reload",
+    "300controlinference",
+    "fixedtrainingdiagnostics"
+  ],
+  "historical_capacity_kind": "capacity_only remains128+; no short-to-sustained relabel",
+  "test_command": "pytest test_probe_policy/test_cap40_ablation_queue/test_capacity_sweep/test_capacity_report/test_unseen_group/test_run_group/test_loss_ablation",
+  "tests_passed": 99,
+  "lint": "passed",
+  "oldqueue": "stopped56/128 beforeformal; ranksabsent; exactstoppedcontrollerreleased; sources/configs unchanged",
+  "next": "publish newsource,newruntime,newqueueID,short10perarm then6epochs each"
+}

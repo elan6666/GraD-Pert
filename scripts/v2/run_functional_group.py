@@ -114,7 +114,7 @@ def main() -> None:
                 seed=1,
             )
         )
-        rows.append({"name": row["name"], "plan": plan, "probe_kind": "capacity_only"})
+        rows.append({"name": row["name"], "plan": plan, "probe_kind": "preflight_only"})
     queue = {
         "schema": "gradpert-v2-functional-b0-ka-queue-1",
         "baseline": str(args.prior_evaluation),

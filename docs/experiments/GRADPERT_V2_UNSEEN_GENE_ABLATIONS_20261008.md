@@ -62,10 +62,12 @@ E0 作为原 embedding 的冻结参数保存，排除 optimizer 路由；不存�
 
 自包含配置位于 `configs/v2/cap40_unseen_20261008/`，manifest逐项固定父配置SHA、单变量开关、epoch和batch。`generate_unseen_group.py`只生成这三项；`run_unseen_group.py`校验manifest和已完成L0，再复用已有capacity/training controller，不另写训练主函数。
 
-每组先用同一发布源码、同一配置做128次双卡完整更新、固定train诊断、checkpoint恢复及300-control推理检查。所有容量门通过后才按U1→U2→U3正式训练，使用新run ID、不可变servercheckout和allocator `expandable_segments:True`。OOM/数值失败封存证据，停止队列并交回主；不私自只给某组降batch，不恢复旧取消队列。真实速度/显存和实验指标以收据为准。
+2026-10-09用户修订：每组默认用同一发布源码、同一配置做10次双卡完整更新、固定train诊断、checkpoint恢复及300-control推理检查。所有短程预检门通过后才按U1→U2→U3正式训练，使用新run ID、不可变servercheckout和allocator `expandable_segments:True`。OOM/数值失败封存证据，停止队列并交回主；不私自只给某组降batch，不恢复旧取消队列。真实速度/显存和实验指标以收据为准。
 
-长capacity队列与正式队列由指定监督每20分钟检查并汇报，终态交回主验收后暂停监控。仅定时检查被验证，未验证的外部事件通知不称为故障发生瞬间唤醒。
+短程预检队列与正式队列由指定监督每20分钟检查并汇报，终态交回主验收后暂停监控。仅定时检查被验证，未验证的外部事件通知不称为故障发生瞬间唤醒。
 
 ## 机制来源与边界
 
 [scPRINT](https://www.nature.com/articles/s41467-025-58699-1) 提供保留生物基因先验的相关动机。[DeepSpot-M原始预印本](https://www.medrxiv.org/content/10.64898/2026.06.19.26356060v1.full) 与[官方实现](https://github.com/ratschlab/DeepSpotM)使用基因条件化输出权重的相关思路；其输入是组织图像，不能当作本扰动任务的效果证据。这里的方程是GraD-Pert原生适配，不导入上游代码，不声称复现该模型或创造这些通用机制。
+
+10步收据标为preflight_only，包含checkpoint恢复和300-control推理，不宣称最大batch或长期稳定性。旧da310a7的U1预检在56/128时按用户指令停止，恢复/推理未完成，不能改记为10步通过；已保存的训练证据保留，但完整短程预检需要在新版本补齐。

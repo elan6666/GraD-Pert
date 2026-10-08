@@ -33,10 +33,12 @@ def collect(receipt_path: Path, config_path: Path) -> dict[str, Any]:
         or loss_protocol.get("ibot") != "masked_tokens_per_cell_then_valid_cell_population"
     ):
         raise ValueError("capacity unified loss protocol differs from config")
-    if receipt.get("kind") != "capacity_only" or receipt.get("status") != "passed":
+    kind = receipt.get("kind")
+    if kind not in ("preflight_only", "capacity_only") or receipt.get("status") != "passed":
         raise ValueError("only completed engineering probes are eligible")
-    if receipt.get("steps_completed", 0) < 128:
-        raise ValueError("capacity requires at least 128 sustained updates")
+    minimum = 10 if kind == "preflight_only" else 128
+    if receipt.get("steps_completed", 0) < minimum:
+        raise ValueError(f"probe requires at least {minimum} updates for its evidence kind")
     source = receipt.get("source", {})
     if source.get("dirty") is not False or source.get("commit") != source.get("published_commit"):
         raise ValueError("probe must identify a clean published source")
@@ -48,7 +50,8 @@ def collect(receipt_path: Path, config_path: Path) -> dict[str, Any]:
     if receipt.get("world_size", 1) != options.world_size:
         raise ValueError("probe and config world sizes differ")
     durations = receipt.get("measured_update_seconds", [])
-    if len(durations) < 120 or any(not math.isfinite(t) or t <= 0 for t in durations):
+    minimum_timings = 8 if kind == "preflight_only" else 120
+    if len(durations) < minimum_timings or any(not math.isfinite(t) or t <= 0 for t in durations):
         raise ValueError("sustained update timings missing or invalid")
     rate = receipt.get("cells_per_second", 0)
     if not math.isfinite(rate) or rate <= 0:
@@ -62,6 +65,8 @@ def collect(receipt_path: Path, config_path: Path) -> dict[str, Any]:
     if communication and any(len(v) != len(durations) for v in communication):
         raise ValueError("communication timing population mismatch")
     return {
+        "evidence_kind": kind,
+        "sustained_capacity_claim": kind == "capacity_only",
         "receipt": str(receipt_path.resolve()),
         "receipt_sha256": sha256_file(receipt_path),
         "config": str(config_path.resolve()),

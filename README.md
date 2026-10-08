@@ -272,6 +272,15 @@ and label remote web synchronization unavailable.
 Do not use historical design alternatives under `TxPert/` as active scope. See
 root `AGENTS.md` before editing.
 
+## V2 launch preflight
+
+V2 launch preflight defaults to **10 complete optimizer updates**, with checkpoint
+save/reload and a 300-control inference check. These short checks establish startup
+compatibility; they do not claim a maximum batch or long-run stability. A historical
+128-step stress run is retained under its original source/receipt and is not an
+automatic prerequisite for every new experiment. Current U1/U2/U3 run independently
+for six epochs after their short checks, with final-epoch tests and no validation.
+
 ## Scientific provenance
 
 External methods and code behavior are attributed in the provenance registry.

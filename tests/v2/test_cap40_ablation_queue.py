@@ -183,7 +183,7 @@ def test_combined_twenty_plans_one_capacity_row(tmp_path, monkeypatch):
     planned = queue.prepare(Path("runtime"), baseline, combined_twenty=True)
     assert planned["schema"] == "cap40-combined-twenty-queue-v1"
     assert len(configs) == len(planned["rows"]) == 1
-    assert planned["rows"][0]["probe_kind"] == "capacity_only"
+    assert planned["rows"][0]["probe_kind"] == "preflight_only"
     assert planned["rows"][0]["name"] == "E23_prototypes16384_unit_distillation"
     combined = queue.load_experiment_config(configs[0]).model_dump(mode="json")
     parent = queue.load_experiment_config(

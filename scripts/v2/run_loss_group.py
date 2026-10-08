@@ -91,7 +91,7 @@ def main() -> None:
                     seed=1,
                 )
             ),
-            "probe_kind": "capacity_only",
+            "probe_kind": "preflight_only",
         }
         for row in manifest["rows"]
     ]

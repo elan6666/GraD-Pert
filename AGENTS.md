@@ -95,6 +95,16 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   `PYTORCH_ALLOC_CONF=expandable_segments:True`; the runner fails closed when
   this allocator contract is missing or changed.
 
+## V2 default launch preflight
+
+- Default v2 preflight runs 10 complete optimizer updates, including checkpoint
+  save/reload and a 300-control inference check. Do not automatically run a
+  128-step stress test for each new mechanism or experiment.
+- Label 10-step receipts as short preflight evidence, not a measured maximum
+  or long-run stability proof. Historical 128-step receipts remain historical;
+  interrupted probes must never be relabeled as completed short checks.
+- Use a new immutable source and run ID when changing this launch policy.
+
 ## Campus VPN recovery
 
 - The user authorizes routine EasyConnect login/relogin and recovery for this

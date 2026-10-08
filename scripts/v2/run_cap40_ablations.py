@@ -118,7 +118,7 @@ def prepare(
             {
                 "name": name,
                 "plan": plan,
-                "probe_kind": "capacity_only" if name.startswith("E2") else "integration_only",
+                "probe_kind": "preflight_only" if name.startswith("E2") else "integration_only",
             }
         )
     for role in ("best", "last"):
@@ -251,7 +251,7 @@ def execute(queue: dict, directory: Path) -> None:
                 if row["probe_kind"] == "integration_only":
                     command.append("--integration-only")
                 else:
-                    command.extend(["--steps", "128"])
+                    command.extend(["--steps", str(queue.get("preflight_steps", 10))])
                 run_child(command, row, "preflight")
                 entry = {
                     "receipt": str(probe / "receipt.json"),

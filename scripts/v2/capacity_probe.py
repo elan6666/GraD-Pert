@@ -27,10 +27,11 @@ def probe_policy(
         if steps < 3:
             raise ValueError("benchmark-only mode requires at least three updates")
         return steps, 1, "benchmark_only"
-    steps = 128 if steps is None else steps
-    if steps < 128:
-        raise ValueError("capacity evidence requires at least 128 sustained updates")
-    return steps, 8, "capacity_only"
+    steps = 10 if steps is None else steps
+    if steps < 10:
+        raise ValueError("training preflight requires at least 10 complete updates")
+    # Explicit historical stress runs retain their original evidence label.
+    return (steps, 8, "capacity_only") if steps >= 128 else (steps, 2, "preflight_only")
 
 
 def main() -> None:
@@ -155,7 +156,7 @@ def main() -> None:
     receipt = {
         "kind": "profile_only" if args.profile_last_update else kind,
         "data_root": str(args.data_root.resolve()),
-        "inference_exercised": kind == "capacity_only",
+        "inference_exercised": kind in ("preflight_only", "capacity_only"),
         "source": source.payload(),
         "environment": environment.payload(),
         "config_sha256": sha256_file(args.config),
@@ -215,7 +216,11 @@ def main() -> None:
             receipt["data"] = runtime.identity
             receipt["optimizer_routes"] = runtime.optimizer.routes
             loss_diagnostics_enabled = runtime.options.prediction_reduction_override != "inherit"
-            if loss_diagnostics_enabled and kind in ("capacity_only", "integration_only"):
+            if loss_diagnostics_enabled and kind in (
+                "preflight_only",
+                "capacity_only",
+                "integration_only",
+            ):
                 torch.cuda.reset_peak_memory_stats()
                 started = time.perf_counter()
                 receipt["initial_loss_diagnostic"] = primary_call(runtime.loss_diagnostics)
@@ -341,7 +346,11 @@ def main() -> None:
                 if step >= args.steps:
                     break
             receipt["training_wall_seconds"] = time.perf_counter() - training_started
-            if loss_diagnostics_enabled and kind in ("capacity_only", "integration_only"):
+            if loss_diagnostics_enabled and kind in (
+                "preflight_only",
+                "capacity_only",
+                "integration_only",
+            ):
                 started = time.perf_counter()
                 receipt["updated_loss_diagnostic"] = primary_call(runtime.loss_diagnostics)
                 receipt["updated_loss_diagnostic_seconds"] = time.perf_counter() - started
@@ -406,7 +415,7 @@ def main() -> None:
                     )
                 return validation
 
-            if kind == "capacity_only":
+            if kind in ("preflight_only", "capacity_only"):
                 receipt.update(primary_call(validation_probe))
             local_measurement = {
                 "rank": rank,
@@ -510,7 +519,13 @@ def main() -> None:
                         "bounded training only; no checkpoint in timed benchmark; "
                         "no sustained-capacity or inference evidence"
                         if kind == "benchmark_only"
-                        else "128+ updates; checkpoint continuation; single-condition validation"
+                        else (
+                            "short preflight; checkpoint continuation; single-condition inference; "
+                            "no sustained-capacity claim"
+                            if kind == "preflight_only"
+                            else "128+ updates; checkpoint continuation; "
+                            "single-condition validation"
+                        )
                     )
                 ),
             )

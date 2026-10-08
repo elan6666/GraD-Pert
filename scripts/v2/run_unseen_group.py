@@ -111,12 +111,13 @@ def main() -> None:
                     seed=1,
                 )
             ),
-            "probe_kind": "capacity_only",
+            "probe_kind": "preflight_only",
         }
         for row in manifest["rows"]
     ]
     queue = {
-        "schema": "gradpert-v2-unseen-three-queue-1",
+        "schema": "gradpert-v2-unseen-three-queue-2",
+        "preflight_steps": 10,
         "baseline": str(args.prior_run),
         "baseline_complete_sha256": args.prior_complete_sha256,
         "rows": rows,

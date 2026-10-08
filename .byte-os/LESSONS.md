@@ -297,3 +297,7 @@ Repeated shared clones of previous shared clones eventually exceeded Git's
 alternates nesting limit and failed checkout (473466d staging). Use an independent
 source-only bundle/clone or a bounded stable object store; never repair by repacking
 an active immutable source. Verify clean source/publication identity after staging.
+
+## 2026-10-09：不要把最大容量测试当作每次启动门槛
+
+错误：沿用历史128步持续测试，给三个小机制改动逐组重复长压力测试。用户修订：以后默认10次完整优化更新即可，保留恢复和推理检查。预防：新v2队列使用短程10步门；历史长压力测试只作为历史证据，不自动重跑或把短检验称为长期容量证明。
