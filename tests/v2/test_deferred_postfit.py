@@ -165,6 +165,37 @@ def test_only_exact_test_role_can_finalize(trained):
         postfit.finalize_deferred_run(plan, receipt)
 
 
+def test_separate_evaluation_release_does_not_rewrite_training_plan(trained, monkeypatch):
+    root, plan, _, _, _, receipt = trained
+    plan = {**plan, "data_root": "unused", "runtime": "original-release"}
+    original = dict(plan)
+    monkeypatch.setattr(postfit, "validate_training_stage", lambda plan: receipt)
+    monkeypatch.setattr(postfit, "prepare_evaluation_state", lambda **kw: None)
+    seen = {}
+
+    def resolve(args):
+        seen["runtime"] = args.runtime
+        return {}
+
+    def execute(evaluation_plan):
+        seen.update(evaluation_plan)
+        raise RuntimeError("stop before writing a scientific receipt")
+
+    monkeypatch.setattr(postfit, "resolve_evaluation_plan", resolve)
+    monkeypatch.setattr(postfit, "execute_evaluation_plan", execute)
+    with pytest.raises(RuntimeError, match="scientific receipt"):
+        postfit.run_deferred_postfit(
+            plan, evaluation_runtime=Path("new-evaluator"), cuda_memory_fraction=0.19
+        )
+    assert seen == {
+        "runtime": Path("new-evaluator"),
+        "cpu_training_state": True,
+        "cuda_memory_fraction": 0.19,
+    }
+    assert plan == original and (root / "TRAIN_COMPLETE.json").exists()
+    assert not (root / "COMPLETE.json").exists()
+
+
 def test_queue_trains_b_before_evaluating_a(tmp_path, monkeypatch):
     sys.path.insert(0, str(ROOT / "scripts/v2"))
     import run_cap40_ablations as queue

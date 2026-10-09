@@ -77,7 +77,11 @@ def finalize_deferred_run(plan: dict[str, Any], training: dict[str, Any]) -> dic
 
 
 def run_deferred_postfit(
-    plan: dict[str, Any], *, gpu: str = "0,1", cuda_memory_fraction: float | None = None
+    plan: dict[str, Any],
+    *,
+    gpu: str = "0,1",
+    cuda_memory_fraction: float | None = None,
+    evaluation_runtime: Path | None = None,
 ) -> dict[str, Any]:
     training = validate_training_stage(plan)
     root = Path(plan["run_root"])
@@ -108,7 +112,7 @@ def run_deferred_postfit(
                 role_config = Path(read_json(Path(stage.parent_run_root) / "launch.json")["config"])
             args = argparse.Namespace(
                 config=role_config,
-                runtime=Path(plan["runtime"]),
+                runtime=evaluation_runtime or Path(plan["runtime"]),
                 training_run_root=root,
                 checkpoint=root / "fit" / selected["file"],
                 checkpoint_sha256=selected["sha256"],
