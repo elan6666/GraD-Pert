@@ -76,7 +76,9 @@ def finalize_deferred_run(plan: dict[str, Any], training: dict[str, Any]) -> dic
     return complete
 
 
-def run_deferred_postfit(plan: dict[str, Any], *, gpu: str = "0,1") -> dict[str, Any]:
+def run_deferred_postfit(
+    plan: dict[str, Any], *, gpu: str = "0,1", cuda_memory_fraction: float | None = None
+) -> dict[str, Any]:
     training = validate_training_stage(plan)
     root = Path(plan["run_root"])
     config = plan["resolved_config"]
@@ -117,6 +119,8 @@ def run_deferred_postfit(plan: dict[str, Any], *, gpu: str = "0,1") -> dict[str,
             )
             evaluation_plan = resolve_evaluation_plan(args)
             evaluation_plan["cpu_training_state"] = True
+            if cuda_memory_fraction is not None:
+                evaluation_plan["cuda_memory_fraction"] = cuda_memory_fraction
             atomic_json(
                 root / "POSTFIT_STATE.json",
                 {

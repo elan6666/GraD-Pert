@@ -20,6 +20,26 @@ from gradpert.hashing import sha256_file, sha256_json
 SERVER_ROOT = Path("/data/yilangliu")
 
 
+def evaluation_memory_fraction(plan: dict[str, Any]) -> float | None:
+    """Optional per-worker allocation cap; never alter batches or model arithmetic."""
+    value = plan.get("cuda_memory_fraction")
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (float, int)) or not 0 < value <= 1:
+        raise ValueError("evaluation CUDA memory fraction must be in (0, 1]")
+    return float(value)
+
+
+def diagnostic_conditions(plan: dict[str, Any], selected: tuple[str, ...]) -> tuple[str, ...]:
+    """Bounded probes cannot be mistaken for complete checkpoint evaluation."""
+    count = plan.get("diagnostic_condition_count")
+    if count is None:
+        return selected
+    if plan.get("diagnostic_only") is not True or type(count) is not int or count < 1:
+        raise ValueError("condition truncation requires an explicit diagnostic-only probe")
+    return selected[:count]
+
+
 def resolve_evaluation_plan(args: argparse.Namespace) -> dict[str, Any]:
     """Reject mismatched checkpoint/config/source before allocating a GPU."""
     from gradpert.execution.train_entry import repository_root
@@ -117,6 +137,9 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
     if sha256_file(Path(plan["config"])) != plan["config_sha256"]:
         raise ValueError("evaluation configuration changed after planning")
     device = torch.device("cuda:0")
+    memory_fraction = evaluation_memory_fraction(plan)
+    if memory_fraction is not None:
+        torch.cuda.set_per_process_memory_fraction(memory_fraction, device)
     environment = inspect_environment(
         plan["evaluation_source"]["repository_root"], device_name="cuda:0"
     ).payload()
@@ -149,7 +172,7 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
         )
         with CanonicalEvaluationData(**common, split_name=split) as data:
             frozen_order = tuple(draw.condition_id for draw in data.control_manifest.draws)
-            selected = frozen_order[index :: len(plan["gpu"])]
+            selected = diagnostic_conditions(plan, frozen_order[index :: len(plan["gpu"])])
             if not selected:
                 raise ValueError("more evaluation workers than frozen conditions")
             groups, exposure = checkpoint_expression_groups(
@@ -193,6 +216,7 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
                     "cpu_training_state": plan.get("cpu_training_state", False),
                     "cell_batch": int(config.training.eval_batch_size.value),
                     "condition_count": len(selected),
+                    "cuda_memory_fraction": memory_fraction,
                 },
                 "frozen_condition_order": list(frozen_order),
                 "evaluation_environment": environment,
@@ -201,6 +225,9 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
 
 
 def execute_evaluation_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    if plan.get("diagnostic_only") or "diagnostic_condition_count" in plan:
+        raise ValueError("diagnostic probes cannot produce scientific COMPLETE receipts")
+    evaluation_memory_fraction(plan)
     from gradpert.training.v2.evaluation import merge_evaluation_shards
 
     devices = subprocess.check_output(
