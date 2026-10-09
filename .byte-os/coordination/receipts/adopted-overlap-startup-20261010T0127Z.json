@@ -1,0 +1,61 @@
+{
+  "schema": "gradpert-overlap-startup-verified-1",
+  "observed_unix": 1791566861.06113,
+  "source": "bd2cfb2ab764444b3482dc630f567d8273fc86dc",
+  "training_source": "1929cba76bee4c7f868083616a105d2507c7fa54",
+  "run_id": "v2-overlap-bd2cfb2-20261009T172518Z",
+  "attempt": 1,
+  "root": "/data/yilangliu/GraD-Pert/development/v2-overlap-bd2cfb2-20261009T172518Z",
+  "controller_pid": 1941806,
+  "schedule_sha256": "ed7b1d19632eb0a536a6ddc1806640370a44f2a421a4c9acaf0699f7b7922bfe",
+  "launch_sha256": "6d273929f32879aa8be7886aa30a2275b7fa94f0c3a913ce5ebb46b16aa1c813",
+  "launch": {
+    "pid": 1941806,
+    "command": [
+      "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+      "/data/yilangliu/GraD-Pert/development/source-v2-overlap-bd2cfb2/scripts/v2/adopt_train_evaluation.py",
+      "--schedule",
+      "/data/yilangliu/GraD-Pert/development/v2-overlap-bd2cfb2-20261009T172518Z.schedule.json"
+    ],
+    "source": "bd2cfb2ab764444b3482dc630f567d8273fc86dc",
+    "output": "/data/yilangliu/GraD-Pert/development/v2-overlap-bd2cfb2-20261009T172518Z",
+    "log": "/data/yilangliu/GraD-Pert/development/v2-overlap-bd2cfb2-20261009T172518Z.log",
+    "schedule": "/data/yilangliu/GraD-Pert/development/v2-overlap-bd2cfb2-20261009T172518Z.schedule.json",
+    "schedule_sha256": "78daac267e05f4131ddbf4821b2b38e8a128aeffb0e7a8e5e6b9022cd1349aa6",
+    "publication_sha256": "83fa6192b9913b134fecec425d40176d0688a1de06c43195ee1f42887d51776c",
+    "runtime": "/data/yilangliu/GraD-Pert/development/v2-overlap-bd2cfb2.runtime.json",
+    "runtime_sha256": "83f6a17f833d6910767b296746830c31d0626f3509ee1faa7335d5f230bcc2ae",
+    "old_controller_retired": true,
+    "retirement_receipt": "/data/yilangliu/GraD-Pert/development/v2-unseen-deferred-1929cba-20261009T071927Z-9213d9be/OVERLAP_ADOPTION-20261009T172518Z.json",
+    "retirement_sha256": "36c5caa09720553495372975d668f6a373d748d574b09c51ae6de4664b0e81e2",
+    "fit_pid_unchanged": 1929837,
+    "launched_unix": 1791566718.3034008
+  },
+  "state": {
+    "adopted_fit_pid": 1929837,
+    "observed_unix": 1791566719.3810074,
+    "phase": "U4_eval_with_U3_fit",
+    "pid": 1941806,
+    "status": "running"
+  },
+  "u4_run_root": "/data/yilangliu/GraD-Pert/runs-v2-deferred-1929cba/nadig_jurkat-seed1-20261009T071927Z-b9c03b0d497c41c18d47edb33f63b566",
+  "u3_run_root": "/data/yilangliu/GraD-Pert/runs-v2-deferred-1929cba/nadig_jurkat-seed1-20261009T071928Z-2272edf0ab7c417fb0f6078564a619e6",
+  "u4_progress": {
+    "checkpoint_sha256": "827fb7a8b2a877a8a5d31b71ea1efb119f92c4820d8f4d490659a636dde583f0",
+    "conditions_completed": 12,
+    "conditions_total": 592,
+    "latest_condition": "CCT2+ctrl"
+  },
+  "u3_progress": {
+    "epoch": 2,
+    "epoch_step": 21,
+    "optimizer_steps_completed": 197,
+    "elapsed_seconds_this_process": 4343.321816783398,
+    "phase": "training"
+  },
+  "u4_checkpoint_sha256": "827fb7a8b2a877a8a5d31b71ea1efb119f92c4820d8f4d490659a636dde583f0",
+  "evaluation_plan_sha256": "3060e1a3f6f2ce3ca5e4c0335102b6a1c65e92e1d76834d91861a9701e30054d",
+  "cpu_checks": 44,
+  "probe_receipt_sha256": "aae1a816ba6c347a84c2511eaf7ed0706335ac3c945d48a82cae5752a113a6b2",
+  "startup_receipt_sha256": "05426ee32635518da473f69bfb71ed8f0d58e1a460aad1397f99c0ce2aab4a94"
+}
