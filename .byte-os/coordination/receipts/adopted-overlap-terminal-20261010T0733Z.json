@@ -1,0 +1,165 @@
+{
+  "schema": "gradpert-overlap-terminal-receipt-v1",
+  "observed_at_utc": "2026-10-09T23:33:36.637Z",
+  "observed_at_local": "2026-10-10T07:33:36.637+08:00",
+  "queue": {
+    "run_id": "v2-overlap-bd2cfb2-20261009T172518Z",
+    "attempt": 1,
+    "root": "/data/yilangliu/GraD-Pert/development/v2-overlap-bd2cfb2-20261009T172518Z",
+    "controller_pid": 1941806,
+    "state": "complete",
+    "queue_complete": true,
+    "queue_failure": false,
+    "controller_pid_file_present": false,
+    "controller_exit_file_present": false,
+    "launch_sha256": "6d273929f32879aa8be7886aa30a2275b7fa94f0c3a913ce5ebb46b16aa1c813",
+    "input_schedule_sha256": "78daac267e05f4131ddbf4821b2b38e8a128aeffb0e7a8e5e6b9022cd1349aa6",
+    "canonical_schedule_sha256": "ed7b1d19632eb0a536a6ddc1806640370a44f2a421a4c9acaf0699f7b7922bfe",
+    "evaluation_source_commit": "bd2cfb2ab764444b3482dc630f567d8273fc86dc",
+    "evaluation_publication_sha256": "83fa6192b9913b134fecec425d40176d0688a1de06c43195ee1f42887d51776c",
+    "evaluation_runtime_sha256": "83f6a17f833d6910767b296746830c31d0626f3509ee1faa7335d5f230bcc2ae",
+    "training_source_commit": "1929cba76bee4c7f868083616a105d2507c7fa54"
+  },
+  "runs": {
+    "U4": {
+      "run_id": "nadig_jurkat-seed1-20261009T071927Z-b9c03b0d497c41c18d47edb33f63b566",
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-deferred-1929cba/nadig_jurkat-seed1-20261009T071927Z-b9c03b0d497c41c18d47edb33f63b566",
+      "training_source_commit": "1929cba76bee4c7f868083616a105d2507c7fa54",
+      "training_dirty": false,
+      "config_sha256": "94472111841e57308f8b2e1a602b9751863ab721bed07863750c96d9a838e439",
+      "resolved_config_sha256": "201c993b8fa2c58109717b657f6f1f50c8effbdf81276c3abbd0a9beb20c3799",
+      "train_complete": true,
+      "epoch": 6,
+      "best": null,
+      "test_roles": [
+        "last"
+      ],
+      "checkpoint_sha256": "827fb7a8b2a877a8a5d31b71ea1efb119f92c4820d8f4d490659a636dde583f0",
+      "run_complete": true,
+      "postfit_complete": true,
+      "evaluation_split": "test",
+      "evaluation_checkpoint_role": "last",
+      "evaluation_checkpoint_epoch": 6,
+      "evaluation_checkpoint_sha256": "827fb7a8b2a877a8a5d31b71ea1efb119f92c4820d8f4d490659a636dde583f0",
+      "evaluation_source_commit": "bd2cfb2ab764444b3482dc630f567d8273fc86dc",
+      "evaluation_dirty": false,
+      "zero_pkl": true,
+      "pkl_count": 0,
+      "failure_files": [],
+      "conditions": 592,
+      "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+      "condition_ids_ordered_vector_sha256": "35a94c9c3793a80d74db0392696d74d5d5645928692f5c365d17b28f6d3da6aa",
+      "control_row_ids_ordered_hash_vector_sha256": "3c5bd4fbee37cb877224ebb6202718a88778a26817a7ea7b58e6a365ced5dbcf",
+      "truth_row_ids_ordered_hash_vector_sha256": "726849eb44adc3c19dd1e7704c668e46b757df1b049ba6591fd1966c64e2f40b",
+      "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+      "metrics": {
+        "txpert_all": {
+          "mean": 0.21659342919821545,
+          "finite_n": 592,
+          "total_n": 592
+        },
+        "txpert_deg": {
+          "mean": 0.3630585666107033,
+          "finite_n": 590,
+          "total_n": 592
+        },
+        "trishift_all": {
+          "mean": 0.1672905109216587,
+          "finite_n": 592,
+          "total_n": 592
+        },
+        "trishift_deg": {
+          "mean": 0.31909762811728853,
+          "finite_n": 590,
+          "total_n": 592
+        },
+        "systema_all": {
+          "mean": 0.08766476622193593,
+          "finite_n": 592,
+          "total_n": 592
+        },
+        "systema_deg": {
+          "mean": 0.19530176572907929,
+          "finite_n": 590,
+          "total_n": 592
+        }
+      }
+    },
+    "U3": {
+      "run_id": "nadig_jurkat-seed1-20261009T071928Z-2272edf0ab7c417fb0f6078564a619e6",
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-deferred-1929cba/nadig_jurkat-seed1-20261009T071928Z-2272edf0ab7c417fb0f6078564a619e6",
+      "training_source_commit": "1929cba76bee4c7f868083616a105d2507c7fa54",
+      "training_dirty": false,
+      "config_sha256": "c595a1f1add886cb94d00f8f1ce782a90c27b089997f9083c971e4fe475ee1b0",
+      "resolved_config_sha256": "cc8f2a121eff19bb9a7c0dff7b58b736b462d26dd78f8539c4ec5bb0172283bf",
+      "train_complete": true,
+      "epoch": 6,
+      "best": null,
+      "test_roles": [
+        "last"
+      ],
+      "checkpoint_sha256": "583bcb24eba97ada7c6014cba9798907c3eb263efe9b8c8e5c97db747d2ee231",
+      "history_sha256": "7dd847974182f5b6494c6052ba41c11a35f6d52fc96bb7d5784afeda63fd14ea",
+      "epoch_state_sha256": "5b7a25ea7fed952e2773048ecb1b2e72996f2038d759feb55302036c2fe87052",
+      "run_complete": true,
+      "postfit_complete": true,
+      "evaluation_split": "test",
+      "evaluation_checkpoint_role": "last",
+      "evaluation_checkpoint_epoch": 6,
+      "evaluation_checkpoint_sha256": "583bcb24eba97ada7c6014cba9798907c3eb263efe9b8c8e5c97db747d2ee231",
+      "evaluation_source_commit": "bd2cfb2ab764444b3482dc630f567d8273fc86dc",
+      "evaluation_dirty": false,
+      "zero_pkl": true,
+      "pkl_count": 0,
+      "failure_files": [],
+      "conditions": 592,
+      "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+      "condition_ids_ordered_vector_sha256": "35a94c9c3793a80d74db0392696d74d5d5645928692f5c365d17b28f6d3da6aa",
+      "control_row_ids_ordered_hash_vector_sha256": "3c5bd4fbee37cb877224ebb6202718a88778a26817a7ea7b58e6a365ced5dbcf",
+      "truth_row_ids_ordered_hash_vector_sha256": "726849eb44adc3c19dd1e7704c668e46b757df1b049ba6591fd1966c64e2f40b",
+      "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+      "metrics": {
+        "txpert_all": {
+          "mean": 0.2120317716008443,
+          "finite_n": 592,
+          "total_n": 592
+        },
+        "txpert_deg": {
+          "mean": 0.37718438628984063,
+          "finite_n": 590,
+          "total_n": 592
+        },
+        "trishift_all": {
+          "mean": 0.16517714084819599,
+          "finite_n": 592,
+          "total_n": 592
+        },
+        "trishift_deg": {
+          "mean": 0.34372416231167957,
+          "finite_n": 590,
+          "total_n": 592
+        },
+        "systema_all": {
+          "mean": 0.0808852088980157,
+          "finite_n": 592,
+          "total_n": 592
+        },
+        "systema_deg": {
+          "mean": 0.21999036796719734,
+          "finite_n": 590,
+          "total_n": 592
+        }
+      }
+    }
+  },
+  "parity": {
+    "same_592_condition_order": true,
+    "same_ordered_control_row_ids_hash_vector": true,
+    "same_ordered_truth_row_ids_hash_vector": true,
+    "same_control_manifest": true,
+    "same_reference": true,
+    "same_test_split": true
+  },
+  "acceptance": "U4 and U3 each have epoch-6 last-only run COMPLETE and independent postfit COMPLETE; all ordered test condition/control/truth identity digests match; whole run roots contain zero PKL; no FAILURE files or queue FAILURE.",
+  "metric_scope_note": "Current postfit COMPLETE materializes overall all/DEG macro metrics. Separate seen/unseen aggregates are not included in this terminal receipt and must remain explicitly unreported pending analysis of per-condition records."
+}

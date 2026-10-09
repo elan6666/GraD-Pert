@@ -1,0 +1,1092 @@
+{
+  "schema": "gradpert-unseen-six-epoch-analysis-1",
+  "observed_unix": 1791589343.7731872,
+  "derivation": "Recomputed equal-condition finite macro means from existing saved metrics; no new inference or fitting.",
+  "runs": {
+    "L0": {
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-loss-diagnostic-ab022ca/nadig_jurkat-seed1-20261007T181232Z-580abf8834e0429ba15dc2f2359893bb",
+      "run_id": "nadig_jurkat-seed1-20261007T181232Z-580abf8834e0429ba15dc2f2359893bb",
+      "training_sha": "ab022caa57a3b45dc5a14c6ae38bc280702112e4",
+      "training_dirty": false,
+      "evaluation_sha": "ab022caa57a3b45dc5a14c6ae38bc280702112e4",
+      "test_identity_keys": [
+        "checkpoint",
+        "evaluation",
+        "role",
+        "training"
+      ],
+      "config_sha256": "705d962aa1182a6ccedd99096d2af2c3b0531a61dc62bb36d1fea974c4a9322c",
+      "checkpoint_sha256": "ca3fc03b7c0a07660457afdb0d2a3b8de70ca3b586ddf6454ea448b9bc7cb7b3",
+      "checkpoint_epoch": 6,
+      "complete_sha256": "c2465e7d72444d4c6c54d3563f1c3974189190370706df385426fc17ac9b5b1e",
+      "last_test_sha256": "473d21bf8084eb55127c311d6232be7daaaf8f52971e12726ff374aae30ea02a",
+      "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+      "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+      "ordered_condition_vector_sha256": "35a94c9c3793a80d74db0392696d74d5d5645928692f5c365d17b28f6d3da6aa",
+      "ordered_control_hash_vector_sha256": "3c5bd4fbee37cb877224ebb6202718a88778a26817a7ea7b58e6a365ced5dbcf",
+      "ordered_truth_hash_vector_sha256": "726849eb44adc3c19dd1e7704c668e46b757df1b049ba6591fd1966c64e2f40b",
+      "groups": {
+        "overall": {
+          "gene_count": 5000,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.215979116976081,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.3818370488670186,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.16796015265636546,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.3511323991802661,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": 0.08526162476028813,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.22255316730486155,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": null
+        },
+        "seen_expression": {
+          "gene_count": 4775,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.4249175005590023,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.4707137576438618,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.3134172703034834,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.4317369936555558,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": 0.24382122094784675,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.28460201914139277,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+        },
+        "unseen_expression": {
+          "gene_count": 225,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.13426602522208184,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.13751661176064375,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.1263310632183884,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.12485656824167991,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": -0.024608518583934633,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.034798337781887845,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+        }
+      },
+      "training_seconds": [
+        4055.316219098866,
+        4059.6093739075586,
+        4048.8720069378614,
+        4050.5525233047083,
+        4057.9677418684587,
+        4054.226546932012
+      ],
+      "diagnostic_seconds": [
+        9.517502503469586,
+        9.667344680987298,
+        9.718553478829563,
+        9.723220881074667,
+        9.483541544526815,
+        9.75776241812855
+      ],
+      "train_complete_time": null,
+      "test_complete_time": null,
+      "zero_pkl": true
+    },
+    "U1": {
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-unseen-preflight10-3f3824f/nadig_jurkat-seed1-20261008T164222Z-59179e205c10494e829bc9d529cf710b",
+      "run_id": "nadig_jurkat-seed1-20261008T164222Z-59179e205c10494e829bc9d529cf710b",
+      "training_sha": "3f3824fe6e2d737a70204a599dfc5745780e52e7",
+      "training_dirty": false,
+      "evaluation_sha": "3f3824fe6e2d737a70204a599dfc5745780e52e7",
+      "test_identity_keys": [
+        "checkpoint",
+        "evaluation",
+        "role",
+        "training"
+      ],
+      "config_sha256": "10b9c6d2fc53f42519dd9edc589f891bfad18ac6ac44933ab06a3741ffc138f0",
+      "checkpoint_sha256": "1d2bf25feded27dc4f65cc751e82c4eed4df843612451586546d3d954d83ab74",
+      "checkpoint_epoch": 6,
+      "complete_sha256": "dcbc152277d985fa5ac39e2baed79634578f9ff816534c8d24f6239ae8a35f8a",
+      "last_test_sha256": "ec28715e0afc8106ed8d8227242e220958160ecb9528a5ac89a87c165567abf5",
+      "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+      "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+      "ordered_condition_vector_sha256": "35a94c9c3793a80d74db0392696d74d5d5645928692f5c365d17b28f6d3da6aa",
+      "ordered_control_hash_vector_sha256": "3c5bd4fbee37cb877224ebb6202718a88778a26817a7ea7b58e6a365ced5dbcf",
+      "ordered_truth_hash_vector_sha256": "726849eb44adc3c19dd1e7704c668e46b757df1b049ba6591fd1966c64e2f40b",
+      "groups": {
+        "overall": {
+          "gene_count": 5000,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.21761665235356303,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.3899442059887319,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.17018023839989146,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.3488608538176641,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": 0.09559056184878523,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.2214898771494277,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": null
+        },
+        "seen_expression": {
+          "gene_count": 4775,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.4058702510760467,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.4643461373982361,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.29653223721149574,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.41571268255023724,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": 0.24272182658216407,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.25597204133540924,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+        },
+        "unseen_expression": {
+          "gene_count": 225,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.14396026829445624,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.16197880234536033,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.13698239093683026,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.12835816555816332,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": -0.017177489741856417,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.038046159753039085,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+        }
+      },
+      "training_seconds": [
+        4075.1000886010006,
+        4070.4080361947417,
+        4079.080047959462,
+        4073.2990854904056,
+        4065.8995786495507,
+        4056.303401907906
+      ],
+      "diagnostic_seconds": [
+        9.552262764424086,
+        9.770867304876447,
+        9.560316877439618,
+        9.742694891057909,
+        9.815159711055458,
+        9.521510968916118
+      ],
+      "train_complete_time": null,
+      "test_complete_time": null,
+      "zero_pkl": true
+    },
+    "U2": {
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-unseen-preflight10-3f3824f/nadig_jurkat-seed1-20261008T164223Z-e9d8d44d6b2944cca9bc064a6e33c871",
+      "run_id": "nadig_jurkat-seed1-20261008T164223Z-e9d8d44d6b2944cca9bc064a6e33c871",
+      "training_sha": "3f3824fe6e2d737a70204a599dfc5745780e52e7",
+      "training_dirty": false,
+      "evaluation_sha": "3f3824fe6e2d737a70204a599dfc5745780e52e7",
+      "test_identity_keys": [
+        "checkpoint",
+        "evaluation",
+        "role",
+        "training"
+      ],
+      "config_sha256": "7b4f50a2e7ee2dc9a7868709d22cd10ae4ca5db7985512d2e14d0cc8b8a1ba69",
+      "checkpoint_sha256": "048f55c85d563325810262bbe3ade417089ef1484f906602cef62a17b63e5c8e",
+      "checkpoint_epoch": 6,
+      "complete_sha256": "45530b2fd46d25743aae81604fa03078f4d1a1cc52bf8145434bb60ed4ce51c9",
+      "last_test_sha256": "feee5947b0632cc8b0203f028ed814f80334b2f1f1c7a9d2c010548ab53ec177",
+      "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+      "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+      "ordered_condition_vector_sha256": "35a94c9c3793a80d74db0392696d74d5d5645928692f5c365d17b28f6d3da6aa",
+      "ordered_control_hash_vector_sha256": "3c5bd4fbee37cb877224ebb6202718a88778a26817a7ea7b58e6a365ced5dbcf",
+      "ordered_truth_hash_vector_sha256": "726849eb44adc3c19dd1e7704c668e46b757df1b049ba6591fd1966c64e2f40b",
+      "groups": {
+        "overall": {
+          "gene_count": 5000,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.22463837695397393,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.39666027565003414,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.1749539073415109,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.3629249523893458,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": 0.08010284903720766,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.25075229664716003,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": null
+        },
+        "seen_expression": {
+          "gene_count": 4775,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.4197765665206096,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.4920912998043544,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.3136272068632206,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.4507937936752966,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": 0.21897779735522815,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.30868005289865996,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+        },
+        "unseen_expression": {
+          "gene_count": 225,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.14328601355524465,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.18533611127214006,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.13493265020644038,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.17402897394811948,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": -0.022868658504853114,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.054078801761855345,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+        }
+      },
+      "training_seconds": [
+        4058.72839304246,
+        4080.683901873417,
+        4067.5561888739467,
+        4058.700211567804,
+        4051.302271904424,
+        4045.357591328211
+      ],
+      "diagnostic_seconds": [
+        9.736915620975196,
+        9.517109718173742,
+        9.535914832726121,
+        9.744275990873575,
+        9.568977633491158,
+        9.73622041195631
+      ],
+      "train_complete_time": null,
+      "test_complete_time": null,
+      "zero_pkl": true
+    },
+    "U4": {
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-deferred-1929cba/nadig_jurkat-seed1-20261009T071927Z-b9c03b0d497c41c18d47edb33f63b566",
+      "run_id": "nadig_jurkat-seed1-20261009T071927Z-b9c03b0d497c41c18d47edb33f63b566",
+      "training_sha": "1929cba76bee4c7f868083616a105d2507c7fa54",
+      "training_dirty": false,
+      "evaluation_sha": "bd2cfb2ab764444b3482dc630f567d8273fc86dc",
+      "test_identity_keys": [
+        "checkpoint",
+        "evaluation",
+        "role",
+        "training"
+      ],
+      "config_sha256": "94472111841e57308f8b2e1a602b9751863ab721bed07863750c96d9a838e439",
+      "checkpoint_sha256": "827fb7a8b2a877a8a5d31b71ea1efb119f92c4820d8f4d490659a636dde583f0",
+      "checkpoint_epoch": 6,
+      "complete_sha256": "3edccd8cc48a3b76c014f1e83f06d2f2747273bc8e2ca13b2f60fc7250b8d2c7",
+      "last_test_sha256": "ef35ccfc21d51c5444c8df15df6bd32921f1b883f4bbf1d03d79682810429d27",
+      "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+      "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+      "ordered_condition_vector_sha256": "35a94c9c3793a80d74db0392696d74d5d5645928692f5c365d17b28f6d3da6aa",
+      "ordered_control_hash_vector_sha256": "3c5bd4fbee37cb877224ebb6202718a88778a26817a7ea7b58e6a365ced5dbcf",
+      "ordered_truth_hash_vector_sha256": "726849eb44adc3c19dd1e7704c668e46b757df1b049ba6591fd1966c64e2f40b",
+      "groups": {
+        "overall": {
+          "gene_count": 5000,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.2165934291982154,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.3630585666107033,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.16729051092165872,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.31909762811728853,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": 0.08766476622193593,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.19530176572907929,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": null
+        },
+        "seen_expression": {
+          "gene_count": 4775,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.4062613551144271,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.4276497491902238,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.2941777879567092,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.36471878733110547,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": 0.22587530923479832,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.20045467725383823,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+        },
+        "unseen_expression": {
+          "gene_count": 225,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.1322161980820705,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.18647191410742947,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.12419092080299216,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.18251806055810438,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": -0.020657562444690858,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.059456903728559204,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+        }
+      },
+      "training_seconds": [
+        4079.006263330579,
+        4098.042684325017,
+        4057.956077605486,
+        4046.912032368593,
+        4058.0616334630176,
+        4058.05941021163
+      ],
+      "diagnostic_seconds": [
+        9.844900578260422,
+        9.865583274513483,
+        9.818252636119723,
+        9.769802725873888,
+        9.681941766291857,
+        9.851929489523172
+      ],
+      "train_complete_time": 1791562490.1461499,
+      "test_complete_time": 1791572945.9966533,
+      "zero_pkl": true,
+      "eval_wall": 6226.084215037525,
+      "eval_measurements": [
+        {
+          "cell_batch": 128,
+          "condition_count": 592,
+          "cpu_training_state": true,
+          "cuda_memory_fraction": 0.19,
+          "peak_allocated_bytes": 4050826240,
+          "peak_reserved_bytes": 5121245184,
+          "wall_seconds": 6218.618485857733
+        }
+      ]
+    },
+    "U3": {
+      "root": "/data/yilangliu/GraD-Pert/runs-v2-deferred-1929cba/nadig_jurkat-seed1-20261009T071928Z-2272edf0ab7c417fb0f6078564a619e6",
+      "run_id": "nadig_jurkat-seed1-20261009T071928Z-2272edf0ab7c417fb0f6078564a619e6",
+      "training_sha": "1929cba76bee4c7f868083616a105d2507c7fa54",
+      "training_dirty": false,
+      "evaluation_sha": "bd2cfb2ab764444b3482dc630f567d8273fc86dc",
+      "test_identity_keys": [
+        "checkpoint",
+        "evaluation",
+        "role",
+        "training"
+      ],
+      "config_sha256": "c595a1f1add886cb94d00f8f1ce782a90c27b089997f9083c971e4fe475ee1b0",
+      "checkpoint_sha256": "583bcb24eba97ada7c6014cba9798907c3eb263efe9b8c8e5c97db747d2ee231",
+      "checkpoint_epoch": 6,
+      "complete_sha256": "1e974046f50084b80eacfde642c63e0442c786dd2deaba4861fbff0d9e9e5ed9",
+      "last_test_sha256": "61fb6f41ffc4bdc86ff26a6ef2a591518c3c30a5cfb82c35dd0b84ca0a9cadd3",
+      "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+      "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+      "ordered_condition_vector_sha256": "35a94c9c3793a80d74db0392696d74d5d5645928692f5c365d17b28f6d3da6aa",
+      "ordered_control_hash_vector_sha256": "3c5bd4fbee37cb877224ebb6202718a88778a26817a7ea7b58e6a365ced5dbcf",
+      "ordered_truth_hash_vector_sha256": "726849eb44adc3c19dd1e7704c668e46b757df1b049ba6591fd1966c64e2f40b",
+      "groups": {
+        "overall": {
+          "gene_count": 5000,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.2120317716008443,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.37718438628984063,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.16517714084819599,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.34372416231167957,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": 0.08088520889801569,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.2199903679671973,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": null
+        },
+        "seen_expression": {
+          "gene_count": 4775,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.4209923320507671,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.46238927018625003,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.3106516119698483,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.4203833639898888,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": 0.23112938800345215,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.2563316151019286,
+              "finite_n": 590,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150"
+        },
+        "unseen_expression": {
+          "gene_count": 225,
+          "metrics": [
+            {
+              "metric_id": "txpert_macro_pearson_delta_all",
+              "mean": 0.12505934354559475,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "txpert_macro_pearson_delta_deg",
+              "mean": 0.14324090995932404,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "trishift_pearson_delta_all",
+              "mean": 0.11679647169198533,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "trishift_pearson_delta_deg",
+              "mean": 0.12530392942740667,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            },
+            {
+              "metric_id": "systema_pearson_all",
+              "mean": -0.028756576785204335,
+              "finite_n": 592,
+              "total_n": 592,
+              "unavailable_reason_counts": {}
+            },
+            {
+              "metric_id": "systema_pearson_deg",
+              "mean": 0.048195958179492966,
+              "finite_n": 147,
+              "total_n": 592,
+              "unavailable_reason_counts": {
+                "fewer_than_two_genes": 443,
+                "de_unavailable:insufficient_truth_cells_for_t_test:n=1": 2
+              }
+            }
+          ],
+          "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7"
+        }
+      },
+      "training_seconds": [
+        3836.625046641566,
+        4402.573566921987,
+        4110.9467848287895,
+        3808.4484143666923,
+        3820.005231600255,
+        3804.9731360552832
+      ],
+      "diagnostic_seconds": [
+        10.471954409964383,
+        10.004760614596307,
+        9.197084173560143,
+        9.037528086453676,
+        9.226561544463038,
+        9.165409444831312
+      ],
+      "train_complete_time": 1791586363.3096232,
+      "test_complete_time": 1791588718.8023736,
+      "zero_pkl": true,
+      "eval_wall": 2331.6246411250904,
+      "eval_measurements": [
+        {
+          "cell_batch": 128,
+          "condition_count": 296,
+          "cpu_training_state": true,
+          "cuda_memory_fraction": null,
+          "peak_allocated_bytes": 4002222080,
+          "peak_reserved_bytes": 5079302144,
+          "wall_seconds": 2326.959655277431
+        },
+        {
+          "cell_batch": 128,
+          "condition_count": 296,
+          "cpu_training_state": true,
+          "cuda_memory_fraction": null,
+          "peak_allocated_bytes": 4002222080,
+          "peak_reserved_bytes": 5079302144,
+          "wall_seconds": 2325.489909803495
+        }
+      ]
+    }
+  },
+  "parity": {
+    "control_manifest_sha256": true,
+    "reference_sha256": true,
+    "ordered_condition_vector_sha256": true,
+    "ordered_control_hash_vector_sha256": true,
+    "ordered_truth_hash_vector_sha256": true
+  }
+}
