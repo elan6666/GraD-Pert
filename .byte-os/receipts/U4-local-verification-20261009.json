@@ -1,0 +1,46 @@
+{
+  "schema": "gradpert-U4-local-verification-v1",
+  "base_commit": "3f3824fe6e2d737a70204a599dfc5745780e52e7",
+  "targeted": {
+    "passed": 44,
+    "failed": 0
+  },
+  "dependency_tests": {
+    "passed": 5,
+    "failed": 0
+  },
+  "v2_regression": {
+    "passed": 585,
+    "failed": 1,
+    "skipped": 11,
+    "existing_failure": "test_sinkhorn_backend.py missing single_pass_jurkat/one_epoch_m66_a2 config"
+  },
+  "latest_mechanism_retest": {
+    "passed": 16,
+    "failed": 0
+  },
+  "mypy": {
+    "inherited_errors": 17,
+    "changed_module_errors": 0
+  },
+  "lint_format": "passed",
+  "log_sha256": "228c1959ce17582d88d0e94ec8caac53d7c27498b78f3159b9f56d4429c60b6c",
+  "raw_prior_sha256": "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318",
+  "raw_selected_shape": [
+    6506,
+    2048
+  ],
+  "raw_gene_order_sha256": "c1d0c76822d5c7ac1f561457010065fa3a195d27954f3c959d6732d107124e10",
+  "raw_selected_matrix_sha256": "f02af4fb230ae4ab5fe5c2333059f95c668b11493ae70d72625d6514e6fa0937",
+  "student_total": 47852590,
+  "student_trainable": 34528302,
+  "frozen_prior": 13324288,
+  "projection_parameters": 524544,
+  "scientific_results": "not_yet_run",
+  "order": [
+    "U1",
+    "U2",
+    "U4",
+    "U3"
+  ]
+}

@@ -95,3 +95,28 @@ def test_prior_must_be_finished_frozen_l0_not_l1_or_new_run(tmp_path):
     (root / "run_manifest.json").write_text(json.dumps(files["run_manifest.json"]))
     with pytest.raises(ValueError, match="frozen completed L0"):
         queue.validate_reference(ROOT, root, sha)
+
+
+def test_four_arm_design_raw_projection_and_order(tmp_path):
+    from generate_unseen_group import RAW_PRIOR, RAW_SHA, generate
+
+    parent = tmp_path / queue.PARENT
+    parent.parent.mkdir(parents=True)
+    shutil.copyfile(ROOT / queue.PARENT, parent)
+    out = tmp_path / "configs/new-four"
+    generate(tmp_path, out, with_u4=True)
+    m = queue.verify_manifest(tmp_path, out / "manifest.json")
+    assert [r["name"] for r in m["rows"]] == ["U1", "U2", "U4", "U3"]
+    assert all(sum(r["changes"].values()) == 1 for r in m["rows"])
+    import yaml
+
+    p = tmp_path / m["rows"][2]["config"]
+    v = yaml.safe_load(p.read_text())
+    assert v["model"]["parameters"]["genept_artifact_path"]["value"] == RAW_PRIOR
+    assert v["model"]["parameters"]["genept_sha256"]["value"] == RAW_SHA
+    v["model"]["parameters"]["genept_artifact_path"]["value"] = "pca.npz"
+    p.write_text(yaml.safe_dump(v))
+    m["rows"][2]["sha256"] = queue.sha256_file(p)
+    (out / "manifest.json").write_text(json.dumps(m))
+    with pytest.raises(ValueError, match="raw GenePT"):
+        queue.verify_manifest(tmp_path, out / "manifest.json")

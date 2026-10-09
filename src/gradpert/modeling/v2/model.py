@@ -296,15 +296,23 @@ class GeneGraph(nn.Module):
             raise ValueError(
                 "unseen-gene prior mechanisms require the reduced model-width seed table"
             )
+        if options.learned_genept_projection and seeds.shape[1] <= options.width:
+            raise ValueError("learned GenePT projection requires raw higher-width seeds")
         self.prior_adapter: nn.Sequential | None = None
-        self.embedding = nn.Embedding(seeds.shape[0], seeds.shape[1])
-        with torch.no_grad():
-            self.embedding.weight.copy_(seeds)
+        # U4 reserves the historical model-width initialization stream here;
+        # its frozen raw prior and learned projection replace these modules
+        # after the common backbone, inside an isolated RNG stream.
+        self.embedding = nn.Embedding(
+            seeds.shape[0], options.width if options.learned_genept_projection else seeds.shape[1]
+        )
+        if not options.learned_genept_projection:
+            with torch.no_grad():
+                self.embedding.weight.copy_(seeds)
         # An already reduced GenePT table is the model-width representation;
         # the historical 2048-wide route retains its learned adapter unchanged.
         self.adapter = (
             nn.Identity()
-            if seeds.shape[1] == options.width
+            if seeds.shape[1] == options.width or options.learned_genept_projection
             else nn.Linear(seeds.shape[1], options.width)
         )
         self.norm = nn.LayerNorm(options.width)
@@ -502,11 +510,22 @@ class GraDPertV2(nn.Module):
                 options.prior_shared_adapter,
                 options.gene_conditioned_readout,
                 options.direct_target_flag,
+                options.learned_genept_projection,
             )
         ):
             devices = [seeds.device.index] if seeds.is_cuda else []
             with torch.random.fork_rng(devices=devices):
                 torch.manual_seed((torch.initial_seed() + 0x71E0) % (2**63))
+                if options.learned_genept_projection:
+                    self.graph.embedding = nn.Embedding(
+                        seeds.shape[0],
+                        seeds.shape[1],
+                        _weight=seeds.detach().clone(),
+                        _freeze=True,
+                    )
+                    self.graph.adapter = nn.Linear(seeds.shape[1], d)
+                    nn.init.xavier_uniform_(self.graph.adapter.weight)
+                    nn.init.zeros_(self.graph.adapter.bias)
                 if options.prior_shared_adapter:
                     self.graph.embedding.weight.requires_grad_(False)
                     self.graph.prior_adapter = self._prior_mlp(d)

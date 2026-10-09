@@ -1,3 +1,13 @@
+# 2026-10-09 当前执行修订：新增 U4
+
+用户明确要求U1→U2→U4→U3。U1已完成；U2原运行持续训练，旧controller已暂停并由主精准退役，旧U3从未正式启动。保留所有旧source/config/queue/收据和U3已完成短预检，不覆盖或重标记。
+
+当前阶段：实现U4冻结原始2048维GenePT＋随机Xavier可训练Linear2048→256，无PCA或独立可训练基因表；核验公式/冻结/梯度/非零LR多步optimizer-EMA-center与resume/公共骨干RNG。发布后，新的不可变source与fresh queue等待旧U2完整终态，随后U4→U3各10步预检和6epoch末轮last评估，global272/cap40/无验证保持一致。新U3使用新run ID，逐组标注跨源码比较。
+
+验收：实现与定向/回归测试通过；小型server CPU验证；新queue真实等待U2且不会重复启动；监督20min ACK和回主fallback验证后交接。预检不声称长期容量。见实验文档的U4修订；下方旧计划保留历史，不再作为当前排程。
+
+---
+
 # U1/U2/U3 execution plan
 
 Main: codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b. Supervisor: codex:01a0df0b-4142-7df1-86c0-d959471d80a1. Canonical mutable coordination remains in `/Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/state.json`.

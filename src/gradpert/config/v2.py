@@ -42,6 +42,7 @@ class V2Architecture:
     prior_shared_adapter: bool = False
     gene_conditioned_readout: bool = False
     direct_target_flag: bool = False
+    learned_genept_projection: bool = False
 
     def __post_init__(self) -> None:
         for name in (
@@ -62,14 +63,30 @@ class V2Architecture:
         ):
             if type(getattr(self, name)) is not int or getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be a positive integer")
-        for name in ("prior_shared_adapter", "gene_conditioned_readout", "direct_target_flag"):
+        for name in (
+            "prior_shared_adapter",
+            "gene_conditioned_readout",
+            "direct_target_flag",
+            "learned_genept_projection",
+        ):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f"{name} must be boolean")
         if (
-            any((self.prior_shared_adapter, self.gene_conditioned_readout, self.direct_target_flag))
+            any(
+                (
+                    self.prior_shared_adapter,
+                    self.gene_conditioned_readout,
+                    self.direct_target_flag,
+                    self.learned_genept_projection,
+                )
+            )
             and self.attention != "relay_full"
         ):
             raise ValueError("unseen-gene mechanisms require the relay profile")
+        if self.learned_genept_projection and (
+            self.prior_shared_adapter or self.gene_conditioned_readout
+        ):
+            raise ValueError("raw GenePT projection cannot use reduced-prior mechanisms")
         if self.sinkhorn_backend not in ("native", "auto", "triton"):
             raise ValueError("unknown Sinkhorn backend")
         if self.width % self.heads or not 0 <= self.dropout < 1:
@@ -200,7 +217,12 @@ class V2Architecture:
             values.pop("attention_replacement")
         if self.self_readout == "final":
             values.pop("self_readout")
-        for name in ("prior_shared_adapter", "gene_conditioned_readout", "direct_target_flag"):
+        for name in (
+            "prior_shared_adapter",
+            "gene_conditioned_readout",
+            "direct_target_flag",
+            "learned_genept_projection",
+        ):
             if not getattr(self, name):
                 values.pop(name)
         return values
@@ -289,6 +311,7 @@ class V2Options:
             "prior_shared_adapter",
             "gene_conditioned_readout",
             "direct_target_flag",
+            "learned_genept_projection",
             "koleo_exclude_same_condition",
             "graph_view_mode",
             "validation_mode",
@@ -309,9 +332,11 @@ class V2Options:
         plain = {name: value.value for name, value in values.items()}
         arch = V2Architecture.parse({name: plain[name] for name in arch_names if name in plain})
         options = cls(**{name: plain[name] for name in names if name in plain})
-        if (arch.prior_shared_adapter or arch.gene_conditioned_readout) and (
-            options.gene_initialization != "genept"
-        ):
+        if (
+            arch.prior_shared_adapter
+            or arch.gene_conditioned_readout
+            or arch.learned_genept_projection
+        ) and (options.gene_initialization != "genept"):
             raise ValueError("prior mechanisms require GenePT initialization")
         return arch, options
 

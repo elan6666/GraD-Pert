@@ -292,3 +292,21 @@ frozen TxPert checkout is not distributed by this repository.
 No project license has been granted yet. All rights are reserved unless and
 until the repository owner adds an explicit license. External references and
 datasets retain their own terms.
+
+### U4: learn a projection of the original GenePT prior
+
+The independent Jurkat cap40 U4 config is
+`configs/v2/cap40_unseen_u4_20261009/U4/gradpert_v2/nadig_jurkat.yaml`.
+It freezes the original 2048-dimensional GenePT vectors and learns one shared
+`Linear(2048,256)` initialized with Xavier uniform weights and zero bias.
+There is no PCA or independent trainable gene table in this arm. Graph layers,
+losses and the six-epoch train-only/epoch-six-last evaluation protocol stay fixed.
+The new overall order is U1 → U2 → U4 → U3. Existing U1/U2 runs are preserved;
+`scripts/v2/run_unseen_followup.py` seals a fresh U4/U3 queue that waits for
+successful terminal evidence from the exact preceding U2 launch. It neither
+resumes that run nor rewrites the old queue. A missing process is a failure
+without terminal evidence, not permission to skip U2. See
+[the experiment design](docs/experiments/GRADPERT_V2_UNSEEN_GENE_ABLATIONS_20261008.md)
+for identities, protocol and parameter counts. All scientific jobs remain on
+the authorized server; the normal ten-update preflight runs after U2 releases
+both GPUs. A short preflight is not a sustained-capacity claim.

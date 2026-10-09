@@ -1,8 +1,20 @@
-# 未见表达基因：U1–U3 独立机制消融
+# 未见表达基因：U1–U4 独立机制消融
 
 执行负责人为原主会话 `codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b`；长任务监督使用 `codex:01a0df0b-4142-7df1-86c0-d959471d80a1`。实现基于已发布 `47c36faf08505898aa7d6ef2bcf65be387673db8`；其模型、训练和 v2 测试代码与旧 L0 的 `ab022caa57a3b45dc5a14c6ae38bc280702112e4` 相同。新代码发布 SHA、容量和正式结果另见对应运行收据，不用当前 HEAD 倒填旧实验。
 
-## 三个开关
+## 2026-10-09 U4 修订（覆盖旧三组排程）
+
+用户授权新增独立 U4，并要求 U1→U2→U4→U3。U1 的旧六轮结果、U2 的活动六轮运行及其不可变源码/config 原样保留；暂停并退役旧 controller，未启动的旧 U3 正式 run 不再启动。新 follow-up queue 等待原 U2 的完整六轮末轮测试终态，再用新发布源码和新运行 ID 执行 U4→U3。U1/U2 不重跑，所有比较逐组暴露源码版本。
+
+U4：`learned_genept_projection=true`，其余三个机制关闭。冻结原始 GenePT `v_g∈R2048`，学习 `E_g=W v_g+b∈R256`；W 随机 Xavier uniform 初始化、b=0，无 PCA、无均值拟合、无重建目标、无独立可训练 gene-ID 表。投影后沿用既有 LayerNorm 与图层。原始先验源 `/data/yilangliu/DinoGenePT/data/embeddings/seed-go-protein-pathway-master-aligned.npz`，SHA256 `34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318`；按既定图轴选择6506×2048，轴 SHA256 `c1d0c76822d5c7ac1f561457010065fa3a195d27954f3c959d6732d107124e10`，矩阵 SHA256 `f02af4fb230ae4ab5fe5c2333059f95c668b11493ae70d72625d6514e6fa0937`，零缺失/零空向量。不会进入 PCA 预处理。
+
+共享 Linear 参数524,544。Student 总参数47,852,590，其中可训练34,528,302、冻结原始先验13,324,288；Teacher 同构。公共骨干初始化与随机流通过合成测试保持相同，但 U4 初始基因表示与 PCA 基线不同：属于方法消融，不是等价提速，也不预先断言泛化改善。固定表随 checkpoint 保存，原始科学先验与 checkpoint 留服务器。
+
+新自包含设计：`configs/v2/cap40_unseen_u4_20261009/manifest.json`；其中 U1/U2 配置仅完整描述设计，不用于重跑或倒填旧运行。`generate_unseen_group.py --with-u4` 生成四组；`run_unseen_followup.py` 只计划新 U4、U3，绑定旧 U2 的完整 launch/config/source 与进程身份，等待并核验完整终态；缺失 PID 不能称成功。复用原 controller、训练、测试入口，不另写模型训练主函数。
+
+新 U4/U3 均先10更新+checkpoint恢复+300-control推理，同一global272；全部新短程门通过才正式运行U4再U3。6epoch、cap40、不验证、末轮last测试以及所有损失、随机顺序、图、表达剔除与指标协议保持固定。失败保留证据并交回主，不静默调整batch或重启。现阶段已实现并进入验证，正式结果仍以各run收据为准。
+
+## 原三组定义（历史配置保持不变）
 
 | 实验 | prior_shared_adapter | gene_conditioned_readout | direct_target_flag |
 |---|---|---|---|

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import json
 import os
 import subprocess
@@ -138,6 +139,41 @@ def prepare(
     }
 
 
+def wait_dependency(dependency: dict, record, *, sleep=time.sleep) -> None:
+    """Wait for an exact existing run without restarting or accepting a missing PID."""
+    plan = dependency["plan"]
+    root = Path(plan["run_root"])
+    if not root.resolve().is_relative_to("/data/yilangliu"):
+        raise ValueError("dependency run stays on server")
+    if sha256_file(root / "launch.json") != dependency["launch_sha256"]:
+        raise ValueError("dependency launch receipt changed")
+    if json.loads((root / "launch.json").read_text()) != plan:
+        raise ValueError("dependency launch identity differs")
+    missing_checks = 0
+    while True:
+        if (root / "FAILURE.json").exists():
+            raise RuntimeError("preceding run failed; do not start follow-up")
+        if (root / "COMPLETE.json").exists():
+            if next_action(plan) != "skip_complete":
+                raise ValueError("dependency terminal evidence incomplete")
+            return
+        record(phase="waiting_for_dependency", dependency_run_id=plan["run_id"], child_pid=None)
+        pid = dependency["pid"]
+        try:
+            command = Path(f"/proc/{pid}/cmdline").read_bytes().decode().replace("\x00", " ")
+        except FileNotFoundError:
+            command = ""
+        if (
+            command
+            and hashlib.sha256(command.encode()).hexdigest() != dependency["pid_cmdline_sha256"]
+        ):
+            raise ValueError("dependency PID was reused")
+        missing_checks = 0 if command else missing_checks + 1
+        if missing_checks >= 2:
+            raise RuntimeError("dependency process exited without terminal receipt")
+        sleep(60)
+
+
 def execute(queue: dict, directory: Path) -> None:
     if not directory.resolve().is_relative_to("/data/yilangliu"):
         raise ValueError("queue outputs stay on server")
@@ -224,6 +260,8 @@ def execute(queue: dict, directory: Path) -> None:
                 imported = queue["completed_e1"]
                 if validate_completed_e1(Path(imported["root"]), baseline) != imported:
                     raise ValueError("imported E1 terminal evidence changed")
+            for dependency in queue.get("dependencies", []):
+                wait_dependency(dependency, record)
             for row in queue["rows"]:
                 plan = row["plan"]
                 probe = directory / (row["name"] + "-preflight")

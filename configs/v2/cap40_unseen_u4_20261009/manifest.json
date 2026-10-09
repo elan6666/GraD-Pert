@@ -1,0 +1,62 @@
+{
+  "schema": "gradpert-v2-unseen-four-1",
+  "parent": "configs/v2/cap40_loss_ablations_20261007/L0/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "705d962aa1182a6ccedd99096d2af2c3b0531a61dc62bb36d1fea974c4a9322c",
+  "reference_training_commit": "ab022caa57a3b45dc5a14c6ae38bc280702112e4",
+  "reference_comparison": "cross_version_disabled_path_parity_verified",
+  "rows": [
+    {
+      "name": "U1",
+      "config": "configs/v2/cap40_unseen_u4_20261009/U1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "d0acf220816fcf6fd7ea89bd8de5843dbf80dc20adececf27e7b24d0f479206a",
+      "changes": {
+        "prior_shared_adapter": true,
+        "gene_conditioned_readout": false,
+        "direct_target_flag": false,
+        "learned_genept_projection": false
+      }
+    },
+    {
+      "name": "U2",
+      "config": "configs/v2/cap40_unseen_u4_20261009/U2/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "90660db480d8ebd5a8bf6761167466ea77117fc7a9b89e09ad5ef6420c497cee",
+      "changes": {
+        "prior_shared_adapter": false,
+        "gene_conditioned_readout": true,
+        "direct_target_flag": false,
+        "learned_genept_projection": false
+      }
+    },
+    {
+      "name": "U4",
+      "config": "configs/v2/cap40_unseen_u4_20261009/U4/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "94472111841e57308f8b2e1a602b9751863ab721bed07863750c96d9a838e439",
+      "changes": {
+        "prior_shared_adapter": false,
+        "gene_conditioned_readout": false,
+        "direct_target_flag": false,
+        "learned_genept_projection": true
+      }
+    },
+    {
+      "name": "U3",
+      "config": "configs/v2/cap40_unseen_u4_20261009/U3/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "c595a1f1add886cb94d00f8f1ce782a90c27b089997f9083c971e4fe475ee1b0",
+      "changes": {
+        "prior_shared_adapter": false,
+        "gene_conditioned_readout": false,
+        "direct_target_flag": true,
+        "learned_genept_projection": false
+      }
+    }
+  ],
+  "epochs": 6,
+  "validation": "disabled",
+  "test_roles": [
+    "last"
+  ],
+  "common_microbatch": 68,
+  "global_batch": 272,
+  "seed": 1,
+  "primary_metric": "txpert_macro_pearson_delta_deg"
+}

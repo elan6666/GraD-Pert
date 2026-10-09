@@ -212,6 +212,8 @@ def prepare_runtime(
         expected_gene_ids=topology.gene_ids,
         perturbation_target_gene_ids=topology.gene_ids,
     )
+    if arch.learned_genept_projection and prior.embedding_width != 2048:
+        raise ValueError("U4 requires the original 2048-wide GenePT prior, not PCA")
     if prior.gene_ids != topology.gene_ids:
         raise ValueError("v2 requires complete GenePT coverage of the frozen graph axis")
     with ExitStack() as stack:
@@ -365,7 +367,14 @@ def prepare_runtime(
                 "target": "training_control_expression",
                 "inference_use": False,
             }
-        if any((arch.prior_shared_adapter, arch.gene_conditioned_readout, arch.direct_target_flag)):
+        if any(
+            (
+                arch.prior_shared_adapter,
+                arch.gene_conditioned_readout,
+                arch.direct_target_flag,
+                arch.learned_genept_projection,
+            )
+        ):
             identity["unseen_gene_mechanisms"] = {
                 "prior_shared_adapter": arch.prior_shared_adapter,
                 "gene_conditioned_readout": arch.gene_conditioned_readout,
@@ -374,6 +383,16 @@ def prepare_runtime(
                 "adapter_bottleneck": max(1, arch.width // 4),
                 "initialization": "zero_final_layer_separate_rng_stream",
             }
+        if arch.learned_genept_projection:
+            identity["unseen_gene_mechanisms"].update(
+                learned_genept_projection=True,
+                prior_source="original_2048_genept_frozen",
+                prior_embedding_width=prior.embedding_width,
+                adapter_bottleneck=None,
+                initialization="xavier_uniform_zero_bias_separate_rng_stream",
+                independent_gene_table=False,
+                pca=False,
+            )
         identity["training_expression_policy"] = expression_policy_receipt
         if train_selection_receipt is not None:
             identity["training_row_selection"] = train_selection_receipt

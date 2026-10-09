@@ -17,16 +17,25 @@ PARENT_SHA256 = "705d962aa1182a6ccedd99096d2af2c3b0531a61dc62bb36d1fea974c4a9322
 REFERENCE = "docs/experiments/GRADPERT_V2_UNSEEN_GENE_ABLATIONS_20261008.md"
 FIELDS = ("prior_shared_adapter", "gene_conditioned_readout", "direct_target_flag")
 ARMS = {"U1": (True, False, False), "U2": (False, True, False), "U3": (False, False, True)}
+RAW_PRIOR = "/data/yilangliu/DinoGenePT/data/embeddings/seed-go-protein-pathway-master-aligned.npz"
+RAW_SHA = "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318"
+FIELDS_FOUR = (*FIELDS, "learned_genept_projection")
+ARMS_FOUR = {
+    "U1": (True, False, False, False),
+    "U2": (False, True, False, False),
+    "U4": (False, False, False, True),
+    "U3": (False, False, True, False),
+}
 
 
-def generate(source: Path, output: Path) -> dict:
+def generate(source: Path, output: Path, *, with_u4: bool = False) -> dict:
     if sha256_file(source / PARENT) != PARENT_SHA256:
         raise ValueError("frozen L0 baseline checksum changed")
     base = yaml.safe_load((source / PARENT).read_text())
     output.mkdir(parents=True, exist_ok=False)
     rows = []
-    for name, settings in ARMS.items():
-        changes = dict(zip(FIELDS, settings, strict=True))
+    for name, settings in (ARMS_FOUR if with_u4 else ARMS).items():
+        changes = dict(zip(FIELDS_FOUR if with_u4 else FIELDS, settings, strict=True))
         value = copy.deepcopy(base)
         value["model"]["parameters"].update(
             {
@@ -34,6 +43,13 @@ def generate(source: Path, output: Path) -> dict:
                 for key, setting in changes.items()
             }
         )
+        if name == "U4":
+            for key, setting in (("genept_artifact_path", RAW_PRIOR), ("genept_sha256", RAW_SHA)):
+                value["model"]["parameters"][key] = {
+                    "value": setting,
+                    "source": "project_preregistered",
+                    "reference": REFERENCE,
+                }
         path = output / name / "gradpert_v2/nadig_jurkat.yaml"
         path.parent.mkdir(parents=True)
         path.write_text(yaml.safe_dump(value, sort_keys=False, allow_unicode=True))
@@ -47,7 +63,7 @@ def generate(source: Path, output: Path) -> dict:
             }
         )
     manifest = {
-        "schema": "gradpert-v2-unseen-three-1",
+        "schema": "gradpert-v2-unseen-four-1" if with_u4 else "gradpert-v2-unseen-three-1",
         "parent": PARENT,
         "parent_sha256": sha256_file(source / PARENT),
         "reference_training_commit": "ab022caa57a3b45dc5a14c6ae38bc280702112e4",
@@ -68,9 +84,10 @@ def generate(source: Path, output: Path) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--with-u4", action="store_true")
     args = parser.parse_args()
     source = Path(__file__).resolve().parents[2]
-    print(json.dumps(generate(source, args.output.resolve()), indent=2))
+    print(json.dumps(generate(source, args.output.resolve(), with_u4=args.with_u4), indent=2))
 
 
 if __name__ == "__main__":

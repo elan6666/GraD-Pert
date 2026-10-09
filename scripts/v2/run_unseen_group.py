@@ -8,7 +8,16 @@ import json
 import os
 from pathlib import Path
 
-from generate_unseen_group import ARMS, FIELDS, PARENT, PARENT_SHA256
+from generate_unseen_group import (
+    ARMS,
+    ARMS_FOUR,
+    FIELDS,
+    FIELDS_FOUR,
+    PARENT,
+    PARENT_SHA256,
+    RAW_PRIOR,
+    RAW_SHA,
+)
 from run_cap40_ablations import execute
 
 from gradpert.config import load_experiment_config
@@ -19,11 +28,13 @@ from gradpert.hashing import sha256_file
 
 def verify_manifest(source: Path, path: Path) -> dict:
     manifest = json.loads(path.read_text())
+    four = manifest.get("schema") == "gradpert-v2-unseen-four-1"
+    arms, fields = (ARMS_FOUR, FIELDS_FOUR) if four else (ARMS, FIELDS)
     if (
-        manifest.get("schema") != "gradpert-v2-unseen-three-1"
+        manifest.get("schema") not in ("gradpert-v2-unseen-three-1", "gradpert-v2-unseen-four-1")
         or manifest.get("parent") != PARENT
         or manifest.get("parent_sha256") != PARENT_SHA256
-        or [row["name"] for row in manifest["rows"]] != list(ARMS)
+        or [row["name"] for row in manifest["rows"]] != list(arms)
         or manifest.get("epochs") != 6
         or manifest.get("validation") != "disabled"
         or manifest.get("test_roles") != ["last"]
@@ -44,7 +55,7 @@ def verify_manifest(source: Path, path: Path) -> dict:
             or sha256_file(config_path) != row["sha256"]
         ):
             raise ValueError("loss config escaped source or changed checksum")
-        expected = dict(zip(FIELDS, ARMS[row["name"]], strict=True))
+        expected = dict(zip(fields, arms[row["name"]], strict=True))
         value = load_experiment_config(config_path).model_dump(mode="json")
         parameters = value["model"]["parameters"]
         if row["changes"] != expected or any(
@@ -52,8 +63,16 @@ def verify_manifest(source: Path, path: Path) -> dict:
         ):
             raise ValueError("loss arm settings changed")
         unchanged = copy.deepcopy(value)
-        for name in FIELDS:
+        for name in fields:
             unchanged["model"]["parameters"].pop(name)
+        if row["name"] == "U4":
+            for name, expected_prior in (
+                ("genept_artifact_path", RAW_PRIOR),
+                ("genept_sha256", RAW_SHA),
+            ):
+                if parameters[name]["value"] != expected_prior:
+                    raise ValueError("U4 raw GenePT identity changed")
+                unchanged["model"]["parameters"][name] = baseline["model"]["parameters"][name]
         if unchanged != baseline:
             raise ValueError("loss arm changed an unrelated data/model/training setting")
     return manifest

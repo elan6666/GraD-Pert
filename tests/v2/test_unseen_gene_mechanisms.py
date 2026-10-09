@@ -102,18 +102,25 @@ def test_target_flags_use_global_ids_valid_padding_and_all_targets():
     torch.testing.assert_close(actual, expected)
 
 
-@pytest.mark.parametrize("flag", FLAGS)
+@pytest.mark.parametrize("flag", (*FLAGS, "learned_genept_projection"))
 def test_three_complete_nonzero_lr_updates_teacher_centers_and_resume(flag, tmp_path):
     torch.set_num_threads(2)
     torch.manual_seed(42)
     original, batch = relay_training_fixture(False)
+    seeds = original.student.graph.embedding.weight.detach().clone()
+    if flag == "learned_genept_projection":
+        seeds = torch.cat((seeds, seeds.flip(-1)), -1)
     model = GraDPertV2(
-        original.student.graph.embedding.weight.detach().clone(),
+        seeds,
         replace(original.student.options, **{flag: True}),
     )
     objective = JointObjective(model, loss_reduction="row_mean", koleo_exclude_same_condition=True)
     optimizer = V2Optimizer(model, 1e-3, 0)
-    frozen = model.graph.embedding.weight.detach().clone() if flag == FLAGS[0] else None
+    frozen = (
+        model.graph.embedding.weight.detach().clone()
+        if flag in (FLAGS[0], "learned_genept_projection")
+        else None
+    )
     prior = model.readout_prior.clone() if flag == FLAGS[1] else None
     rng = np.random.default_rng(7)
 
@@ -139,7 +146,10 @@ def test_three_complete_nonzero_lr_updates_teacher_centers_and_resume(flag, tmp_
         assert torch.equal(model.graph.embedding.weight, frozen)
         assert torch.equal(objective.teacher.graph.embedding.weight, frozen)
         assert "graph.embedding.weight" not in {r["name"] for r in routes(model)}
-        assert model.graph.prior_adapter[2].weight.abs().sum() > 0
+        if flag == "learned_genept_projection":
+            assert model.graph.adapter.weight.grad is not None
+        else:
+            assert model.graph.prior_adapter[2].weight.abs().sum() > 0
     if prior is not None:
         assert torch.equal(model.readout_prior, prior)
         assert torch.equal(objective.teacher.readout_prior, prior)
@@ -201,3 +211,49 @@ def test_disabled_flags_load_historical_synthetic_state_without_new_keys():
     b.load_state_dict(a.state_dict(), strict=True)
     assert a.options.payload() == b.options.payload()
     assert a.state_dict().keys() == b.state_dict().keys()
+
+
+def test_u4_random_linear_formula_frozen_prior_and_shared_gradients():
+    torch.manual_seed(17)
+    raw = torch.randn(9, 16)
+    reduced = torch.randn(9, 8)
+    arch = replace(small_architecture(), relay_passes=1)
+    torch.manual_seed(291)
+    base = GraDPertV2(reduced, arch)
+    rng = torch.get_rng_state().clone()
+    torch.manual_seed(291)
+    model = GraDPertV2(raw, replace(arch, learned_genept_projection=True))
+    assert torch.equal(torch.get_rng_state(), rng)
+    assert not model.graph.embedding.weight.requires_grad
+    assert torch.equal(model.graph.embedding.weight, raw)
+    assert model.graph.adapter.weight.shape == (8, 16)
+    assert model.graph.adapter.weight.abs().sum() > 0
+    assert torch.count_nonzero(model.graph.adapter.bias) == 0
+    assert model.graph.prior_adapter is None
+    for name, value in base.state_dict().items():
+        if not name.startswith("graph.embedding."):
+            torch.testing.assert_close(model.state_dict()[name], value, atol=0, rtol=0)
+    expected = raw @ model.graph.adapter.weight.T + model.graph.adapter.bias
+    torch.testing.assert_close(model.graph.adapter(raw), expected)
+    old_unseen = model.graph.adapter(raw[8]).detach().clone()
+    optimizer = torch.optim.SGD(model.graph.adapter.parameters(), lr=0.01)
+    model.graph.adapter(raw[:3]).square().mean().backward()
+    assert model.graph.adapter.weight.grad.abs().sum() > 0
+    assert model.graph.embedding.weight.grad is None
+    optimizer.step()
+    assert not torch.equal(old_unseen, model.graph.adapter(raw[8]))
+    assert torch.equal(model.graph.embedding.weight, raw)
+    assert "graph.embedding.weight" not in {r["name"] for r in routes(model)}
+    assert "graph.adapter.weight" in {r["name"] for r in routes(model)}
+
+
+def test_u4_rejects_reduced_input_and_incompatible_flags():
+    arch = replace(small_architecture(), learned_genept_projection=True)
+    with pytest.raises(ValueError, match="higher-width"):
+        GraDPertV2(torch.randn(9, 8), arch)
+    for flag in ("prior_shared_adapter", "gene_conditioned_readout"):
+        with pytest.raises(ValueError, match="reduced-prior"):
+            replace(arch, **{flag: True})
+    assert "learned_genept_projection" not in V2Architecture().payload()
+    with pytest.raises(ValueError, match="boolean"):
+        replace(small_architecture(), learned_genept_projection=1)
