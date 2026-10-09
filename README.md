@@ -310,3 +310,36 @@ without terminal evidence, not permission to skip U2. See
 for identities, protocol and parameter counts. All scientific jobs remain on
 the authorized server; the normal ten-update preflight runs after U2 releases
 both GPUs. A short preflight is not a sustained-capacity claim.
+
+### Queue training without waiting for postfit Pearson
+
+For v2, `gradpert train --defer-test` uses the same training/checkpoint lifecycle
+and exits after `TRAIN_COMPLETE.json`. This receipt validates the full epoch
+budget, history and selected checkpoint hashes; it is **not** a completed
+scientific experiment. The ordinary command without this flag keeps inline tests.
+V1 behavior is unchanged.
+
+The U4/U3 follow-up queue supports `scripts/v2/run_unseen_followup.py --defer-tests`.
+It runs both ten-update preflights, trains U4 and immediately trains U3 after
+U4's two ranks exit, then drains their independent checkpoint tests. Current
+admission is **training priority, evaluation on idle GPUs**: no unmeasured shared
+GPU inference is admitted alongside the full dual-GPU training batch. Postfit
+uses both idle GPUs with disjoint frozen condition shards; condition metrics
+are merged in the original order and averaged equally per condition. Teacher
+and optimizer state stay on CPU in the independent evaluation workers; only
+Student moves to GPU. The model, training batch, 300 control IDs, gene partitions,
+query recipe and metric definitions stay fixed.
+
+Only verified postfit receipts produce the parent `COMPLETE.json`. Evaluation
+failure writes `EVALUATION_FAILURE.json` and preserves successful training and
+its full checkpoint. Progress distinguishes training, evaluation pending and
+postfit workers. Training/test source and checkpoint hashes remain separate.
+For an explicit independent checkpoint evaluation, `evaluate-checkpoint` now
+accepts `--checkpoint-role best|last`, resolving identical best/last files without
+silently changing the requested role.
+
+This removes the test-result barrier between preregistered training arms. It
+is not a claim of concurrent training/inference or measured throughput gains;
+shared-device execution requires a separate end-to-end resource measurement.
+Current immutable U2 continues its original inline protocol; cancelled-before-start
+U4/U3 plans are preserved and the new queue uses fresh source/run identities.

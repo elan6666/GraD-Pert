@@ -150,3 +150,16 @@ def test_v2_multi_gpu_plan_requires_matching_world_size(setup):
     setup.gpu = "0"
     with pytest.raises(ValueError, match="world size"):
         entry.resolve_plan(setup)
+
+
+def test_deferred_plan_v2_only_and_optional(setup):
+    root = Path(__file__).resolve().parents[2]
+    setup.config = root / "configs/v2/cap40_unseen_u4_20261009/U4/gradpert_v2/nadig_jurkat.yaml"
+    setup.gpu = "0,1"
+    assert "postfit_policy" not in entry.resolve_plan(setup)
+    setup.defer_test = True
+    assert entry.resolve_plan(setup)["postfit_policy"] == "deferred"
+    setup.config = None
+    setup.gpu = "0"
+    with pytest.raises(ValueError, match="v2 only"):
+        entry.resolve_plan(setup)

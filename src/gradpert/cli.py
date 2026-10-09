@@ -43,6 +43,9 @@ def _parser() -> argparse.ArgumentParser:
     train.add_argument("--data-root", type=Path)
     train.add_argument("--runtime", type=Path)
     train.add_argument("--dry-run", action="store_true")
+    train.add_argument(
+        "--defer-test", action="store_true", help="v2: save TRAIN_COMPLETE and defer postfit tests"
+    )
 
     resume_v2 = subparsers.add_parser(
         "resume-v2", help="Resume an interrupted v2 run with its saved full state"
@@ -61,6 +64,7 @@ def _parser() -> argparse.ArgumentParser:
     checkpoint_eval.add_argument("--gpu", default="0")
     checkpoint_eval.add_argument("--split", choices=("val", "test"), default="test")
     checkpoint_eval.add_argument("--dry-run", action="store_true")
+    checkpoint_eval.add_argument("--checkpoint-role", choices=("best", "last"))
 
     benchmark = subparsers.add_parser("benchmark", help="Dispatch an isolated official runner")
     benchmark.add_argument(

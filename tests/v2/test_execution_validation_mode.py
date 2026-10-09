@@ -18,9 +18,10 @@ CONFIG = (
 )
 
 
+@pytest.mark.parametrize("deferred", [False, True])
 @pytest.mark.parametrize("mode", ["joint_only", "joint_and_prediction", "disabled"])
 def test_formal_orchestration_keeps_test_evaluation_after_optional_validation(
-    tmp_path, monkeypatch, mode
+    tmp_path, monkeypatch, mode, deferred
 ):
     from dataclasses import replace
 
@@ -133,7 +134,24 @@ def test_formal_orchestration_keeps_test_evaluation_after_optional_validation(
         "seed": 1,
         "run_id": "synthetic",
     }
+    if deferred:
+        from gradpert.execution import v2_training_stage
+
+        plan["postfit_policy"] = "deferred"
+        monkeypatch.setattr(
+            v2_training_stage,
+            "seal_training_stage",
+            lambda *args: {"stage": "training_complete", "scientific_complete": False},
+        )
     complete = execution._run_v2(plan)
+    if deferred:
+        assert complete["stage"] == "training_complete"
+        assert not (tmp_path / "run/COMPLETE.json").exists()
+        assert ("fit", "complete") in calls
+        assert not any((action, "test") in calls for action in ("prepare", "data", "prediction"))
+        for action in ("prepare", "data", "prediction"):
+            assert ((action, "val") in calls) is (mode == "joint_and_prediction")
+        return
     assert complete["test_roles"] == (["last"] if mode == "disabled" else ["best", "last"])
     assert calls.count(("prediction", "test")) == (1 if mode == "disabled" else 2)
     assert calls.index(("fit", "complete")) < calls.index(("prepare", "test"))

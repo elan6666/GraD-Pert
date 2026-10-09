@@ -1,0 +1,11 @@
+# Training and postfit evaluation pipeline
+
+User authorizes advancing the next preregistered group after training rather than waiting for test results. Main owns implementation/publication/launch; exact supervisor owns long waits. Baseline487446a is clean/published. Current waiting controller1851901 was SIGSTOP'd; original U2 ranks are untouched and finish the immutable old lifecycle.
+
+Acceptance: optional fit-only v2 execution seals full checkpoint/history/TRAIN_COMPLETE and releases the two training ranks; next group admission uses that receipt rather than COMPLETE; independent existing checkpoint evaluator writes the canonical best/last receipts and only then COMPLETE. Metrics, sample IDs, query recipes, loss/EMA/RNG and model flags do not change. Evaluation failure preserves successful training and remains scientifically incomplete.
+
+Implementation ownership: main edits execution/training-stage/controller/planner/docs. Same-task Luna may read-only review/run bounded tests in these paths; no source edits, GPU queries or experiment launches. GPU work stays server, GPUs0,1 only; no active source/queue edits. New queue and IDs preserve cancelled-before-start U4/U3 plans.
+
+Scheduling: train priority; with two-GPU training, no unmeasured shared-device inference. Fit all eligible rows immediately; drain independent evaluations after no training remains, one evaluator at a time using both idle GPUs with disjoint frozen condition shards. The mechanism permits a future measured overlap policy but does not claim it is validated. This removes the evaluation barrier; it does not claim simultaneous GPU training/evaluation or a speedup without real timings. Retain the simple synchronous mode for CLI compatibility.
+
+Validate: stage receipts/history/checkpoint roles/hashes, nonzero-LR full-state checkpoints, wrong or incomplete journals rejected; exact shard coverage/condition-equal metrics unchanged; scheduler order fitA→fitB→evalA→evalB and final completeness only after both evals; local regression and published server CPU checks; ten-step dual preflights before formal. Reconcile old controller safely and launch a fresh deferred queue waiting original U2's final terminal evidence, since its code cannot be hot-updated. Supervise20min with exact return wake.

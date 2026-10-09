@@ -1,0 +1,22 @@
+{
+  "schema": "gradpert-deferred-pipeline-local-verification-v1",
+  "base_commit": "487446a7f0251289d142e6a45805d805ed0481e6",
+  "targeted_passed": 52,
+  "regression": {
+    "passed": 688,
+    "skipped": 11,
+    "failed": 1,
+    "failure": "unchanged missing single_pass_jurkat/one_epoch_m66_a2 config"
+  },
+  "full_state_synthetic": "6 epochs / 12 nonzero-LR optimizer updates, teacher and center state, complete checkpoint/RNG saved",
+  "scheduler_order": "preflightA preflightB fitA fitB postfitA postfitB",
+  "receipt_integrity": "independent eval COMPLETE + SHA + role/source/environment/checkpoint/result required",
+  "mypy_inherited": 17,
+  "mypy_changed_module_errors": 0,
+  "lint_format": "passed",
+  "log_sha256": "22bf44c920f87b9fd63466702ef4603c18908548e9bba945bd9b2cd6eaccb39f",
+  "resource_policy": "training_priority_idle_gpu_postfit",
+  "shared_training_evaluation_gpu": false,
+  "gpu_performance": "not_yet_measured",
+  "remaining": "server CPU + new immutable queue launch; old U2 stays inline"
+}

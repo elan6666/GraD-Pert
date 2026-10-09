@@ -7,12 +7,14 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any, Literal
 
 from gradpert.config import load_experiment_config
 from gradpert.data._io import atomic_json, read_json
 from gradpert.execution.identity import inspect_source_identity
+from gradpert.execution.v2 import DatasetArgs
 from gradpert.hashing import sha256_file, sha256_json
 
 SERVER_ROOT = Path("/data/yilangliu")
@@ -49,6 +51,11 @@ def resolve_evaluation_plan(args: argparse.Namespace) -> dict[str, Any]:
     ]
     if not matches:
         raise ValueError("checkpoint is not the verified best or last of this run")
+    requested_role = getattr(args, "checkpoint_role", None)
+    if requested_role is not None:
+        matches = [(role, selected) for role, selected in matches if role == requested_role]
+        if not matches:
+            raise ValueError("requested checkpoint role does not match the sealed checkpoint")
     role, selected = matches[0]
     checkpoint_identity = selected.get("training_identity", training_identity)
     if sha256_json(config.model_dump(mode="json")) != checkpoint_identity["resolved_config_sha256"]:
@@ -105,6 +112,7 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
     from gradpert.training.v2.exposure import checkpoint_expression_groups
     from gradpert.training.v2.runtime import prepare_runtime
 
+    started = time.perf_counter()
     config = load_experiment_config(plan["config"])
     if sha256_file(Path(plan["config"])) != plan["config_sha256"]:
         raise ValueError("evaluation configuration changed after planning")
@@ -116,7 +124,7 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
         config,
         data_root=Path(plan["data_root"]),
         run_seed=int(plan["training_identity"]["data"]["run_seed"]),
-        device=device,
+        device=torch.device("cpu") if plan.get("cpu_training_state", False) else device,
         purpose="evaluation",
     ) as runtime:
         if runtime.identity != plan["training_identity"]["data"]:
@@ -127,8 +135,11 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
             training_identity=plan["training_identity"],
             checkpoint_sha256=plan["checkpoint_sha256"],
         )
+        if plan.get("cpu_training_state", False):
+            runtime.objective.student.to(device)
+        torch.cuda.reset_peak_memory_stats(device)
         split: Literal["val", "test"] = plan["split"]
-        common = {
+        common: DatasetArgs = {
             "dataset_id": config.dataset_id,
             "protocol_id": config.data.protocol_id,
             "data_root": Path(plan["data_root"]),
@@ -173,7 +184,16 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
                 ),
             )
             result["expression_exposure"] = exposure
+            torch.cuda.synchronize(device)
             return {
+                "runtime_measurement": {
+                    "wall_seconds": time.perf_counter() - started,
+                    "peak_allocated_bytes": torch.cuda.max_memory_allocated(device),
+                    "peak_reserved_bytes": torch.cuda.max_memory_reserved(device),
+                    "cpu_training_state": plan.get("cpu_training_state", False),
+                    "cell_batch": int(config.training.eval_batch_size.value),
+                    "condition_count": len(selected),
+                },
                 "frozen_condition_order": list(frozen_order),
                 "evaluation_environment": environment,
                 "result": result,
@@ -245,6 +265,7 @@ def execute_evaluation_plan(plan: dict[str, Any]) -> dict[str, Any]:
             "evaluation_environment": environments[0],
             "result": result,
             "zero_pkl": not any(root.rglob("*.pkl")),
+            "worker_runtime_measurements": [shard.get("runtime_measurement") for shard in shards],
         }
         if not receipt["zero_pkl"]:
             raise ValueError("independent evaluation unexpectedly produced a PKL")

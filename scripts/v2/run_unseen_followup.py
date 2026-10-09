@@ -69,6 +69,7 @@ def main() -> None:
     parser.add_argument("--previous-queue-sha256", required=True)
     parser.add_argument("--queue-root", type=Path, required=True)
     parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--defer-tests", action="store_true")
     args = parser.parse_args()
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         parser.error("required allocator contract is missing")
@@ -90,6 +91,7 @@ def main() -> None:
                 data_root=None,
                 gpu="0,1",
                 seed=1,
+                defer_test=args.defer_tests,
             )
         )
         rows.append({"name": name, "plan": plan, "probe_kind": "preflight_only"})
@@ -105,6 +107,9 @@ def main() -> None:
         "previous_queue": str(args.previous_queue),
         "previous_queue_sha256": args.previous_queue_sha256,
         "overall_order": ["U1", "U2", "U4", "U3"],
+        "postfit_policy": "deferred" if args.defer_tests else "inline",
+        "resource_policy": "training_priority_idle_gpu_postfit",
+        "shared_training_evaluation_gpu": False,
         "preserved_U1": old["rows"][0]["plan"],
         "superseded_U3": old["rows"][2]["plan"],
     }

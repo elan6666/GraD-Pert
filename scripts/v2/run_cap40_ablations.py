@@ -177,6 +177,9 @@ def wait_dependency(dependency: dict, record, *, sleep=time.sleep) -> None:
 def execute(queue: dict, directory: Path) -> None:
     if not directory.resolve().is_relative_to("/data/yilangliu"):
         raise ValueError("queue outputs stay on server")
+    deferred = queue.get("postfit_policy", "inline") == "deferred"
+    if queue.get("postfit_policy", "inline") not in ("inline", "deferred"):
+        raise ValueError("unknown queue postfit policy")
     state = {
         "schema": queue["schema"],
         "pid": os.getpid(),
@@ -218,7 +221,7 @@ def execute(queue: dict, directory: Path) -> None:
             descriptors.append(
                 stack.enter_context(lock(Path("/data/yilangliu/GraD-Pert/runtime") / lease))
             )
-            if stage == "formal":
+            if stage in ("formal", "fit"):
                 require_fresh_formal(plan)
             # Recheck after acquiring the project leases; never kill unrelated work.
             usage = subprocess.check_output(
@@ -236,11 +239,13 @@ def execute(queue: dict, directory: Path) -> None:
                     pass_fds=tuple(descriptors),
                 )
                 record(phase=stage, child_pid=child.pid)
+                started = time.perf_counter()
                 code = child.wait()
             atomic_json(
                 directory / f"{row['name']}-{stage}.exit.json",
                 {
                     "exit_code": code,
+                    "wall_seconds": time.perf_counter() - started,
                     "finished_unix": time.time(),
                     "run_id": row["plan"]["run_id"],
                     "stage": stage,
@@ -311,9 +316,36 @@ def execute(queue: dict, directory: Path) -> None:
                     "execute_plan(json.load(open(sys.argv[1])))",
                     str(plan_path),
                 ]
-                run_child(command, row, "formal")
-                if next_action(plan) != "skip_complete":
+                if deferred:
+                    from gradpert.execution.v2_training_stage import validate_training_stage
+
+                    if plan.get("postfit_policy") != "deferred":
+                        raise ValueError("queue and launch disagree on deferred tests")
+                    run_child(command, row, "fit")
+                    validate_training_stage(plan)
+                    record(
+                        phase="training_complete_evaluation_queued", row=row["name"], child_pid=None
+                    )
+                else:
+                    run_child(command, row, "formal")
+                if not deferred and next_action(plan) != "skip_complete":
                     raise RuntimeError("formal child exited without matching best/last completion")
+            if deferred:
+                # Every eligible training row runs first. The active two-GPU profile
+                # has no validated shared-device admission; postfit uses idle GPUs.
+                for row in queue["rows"]:
+                    plan_path = directory / f"{row['name']}.launch-plan.json"
+                    command = [
+                        sys.executable,
+                        "-c",
+                        "import json,sys;"
+                        "from gradpert.execution.v2_deferred_postfit import run_deferred_postfit;"
+                        "run_deferred_postfit(json.load(open(sys.argv[1])),gpu='0,1')",
+                        str(plan_path),
+                    ]
+                    run_child(command, row, "postfit")
+                    if next_action(row["plan"]) != "skip_complete":
+                        raise RuntimeError("postfit exited without matching full completion")
             if queue.get("completed_e1"):
                 imported = queue["completed_e1"]
                 if validate_completed_e1(Path(imported["root"]), baseline) != imported:

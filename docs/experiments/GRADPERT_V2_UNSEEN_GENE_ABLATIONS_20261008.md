@@ -83,3 +83,11 @@ E0 作为原 embedding 的冻结参数保存，排除 optimizer 路由；不存�
 [scPRINT](https://www.nature.com/articles/s41467-025-58699-1) 提供保留生物基因先验的相关动机。[DeepSpot-M原始预印本](https://www.medrxiv.org/content/10.64898/2026.06.19.26356060v1.full) 与[官方实现](https://github.com/ratschlab/DeepSpotM)使用基因条件化输出权重的相关思路；其输入是组织图像，不能当作本扰动任务的效果证据。这里的方程是GraD-Pert原生适配，不导入上游代码，不声称复现该模型或创造这些通用机制。
 
 10步收据标为preflight_only，包含checkpoint恢复和300-control推理，不宣称最大batch或长期稳定性。旧da310a7的U1预检在56/128时按用户指令停止，恢复/推理未完成，不能改记为10步通过；已保存的训练证据保留，但完整短程预检需要在新版本补齐。
+
+## 2026-10-09 训练／评估调度修订
+
+用户授权训练完成后立即推进下一组，不等待上一组 Pearson。新 U4/U3 queue 的 `postfit_policy=deferred`：两组10步预检→U4训练→U3训练→U4独立评估→U3独立评估。每组训练仍从头6epoch，完整Student/Teacher/optimizer/center/各rank RNG、历史和last checkpoint按原规则保存。`TRAIN_COMPLETE.json`只确认训练成功；`COMPLETE.json`必须等待独立评估结果、checkpoint/角色/数据/条件清单/来源及其receipt SHA通过。评估失败保留训练终态，不能称整组成功。
+
+双卡fullbatch训练继续独占GPU0,1。当前没有经过端到端验证的共享GPU余量，因此采用训练优先、评估排队，后续训练结束后用两个空闲GPU分片评估条件。保留每个条件有序300control与真实均值、相同query_count与evalcellbatch128、三Pearson all/DEG及seen/unseen；macro按条件等权重建，不平均两个worker的macro。CPU保留Teacher/optimizer的加载对象，只将Student移至GPU；worker记录含初始化的wall time、峰显存和实际条件数。暂不声称训练与评估同时占用GPU或调度有实测加速。
+
+原U2使用不可变3f3824f inline源码继续，不热改或中断其训练/评估。先前487446a U4/U3 queue未启动任何预检/正式child，主在证据封存后退役等待controller；新source/config/run/queue身份另载launch和Byte收据。U1/U2保留历史版本，新U4/U3使用新发布版本；方法参数和配置内容不变，执行plan记录deferred模式。

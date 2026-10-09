@@ -33,6 +33,8 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     """Run the sealed fixed-epoch lifecycle, then test both checkpoint roles."""
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         raise ValueError("v2 requires PYTORCH_ALLOC_CONF=expandable_segments:True")
+    if plan.get("postfit_policy", "inline") not in ("inline", "deferred"):
+        raise ValueError("unknown postfit scheduling policy")
     config = load_experiment_config(plan["config"])
     if config.model_id != "gradpert_v2" or config.training.formal_run_policy not in {
         "v2_fixed_1",
@@ -248,6 +250,25 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             bootstrap_best=bootstrap_best if not resume else None,
         )
         primary_call(lambda: export_curves(root / "fit"))
+        if plan.get("postfit_policy", "inline") == "deferred":
+            from gradpert.execution.v2_training_stage import seal_training_stage
+
+            training_receipt = primary_call(
+                lambda: seal_training_stage(root, identity, int(config.training.max_epochs.value))
+            )
+            primary_call(
+                lambda: _write_live_progress(
+                    root / "fit/live_progress.json",
+                    {
+                        "schema_version": "gradpert-v2-live-progress-1",
+                        "run_id": plan["run_id"],
+                        "phase": "training_complete_evaluation_pending",
+                        "epoch": journal["epoch"],
+                        "epochs_total": int(config.training.max_epochs.value),
+                    },
+                )
+            )
+            return training_receipt
         # Test references and truth are accessed only after all training and selection.
         primary_call(
             lambda: prepare_evaluation_state(**common, evaluation_protocol=evaluation_protocol)

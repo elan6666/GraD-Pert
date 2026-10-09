@@ -118,7 +118,7 @@ def resolve_plan(args: argparse.Namespace) -> dict[str, Any]:
     run_root = runs / run_id
     if run_root.exists():
         raise FileExistsError(run_root)
-    return {
+    plan = {
         "config": str(config_path),
         "config_sha256": sha256_file(config_path),
         "resolved_config": config.model_dump(mode="json"),
@@ -139,6 +139,13 @@ def resolve_plan(args: argparse.Namespace) -> dict[str, Any]:
         "stages": ["fit", "per-epoch validation", "curves", "best/last test"],
         "report_all_validation_metrics": True,
     }
+
+    if getattr(args, "defer_test", False):
+        if config.model_id != "gradpert_v2":
+            raise ValueError("deferred postfit scheduling is v2 only")
+        plan["postfit_policy"] = "deferred"
+        plan["stages"] = ["fit", "configured validation", "curves", "TRAIN_COMPLETE; tests pending"]
+    return plan
 
 
 def execute_plan(plan: dict[str, Any]) -> None:
