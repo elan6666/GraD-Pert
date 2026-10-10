@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import copy
+import json
 import os
 import subprocess
 import sys
@@ -22,6 +23,7 @@ from run_unified_group import (
     validate_completed,
 )
 from run_unified_overlap import evaluate_attempt, process_identity
+from shared_gpu import admit, snapshot, terminate_tree, validate_policy
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.execution.identity import inspect_source_identity
@@ -32,7 +34,9 @@ from gradpert.hashing import sha256_file
 SCHEMA = "unified-ddp-queue-1"
 
 
-def prepare(source: Path, manifest: Path, runtime: Path, output: Path) -> dict:
+def prepare(
+    source: Path, manifest: Path, runtime: Path, output: Path, shared_policy: dict | None = None
+) -> dict:
     if not output.resolve().is_relative_to("/data/yilangliu") or output.exists():
         raise ValueError("queue must be a fresh server directory")
     matrix = verify_manifest(source, manifest)
@@ -68,6 +72,9 @@ def prepare(source: Path, manifest: Path, runtime: Path, output: Path) -> dict:
         "steps": 10,
         "deferred_arms": [r["name"] for r in matrix["rows"] if r["name"] not in PRIORITY],
     }
+    if shared_policy is not None:
+        validate_policy(shared_policy)
+        queue["shared_gpu_policy"] = copy.deepcopy(shared_policy)
     output.mkdir()
     atomic_json(output / "queue.json", queue)
     verify(queue)
@@ -75,6 +82,8 @@ def prepare(source: Path, manifest: Path, runtime: Path, output: Path) -> dict:
 
 
 def verify(queue: dict) -> None:
+    if queue.get("shared_gpu_policy") is not None:
+        validate_policy(queue["shared_gpu_policy"])
     if queue["schema"] != SCHEMA or [r["name"] for r in queue["rows"]] != list(PRIORITY):
         raise ValueError("queue scope/order changed")
     if queue["initial_preflight"] != ["CG1", "N0"] or queue["steps"] != 10:
@@ -117,8 +126,8 @@ def verify(queue: dict) -> None:
         raise ValueError("queue source is not clean and published")
 
 
-def probe(row: dict, directory: Path) -> list[str]:
-    return [
+def probe(row: dict, directory: Path, shared: bool = False) -> list[str]:
+    command = [
         sys.executable,
         "-m",
         "torch.distributed.run",
@@ -127,6 +136,16 @@ def probe(row: dict, directory: Path) -> list[str]:
         "2",
         *probe_command({**row, "lane": "0,1"}, directory)[1:],
     ]
+    if shared:
+        command.extend(
+            [
+                "--shared-queue",
+                str(directory / "queue.json"),
+                "--resource-owner-pid",
+                str(os.getpid()),
+            ]
+        )
+    return command
 
 
 def fit_budget(peak_reserved: int, total_bytes: int) -> float:
@@ -159,13 +178,18 @@ def gpu_processes_owned() -> bool:
     return True
 
 
-def finalized_plan(row: dict, entry: dict, total_bytes: int) -> dict:
+def finalized_plan(row: dict, entry: dict, total_bytes: int, shared_policy=None) -> dict:
     validate_preflight(row["plan"], entry)
     receipt = read_json(entry["receipt"])
     if receipt["steps_completed"] != 10 or receipt["kind"] != "preflight_only":
         raise ValueError("exact ten complete updates required")
     fraction = fit_budget(receipt["peak_reserved_bytes"], total_bytes)
-    return {
+    if shared_policy is not None:
+        validate_policy(shared_policy)
+        if receipt.get("shared_gpu_policy") != shared_policy:
+            raise ValueError("probe did not exercise the sealed shared-GPU policy")
+        fraction = min(fraction, shared_policy["max_own_memory_fraction"])
+    plan = {
         **copy.deepcopy(row["plan"]),
         "cuda_memory_fraction": fraction,
         "resource_schedule": {
@@ -177,6 +201,9 @@ def finalized_plan(row: dict, entry: dict, total_bytes: int) -> dict:
             "physical_total_bytes": total_bytes,
         },
     }
+    if shared_policy is not None:
+        plan["resource_schedule"]["shared_gpu_policy"] = copy.deepcopy(shared_policy)
+    return plan
 
 
 def execute(queue: dict, directory: Path) -> None:
@@ -203,6 +230,14 @@ def execute(queue: dict, directory: Path) -> None:
     pending_evals: list[dict] = []
     active_eval = None
     active_fit = None
+    shared_policy = queue.get("shared_gpu_policy")
+
+    def shared_check(tag):
+        observed = snapshot(os.getpid())
+        # Append evidence even when admission fails; never touch foreign processes.
+        with (directory / "shared-gpu-telemetry.jsonl").open("a") as stream:
+            stream.write(json.dumps({"stage": tag, **observed}) + "\n")
+        admit(shared_policy, observed)
 
     def record():
         state["updated_unix"] = time.time()
@@ -211,7 +246,9 @@ def execute(queue: dict, directory: Path) -> None:
     def start(row, stage, command, gpu, stack, attempt=1):
         nonlocal active_eval, active_fit
         verify(queue)
-        if not gpu_processes_owned():
+        if shared_policy is not None:
+            shared_check(f"{row['name']}-{stage}-start")
+        elif not gpu_processes_owned():
             raise RuntimeError("unrelated GPU process appeared; preserve it and stop new dispatch")
         tag = f"{row['name']}-{stage}-attempt{attempt}"
         log = stack.enter_context((directory / (tag + ".log")).open("x"))
@@ -221,6 +258,7 @@ def execute(queue: dict, directory: Path) -> None:
             env=child_environment(queue["source"], gpu),
             stdout=log,
             stderr=subprocess.STDOUT,
+            start_new_session=True,
         )
         item = {
             "name": row["name"],
@@ -239,7 +277,21 @@ def execute(queue: dict, directory: Path) -> None:
 
     def finish(active):
         child, row, item = active
-        code = child.wait()
+        if shared_policy is None:
+            code = child.wait()
+        else:
+            try:
+                while True:
+                    try:
+                        code = child.wait(timeout=5)
+                        shared_check(f"{row['name']}-{item['stage']}-finish")
+                        break
+                    except subprocess.TimeoutExpired:
+                        shared_check(f"{row['name']}-{item['stage']}-running")
+            except BaseException:
+                terminate_tree(child.pid, item["identity"])
+                child.wait(timeout=10)
+                raise
         receipt = {**item, "exit_code": code, "finished_unix": time.time()}
         atomic_json(
             directory / f"{row['name']}-{item['stage']}-attempt{item['attempt']}.exit.json", receipt
@@ -282,6 +334,9 @@ def execute(queue: dict, directory: Path) -> None:
         active_eval = start(row, "eval", command, "0", stack, attempt)
 
     def idle():
+        if shared_policy is not None:
+            shared_check("admission")
+            return
         while True:
             usage = subprocess.check_output(
                 ["nvidia-smi", "--query-gpu=index,memory.used", "--format=csv,noheader,nounits"],
@@ -302,7 +357,9 @@ def execute(queue: dict, directory: Path) -> None:
         state["phase"] = "preflight"
         if (directory / f"{name}-preflight").exists():
             raise FileExistsError("preflight artifacts cannot be overwritten")
-        active = start(row, "preflight", probe(row, directory), "0,1", stack)
+        active = start(
+            row, "preflight", probe(row, directory, shared_policy is not None), "0,1", stack
+        )
         if finish(active):
             raise RuntimeError(f"{name} DDP preflight failed; preserve evidence, do not train")
         receipt = directory / f"{name}-preflight/receipt.json"
@@ -311,7 +368,9 @@ def execute(queue: dict, directory: Path) -> None:
         total = subprocess.check_output(
             ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"], text=True
         )
-        plan = finalized_plan(row, entry, min(int(n) for n in total.splitlines()) * 1024**2)
+        plan = finalized_plan(
+            row, entry, min(int(n) for n in total.splitlines()) * 1024**2, shared_policy
+        )
         path = directory / f"{name}.launch-plan.json"
         if path.exists():
             raise FileExistsError("final launch plan already exists")
@@ -339,7 +398,7 @@ def execute(queue: dict, directory: Path) -> None:
                 path = directory / f"{row['name']}.launch-plan.json"
                 actual = {**row, "plan": read_json(path)}
                 budget = actual["plan"]["cuda_memory_fraction"]
-                if budget == 1:
+                if budget > 0.65:
                     drain_eval(stack)
                     while pending_evals:
                         start_eval(pending_evals.pop(0), stack, uncapped=True)
@@ -378,6 +437,10 @@ def execute(queue: dict, directory: Path) -> None:
             record()
             atomic_json(directory / "COMPLETE.json", state)
         except BaseException as error:
+            if shared_policy is not None:
+                for active in (active_fit, active_eval):
+                    if active is not None:
+                        terminate_tree(active[0].pid, active[2]["identity"])
             # Drain only the already-authorized evaluator, never launch peers.
             state.update(
                 status="failed", phase="failed", error_type=type(error).__name__, error=str(error)
@@ -399,6 +462,7 @@ def main():
     parser.add_argument("--evaluate", type=Path)
     parser.add_argument("--attempt", type=int, default=1)
     parser.add_argument("--uncapped", action="store_true")
+    parser.add_argument("--shared-policy", type=Path)
     args = parser.parse_args()
     if args.evaluate:
         evaluate_attempt(
@@ -413,7 +477,13 @@ def main():
     else:
         if not all((args.manifest, args.runtime, args.output)):
             parser.error("preparation requires manifest/runtime/output")
-        prepare(Path(__file__).resolve().parents[2], args.manifest, args.runtime, args.output)
+        prepare(
+            Path(__file__).resolve().parents[2],
+            args.manifest,
+            args.runtime,
+            args.output,
+            read_json(args.shared_policy) if args.shared_policy else None,
+        )
 
 
 if __name__ == "__main__":

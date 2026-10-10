@@ -80,3 +80,41 @@ stability. Record actual overlap wall time and failures for later comparison.
 Short preflight waits use the existing Luna helper, without main duplicate polling.
 When formal fitting starts, hand the exact queue/run/attempt to the designated
 supervisor, reactivate its20min monitor and main return fallback, and verify ACK.
+
+## User-authorized bounded GPU1 coexistence (2026-10-11)
+
+Pre-change source `f6a7a905bdf370647ea71d02ef4c3a7d1276dc76` was clean and
+verified on GitHub main before editing. The old CPU controller was stopped by
+identity-matched PID-only SIGTERM, before any CUDA child or preflight. Its queue
+and immutable source remain untouched. Supervisor returned ownership and paused
+its monitor; main ACKed the exact handback.
+
+The user explicitly authorizes testing our dual-GPU work beside the observed
+low-memory ScButterfly GPU1 workload. This is an opt-in sealed queue policy;
+the ordinary exclusive gate remains the default. Admission accepts at most one
+foreign process on the recorded physical GPU1 UUID, with the recorded Unix UID
+and the exact Python script basename. Foreign memory must stay <=1024MiB, actual
+physical free memory >=2048MiB on both GPUs, and our preflight/fit allocator cap
+<=85%. Five-second controller checks record process identity, memory and free
+reserve. Unknown workloads or exhausted reserve stop only identity-verified
+current-user descendants of our controller; no foreign signals or process-group
+kills. A shared preflight must match its sealed config/source/data/publication,
+output path, two ranks and exactly ten updates. Admission is an operational
+bound, not a guarantee that a foreign workload will never grow or slow down.
+
+ScButterfly was still alive at 2026-10-10 18:00:21 UTC after our old controller
+stopped. It was absent at 18:08:03 UTC, while our new CUDA work had not started:
+old queue active/preflight/events all empty; no compute apps. This establishes
+that the new coexistence test was not contending with it at departure. It does
+not identify normal completion versus failure or its cause. No foreign private
+logs were read. Consequently, the forthcoming idle preflight cannot be labeled
+actual ScButterfly coexistence evidence.
+
+Scientific order and common configs stay N0 -> CG1 -> U24 -> MR1 -> P1,
+world2/micro68/accum2/global272, fresh six epochs, no validation, last-only
+frozen300/18Pearson/zeroPKL. CG1 then N0 ten-update restore/inference gates still
+precede formal fitting. The existing 65% fit +25% GPU0 eval overlap rule remains;
+otherwise pending evaluation drains before fitting, including an 85% fit.
+Local targeted verification:45 passed; scoped Ruff and diff checks passed.
+New source publication, server checks and CUDA receipts are pending at this
+snapshot. GPU coexistence throughput/impact and long-term capacity unmeasured.

@@ -56,7 +56,11 @@ def main() -> None:
     parser.add_argument("--fused-sinkhorn", action="store_true")
     parser.add_argument("--save-no-grad-sinkhorn", action="store_true")
     parser.add_argument("--fused-gram", action="store_true")
+    parser.add_argument("--shared-queue", type=Path)
+    parser.add_argument("--resource-owner-pid", type=int)
     args = parser.parse_args()
+    if bool(args.shared_queue) != bool(args.resource_owner_pid):
+        parser.error("shared preflight requires both the sealed queue and controller PID")
     if args.fused_gram and (
         not args.benchmark_only
         or args.fused_sinkhorn
@@ -147,7 +151,20 @@ def main() -> None:
     )
     environment = inspect_environment(Path(__file__).resolve().parents[2], device_name="cuda:0")
     free, total = torch.cuda.mem_get_info()
-    if total - free > 512 * 1024**2:
+    shared_policy = None
+    if args.shared_queue:
+        from shared_gpu import admit, descendant, parent_map, snapshot, validate_probe_binding
+
+        from gradpert.data._io import read_json
+
+        shared_queue = read_json(args.shared_queue)
+        shared_policy = shared_queue["shared_gpu_policy"]
+        validate_probe_binding(shared_queue, args, source.commit, kind, world)
+        if not descendant(os.getpid(), args.resource_owner_pid, parent_map()):
+            raise RuntimeError("shared preflight is not a descendant of its published controller")
+        admit(shared_policy, snapshot(args.resource_owner_pid))
+        torch.cuda.set_per_process_memory_fraction(shared_policy["max_own_memory_fraction"], 0)
+    elif total - free > 512 * 1024**2:
         raise RuntimeError("capacity probe requires idle GPU; existing work is preserved")
     if world > 1:
         torch.cuda.set_device(0)
@@ -178,6 +195,9 @@ def main() -> None:
         "hardware": environment_snapshot(torch),
         "host_before": host_snapshot(),
     }
+    if shared_policy is not None:
+        receipt["shared_gpu_policy"] = shared_policy
+        receipt["shared_queue_sha256"] = sha256_file(args.shared_queue)
     primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
     capture = None
     try:

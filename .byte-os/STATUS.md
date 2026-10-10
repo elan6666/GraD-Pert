@@ -1,3 +1,7 @@
+## 2026-10-11：有边界的GPU1共存策略，本地验证完成
+
+主会话已接回执行权，旧等待控制器2096296已停止且从未启动CUDA子任务；旧队列/源码保留，监督监控PAUSED。用户授权与低显存ScButterfly共存测试；新增可选密封策略：仅指定GPU1/UID/脚本、最多一个外部进程且<=1GiB，双卡实际空闲>=2GiB，我们allocator<=85%，5秒检查，越界只停我们自己的身份匹配进程。本地45定向测试/Ruff/diff通过，待新源码发布和服务器预检。ScButterfly在旧控制器停止后仍存活，18:08 UTC已退出；当时我们没有CUDA任务，因此不能声称它失败或认定退出原因，也不能将后续空闲预检当作实际共存证据。科学配置与五组顺序不变，先CG1/N0各10步+restore+300-control，再N0→CG1→U24→MR1→P1各6轮last-only。详见GRADPERT_V2_UNIFIED_DDP_20261010.plan.md。
+
 ## 2026-10-10：统一 MLP 恢复双卡累积（当前覆盖单卡计划）
 
 旧单卡控制器/N0/U24已按用户指令停止，停止核验SHA256 eb4f0e46a67c0618ed6671a0a40e01a98344af70944b3e0501cab55159af9fa6。旧产物保留。新十组配置：world2、每卡微68、accum2/global272；先N0→CG1→U24→MR1→P1，用户明确先只跑这五组；其余五组不派发。CG1 rank-local control对齐及P1完整群体MMD适配已完成，本地验证/发布阶段；CUDA10步预检及正式训练尚未开始。Owner主会话，旧监督/返回监控PAUSED。详见主实现工作树计划 GRADPERT_V2_UNIFIED_DDP_20261010.plan.md。

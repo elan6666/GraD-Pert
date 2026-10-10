@@ -1,0 +1,18 @@
+{
+  "schema": "bounded-shared-gpu-local-verification-1",
+  "baseline_commit": "f6a7a905bdf370647ea71d02ef4c3a7d1276dc76",
+  "tests_passed": 45,
+  "ruff": "passed",
+  "diff_check": "passed",
+  "native_model_config_changes": false,
+  "cuda_started": false,
+  "foreign_departure_cause": "unknown; absence is not a failure receipt",
+  "controller_stop_receipt_sha256": "54d8776f14eeed4b54e0b6a3827e24529fb4ce781d18a88c083df6799ae0cdb3",
+  "old_queue_sha256": "77017014b571a63776fe180fe82f4b2a566d86ed61570a6e72579b19a401b7e9",
+  "foreign_live_after_controller_stop_utc": "2026-10-10T18:00:21Z",
+  "foreign_absent_observation_utc": "2026-10-10T18:08:03.212314+00:00",
+  "old_active": {},
+  "old_preflights": {},
+  "old_events": [],
+  "coexistence_cuda_evidence": false
+}
