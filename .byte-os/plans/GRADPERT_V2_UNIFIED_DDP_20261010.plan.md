@@ -48,11 +48,13 @@ the complete objective; gather backward sums remote-row contributions and the
 parameter average divides by world. Empty local tails join the same collective
 order without making a fake observation. Record this distributed scope in runtime.
 
-Local deterministic tests compare outputs, gradients, optimizer moments,
-Student/Teacher and centers after nonzero-LR updates. Use high precision and
-matched micro shapes for reduction parity; this does not claim bitwise CUDA
-parity across different batch shapes or the same stochastic masks after topology
-changes. Existing real float32/dropout/checkpoint tests remain required.
+Local deterministic tests compare outputs, gradients, SGD momentum-oracle
+updates, Student/Teacher and centers after nonzero-LR updates. Use high precision
+and matched micro shapes to isolate reduction semantics from quantized Muon
+Newton-Schulz trajectories. Separately require bitwise cross-rank model, Teacher,
+center and actual Muon/AdamW state synchronization under native Float32, random
+order and checkpointing. No bitwise single/dual CUDA trajectory or identical
+stochastic masks across topology changes is claimed; tolerances are unchanged.
 
 ## Launch, capacity and scheduling
 

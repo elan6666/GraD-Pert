@@ -14,6 +14,33 @@ from gradpert.training.v2.engine import optimizer_step, slice_cells
 from gradpert.training.v2.optimizer import V2Optimizer
 
 
+class ReductionReferenceSGD:
+    """Isolate reduction from Muon's quantized Newton-Schulz trajectory.
+
+    Real Muon/AdamW updates are separately checked for bitwise cross-rank
+    synchronization below; this oracle preserves the tight gradient/state
+    tolerances and has no BF16 orthogonalization boundary.
+    """
+
+    def __init__(self, model, lr, weight_decay):
+        self.optimizer = torch.optim.SGD(
+            model.parameters(), lr=lr, momentum=0.9, weight_decay=weight_decay
+        )
+        self.steps = 0
+
+    def zero_grad(self):
+        self.optimizer.zero_grad()
+
+    def step(self, lr):
+        for group in self.optimizer.param_groups:
+            group["lr"] = lr
+        self.optimizer.step()
+        self.steps += 1
+
+    def state_dict(self):
+        return {"optimizer": self.optimizer.state_dict(), "steps": self.steps}
+
+
 def deterministic_fixture(arm, count):
     objective, batch, _, _ = fixture(arm, checkpointed=False)
     for model in (objective.student, objective.teacher):
@@ -59,6 +86,19 @@ def assert_optimizer_state(actual, expected):
         assert actual == expected
 
 
+def assert_optimizer_rank_sync(state):
+    if isinstance(state, torch.Tensor):
+        shared = state.clone()
+        dist.broadcast(shared, src=0)
+        torch.testing.assert_close(state, shared, atol=0, rtol=0)
+    elif isinstance(state, dict):
+        for value in state.values():
+            assert_optimizer_rank_sync(value)
+    elif isinstance(state, (tuple, list)):
+        for value in state:
+            assert_optimizer_rank_sync(value)
+
+
 def _distributed_worker(rank, rendezvous, reference, arm, count, strategy):
     dist.init_process_group(
         "gloo",
@@ -71,7 +111,7 @@ def _distributed_worker(rank, rendezvous, reference, arm, count, strategy):
         objective, batch = deterministic_fixture(arm, count)
         objective.loss_reduction = strategy
         local = slice_cells(batch, count * rank // 2, count * (rank + 1) // 2)
-        optimizer = V2Optimizer(objective.student, 1e-3, 0)
+        optimizer = ReductionReferenceSGD(objective.student, 1e-3, 0)
         expected = torch.load(reference, weights_only=True)
         for step in range(2):
             metrics = optimizer_step(
@@ -124,7 +164,7 @@ def _distributed_worker(rank, rendezvous, reference, arm, count, strategy):
 def test_two_rank_accumulated_complete_updates_match_global_batch(tmp_path, arm, count, strategy):
     objective, batch = deterministic_fixture(arm, count)
     objective.loss_reduction = strategy
-    optimizer = V2Optimizer(objective.student, 1e-3, 0)
+    optimizer = ReductionReferenceSGD(objective.student, 1e-3, 0)
     records = []
     for _ in range(2):
         metrics = optimizer_step(
@@ -206,6 +246,7 @@ def _native_worker(rank, rendezvous, arm):
                 shared = parameter.clone()
                 dist.broadcast(shared, src=0)
                 torch.testing.assert_close(parameter, shared, atol=0, rtol=0)
+            assert_optimizer_rank_sync(optimizer.state_dict())
             assert not objective.pending
     finally:
         dist.destroy_process_group()
