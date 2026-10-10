@@ -1,0 +1,113 @@
+{
+  "schema": "unified-ddp-1",
+  "family": "unified_ddp_20261010",
+  "world_size": 2,
+  "accumulation": 2,
+  "common_microbatch": 48,
+  "global_batch": 192,
+  "eval_batch": 32,
+  "epochs": 6,
+  "validation": "disabled",
+  "test_roles": [
+    "last"
+  ],
+  "seed": 1,
+  "preflight_updates": 10,
+  "priority": [
+    "N0",
+    "CG1",
+    "U24",
+    "MR1",
+    "P1"
+  ],
+  "parent_family": "unified_first_20261010",
+  "population_batch": "actual same-condition rows; do not duplicate truths to fill budget",
+  "rows": [
+    {
+      "name": "N0",
+      "config": "configs/v2/unified_ddp_m48_20261011/N0/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "c734762d96a7879474554059d6079e0019a56e4a828f252a8573d050db02d500",
+      "changes": {}
+    },
+    {
+      "name": "U24",
+      "config": "configs/v2/unified_ddp_m48_20261011/U24/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "90549f581fa8abd9c4697065c2aeec02458c01b6e563dd4f1de6ef438d88696f",
+      "changes": {
+        "gene_conditioned_readout": true
+      }
+    },
+    {
+      "name": "MR1",
+      "config": "configs/v2/unified_ddp_m48_20261011/MR1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "f56632ffa117e696bdd74f6195db15766df64602ed24ef12589f1725963accf1",
+      "changes": {
+        "masked_response_ratio": 0.25,
+        "lambda_masked_response": 1.0
+      }
+    },
+    {
+      "name": "P1",
+      "config": "configs/v2/unified_ddp_m48_20261011/P1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "cd05a73b4ae7e02a3d177f752c419b0571b33814594db2693e7cb11bb1b3082f",
+      "changes": {
+        "population_response": true,
+        "max_conditions": 1
+      }
+    },
+    {
+      "name": "C1",
+      "config": "configs/v2/unified_ddp_m48_20261011/C1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "7aaf5c61f10999ecc4495bd6c55c7dbb08c0da67aa51f7a0af4f6a4896a4fcc5",
+      "changes": {
+        "perturbation_injection": "entry"
+      }
+    },
+    {
+      "name": "O1",
+      "config": "configs/v2/unified_ddp_m48_20261011/O1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "74f4f6763308e0170eb48586190ac215c66f9c4eac30d840f6933da34ca3221b",
+      "changes": {
+        "random_gene_order": false
+      }
+    },
+    {
+      "name": "VH",
+      "config": "configs/v2/unified_ddp_m48_20261011/VH/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "5aa4e43bc499e0e30ece449b2a8cc05dfe0bf1f8f605856c0b8fe7f526b4681c",
+      "changes": {
+        "global_min_ratio": 0.8,
+        "global_max_ratio": 1.0,
+        "local_min_ratio": 0.4,
+        "local_max_ratio": 0.65
+      }
+    },
+    {
+      "name": "S1-L4",
+      "config": "configs/v2/unified_ddp_m48_20261011/S1-L4/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "d0774f5a855c7d263a8af51316d03ffe6eb6ce85b82cd4729eb88cda88bb3721",
+      "changes": {
+        "ssl1_local_views": 4,
+        "ssl1_local_layout": "go_string_random"
+      }
+    },
+    {
+      "name": "CG1",
+      "config": "configs/v2/unified_ddp_m48_20261011/CG1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "8a3bbce29b66359914a72de69bc1b8cea7b67e4c4e29800e87e28c335d0b2dfb",
+      "changes": {
+        "control_conditioned_graph": true
+      }
+    },
+    {
+      "name": "S12-L4",
+      "config": "configs/v2/unified_ddp_m48_20261011/S12-L4/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "36e2cf29ff0d50f73a3147991036aabeb211def8dfeb12b25ce1b0c86ed6c7a4",
+      "changes": {
+        "ssl1_local_views": 4,
+        "ssl2_local_views": 4,
+        "ssl1_local_layout": "go_go_string_string"
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schema": "common-batch-config-validation-1",
+  "baseline_commit": "6df3bdd9fd5f6c908261f099b31f59d558cd3b72",
+  "manifest_sha256": "8f7fb26c24325914cc581627fc7fbf266e754df00b488fb169ead188bea1acf5",
+  "configs_verified": 10,
+  "only_changes": [
+    "microbatch:68->48",
+    "train_batch_size:272->192"
+  ],
+  "priority": [
+    "N0",
+    "CG1",
+    "U24",
+    "MR1",
+    "P1"
+  ],
+  "model_loss_data_unchanged": true,
+  "cuda_candidate_validated": false
+}

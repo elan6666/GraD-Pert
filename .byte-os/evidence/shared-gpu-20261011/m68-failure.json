@@ -1,0 +1,55 @@
+{
+  "status": "failed",
+  "kind": "preflight_only",
+  "steps_requested": 10,
+  "steps_completed": 0,
+  "error_type": "OutOfMemoryError",
+  "error": "CUDA out of memory. Tried to allocate 626.00 MiB. GPU 0 has a total capacity of 31.36 GiB of which 3.87 GiB is free. Including non-PyTorch memory, this process has 27.48 GiB memory in use. 26.65 GiB allowed; Of the allocated memory 26.48 GiB is allocated by PyTorch, and 109.37 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)",
+  "config_sha256": "5479afc0bb61472d1a6f3e3b918cf4760c33512d7ae29f1090082081243400a2",
+  "source": {
+    "commit": "6df3bdd9fd5f6c908261f099b31f59d558cd3b72",
+    "dirty": false,
+    "formal_eligibility_reason": null,
+    "formal_eligible": true,
+    "publication_receipt_sha256": "fc1f3ccc275f946b60b90a0d04a1dd582c6d452e4b51e608b864ff3a69557dcb",
+    "published_commit": "6df3bdd9fd5f6c908261f099b31f59d558cd3b72",
+    "remote_ref": "refs/heads/main",
+    "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+    "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-shared-6df3bdd",
+    "tree_sha256": "12848faf27b66a3e2a11cb1d3cece8ec758fed6daf6b35e211ce1d95f16e4682"
+  },
+  "shared_gpu_policy": {
+    "command_basename": "run_scbutterfly_archived_predictions.py",
+    "foreign_uid": 1003,
+    "gpu_index": 1,
+    "gpu_uuid": "GPU-edd7484e-c71d-1938-4831-76c233466ccb",
+    "max_foreign_memory_mib": 1024,
+    "max_own_memory_fraction": 0.85,
+    "min_free_memory_mib": 2048,
+    "schema": "shared-gpu-admission-1"
+  },
+  "shared_queue_sha256": "f0c6f2aa7a2eeb57371073ae023267df09923cc21d770fb069a24536b72efccf",
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-shared-6df3bdd-20261010T181743Z",
+  "raw_receipt_sha256": "bcff5c49482c65582d99bd816429461bacffec1d7ab009d471ccc6a2cfb8f31c",
+  "queue_failure_sha256": "c392825e769206f28ee818eefb7b799ae581dfe6b43aad934cd48d70fb2a2d83",
+  "exit_sha256": "bc29caf783682e592e17b9d48313959d010d2f1c899a23b754e7b7eb11db6fbe",
+  "telemetry_first": {
+    "stage": "admission",
+    "observed_unix": 1791656343.819567,
+    "gpus": {
+      "0": {
+        "uuid": "GPU-23bb1466-b82b-982d-8eaf-9a0002c6a4e7",
+        "total_mib": 32607,
+        "used_mib": 2,
+        "free_mib": 32110
+      },
+      "1": {
+        "uuid": "GPU-edd7484e-c71d-1938-4831-76c233466ccb",
+        "total_mib": 32607,
+        "used_mib": 2,
+        "free_mib": 32110
+      }
+    },
+    "processes": []
+  }
+}

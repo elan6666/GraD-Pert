@@ -118,3 +118,24 @@ otherwise pending evaluation drains before fitting, including an 85% fit.
 Local targeted verification:45 passed; scoped Ruff and diff checks passed.
 New source publication, server checks and CUDA receipts are pending at this
 snapshot. GPU coexistence throughput/impact and long-term capacity unmeasured.
+
+## Common fallback after shared-policy capacity failure (2026-10-11)
+
+The micro68/global272 candidate failed before its first complete update on clean
+source6df3bdd9fd5f6c908261f099b31f59d558cd3b72. CG1 reached the 85% allocator
+limit (~26.65GiB), with ~3.87GiB physical free still present; the primary receipt
+reports a626MiB request, and the peer log a488MiB request. No foreign CUDA job
+was present, no N0 preflight or formal fit started. Preserve original queue
+v2-shared-6df3bdd-20261010T181743Z and raw server artifacts. Small independent
+failure record: evidence/shared-gpu-20261011/m68-failure.json. This is a capped
+capacity failure, not evidence that physical full-device micro68 cannot fit.
+
+Do not weaken the shared resource limits. Generate a new self-contained family
+configs/v2/unified_ddp_m48_20261011 with common micro48/world2/accum2, nominal
+global192, for all ten configs while dispatching only the five confirmed arms.
+Deep comparison proves only microbatch and effective batch changed; the scientific
+method, split, six-epoch endpoint, masks, views, inference and evaluation stay
+fixed. Learning-rate endpoint schedule is resolved against the new update count,
+so it is not claimed as the same stochastic trajectory as global272. Fresh source
+publication, queue/run IDs and CG1->N0 ten-update restore/inference gates remain
+mandatory. Candidate48 is unvalidated until those receipts pass.
