@@ -1,3 +1,7 @@
+## 2026-10-10：统一 MLP 恢复双卡累积（当前覆盖单卡计划）
+
+旧单卡控制器/N0/U24已按用户指令停止，停止核验SHA256 eb4f0e46a67c0618ed6671a0a40e01a98344af70944b3e0501cab55159af9fa6。旧产物保留。新十组配置：world2、每卡微68、accum2/global272；先N0→CG1→U24→MR1→P1→C1（第六组暂定），其余四组不派发。CG1 rank-local control对齐及P1完整群体MMD适配已完成，本地验证/发布阶段；CUDA10步预检及正式训练尚未开始。Owner主会话，旧监督/返回监控PAUSED。详见主实现工作树计划 GRADPERT_V2_UNIFIED_DDP_20261010.plan.md。
+
 # Active loss stage (2026-10-07)
 
 Six matched Jurkat cap40 arms, order L0/L1/L2/M2/L3/M1. M1 gene=1/CLS=0, M2 gene=1/CLS=1, mask20%. Native implementation and CPU synthetic validation complete; publication/server checks/capacity/launch pending. No new scientific results. Local tests 39 directed and 540 v2 regression passed, 11 dependency/hardware skips, 1 reproduced parent missing-config test excluded. See `.byte-os/coordination/receipts/loss-weight1-local-verification-20261007.json`.

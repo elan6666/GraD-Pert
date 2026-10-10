@@ -279,7 +279,9 @@ def stage_command(directory: Path, row: JSON, stage: str, attempt: int = 1) -> l
     ]
 
 
-def evaluate_attempt(plan: JSON, attempt: int, fraction: float) -> None:
+def evaluate_attempt(
+    plan: JSON, attempt: int, fraction: float, *, gpu: str | None = None, full_first: bool = False
+) -> None:
     """Same frozen inference, unique attempt roots; OOM cannot overwrite a receipt."""
     from gradpert.evaluation.state import prepare_evaluation_state
     from gradpert.execution.v2_checkpoint_eval import (
@@ -294,7 +296,7 @@ def evaluate_attempt(plan: JSON, attempt: int, fraction: float) -> None:
     output = root / f"postfit-last-attempt{attempt}"
     if attempt not in (1, 2) or output.exists():
         raise ValueError("postfit attempt is new, bounded and never overwritten")
-    if fraction != (EVAL_FRACTION if attempt == 1 else 1.0):
+    if fraction != (EVAL_FRACTION if attempt == 1 and not full_first else 1.0):
         raise ValueError("postfit attempt allocation budget changed")
     try:
         prepare_evaluation_state(
@@ -312,7 +314,7 @@ def evaluate_attempt(plan: JSON, attempt: int, fraction: float) -> None:
             checkpoint_sha256=selected["sha256"],
             checkpoint_role="last",
             output_root=output,
-            gpu=plan["gpu"],
+            gpu=plan["gpu"] if gpu is None else gpu,
             split="test",
         )
         evaluation = resolve_evaluation_plan(request)

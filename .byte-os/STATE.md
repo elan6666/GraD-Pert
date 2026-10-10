@@ -1,3 +1,7 @@
+## 2026-10-10：统一 MLP 恢复双卡累积（当前覆盖单卡计划）
+
+旧单卡控制器/N0/U24已按用户指令停止，停止核验SHA256 eb4f0e46a67c0618ed6671a0a40e01a98344af70944b3e0501cab55159af9fa6。旧产物保留。新十组配置：world2、每卡微68、accum2/global272；先N0→CG1→U24→MR1→P1→C1（第六组暂定），其余四组不派发。CG1 rank-local control对齐及P1完整群体MMD适配已完成，本地验证/发布阶段；CUDA10步预检及正式训练尚未开始。Owner主会话，旧监督/返回监控PAUSED。详见主实现工作树计划 GRADPERT_V2_UNIFIED_DDP_20261010.plan.md。
+
 ## 2026-10-05：唯一合并E23从头20轮队列已交监督
 
 训练SHA e27f49166dae688eb35444331a1ef1916238efe7，固定config7214e3…c08df8。合并四头16384和SSL1/SSL2各(1,1,0)，mHC4/global272/cap40；本地114、服务器133检查通过。队列 v2-cap40-e23-twenty-e27f491-20261004T203648Z-5d34d6ae attempt1 已真实启动，监督ACK时容量预检24/128，尚非正式epoch。通过后自动fresh20及best/last测试。指定监督会话 owner；20min监控ACTIVE与exacttarget/run已由主会话复核，返回fallback PAUSED。无需主会话重复查服务器。当前共享权威状态位于 /Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/state.json；发布状态只是交接快照。证据 .byte-os/evidence/v2-cap40-e23-twenty-20261005/、ACK .byte-os/coordination/receipts/v2-cap40-e23-twenty-supervisor-ack-20261005T0447Z.json。历史六轮结果不变，旧分别两臂20轮解释已覆盖。

@@ -264,7 +264,7 @@ def fit(
                         else cells / global_cells
                     )
             if distributed:
-                if global_cells < world:
+                if global_cells < world and not objective.population_response:
                     raise ValueError("global batch must provide a row to every rank")
                 batch = slice_cells(
                     batch,

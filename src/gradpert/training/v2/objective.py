@@ -271,6 +271,7 @@ class JointObjective(nn.Module):
         prediction_weights: Tensor | None = None,
         row_weights: Tensor | None = None,
         deferred_koleo: list[tuple[Tensor, Tensor, Tensor]] | None = None,
+        deferred_population: list[tuple[Tensor, Tensor]] | None = None,
     ) -> tuple[Tensor, dict[str, Tensor]]:
         model = self.student
         student_prefix = (
@@ -314,15 +315,19 @@ class JointObjective(nn.Module):
 
             if torch.unique(batch.condition_index).numel() != 1:
                 raise ValueError("population response requires one perturbation per batch")
-            population = population_response_loss(
-                response["prediction"].float(), batch.truth.float()
-            )
-            loss = population.mean_mse + self.lambda_mmd * population.mmd_unbiased
-            population_metrics = {
-                "population_mean_mse": population.mean_mse,
-                "population_mmd": population.mmd_unbiased,
-                "population_mmd_valid": loss.new_tensor(float(population.mmd_valid)),
-            }
+            if deferred_population is not None:
+                deferred_population.append((response["prediction"].float(), batch.truth.float()))
+                loss = response["prediction"].sum() * 0
+            else:
+                population = population_response_loss(
+                    response["prediction"].float(), batch.truth.float()
+                )
+                loss = population.mean_mse + self.lambda_mmd * population.mmd_unbiased
+                population_metrics = {
+                    "population_mean_mse": population.mean_mse,
+                    "population_mmd": population.mmd_unbiased,
+                    "population_mmd_valid": loss.new_tensor(float(population.mmd_valid)),
+                }
         metrics = {"prediction": loss}
         metrics.update(population_metrics)
         if row_weights is None:
@@ -387,6 +392,7 @@ class JointObjective(nn.Module):
         *,
         control: Tensor | None = None,
         query_gene_ids: Tensor | None = None,
+        condition_weights: Tensor | None = None,
     ) -> dict[str, Tensor]:
         if len(views) < 2:
             raise ValueError("SSL1 requires two globals")
@@ -406,7 +412,7 @@ class JointObjective(nn.Module):
         student_logits = (
             [self.student.ssl1_cls(c) for _, c in student_states] if self.weights[0][0] else []
         )
-        counts = None
+        counts = condition_weights
         if self.ssl1_reduction == "row_mean" and not self.student.options.control_conditioned_graph:
             if condition_index is None:
                 raise ValueError("row reduction needs condition frequencies")

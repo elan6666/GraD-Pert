@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -27,6 +28,15 @@ def main() -> None:
     from gradpert.execution.v2 import run_v2
 
     torch.cuda.set_device(0)
+    fraction = plan.get("cuda_memory_fraction")
+    if fraction is not None:
+        if (
+            type(fraction) not in (float, int)
+            or not math.isfinite(fraction)
+            or not 0 < fraction <= 1
+        ):
+            raise ValueError("sealed CUDA allocation fraction must be finite in (0,1]")
+        torch.cuda.set_per_process_memory_fraction(fraction, 0)
     torch.distributed.init_process_group("nccl", timeout=timedelta(minutes=5))
     try:
         run_v2(plan, resume=args.resume)

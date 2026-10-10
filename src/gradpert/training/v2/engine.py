@@ -58,7 +58,9 @@ def optimizer_step(
             raise ValueError("distributed steps require global condition IDs and cell_mean loss")
         count = torch.tensor(len(batch.control), device=batch.control.device)
         torch.distributed.all_reduce(count)
-        if count.item() != len(global_condition_index) or not len(batch.control):
+        if count.item() != len(global_condition_index) or (
+            not len(batch.control) and not objective.population_response
+        ):
             raise ValueError("distributed cell partitions differ from the global batch")
         population_factor = (
             torch.distributed.get_world_size() * len(batch.control) / len(global_condition_index)
@@ -98,6 +100,13 @@ def optimizer_step(
     deferred_koleo: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] | None = (
         [] if unified and objective.lambda2 and objective.weights[1][2] else None
     )
+    deferred_population: list[tuple[torch.Tensor, torch.Tensor]] | None = (
+        [] if objective.population_response else None
+    )
+    if deferred_population is not None and (not unified or (deferred_koleo is not None)):
+        raise ValueError(
+            "population response requires unified weights and disabled same-condition KoLeo"
+        )
     pending_cell_losses: list[torch.Tensor] = []
     if unified:
         ids = gather_rows(batch.condition_index)
@@ -173,6 +182,7 @@ def optimizer_step(
                     if row_weights is None
                     else row_weights[start : start + len(micro.control)],
                     deferred_koleo=deferred_koleo,
+                    deferred_population=deferred_population,
                 )
             if not torch.isfinite(loss):
                 finite = False
@@ -183,7 +193,7 @@ def optimizer_step(
                 koleo = global_koleo()
                 loss = loss + objective.lambda2 * objective.weights[1][2] * koleo
                 metrics["ssl2_koleo"] = float(koleo.detach())
-            if deferred_koleo is not None and not single_micro:
+            if (deferred_koleo is not None and not single_micro) or deferred_population is not None:
                 pending_cell_losses.append(loss * fraction * population_factor)
             else:
                 (loss * fraction * population_factor).backward()
@@ -192,7 +202,50 @@ def optimizer_step(
             # Keep only CLS ancestor graphs for the deferred global KoLeo pass,
             # not projection-head losses or the main prediction graph.
             del loss, terms, value
-        if deferred_koleo is not None and microbatch < total:
+        if deferred_population is not None:
+            from .population import population_response_loss
+
+            if deferred_population:
+                predictions = torch.cat([p for p, _ in deferred_population])
+                truths = torch.cat([t for _, t in deferred_population])
+            else:
+                # Singleton global populations can leave one rank empty. It still
+                # joins the same differentiable gather/backward collectives.
+                predictions = batch.truth.new_empty(
+                    (0, batch.truth.shape[-1]), dtype=torch.float32, requires_grad=True
+                )
+                truths = batch.truth.float()
+            global_predictions, global_truth = gather_rows(predictions), gather_rows(truths)
+            population = population_response_loss(global_predictions, global_truth)
+            world = torch.distributed.get_world_size() if distributed else 1
+            population_loss = (
+                population.mean_mse + objective.lambda_mmd * population.mmd_unbiased
+            ) / world
+            if not torch.isfinite(population_loss):
+                finite = False
+                if not distributed:
+                    raise FloatingPointError("nonfinite global population response loss")
+            base = (
+                torch.stack(pending_cell_losses).sum()
+                if pending_cell_losses
+                else next(objective.student.parameters()).sum() * 0
+            )
+            (base + population_loss * population_factor).backward()  # type: ignore[no-untyped-call]
+            metrics["prediction"] = float(population_loss.detach())
+            metrics["population_mean_mse"] = float(population.mean_mse.detach()) / world
+            metrics["population_mmd"] = float(population.mmd_unbiased.detach()) / world
+            metrics["population_mmd_valid"] = float(population.mmd_valid) / world
+            if not total:
+                for name in (
+                    "prediction_mse",
+                    "control_copy_mse",
+                    "ssl2_dino",
+                    "ssl2_ibot",
+                    "ssl2_koleo",
+                ):
+                    metrics[name] = 0.0
+            deferred_population.clear()
+        elif deferred_koleo is not None and microbatch < total:
             koleo = global_koleo()
             (
                 torch.stack(pending_cell_losses).sum()
@@ -201,7 +254,61 @@ def optimizer_step(
             metrics["ssl2_koleo"] = float(koleo.detach())
         if deferred_koleo is not None:
             deferred_koleo.clear()
-        if objective.lambda1:
+        if objective.lambda1 and objective.student.options.control_conditioned_graph:
+            if objective.weights[0][2] and microbatch < total:
+                raise ValueError("CG1 spread cannot be reduced independently across cell chunks")
+            for name in ("condition", "node", "spread"):
+                metrics[f"ssl1_{name}"] = 0.0
+            # CG1 is indexed by (control,p), so rank-local control rows require
+            # rank-local condition IDs. Global weights retain exact row/condition
+            # means, and node loss remains an effective masked-node mean.
+            for start in range(0, total, microbatch):
+                end = min(start + microbatch, total)
+                with torch.autocast(device_type=device, dtype=torch.bfloat16, enabled=bf16):
+                    weights = (
+                        reduction_weights[0][start:end]
+                        if reduction_weights is not None
+                        else batch.control.new_full((end - start,), 1 / total)
+                    )
+                    graph_terms = objective.graph_loss(
+                        batch.graph_views,
+                        batch.condition_index[start:end],
+                        control=batch.control[start:end],
+                        query_gene_ids=batch.graph.ids[batch.query_positions],
+                        condition_weights=weights,
+                    )
+                    factors = {
+                        "condition": float(weights.sum()) * population_factor,
+                        "node": (end - start)
+                        / max(1, total)
+                        * (
+                            1.0
+                            if not distributed
+                            else torch.distributed.get_world_size()
+                            * total
+                            / len(global_condition_index)  # type: ignore[arg-type]
+                        ),
+                        "spread": 1.0,
+                    }
+                    graph_loss = (
+                        objective.lambda1
+                        * torch.stack(
+                            [
+                                weight * graph_terms[name] * factors[name]
+                                for weight, name in zip(
+                                    objective.weights[0], graph_terms, strict=True
+                                )
+                            ]
+                        ).sum()
+                    )
+                if not torch.isfinite(graph_loss):
+                    finite = False
+                    if not distributed:
+                        raise FloatingPointError("nonfinite CG1 graph loss")
+                graph_loss.backward()  # type: ignore[no-untyped-call]
+                for name, value in graph_terms.items():
+                    metrics[f"ssl1_{name}"] += float(value.detach()) * factors[name]
+        elif objective.lambda1:
             with torch.autocast(device_type=device, dtype=torch.bfloat16, enabled=bf16):
                 graph_terms = objective.graph_loss(
                     batch.graph_views,

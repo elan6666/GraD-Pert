@@ -395,8 +395,6 @@ class V2Options:
         plain = {name: value.value for name, value in values.items()}
         arch = V2Architecture.parse({name: plain[name] for name in arch_names if name in plain})
         options = cls(**{name: plain[name] for name in names if name in plain})
-        if options.population_response and (options.world_size != 1 or options.accumulation != 1):
-            raise ValueError("population response requires one GPU and no accumulation")
         if (
             arch.prior_shared_adapter
             or arch.gene_conditioned_readout

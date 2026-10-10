@@ -384,6 +384,13 @@ def prepare_runtime(
             }
         if options.population_response:
             identity["loss_protocol"]["batch_order"] = "same_condition_population_train_rows_once"
+            identity["loss_protocol"]["population_scope"] = (
+                "complete_effective_batch_all_microbatches_and_ranks"
+            )
+        if arch.control_conditioned_graph:
+            identity["loss_protocol"]["conditional_ssl1_scope"] = (
+                "local_control_rows_global_condition_weights_masked_node_mean"
+            )
         if any(
             (
                 arch.prior_shared_adapter,
