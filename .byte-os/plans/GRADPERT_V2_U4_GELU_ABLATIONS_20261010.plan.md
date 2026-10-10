@@ -8,6 +8,8 @@
 ## 1. 基线与公共协议
 
 实验族建议 `u4_gelu_mechanisms_20261010`，各编号只在这个族内解释。
+后续新增v2实验默认显式启用U4＋GELU；单独关闭必须标为先验/激活消融。
+这不追改历史配置、checkpoint缺省解析或已有运行，不把新默认倒填为旧结果来源。
 N0是新完整基线：固定6506×2048 GenePT；共享Linear2048→256→精确GELU→
 LayerNorm；图3层单向合法邻域KDA＋1层来源门控稀疏MLA；Cell2 KDA＋1 MLA；
 Response2 self/cross KDA＋1 self/cross MLA，逐层注入扰动。所有query读最终S，
@@ -34,7 +36,7 @@ Student可训练34,528,302，总参数47,852,590；额外13,324,288为冻结先�
 - 相同主数据/视图/顺序/辅助任务独立随机流，记录ID和RNG来源。
   新辅助支路不推进Teacher/center第二次，也不访问val/test训练目标。
 
-## 2. 第一批11组：一项机制一个问题
+## 2. 第一批12组：一项机制一个问题
 
 以下全部相对N0独立变化，不叠加。旧功能组与旧U4只有历史参照作用，
 不作为新基线的同协议运行，不覆盖其配置、SHA或指标。
@@ -43,6 +45,7 @@ Student可训练34,528,302，总参数47,852,590；额外13,324,288为冻结先�
 |---|---|---|
 | N0 | 新U4＋GELU完整基线 | 所有新组的共同锚点 |
 | Nlin | 仅GELU改Identity | 与N0隔离激活的作用；原始先验、共享投影及初始化不变 |
+| U24 | U4＋GELU加U2式先验条件读出 | 共享表征与先验条件预测权重是否互补；具体维度适配见第10节 |
 | MR0 | 新增未遮蔽响应辅助监督，系数1 | masked-response的额外监督/计算匹配对照 |
 | MR1 | 新增masked-response监督，系数1 | 与MR0隔离control表达缺失训练的作用；与N0报告净变化 |
 | P1 | 新增训练条件群体均值监督，系数1 | 单细胞随机配对监督与群体评估之间的错位 |
@@ -153,7 +156,7 @@ cap40训练严格不交；control使用训练control来源并冻结300个ID。�
 | 组 | 相对N0的变化 | 使用目的 |
 |---|---|---|
 | K1 | 全部KDA正反状态接力 | 新先验下是否降低顺序波动；不宣称排列不变 |
-| K2 | 仅Cell/Response self-KDA读St | 末态压缩相对逐位置读出的影响 |
+| K2-all | 图/Cell/Response self/cross全部KDA读对应前缀St | 全模块末态相对中间状态读出；不复用旧K2结果，见第10节 |
 | A1 | 所有图/self/cross KDA和MLA替换softmax | 完整注意力对照，图仍限合法邻域 |
 | A2 | 同范围替换CellFM式ReLU retention核心 | 顺序无关汇总对照，保持原来源适配定义 |
 | C3 | 删除所有control cross | control回读是否有贡献，仍由Cell输出初始化 |
@@ -184,7 +187,7 @@ C2（只末层cross）及H1（关mHC）维持用户此前移除决定。
   推理墙时、细胞吞吐和峰值显存。新增监督与D1/D2的joint尺度不可直接排名。
 
 建议次序：基底/诊断支持实现与测试→各组10步工程门→N0及训练侧probe→
-Nlin→MR0→MR1→P1→D1→D2→C1→O1→G1→G2。V0/V1作为单独迁移诊断轨。
+Nlin→U24→MR0→MR1→P1→D1→D2→C1→O1→G1→G2。V0/V1作为单独迁移诊断轨。
 这是规划次序；执行、seed补充和补充组须有明确授权后进入队列。
 短时门由Luna只读监督，主不重复轮询；长队列交既有监督会话，终态后撤监控。
 按先前偏好可在上一组postfit期间推进下一组fit，但必须通过资源与总吞吐门，
@@ -210,3 +213,97 @@ control/truth及checkpoint/eval各SHA可追踪；末轮真实测试与分项结�
 - [Wei et al. 2026](https://www.nature.com/articles/s41592-025-02980-0)：多场景
   泛化基准。此次Nature原文直读受认证跳转限制，标题/出处由检索与PubMed核对；
   不声称复现其具体实验。上述新loss/系数/样本数均为项目设计建议，不是论文默认。
+
+## 10. 用户补充：U2＋U4与全模块算子范围（2026-10-10）
+
+### U24的原始先验兼容方案
+
+当前实现拒绝`learned_genept_projection`与`gene_conditioned_readout`同时开启：
+旧U2要求固定256维先验，U4使用2048维原始先验，故新组不是直接组合已有开关。
+建议保留U4骨干不变，让U2式共享读出校正也读取同一冻结原始v_g，避免重新引入PCA
+或让读出先验随U4的可训练投影漂移：
+
+\[
+e_g=\operatorname{LN}(\operatorname{GELU}(Wv_g+b)),\quad
+a_g=A(v_g),\quad A:\mathbb R^{2048}\to\mathbb R^{64}\to\mathbb R^{256},
+\]
+\[
+u_{c,p,g}=\operatorname{GELU}(W_{pred}[r_{c,p,g};e_p]+b_{pred}),\quad
+\Delta_{c,p,g}=(w_0+a_g)^\top u_{c,p,g}+b_0.
+\]
+
+A中间为GELU、末层权重/bias零初始化，初始预测与N0相同；独立初始化RNG不改公共
+骨干。W和A分别可训练，v固定；只用基因ID取先验、不读被剔除表达或目标标签。
+复用同一冻结先验，不另存6506×2048副本。预计新增147,776可训练参数，Student
+可训练34,676,078；真正实现后再核验计数和三步optimizer/Teacher/center恢复。
+Teacher同构。旧U2/旧U4权重不拼接成新运行，这一新组从头训练。
+该维度适配是新设计，不声称原封不动运行历史256维U2。
+
+### K2-all与统一修改范围
+
+用户要求今后KDA机制消融默认覆盖全部9个KDA块：图3、Cell self2、Response self2、
+Response cross2。不能只改Response或Cell。Teacher同构切换。注意力替换则额外覆盖
+所有末层MLA：图稀疏、Cell全量、Response self/cross全量；合法图邻域不扩大。
+
+K2-all仍单向写入，定义每个query对应的读取位置：
+
+- Cell/Response self：基因g在排列第t位，读取该次写入后的S_t；末尾CLS仍写一次
+  并读取最终状态。
+- Response cross：control基因按共享排列写入；响应基因g读取其同ID control写入
+  后的S_t，不按未对齐数组下标读取。Response CLS读最终control状态；K/V仍无control CLS。
+- 图：每个目标i单独扫描合法邻居，保留随机排列中的self边位置t_i；目标query
+  读取写入self邻居后的S_{i,t_i}，只输出i，不输出/聚合其他邻居query。不得强制self最后，
+  否则会退化成原最终状态读出。padding不能推进有效状态。
+
+图K2-all实际读取的是合法邻域的一个随机前缀，不再保证读到全部邻居；这是读取
+上下文/顺序的功能消融，不能宣称仅改无影响的实现。仍每层同步使用上一层节点状态。
+现有cross()/graph()只实现末态读出，必须补新算子与位置/ID/梯度/恢复测试。
+历史K2（3d3f5ad）只有4个self块改动，其收据和结果保留原定义；K2-all另用新run身份。
+
+## 11. Global/Local专项：7个独立对照
+
+共享N0，不为每个子组重复训练基线。默认每套蒸馏为2 Global＋2 Local；
+Global比例0.60–0.90，Local比例0.25–0.50，均独立Uniform抽样。SSL1分母6506图节点，
+强制保留当前扰动靶点并记录最终节点数；SSL2分母主视图1000个训练可用查询基因。
+SSL2两个Local为两次随机表达基因裁剪，不冠GO/STRING名称。
+
+默认SSL1的Local通过GO或STRING扩展选节点，邻域不足时随机补足；这不意味着
+Local中的边只来自GO或STRING。构造出的诱导子图仍保留所有合法来源、去重和门控。
+
+| ID | 只改变的支路/因素 | 新设定 | 保持 |
+|---|---|---|---|
+| V1-R | SSL1 Local节点选择方式 | GO/STRING扩展改两个随机节点诱导子图 | 两个Local、原比例、强制靶点、边来源与门控 |
+| V1-L | SSL1 Local覆盖比例 | 0.25–0.50→0.40–0.65 | GO/STRING选择方式、Global及SSL2不变 |
+| V1-G | SSL1 Global覆盖比例 | 0.60–0.90→0.80–1.00 | Local及SSL2不变 |
+| V1-0 | SSL1 Local数量 | 2→0，Student/Teacher均保留2 Global | condition/node权重与原Global分布 |
+| V2-L | SSL2 Local覆盖比例 | 0.25–0.50→0.40–0.65 | 两个随机Local、Global及SSL1不变 |
+| V2-G | SSL2 Global覆盖比例 | 0.60–0.90→0.80–1.00 | Local及SSL1不变 |
+| V2-0 | SSL2 Local数量 | 2→0，保留2 Global | DINO/iBOT权重与原Global分布 |
+
+V1-R去掉的是按图来源选择Local节点的偏好，不删主图GO/STRING，不能与G1/G2混用。
+随机节点选择仍固定含全部扰动靶点，余下节点无放回抽取；各视图独立，基因ID不变。
+构造预算按实际anchors下界修正，记录随机补足比例、合法边数和source分布。
+
+提高后的图Global约5205–6506节点、图Local约2602–4229节点；表达Global约800–1000
+基因、表达Local约400–650基因。它们提高的是裁剪覆盖率，不是mask比例。
+图Global mask_ratio0.25、edge_dropout0.1、表达Global遮蔽概率0.5/遮蔽比例0.1–0.5
+不改；Student Global遮蔽、Teacher相同节点未遮蔽、Local不遮蔽，保持原规则。
+
+只有Global的组仍保留蒸馏，不等同D1/D2。对应condition/DINO跨视图项由6变2，
+均按有效配对均值，不乘3补偿；node/iBOT仍只在Global匹配身份计算，保留统一
+row_mean/节点例外和无有效mask跳过规则。Teacher仍只读两个Global，center按原
+统计公式每次optimizer更新一次；覆盖比例改变会改变统计样本量，须如实记录。
+
+目前`local_views`和四个比例参数同时驱动SSL1/SSL2，且local_views严格要求正数。
+必须添加分支独立的count/Global范围/Local范围/SSL1 Local采样方式；旧字段映射
+保持旧配置和历史identity，不能用共享旧字段假装做单支路消融。Local=0要有明确
+合法配置、两Global有效配对与batch/optimizer/EMA/center恢复测试。
+每组只推进本分支独立随机流，不让另一蒸馏的视图采样因RNG消耗而连带改变。
+
+建议先V1-R→V1-L→V2-L，再V1-G→V2-G，最后V1-0→V2-0。这7组不叠加U24或MR1；
+如果以后需要再单列：两个支路同时放大比例、Local2→4、随机Local＋提高Local的
+交互。SSL1 Local2→4须明确2 GO＋2 STRING以免额外引入第三种Local来源。
+扩大视图可能增加显存和耗时，依旧共同batch/10步工程门并记录单步及细胞吞吐。
+
+总设计为12个机制主组＋7个视图组=19个配置（N0只计一次），另有V0/V1独立迁移
+验证与7个补充候选。这里没有授权同时全部启动；执行顺序和算力边界保持原规则。

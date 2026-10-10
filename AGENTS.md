@@ -97,6 +97,16 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
 
 ## V2 default launch preflight
 
+- Future newly generated v2 experiments explicitly default to U4: frozen raw
+  GenePT with a shared learned 2048-to-256 projection, GELU, then LayerNorm.
+  Prior/activation ablations may explicitly override it. Preserve historical
+  config/checkpoint defaults and all existing run identities.
+- Unless the user explicitly scopes a change, KDA mechanism ablations apply to
+  graph, Cell, Response self and Response control cross blocks together, with
+  an isomorphic Teacher. Attention replacements cover their MLA blocks too,
+  while preserving legal graph neighborhoods. Historical self-only K2 remains
+  historical; new all-block prefix readout requires its own config/run identity.
+
 - Default v2 preflight runs 10 complete optimizer updates, including checkpoint
   save/reload and a 300-control inference check. Do not automatically run a
   128-step stress test for each new mechanism or experiment.
