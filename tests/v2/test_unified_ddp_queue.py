@@ -20,7 +20,7 @@ from run_unified_ddp import fit_budget, probe  # noqa: E402
 
 def test_all_ten_configs_restore_dual_accumulation_and_only_change_execution():
     manifest = verify_manifest(ROOT, ROOT / "configs/v2/unified_ddp_20261010/manifest.json")
-    assert tuple(manifest["priority"]) == ("N0", "CG1", "U24", "MR1", "P1", "C1")
+    assert tuple(manifest["priority"]) == ("N0", "CG1", "U24", "MR1", "P1")
     reference = baseline(ROOT, 32)
     for row in manifest["rows"]:
         cfg = load_experiment_config(ROOT / row["config"])
@@ -33,7 +33,7 @@ def test_all_ten_configs_restore_dual_accumulation_and_only_change_execution():
             value["model"]["parameters"][key] = reference["model"]["parameters"][key]
         value["training"]["train_batch_size"] = reference["training"]["train_batch_size"]
         assert value == reference
-    assert len(manifest["rows"]) == 10 and len(PRIORITY) == 6
+    assert len(manifest["rows"]) == 10 and len(PRIORITY) == 5
 
 
 def test_cg_and_population_config_are_loadable_with_two_rank_accumulation():

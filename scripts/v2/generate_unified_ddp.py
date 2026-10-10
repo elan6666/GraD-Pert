@@ -15,7 +15,7 @@ from gradpert.hashing import sha256_file
 
 FAMILY = "unified_ddp_20261010"
 REFERENCE = ".byte-os/plans/GRADPERT_V2_UNIFIED_DDP_20261010.plan.md"
-PRIORITY = ("N0", "CG1", "U24", "MR1", "P1", "C1")
+PRIORITY = ("N0", "CG1", "U24", "MR1", "P1")
 
 
 def configs(source: Path, microbatch: int) -> dict:
@@ -61,7 +61,6 @@ def metadata(microbatch: int) -> dict:
         "seed": 1,
         "preflight_updates": 10,
         "priority": list(PRIORITY),
-        "priority_sixth": "C1 provisional until user clarification",
         "parent_family": "unified_first_20261010",
         "population_batch": "actual same-condition rows; do not duplicate truths to fill budget",
     }

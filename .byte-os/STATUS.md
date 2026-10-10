@@ -1,6 +1,6 @@
 ## 2026-10-10：统一 MLP 恢复双卡累积（当前覆盖单卡计划）
 
-旧单卡控制器/N0/U24已按用户指令停止，停止核验SHA256 eb4f0e46a67c0618ed6671a0a40e01a98344af70944b3e0501cab55159af9fa6。旧产物保留。新十组配置：world2、每卡微68、accum2/global272；先N0→CG1→U24→MR1→P1→C1（第六组暂定），其余四组不派发。CG1 rank-local control对齐及P1完整群体MMD适配已完成，本地验证/发布阶段；CUDA10步预检及正式训练尚未开始。Owner主会话，旧监督/返回监控PAUSED。详见主实现工作树计划 GRADPERT_V2_UNIFIED_DDP_20261010.plan.md。
+旧单卡控制器/N0/U24已按用户指令停止，停止核验SHA256 eb4f0e46a67c0618ed6671a0a40e01a98344af70944b3e0501cab55159af9fa6。旧产物保留。新十组配置：world2、每卡微68、accum2/global272；先N0→CG1→U24→MR1→P1，用户明确先只跑这五组；其余五组不派发。CG1 rank-local control对齐及P1完整群体MMD适配已完成，本地验证/发布阶段；CUDA10步预检及正式训练尚未开始。Owner主会话，旧监督/返回监控PAUSED。详见主实现工作树计划 GRADPERT_V2_UNIFIED_DDP_20261010.plan.md。
 
 # Active loss stage (2026-10-07)
 

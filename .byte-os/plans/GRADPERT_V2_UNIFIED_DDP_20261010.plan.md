@@ -13,10 +13,10 @@ all old source, configs, run IDs and evidence. Every restored run starts fresh.
 
 All ten self-contained configs restore world2, accumulation2 and the prior
 per-card micro68, nominal global272. Evaluation cell batch stays32; inference
-still uses the exact frozen300 control manifest. Run the first six in this
-order: **N0 → CG1 → U24 → MR1 → P1 → C1**. C1 is the provisional sixth pending
-the user answer; N0/CG1 do not depend on that answer. O1/VH/S1-L4/S12-L4 configs
-are generated in the same family but remain deferred; do not dispatch them.
+still uses the exact frozen300 control manifest. Run only the five
+confirmed arms: **N0 → CG1 → U24 → MR1 → P1**. The user explicitly deferred the
+ambiguous sixth. C1/O1/VH/S1-L4/S12-L4 configs are generated in the same family
+but remain deferred; do not dispatch them.
 
 - N0: unified biased pre-RMSNorm clipped-SwiGLU MLPs and shared learned raw-GenePT
   projection; complete prediction+SSL1+SSL2, mHC.
@@ -28,7 +28,6 @@ are generated in the same family but remain deferred; do not dispatch them.
 - P1: N0 with same-condition grouped mean-MSE+unbiased multiscale MMD(weight1),
   replacing random paired-cell MSE. Actual group rows, never duplicate truths
   just to fill272. Conditions with <2 distinct rows explicitly skip MMD.
-- C1: N0 with perturbation injection only at response entry, cross paths unchanged.
 
 All arms retain six epochs from scratch, seed1, cap40 train-only manifest,
 no validation loss/Pearson, epoch6 last-only test. Three Pearson families,
