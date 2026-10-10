@@ -1,3 +1,7 @@
+## 2026-10-11 02:39：m48预检通过，N0正式fit启动
+
+CG1/N0各10/10＋checkpoint恢复＋实际300control推理已独立验收；训练源码bf4218557210ba266a98d6cc2d1ac15a976c5c91，world2/m48/accum2/global192。只N0→CG1→U24→MR1→P1各6轮无验证、epoch6 last-only。旧m68/.85cap OOM保留；无外部进程，不声称真实共存收益。Luna已结束，canonical Byte owner转指定监督会话，现有20min监控待ACK激活。详细实时状态以canonical coordination/state.json为准。见UNIFIED_DDP报告及shared-gpu-20261011/m48-main-acceptance.json；科学结果未完成。
+
 ## 2026-10-11：m68共存上限预检失败，统一m48候选准备中
 
 新SHA6df3bdd…的CG1在0/10更新CUDA OOM，触达85% allocator上限（26.65GiB），物理显存仍余3.87GiB；外部CUDA进程为空。未启动N0或正式训练；失败队列/日志/收据保留。五组统一回退候选micro48×2卡×accum2=global192，不放宽共存门槛。新的十组自包含配置仅改microbatch和effective batch，已逐组深比对，原方法/六轮/数据/评估不变。待发布新源码和fresh CG1/N0预检；Luna短监督终态已退出，长期监控PAUSED。科学任务未完成。

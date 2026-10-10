@@ -1,0 +1,114 @@
+{
+  "schema": "shared-m48-main-acceptance-1",
+  "observed_at_utc": "2026-10-10T18:39:17.654567+00:00",
+  "queue_id": "v2-shared-m48-bf42185-20261010T182418Z",
+  "attempt": 1,
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-shared-m48-bf42185-20261010T182418Z",
+  "queue_sha256": "057e08ae8beda2d972a4883552a8b69b366c88a2f53abe4444db94586b50fad6",
+  "source_commit": "bf4218557210ba266a98d6cc2d1ac15a976c5c91",
+  "controller_identity": {
+    "pid": 2155292,
+    "uid": 1002,
+    "ppid": 1,
+    "start_ticks": "706030107",
+    "command_sha256": "c4ad242fd5ab6addef08e89cb78658023bda5db804f57e4cdc257afde8f37c2b",
+    "script_basename": "run_unified_ddp.py"
+  },
+  "queue_phase": "dual_gpu_fit",
+  "active_fit": {
+    "attempt": 1,
+    "identity": {
+      "command_sha256": "79dac99a820b99783285086217201c630ad65f9091fcca6491a69b3c77e0712e",
+      "pid": 2158852,
+      "start_ticks": "706102186"
+    },
+    "log": "/data/yilangliu/GraD-Pert/development/v2-shared-m48-bf42185-20261010T182418Z/N0-fit-attempt1.log",
+    "name": "N0",
+    "pid": 2158852,
+    "run_id": "nadig_jurkat-seed1-20261010T182419Z-c2f9bb39d8c04792a1a49b2a6b2c1659",
+    "stage": "fit",
+    "started_unix": 1791657382.4491158
+  },
+  "fit_process": {
+    "pid": 2158852,
+    "uid": 1002,
+    "ppid": 2155292,
+    "start_ticks": "706102186",
+    "command_sha256": "79dac99a820b99783285086217201c630ad65f9091fcca6491a69b3c77e0712e",
+    "script_basename": null
+  },
+  "fit_log_tail": [
+    "",
+    "*****************************************",
+    "Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. ",
+    "*****************************************"
+  ],
+  "preflights": [
+    {
+      "name": "CG1",
+      "receipt": "/data/yilangliu/GraD-Pert/development/v2-shared-m48-bf42185-20261010T182418Z/CG1-preflight/receipt.json",
+      "receipt_sha256": "af06bab58d2b9b0186c2c2a896d865435dddb0f8f148123c5a81bc0ba5e18495",
+      "launch_plan_sha256": "79236c2696d11e03752c107d2895fbcfbbdf38d84e0ea0df39becc22d1965e50",
+      "status": "passed",
+      "kind": "preflight_only",
+      "steps_completed": 10,
+      "steps_requested": 10,
+      "resume_checkpoint_sha256": "8a5d49155995d28f12fe963fc492cb1ef3697a1bb122de9652c1019289ccaaa3",
+      "inference_shape": [
+        300,
+        5000
+      ],
+      "inference_control_manifest_sha256": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528",
+      "cells_per_second": 5.301567489152168,
+      "peak_allocated_bytes": 24729290240,
+      "peak_reserved_bytes": 25180504064,
+      "config_sha256": "8a3bbce29b66359914a72de69bc1b8cea7b67e4c4e29800e87e28c335d0b2dfb",
+      "source": {
+        "commit": "bf4218557210ba266a98d6cc2d1ac15a976c5c91",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "b7c9e1324da10c2d50a8a55247fda8dac73b89e89c669b391fd2dfe6c4d1013e",
+        "published_commit": "bf4218557210ba266a98d6cc2d1ac15a976c5c91",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-shared-m48-bf42185",
+        "tree_sha256": "e2f98a02553cfe91e2b3a4a731f98b3d96ce87365bb31395cc2b4b58811ccd87"
+      }
+    },
+    {
+      "name": "N0",
+      "receipt": "/data/yilangliu/GraD-Pert/development/v2-shared-m48-bf42185-20261010T182418Z/N0-preflight/receipt.json",
+      "receipt_sha256": "6d0197a28fd0b36278f5331d8cc8095368fbc60901d02096f39199c9aecfbb7c",
+      "launch_plan_sha256": "8c4671af007ffc518745ddc2faa3aa072a233687f408e52ac3e6623887f3016e",
+      "status": "passed",
+      "kind": "preflight_only",
+      "steps_completed": 10,
+      "steps_requested": 10,
+      "resume_checkpoint_sha256": "5227955da6b278f379b93153b327ec400b5eda6f33769c792a99076f2f5ba1b0",
+      "inference_shape": [
+        300,
+        5000
+      ],
+      "inference_control_manifest_sha256": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528",
+      "cells_per_second": 8.890777647655927,
+      "peak_allocated_bytes": 19666553856,
+      "peak_reserved_bytes": 19908263936,
+      "config_sha256": "c734762d96a7879474554059d6079e0019a56e4a828f252a8573d050db02d500",
+      "source": {
+        "commit": "bf4218557210ba266a98d6cc2d1ac15a976c5c91",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "b7c9e1324da10c2d50a8a55247fda8dac73b89e89c669b391fd2dfe6c4d1013e",
+        "published_commit": "bf4218557210ba266a98d6cc2d1ac15a976c5c91",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-shared-m48-bf42185",
+        "tree_sha256": "e2f98a02553cfe91e2b3a4a731f98b3d96ce87365bb31395cc2b4b58811ccd87"
+      }
+    }
+  ],
+  "actual_foreign_coexistence_measured": false,
+  "scientific_complete": false
+}
