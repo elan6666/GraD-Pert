@@ -64,5 +64,13 @@ Long queue handoff requires exact supervisor ACK, active20min checks and
 main return wake fallback. Failure returns to main for safe repair, never
 mutates active source or silently repeats a completed experiment.
 
-Current phase: implementation; SSH recovery pending. This plan supersedes
+Current phase: ten CUDA preflights passed; N0/U24 formally active under c8e26d0.
+User's 2026-10-10 scheduling update adds bounded fit/postfit overlap for the
+remaining eight arms through a fresh published controller. Adopt the two live
+inline children without restart. Preserve the sealed parent queue/preflights;
+new deferred rows get new run IDs and exact native source-tree equivalence
+evidence. One fit plus one capped evaluator per GPU, idle-only evaluation retry
+on capped OOM, no batch/metric changes. Synthetic pipeline/retirement tests,
+publication/migration and durable supervisor ACK precede closing the main turn.
+This plan supersedes
 the earlier GELU-only nineteen-configuration draft for active execution.
