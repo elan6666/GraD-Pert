@@ -21,7 +21,9 @@ def evaluate_loss_diagnostics(
     device = batch.control.device
     cuda_devices = [device.index or 0] if device.type == "cuda" else []
     counter = (
-        objective.auxiliary_rng_counter.detach().clone() if objective.auxiliary_mask_ratio else None
+        objective.auxiliary_rng_counter.detach().clone()
+        if objective.auxiliary_mask_ratio or objective.masked_response_ratio
+        else None
     )
     parameters = tuple(
         p
@@ -43,7 +45,12 @@ def evaluate_loss_diagnostics(
                     torch.no_grad(),
                     torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=bf16),
                 ):
-                    graph_terms = objective.graph_loss(batch.graph_views, batch.condition_index)
+                    graph_terms = objective.graph_loss(
+                        batch.graph_views,
+                        batch.condition_index,
+                        control=batch.control,
+                        query_gene_ids=batch.graph.ids[batch.query_positions],
+                    )
                     graph_metrics = {
                         f"ssl1_{name}": float(value) for name, value in graph_terms.items()
                     }
@@ -99,11 +106,11 @@ def evaluate_loss_diagnostics(
                 torch.no_grad(),
                 torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=bf16),
             ):
-                graph, conditions = objective._graph(objective.student, batch.graph, False)
+                graph, conditions = objective._batch_graph(objective.student, batch)
                 output = objective.student.encode_response(
-                    graph[batch.query_positions],
+                    objective._select_graph(graph, batch.query_positions),
                     batch.control,
-                    conditions[batch.condition_index],
+                    conditions,
                     **objective.response_metadata(batch),
                 )
                 residual_matrix = (output["prediction"].float() - batch.truth.float()).abs()

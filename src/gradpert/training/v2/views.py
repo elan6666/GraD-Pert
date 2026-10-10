@@ -234,33 +234,55 @@ def assemble_batch(
     selection = torch.tensor(queries, device=device)
     control, truth = raw.control_expression[:, selection], raw.target_expression[:, selection]
     graph_views = []
+    graph_rng = cell_rng = rng
+    if options.independent_view_rng:
+        seeds = rng.integers(0, 2**63, size=2)
+        graph_rng, cell_rng = (np.random.default_rng(int(seed)) for seed in seeds)
     if options.lambda1:
-        for i in range(2 + options.local_views):
+        for i in range(2 + (options.ssl1_local_views or options.local_views)):
             if options.graph_view_mode == "multiscale":
                 lo, hi = (
                     (options.global_min_ratio, options.global_max_ratio)
                     if i < 2
                     else (options.local_min_ratio, options.local_max_ratio)
                 )
-                count = max(len(anchors), round(index.n_nodes * rng.uniform(lo, hi)))
+                count = max(len(anchors), round(index.n_nodes * graph_rng.uniform(lo, hi)))
                 if i < 2:
                     remaining = np.setdiff1d(np.arange(index.n_nodes), anchors)
                     nodes = np.union1d(
-                        anchors, rng.choice(remaining, count - len(anchors), replace=False)
+                        anchors, graph_rng.choice(remaining, count - len(anchors), replace=False)
                     )
                 else:
-                    nodes = index.local_nodes(anchors, count, rng, source=i - 2 if i < 4 else None)
+                    local = i - 2
+                    layout = options.ssl1_local_layout
+                    source = (
+                        local // 2
+                        if layout == "go_go_string_string"
+                        else local
+                        if local < 2
+                        else None
+                    )
+                    if layout == "go_string_random" and local >= 2:
+                        remaining = np.setdiff1d(np.arange(index.n_nodes), anchors)
+                        nodes = np.union1d(
+                            anchors,
+                            graph_rng.choice(remaining, count - len(anchors), replace=False),
+                        )
+                    else:
+                        nodes = index.local_nodes(anchors, count, graph_rng, source=source)
             else:
                 nodes = (
                     np.arange(index.n_nodes)
                     if i < 2
-                    else index.local_nodes(anchors, max(len(anchors), index.n_nodes // 2), rng)
+                    else index.local_nodes(
+                        anchors, max(len(anchors), index.n_nodes // 2), graph_rng
+                    )
                 )
             graph_views.append(
                 index.view(
                     nodes,
                     targets,
-                    rng=rng,
+                    rng=graph_rng,
                     device=device,
                     induced=True,
                     edge_dropout=options.graph_edge_dropout,
@@ -269,24 +291,27 @@ def assemble_batch(
             )
     cell_views = []
     if options.lambda2:
-        for i in range(2 + options.local_views):
+        for i in range(2 + (options.ssl2_local_views or options.local_views)):
             lo, hi = (
                 (options.global_min_ratio, options.global_max_ratio)
                 if i < 2
                 else (options.local_min_ratio, options.local_max_ratio)
             )
-            sampled = options.query_count * rng.uniform(lo, hi)
+            sampled = options.query_count * cell_rng.uniform(lo, hi)
             size = max(
                 1, round(sampled) if options.graph_view_mode == "multiscale" else int(sampled)
             )
-            positions = np.sort(rng.choice(options.query_count, size, replace=False))
+            positions = np.sort(cell_rng.choice(options.query_count, size, replace=False))
             mask = np.zeros((len(control), size), dtype=bool)
             for row in range(len(control)):
-                if i < 2 and rng.random() < options.mask_probability:
+                if i < 2 and cell_rng.random() < options.mask_probability:
                     masked = max(
-                        1, int(size * rng.uniform(options.mask_min_ratio, options.mask_max_ratio))
+                        1,
+                        int(
+                            size * cell_rng.uniform(options.mask_min_ratio, options.mask_max_ratio)
+                        ),
                     )
-                    mask[row, rng.choice(size, masked, replace=False)] = True
+                    mask[row, cell_rng.choice(size, masked, replace=False)] = True
             cell_views.append(
                 CellView(torch.tensor(positions, device=device), torch.tensor(mask, device=device))
             )

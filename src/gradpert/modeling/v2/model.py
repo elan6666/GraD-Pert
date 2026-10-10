@@ -13,6 +13,7 @@ from torch.utils.checkpoint import checkpoint
 from gradpert.config.v2 import V2Architecture
 
 from .attention_ablation import ReplacementAttention, retention_normalize
+from .conditional_graph import ControlGraphModulation, ControlSummary
 from .operators import (
     CrossManifoldResidual,
     GatedFeedForward,
@@ -76,8 +77,9 @@ class SparseRead(nn.Module):
         self.source_key_gate = (
             nn.Parameter(torch.zeros(4, heads, self.head_width)) if source_key_gate else None
         )
-        self.norm1, self.norm2 = nn.LayerNorm(width), nn.LayerNorm(width)
-        self.ffn = (
+        self.norm1 = nn.LayerNorm(width)
+        self.norm2: nn.Module = nn.LayerNorm(width)
+        self.ffn: nn.Module = (
             GatedFeedForward(width, dropout)
             if ffn_type == "swiglu"
             else nn.Sequential(
@@ -145,9 +147,10 @@ class RelayGraphLayer(nn.Module):
         checkpoint_chunks: bool = False,
     ) -> None:
         super().__init__()
-        self.norm1, self.norm2 = nn.LayerNorm(width), nn.LayerNorm(width)
+        self.norm1 = nn.LayerNorm(width)
+        self.norm2: nn.Module = nn.LayerNorm(width)
         self.read = RelayDeltaAttention(width, heads)
-        self.ffn = GatedFeedForward(width, dropout)
+        self.ffn: nn.Module = GatedFeedForward(width, dropout)
         self.dropout = nn.Dropout(dropout)
         self.chunk_rows = chunk_rows
         self.checkpoint_chunks = checkpoint_chunks
@@ -203,6 +206,7 @@ class RelayResponseEncoder(nn.Module):
         super().__init__()
         d, streams = options.width, options.streams
         self.streams = streams
+        self.injection_mode = options.perturbation_injection
         self.checkpoint_layers = options.checkpoint_layers
         self.injections = nn.ModuleList(
             nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, d))
@@ -247,7 +251,8 @@ class RelayResponseEncoder(nn.Module):
         block_cls_to_gene: bool,
     ) -> Tensor:
         p = condition[:, None, None, :].expand_as(x)
-        x = self.injections[index](torch.cat((x, p), dim=-1))
+        if index == 0 or self.injection_mode == "per_layer":
+            x = self.injections[index](torch.cat((x, p), dim=-1))
         x = self.self_layers[index](x, order=order, block_cls_to_gene=block_cls_to_gene)
         x = self.cross_layers[index](x, memory=control, order=order)
         return cast(Tensor, self.ffn_layers[index](x))
@@ -290,9 +295,10 @@ class GeneGraph(nn.Module):
         super().__init__()
         if seeds.ndim != 2 or not torch.isfinite(seeds).all():
             raise ValueError("finite aligned gene seed table required")
-        if (options.prior_shared_adapter or options.gene_conditioned_readout) and seeds.shape[
-            1
-        ] != options.width:
+        if (
+            options.prior_shared_adapter
+            or (options.gene_conditioned_readout and not options.learned_genept_projection)
+        ) and seeds.shape[1] != options.width:
             raise ValueError(
                 "unseen-gene prior mechanisms require the reduced model-width seed table"
             )
@@ -315,7 +321,7 @@ class GeneGraph(nn.Module):
             if seeds.shape[1] == options.width or options.learned_genept_projection
             else nn.Linear(seeds.shape[1], options.width)
         )
-        self.projection_activation = (
+        self.projection_activation: nn.Module = (
             nn.GELU() if options.genept_projection_activation == "gelu" else nn.Identity()
         )
         self.norm = nn.LayerNorm(options.width)
@@ -355,6 +361,23 @@ class GeneGraph(nn.Module):
             ]
         )
         self.read_mode = options.graph_read_mode
+        self.chunk_rows = options.relay_graph_chunk_rows
+        self.checkpoint_chunks = options.checkpoint_layers
+
+    def identities(self, ids: Tensor | None = None) -> Tensor:
+        seeds = self.embedding.weight if ids is None else self.embedding(ids)
+        if self.prior_adapter is not None:
+            seeds = seeds + self.prior_adapter(seeds)
+        return cast(Tensor, self.norm(self.projection_activation(self.adapter(seeds))))
+
+    def relay_prefix(self, context: GraphContext, masked_ids: Tensor | None = None) -> Tensor:
+        memory = self.identities()
+        if masked_ids is not None:
+            memory = memory.index_copy(0, masked_ids, self.mask_token.expand(len(masked_ids), -1))
+        x = memory[context.ids]
+        for layer in self.layers[:3]:
+            x = layer(x, context.neighbors, context.valid, context.sources)
+        return x
 
     def forward(
         self,
@@ -364,12 +387,15 @@ class GeneGraph(nn.Module):
         sources: Tensor,
         masked_ids: Tensor | None = None,
         context: GraphContext | None = None,
+        modulation: tuple[Tensor, Tensor] | None = None,
+        prefix: Tensor | None = None,
     ) -> Tensor:
-        seeds = self.embedding.weight
-        if self.prior_adapter is not None:
-            seeds = seeds + self.prior_adapter(seeds)
-        memory = self.norm(self.projection_activation(self.adapter(seeds)))
-        if masked_ids is not None:
+        memory = (
+            self.identities()
+            if self.read_mode != "relay"
+            else self.embedding.weight.new_empty((0, 0))
+        )
+        if masked_ids is not None and self.read_mode != "relay":
             memory = memory.index_copy(0, masked_ids, self.mask_token.expand(len(masked_ids), -1))
         if self.read_mode == "static":
             if context is not None:
@@ -377,13 +403,36 @@ class GeneGraph(nn.Module):
             x = memory[ids]
             for layer in self.layers:
                 x = layer(x, memory, neighbors, valid, sources)
-            return cast(Tensor, x)
+            return x
         if self.read_mode == "relay":
             if context is None or len(self.layers) != 4:
                 raise ValueError("relay graph read requires four layers and a context")
-            x = memory[context.ids]
-            for layer in self.layers[:3]:
-                x = layer(x, context.neighbors, context.valid, context.sources)
+            x = prefix if prefix is not None else self.relay_prefix(context, masked_ids)
+            if modulation is not None:
+                from .conditional_graph import conditional_sparse_read
+
+                positions = context.query_positions
+                outputs = []
+                for start in range(0, len(positions), self.chunk_rows):
+                    selected = positions[start : start + self.chunk_rows]
+                    args = (
+                        x[selected],
+                        x,
+                        context.neighbors[selected],
+                        context.valid[selected],
+                        context.sources[selected],
+                        *modulation,
+                    )
+
+                    def read(*inputs: Tensor) -> Tensor:
+                        return conditional_sparse_read(self.layers[3], *inputs)
+
+                    outputs.append(
+                        checkpoint(read, *args, use_reentrant=False)
+                        if self.checkpoint_chunks and torch.is_grad_enabled()
+                        else read(*args)
+                    )
+                return torch.cat(outputs, dim=1)
             x = self.layers[3](x, x, context.neighbors, context.valid, context.sources)
             return cast(Tensor, x[context.query_positions])
         if context is None or len(self.layers) != 2:
@@ -406,7 +455,7 @@ class GeneGraph(nn.Module):
 class Projector(nn.Module):
     def __init__(self, options: V2Architecture) -> None:
         super().__init__()
-        self.features = nn.Sequential(
+        self.features: nn.Module = nn.Sequential(
             nn.Linear(options.width, options.projector_hidden),
             nn.GELU(),
             nn.Linear(options.projector_hidden, options.projector_bottleneck),
@@ -507,7 +556,7 @@ class GraDPertV2(nn.Module):
 
         # Additions are initialized after every historical module, on a separate
         # RNG stream. Enabling one arm does not reinitialize the common backbone.
-        self.prior_readout: nn.Sequential | None = None
+        self.prior_readout: nn.Module | None = None
         if any(
             (
                 options.prior_shared_adapter,
@@ -532,7 +581,7 @@ class GraDPertV2(nn.Module):
                 if options.prior_shared_adapter:
                     self.graph.embedding.weight.requires_grad_(False)
                     self.graph.prior_adapter = self._prior_mlp(d)
-                if options.gene_conditioned_readout:
+                if options.gene_conditioned_readout and not options.learned_genept_projection:
                     self.register_buffer("readout_prior", seeds.detach().clone())
                     self.prior_readout = self._prior_mlp(d)
                 if options.direct_target_flag:
@@ -543,6 +592,49 @@ class GraDPertV2(nn.Module):
                         expanded.weight[:, -1].zero_()
                         expanded.bias.copy_(original.bias)
                     self.prediction[0] = expanded
+        self.control_summary: ControlSummary | None = None
+        self.graph_modulation: ControlGraphModulation | None = None
+        if options.mlp_profile == "unified":
+            from .mlp import UnifiedMLP
+
+            # A separate shared stream keeps ablation-only modules from changing
+            # the common backbone initialization.
+            devices = [seeds.device.index] if seeds.is_cuda else []
+            with torch.random.fork_rng(devices=devices):
+                torch.manual_seed((torch.initial_seed() + 0x71F0) % (2**63))
+                for module in list(self.modules()):
+                    if isinstance(module, (SparseRead, RelayGraphLayer)):
+                        module.norm2 = nn.RMSNorm(d, eps=1e-6)
+                        module.ffn = UnifiedMLP(d, 4 * d, d, options.dropout, normalize=False)
+                    elif isinstance(module, ManifoldResidual) and isinstance(
+                        module.sublayer, GatedFeedForward
+                    ):
+                        module.norm = nn.RMSNorm(d, eps=1e-6)
+                        module.sublayer = UnifiedMLP(d, 4 * d, d, options.dropout, normalize=False)
+                self.graph.projection_activation = UnifiedMLP(d, 4 * d, d)
+                self.expression = nn.Sequential(nn.Linear(1, d), UnifiedMLP(d, 4 * d, d))
+                if isinstance(self.response, RelayResponseEncoder):
+                    self.response.injections = nn.ModuleList(
+                        UnifiedMLP(2 * d, 4 * d, d) for _ in self.response.injections
+                    )
+                self.prediction = nn.Sequential(
+                    UnifiedMLP(prediction_width, 4 * d, d), nn.Identity(), nn.Linear(d, 1)
+                )
+                for head in (self.ssl1_cls, self.ssl1_node, self.ssl2_cls, self.ssl2_node):
+                    head.features = UnifiedMLP(
+                        d, options.projector_hidden, options.projector_bottleneck
+                    )
+            if options.gene_conditioned_readout:
+                with torch.random.fork_rng(devices=devices):
+                    torch.manual_seed((torch.initial_seed() + 0x71F1) % (2**63))
+                    self.prior_readout = UnifiedMLP(
+                        seeds.shape[1], max(1, d // 4), d, zero_output=True
+                    )
+            if options.control_conditioned_graph:
+                with torch.random.fork_rng(devices=devices):
+                    torch.manual_seed((torch.initial_seed() + 0x71F2) % (2**63))
+                    self.control_summary = ControlSummary(d)
+                    self.graph_modulation = ControlGraphModulation(d, options.heads)
 
     @staticmethod
     def _prior_mlp(width: int) -> nn.Sequential:
@@ -595,7 +687,12 @@ class GraDPertV2(nn.Module):
             raise ValueError("prior readout requires explicit int64 query gene IDs")
         features = cast(Tensor, self.prediction[1](self.prediction[0](joint)))
         # Base linear plus a correction keeps the zero-adapter starting output.
-        weights = self.prior_readout(self.readout_prior[query_gene_ids])
+        prior = (
+            self.graph.embedding.weight
+            if self.options.learned_genept_projection
+            else self.readout_prior
+        )
+        weights = self.prior_readout(prior[query_gene_ids])
         return cast(
             Tensor,
             self.prediction[2](features).squeeze(-1) + (features * weights.unsqueeze(0)).sum(-1),
@@ -603,6 +700,7 @@ class GraDPertV2(nn.Module):
 
     def set_relay_order_randomization(self, enabled: bool) -> None:
         """Teacher can remain in eval mode while receiving randomized training views."""
+        enabled = enabled and self.options.random_gene_order
         self.randomize_relay_order = enabled
         for module in self.modules():
             if isinstance(module, RelayDeltaAttention):
@@ -618,7 +716,11 @@ class GraDPertV2(nn.Module):
     def aggregate_targets(graph: Tensor, positions: Tensor, valid: Tensor) -> Tensor:
         if positions.shape != valid.shape or not valid.any(-1).all():
             raise ValueError("each condition must have at least one target")
-        values = graph[positions.clamp_min(0)] * valid.unsqueeze(-1)
+        values = (
+            graph.gather(1, positions.clamp_min(0).unsqueeze(-1).expand(-1, -1, graph.shape[-1]))
+            if graph.ndim == 3
+            else graph[positions.clamp_min(0)]
+        ) * valid.unsqueeze(-1)
         return values.sum(-2) / valid.sum(-1, keepdim=True)
 
     def encode_control(
@@ -630,7 +732,7 @@ class GraDPertV2(nn.Module):
         mask_token: Tensor | None = None,
     ) -> tuple[Tensor, Tensor, tuple[Tensor, ...] | None]:
         """Basal encoding without perturbation targets or a raw-expression skip."""
-        if control.ndim != 2 or control.shape[1] != gene.shape[0]:
+        if control.ndim != 2 or control.shape[1] != gene.shape[-2]:
             raise ValueError("control expression must align with query gene IDs")
         expression = self.expression(control.unsqueeze(-1))
         if expression_mask is not None:
@@ -641,7 +743,7 @@ class GraDPertV2(nn.Module):
                 self.expression_mask if mask_token is None else mask_token,
                 expression,
             )
-        x = expression + gene.unsqueeze(0)
+        x = expression + (gene.unsqueeze(0) if gene.ndim == 2 else gene)
         relay = self.options.attention == "relay_full"
         order = (
             tuple(
@@ -663,6 +765,19 @@ class GraDPertV2(nn.Module):
         )
         basal, control_cls = encoded[:, :-1], encoded[:, -1]
         return basal, control_cls, order
+
+    def control_graph_summary(
+        self, control: Tensor, query_gene_ids: Tensor, expression_mask: Tensor | None = None
+    ) -> tuple[Tensor, Tensor]:
+        if self.control_summary is None or self.graph_modulation is None:
+            raise ValueError("conditional graph modules are absent")
+        expression = self.expression(control.unsqueeze(-1))
+        if expression_mask is not None:
+            expression = torch.where(
+                expression_mask.unsqueeze(-1), self.expression_mask, expression
+            )
+        summary = self.control_summary(self.graph.identities(query_gene_ids), expression)
+        return self.graph_modulation(summary), self.graph_modulation.directions
 
     def encode_response(
         self,

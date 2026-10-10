@@ -102,6 +102,10 @@ class JointObjective(nn.Module):
         lambda_gene_mask: float = 0.0,
         lambda_cls_mask: float = 0.0,
         auxiliary_seed: int = 1,
+        masked_response_ratio: float = 0.0,
+        lambda_masked_response: float = 0.0,
+        population_response: bool = False,
+        lambda_mmd: float = 1.0,
     ) -> None:
         super().__init__()
         if min(lambda1, lambda2, *ssl1_weights, *ssl2_weights) < 0:
@@ -121,6 +125,14 @@ class JointObjective(nn.Module):
         self.auxiliary_mask_ratio = auxiliary_mask_ratio
         self.lambda_gene_mask, self.lambda_cls_mask = lambda_gene_mask, lambda_cls_mask
         self.auxiliary_seed = auxiliary_seed
+        self.masked_response_ratio = masked_response_ratio
+        self.lambda_masked_response = lambda_masked_response
+        self.population_response = population_response
+        self.lambda_mmd = lambda_mmd
+        if not 0 <= masked_response_ratio < 1 or min(lambda_masked_response, lambda_mmd) < 0:
+            raise ValueError("invalid response supervision settings")
+        if bool(masked_response_ratio) != bool(lambda_masked_response):
+            raise ValueError("masked response ratio and weight must be enabled together")
         if auxiliary_mask_ratio:
             # Initialize after the complete main model/Teacher, without consuming
             # their CPU/CUDA random streams. Auxiliary heads belong only to Student.
@@ -129,6 +141,8 @@ class JointObjective(nn.Module):
                 student.control_reconstruction = ControlReconstruction(student.options.width).to(
                     next(student.parameters()).device
                 )
+            self.register_buffer("auxiliary_rng_counter", torch.zeros((), dtype=torch.long))
+        elif masked_response_ratio:
             self.register_buffer("auxiliary_rng_counter", torch.zeros((), dtype=torch.long))
         self.lambda1, self.lambda2 = lambda1, lambda2
         self.weights = (ssl1_weights, ssl2_weights)
@@ -170,11 +184,65 @@ class JointObjective(nn.Module):
                 )
             )
 
-    def _graph(self, model: GraDPertV2, view: GraphView, masked: bool) -> tuple[Tensor, Tensor]:
+    def _graph(
+        self,
+        model: GraDPertV2,
+        view: GraphView,
+        masked: bool,
+        control: Tensor | None = None,
+        query_ids: Tensor | None = None,
+        condition_index: Tensor | None = None,
+        expression_mask: Tensor | None = None,
+        prefix: Tensor | None = None,
+    ) -> tuple[Tensor, Tensor]:
         ids = view.ids[view.masked_positions] if masked else None
-        graph = model.graph(view.ids, view.neighbors, view.valid, view.sources, ids, view.context)
-        condition = model.aggregate_targets(graph, view.target_positions, view.target_valid)
+        modulation = None
+        if model.options.control_conditioned_graph:
+            if control is None or query_ids is None or condition_index is None:
+                raise ValueError("conditional graph needs aligned control/query/condition rows")
+            modulation = model.control_graph_summary(control, query_ids, expression_mask)
+        graph = model.graph(
+            view.ids,
+            view.neighbors,
+            view.valid,
+            view.sources,
+            ids,
+            view.context,
+            modulation=modulation,
+            prefix=prefix,
+        )
+        positions = (
+            view.target_positions if modulation is None else view.target_positions[condition_index]
+        )
+        valid = view.target_valid if modulation is None else view.target_valid[condition_index]
+        condition = model.aggregate_targets(graph, positions, valid)
         return graph, condition
+
+    @staticmethod
+    def _select_graph(graph: Tensor, positions: Tensor) -> Tensor:
+        return graph[positions] if graph.ndim == 2 else graph[:, positions]
+
+    def _batch_graph(
+        self,
+        model: GraDPertV2,
+        batch: TrainingBatch,
+        expression_mask: Tensor | None = None,
+        positions: Tensor | None = None,
+        prefix: Tensor | None = None,
+    ) -> tuple[Tensor, Tensor]:
+        selected = batch.query_positions if positions is None else batch.query_positions[positions]
+        control = batch.control if positions is None else batch.control[:, positions]
+        graph, conditions = self._graph(
+            model,
+            batch.graph,
+            False,
+            control,
+            batch.graph.ids[selected],
+            batch.condition_index,
+            expression_mask,
+            prefix,
+        )
+        return graph, (conditions if graph.ndim == 3 else conditions[batch.condition_index])
 
     def response_metadata(
         self, batch: TrainingBatch, positions: Tensor | None = None
@@ -205,10 +273,17 @@ class JointObjective(nn.Module):
         deferred_koleo: list[tuple[Tensor, Tensor, Tensor]] | None = None,
     ) -> tuple[Tensor, dict[str, Tensor]]:
         model = self.student
-        graph, conditions = self._graph(model, batch.graph, False)
-        condition = conditions[batch.condition_index]
+        student_prefix = (
+            model.graph.relay_prefix(batch.graph.context)
+            if model.options.control_conditioned_graph and batch.graph.context is not None
+            else None
+        )
+        graph, condition = self._batch_graph(model, batch, prefix=student_prefix)
         response = model.encode_response(
-            graph[batch.query_positions], batch.control, condition, **self.response_metadata(batch)
+            self._select_graph(graph, batch.query_positions),
+            batch.control,
+            condition,
+            **self.response_metadata(batch),
         )
         squared = (response["prediction"].float() - batch.truth.float()).square()
         mse_rows = squared.mean(-1)
@@ -233,13 +308,33 @@ class JointObjective(nn.Module):
             ).mean()
         else:
             loss = errors.mean()
+        population_metrics = {}
+        if self.population_response:
+            from .population import population_response_loss
+
+            if torch.unique(batch.condition_index).numel() != 1:
+                raise ValueError("population response requires one perturbation per batch")
+            population = population_response_loss(
+                response["prediction"].float(), batch.truth.float()
+            )
+            loss = population.mean_mse + self.lambda_mmd * population.mmd_unbiased
+            population_metrics = {
+                "population_mean_mse": population.mean_mse,
+                "population_mmd": population.mmd_unbiased,
+                "population_mmd_valid": loss.new_tensor(float(population.mmd_valid)),
+            }
         metrics = {"prediction": loss}
+        metrics.update(population_metrics)
         if row_weights is None:
             row_weights = torch.full_like(mse_rows, 1.0 / len(mse_rows))
         metrics["prediction_mse"] = (mse_rows * row_weights).sum()
         metrics["control_copy_mse"] = (
             (batch.control.float() - batch.truth.float()).square().mean(-1) * row_weights
         ).sum()
+        if self.masked_response_ratio:
+            masked_response = self.masked_response_loss(batch, graph, condition, row_weights)
+            metrics["masked_response"] = masked_response
+            loss = loss + self.lambda_masked_response * masked_response
         if self.auxiliary_mask_ratio:
             auxiliary = self.control_reconstruction_loss(batch, graph, row_weights)
             metrics.update(auxiliary)
@@ -248,7 +343,12 @@ class JointObjective(nn.Module):
             if self.lambda_cls_mask:
                 loss = loss + self.lambda_cls_mask * auxiliary["cls_mask"]
         if self.lambda1 and include_ssl1:
-            ssl1 = self.graph_loss(batch.graph_views, batch.condition_index)
+            ssl1 = self.graph_loss(
+                batch.graph_views,
+                batch.condition_index,
+                control=batch.control,
+                query_gene_ids=batch.graph.ids[batch.query_positions],
+            )
             metrics.update({f"ssl1_{k}": v for k, v in ssl1.items()})
             loss = loss + self.lambda1 * sum(
                 w * v for w, v in zip(self.weights[0], ssl1.values(), strict=True)
@@ -256,16 +356,23 @@ class JointObjective(nn.Module):
         if self.lambda2:
             # Independent teacher graph; shared teacher parameters are EMA-updated once.
             with torch.no_grad():
-                tg, tc = self._graph(self.teacher, batch.graph, False)
+                teacher_prefix = (
+                    self.teacher.graph.relay_prefix(batch.graph.context)
+                    if model.options.control_conditioned_graph and batch.graph.context is not None
+                    else None
+                )
+                tg, tc = self._batch_graph(self.teacher, batch, prefix=teacher_prefix)
             ssl2 = self.cell_loss(
                 batch,
                 graph,
                 condition,
                 tg,
-                tc[batch.condition_index],
+                tc,
                 ibot_population=ibot_population,
                 reduction_weights=reduction_weights,
                 deferred_koleo=deferred_koleo,
+                student_prefix=student_prefix,
+                teacher_prefix=teacher_prefix,
             )
             metrics.update({f"ssl2_{k}": v for k, v in ssl2.items()})
             loss = loss + self.lambda2 * sum(
@@ -274,14 +381,25 @@ class JointObjective(nn.Module):
         return loss, metrics
 
     def graph_loss(
-        self, views: tuple[GraphView, ...], condition_index: Tensor | None = None
+        self,
+        views: tuple[GraphView, ...],
+        condition_index: Tensor | None = None,
+        *,
+        control: Tensor | None = None,
+        query_gene_ids: Tensor | None = None,
     ) -> dict[str, Tensor]:
         if len(views) < 2:
             raise ValueError("SSL1 requires two globals")
         active_views = views if self.weights[0][0] else views[:2]
-        student_states = [self._graph(self.student, v, True) for v in active_views]
+        student_states = [
+            self._graph(self.student, v, True, control, query_gene_ids, condition_index)
+            for v in active_views
+        ]
         with torch.no_grad():
-            teacher_states = [self._graph(self.teacher, v, False) for v in views[:2]]
+            teacher_states = [
+                self._graph(self.teacher, v, False, control, query_gene_ids, condition_index)
+                for v in views[:2]
+            ]
             teacher_logits = (
                 [self.teacher.ssl1_cls(c) for _, c in teacher_states] if self.weights[0][0] else []
             )
@@ -289,7 +407,7 @@ class JointObjective(nn.Module):
             [self.student.ssl1_cls(c) for _, c in student_states] if self.weights[0][0] else []
         )
         counts = None
-        if self.ssl1_reduction == "row_mean":
+        if self.ssl1_reduction == "row_mean" and not self.student.options.control_conditioned_graph:
             if condition_index is None:
                 raise ValueError("row reduction needs condition frequencies")
             counts = torch.bincount(condition_index, minlength=len(student_states[0][1])).float()
@@ -303,9 +421,53 @@ class JointObjective(nn.Module):
         for i, view in enumerate(views[:2]):
             selected = view.masked_positions
             if self.weights[0][1] and selected.numel():
-                source = self.student.ssl1_node(student_states[i][0][selected])
+                if (
+                    self.student.options.control_conditioned_graph
+                    and self.student.options.checkpoint_layers
+                ):
+                    from torch.utils.checkpoint import checkpoint
+
+                    student_nodes = self._select_graph(student_states[i][0], selected).reshape(
+                        -1, self.student.options.width
+                    )
+                    teacher_nodes = self._select_graph(teacher_states[i][0], selected).reshape(
+                        -1, self.student.options.width
+                    )
+                    pieces = []
+                    for start in range(0, len(student_nodes), 256):
+                        sn, tn = (
+                            student_nodes[start : start + 256],
+                            teacher_nodes[start : start + 256],
+                        )
+                        with torch.no_grad():
+                            self._targets("ssl1_node", self.teacher.ssl1_node(tn))
+
+                        def node_ce(student_node: Tensor, teacher_node: Tensor) -> Tensor:
+                            with torch.no_grad():
+                                target_node = self.teacher.ssl1_node(teacher_node)
+                            return cross_entropy(
+                                self.student.ssl1_node(student_node),
+                                target_node,
+                                self.ssl1_node_center,
+                            )
+
+                        pieces.append(
+                            checkpoint(node_ce, sn, tn, use_reentrant=False)
+                            * (len(sn) / len(student_nodes))
+                        )
+                    node_terms.append(torch.stack(pieces).sum())
+                    continue
+                source = self.student.ssl1_node(
+                    self._select_graph(student_states[i][0], selected).reshape(
+                        -1, self.student.options.width
+                    )
+                )
                 with torch.no_grad():
-                    target = self.teacher.ssl1_node(teacher_states[i][0][selected])
+                    target = self.teacher.ssl1_node(
+                        self._select_graph(teacher_states[i][0], selected).reshape(
+                            -1, self.student.options.width
+                        )
+                    )
                 self._targets("ssl1_node", target)
                 node_terms.append(cross_entropy(source, target, self.ssl1_node_center))
         zero = student_states[0][0].sum() * 0
@@ -318,6 +480,40 @@ class JointObjective(nn.Module):
                 else zero
             ),
         }
+
+    def masked_response_loss(
+        self, batch: TrainingBatch, graph: Tensor, condition: Tensor, row_weights: Tensor
+    ) -> Tensor:
+        device = batch.control.device
+        counter = int(self.auxiliary_rng_counter.item())
+        generator = torch.Generator(device=device).manual_seed(
+            self.auxiliary_seed + 104729 * counter
+        )
+        count = max(1, int(batch.control.shape[1] * self.masked_response_ratio))
+        positions = torch.rand(batch.control.shape, device=device, generator=generator).argsort(-1)[
+            :, :count
+        ]
+        mask = torch.zeros_like(batch.control, dtype=torch.bool).scatter_(1, positions, True)
+        devices = [device.index or 0] if device.type == "cuda" else []
+        with torch.random.fork_rng(devices=devices):
+            torch.manual_seed(self.auxiliary_seed + 104729 * counter)
+            if self.student.options.control_conditioned_graph:
+                graph, condition = self._batch_graph(self.student, batch, mask)
+            response = self.student.encode_response(
+                self._select_graph(graph, batch.query_positions),
+                batch.control,
+                condition,
+                mask,
+                **self.response_metadata(batch),
+            )
+        # Hidden positions cannot read the raw-expression residual.
+        prediction = (
+            torch.where(mask, torch.zeros_like(batch.control), batch.control) + response["delta"]
+        )
+        rows = ((prediction.float() - batch.truth.float()).square() * mask).sum(-1) / count
+        if self.training:
+            self.auxiliary_rng_counter.add_(1)
+        return (rows * row_weights).sum()
 
     @property
     def prediction_strategy(self) -> str:
@@ -380,6 +576,8 @@ class JointObjective(nn.Module):
         ibot_population: Tensor | None = None,
         reduction_weights: tuple[Tensor, Tensor] | None = None,
         deferred_koleo: list[tuple[Tensor, Tensor, Tensor]] | None = None,
+        student_prefix: Tensor | None = None,
+        teacher_prefix: Tensor | None = None,
     ) -> dict[str, Tensor]:
         if len(batch.cell_views) < 2:
             raise ValueError("SSL2 requires two globals")
@@ -387,16 +585,31 @@ class JointObjective(nn.Module):
         active_views = batch.cell_views if self.weights[1][0] else batch.cell_views[:2]
         for i, view in enumerate(active_views):
             p = view.positions
-            args = (graph[batch.query_positions[p]], batch.control[:, p], condition, view.mask)
+            sg, sc = (
+                self._batch_graph(self.student, batch, view.mask, p, student_prefix)
+                if self.student.options.control_conditioned_graph
+                else (graph, condition)
+            )
+            args = (
+                self._select_graph(sg, batch.query_positions[p]),
+                batch.control[:, p],
+                sc,
+                view.mask,
+            )
             metadata = self.response_metadata(batch, p)
             student_outputs.append(self.student.encode_response(*args, **metadata))
             if i < 2:
                 with torch.no_grad():
+                    tg, tc = (
+                        self._batch_graph(self.teacher, batch, positions=p, prefix=teacher_prefix)
+                        if self.student.options.control_conditioned_graph
+                        else (teacher_graph, teacher_condition)
+                    )
                     teacher_outputs.append(
                         self.teacher.encode_response(
-                            teacher_graph[batch.query_positions[p]],
+                            self._select_graph(tg, batch.query_positions[p]),
                             batch.control[:, p],
-                            teacher_condition,
+                            tc,
                             **metadata,
                         )
                     )

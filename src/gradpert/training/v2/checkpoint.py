@@ -36,7 +36,7 @@ def save_checkpoint(
         "numpy_rng": native_rng["numpy"],
         "cuda_rng": native_rng["torch_cuda"],
     }
-    if objective.auxiliary_mask_ratio:
+    if objective.auxiliary_mask_ratio or objective.masked_response_ratio:
         rng["auxiliary_rng_counter"] = objective.auxiliary_rng_counter.detach().cpu().clone()
     rank_states: list[Any] | None = None
     rank = 0
@@ -136,7 +136,7 @@ def load_checkpoint(
         rng = payload
     objective.load_state_dict(payload["objective"])
     optimizer.load_state_dict(payload["optimizer"])
-    if objective.auxiliary_mask_ratio:
+    if objective.auxiliary_mask_ratio or objective.masked_response_ratio:
         objective.auxiliary_rng_counter.copy_(rng["auxiliary_rng_counter"])
     generator.bit_generator.state = rng["numpy_generator"]
     # Preserve the v2 payload keys and older v2 checkpoints while delegating

@@ -211,6 +211,7 @@ def random_mixed_epoch_batches(
 
 
 class CanonicalTrainingData:
+    population_batching: bool = False
     """Read only train perturbations and compatible controls from one sealed H5AD."""
 
     def __init__(
@@ -467,6 +468,45 @@ class CanonicalTrainingData:
         row_indices: tuple[int, ...] | None = None,
     ) -> tuple[_TrainingBatchSpec, ...]:
         selected_rows = self.train_row_indices if row_indices is None else row_indices
+        if getattr(self, "population_batching", False) and row_indices is None:
+            from gradpert.training.v2.population import population_epoch_batches
+
+            grouped = population_epoch_batches(
+                selected_rows,
+                tuple(self.condition_ids[i] for i in selected_rows),
+                tuple(self.context_ids[i] for i in selected_rows),
+                {
+                    context: tuple(self._row_index[row] for row in rows)
+                    for context, rows in self.control_pools.items()
+                },
+                batch_size=batch_size,
+                generator=np.random.default_rng(
+                    _stable_seed(self.run_seed, epoch, "population_rows")
+                ),
+            )
+            population_specs = tuple(
+                _TrainingBatchSpec(
+                    perturbed_indices=group.truth_rows,
+                    perturbed_row_ids=tuple(self.row_ids[i] for i in group.truth_rows),
+                    control_indices=group.control_rows,
+                    control_row_ids=tuple(self.row_ids[i] for i in group.control_rows),
+                    condition_ids=tuple(self.condition_ids[i] for i in group.truth_rows),
+                    anchors_by_condition={
+                        str(group.condition): self.anchors_by_condition[str(group.condition)]
+                    },
+                )
+                for group in grouped
+            )
+            self.pipeline_stats.epoch_batch_identity_sha256 = sha256_json(
+                [
+                    {
+                        "perturbed_row_ids_sha256": sha256_json(list(spec.perturbed_row_ids)),
+                        "control_row_ids_sha256": sha256_json(list(spec.control_row_ids)),
+                    }
+                    for spec in population_specs
+                ]
+            )
+            return population_specs
         train_conditions = tuple(self.condition_ids[index] for index in selected_rows)
         relative_batches = (
             random_mixed_epoch_batches(
@@ -704,6 +744,13 @@ class CanonicalTrainingData:
         if batch_size <= 1:
             raise ValueError("batch_size must exceed one")
         train_conditions = tuple(self.condition_ids[index] for index in self.train_row_indices)
+        if getattr(self, "population_batching", False):
+            from collections import Counter
+
+            return sum(
+                (count + batch_size - 1) // batch_size
+                for count in Counter(train_conditions).values()
+            )
         steps = len(
             random_mixed_epoch_batches(
                 condition_ids=train_conditions,

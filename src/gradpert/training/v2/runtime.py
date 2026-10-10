@@ -242,6 +242,7 @@ def prepare_runtime(
             train_selection_receipt = apply_train_selection(
                 data, selection_path, options.train_selection_sha256
             )
+        data.population_batching = options.population_response
         allowed_expression_ids, expression_policy_receipt = expression_policy(
             tuple(data.expression_gene_ids),
             tuple(data.split.test_conditions),
@@ -308,6 +309,10 @@ def prepare_runtime(
             lambda_gene_mask=options.lambda_gene_mask,
             lambda_cls_mask=options.lambda_cls_mask,
             auxiliary_seed=run_seed + 0x4A51,
+            masked_response_ratio=options.masked_response_ratio,
+            lambda_masked_response=options.lambda_masked_response,
+            population_response=options.population_response,
+            lambda_mmd=options.lambda_mmd,
         ).to(device)
         optimizer = V2Optimizer(
             student,
@@ -367,6 +372,18 @@ def prepare_runtime(
                 "target": "training_control_expression",
                 "inference_use": False,
             }
+        if options.population_response or options.masked_response_ratio:
+            identity["loss_protocol"]["new_response_supervision"] = {
+                "population_response": options.population_response,
+                "lambda_mmd": options.lambda_mmd,
+                "mmd_bandwidth": "detached_training_truth_median_offdiagonal",
+                "masked_response_ratio": options.masked_response_ratio,
+                "lambda_masked_response": options.lambda_masked_response,
+                "masked_raw_residual": "blocked",
+                "epoch_budget": "each_selected_training_truth_once",
+            }
+        if options.population_response:
+            identity["loss_protocol"]["batch_order"] = "same_condition_population_train_rows_once"
         if any(
             (
                 arch.prior_shared_adapter,
@@ -397,6 +414,21 @@ def prepare_runtime(
                 identity["unseen_gene_mechanisms"]["genept_projection_activation"] = (
                     arch.genept_projection_activation
                 )
+        if arch.mlp_profile == "unified" and arch.learned_genept_projection:
+            identity["unseen_gene_mechanisms"]["shared_projection"] = {
+                "linear": [prior.embedding_width, arch.width],
+                "nonlinear": [arch.width, 4 * arch.width, arch.width],
+                "activation": "clipped_swiglu",
+                "rmsnorm_epsilon": 1e-6,
+                "bias": True,
+            }
+            if arch.gene_conditioned_readout:
+                identity["unseen_gene_mechanisms"]["readout_correction"] = {
+                    "input": "same_frozen_raw_genept_no_duplicate_buffer",
+                    "dimensions": [prior.embedding_width, max(1, arch.width // 4), arch.width],
+                    "initialization": "zero_down_weight_and_bias_separate_rng_stream",
+                    "activation": "clipped_swiglu",
+                }
         identity["training_expression_policy"] = expression_policy_receipt
         if train_selection_receipt is not None:
             identity["training_row_selection"] = train_selection_receipt

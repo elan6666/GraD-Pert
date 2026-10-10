@@ -87,16 +87,45 @@ def predict_query_set(
     model.eval()
     ids = np.union1d(queries, targets)
     view = index.view(ids, [targets], rng=np.random.default_rng(0), device=device, induced=False)
-    gene = model.graph(view.ids, view.neighbors, view.valid, view.sources, context=view.context)
-    condition = model.aggregate_targets(gene, view.target_positions, view.target_valid)
+    conditional = model.options.control_conditioned_graph
+    prefix = (
+        model.graph.relay_prefix(view.context) if conditional and view.context is not None else None
+    )
+    gene = (
+        None
+        if conditional
+        else model.graph(view.ids, view.neighbors, view.valid, view.sources, context=view.context)
+    )
+    condition = (
+        None
+        if gene is None
+        else model.aggregate_targets(gene, view.target_positions, view.target_valid)
+    )
     positions = torch.tensor(np.searchsorted(ids, queries), device=device)
     result = np.empty((len(controls), len(queries)), dtype=np.float32)
     for row in range(0, len(controls), cell_batch):
         chunk = torch.from_numpy(
             np.ascontiguousarray(controls[row : row + cell_batch, queries])
         ).to(device)
+        if conditional:
+            modulation = model.control_graph_summary(chunk, view.ids[positions])
+            gene = model.graph(
+                view.ids,
+                view.neighbors,
+                view.valid,
+                view.sources,
+                context=view.context,
+                modulation=modulation,
+                prefix=prefix,
+            )
+            condition = model.aggregate_targets(
+                gene,
+                view.target_positions.expand(len(chunk), -1),
+                view.target_valid.expand(len(chunk), -1),
+            )
+        assert gene is not None and condition is not None
         output = model.encode_response(
-            gene[positions],
+            gene[positions] if gene.ndim == 2 else gene[:, positions],
             chunk,
             condition.expand(len(chunk), -1),
             block_response_cls_to_gene=block_response_cls_to_gene,

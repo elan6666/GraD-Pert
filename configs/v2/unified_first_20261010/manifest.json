@@ -1,0 +1,118 @@
+{
+  "schema": "unified-first-1",
+  "family": "unified_first_20261010",
+  "parent": "configs/v2/cap40_genept_gelu_20261010/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "12fbec67fd027969a45111832c412f1a500f433a0e328ec800b4342b498a6c3d",
+  "baseline_prechange_sha": "40fb032365a7d61b8de6caae7e4fb15b78c2ee24",
+  "epochs": 6,
+  "validation": "disabled",
+  "test_roles": [
+    "last"
+  ],
+  "common_microbatch": 32,
+  "global_batch": 32,
+  "world_size": 1,
+  "accumulation": 1,
+  "seed": 1,
+  "concurrent_experiments": 2,
+  "primary_metric": "txpert_macro_pearson_delta_deg",
+  "preflight_updates": 10,
+  "rows": [
+    {
+      "name": "N0",
+      "experiment_id": "unified_first_20261010__N0",
+      "config": "configs/v2/unified_first_20261010/N0/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "8347dc9836abef534b9513838259d11fed85ee4af7d9b5c02a7726a64779c6a0",
+      "changes": {}
+    },
+    {
+      "name": "U24",
+      "experiment_id": "unified_first_20261010__U24",
+      "config": "configs/v2/unified_first_20261010/U24/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "2f122a94a16fa3e149a0611244ff44b75c477d31ab2357957d0145e07c8263f2",
+      "changes": {
+        "gene_conditioned_readout": true
+      }
+    },
+    {
+      "name": "MR1",
+      "experiment_id": "unified_first_20261010__MR1",
+      "config": "configs/v2/unified_first_20261010/MR1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "67e2ca257be89fa94967ef6172822267dd14858f3a6f12dc7ab9ee62c8599790",
+      "changes": {
+        "masked_response_ratio": 0.25,
+        "lambda_masked_response": 1.0
+      }
+    },
+    {
+      "name": "P1",
+      "experiment_id": "unified_first_20261010__P1",
+      "config": "configs/v2/unified_first_20261010/P1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "bad01cc95e2bc0549e5aeb631a65bdee804fbb01f81ccfb1955ff3e59c6385d3",
+      "changes": {
+        "population_response": true,
+        "max_conditions": 1
+      }
+    },
+    {
+      "name": "C1",
+      "experiment_id": "unified_first_20261010__C1",
+      "config": "configs/v2/unified_first_20261010/C1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "1c311e104c5f4046d9e07162b3467082f5491344c554c77f6b44f6abe48eb15b",
+      "changes": {
+        "perturbation_injection": "entry"
+      }
+    },
+    {
+      "name": "O1",
+      "experiment_id": "unified_first_20261010__O1",
+      "config": "configs/v2/unified_first_20261010/O1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "3faeca3f9a744023587bb6791a30f503fc0833000c54446ebd841c1d43ce26f1",
+      "changes": {
+        "random_gene_order": false
+      }
+    },
+    {
+      "name": "VH",
+      "experiment_id": "unified_first_20261010__VH",
+      "config": "configs/v2/unified_first_20261010/VH/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "6c3b2306f2f31ada192de01212e54af569301f18cf356b42aa6c83b6f584f5dd",
+      "changes": {
+        "global_min_ratio": 0.8,
+        "global_max_ratio": 1.0,
+        "local_min_ratio": 0.4,
+        "local_max_ratio": 0.65
+      }
+    },
+    {
+      "name": "S1-L4",
+      "experiment_id": "unified_first_20261010__S1-L4",
+      "config": "configs/v2/unified_first_20261010/S1-L4/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "63c9de61461ceeb013d33fe4d75ec39aab6afc7a827aa95e4e56dd34d961c8b6",
+      "changes": {
+        "ssl1_local_views": 4,
+        "ssl1_local_layout": "go_string_random"
+      }
+    },
+    {
+      "name": "CG1",
+      "experiment_id": "unified_first_20261010__CG1",
+      "config": "configs/v2/unified_first_20261010/CG1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "dc2b8f1f5e56b371e0cca3598b8f7f75ec78e1b8042f46c2be4b265af3293e2a",
+      "changes": {
+        "control_conditioned_graph": true
+      }
+    },
+    {
+      "name": "S12-L4",
+      "experiment_id": "unified_first_20261010__S12-L4",
+      "config": "configs/v2/unified_first_20261010/S12-L4/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "a74cf0639f1381565099328d340e3baf418e89e77891d95484f63feed7adce0b",
+      "changes": {
+        "ssl1_local_views": 4,
+        "ssl2_local_views": 4,
+        "ssl1_local_layout": "go_go_string_string"
+      }
+    }
+  ]
+}

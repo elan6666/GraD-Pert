@@ -208,6 +208,8 @@ def optimizer_step(
                     batch.condition_index
                     if global_condition_index is None
                     else global_condition_index,
+                    control=batch.control,
+                    query_gene_ids=batch.graph.ids[batch.query_positions],
                 )
                 graph_loss = (
                     objective.lambda1
@@ -272,6 +274,9 @@ def optimizer_step(
         metrics["joint_loss"] += objective.lambda_gene_mask * metrics.get(
             "gene_mask", 0.0
         ) + objective.lambda_cls_mask * metrics.get("cls_mask", 0.0)
+        metrics["joint_loss"] += objective.lambda_masked_response * metrics.get(
+            "masked_response", 0.0
+        )
         metrics["gradient_norm"] = float(norm)
         metrics["gradient_clipped"] = float(norm > 1.0)
         metrics["learning_rate"] = lr

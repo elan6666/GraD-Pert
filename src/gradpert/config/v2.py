@@ -44,6 +44,10 @@ class V2Architecture:
     direct_target_flag: bool = False
     learned_genept_projection: bool = False
     genept_projection_activation: str = "none"
+    mlp_profile: str = "historical"
+    control_conditioned_graph: bool = False
+    perturbation_injection: str = "per_layer"
+    random_gene_order: bool = True
 
     def __post_init__(self) -> None:
         for name in (
@@ -85,9 +89,31 @@ class V2Architecture:
         ):
             raise ValueError("unseen-gene mechanisms require the relay profile")
         if self.learned_genept_projection and (
-            self.prior_shared_adapter or self.gene_conditioned_readout
+            self.prior_shared_adapter
+            or (self.gene_conditioned_readout and self.mlp_profile != "unified")
         ):
             raise ValueError("raw GenePT projection cannot use reduced-prior mechanisms")
+        if self.mlp_profile not in ("historical", "unified"):
+            raise ValueError("unknown MLP profile")
+        if self.perturbation_injection not in ("per_layer", "entry"):
+            raise ValueError("unknown perturbation injection")
+        if any(
+            type(v) is not bool for v in (self.control_conditioned_graph, self.random_gene_order)
+        ):
+            raise ValueError("graph conditioning and gene order must be boolean")
+        if (
+            self.mlp_profile == "unified"
+            or self.control_conditioned_graph
+            or self.perturbation_injection != "per_layer"
+            or not self.random_gene_order
+        ) and self.attention != "relay_full":
+            raise ValueError("new mechanism profiles require relay attention")
+        if self.control_conditioned_graph and (
+            self.mlp_profile != "unified" or not self.graph_source_key_gate
+        ):
+            raise ValueError("conditional graph requires unified MLP and source key gate")
+        if self.mlp_profile == "unified" and self.genept_projection_activation != "none":
+            raise ValueError("unified MLP replaces the historical GenePT activation")
         if self.genept_projection_activation not in ("none", "gelu"):
             raise ValueError("unknown GenePT projection activation")
         if self.genept_projection_activation != "none" and not self.learned_genept_projection:
@@ -225,6 +251,14 @@ class V2Architecture:
         if self.genept_projection_activation == "none":
             # Preserve the architecture identity of historical linear U4 checkpoints.
             values.pop("genept_projection_activation")
+        for name, default in (
+            ("mlp_profile", "historical"),
+            ("control_conditioned_graph", False),
+            ("perturbation_injection", "per_layer"),
+            ("random_gene_order", True),
+        ):
+            if getattr(self, name) == default:
+                values.pop(name)
         for name in (
             "prior_shared_adapter",
             "gene_conditioned_readout",
@@ -287,6 +321,14 @@ class V2Options:
     auxiliary_mask_ratio: float = 0.0
     lambda_gene_mask: float = 0.0
     lambda_cls_mask: float = 0.0
+    ssl1_local_views: int | None = None
+    ssl2_local_views: int | None = None
+    ssl1_local_layout: str = "go_string"
+    independent_view_rng: bool = False
+    masked_response_ratio: float = 0.0
+    lambda_masked_response: float = 0.0
+    population_response: bool = False
+    lambda_mmd: float = 1.0
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -331,6 +373,18 @@ class V2Options:
             "auxiliary_mask_ratio",
             "lambda_gene_mask",
             "lambda_cls_mask",
+            "mlp_profile",
+            "control_conditioned_graph",
+            "perturbation_injection",
+            "random_gene_order",
+            "ssl1_local_views",
+            "ssl2_local_views",
+            "ssl1_local_layout",
+            "independent_view_rng",
+            "masked_response_ratio",
+            "lambda_masked_response",
+            "population_response",
+            "lambda_mmd",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -341,6 +395,8 @@ class V2Options:
         plain = {name: value.value for name, value in values.items()}
         arch = V2Architecture.parse({name: plain[name] for name in arch_names if name in plain})
         options = cls(**{name: plain[name] for name in names if name in plain})
+        if options.population_response and (options.world_size != 1 or options.accumulation != 1):
+            raise ValueError("population response requires one GPU and no accumulation")
         if (
             arch.prior_shared_adapter
             or arch.gene_conditioned_readout
@@ -350,6 +406,33 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
+        if self.ssl1_local_layout not in ("go_string", "go_string_random", "go_go_string_string"):
+            raise ValueError("unknown SSL1 Local layout")
+        for value in (self.ssl1_local_views, self.ssl2_local_views):
+            if value is not None and (type(value) is not int or value < 1):
+                raise ValueError("branch Local count must be positive")
+        if (
+            self.ssl1_local_layout != "go_string"
+            and (self.ssl1_local_views or self.local_views) != 4
+        ):
+            raise ValueError("four-Local layouts require four SSL1 Locals")
+        if (
+            type(self.independent_view_rng) is not bool
+            or type(self.population_response) is not bool
+        ):
+            raise ValueError("view RNG and population response must be boolean")
+        if not all(
+            math.isfinite(v)
+            for v in (self.masked_response_ratio, self.lambda_masked_response, self.lambda_mmd)
+        ):
+            raise ValueError("new supervision settings must be finite")
+        if (
+            not 0 <= self.masked_response_ratio < 1
+            or min(self.lambda_masked_response, self.lambda_mmd) < 0
+        ):
+            raise ValueError("invalid masked-response or MMD setting")
+        if bool(self.masked_response_ratio) != bool(self.lambda_masked_response):
+            raise ValueError("masked response needs a mask ratio and a positive weight")
         if type(self.prediction_error_power) is not int or self.prediction_error_power not in (
             2,
             4,

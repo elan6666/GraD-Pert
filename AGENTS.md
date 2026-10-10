@@ -97,8 +97,10 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
 
 ## V2 default launch preflight
 
-- Future newly generated v2 experiments explicitly default to U4: frozen raw
-  GenePT with a shared learned 2048-to-256 projection, GELU, then LayerNorm.
+- Future newly generated v2 experiments explicitly default to unified MLP U4:
+  frozen raw GenePT, shared learned 2048-to-256 projection, then pre-RMSNorm
+  clipped SwiGLU 256/1024/256 with bias. Follow the first-batch design for
+  MLP role dimensions, linear endpoints and unchanged attention paths.
   Prior/activation ablations may explicitly override it. Preserve historical
   config/checkpoint defaults and all existing run identities.
 - Unless the user explicitly scopes a change, KDA mechanism ablations apply to
