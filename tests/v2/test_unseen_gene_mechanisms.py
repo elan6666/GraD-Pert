@@ -102,24 +102,30 @@ def test_target_flags_use_global_ids_valid_padding_and_all_targets():
     torch.testing.assert_close(actual, expected)
 
 
-@pytest.mark.parametrize("flag", (*FLAGS, "learned_genept_projection"))
+@pytest.mark.parametrize(
+    "flag", (*FLAGS, "learned_genept_projection", "learned_genept_projection_gelu")
+)
 def test_three_complete_nonzero_lr_updates_teacher_centers_and_resume(flag, tmp_path):
     torch.set_num_threads(2)
     torch.manual_seed(42)
     original, batch = relay_training_fixture(False)
     seeds = original.student.graph.embedding.weight.detach().clone()
-    if flag == "learned_genept_projection":
+    projection = flag.startswith("learned_genept_projection")
+    if projection:
         seeds = torch.cat((seeds, seeds.flip(-1)), -1)
+    settings = (
+        {"learned_genept_projection": True, "genept_projection_activation": "gelu"}
+        if flag == "learned_genept_projection_gelu"
+        else {flag: True}
+    )
     model = GraDPertV2(
         seeds,
-        replace(original.student.options, **{flag: True}),
+        replace(original.student.options, **settings),
     )
     objective = JointObjective(model, loss_reduction="row_mean", koleo_exclude_same_condition=True)
     optimizer = V2Optimizer(model, 1e-3, 0)
     frozen = (
-        model.graph.embedding.weight.detach().clone()
-        if flag in (FLAGS[0], "learned_genept_projection")
-        else None
+        model.graph.embedding.weight.detach().clone() if flag == FLAGS[0] or projection else None
     )
     prior = model.readout_prior.clone() if flag == FLAGS[1] else None
     rng = np.random.default_rng(7)
@@ -146,7 +152,7 @@ def test_three_complete_nonzero_lr_updates_teacher_centers_and_resume(flag, tmp_
         assert torch.equal(model.graph.embedding.weight, frozen)
         assert torch.equal(objective.teacher.graph.embedding.weight, frozen)
         assert "graph.embedding.weight" not in {r["name"] for r in routes(model)}
-        if flag == "learned_genept_projection":
+        if projection:
             assert model.graph.adapter.weight.grad is not None
         else:
             assert model.graph.prior_adapter[2].weight.abs().sum() > 0

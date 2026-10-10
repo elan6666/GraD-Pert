@@ -1,0 +1,25 @@
+{
+  "task": "nonlinear shared GenePT projection",
+  "owner_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+  "baseline_published_sha": "ff4afe20efaf85fcff40b10505c57c6812da1389",
+  "activation": "gelu",
+  "formula": "LayerNorm(GELU(W v_g + b))",
+  "config": "configs/v2/cap40_genept_gelu_20261010/gradpert_v2/nadig_jurkat.yaml",
+  "config_sha256": "12fbec67fd027969a45111832c412f1a500f433a0e328ec800b4342b498a6c3d",
+  "historical_u4_config_unchanged": true,
+  "parameter_change": 0,
+  "validation": {
+    "pytest_command": ".venv/bin/python -m pytest -q tests/v2/test_genept_projection_activation.py tests/v2/test_unseen_gene_mechanisms.py tests/v2/test_unseen_group.py tests/v2/test_config.py",
+    "pytest_exit": 0,
+    "pytest_passed": 98,
+    "pytest_log": "/tmp/gradpert-genept-gelu-20261010-tests.log",
+    "ruff_check": "passed",
+    "ruff_format_check": "passed",
+    "mypy_follow_imports_silent": "passed for 3 changed source files",
+    "standard_mypy": "17 errors in 4 unchanged imported files; reproduced on pre-change shadow source",
+    "standard_mypy_baseline_log": "/tmp/gradpert-genept-gelu-baseline-mypy.log"
+  },
+  "scope": "implementation and local synthetic/config validation only",
+  "training_started": false,
+  "cuda_capacity_speed_or_scientific_result": "not measured"
+}

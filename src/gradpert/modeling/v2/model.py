@@ -315,6 +315,9 @@ class GeneGraph(nn.Module):
             if seeds.shape[1] == options.width or options.learned_genept_projection
             else nn.Linear(seeds.shape[1], options.width)
         )
+        self.projection_activation = (
+            nn.GELU() if options.genept_projection_activation == "gelu" else nn.Identity()
+        )
         self.norm = nn.LayerNorm(options.width)
         self.mask_token = nn.Parameter(torch.zeros(options.width))
         if options.graph_read_mode == "relay":
@@ -365,7 +368,7 @@ class GeneGraph(nn.Module):
         seeds = self.embedding.weight
         if self.prior_adapter is not None:
             seeds = seeds + self.prior_adapter(seeds)
-        memory = self.norm(self.adapter(seeds))
+        memory = self.norm(self.projection_activation(self.adapter(seeds)))
         if masked_ids is not None:
             memory = memory.index_copy(0, masked_ids, self.mask_token.expand(len(masked_ids), -1))
         if self.read_mode == "static":

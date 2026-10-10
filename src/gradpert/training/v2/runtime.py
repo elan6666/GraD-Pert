@@ -393,6 +393,10 @@ def prepare_runtime(
                 independent_gene_table=False,
                 pca=False,
             )
+            if arch.genept_projection_activation != "none":
+                identity["unseen_gene_mechanisms"]["genept_projection_activation"] = (
+                    arch.genept_projection_activation
+                )
         identity["training_expression_policy"] = expression_policy_receipt
         if train_selection_receipt is not None:
             identity["training_row_selection"] = train_selection_receipt

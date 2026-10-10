@@ -43,6 +43,7 @@ class V2Architecture:
     gene_conditioned_readout: bool = False
     direct_target_flag: bool = False
     learned_genept_projection: bool = False
+    genept_projection_activation: str = "none"
 
     def __post_init__(self) -> None:
         for name in (
@@ -87,6 +88,10 @@ class V2Architecture:
             self.prior_shared_adapter or self.gene_conditioned_readout
         ):
             raise ValueError("raw GenePT projection cannot use reduced-prior mechanisms")
+        if self.genept_projection_activation not in ("none", "gelu"):
+            raise ValueError("unknown GenePT projection activation")
+        if self.genept_projection_activation != "none" and not self.learned_genept_projection:
+            raise ValueError("GenePT projection activation requires learned GenePT projection")
         if self.sinkhorn_backend not in ("native", "auto", "triton"):
             raise ValueError("unknown Sinkhorn backend")
         if self.width % self.heads or not 0 <= self.dropout < 1:
@@ -217,6 +222,9 @@ class V2Architecture:
             values.pop("attention_replacement")
         if self.self_readout == "final":
             values.pop("self_readout")
+        if self.genept_projection_activation == "none":
+            # Preserve the architecture identity of historical linear U4 checkpoints.
+            values.pop("genept_projection_activation")
         for name in (
             "prior_shared_adapter",
             "gene_conditioned_readout",
@@ -312,6 +320,7 @@ class V2Options:
             "gene_conditioned_readout",
             "direct_target_flag",
             "learned_genept_projection",
+            "genept_projection_activation",
             "koleo_exclude_same_condition",
             "graph_view_mode",
             "validation_mode",
