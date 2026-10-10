@@ -861,3 +861,10 @@ its dedicated experiment documents. It does not describe this v2 run.
 ## 2026-09-27：KDA 常量复用双卡完整更新严格一致；ABBA 计时进行中（历史）
 
 干净发布源码 `32b2bfd88f36b9a7fad435c533dc825ef81942b4` 的 opt-in 形状常量复用，在双 RTX 5090 两步确定性完整更新上通过：两 rank 输入与随机状态一致，损失、参数梯度、目标、优化器、Teacher 和 center 状态差值均为零；第二步学习率 `7.796055196070788e-08` 非零。收据 `/data/yilangliu/GraD-Pert/development/v2-kda-constants-32b2bfd-parity-m2-20260927/rank-{0,1}-receipt.json`。这仍不是吞吐或长期模型效果证据。当前同一发布源码的 m64、全局256 串行 A1/B1/B2/A2 benchmark-only 队列在 `/data/yilangliu/GraD-Pert/development/v2-kda-constants-32b2bfd-abba-20260927T0826Z`，PID `3668186`；A 为原路径，B 只开启常量复用，各12步、预热3步。短时由本会话子代理只读监督；主会话完成收据/身份/吞吐审计后决定采用或淘汰，再推进容量与新 ID B0。
+
+
+## 2026-10-10 Unified MLP first batch implementation
+
+Only N0/U24/MR1/P1/C1/O1/VH/S1-L4/CG1/S12-L4 are authorized. New common MLP, masked response, population mean/MMD, conditional graph, raw shared readout and independent Local views implemented. Target tests133 pass; full v2 regression737 pass/11 environment skips/1 missing historical fixture failure reproduced on immutable40fb032. Scoped Ruff/format/mypy pass, no first-batch review blocker. Student trainable counts N0/U24/CG1=42699822/42980782/45596478; frozen prior13324288. Candidate batch32/world1/accum1 requires CUDA10-update restore and300-control gates. No scientific completion or capacity claim yet.
+
+Plan: plans/GRADPERT_V2_UNIFIED_MLP_FIRST_BATCH_20261010.plan.md. Report: docs/experiments/GRADPERT_V2_UNIFIED_FIRST_BATCH_20261010.md. Source implemented in a415d8c; next publish final snapshot, immutable server checkout, worst-first gates, then automatic six-epoch two-lane first batch only. Main owns build; old U4/U3 monitors remain deleted. VPN UI/TCP/SSH recovered and GPUs idle.

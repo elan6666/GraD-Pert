@@ -441,3 +441,10 @@ SSH `ssh -S none -o BatchMode=yes -o ConnectTimeout=10 10.24.1.91`，当前可�
 ## 当前所有权／动作（2026-09-27 08:27 UTC）
 
 主会话拥有当前性能阶段；已完成的双卡完整更新 parity 为 `32b2bfd88f36b9a7fad435c533dc825ef81942b4`、两 rank 两步 passed、输入/RNG/全部损失/梯度/optimizer/Teacher/center 差值零，第二步 LR 非零。短时 ABBA 队列 `/data/yilangliu/GraD-Pert/development/v2-kda-constants-32b2bfd-abba-20260927T0826Z` 正运行，PID `3668186`，顺序 A1/B1/B2/A2；仅本会话 Luna 子代理只读监督，旧跨会话心跳保持暂停。原 B0 中止且不恢复。队列终态后主会话立即审计总步时、含等待吞吐、峰值显存、启动成本与哈希；有效才进入新源码128步持续容量，否则淘汰并依据关键路径选择下一机制。用户授权范围仍含新 ID 完整 B0 五轮及 best/last，不启动其他消融。下方章节为历史快照。
+
+
+## 2026-10-10 Unified MLP first batch implementation
+
+Only N0/U24/MR1/P1/C1/O1/VH/S1-L4/CG1/S12-L4 are authorized. New common MLP, masked response, population mean/MMD, conditional graph, raw shared readout and independent Local views implemented. Target tests133 pass; full v2 regression737 pass/11 environment skips/1 missing historical fixture failure reproduced on immutable40fb032. Scoped Ruff/format/mypy pass, no first-batch review blocker. Student trainable counts N0/U24/CG1=42699822/42980782/45596478; frozen prior13324288. Candidate batch32/world1/accum1 requires CUDA10-update restore and300-control gates. No scientific completion or capacity claim yet.
+
+Plan: plans/GRADPERT_V2_UNIFIED_MLP_FIRST_BATCH_20261010.plan.md. Report: docs/experiments/GRADPERT_V2_UNIFIED_FIRST_BATCH_20261010.md. Source implemented in a415d8c; next publish final snapshot, immutable server checkout, worst-first gates, then automatic six-epoch two-lane first batch only. Main owns build; old U4/U3 monitors remain deleted. VPN UI/TCP/SSH recovered and GPUs idle.
