@@ -23,7 +23,7 @@ from run_unified_group import (
     validate_completed,
 )
 from run_unified_overlap import evaluate_attempt, process_identity
-from shared_gpu import admit, snapshot, terminate_tree, validate_policy
+from shared_gpu import DUAL_SCHEMA, admit, snapshot, terminate_tree, validate_policy
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.execution.identity import inspect_source_identity
@@ -162,6 +162,18 @@ def fit_budget(peak_reserved: int, total_bytes: int) -> float:
     if min(peak_reserved, total_bytes) <= 0:
         raise ValueError("positive measured reserved and total memory are required")
     return 0.65 if peak_reserved * 1.15 <= total_bytes * 0.60 else 1.0
+
+
+def validate_coexistence_acceptance(queue: dict, ready: dict, acceptance: dict) -> None:
+    if acceptance != {
+        "decision": "allow_formal",
+        "queue_sha256": ready["queue_sha256"],
+        "source_commit": queue["source_commit"],
+        "preflight_sha256": {name: entry["sha256"] for name, entry in ready["preflights"].items()},
+    }:
+        raise ValueError(
+            "coexistence acceptance differs from the exact tested source/queue/receipts"
+        )
 
 
 def gpu_processes_owned() -> bool:
@@ -402,6 +414,23 @@ def execute(queue: dict, directory: Path) -> None:
             # Expensive CG1 is checked before any formal fit at the common batch.
             for name in queue["initial_preflight"]:
                 preflight(indexed[name], stack)
+            if shared_policy is not None and shared_policy["schema"] == DUAL_SCHEMA:
+                # New dual-GPU coexistence must be inspected before any formal fit.
+                state["phase"] = "waiting_coexistence_acceptance"
+                record()
+                ready = {
+                    "queue_sha256": state["queue_sha256"],
+                    "source_commit": queue["source_commit"],
+                    "preflights": copy.deepcopy(state["preflights"]),
+                    "scientific_complete": False,
+                    "formal_started": False,
+                }
+                atomic_json(directory / "PREFLIGHT_COMPLETE.json", ready)
+                approval = directory / "COEXISTENCE_ACCEPTANCE.json"
+                while not approval.exists():
+                    shared_check("waiting_coexistence_acceptance")
+                    time.sleep(5)
+                validate_coexistence_acceptance(queue, ready, read_json(approval))
             for row in queue["rows"]:
                 preflight(row, stack)
                 path = directory / f"{row['name']}.launch-plan.json"

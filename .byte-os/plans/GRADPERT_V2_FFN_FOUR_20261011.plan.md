@@ -11,3 +11,13 @@ Fixed micro48/world2/accum2/global192. Eval128 must pass actual inference prefli
 Use existing run_unified_ddp engine with validated ffN family selection; all legacy matrix behavior remains pinned. New v2_fixed_4 lifecycle/collector is exact4, disabled validation fresh-only, zeroPKL/18metrics/ordered-control hashes/source/config/checkpoint identities required. No special optimizer or Teacher schedule change.
 
 Waits under1h use Luna read-only receipt/file monitoring; no main duplicate query. When real long queue starts, transfer exact identity/attempt/source/hash and repair_budget0 to existing supervisor, update20min existing monitor and return fallback, verify ACK and recurring registration. Preserve partial/failed evidence; capacity failure is not a scientific result and does not permit silent per-arm rebatching.
+
+## Explicit dual-GPU coexistence test authorization (2026-10-11)
+
+User asks to test our DDP beside BOTH currently observed ~700MiB ScButterfly jobs rather than waiting. Oldexclusive waiting controller was stopped with noCUDAchild; oldfiles preserved. This supersedes only resourceadmission, not method/config/batch/4epoch/arms. Sourcebaseb9035f1f8db872dbb9a64298d157e31023756fe1 verifiedclean/pushed.
+
+New opt-in shared-gpu-admission-2 pinsphysicalUUID,index,foreignUID1003,PID/startticks/commandhash/scriptbasename for exactlyone observedjobperGPU. Eachforeignmemory<=1024MiB, physicalfree>=2048MiB, ownallocator<=.85, checks5sec; new/recycledPID, unknownjob, growthorreserveexhaustion failclosed and stopONLY identity-verified own descendantstree. Departingforeignjobisallowed, but isnotproof of actualcoexistence throughput. No foreignprivatefiles/logs/signals, nootherusersjobs manipulated. LegacyGPU1-onlypolicy remainsunchanged.
+
+Freshsealedqueue runsall3ten-update/restore/actual300control preflightsunderrealcoexistence, records5sectelemetryandtrueupdate/inference timings/peaks. It then waits atwaiting_coexistence_acceptance; mainread-onlyacceptance ofqueue/source/allpreflight hashes required before anyformalfit. This guardletstestsfinishwithoutaccidentallydispatchingformaltraining. Test10stepsisboundedfeasibility, notlong-termperformanceorbiologicalparity. No unmatched empty-GPU speedupclaims. Ifallpass andcoexistevidenceisvalid, explicit main acceptanceallowsonlyalreadyauthorizedBR→F1→N1 fourepochandlasttests onthe samefreshqueue; nootherarms.
+
+Shortread-onlyLuna monitorspreflightreceipts;main no duplicateGPUqueries. Longformalcrosschatmonitor20minonly afterpreflightacceptanceandrealfitstartup. Publishnewimmutablecleancheckout; native src/config identical tob9035f1; onlyscript guard/protocol/tests/docs change. Preservefailedexclusive/sharedadmissionqueues, exactstopreceipts and all no-benefit/OOM evidence.

@@ -1,0 +1,7 @@
+{
+  "base_sha": "b9035f1f8db872dbb9a64298d157e31023756fe1",
+  "tests": "73 passed in9.29s",
+  "scope": "sameFFNmethods/configs; onlydualpinpolicy and explicit preflight acceptancegate",
+  "formal_started": false,
+  "gpu_test": "not yet started"
+}

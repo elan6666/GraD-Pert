@@ -100,6 +100,128 @@ def test_policy_cannot_silently_expand_the_resource_allowance(policy):
         shared.validate_policy(policy)
 
 
+@pytest.fixture
+def dual_policy():
+    return {
+        "schema": shared.DUAL_SCHEMA,
+        "max_foreign_memory_mib": 1024,
+        "min_free_memory_mib": 2048,
+        "max_own_memory_fraction": 0.85,
+        "devices": [
+            {
+                "gpu_index": i,
+                "gpu_uuid": f"GPU-{i}",
+                "foreign_identity": {
+                    "pid": 123 + i,
+                    "uid": 1003,
+                    "start_ticks": str(51 + i),
+                    "command_sha256": str(i) * 64,
+                    "script_basename": "run_scbutterfly_archived_predictions.py",
+                },
+            }
+            for i in (0, 1)
+        ],
+    }
+
+
+@pytest.fixture
+def dual_observed(dual_policy):
+    return {
+        "gpus": {i: {"uuid": f"GPU-{i}", "free_mib": 3000} for i in (0, 1)},
+        "processes": [{"owned": True}]
+        + [
+            {
+                "owned": False,
+                "pid": d["foreign_identity"]["pid"],
+                "gpu_uuid": d["gpu_uuid"],
+                "memory_mib": 720,
+                "identity": copy.deepcopy(d["foreign_identity"]),
+            }
+            for d in dual_policy["devices"]
+        ],
+    }
+
+
+def test_dual_current_jobs_and_their_departure_are_admitted(dual_policy, dual_observed):
+    shared.admit(dual_policy, dual_observed)
+    dual_observed["processes"].pop()
+    shared.admit(dual_policy, dual_observed)
+    dual_observed["processes"] = []
+    shared.admit(dual_policy, dual_observed)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("pid", 999),
+        ("uid", 1004),
+        ("start_ticks", "999"),
+        ("command_sha256", "a" * 64),
+        ("script_basename", "other.py"),
+    ],
+)
+def test_dual_recycled_changed_and_unapproved_jobs_fail_closed(
+    dual_policy, dual_observed, field, value
+):
+    dual_observed["processes"][1]["identity"][field] = value
+    with pytest.raises(RuntimeError, match="foreign"):
+        shared.admit(dual_policy, dual_observed)
+
+
+@pytest.mark.parametrize("failure", ["growth", "second_job", "uuid", "headroom"])
+def test_dual_limits_cannot_be_bypassed(dual_policy, dual_observed, failure):
+    if failure == "growth":
+        dual_observed["processes"][1]["memory_mib"] = 1025
+    elif failure == "second_job":
+        dual_observed["processes"].append(copy.deepcopy(dual_observed["processes"][1]))
+    elif failure == "uuid":
+        dual_observed["gpus"][0]["uuid"] = "GPU-changed"
+    else:
+        dual_observed["gpus"][0]["free_mib"] = 2047
+    with pytest.raises(RuntimeError):
+        shared.admit(dual_policy, dual_observed)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("max_foreign_memory_mib", 4096),
+        ("min_free_memory_mib", 0),
+        ("max_own_memory_fraction", 1.0),
+    ],
+)
+def test_dual_policy_does_not_expand_memory_boundaries(dual_policy, field, value):
+    dual_policy[field] = value
+    with pytest.raises(ValueError):
+        shared.validate_policy(dual_policy)
+
+
+def test_formal_coexistence_requires_exact_preflight_acceptance():
+    from run_unified_ddp import validate_coexistence_acceptance
+
+    queue = {"source_commit": "a" * 40}
+    ready = {
+        "queue_sha256": "b" * 64,
+        "preflights": {
+            "BR": {"sha256": "c" * 64},
+            "F1": {"sha256": "d" * 64},
+            "N1": {"sha256": "e" * 64},
+        },
+    }
+    acceptance = {
+        "decision": "allow_formal",
+        "queue_sha256": ready["queue_sha256"],
+        "source_commit": queue["source_commit"],
+        "preflight_sha256": {n: r["sha256"] for n, r in ready["preflights"].items()},
+    }
+    validate_coexistence_acceptance(queue, ready, acceptance)
+    for key in acceptance:
+        changed = copy.deepcopy(acceptance)
+        changed[key] = None
+        with pytest.raises(ValueError, match="coexistence acceptance"):
+            validate_coexistence_acceptance(queue, ready, changed)
+
+
 def test_descendant_check_handles_recycled_or_unrelated_and_cycle_pids():
     assert shared.descendant(12, 10, {12: 11, 11: 10})
     assert not shared.descendant(12, 10, {12: 11, 11: 12})

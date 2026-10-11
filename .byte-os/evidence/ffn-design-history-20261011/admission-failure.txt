@@ -1,0 +1,7 @@
+[{"queue_root": "/data/yilangliu/GraD-Pert/development/v2-ffn-four-b9035f1-20261011T083502Z", "queue_sha256": "cdc8c70652f42080660e1b2c5d54dedd2d6a5b566ef5101c8ac155eacd324110", "status": "failed", "error": "unapproved foreign GPU process; preserve it and stop our dispatch", "active": {}, "preflights": {}, "failure_sha256": "51578a72e8037e45dcacbfeebeb02ff9d17edc53244314fe45b5f7a5cf4a4202", "runs": {"BR": "nadig_jurkat-seed1-20261011T083503Z-459b80b701034a18b24969eca5e17a96", "F1": "nadig_jurkat-seed1-20261011T083503Z-6967e70ce86e4ab7942c6a31f19814d1", "N1": "nadig_jurkat-seed1-20261011T083504Z-b5b83ecb7b0a49018002de2e67e678c8"}}]
+0, 716 MiB, 31396 MiB
+1, 714 MiB, 31398 MiB
+
+2303173, 706 MiB
+2303188, 704 MiB
+

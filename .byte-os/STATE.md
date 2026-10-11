@@ -1,3 +1,7 @@
+## 2026-10-11：双卡各约700MiB任务共存预检已获授权
+
+旧exclusive等待controller已身份核对停止，无CUDA/正式训练启动，旧队列保留。新双GPU身份密封policy与测试→主验收→正式训练屏障实施；每卡foreign<=1GiB、ours<=85%、physicalfree>=2GiB、5s守卫，方法/batch/BR-F1-N1四轮配置不变。73本地守卫/队列检查通过，待新版本发布、真实双卡十步/恢复/300control推理。测试用Luna，正式运行才交长监督。详见FFN_FOUR计划追加范围。
+
 ## 2026-10-11：BR/F1/N1 四轮替换任务实施中
 
 用户授权仅三组，原bias、无截断、恢复功能B0骨架，保留batch192及共享GenePT(4096/1024隐藏，BR GELU)。旧N0完成、CG1用户停止、未启动其余组，source与产物保留；主已ACK返回owner，两个旧monitor PAUSED。新native FFN/config/四轮lifecycle已实施，107定向检查通过；回归/发布/服务器三组10步与实际300-control推理/正式启动待完成。计划：plans/GRADPERT_V2_FFN_FOUR_20261011.plan.md。最新权威运行状态以canonical coordination/state.json为准。
