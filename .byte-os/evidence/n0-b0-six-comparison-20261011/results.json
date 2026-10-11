@@ -1,0 +1,668 @@
+{
+  "N0": {
+    "run_id": "nadig_jurkat-seed1-20261010T182419Z-c2f9bb39d8c04792a1a49b2a6b2c1659",
+    "run_root": "/data/yilangliu/GraD-Pert/runs-v2-shared-m48-bf42185/nadig_jurkat-seed1-20261010T182419Z-c2f9bb39d8c04792a1a49b2a6b2c1659",
+    "train_sha": "bf4218557210ba266a98d6cc2d1ac15a976c5c91",
+    "evaluation_sha": "bf4218557210ba266a98d6cc2d1ac15a976c5c91",
+    "config_sha256": "c734762d96a7879474554059d6079e0019a56e4a828f252a8573d050db02d500",
+    "checkpoint": {
+      "epoch": 6,
+      "file": "epoch-0006.pt",
+      "sha256": "ea607550ef70e862555b53c08c0daf24f9c99a795b60e2e829e3823a3de9895a"
+    },
+    "test_receipt_sha256": "646a91d3c84f441fee9c6a2cfa0711367cdd59e05e0059f5c6b2d28edb28eb5e",
+    "complete_sha256": "5a792f1da332bade79bd77be271e4a58c2fc726ec37545c4f99c4ad0976e3a38",
+    "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+    "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+    "prediction_loss": 0.006784939604020625,
+    "metrics": [
+      {
+        "metric_id": "txpert_macro_pearson_delta_all",
+        "macro_mean": 0.18854531897782079,
+        "finite_condition_count": 592,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "txpert_macro_pearson_delta_deg",
+        "macro_mean": 0.3508739662292165,
+        "finite_condition_count": 590,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "trishift_pearson_delta_all",
+        "macro_mean": 0.14043627078643742,
+        "finite_condition_count": 592,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "trishift_pearson_delta_deg",
+        "macro_mean": 0.3092949290983163,
+        "finite_condition_count": 590,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "systema_pearson_all",
+        "macro_mean": 0.040949029521893686,
+        "finite_condition_count": 592,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "systema_pearson_deg",
+        "macro_mean": 0.15403074126441235,
+        "finite_condition_count": 590,
+        "total_condition_count": 592
+      }
+    ],
+    "groups": {
+      "seen_expression": {
+        "gene_count": 4775,
+        "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+        "metrics": [
+          {
+            "metric_id": "txpert_macro_pearson_delta_all",
+            "macro_mean": 0.38142609863407106,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "txpert_macro_pearson_delta_deg",
+            "macro_mean": 0.42554616254174327,
+            "finite_condition_count": 590,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_all",
+            "macro_mean": 0.2754243713138559,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_deg",
+            "macro_mean": 0.3687981923564967,
+            "finite_condition_count": 590,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_all",
+            "macro_mean": 0.14678531165533418,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_deg",
+            "macro_mean": 0.1728329041368074,
+            "finite_condition_count": 590,
+            "total_condition_count": 592
+          }
+        ]
+      },
+      "unseen_expression": {
+        "gene_count": 225,
+        "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+        "metrics": [
+          {
+            "metric_id": "txpert_macro_pearson_delta_all",
+            "macro_mean": 0.11618457962255556,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "txpert_macro_pearson_delta_deg",
+            "macro_mean": 0.11392904437551099,
+            "finite_condition_count": 147,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_all",
+            "macro_mean": 0.10815467146293377,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_deg",
+            "macro_mean": 0.1155354288329944,
+            "finite_condition_count": 147,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_all",
+            "macro_mean": -0.040369934166589086,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_deg",
+            "macro_mean": 0.008856327802581838,
+            "finite_condition_count": 147,
+            "total_condition_count": 592
+          }
+        ]
+      }
+    },
+    "config_selected": {
+      "microbatch": {
+        "reference": ".byte-os/plans/GRADPERT_V2_UNIFIED_DDP_20261010.plan.md",
+        "source": "user_locked",
+        "value": 48
+      },
+      "accumulation": {
+        "reference": ".byte-os/plans/GRADPERT_V2_UNIFIED_DDP_20261010.plan.md",
+        "source": "user_locked",
+        "value": 2
+      },
+      "world_size": {
+        "reference": ".byte-os/plans/GRADPERT_V2_UNIFIED_DDP_20261010.plan.md",
+        "source": "user_locked",
+        "value": 2
+      },
+      "streams": {
+        "reference": "docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md",
+        "source": "user_locked",
+        "value": 4
+      },
+      "prototypes": {
+        "reference": "docs/design/GRADPERT_V2.md#glm53-compact-depth",
+        "source": "user_locked",
+        "value": 16384
+      },
+      "lambda1": {
+        "reference": "docs/design/GRADPERT_V2.md",
+        "source": "project_preregistered",
+        "value": 1
+      },
+      "lambda2": {
+        "reference": "user 2026-09-27 SSL2 overall weight 1",
+        "source": "user_locked",
+        "value": 1.0
+      },
+      "ssl1_condition": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 1.0
+      },
+      "ssl1_node": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 1.0
+      },
+      "ssl1_spread": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 0.0
+      },
+      "ssl2_dino": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 1.0
+      },
+      "ssl2_ibot": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 1.0
+      },
+      "ssl2_koleo": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 0.0
+      },
+      "learned_genept_projection": {
+        "reference": ".byte-os/plans/GRADPERT_V2_UNIFIED_MLP_FIRST_BATCH_20261010.plan.md",
+        "source": "user_locked",
+        "value": true
+      },
+      "mlp_profile": {
+        "reference": ".byte-os/plans/GRADPERT_V2_UNIFIED_MLP_FIRST_BATCH_20261010.plan.md",
+        "source": "user_locked",
+        "value": "unified"
+      },
+      "validation_mode": {
+        "reference": "docs/experiments/GRADPERT_V2_FUNCTIONAL_B0_K_A_20261006.md",
+        "source": "user_locked",
+        "value": "disabled"
+      }
+    },
+    "manifest_hashes": {
+      "config_sha256": "c734762d96a7879474554059d6079e0019a56e4a828f252a8573d050db02d500",
+      "resolved_config_sha256": "1500cbec6d12fe1abbb8a30a998d916ebac1f269513c962aa4d1b72a2c510351"
+    }
+  },
+  "functional_B0": {
+    "run_id": "nadig_jurkat-seed1-20261005T193537Z-17cddf00a8b3413d8e4cb9cbf8eb8a3a",
+    "run_root": "/data/yilangliu/GraD-Pert/runs-v2-functional-3d3f5ad/nadig_jurkat-seed1-20261005T193537Z-17cddf00a8b3413d8e4cb9cbf8eb8a3a",
+    "train_sha": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+    "evaluation_sha": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+    "config_sha256": "8961c93fd42bf0141722a42e23a3577c9209e5cdfb9aea1e8bba3c5de92467a5",
+    "checkpoint": {
+      "epoch": 6,
+      "file": "epoch-0006.pt",
+      "sha256": "e9b62dc1c802396bcf84e8734ab7b43f780b2cec9b6f557e56df918541adcf2e"
+    },
+    "test_receipt_sha256": "dc5499bf8187f51f3af5631069378afddd78ebcda08c384784f8a971bd088ae6",
+    "complete_sha256": "c262ac41ec637505e56e59815e908c3a6480105d6fcc3747099654f6033cd627",
+    "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+    "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+    "prediction_loss": 0.006201230265443934,
+    "metrics": [
+      {
+        "metric_id": "txpert_macro_pearson_delta_all",
+        "macro_mean": 0.21531259785392426,
+        "finite_condition_count": 592,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "txpert_macro_pearson_delta_deg",
+        "macro_mean": 0.4009040859659379,
+        "finite_condition_count": 590,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "trishift_pearson_delta_all",
+        "macro_mean": 0.1667237989519433,
+        "finite_condition_count": 592,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "trishift_pearson_delta_deg",
+        "macro_mean": 0.37350588231101295,
+        "finite_condition_count": 590,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "systema_pearson_all",
+        "macro_mean": 0.08668145066755302,
+        "finite_condition_count": 592,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "systema_pearson_deg",
+        "macro_mean": 0.25533216499590305,
+        "finite_condition_count": 590,
+        "total_condition_count": 592
+      }
+    ],
+    "groups": {
+      "seen_expression": {
+        "gene_count": 4775,
+        "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+        "metrics": [
+          {
+            "metric_id": "txpert_macro_pearson_delta_all",
+            "macro_mean": 0.4236045397343675,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "txpert_macro_pearson_delta_deg",
+            "macro_mean": 0.49881576256386306,
+            "finite_condition_count": 590,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_all",
+            "macro_mean": 0.3126566562354244,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_deg",
+            "macro_mean": 0.4637118425039707,
+            "finite_condition_count": 590,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_all",
+            "macro_mean": 0.2437270515242243,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_deg",
+            "macro_mean": 0.3180426847030784,
+            "finite_condition_count": 590,
+            "total_condition_count": 592
+          }
+        ]
+      },
+      "unseen_expression": {
+        "gene_count": 225,
+        "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+        "metrics": [
+          {
+            "metric_id": "txpert_macro_pearson_delta_all",
+            "macro_mean": 0.12637219615710327,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "txpert_macro_pearson_delta_deg",
+            "macro_mean": 0.1686432858936874,
+            "finite_condition_count": 147,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_all",
+            "macro_mean": 0.11758661331185434,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_deg",
+            "macro_mean": 0.1309043621223197,
+            "finite_condition_count": 147,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_all",
+            "macro_mean": -0.02537063581374503,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_deg",
+            "macro_mean": 0.06309788088379673,
+            "finite_condition_count": 147,
+            "total_condition_count": 592
+          }
+        ]
+      }
+    },
+    "config_selected": {
+      "microbatch": {
+        "reference": "docs/experiments/GRADPERT_V2_FUNCTIONAL_B0_K_A_20261006.md",
+        "source": "project_preregistered",
+        "value": 68
+      },
+      "accumulation": {
+        "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+        "source": "project_preregistered",
+        "value": 2
+      },
+      "world_size": {
+        "reference": "docs/design/GRADPERT_V2.md",
+        "source": "project_preregistered",
+        "value": 2
+      },
+      "streams": {
+        "reference": "docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md",
+        "source": "user_locked",
+        "value": 4
+      },
+      "prototypes": {
+        "reference": "docs/design/GRADPERT_V2.md#glm53-compact-depth",
+        "source": "user_locked",
+        "value": 16384
+      },
+      "lambda1": {
+        "reference": "docs/design/GRADPERT_V2.md",
+        "source": "project_preregistered",
+        "value": 1
+      },
+      "lambda2": {
+        "reference": "user 2026-09-27 SSL2 overall weight 1",
+        "source": "user_locked",
+        "value": 1.0
+      },
+      "ssl1_condition": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 1.0
+      },
+      "ssl1_node": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 1.0
+      },
+      "ssl1_spread": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 0.0
+      },
+      "ssl2_dino": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 1.0
+      },
+      "ssl2_ibot": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 1.0
+      },
+      "ssl2_koleo": {
+        "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+        "source": "user_locked",
+        "value": 0.0
+      },
+      "learned_genept_projection": null,
+      "mlp_profile": null,
+      "validation_mode": {
+        "reference": "docs/experiments/GRADPERT_V2_FUNCTIONAL_B0_K_A_20261006.md",
+        "source": "user_locked",
+        "value": "disabled"
+      }
+    },
+    "manifest_hashes": {
+      "config_sha256": "8961c93fd42bf0141722a42e23a3577c9209e5cdfb9aea1e8bba3c5de92467a5",
+      "resolved_config_sha256": "cbd83c443b4c21205bb1684da34dcc9a42a49512bfc782339b8c77e069e9e87a"
+    }
+  },
+  "old_cap40_B0": {
+    "run_id": "nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+    "run_root": "/data/yilangliu/GraD-Pert/runs-v2-mhc-cap40-six-aeac5fd/nadig_jurkat-seed1-20260930T112531Z-f7ca7a77fa6848bb811f706d00e5daad",
+    "train_sha": "aeac5fd94123af0b73810259e5e2985228b11d65",
+    "evaluation_sha": "aeac5fd94123af0b73810259e5e2985228b11d65",
+    "config_sha256": "1401174171770bb5c7ae580db55f9dd9d4907d8da6a37a42b86a64d747f412d0",
+    "checkpoint": {
+      "epoch": 6,
+      "file": "epoch-0006.pt",
+      "joint_loss": 4.058602797763918,
+      "sha256": "8a258885784f45d010c0d1c8fabce6c8ac46252bd0292de71a53ea69133b97e3"
+    },
+    "test_receipt_sha256": "31c617e0589f23a8b6583002db8e9baeed97fd58d921795df899edaff8f95897",
+    "complete_sha256": "eed7639df43cd20c62292b612aa4c8044267cc84078ba876243b7f8b5efd7306",
+    "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+    "reference_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770",
+    "prediction_loss": 0.0065095328161766134,
+    "metrics": [
+      {
+        "metric_id": "txpert_macro_pearson_delta_all",
+        "macro_mean": 0.21249176275211287,
+        "finite_condition_count": 592,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "txpert_macro_pearson_delta_deg",
+        "macro_mean": 0.38027282098553944,
+        "finite_condition_count": 590,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "trishift_pearson_delta_all",
+        "macro_mean": 0.16648813463423495,
+        "finite_condition_count": 592,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "trishift_pearson_delta_deg",
+        "macro_mean": 0.3517749634161541,
+        "finite_condition_count": 590,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "systema_pearson_all",
+        "macro_mean": 0.0796018410915958,
+        "finite_condition_count": 592,
+        "total_condition_count": 592
+      },
+      {
+        "metric_id": "systema_pearson_deg",
+        "macro_mean": 0.23267451229159072,
+        "finite_condition_count": 590,
+        "total_condition_count": 592
+      }
+    ],
+    "groups": {
+      "seen_expression": {
+        "gene_count": 4775,
+        "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+        "metrics": [
+          {
+            "metric_id": "txpert_macro_pearson_delta_all",
+            "macro_mean": 0.41899491777509296,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "txpert_macro_pearson_delta_deg",
+            "macro_mean": 0.4672073536635258,
+            "finite_condition_count": 590,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_all",
+            "macro_mean": 0.3114207775556997,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_deg",
+            "macro_mean": 0.4310887512536966,
+            "finite_condition_count": 590,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_all",
+            "macro_mean": 0.21625558568905778,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_deg",
+            "macro_mean": 0.27344326811275477,
+            "finite_condition_count": 590,
+            "total_condition_count": 592
+          }
+        ]
+      },
+      "unseen_expression": {
+        "gene_count": 225,
+        "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+        "metrics": [
+          {
+            "metric_id": "txpert_macro_pearson_delta_all",
+            "macro_mean": 0.1139871760196415,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "txpert_macro_pearson_delta_deg",
+            "macro_mean": 0.18112415501006277,
+            "finite_condition_count": 147,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_all",
+            "macro_mean": 0.10585811519342676,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "trishift_pearson_delta_deg",
+            "macro_mean": 0.13177971364774796,
+            "finite_condition_count": 147,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_all",
+            "macro_mean": -0.019706616704646063,
+            "finite_condition_count": 592,
+            "total_condition_count": 592
+          },
+          {
+            "metric_id": "systema_pearson_deg",
+            "macro_mean": 0.07353875218649117,
+            "finite_condition_count": 147,
+            "total_condition_count": 592
+          }
+        ]
+      }
+    },
+    "config_selected": {
+      "microbatch": {
+        "reference": "docs/design/GRADPERT_V2.md",
+        "source": "project_preregistered",
+        "value": 68
+      },
+      "accumulation": {
+        "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+        "source": "project_preregistered",
+        "value": 2
+      },
+      "world_size": {
+        "reference": "docs/design/GRADPERT_V2.md",
+        "source": "project_preregistered",
+        "value": 2
+      },
+      "streams": {
+        "reference": "docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md",
+        "source": "user_locked",
+        "value": 4
+      },
+      "prototypes": {
+        "reference": "docs/design/GRADPERT_V2.md#glm53-compact-depth",
+        "source": "user_locked",
+        "value": 8192
+      },
+      "lambda1": {
+        "reference": "docs/design/GRADPERT_V2.md",
+        "source": "project_preregistered",
+        "value": 1
+      },
+      "lambda2": {
+        "reference": "user 2026-09-27 SSL2 overall weight 1",
+        "source": "user_locked",
+        "value": 1.0
+      },
+      "ssl1_condition": {
+        "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+        "source": "project_preregistered",
+        "value": 0.8
+      },
+      "ssl1_node": {
+        "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+        "source": "project_preregistered",
+        "value": 0.4
+      },
+      "ssl1_spread": {
+        "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+        "source": "project_preregistered",
+        "value": 0.1
+      },
+      "ssl2_dino": {
+        "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+        "source": "project_preregistered",
+        "value": 0.8
+      },
+      "ssl2_ibot": {
+        "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+        "source": "project_preregistered",
+        "value": 0.4
+      },
+      "ssl2_koleo": {
+        "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+        "source": "project_preregistered",
+        "value": 0.1
+      },
+      "learned_genept_projection": null,
+      "mlp_profile": null,
+      "validation_mode": {
+        "reference": "docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md",
+        "source": "user_locked",
+        "value": "joint_only"
+      }
+    },
+    "manifest_hashes": {
+      "config_sha256": "1401174171770bb5c7ae580db55f9dd9d4907d8da6a37a42b86a64d747f412d0",
+      "resolved_config_sha256": "a4781514139c578418db75000111f16e5f4ff69e30d57d0ac3be20e900ad7108"
+    }
+  }
+}
