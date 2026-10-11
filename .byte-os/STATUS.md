@@ -1,3 +1,9 @@
+## 2026-10-12: BR training complete, guarded capacity search running
+
+BR epoch4/1000 updates complete; epoch4 last18 metrics pending, F1/N1/GM1 not started. Capacity source `e3c9183dc24e6413efc75a3df29bfe564def826f` published and immutable. Local/server29 CPU regressions and independent review passed. Queue `v2-br-capacity-e3c9183-20261011T202754Z` attempt1: matching controller2436572/start715413203/cmd, queue/runtime/publication independently accepted; m48/global192 passed10 updates, nonzeroLR/finite gradients, checkpoint restoration,300x5000 inference. Training-wall throughput8.063cells/s (measured updates8.257), peak reserved13.65GiB. Only bounded capacity evidence; controller advanced m56/global224. World2/accum2 unchanged, physical free>=2GiB perGPU and aggregate owned<=85%, exactUID1003 script allowance unchanged.
+
+Deployment wrapper exceeded20s startup confirmation and exited1; durable controller remained alive and passed native probe. Failed confirmation preserved, no duplicate launch. Earlier22d failed before GPU due wrong runtime field; hotfix uses actualrepository_root. Temporary publication reverseforward canceled; SSH retained. Highest passingbatch and fastest throughput reported separately; remaining ablations keep192. Exact supervisor20min handoff being prepared, ACK/ACTIVE unverified until receipt. Evidence `.byte-os/evidence/post-br-capacity-20261012/gradpert-capacity-e3c-main-acceptance.json`.
+
 ## 2026-10-12：BR四轮训练完成，容量测试优先
 
 独立holder source4c8a7ff67b087d306fcd6753a987809bdd8baca2已发布，本地11/服务器65隐藏CUDA检查和复核通过。精确STOP仅两个CPU派发器，BR双rank自然完成，原5秒schema3守卫接力；真实epoch4 TRAIN_COMPLETE+原进程exit0及last SHA f679adf48082e4e334eb18601e487fb4a316ebc6e80365934e2c414c621fb9d2验证。旧CPU派发器已退休，F1未启动，旧queue/state/source保留。BR仍未评估，不是科学完成。用户新增post-BR最大双卡batch十步测试，每卡free>=2GiB且维持owned<=85%；先容量，再补BR last18指标，再接F1/N1/GM1，当前不改变消融batch192。主已实质接续构建容量探针控制器；holder小收据evidence/post-br-capacity-20261012/。

@@ -1,0 +1,111 @@
+{
+  "capacity_root": "/data/yilangliu/GraD-Pert/development/v2-br-capacity-e3c9183-20261011T202754Z",
+  "controller": {
+    "alive": true,
+    "command_sha256": "764156b498502cafc7067cbd83958ec5e9a12fcdb1b0afd47bbbcf3f149e5f32",
+    "pid": 2436572,
+    "start_ticks": "715413203",
+    "state_active": 48,
+    "state_results": [],
+    "state_status": "running"
+  },
+  "deploy_wrapper": {
+    "contradicted_by_live_state": true,
+    "error": "AssertionError at gradpert-capacity-deploy.py:45: capacity controller not running",
+    "exit_code": 1
+  },
+  "m48": {
+    "config_path": "/data/yilangliu/GraD-Pert/development/source-v2-br-capacity-e3c9183/configs/v2/br_capacity_20261012/m48/gradpert_v2/nadig_jurkat.yaml",
+    "config_sha256": "6ee209330d79ef9d7a1f16c7a201f02df80e49ae296f8b939fceda03d8c8963a",
+    "gpu": "0,1",
+    "gradient_norm": 8.36146068572998,
+    "inference_condition": "SEC16A+ctrl",
+    "inference_control_manifest_sha256": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528",
+    "inference_exercised": true,
+    "inference_seconds": 7.705595772713423,
+    "inference_shape": [
+      300,
+      5000
+    ],
+    "last_terms_finite": true,
+    "lr_nonzero": 5.6250000000000005e-05,
+    "measured_step_seconds_including_data_wait": [
+      22.246615275740623,
+      23.321591436862946,
+      22.393243339844048,
+      22.985029733739793,
+      24.18305833917111,
+      24.654028312303126,
+      23.499583574943244,
+      22.73251160234213
+    ],
+    "preflight_status": "passed",
+    "publication_path": "/data/yilangliu/GraD-Pert/development/gradpert-v2-br-capacity-e3c9183-publication.json",
+    "publication_sha256": "7ae9665127405ce6d88fff92ef6fae2d55941dad9ac3be4e5ab97b4f493b14f3",
+    "resume_checkpoint_sha256": "600d88ed1e777cfda61a933df67640ef097d24016b0767236cd66c872f339d0f",
+    "steps_completed": 10,
+    "steps_requested": 10,
+    "warmup_steps": 2,
+    "world_size": 2
+  },
+  "manifest": {
+    "path": "/data/yilangliu/GraD-Pert/development/source-v2-br-capacity-e3c9183/configs/v2/br_capacity_20261012/manifest.json",
+    "sha256": "6cb4cce8f4acdc523c7ac0d214c495babe6dfaab2f58aec99e2572f84b641c43"
+  },
+  "observed_local_epoch": 1791750841.798002,
+  "probe": {
+    "ranks": [
+      {
+        "command_sha256": "697c45a349cebef6887e95c8680b5e813a2f0951367ecc3e08bcc702d3fd921d",
+        "pid": 2437273,
+        "start_ticks": "715415624"
+      },
+      {
+        "command_sha256": "697c45a349cebef6887e95c8680b5e813a2f0951367ecc3e08bcc702d3fd921d",
+        "pid": 2437274,
+        "start_ticks": "715415624"
+      }
+    ],
+    "torchrun_command_sha256": "404ceaa23ec543fd03bcde7615feb42d452579207462e77983219860ea87dde2",
+    "torchrun_pid": 2437255,
+    "torchrun_start_ticks": "715415469",
+    "worker_exit_observed_after_pass": true
+  },
+  "queue_sha256": "6f2f37148f9cba8b4377f220f6cd14ddac3b4b6b545ca10174a41e663f3fd7b6",
+  "resource_admission": {
+    "authorization_reference": "2026-10-12-user-scbutterfly-coexistence",
+    "canonical_policy_sha256": "d3c8c8af2cb961afc24a9308d71c6b5b0403c3f9e3b235648a797654a979d222",
+    "command_basename": "run_scbutterfly_archived_predictions.py",
+    "foreign_uid": 1003,
+    "max_foreign_memory_mib": 1024,
+    "max_foreign_processes_per_gpu": 1,
+    "max_own_memory_fraction": 0.85,
+    "min_free_memory_mib": 2048,
+    "schema": "shared-gpu-admission-3",
+    "telemetry_active_snapshot": {
+      "gpu0_free_mib": 17312,
+      "gpu0_owned_mib": 14790,
+      "gpu1_free_mib": 17314,
+      "gpu1_owned_mib": 14788
+    },
+    "telemetry_final_snapshot": {
+      "gpu0_free_mib": 32110,
+      "gpu1_free_mib": 32110,
+      "processes": []
+    }
+  },
+  "runtime": {
+    "actual_hash_matched": true,
+    "data_root": "/data/yilangliu/GraD-Pert/data-vnext-a942114",
+    "path": "/data/yilangliu/GraD-Pert/development/v2-br-capacity-e3c9183.runtime.json",
+    "repository_root_matches_source": true,
+    "sha256": "534adb0e0ffa71eaed60ab15d10c3e44774b7e23bb1497cd0a72736f1f278b91"
+  },
+  "scope": "m48 preflight acceptance evidence only; no formal training claim",
+  "source": {
+    "clean": true,
+    "commit": "e3c9183dc24e6413efc75a3df29bfe564def826f",
+    "path": "/data/yilangliu/GraD-Pert/development/source-v2-br-capacity-e3c9183",
+    "tree_sha256": "5300993ed5ef7fdfa3a2b6d537af8ab0cbd204a374512d03cf55a35f6373f9a0"
+  }
+}
