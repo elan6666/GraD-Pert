@@ -196,6 +196,126 @@ def test_dual_policy_does_not_expand_memory_boundaries(dual_policy, field, value
         shared.validate_policy(dual_policy)
 
 
+@pytest.fixture
+def dynamic_policy():
+    return {
+        "schema": shared.DYNAMIC_SCHEMA,
+        "foreign_uid": 1003,
+        "command_basename": "run_scbutterfly_archived_predictions.py",
+        "max_foreign_processes_per_gpu": 1,
+        "max_foreign_memory_mib": 1024,
+        "min_free_memory_mib": 2048,
+        "max_own_memory_fraction": 0.85,
+        "authorization_reference": shared.SCBUTTERFLY_AUTHORIZATION,
+        "devices": [{"gpu_index": i, "gpu_uuid": f"GPU-{i}"} for i in (0, 1)],
+    }
+
+
+@pytest.fixture
+def dynamic_observed(dual_observed):
+    result = copy.deepcopy(dual_observed)
+    result["gpus"][0]["total_mib"] = result["gpus"][1]["total_mib"] = 32607
+    result["processes"][0] = {
+        "owned": True,
+        "gpu_uuid": "GPU-0",
+        "memory_mib": 15150,
+    }
+    return result
+
+
+def test_dynamic_same_account_program_can_restart_and_leave(dynamic_policy, dynamic_observed):
+    shared.admit(dynamic_policy, dynamic_observed)
+    process = dynamic_observed["processes"][1]
+    process["pid"] = process["identity"]["pid"] = 999
+    process["identity"].update(start_ticks="1000", command_sha256="f" * 64)
+    shared.admit(dynamic_policy, dynamic_observed)
+    dynamic_observed["processes"] = dynamic_observed["processes"][:1]
+    shared.admit(dynamic_policy, dynamic_observed)
+
+
+@pytest.mark.parametrize(
+    "field,value", [("uid", 1002), ("uid", 1004), ("script_basename", "other.py"), ("pid", 999)]
+)
+def test_dynamic_unknown_user_script_or_mismatched_pid_rejected(
+    dynamic_policy, dynamic_observed, field, value
+):
+    dynamic_observed["processes"][1]["identity"][field] = value
+    with pytest.raises(RuntimeError, match="unapproved"):
+        shared.admit(dynamic_policy, dynamic_observed)
+
+
+def test_dynamic_missing_identity_fails_closed(dynamic_policy, dynamic_observed):
+    dynamic_observed["processes"][1]["identity"] = None
+    with pytest.raises(RuntimeError, match="unapproved"):
+        shared.admit(dynamic_policy, dynamic_observed)
+
+
+@pytest.mark.parametrize("failure", ["growth", "second_job", "uuid", "headroom", "own_sum"])
+def test_dynamic_resource_limits_remain_strict(dynamic_policy, dynamic_observed, failure):
+    if failure == "growth":
+        dynamic_observed["processes"][1]["memory_mib"] = 1025
+    elif failure == "second_job":
+        duplicate = copy.deepcopy(dynamic_observed["processes"][1])
+        duplicate["pid"] = duplicate["identity"]["pid"] = 999
+        dynamic_observed["processes"].append(duplicate)
+    elif failure == "uuid":
+        dynamic_observed["gpus"][0]["uuid"] = "GPU-changed"
+    elif failure == "headroom":
+        dynamic_observed["gpus"][0]["free_mib"] = 2047
+    else:
+        dynamic_observed["processes"].append(
+            {"owned": True, "gpu_uuid": "GPU-0", "memory_mib": 13000}
+        )
+    with pytest.raises(RuntimeError):
+        shared.admit(dynamic_policy, dynamic_observed)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("foreign_uid", 1004),
+        ("command_basename", "other.py"),
+        ("max_foreign_processes_per_gpu", 2),
+        ("max_foreign_processes_per_gpu", True),
+        ("max_foreign_memory_mib", 2048),
+        ("min_free_memory_mib", 0),
+        ("max_own_memory_fraction", 1.0),
+        ("authorization_reference", "unapproved"),
+    ],
+)
+def test_dynamic_policy_cannot_expand_scope(dynamic_policy, field, value):
+    dynamic_policy[field] = value
+    with pytest.raises(ValueError, match="authorization"):
+        shared.validate_policy(dynamic_policy)
+
+
+@pytest.mark.parametrize("field,value", [("memory_mib", -1), ("memory_mib", None)])
+def test_dynamic_bad_process_memory_does_not_bypass_gate(
+    dynamic_policy, dynamic_observed, field, value
+):
+    dynamic_observed["processes"][1][field] = value
+    with pytest.raises(RuntimeError, match="telemetry"):
+        shared.admit(dynamic_policy, dynamic_observed)
+
+
+def test_dynamic_budget_uses_owned_memory_across_all_children(dynamic_policy, dynamic_observed):
+    dynamic_observed["processes"] = [
+        {"owned": True, "gpu_uuid": "GPU-0", "memory_mib": 20000},
+        {"owned": True, "gpu_uuid": "GPU-0", "memory_mib": 7000},
+    ]
+    shared.admit(dynamic_policy, dynamic_observed)
+    dynamic_observed["processes"][1]["memory_mib"] = 8000
+    with pytest.raises(RuntimeError, match="own GPU workload"):
+        shared.admit(dynamic_policy, dynamic_observed)
+
+
+@pytest.mark.parametrize("value", [None, float("nan"), float("inf"), -1, 32608, True])
+def test_dynamic_invalid_physical_free_memory_is_rejected(dynamic_policy, dynamic_observed, value):
+    dynamic_observed["gpus"][0]["free_mib"] = value
+    with pytest.raises(RuntimeError, match="telemetry"):
+        shared.admit(dynamic_policy, dynamic_observed)
+
+
 def test_formal_coexistence_requires_exact_preflight_acceptance():
     from run_unified_ddp import validate_coexistence_acceptance
 

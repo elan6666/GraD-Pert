@@ -325,3 +325,8 @@ an active immutable source. Verify clean source/publication identity after stagi
 - 预防：无活动CUDA子任务时已知占用/显存不足保持CPU资源等待，GPU lease
   与子训练均不得提前启动；实际任务运行时继续5秒fail-close。设备身份
   漂移、坏配置或遥测失败不能吞成等待，也不自动改白名单或信号其他用户。
+
+
+## 2026-10-12：短等待的exec session不是跨agent持久标识
+
+子agent对主exec session49703读取返回Unknown process id；完整服务器checkpoint验证JSON确实已产生，主在helper结束后确认exit0。之后短监督交付公开PID/identity、固定日志、exit收据和结果文件路径；不假设exec session handle可跨agent调用。区分结果文件核验与进程exit证据，两者缺失时不能声称执行完成。

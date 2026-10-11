@@ -26,7 +26,7 @@ from run_unified_group import (
     validate_completed,
 )
 from run_unified_overlap import evaluate_attempt, process_command, process_identity
-from shared_gpu import DUAL_SCHEMA, admit, snapshot, terminate_tree, validate_policy
+from shared_gpu import DUAL_SCHEMA, DYNAMIC_SCHEMA, admit, snapshot, terminate_tree, validate_policy
 
 from gradpert.config.step_schedule import load_training_schedule
 from gradpert.data._io import atomic_json, read_json
@@ -44,6 +44,10 @@ DEPENDENCY_POLL_SECONDS = 20
 DEPENDENCY_ARMS = ("BR", "F1", "N1")
 RECOVERY_SOURCE = "b37b171fd68cb29e5c8142c66778aac6da9a6f06"
 RECOVERY_MODE = "resume_first_BR"
+RECOVERY_SCHEMA_V1 = "unified-ddp-br-recovery-1"
+RECOVERY_SCHEMA_V2 = "unified-ddp-br-recovery-2"
+RESOURCE_POLICY_DECISION = ".byte-os/decisions/2026-10-12-scbutterfly-resource-policy.md"
+RESOURCE_POLICY_AUTHORIZATION = "2026-10-12-user-scbutterfly-coexistence"
 SHARED_RESOURCE_POLL_SECONDS = 20
 WAITABLE_SHARED_OCCUPANCY_ERRORS = frozenset(
     {
@@ -250,7 +254,9 @@ def _sealed_json(entry: dict) -> dict:
     return read_json(path)
 
 
-def _assert_failed_parent(parent: dict, root: Path, *, stopped: bool = True) -> dict:
+def _assert_failed_parent(
+    parent: dict, root: Path, *, stopped: bool = True, allow_recovery: bool = False
+) -> dict:
     state = read_json(root / "state.json")
     if (
         state.get("status") != "failed"
@@ -259,7 +265,10 @@ def _assert_failed_parent(parent: dict, root: Path, *, stopped: bool = True) -> 
         or read_json(root / "FAILURE.json") != state
         or (root / "COMPLETE.json").exists()
         or state.get("completed")
-        or parent.get("mode") is not None
+        or (
+            parent.get("mode") is not None
+            and not (allow_recovery and parent.get("mode") == RECOVERY_MODE)
+        )
     ):
         raise ValueError("recovery requires the original unsuccessful BR-only queue")
     fit_events = [
@@ -298,10 +307,11 @@ def _assert_failed_parent(parent: dict, root: Path, *, stopped: bool = True) -> 
     return state
 
 
-def _resume_evidence(plan: dict) -> dict:
+def _resume_evidence(plan: dict, *, allowed_epochs: tuple[int, ...] = (1,)) -> dict:
     root = Path(plan["run_root"])
     journal_path = root / "fit/epoch_state.json"
     journal = read_json(journal_path)
+    epoch = journal["epoch"]
     identity = read_json(root / "run_manifest.json")
     config = plan["resolved_config"]
     params = config["model"]["parameters"]
@@ -325,12 +335,14 @@ def _resume_evidence(plan: dict) -> dict:
         or identity["run_id"] != plan["run_id"]
         or journal["budget"] != [4, 250]
         or journal["contract"] != contract
-        or journal["epoch"] != 1
-        or journal["last"]["epoch"] != 1
-        or journal["last"]["file"] != "epoch-0001.pt"
+        or type(epoch) is not int
+        or epoch not in allowed_epochs
+        or journal["last"]["epoch"] != epoch
+        or journal["last"]["file"] != f"epoch-{epoch:04d}.pt"
         or journal["best"] is not None
         or journal.get("selection_metric") != "final_epoch"
-        or [row["epoch"] for row in read_json(root / "fit/history.json")] != [1]
+        or [row["epoch"] for row in read_json(root / "fit/history.json")]
+        != list(range(1, epoch + 1))
         or (root / "COMPLETE.json").exists()
         or (root / "TRAIN_COMPLETE.json").exists()
         or (root / "FAILURE.json").exists()
@@ -338,7 +350,7 @@ def _resume_evidence(plan: dict) -> dict:
         or any(root.rglob("*.pkl"))
     ):
         raise ValueError(
-            "BR recovery requires the exact committed epoch-1 identity/budget/contract"
+            "BR recovery requires an authorized committed epoch identity/budget/contract"
         )
     selected = (root / "fit" / journal["last"]["file"]).resolve(strict=True)
     role = root / "fit/last.pt"
@@ -349,7 +361,7 @@ def _resume_evidence(plan: dict) -> dict:
     ):
         raise ValueError("BR committed checkpoint or last role hash differs")
     return {
-        "epoch": 1,
+        "epoch": epoch,
         "budget": [4, 250],
         "identity": identity,
         "contract": contract,
@@ -413,7 +425,29 @@ def recovery_fit_command(queue: dict, row: dict, path: Path) -> list[str]:
     ]
 
 
-def prepare_recovery(original_failed_queue_json: Path, output: Path) -> dict:
+def _validate_execution_policy_override(previous: dict | None, active: dict) -> None:
+    validate_policy(active)
+    if previous is None or previous.get("schema") not in (DUAL_SCHEMA, DYNAMIC_SCHEMA):
+        raise ValueError("recovery policy override requires the original fixed dual-GPU policy")
+    validate_policy(previous)
+    if active["schema"] != DYNAMIC_SCHEMA or (
+        active.get("authorization_reference") != RESOURCE_POLICY_AUTHORIZATION
+        or [
+            {key: device[key] for key in ("gpu_index", "gpu_uuid")}
+            for device in previous["devices"]
+        ]
+        != active["devices"]
+        or any(
+            active[key] != previous[key]
+            for key in ("max_foreign_memory_mib", "min_free_memory_mib", "max_own_memory_fraction")
+        )
+    ):
+        raise ValueError("recovery policy override changed its authorization, devices or budget")
+
+
+def prepare_recovery(
+    original_failed_queue_json: Path, output: Path, shared_policy: dict | None = None
+) -> dict:
     original_failed_queue_json = original_failed_queue_json.resolve(strict=True)
     _dependency_server_path(original_failed_queue_json)
     _dependency_server_path(output)
@@ -423,9 +457,12 @@ def prepare_recovery(original_failed_queue_json: Path, output: Path) -> dict:
     _dependency_contract(parent, original_failed_queue_json)
     if parent["source_commit"] != RECOVERY_SOURCE or parent.get("dependency") is not None:
         raise ValueError("recovery is restricted to the original b37 BR/F1/N1 scientific source")
+    ancestry = _recovery_ancestry(parent, original_failed_queue_json, output)
     verify(parent)
+    if shared_policy is not None:
+        _validate_execution_policy_override(parent.get("shared_gpu_policy"), shared_policy)
     old_root = original_failed_queue_json.parent
-    state = _assert_failed_parent(parent, old_root)
+    state = _assert_failed_parent(parent, old_root, allow_recovery=True)
     if set(state.get("preflights", {})) != set(DEPENDENCY_ARMS) or (
         set(state.get("plans", {})) != set(DEPENDENCY_ARMS)
     ):
@@ -451,7 +488,7 @@ def prepare_recovery(original_failed_queue_json: Path, output: Path) -> dict:
             row,
             state["preflights"][name],
             old["resource_schedule"]["physical_total_bytes"],
-            parent.get("shared_gpu_policy"),
+            old["resource_schedule"].get("shared_gpu_policy"),
         )
         if old != expected_final:
             raise ValueError("original finalized budget differs from its measured preflight")
@@ -462,7 +499,7 @@ def prepare_recovery(original_failed_queue_json: Path, output: Path) -> dict:
             else _resolve_recovery_fresh(source, matrix_rows[name], Path(parent["runtime"]))
         )
         if name != "BR":
-            if base["run_id"] in {r["plan"]["run_id"] for r in parent["rows"]}:
+            if base["run_id"] in _ancestry_run_ids(ancestry):
                 raise ValueError("recovery F1/N1 must use newly resolved run IDs")
             for key in ("run_root", "test_root"):
                 _dependency_server_path(Path(base[key]))
@@ -478,13 +515,21 @@ def prepare_recovery(original_failed_queue_json: Path, output: Path) -> dict:
                 "sha256": sha256_json(final),
             },
         }
-    resume = _resume_evidence(final_plans["BR"])
+    resume = _resume_evidence(final_plans["BR"], allowed_epochs=(1, 2, 3))
+    repeated = parent.get("mode") == RECOVERY_MODE
+    if repeated and resume["epoch"] < parent["recovery"]["resume"]["epoch"]:
+        raise ValueError("repeated recovery cannot regress the committed BR epoch")
+    schema = (
+        RECOVERY_SCHEMA_V2
+        if repeated or resume["epoch"] != 1 or (shared_policy is not None)
+        else RECOVERY_SCHEMA_V1
+    )
     queue = {
         **copy.deepcopy(parent),
         "rows": rows,
         "mode": RECOVERY_MODE,
         "recovery": {
-            "schema": "unified-ddp-br-recovery-1",
+            "schema": schema,
             "output": str(output),
             "original_queue": _file_seal(original_failed_queue_json),
             "original_state": _file_seal(old_root / "state.json"),
@@ -502,13 +547,22 @@ def prepare_recovery(original_failed_queue_json: Path, output: Path) -> dict:
             },
         },
     }
+    if schema == RECOVERY_SCHEMA_V2:
+        queue["recovery"]["ancestry"] = ancestry
+    if shared_policy is not None:
+        queue["shared_gpu_policy"] = copy.deepcopy(shared_policy)
+        queue["recovery"]["execution_policy_override"] = {
+            "previous_policy": copy.deepcopy(parent["shared_gpu_policy"]),
+            "active_policy": copy.deepcopy(shared_policy),
+            "authorization_reference": RESOURCE_POLICY_AUTHORIZATION,
+            "decision": _file_seal(Path(__file__).resolve().parents[2] / RESOURCE_POLICY_DECISION),
+        }
     output.mkdir()
-    checkpoint_backup = output / "BR-resume-epoch-0001.pt"
+    checkpoint_backup, journal_backup = _recovery_backup_paths(output, schema, resume["epoch"])
     shutil.copyfile(resume["checkpoint"]["path"], checkpoint_backup)
     if sha256_file(checkpoint_backup) != resume["checkpoint"]["sha256"]:
         raise ValueError("recovery checkpoint backup differs from the committed input")
     queue["recovery"]["checkpoint_backup"] = _file_seal(checkpoint_backup)
-    journal_backup = output / "BR-resume-epoch_state.json"
     shutil.copyfile(resume["journal"]["path"], journal_backup)
     if sha256_file(journal_backup) != resume["journal"]["sha256"]:
         raise ValueError("recovery journal backup differs from the committed input")
@@ -521,9 +575,114 @@ def prepare_recovery(original_failed_queue_json: Path, output: Path) -> dict:
     return queue
 
 
-def verify_recovery(queue: dict) -> None:
+def _recovery_backup_paths(root: Path, schema: str, epoch: int) -> tuple[Path, Path]:
+    if schema == RECOVERY_SCHEMA_V1:
+        return root / "BR-resume-epoch-0001.pt", root / "BR-resume-epoch_state.json"
+    return (
+        root / f"BR-resume-epoch-{epoch:04d}.pt",
+        root / f"BR-resume-epoch-{epoch:04d}-journal.json",
+    )
+
+
+def _recovery_marker_receipt(queue: dict, root: Path, command: list[str], identity: dict) -> dict:
+    receipt = {
+        "queue_sha256": sha256_file(root / "queue.json"),
+        "source_commit": queue["source_commit"],
+        "command": command,
+        "identity": identity,
+    }
     recovery = queue["recovery"]
-    if set(recovery) != {
+    if recovery["schema"] == RECOVERY_SCHEMA_V2:
+        receipt.update(
+            resume_epoch=recovery["resume"]["epoch"],
+            resume_checkpoint_sha256=recovery["resume"]["checkpoint"]["sha256"],
+            parent_queue_sha256=recovery["original_queue"]["sha256"],
+        )
+    return receipt
+
+
+def _validate_recovery_marker(queue: dict, root: Path) -> dict:
+    started = read_json(root / "RECOVERY_BR_STARTED.json")
+    command = recovery_fit_command(queue, queue["rows"][0], root / "BR.launch-plan.json")
+    expected = _recovery_marker_receipt(queue, root, command, started["identity"])
+    if started != expected or not {"pid", "command_sha256", "start_ticks"}.issubset(
+        started["identity"]
+    ):
+        raise ValueError("recovery progress lacks the exact authorized BR launch marker")
+    return started
+
+
+def _recovery_ancestry(parent: dict, path: Path, output: Path) -> list[dict]:
+    """Freeze each terminal ancestor and its retained inputs; never rewrite an ancestor."""
+    ancestry, seen = [], {output.resolve()}
+    while True:
+        path = path.resolve(strict=True)
+        root = path.parent
+        if path.name != "queue.json" or root in seen or output.resolve().is_relative_to(root):
+            raise ValueError("recovery ancestry cycles or overlaps an existing queue root")
+        seen.add(root)
+        if any(
+            output.resolve().is_relative_to(Path(row["plan"][key]).resolve())
+            for row in parent["rows"]
+            for key in ("run_root", "test_root")
+        ):
+            raise ValueError("recovery output must not modify an ancestor scientific root")
+        state = _assert_failed_parent(parent, root, stopped=False, allow_recovery=True)
+        entry = {
+            "queue": _file_seal(path),
+            "state": _file_seal(root / "state.json"),
+            "failure": _file_seal(root / "FAILURE.json"),
+            "br_plan": _file_seal(root / "BR.launch-plan.json"),
+            "schema": None,
+        }
+        if parent.get("mode") is None:
+            ancestry.append(entry)
+            return ancestry
+        recovery = parent["recovery"]
+        if recovery["schema"] not in (RECOVERY_SCHEMA_V1, RECOVERY_SCHEMA_V2):
+            raise ValueError("unknown recovery ancestor schema")
+        started = _validate_recovery_marker(parent, root)
+        fit = next(
+            event
+            for event in state["events"]
+            if event.get("event") == "start" and event.get("stage") == "fit"
+        )
+        if fit["pid"] != started["identity"]["pid"] or fit.get("identity") != started["identity"]:
+            raise ValueError("failed recovery ancestor does not bind its exact BR launch marker")
+        entry.update(
+            schema=recovery["schema"],
+            marker=_file_seal(root / "RECOVERY_BR_STARTED.json"),
+            checkpoint_backup=copy.deepcopy(recovery["checkpoint_backup"]),
+            journal_backup=copy.deepcopy(recovery["journal_backup"]),
+        )
+        for key in ("checkpoint_backup", "journal_backup"):
+            backup = entry[key]
+            _dependency_server_path(Path(backup["path"]))
+            if _file_seal(Path(backup["path"])) != backup:
+                raise ValueError("recovery ancestor immutable input backup changed")
+        ancestry.append(entry)
+        path = Path(recovery["original_queue"]["path"])
+        parent = _sealed_json(recovery["original_queue"])
+
+
+def _ancestry_run_ids(ancestry: list[dict]) -> set[str]:
+    return {
+        row["plan"]["run_id"]
+        for ancestor in ancestry
+        for row in _sealed_json(ancestor["queue"])["rows"]
+    }
+
+
+def verify_recovery(queue: dict) -> None:
+    schema = queue["recovery"]["schema"]
+    if schema not in (RECOVERY_SCHEMA_V1, RECOVERY_SCHEMA_V2):
+        raise ValueError("unknown recovery schema")
+    _verify_recovery_contract(queue, schema=schema)
+
+
+def _verify_recovery_contract(queue: dict, *, schema: str) -> None:
+    recovery = queue["recovery"]
+    fields = {
         "schema",
         "output",
         "original_queue",
@@ -535,8 +694,13 @@ def verify_recovery(queue: dict) -> None:
         "controller_source",
         "checkpoint_backup",
         "journal_backup",
-    } or (
-        recovery["schema"] != "unified-ddp-br-recovery-1"
+    }
+    if schema == RECOVERY_SCHEMA_V2:
+        fields.add("ancestry")
+        if recovery.get("execution_policy_override") is not None:
+            fields.add("execution_policy_override")
+    if set(recovery) != fields or (
+        recovery["schema"] != schema
         or queue["source_commit"] != RECOVERY_SOURCE
         or [row["name"] for row in queue["rows"]] != list(DEPENDENCY_ARMS)
         or queue.get("dependency") is not None
@@ -544,18 +708,32 @@ def verify_recovery(queue: dict) -> None:
         raise ValueError("unknown recovery scope or metadata")
     root = Path(recovery["output"])
     _dependency_server_path(root)
+    epoch = recovery["resume"]["epoch"]
+    allowed_epochs = (1,) if schema == RECOVERY_SCHEMA_V1 else (1, 2, 3)
+    checkpoint_path, journal_path = _recovery_backup_paths(root, schema, epoch)
     backup = recovery["checkpoint_backup"]
-    if backup["path"] != str(root / "BR-resume-epoch-0001.pt") or (
+    if backup["path"] != str(checkpoint_path) or (
         backup["sha256"] != recovery["resume"]["checkpoint"]["sha256"]
         or sha256_file(Path(backup["path"])) != backup["sha256"]
     ):
         raise ValueError("recovery immutable checkpoint backup changed")
     journal_backup = recovery["journal_backup"]
-    if journal_backup["path"] != str(root / "BR-resume-epoch_state.json") or (
+    if journal_backup["path"] != str(journal_path) or (
         journal_backup["sha256"] != recovery["resume"]["journal"]["sha256"]
     ):
         raise ValueError("recovery immutable journal backup changed")
-    _sealed_json(journal_backup)
+    journal_snapshot = _sealed_json(journal_backup)
+    if schema == RECOVERY_SCHEMA_V2 and (
+        journal_snapshot["identity"] != recovery["resume"]["identity"]
+        or journal_snapshot["contract"] != recovery["resume"]["contract"]
+        or journal_snapshot["budget"] != [4, 250]
+        or journal_snapshot["epoch"] != epoch
+        or journal_snapshot["last"]["epoch"] != epoch
+        or journal_snapshot["last"]["file"] != f"epoch-{epoch:04d}.pt"
+        or journal_snapshot["last"]["sha256"] != recovery["resume"]["checkpoint"]["sha256"]
+        or recovery["resume"]["last_role"]["sha256"] != backup["sha256"]
+    ):
+        raise ValueError("recovery frozen journal does not bind its committed checkpoint")
     controller = recovery["controller_source"]
     script = Path(controller["script"]["path"])
     if set(controller) != {"repository_root", "commit", "script"} or (
@@ -578,17 +756,51 @@ def verify_recovery(queue: dict) -> None:
             "history",
             "manifest",
         }
-        or recovery["resume"]["epoch"] != 1
+        or type(epoch) is not int
+        or epoch not in allowed_epochs
         or recovery["resume"]["budget"] != [4, 250]
     ):
         raise ValueError("recovery resume metadata changed its committed boundary")
     parent = _sealed_json(recovery["original_queue"])
+    override = recovery.get("execution_policy_override")
+    if override is not None:
+        if (
+            schema != RECOVERY_SCHEMA_V2
+            or set(override)
+            != {"previous_policy", "active_policy", "authorization_reference", "decision"}
+            or (
+                override["previous_policy"] != parent.get("shared_gpu_policy")
+                or override["active_policy"] != queue.get("shared_gpu_policy")
+                or override["authorization_reference"] != RESOURCE_POLICY_AUTHORIZATION
+            )
+        ):
+            raise ValueError("recovery execution policy override seal changed")
+        _validate_execution_policy_override(override["previous_policy"], override["active_policy"])
+        decision = override["decision"]
+        expected_decision = (
+            Path(recovery["controller_source"]["repository_root"]) / RESOURCE_POLICY_DECISION
+        )
+        if decision["path"] != str(expected_decision) or (
+            sha256_file(expected_decision) != decision["sha256"]
+        ):
+            raise ValueError("recovery execution policy authorization decision changed")
+    elif queue.get("shared_gpu_policy") != parent.get("shared_gpu_policy"):
+        raise ValueError("recovery execution policy changed without a sealed scoped override")
+    if schema == RECOVERY_SCHEMA_V2:
+        ancestry = _recovery_ancestry(parent, Path(recovery["original_queue"]["path"]), root)
+        if ancestry != recovery["ancestry"]:
+            raise ValueError("recovery sealed ancestry changed")
+        if parent.get("mode") == RECOVERY_MODE and epoch < parent["recovery"]["resume"]["epoch"]:
+            raise ValueError("repeated recovery cannot regress the committed BR epoch")
     verify(parent)
     old_state = _sealed_json(recovery["original_state"])
     _sealed_json(recovery["original_failure"])
     marker = root / "RECOVERY_BR_STARTED.json"
     _assert_failed_parent(
-        parent, Path(recovery["original_queue"]["path"]).parent, stopped=not marker.exists()
+        parent,
+        Path(recovery["original_queue"]["path"]).parent,
+        stopped=not marker.exists(),
+        allow_recovery=schema == RECOVERY_SCHEMA_V2,
     )
     if set(recovery["seeded"]) != set(DEPENDENCY_ARMS) or (
         set(recovery["original_plans"]) != set(DEPENDENCY_ARMS)
@@ -620,7 +832,12 @@ def verify_recovery(queue: dict) -> None:
         elif (
             {k: v for k, v in base.items() if k not in omitted}
             != {k: v for k, v in old.items() if k not in omitted}
-            or base["run_id"] in {r["plan"]["run_id"] for r in parent["rows"]}
+            or base["run_id"]
+            in (
+                _ancestry_run_ids(recovery["ancestry"])
+                if schema == RECOVERY_SCHEMA_V2
+                else {r["plan"]["run_id"] for r in parent["rows"]}
+            )
             or base["run_root"] != str(Path(old["run_root"]).parent / base["run_id"])
             or base["test_root"] != str(Path(old["test_root"]).parent / (base["run_id"] + "-test"))
         ):
@@ -631,18 +848,11 @@ def verify_recovery(queue: dict) -> None:
     ):
         raise ValueError("recovery run IDs and artifact roots must be distinct")
     if marker.exists():
-        started = read_json(marker)
-        expected_command = recovery_fit_command(
-            queue, queue["rows"][0], root / "BR.launch-plan.json"
-        )
-        if set(started) != {"queue_sha256", "source_commit", "command", "identity"} or (
-            started["queue_sha256"] != sha256_file(root / "queue.json")
-            or started["source_commit"] != RECOVERY_SOURCE
-            or started["command"] != expected_command
-            or not {"pid", "command_sha256", "start_ticks"}.issubset(started["identity"])
-        ):
-            raise ValueError("recovery progress lacks the exact authorized BR launch marker")
-    elif _resume_evidence(read_json(root / "BR.launch-plan.json")) != recovery["resume"]:
+        _validate_recovery_marker(queue, root)
+    elif (
+        _resume_evidence(read_json(root / "BR.launch-plan.json"), allowed_epochs=allowed_epochs)
+        != recovery["resume"]
+    ):
         raise ValueError("BR checkpoint/journal drifted before resume dispatch")
 
 
@@ -873,7 +1083,7 @@ def validate_coexistence_acceptance(queue: dict, ready: dict, acceptance: dict) 
 def needs_preflight_acceptance(queue: dict) -> bool:
     policy = queue.get("shared_gpu_policy")
     return [row["name"] for row in queue["rows"]] == ["GM1"] or (
-        policy is not None and policy["schema"] == DUAL_SCHEMA
+        policy is not None and policy["schema"] in (DUAL_SCHEMA, DYNAMIC_SCHEMA)
     )
 
 
@@ -1028,12 +1238,7 @@ def execute(queue: dict, directory: Path) -> None:
                 )
             atomic_json(
                 marker,
-                {
-                    "queue_sha256": state["queue_sha256"],
-                    "source_commit": queue["source_commit"],
-                    "command": command,
-                    "identity": identity,
-                },
+                _recovery_marker_receipt(queue, directory, command, identity),
             )
         item = {
             "name": row["name"],
@@ -1175,6 +1380,13 @@ def execute(queue: dict, directory: Path) -> None:
                         "fit_fraction": plan["cuda_memory_fraction"],
                     }
                 state["phase"] = "recovery_preflight_reused"
+                state["execution_shared_gpu_policy"] = copy.deepcopy(shared_policy)
+                state["historical_measured_shared_gpu_policies"] = {
+                    name: read_json(seed["plan"]["path"])["resource_schedule"].get(
+                        "shared_gpu_policy"
+                    )
+                    for name, seed in queue["recovery"]["seeded"].items()
+                }
                 record()
                 if needs_preflight_acceptance(queue):
                     atomic_json(
@@ -1221,7 +1433,13 @@ def execute(queue: dict, directory: Path) -> None:
                     Path(actual["plan"]["run_root"]).exists() and not resume_br
                 ):
                     raise FileExistsError("fresh fit cannot replace prior run")
-                if resume_br and _resume_evidence(actual["plan"]) != queue["recovery"]["resume"]:
+                if (
+                    resume_br
+                    and _resume_evidence(
+                        actual["plan"], allowed_epochs=(queue["recovery"]["resume"]["epoch"],)
+                    )
+                    != queue["recovery"]["resume"]
+                ):
                     raise ValueError("BR resume checkpoint changed immediately before dispatch")
                 state["phase"] = "dual_gpu_fit"
                 command = recovery_fit_command(queue, actual, path)
@@ -1282,7 +1500,6 @@ def main():
                     args.runtime,
                     args.queue,
                     args.evaluate,
-                    args.shared_policy,
                     args.dependency_queue,
                     args.uncapped,
                 )
@@ -1290,9 +1507,14 @@ def main():
             or args.attempt != 1
         ):
             parser.error(
-                "recovery requires only recover-from/output; no ordinary preparation flags"
+                "recovery requires recover-from/output; only shared-policy may override execution"
             )
-        prepare_recovery(args.recover_from, args.output)
+        if args.shared_policy:
+            prepare_recovery(
+                args.recover_from, args.output, shared_policy=read_json(args.shared_policy)
+            )
+        else:
+            prepare_recovery(args.recover_from, args.output)
     elif args.evaluate:
         evaluate_attempt(
             read_json(args.evaluate),

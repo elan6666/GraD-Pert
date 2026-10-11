@@ -619,6 +619,7 @@ def test_gm1_verify_keeps_new_source_independent_and_rejects_dependency_drift(
         (["GM1"], {"schema": "legacy"}, True),
         (["GM1"], {"schema": ddp.DUAL_SCHEMA}, True),
         (["BR", "F1", "N1"], {"schema": ddp.DUAL_SCHEMA}, True),
+        (["BR", "F1", "N1"], {"schema": ddp.DYNAMIC_SCHEMA}, True),
         (["N0", "CG1"], None, False),
         (["BR", "F1", "N1"], {"schema": "legacy"}, False),
     ],
@@ -1216,7 +1217,6 @@ def test_recovery_cli_selects_only_recovery_preparation(monkeypatch):
         ["--queue", "queue.json"],
         ["--evaluate", "plan.json"],
         ["--dependency-queue", "dependency.json"],
-        ["--shared-policy", "policy.json"],
         ["--attempt", "2"],
         ["--uncapped"],
     ],
@@ -1299,6 +1299,7 @@ def _shared_snapshot(*, foreign=False, uuid_changed=False, reserve_exhausted=Fal
             index: {
                 "uuid": "GPU-changed" if uuid_changed and index == 0 else f"GPU-{index}",
                 "free_mib": 2000 if reserve_exhausted and index == 0 else 3000,
+                "total_mib": 10000,
             }
             for index in (0, 1)
         },
@@ -1504,3 +1505,512 @@ def test_active_shared_child_keeps_five_second_fail_close(shared_failed_ffn_pare
     state = read_json(root / "FAILURE.json")
     assert state["status"] == "failed"
     assert "shared_resource_wait" not in state
+
+
+def _fail_recovery_at_committed_epoch(queue, epoch):
+    root = Path(queue["recovery"]["output"])
+    identity = {"pid": 20001, "start_ticks": "456", "command_sha256": "c" * 64}
+    command = ddp.recovery_fit_command(queue, queue["rows"][0], root / "BR.launch-plan.json")
+    atomic_json(
+        root / "RECOVERY_BR_STARTED.json",
+        ddp._recovery_marker_receipt(queue, root, command, identity),
+    )
+    state = {
+        "schema": ddp.SCHEMA,
+        "pid": 20000,
+        "queue_sha256": sha256_file(root / "queue.json"),
+        "status": "failed",
+        "phase": "failed",
+        "completed": {},
+        "active": {},
+        "events": [
+            {
+                "event": "start",
+                "name": "BR",
+                "stage": "fit",
+                "pid": identity["pid"],
+                "identity": identity,
+                "run_id": queue["rows"][0]["plan"]["run_id"],
+            }
+        ],
+        "preflights": {
+            name: seed["preflight"] for name, seed in queue["recovery"]["seeded"].items()
+        },
+        "plans": {
+            name: {
+                **seed["plan"],
+                "fit_fraction": read_json(seed["plan"]["path"])["cuda_memory_fraction"],
+            }
+            for name, seed in queue["recovery"]["seeded"].items()
+        },
+    }
+    atomic_json(root / "state.json", state)
+    atomic_json(root / "FAILURE.json", state)
+    br = Path(queue["rows"][0]["plan"]["run_root"])
+    journal = read_json(br / "fit/epoch_state.json")
+    checkpoint = br / f"fit/epoch-{epoch:04d}.pt"
+    checkpoint.write_bytes(
+        f"complete committed epoch {epoch} optimizer/teacher/center/RNG".encode()
+    )
+    (br / "fit/last.pt").write_bytes(checkpoint.read_bytes())
+    journal.update(
+        epoch=epoch,
+        last={"file": checkpoint.name, "sha256": sha256_file(checkpoint), "epoch": epoch},
+    )
+    atomic_json(br / "fit/epoch_state.json", journal)
+    atomic_json(br / "fit/history.json", [{"epoch": number} for number in range(1, epoch + 1)])
+    atomic_json(
+        br / "fit/live_progress.json",
+        {"epoch": epoch + 1, "updates_completed": 71, "optimizer_steps": 250 * epoch + 71},
+    )
+    for old in (br / "fit").glob("epoch-*.pt"):
+        if old != checkpoint:
+            old.unlink()
+    return root
+
+
+@pytest.fixture
+def repeated_recovery_parent(failed_ffn_parent, tmp_path, monkeypatch):
+    fixture = failed_ffn_parent
+    first = fixture.prepare()
+    current = {"queue": first, "round": 2}
+
+    def resolve(_source, row, _runtime):
+        name = row["name"]
+        base = copy.deepcopy(next(r["plan"] for r in current["queue"]["rows"] if r["name"] == name))
+        run_id = f"round-{current['round']}-{name}"
+        base.update(
+            run_id=run_id,
+            run_root=str(tmp_path / run_id),
+            test_root=str(tmp_path / (run_id + "-test")),
+        )
+        return base
+
+    monkeypatch.setattr(ddp, "_resolve_recovery_fresh", resolve)
+
+    def next_recovery(epoch):
+        parent = current["queue"]
+        root = _fail_recovery_at_committed_epoch(parent, epoch)
+        ddp.verify(parent)
+        output = tmp_path / f"recovery-round-{current['round']}"
+        queue = ddp.prepare_recovery(root / "queue.json", output)
+        current["queue"] = queue
+        current["round"] += 1
+        return queue
+
+    return SimpleNamespace(
+        first=first, current=current, original=fixture, next=next_recovery, tmp=tmp_path
+    )
+
+
+@pytest.mark.parametrize("epoch", [1, 2, 3])
+def test_schema2_recovery_preserves_schema1_and_replays_only_committed_boundary(
+    repeated_recovery_parent, epoch
+):
+    fixture = repeated_recovery_parent
+    first = fixture.first
+    assert first["recovery"]["schema"] == ddp.RECOVERY_SCHEMA_V1
+    assert "ancestry" not in first["recovery"]
+    original_launch = (fixture.original.br / "launch.json").read_bytes()
+    queue = fixture.next(epoch)
+    root = Path(queue["recovery"]["output"])
+    assert queue["recovery"]["schema"] == ddp.RECOVERY_SCHEMA_V2
+    assert queue["recovery"]["resume"]["epoch"] == epoch
+    assert queue["recovery"]["resume"]["budget"] == [4, 250]
+    assert (
+        Path(queue["recovery"]["checkpoint_backup"]["path"]).name
+        == f"BR-resume-epoch-{epoch:04d}.pt"
+    )
+    assert (
+        Path(queue["recovery"]["journal_backup"]["path"]).name
+        == f"BR-resume-epoch-{epoch:04d}-journal.json"
+    )
+    assert queue["rows"][0]["plan"] == first["rows"][0]["plan"]
+    assert [row["plan"]["run_id"] for row in queue["rows"]] == [
+        "original-BR",
+        "round-2-F1",
+        "round-2-N1",
+    ]
+    ancestry = queue["recovery"]["ancestry"]
+    assert [entry["schema"] for entry in ancestry] == [ddp.RECOVERY_SCHEMA_V1, None]
+    assert ancestry[0]["marker"]["sha256"] == sha256_file(
+        Path(first["recovery"]["output"]) / "RECOVERY_BR_STARTED.json"
+    )
+    assert (fixture.original.br / "launch.json").read_bytes() == original_launch
+    for name in ddp.DEPENDENCY_ARMS:
+        old = read_json(first["recovery"]["seeded"][name]["plan"]["path"])
+        new = read_json(root / f"{name}.launch-plan.json")
+        assert new["resource_schedule"] == old["resource_schedule"]
+        assert new["source_commit"] == ddp.RECOVERY_SOURCE
+    command = ddp.recovery_fit_command(queue, queue["rows"][0], root / "BR.launch-plan.json")
+    assert command[-1] == "--resume"
+    assert command[6] == str(Path(queue["source"]) / "scripts/v2/distributed_train.py")
+    evidence = ddp._resume_evidence(
+        read_json(root / "BR.launch-plan.json"), allowed_epochs=(epoch,)
+    )
+    assert evidence["epoch"] == epoch
+    ddp.verify(first)
+    ddp.verify(queue)
+
+
+def test_schema2_repeated_chain_retains_all_ancestor_inputs_and_fresh_ids(repeated_recovery_parent):
+    fixture = repeated_recovery_parent
+    second = fixture.next(2)
+    second_root = Path(second["recovery"]["output"])
+    second_queue_bytes = (second_root / "queue.json").read_bytes()
+    first_backup = Path(fixture.first["recovery"]["checkpoint_backup"]["path"]).read_bytes()
+    second_backup = Path(second["recovery"]["checkpoint_backup"]["path"]).read_bytes()
+    third = fixture.next(3)
+    assert third["recovery"]["resume"]["epoch"] == 3
+    assert [entry["schema"] for entry in third["recovery"]["ancestry"]] == [
+        ddp.RECOVERY_SCHEMA_V2,
+        ddp.RECOVERY_SCHEMA_V1,
+        None,
+    ]
+    assert [row["plan"]["run_id"] for row in third["rows"]] == [
+        "original-BR",
+        "round-3-F1",
+        "round-3-N1",
+    ]
+    assert (second_root / "queue.json").read_bytes() == second_queue_bytes
+    assert Path(fixture.first["recovery"]["checkpoint_backup"]["path"]).read_bytes() == first_backup
+    assert Path(second["recovery"]["checkpoint_backup"]["path"]).read_bytes() == second_backup
+    ddp.verify(fixture.first)
+    ddp.verify(second)
+    ddp.verify(third)
+
+
+@pytest.mark.parametrize(
+    "drift", ["queue", "state", "failure", "marker", "checkpoint_backup", "journal_backup"]
+)
+def test_schema2_rejects_any_sealed_ancestor_drift(repeated_recovery_parent, drift):
+    queue = repeated_recovery_parent.next(2)
+    ancestor = queue["recovery"]["ancestry"][0]
+    path = Path(ancestor[drift]["path"])
+    path.write_bytes(path.read_bytes() + b" ")
+    with pytest.raises(ValueError):
+        ddp.verify(queue)
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    [
+        "epoch0",
+        "epoch4",
+        "budget",
+        "identity",
+        "contract",
+        "f1_started",
+        "f1_artifact",
+        "complete",
+        "train_complete",
+        "marker_binding",
+        "live",
+        "checkpoint",
+    ],
+)
+def test_repeated_recovery_rejects_unsupported_stage_or_changed_input(
+    repeated_recovery_parent, monkeypatch, corruption
+):
+    fixture = repeated_recovery_parent
+    first = fixture.first
+    epoch = {"epoch0": 0, "epoch4": 4}.get(corruption, 2)
+    root = _fail_recovery_at_committed_epoch(first, epoch)
+    br = fixture.original.br
+    if corruption in ("budget", "identity", "contract"):
+        journal = read_json(br / "fit/epoch_state.json")
+        if corruption == "budget":
+            journal["budget"] = [4, 251]
+        elif corruption == "identity":
+            journal["identity"]["environment"] = {"changed": True}
+        else:
+            journal["contract"]["teacher_end"] = 0.5
+        atomic_json(br / "fit/epoch_state.json", journal)
+    elif corruption in ("f1_started", "marker_binding"):
+        state = read_json(root / "state.json")
+        if corruption == "f1_started":
+            state["events"].append({"event": "start", "stage": "fit", "name": "F1", "pid": 22000})
+        else:
+            state["events"][0]["identity"]["start_ticks"] = "different"
+        atomic_json(root / "state.json", state)
+        atomic_json(root / "FAILURE.json", state)
+    elif corruption == "f1_artifact":
+        Path(first["rows"][1]["plan"]["run_root"]).mkdir()
+    elif corruption in ("complete", "train_complete"):
+        atomic_json(
+            br / ("COMPLETE.json" if corruption == "complete" else "TRAIN_COMPLETE.json"), {}
+        )
+    elif corruption == "live":
+        monkeypatch.setattr(ddp, "process_identity", lambda pid: {"pid": pid})
+    elif corruption == "checkpoint":
+        (br / "fit/epoch-0002.pt").write_bytes(b"modified")
+    with pytest.raises((ValueError, FileNotFoundError)):
+        ddp.prepare_recovery(root / "queue.json", fixture.tmp / "refused")
+
+
+def test_recovery_cannot_reuse_an_older_f1_id_or_regress_epoch(
+    repeated_recovery_parent, monkeypatch
+):
+    fixture = repeated_recovery_parent
+    second = fixture.next(2)
+    root = _fail_recovery_at_committed_epoch(second, 3)
+
+    def reused(_source, row, _runtime):
+        return copy.deepcopy(
+            next(item["plan"] for item in fixture.first["rows"] if item["name"] == row["name"])
+        )
+
+    monkeypatch.setattr(ddp, "_resolve_recovery_fresh", reused)
+    with pytest.raises(ValueError, match="newly resolved run IDs"):
+        ddp.prepare_recovery(root / "queue.json", fixture.tmp / "duplicate")
+
+
+def test_schema2_epoch_regression_is_rejected(repeated_recovery_parent):
+    fixture = repeated_recovery_parent
+    second = fixture.next(2)
+    root = _fail_recovery_at_committed_epoch(second, 1)
+    with pytest.raises(ValueError, match="regress"):
+        ddp.prepare_recovery(root / "queue.json", fixture.tmp / "regressed")
+
+
+def test_schema2_marker_binds_epoch_checkpoint_and_parent_before_normal_progress(
+    repeated_recovery_parent,
+):
+    fixture = repeated_recovery_parent
+    queue = fixture.next(2)
+    root = _fail_recovery_at_committed_epoch(queue, 3)
+    marker = read_json(root / "RECOVERY_BR_STARTED.json")
+    assert marker["resume_epoch"] == 2
+    assert marker["resume_checkpoint_sha256"] == queue["recovery"]["resume"]["checkpoint"]["sha256"]
+    assert marker["parent_queue_sha256"] == queue["recovery"]["original_queue"]["sha256"]
+    assert not Path(queue["recovery"]["resume"]["checkpoint"]["path"]).exists()
+    ddp.verify(queue)
+    marker["resume_epoch"] = 3
+    atomic_json(root / "RECOVERY_BR_STARTED.json", marker)
+    with pytest.raises(ValueError, match="launch marker"):
+        ddp.verify(queue)
+
+
+def _dynamic_policy(previous):
+    return {
+        "schema": ddp.DYNAMIC_SCHEMA,
+        "devices": [
+            {key: device[key] for key in ("gpu_index", "gpu_uuid")}
+            for device in previous["devices"]
+        ],
+        "foreign_uid": 1003,
+        "command_basename": "run_scbutterfly_archived_predictions.py",
+        "max_foreign_processes_per_gpu": 1,
+        "max_foreign_memory_mib": 1024,
+        "min_free_memory_mib": 2048,
+        "max_own_memory_fraction": 0.85,
+        "authorization_reference": ddp.RESOURCE_POLICY_AUTHORIZATION,
+    }
+
+
+@pytest.fixture
+def dynamic_recovery_override(shared_failed_ffn_parent, tmp_path, monkeypatch):
+    fixture = shared_failed_ffn_parent
+    decision = tmp_path / "published-scoped-decision.md"
+    decision.write_text(
+        "Explicit scoped approval: UID 1003 ScButterfly, one job/card, original budgets.\n"
+    )
+    monkeypatch.setattr(ddp, "RESOURCE_POLICY_DECISION", str(decision))
+    policy = _dynamic_policy(fixture.policy)
+    output = tmp_path / "dynamic-recovery"
+    return SimpleNamespace(
+        parent=fixture,
+        policy=policy,
+        decision=decision,
+        prepare=lambda: ddp.prepare_recovery(
+            fixture.root / "queue.json", output, shared_policy=policy
+        ),
+    )
+
+
+def test_dynamic_override_seals_authorization_and_preserves_every_scientific_plan(
+    dynamic_recovery_override,
+):
+    fixture = dynamic_recovery_override
+    parent = fixture.parent
+    old_queue = (parent.root / "queue.json").read_bytes()
+    old_launch = (parent.br / "launch.json").read_bytes()
+    queue = fixture.prepare()
+    assert queue["recovery"]["schema"] == ddp.RECOVERY_SCHEMA_V2
+    assert queue["shared_gpu_policy"] == fixture.policy
+    override = queue["recovery"]["execution_policy_override"]
+    assert override["previous_policy"] == parent.policy
+    assert override["active_policy"] == fixture.policy
+    assert override["decision"] == {
+        "path": str(fixture.decision),
+        "sha256": sha256_file(fixture.decision),
+    }
+    for name, seed in queue["recovery"]["seeded"].items():
+        final = read_json(seed["plan"]["path"])
+        assert final["resource_schedule"] == parent.finals[name]["resource_schedule"]
+        assert final["resource_schedule"]["shared_gpu_policy"] == parent.policy
+        assert final["cuda_memory_fraction"] == parent.finals[name]["cuda_memory_fraction"]
+        assert seed["preflight"] == parent.state["preflights"][name]
+    assert read_json(queue["recovery"]["seeded"]["BR"]["plan"]["path"]) == parent.finals["BR"]
+    assert (parent.root / "queue.json").read_bytes() == old_queue
+    assert (parent.br / "launch.json").read_bytes() == old_launch
+    ddp.verify(queue)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("foreign_uid", 1004),
+        ("command_basename", "other.py"),
+        ("max_foreign_processes_per_gpu", 2),
+        ("max_foreign_memory_mib", 2048),
+        ("min_free_memory_mib", 1024),
+        ("max_own_memory_fraction", 0.95),
+        ("authorization_reference", "unapproved"),
+        ("gpu_uuid", "GPU-unapproved"),
+        ("schema", ddp.DUAL_SCHEMA),
+    ],
+)
+def test_recovery_override_cannot_expand_scope_or_change_devices(
+    dynamic_recovery_override, field, value
+):
+    fixture = dynamic_recovery_override
+    if field == "gpu_uuid":
+        fixture.policy["devices"][0]["gpu_uuid"] = value
+    else:
+        fixture.policy[field] = value
+    with pytest.raises(ValueError):
+        fixture.prepare()
+
+
+@pytest.mark.parametrize("drift", ["decision", "previous", "active", "reference", "unsealed"])
+def test_recovery_override_verification_refuses_unsealed_policy_or_authority_drift(
+    dynamic_recovery_override, drift
+):
+    fixture = dynamic_recovery_override
+    queue = fixture.prepare()
+    override = queue["recovery"]["execution_policy_override"]
+    if drift == "decision":
+        fixture.decision.write_text("Changed authorization.\n")
+    elif drift == "previous":
+        override["previous_policy"]["devices"][0]["foreign_identity"]["pid"] += 1
+    elif drift == "active":
+        override["active_policy"]["devices"][0]["gpu_uuid"] = "GPU-unapproved"
+    elif drift == "reference":
+        override["authorization_reference"] = "unapproved"
+    else:
+        queue["recovery"].pop("execution_policy_override")
+    with pytest.raises(ValueError):
+        ddp.verify(queue)
+
+
+def test_dynamic_execution_policy_accepts_approved_new_pid_and_records_measured_policy(
+    dynamic_recovery_override, monkeypatch
+):
+    fixture = dynamic_recovery_override
+    queue = fixture.prepare()
+    root = Path(queue["recovery"]["output"])
+    seed_state = {
+        "queue_sha256": sha256_file(root / "queue.json"),
+        "preflights": {
+            name: seed["preflight"] for name, seed in queue["recovery"]["seeded"].items()
+        },
+    }
+    atomic_json(
+        root / "PREFLIGHT_COMPLETE.json", ddp.preflight_acceptance_receipt(queue, seed_state)
+    )
+    _write_exact_acceptance(root)
+    monkeypatch.setenv("PYTORCH_ALLOC_CONF", ddp.ALLOCATOR)
+    monkeypatch.setattr(ddp, "snapshot", lambda _owner: _shared_snapshot(foreign=True))
+    monkeypatch.setattr(ddp, "probe", lambda *_: pytest.fail("old b37 probe must not see schema3"))
+    monkeypatch.setattr(ddp, "validate_training_stage", lambda _plan: {})
+    monkeypatch.setattr(ddp, "validate_completed", lambda plan: {"run_id": plan["run_id"]})
+    monkeypatch.setattr(
+        ddp,
+        "_capture_process_identity",
+        lambda child: {"pid": child.pid, "start_ticks": "456", "command_sha256": "cmd"},
+    )
+    monkeypatch.setattr(
+        ddp.time, "sleep", lambda *_: pytest.fail("approved new PID should be admitted")
+    )
+    launches = []
+
+    @contextlib.contextmanager
+    def lock(_path):
+        yield
+
+    monkeypatch.setattr(ddp, "lock", lock)
+
+    def launch(command, **kwargs):
+        launches.append(command)
+        assert kwargs["env"]["PYTHONPATH"] == str(fixture.parent.source / "src")
+        return SimpleNamespace(pid=25000 + len(launches), wait=lambda **_kw: 0, poll=lambda: None)
+
+    monkeypatch.setattr(ddp.subprocess, "Popen", launch)
+    ddp.execute(queue, root)
+    state = read_json(root / "COMPLETE.json")
+    assert state["execution_shared_gpu_policy"] == fixture.policy
+    assert set(state["historical_measured_shared_gpu_policies"]) == set(ddp.DEPENDENCY_ARMS)
+    assert all(
+        value == fixture.parent.policy
+        for value in state["historical_measured_shared_gpu_policies"].values()
+    )
+    assert len(launches) == 6 and sum("--resume" in command for command in launches) == 1
+
+
+def test_recovery_from_dynamic_parent_reuses_historical_pinned_probe_budget(
+    dynamic_recovery_override, tmp_path, monkeypatch
+):
+    fixture = dynamic_recovery_override
+    first = fixture.prepare()
+    parent_root = _fail_recovery_at_committed_epoch(first, 2)
+    default_resolver = ddp._resolve_recovery_fresh
+
+    def resolve(source, row, runtime):
+        base = default_resolver(source, row, runtime)
+        run_id = f"after-dynamic-{row['name']}"
+        base.update(
+            run_id=run_id,
+            run_root=str(tmp_path / run_id),
+            test_root=str(tmp_path / (run_id + "-test")),
+        )
+        return base
+
+    monkeypatch.setattr(ddp, "_resolve_recovery_fresh", resolve)
+    second = ddp.prepare_recovery(parent_root / "queue.json", tmp_path / "after-dynamic")
+    assert second["shared_gpu_policy"] == fixture.policy
+    assert "execution_policy_override" not in second["recovery"]
+    assert second["recovery"]["resume"]["epoch"] == 2
+    for seed in second["recovery"]["seeded"].values():
+        assert (
+            read_json(seed["plan"]["path"])["resource_schedule"]["shared_gpu_policy"]
+            == fixture.parent.policy
+        )
+    ddp.verify(second)
+
+
+def test_recovery_cli_allows_only_explicit_shared_policy_override(tmp_path, monkeypatch):
+    path = tmp_path / "policy.json"
+    policy = {"schema": ddp.DYNAMIC_SCHEMA}
+    atomic_json(path, policy)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_unified_ddp.py",
+            "--recover-from",
+            "old/queue.json",
+            "--output",
+            "new/queue",
+            "--shared-policy",
+            str(path),
+        ],
+    )
+    calls = []
+    monkeypatch.setattr(
+        ddp,
+        "prepare_recovery",
+        lambda parent, output, *, shared_policy: calls.append((parent, output, shared_policy)),
+    )
+    ddp.main()
+    assert calls == [(Path("old/queue.json"), Path("new/queue"), policy)]

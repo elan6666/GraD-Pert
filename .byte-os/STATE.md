@@ -1,3 +1,9 @@
+## 2026-10-12：BR第二次真实保护停训；严格恢复准备中
+
+原430a132恢复队列与GM1都已真实failed/failed且有FAILURE.json；监督收据漏报了该marker，主实时核验纠正。最后遥测在原双卡BR进程之外出现UID1003 ScButterfly PID2381683（GPU0 498MiB），不是模型OOM。所有旧queue/source/配置/日志保留，两监控均暂停；主已接owner/build并实质ACK。
+
+BR在epoch3 step71、571/1000时中断，但可恢复边界为已提交epoch2/500steps。checkpoint SHA256 3c3e772d4a39a7b393b9360e8b59e170e79f113fd21951c6f2fdf686578a1ccc；服务器隐藏CUDA核验payload/hash/原b37身份/两rank RNG/StudentTeacher四中心/完整优化器均通过，尚未执行新nativeDDPrestore。新的严格恢复控制器将支持已恢复队列的再次恢复与已提交epoch2/3，原科学源码/4×250日程/runlaunch不变；F1/N1新ID、GM1新密封依赖，原失败记录/备份不覆盖。用户已明确批准同UID1003/同ScButterfly脚本的新PID共用，每卡最多1个≤1GiB、剩余≥2GiB、owned≤85%；新schema3仅在新队列启用，旧策略原样保留。重复恢复及动态共用代码已完成；187项隐藏CUDA CPU检查、Ruff/format/diff和独立复核通过。支持epoch2完整状态、封存祖先失败/备份、保留原科学b37配置和日程。下一步发布新控制器、服务器CPU复核并真实恢复BR；GM1尚未预检，无科学结果。证据evidence/graph-mhc-20261012/。
+
 ## 2026-10-11：GM1图mHC排队；BR严格恢复等待资源
 
 发布`430a1326aeabdb2e326d840295f6b31d2d9bc3c2`，服务器隐藏CUDA检查295通过（60.69秒）。主与Luna核验两控制器/源码/配置/publication/queue/checkpoint备份：`v2-ffn-recovery-430a132-20261011T124207Z`CPU waiting_shared_resources，`v2-graph-mhc-430a132-20261011T124207Z`CPU waiting_dependency，均无GPU子任务。BR仍只提交epoch1，尚无新恢复更新；新ScButterfly PID不继承旧白名单，资源门保持严格。

@@ -1,0 +1,7 @@
+# Scoped ScButterfly resource coexistence authorization
+
+On 2026-10-12 in main chat codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b the user explicitly replied “我同意这个，现在还有其他任务吗” after the proposed rule was explained. This approves schema shared-gpu-admission-3, authorization_reference 2026-10-12-user-scbutterfly-coexistence.
+
+Only Unix UID1003 running the exact public script basename run_scbutterfly_archived_predictions.py may coexist on the two fixed RTX5090 GPU UUIDs. A new PID of this same UID/program is allowed; this is the sole scope expansion from the previous exact-PID whitelist. Each GPU permits at most one such foreign process with memory<=1024MiB; physical free>=2048MiB and aggregate owned memory<=85% of total must remain. Missing identity, another UID/program, extra processes, foreign growth, physical UUID drift, invalid telemetry or exhausted headroom remain rejected. Other users’ private files/logs and signals are outside authorization.
+
+Historical policies, failed queues, sources, configs and checkpoints remain immutable. BR scientific b37 source/launch/architecture, checkpoint boundary,4×250 schedule and historical measured allocation budgets remain unchanged. A new recovery queue records the historical policy separately from the actual execution override plus this decision hash. New GM1 source contains the new guard and preserves its model configuration. No other ablation, extra GPU or training-budget increase is authorized.

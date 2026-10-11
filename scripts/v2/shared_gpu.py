@@ -13,6 +13,51 @@ from pathlib import Path
 
 SCHEMA = "shared-gpu-admission-1"
 DUAL_SCHEMA = "shared-gpu-admission-2"
+DYNAMIC_SCHEMA = "shared-gpu-admission-3"
+SCBUTTERFLY_AUTHORIZATION = "2026-10-12-user-scbutterfly-coexistence"
+
+
+def validate_dynamic_policy(policy: dict) -> None:
+    """The explicitly approved account/program may restart within the same limits."""
+    fields = {
+        "schema",
+        "devices",
+        "foreign_uid",
+        "command_basename",
+        "max_foreign_processes_per_gpu",
+        "max_foreign_memory_mib",
+        "min_free_memory_mib",
+        "max_own_memory_fraction",
+        "authorization_reference",
+    }
+    devices = policy.get("devices")
+    if (
+        set(policy) != fields
+        or policy.get("schema") != DYNAMIC_SCHEMA
+        or policy.get("foreign_uid") != 1003
+        or policy.get("command_basename") != "run_scbutterfly_archived_predictions.py"
+        or type(policy.get("max_foreign_processes_per_gpu")) is not int
+        or policy["max_foreign_processes_per_gpu"] != 1
+        or policy.get("max_foreign_memory_mib") != 1024
+        or policy.get("min_free_memory_mib") != 2048
+        or policy.get("max_own_memory_fraction") != 0.85
+        or policy.get("authorization_reference") != SCBUTTERFLY_AUTHORIZATION
+        or not isinstance(devices, list)
+        or len(devices) != 2
+    ):
+        raise ValueError("dynamic shared-GPU policy differs from its scoped authorization")
+    for index, device in enumerate(devices):
+        if (
+            not isinstance(device, dict)
+            or set(device) != {"gpu_index", "gpu_uuid"}
+            or type(device.get("gpu_index")) is not int
+            or device["gpu_index"] != index
+            or not isinstance(device.get("gpu_uuid"), str)
+            or not device["gpu_uuid"].startswith("GPU-")
+        ):
+            raise ValueError("dynamic shared-GPU policy requires the two fixed devices")
+    if devices[0]["gpu_uuid"] == devices[1]["gpu_uuid"]:
+        raise ValueError("dynamic shared-GPU policy requires distinct physical devices")
 
 
 def validate_dual_policy(policy: dict) -> None:
@@ -50,6 +95,9 @@ def validate_dual_policy(policy: dict) -> None:
 
 
 def validate_policy(policy: dict) -> None:
+    if policy.get("schema") == DYNAMIC_SCHEMA:
+        validate_dynamic_policy(policy)
+        return
     if policy.get("schema") == DUAL_SCHEMA:
         validate_dual_policy(policy)
         return
@@ -171,6 +219,9 @@ def admit(policy: dict, observed: dict) -> None:
     """Fail closed on an unknown job, missing telemetry, or exhausted headroom."""
     validate_policy(policy)
     gpus = {int(k): v for k, v in observed["gpus"].items()}
+    if policy["schema"] == DYNAMIC_SCHEMA:
+        admit_dynamic(policy, observed, gpus)
+        return
     if policy["schema"] == DUAL_SCHEMA:
         admit_dual(policy, observed, gpus)
         return
@@ -229,6 +280,51 @@ def admit_dual(policy: dict, observed: dict, gpus: dict) -> None:
     # A recorded job may exit; a new PID cannot inherit its allowance.
     if any(g["free_mib"] < policy["min_free_memory_mib"] for g in gpus.values()):
         raise RuntimeError("shared-GPU physical free-memory reserve exhausted")
+
+
+def admit_dynamic(policy: dict, observed: dict, gpus: dict) -> None:
+    """Admit a new PID only for the approved UID/program and per-device budget."""
+    devices = {d["gpu_uuid"]: d for d in policy["devices"]}
+    if set(gpus) != {0, 1} or any(
+        gpus[d["gpu_index"]]["uuid"] != d["gpu_uuid"] for d in devices.values()
+    ):
+        raise RuntimeError("shared-GPU physical device identity changed")
+    seen, owned_memory = set(), {uuid: 0 for uuid in devices}
+    for entry in observed["processes"]:
+        uuid = entry.get("gpu_uuid")
+        memory = entry.get("memory_mib")
+        if uuid not in devices or type(memory) is not int or memory < 0:
+            raise RuntimeError("shared-GPU process memory telemetry missing or invalid")
+        if entry["owned"]:
+            owned_memory[uuid] += memory
+            continue
+        info = entry.get("identity")
+        if (
+            info is None
+            or info.get("uid") != policy["foreign_uid"]
+            or info.get("script_basename") != policy["command_basename"]
+            or type(entry.get("pid")) is not int
+            or entry["pid"] <= 0
+            or info.get("pid") != entry["pid"]
+            or memory > policy["max_foreign_memory_mib"]
+            or uuid in seen
+        ):
+            raise RuntimeError(
+                "unapproved or grown foreign GPU process; preserve it and stop our dispatch"
+            )
+        seen.add(uuid)
+    for gpu in gpus.values():
+        if (
+            type(gpu.get("total_mib")) is not int
+            or gpu["total_mib"] <= 0
+            or type(gpu.get("free_mib")) is not int
+            or not 0 <= gpu["free_mib"] <= gpu["total_mib"]
+        ):
+            raise RuntimeError("shared-GPU physical memory telemetry missing or invalid")
+        if owned_memory[gpu["uuid"]] > gpu["total_mib"] * policy["max_own_memory_fraction"]:
+            raise RuntimeError("own GPU workload exceeds the approved memory allowance")
+        if gpu["free_mib"] < policy["min_free_memory_mib"]:
+            raise RuntimeError("shared-GPU physical free-memory reserve exhausted")
 
 
 def terminate_tree(pid: int, expected: dict) -> None:

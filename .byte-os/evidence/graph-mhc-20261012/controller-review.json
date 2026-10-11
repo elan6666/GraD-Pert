@@ -1,0 +1,12 @@
+{
+  "local_checks": {
+    "passed": 187,
+    "exit_code": 0,
+    "cuda_visible_devices": "",
+    "log": "/tmp/graph_mhc_dynamic_override_20261012.log"
+  },
+  "review": "no unresolved actual bug in four changed controller/policy files",
+  "scientific_model_config_budget_changed": false,
+  "checkpoint_native_ddp_restore_verified": false,
+  "authorization": "2026-10-12-user-scbutterfly-coexistence"
+}
