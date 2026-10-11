@@ -1,0 +1,14 @@
+{
+  "decision": "accept_actual_native_resume_and_supervision_handoff",
+  "controller_commit": "10ad0aae9a586377cda2212f29db6e6fe9a38a1f",
+  "scientific_commit": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "run_id": "v2-ffn-recovery-10ad0aa-20261011T163726Z",
+  "attempt": 3,
+  "queue_sha256": "17601f562408c7661e1d893e0ba130a72cc7bd7cbda23ff2f81dc09e3f83dc0b",
+  "observed_completed_steps": 502,
+  "checkpoint_sha256": "3c3e772d4a39a7b393b9360e8b59e170e79f113fd21951c6f2fdf686578a1ccc",
+  "source_config_budget_preserved": true,
+  "local_checks": 187,
+  "server_cpu_checks": 366,
+  "scientific_completion": false
+}

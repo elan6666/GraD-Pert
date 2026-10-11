@@ -1,3 +1,7 @@
+## 2026-10-12：动态共用修复发布，BR真实恢复
+
+新controller/GM1 source10ad0aae9a586377cda2212f29db6e6fe9a38a1f，187本地/366服务器隐藏CUDA检查及独立复核通过。用户批准schema3仅UID1003/精确ScButterfly脚本的新PID共用，其余1GiB/2GiB/85%/UUID限制不变。新queue v2-ffn-recovery-10ad0aa-20261011T163726Z attempt3，BR科学源仍b37，原epoch2/500完整状态恢复后已实测epoch3/502更新、双rank身份匹配；旁边UID1003任务720MiB仍存活，所有旧失败证据/备份保留，无模型/config/batch/LR改动。F1/N1freshID顺序，GM1新依赖queue仅CPU等待、未预检。现在无科学完成结果。主验收收据evidence/graph-mhc-20261012/2026-10-12-ffn-recovery-10ad0aa-and-GM1-main-acceptance.json，长监督handoff已准备，20min激活与ACK待核验。
+
 ## 2026-10-12：BR第二次真实保护停训；严格恢复准备中
 
 原430a132恢复队列与GM1都已真实failed/failed且有FAILURE.json；监督收据漏报了该marker，主实时核验纠正。最后遥测在原双卡BR进程之外出现UID1003 ScButterfly PID2381683（GPU0 498MiB），不是模型OOM。所有旧queue/source/配置/日志保留，两监控均暂停；主已接owner/build并实质ACK。

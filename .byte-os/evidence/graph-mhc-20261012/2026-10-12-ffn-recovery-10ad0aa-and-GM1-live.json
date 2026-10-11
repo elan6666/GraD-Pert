@@ -1,0 +1,115 @@
+{
+  "br_fit_identity": {
+    "alive_identity_matched": true,
+    "command_sha256": "91229cd66ac11169ab3699f813fab7749455f7b9bd2efd0fdd12341177200333",
+    "pid": 2388032,
+    "start_ticks": "714031266"
+  },
+  "br_progress": {
+    "epoch": 3,
+    "mtime_unix": 1791736734.876923,
+    "new_update_confirmed": true,
+    "optimizer_steps_completed": 502,
+    "threshold": 501
+  },
+  "br_run_id": "nadig_jurkat-seed1-20261011T100325Z-2a523ff07938473b983eaa304f70deb7",
+  "controller_commit": "10ad0aae9a586377cda2212f29db6e6fe9a38a1f",
+  "cpu_tests": "366 passed, 2 warnings in 67.44s (0:01:07)",
+  "deploy_exit_code": 0,
+  "foreign_scbutterfly": {
+    "command_basename": "run_scbutterfly_archived_predictions.py",
+    "command_sha256": "77db9d3f5f7cbbf36bf899db928b867374d403a0fd0c33af6e1550bcfc6bb084",
+    "gpu_uuid": "GPU-23bb1466-b82b-982d-8eaf-9a0002c6a4e7",
+    "memory_mib": 720,
+    "permitted_by_schema3": true,
+    "pid": 2381683,
+    "start_ticks": "713763027",
+    "uid": 1003
+  },
+  "gm1": {
+    "active": {},
+    "controller": {
+      "command_sha256": "8b0f8bf5a8786c4e028af3e19a53ced9677282bbfae6c49a003488047dd4b507",
+      "pid": 2387993,
+      "start_ticks": "714031018"
+    },
+    "controller_identity_matched": true,
+    "events": [],
+    "gpu_preflight_started": false,
+    "phase": "waiting_dependency",
+    "plans": {},
+    "preflights": {},
+    "queue_sha256": "c91efe3f99e47103826337ca7d1e0d2aef55b9bee6140649153d0322aac7cd42",
+    "root": "/data/yilangliu/GraD-Pert/development/v2-graph-mhc-10ad0aa-20261011T163726Z",
+    "status": "running"
+  },
+  "gpus": [
+    {
+      "fit_rank_pid": 2388054,
+      "foreign_processes": 1,
+      "free_mib": 17211,
+      "index": 0,
+      "owned_fraction": 0.4344465912227436,
+      "owned_mib": 14166,
+      "total_mib": 32607,
+      "used_mib": 14901,
+      "uuid": "GPU-23bb1466-b82b-982d-8eaf-9a0002c6a4e7"
+    },
+    {
+      "fit_rank_pid": 2388055,
+      "foreign_processes": 0,
+      "free_mib": 17936,
+      "index": 1,
+      "owned_fraction": 0.4344465912227436,
+      "owned_mib": 14166,
+      "total_mib": 32607,
+      "used_mib": 14176,
+      "uuid": "GPU-edd7484e-c71d-1938-4831-76c233466ccb"
+    }
+  ],
+  "observed_local_epoch": 1791736777.478009,
+  "ranks": [
+    {
+      "alive": true,
+      "pid": 2388054,
+      "start_ticks": "714031405"
+    },
+    {
+      "alive": true,
+      "pid": 2388055,
+      "start_ticks": "714031405"
+    }
+  ],
+  "recovery_controller": {
+    "alive_identity_matched": true,
+    "command_sha256": "92e206821a6dde8d30c946d36442ebb97dc7f675e69c81b4226b378fbc579f07",
+    "pid": 2387859,
+    "start_ticks": "714029650"
+  },
+  "recovery_phase": "dual_gpu_fit",
+  "recovery_queue_sha256": "17601f562408c7661e1d893e0ba130a72cc7bd7cbda23ff2f81dc09e3f83dc0b",
+  "recovery_root": "/data/yilangliu/GraD-Pert/development/v2-ffn-recovery-10ad0aa-20261011T163726Z",
+  "scientific_source_commit": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "scope": "read-only live acceptance snapshot; no training completion claim",
+  "shared_gpu_policy": {
+    "authorization_reference": "2026-10-12-user-scbutterfly-coexistence",
+    "command_basename": "run_scbutterfly_archived_predictions.py",
+    "devices": [
+      {
+        "gpu_index": 0,
+        "gpu_uuid": "GPU-23bb1466-b82b-982d-8eaf-9a0002c6a4e7"
+      },
+      {
+        "gpu_index": 1,
+        "gpu_uuid": "GPU-edd7484e-c71d-1938-4831-76c233466ccb"
+      }
+    ],
+    "foreign_uid": 1003,
+    "max_foreign_memory_mib": 1024,
+    "max_foreign_processes_per_gpu": 1,
+    "max_own_memory_fraction": 0.85,
+    "min_free_memory_mib": 2048,
+    "schema": "shared-gpu-admission-3"
+  },
+  "shared_gpu_policy_sha256": "bcb9a986c75a76225fbd52fd4035ae72f50f3b7ec6e8a305511fc453296ccd25"
+}
