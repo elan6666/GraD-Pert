@@ -474,3 +474,16 @@ def test_corrupt_terminal_evidence_is_not_success(prepared, corruption):
     atomic_json(root / "fit/last-test.json", {"result": result})
     with pytest.raises(ValueError):
         queue.validate_completed(plan, collector=lambda _: rows)
+
+
+def test_completion_accepts_sealed_four_and_rejects_six_for_that_plan(prepared):
+    planned, _, _ = prepared
+    plan = planned["rows"][0]["plan"]
+    plan["resolved_config"]["training"]["max_epochs"]["value"] = 4
+    plan["resolved_config"]["training"]["formal_run_policy"] = "v2_fixed_4"
+    root, _, rows = terminal_fixture(plan)
+    with pytest.raises(ValueError, match="fixed-epoch"):
+        queue.validate_completed(plan, collector=lambda _: rows)
+    rows[0]["checkpoint_epoch"] = 4
+    atomic_json(root / "COMPLETE.json", {"epoch": 4})
+    assert queue.validate_completed(plan, collector=lambda _: rows)["run_id"] == plan["run_id"]

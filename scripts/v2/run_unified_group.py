@@ -231,8 +231,11 @@ def validate_short_preflight(plan: dict, entry: dict) -> None:
 
 
 def validate_completed(plan: dict, *, collector=None) -> dict:
-    """Require last-only epoch6, frozen identity, eighteen metrics and zero PKL."""
+    """Require the sealed final epoch, frozen identity, eighteen metrics and zero PKL."""
     collector = collector or collect_run
+    epochs = plan["resolved_config"]["training"]["max_epochs"]["value"]
+    if epochs not in (4, 6):
+        raise ValueError("unsupported last-only epoch budget")
     root = Path(plan["run_root"])
     if (root / "FAILURE.json").exists() or not (root / "COMPLETE.json").is_file():
         raise ValueError("formal process has no successful terminal receipt")
@@ -241,14 +244,14 @@ def validate_completed(plan: dict, *, collector=None) -> dict:
         len(rows) != 1
         or rows[0]["role"] != "last"
         or rows[0]["status"] != "complete"
-        or rows[0]["checkpoint_epoch"] != 6
+        or rows[0]["checkpoint_epoch"] != epochs
         or rows[0]["training_sha"] != plan["source_commit"]
         or rows[0]["evaluation_sha"] != plan["source_commit"]
         or rows[0]["config_sha256"] != plan["config_sha256"]
         or json.loads((root / "launch.json").read_text()) != plan
         or json.loads((root / "resolved_config.json").read_text()) != plan["resolved_config"]
     ):
-        raise ValueError("completed run differs from the saved last-only six-epoch plan")
+        raise ValueError("completed run differs from the saved last-only fixed-epoch plan")
     result = json.loads((root / "fit/last-test.json").read_text())["result"]
     groups = result.get("metric_gene_groups", {})
     if set(groups) != {"seen_expression", "unseen_expression"}:

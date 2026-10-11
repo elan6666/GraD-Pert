@@ -9,5 +9,8 @@
   "final_collector_and_state_suite": "34 passed including fresh4 train-only last collector",
   "ruff": "passed",
   "diff_check": "passed",
-  "build": "wheel passed"
+  "build": "wheel passed",
+  "publication_preparation": "0174e00 server .venv symlink was untracked; removed only freshly created symlink, then clean source publication passed",
+  "server_parent_cpu_tests": "109 passed on clean0174e0097797aeab8877897f2efcfbd321556d9d",
+  "prelaunch_terminal_review": "found inherited queue terminal validator hardcoded6; generalized only sealed4/6 budget and added accept4/reject6 test; 81 local checks passed"
 }
