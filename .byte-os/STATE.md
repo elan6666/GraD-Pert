@@ -1,3 +1,7 @@
+## 2026-10-12: BR last evaluation actually running after capacity acceptance
+
+Acceptedfour-grid global400capacity10updates, minimumfree5004/5024MiB,16.376training-wall cells/s. OriginalBRscientifictraining/evaluation sourceb37 unchanged. FreshCPUevalcontroller `v2-br-eval-057a428-20261011T212820Z` source057a428585dbd7fb61128c3928ef2b3d51365ebd, local/server23CPUchecks+reviewpassed; main independentlyverified exactqueue/source/controller/child/checkpoint/config hashes and actualprogress10/592. NativeGPU0 attempt1/25percentcap, last epoch4/frozen300controls/18metrics, same2GiB/85percent/schema3guard, nootherfit. F1/N1/GM1remainpendingbatch192, cap400notauto-adopted. Lunafinishedshortlaunchwatch; handoff exactsupervisor20min pendingACK/ACTIVE. Evidenceevidence/post-br-capacity-20261012/gradpert-br-eval-main-launch-acceptance.json; scientificcompletionnotyet.
+
 ## 2026-10-12: post-BR capacity accepted, BR evaluation next
 
 Highestconfirmed4-grid dualGPU capacityglobal400=m100x2GPUsxaccum2,10updates/restore/300x5000inferencepassed. Same2GiBfree/85percentbudget; minimumfree5004/5024MiB, sampledowned27098/27078MiB. Trainingwall16.376cells/s vsbaseline1928.063, +103.1percent boundedprobe; startup12.399s, nativecheckpointrestoreincluded. m104/global416guardfailure andm112/global448OOMpreserved. Source1255a936369fb2085b6da279046ed6558ad412be, native src identicale3c. Tenstepcapacity notlongstability/physicalexactmaximum. ExistingBR/F1/N1/GM1remainbatch192.
