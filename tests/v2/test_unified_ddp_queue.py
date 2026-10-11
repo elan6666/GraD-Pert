@@ -1244,3 +1244,263 @@ def test_queue_verification_rejects_unknown_recovery_mode_or_scientific_resume_f
         queue["rows"][1]["plan"][field] = True
     with pytest.raises(ValueError, match=r"recovery mode|scientific plan flag"):
         ddp.verify(queue)
+
+
+@pytest.fixture
+def shared_failed_ffn_parent(failed_ffn_parent):
+    fixture = failed_ffn_parent
+    policy = {
+        "schema": ddp.DUAL_SCHEMA,
+        "max_foreign_memory_mib": 1024,
+        "min_free_memory_mib": 2048,
+        "max_own_memory_fraction": 0.85,
+        "devices": [
+            {
+                "gpu_index": index,
+                "gpu_uuid": f"GPU-{index}",
+                "foreign_identity": {
+                    "pid": 123 + index,
+                    "uid": 1003,
+                    "start_ticks": str(456 + index),
+                    "command_sha256": "a" * 64,
+                    "script_basename": "run_scbutterfly_archived_predictions.py",
+                },
+            }
+            for index in (0, 1)
+        ],
+    }
+    fixture.parent["shared_gpu_policy"] = policy
+    for row in fixture.parent["rows"]:
+        name = row["name"]
+        entry = fixture.state["preflights"][name]
+        path = Path(entry["receipt"])
+        receipt = read_json(path)
+        receipt["shared_gpu_policy"] = copy.deepcopy(policy)
+        atomic_json(path, receipt)
+        entry["sha256"] = sha256_file(path)
+        final = ddp.finalized_plan(row, entry, 100, policy)
+        plan_path = fixture.root / f"{name}.launch-plan.json"
+        atomic_json(plan_path, final)
+        fixture.state["plans"][name].update(sha256=sha256_file(plan_path))
+        fixture.finals[name] = final
+    atomic_json(fixture.br / "launch.json", fixture.finals["BR"])
+    atomic_json(fixture.root / "queue.json", fixture.parent)
+    fixture.state["queue_sha256"] = sha256_file(fixture.root / "queue.json")
+    atomic_json(fixture.root / "state.json", fixture.state)
+    atomic_json(fixture.root / "FAILURE.json", fixture.state)
+    fixture.policy = policy
+    return fixture
+
+
+def _shared_snapshot(*, foreign=False, uuid_changed=False, reserve_exhausted=False):
+    return {
+        "observed_unix": 1234.0,
+        "gpus": {
+            index: {
+                "uuid": "GPU-changed" if uuid_changed and index == 0 else f"GPU-{index}",
+                "free_mib": 2000 if reserve_exhausted and index == 0 else 3000,
+            }
+            for index in (0, 1)
+        },
+        "processes": [
+            {
+                "owned": False,
+                "pid": 2337671,
+                "gpu_uuid": "GPU-0",
+                "memory_mib": 720,
+                "identity": {
+                    "uid": 1003,
+                    "pid": 2337671,
+                    "start_ticks": "9999",
+                    "command_sha256": "b" * 64,
+                    "script_basename": "run_scbutterfly_archived_predictions.py",
+                },
+            }
+        ]
+        if foreign
+        else [],
+    }
+
+
+def _write_exact_acceptance(root):
+    ready = read_json(root / "PREFLIGHT_COMPLETE.json")
+    atomic_json(
+        root / "COEXISTENCE_ACCEPTANCE.json",
+        {
+            "decision": "allow_formal",
+            "queue_sha256": ready["queue_sha256"],
+            "source_commit": ready["source_commit"],
+            "preflight_sha256": {
+                name: entry["sha256"] for name, entry in ready["preflights"].items()
+            },
+        },
+    )
+
+
+@pytest.mark.parametrize(
+    "block_at,occupancy",
+    [
+        ("initial", "foreign"),
+        ("barrier", "foreign"),
+        ("initial", "reserve"),
+    ],
+)
+def test_idle_shared_queue_waits_for_resources_then_resumes_only_after_admission(
+    shared_failed_ffn_parent, monkeypatch, block_at, occupancy
+):
+    fixture = shared_failed_ffn_parent
+    queue = fixture.prepare()
+    root = Path(queue["recovery"]["output"])
+    sealed_policy = copy.deepcopy(queue["shared_gpu_policy"])
+    original_queue_hash = sha256_file(fixture.root / "queue.json")
+    leases, launches, sleeps = [], [], []
+    departed = False
+    monkeypatch.setenv("PYTORCH_ALLOC_CONF", ddp.ALLOCATOR)
+    monkeypatch.setattr(ddp, "probe", lambda *_: pytest.fail("recovery must not rerun GPU probes"))
+    monkeypatch.setattr(ddp, "validate_training_stage", lambda _plan: {})
+    monkeypatch.setattr(ddp, "validate_completed", lambda plan: {"run_id": plan["run_id"]})
+    monkeypatch.setattr(
+        ddp,
+        "_capture_process_identity",
+        lambda child: {"pid": child.pid, "start_ticks": str(child.pid), "command_sha256": "cmd"},
+    )
+
+    @contextlib.contextmanager
+    def lock(path):
+        leases.append(path)
+        yield
+
+    monkeypatch.setattr(ddp, "lock", lock)
+
+    def observe(_owner):
+        state = read_json(root / "state.json")
+        blocked = not departed and (
+            block_at == "initial" or state["phase"] == "waiting_coexistence_acceptance"
+        )
+        return _shared_snapshot(
+            foreign=blocked and occupancy == "foreign",
+            reserve_exhausted=blocked and occupancy == "reserve",
+        )
+
+    monkeypatch.setattr(ddp, "snapshot", observe)
+
+    def sleep(seconds):
+        nonlocal departed
+        sleeps.append(seconds)
+        state = read_json(root / "state.json")
+        assert not launches and not state["active"]
+        if seconds == 20:
+            assert state["phase"] == "waiting_shared_resources"
+            assert state["status"] == "running"
+            assert state["shared_resource_wait"]["active"] == {}
+            assert len(leases) == (1 if block_at == "initial" else 3)
+            assert state["preflights"]
+            ready = read_json(root / "PREFLIGHT_COMPLETE.json")
+            assert ready["formal_started"] is False
+            _write_exact_acceptance(root)
+            departed = True
+        else:
+            assert seconds == 5 and departed
+
+    monkeypatch.setattr(ddp.time, "sleep", sleep)
+
+    def launch(command, **kwargs):
+        assert departed, "foreign identity was incorrectly admitted without departure"
+        launches.append(command)
+        assert len(leases) == 3
+        assert kwargs["env"]["PYTHONPATH"] == str(fixture.source / "src")
+        if len(launches) == 1:
+            assert "--resume" in command
+        return SimpleNamespace(pid=10000 + len(launches), wait=lambda **_kw: 0, poll=lambda: None)
+
+    monkeypatch.setattr(ddp.subprocess, "Popen", launch)
+    ddp.execute(queue, root)
+    assert sleeps.count(20) == 1
+    assert len(launches) == 6
+    assert queue["shared_gpu_policy"] == sealed_policy
+    assert sha256_file(fixture.root / "queue.json") == original_queue_hash
+    state = read_json(root / "COMPLETE.json")
+    assert state["shared_resource_wait"]["waiting"] is False
+    assert state["status"] == "complete"
+
+
+@pytest.mark.parametrize("corruption", ["uuid", "policy"])
+def test_shared_identity_or_policy_drift_fails_before_gpu_lease(
+    shared_failed_ffn_parent, monkeypatch, corruption
+):
+    fixture = shared_failed_ffn_parent
+    queue = fixture.prepare()
+    root = Path(queue["recovery"]["output"])
+    if corruption == "policy":
+        queue["shared_gpu_policy"]["max_foreign_memory_mib"] = 4096
+    leases = []
+    monkeypatch.setenv("PYTORCH_ALLOC_CONF", ddp.ALLOCATOR)
+
+    @contextlib.contextmanager
+    def lock(path):
+        leases.append(path)
+        yield
+
+    monkeypatch.setattr(ddp, "lock", lock)
+    monkeypatch.setattr(ddp, "snapshot", lambda _owner: _shared_snapshot(uuid_changed=True))
+    monkeypatch.setattr(ddp.time, "sleep", lambda *_: pytest.fail("identity error must not wait"))
+    monkeypatch.setattr(ddp.subprocess, "Popen", lambda *_a, **_kw: pytest.fail("invalid launch"))
+    with pytest.raises((RuntimeError, ValueError), match=r"identity changed|policy differs"):
+        ddp.execute(queue, root)
+    assert leases == [root / "controller.lock"]
+    assert read_json(root / "FAILURE.json")["status"] == "failed"
+
+
+def test_active_shared_child_keeps_five_second_fail_close(shared_failed_ffn_parent, monkeypatch):
+    fixture = shared_failed_ffn_parent
+    queue = fixture.prepare()
+    root = Path(queue["recovery"]["output"])
+    seed_state = {
+        "queue_sha256": sha256_file(root / "queue.json"),
+        "preflights": {
+            name: seed["preflight"] for name, seed in queue["recovery"]["seeded"].items()
+        },
+    }
+    atomic_json(
+        root / "PREFLIGHT_COMPLETE.json", ddp.preflight_acceptance_receipt(queue, seed_state)
+    )
+    _write_exact_acceptance(root)
+    monkeypatch.setenv("PYTORCH_ALLOC_CONF", ddp.ALLOCATOR)
+    launches, timeouts, terminated = [], [], []
+
+    @contextlib.contextmanager
+    def lock(_path):
+        yield
+
+    monkeypatch.setattr(ddp, "lock", lock)
+    monkeypatch.setattr(
+        ddp,
+        "_capture_process_identity",
+        lambda child: {"pid": child.pid, "start_ticks": "123", "command_sha256": "cmd"},
+    )
+    monkeypatch.setattr(ddp, "terminate_tree", lambda pid, _identity: terminated.append(pid))
+    monkeypatch.setattr(
+        ddp.time, "sleep", lambda *_: pytest.fail("active child must not resource-wait")
+    )
+    monkeypatch.setattr(ddp, "snapshot", lambda _owner: _shared_snapshot(foreign=bool(launches)))
+
+    def launch(command, **_kwargs):
+        launches.append(command)
+
+        def wait(timeout):
+            timeouts.append(timeout)
+            if timeout == 5:
+                raise ddp.subprocess.TimeoutExpired(command, timeout)
+            return 0
+
+        return SimpleNamespace(pid=10001, wait=wait, poll=lambda: None)
+
+    monkeypatch.setattr(ddp.subprocess, "Popen", launch)
+    with pytest.raises(RuntimeError, match="unapproved or grown foreign"):
+        ddp.execute(queue, root)
+    assert len(launches) == 1 and "--resume" in launches[0]
+    assert timeouts == [5, 10]
+    assert terminated and set(terminated) == {10001}
+    state = read_json(root / "FAILURE.json")
+    assert state["status"] == "failed"
+    assert "shared_resource_wait" not in state

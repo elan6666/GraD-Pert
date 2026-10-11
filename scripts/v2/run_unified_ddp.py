@@ -44,6 +44,15 @@ DEPENDENCY_POLL_SECONDS = 20
 DEPENDENCY_ARMS = ("BR", "F1", "N1")
 RECOVERY_SOURCE = "b37b171fd68cb29e5c8142c66778aac6da9a6f06"
 RECOVERY_MODE = "resume_first_BR"
+SHARED_RESOURCE_POLL_SECONDS = 20
+WAITABLE_SHARED_OCCUPANCY_ERRORS = frozenset(
+    {
+        "unapproved foreign GPU process; preserve it and stop our dispatch",
+        "unapproved or grown foreign GPU process; preserve it and stop our dispatch",
+        "foreign GPU workload exceeds the one-job memory allowance",
+        "shared-GPU physical free-memory reserve exhausted",
+    }
+)
 
 
 def _stop_unverified_child(child: subprocess.Popen[bytes]) -> None:
@@ -868,6 +877,16 @@ def needs_preflight_acceptance(queue: dict) -> bool:
     )
 
 
+def preflight_acceptance_receipt(queue: dict, state: dict) -> dict:
+    return {
+        "queue_sha256": state["queue_sha256"],
+        "source_commit": queue["source_commit"],
+        "preflights": copy.deepcopy(state["preflights"]),
+        "scientific_complete": False,
+        "formal_started": False,
+    }
+
+
 def gpu_processes_owned() -> bool:
     """Only descendants of this controller may occupy the leased GPUs."""
     parents = {}
@@ -942,11 +961,39 @@ def execute(queue: dict, directory: Path) -> None:
     shared_policy = queue.get("shared_gpu_policy")
 
     def shared_check(tag):
-        observed = snapshot(os.getpid())
-        # Append evidence even when admission fails; never touch foreign processes.
-        with (directory / "shared-gpu-telemetry.jsonl").open("a") as stream:
-            stream.write(json.dumps({"stage": tag, **observed}) + "\n")
-        admit(shared_policy, observed)
+        resume_phase = state["phase"]
+        waited = False
+        while True:
+            observed = snapshot(os.getpid())
+            # Append evidence even when admission fails; never touch foreign processes.
+            with (directory / "shared-gpu-telemetry.jsonl").open("a") as stream:
+                stream.write(json.dumps({"stage": tag, **observed}) + "\n")
+            try:
+                admit(shared_policy, observed)
+            except RuntimeError as error:
+                if state["active"] or str(error) not in WAITABLE_SHARED_OCCUPANCY_ERRORS:
+                    raise
+                waited = True
+                state["phase"] = "waiting_shared_resources"
+                state["shared_resource_wait"] = {
+                    "stage": tag,
+                    "waiting": True,
+                    "error_type": type(error).__name__,
+                    "error": str(error),
+                    "active": {},
+                    "observed_unix": observed["observed_unix"],
+                }
+                record()
+                time.sleep(SHARED_RESOURCE_POLL_SECONDS)
+                verify(queue)
+            else:
+                if waited:
+                    state["phase"] = resume_phase
+                    state["shared_resource_wait"].update(
+                        waiting=False, admitted_unix=observed["observed_unix"]
+                    )
+                    record()
+                return
 
     def record():
         state["updated_unix"] = time.time()
@@ -1129,9 +1176,16 @@ def execute(queue: dict, directory: Path) -> None:
                     }
                 state["phase"] = "recovery_preflight_reused"
                 record()
+                if needs_preflight_acceptance(queue):
+                    atomic_json(
+                        directory / "PREFLIGHT_COMPLETE.json",
+                        preflight_acceptance_receipt(queue, state),
+                    )
             if queue.get("dependency") is not None:
                 wait_dependency(queue["dependency"], state, record)
                 verify(queue)
+            if shared_policy is not None:
+                shared_check("initial_admission")
             stack.enter_context(lock(LEASE_ROOT / "v2-gpu-0.lock"))
             stack.enter_context(lock(LEASE_ROOT / "v2-gpu-1.lock"))
             indexed = {r["name"]: r for r in queue["rows"]}
@@ -1142,13 +1196,7 @@ def execute(queue: dict, directory: Path) -> None:
                 # GM1 and new dual-GPU coexistence require receipt inspection before fitting.
                 state["phase"] = "waiting_coexistence_acceptance"
                 record()
-                ready = {
-                    "queue_sha256": state["queue_sha256"],
-                    "source_commit": queue["source_commit"],
-                    "preflights": copy.deepcopy(state["preflights"]),
-                    "scientific_complete": False,
-                    "formal_started": False,
-                }
+                ready = preflight_acceptance_receipt(queue, state)
                 atomic_json(directory / "PREFLIGHT_COMPLETE.json", ready)
                 approval = directory / "COEXISTENCE_ACCEPTANCE.json"
                 while not approval.exists():

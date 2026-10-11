@@ -1,0 +1,12 @@
+{
+  "schema": "graph-mhc-resource-wait-validation-1",
+  "base_commit": "3102fcd40a04980e22339349973961893d5791d0",
+  "reviewed_cpu_tests": 111,
+  "server_previous_isolated_checks": 289,
+  "controller_only_change": true,
+  "pinned_policy_changed": false,
+  "known_occupancy_without_active_child": "CPU waiting_shared_resources every20seconds before GPU lease",
+  "active_preflight_fit_eval_guard": "unchanged five-second fail-close, own verified child only",
+  "identity_drift_or_invalid_policy": "terminal rejection",
+  "server_wait_queue": "pending fresh publication and launch"
+}

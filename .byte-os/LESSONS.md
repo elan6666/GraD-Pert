@@ -315,3 +315,13 @@ an active immutable source. Verify clean source/publication identity after stagi
 - 预防：部署时不能仅凭测试名称或张量device=cpu判断无CUDA副作用。
   不放宽资源保护；保留失败队列证据，按原科学源码、配置、日程及完整状态
   从最后已提交 epoch 恢复，并单独记录恢复控制器版本/attempt。
+
+
+## 2026-10-11：未启动CUDA任务时资源不足应等待
+
+- 证据：恢复控制器在验收屏障、active为空时发现新UID1003 ScButterfly
+  占用GPU0约720MiB；新PID不能继承原pinned白名单，原保护正确拒绝。
+  但将此未启动阶段记为终态失败会导致不必要的恢复队列重建。
+- 预防：无活动CUDA子任务时已知占用/显存不足保持CPU资源等待，GPU lease
+  与子训练均不得提前启动；实际任务运行时继续5秒fail-close。设备身份
+  漂移、坏配置或遥测失败不能吞成等待，也不自动改白名单或信号其他用户。
