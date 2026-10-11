@@ -330,3 +330,8 @@ an active immutable source. Verify clean source/publication identity after stagi
 ## 2026-10-12：短等待的exec session不是跨agent持久标识
 
 子agent对主exec session49703读取返回Unknown process id；完整服务器checkpoint验证JSON确实已产生，主在helper结束后确认exit0。之后短监督交付公开PID/identity、固定日志、exit收据和结果文件路径；不假设exec session handle可跨agent调用。区分结果文件核验与进程exit证据，两者缺失时不能声称执行完成。
+
+
+## 2026-10-12：晚到review与真实runtime契约
+
+实施agent FINAL后进入idle，send_message不会开启修复turn；晚到finding要followup_task，并确认running。容量启动校验曾错用mock里的source_root，真实runtime使用repository_root（native源定位来自repository_root函数）；27 CPU检查未捕捉现实字段，server prepare在GPU派发前KeyError。接入边界测试应使用真实已脱敏runtime字段结构，先对照native消费点，再mock行为；不能凭fixture发明字段或给旧失败配置补假字段绕过。失败source/runtime/pub/log保留，新版本新ID重试。

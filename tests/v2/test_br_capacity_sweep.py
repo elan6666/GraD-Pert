@@ -41,7 +41,8 @@ def prepared(tmp_path, monkeypatch):
     atomic_json(
         runtime,
         {
-            "source_root": str(ROOT),
+            "repository_root": str(ROOT),
+            "runs_root": str(tmp_path),
             "data_root": str(tmp_path / "data"),
             "publication_receipt": str(publication),
             "publication_sha256": sha256_file(publication),
@@ -425,4 +426,26 @@ def test_plan_runtime_binding_drift_rejected(prepared, field, tmp_path):
     queue, _ = prepared
     queue["rows"][0]["plan"][field] = str(tmp_path / "different")
     with pytest.raises(ValueError, match="binding"):
+        sweep.verify(queue)
+
+
+def test_real_runtime_without_source_root_is_accepted(prepared):
+    queue, _ = prepared
+    runtime = read_json(Path(queue["runtime"]))
+    assert "source_root" not in runtime
+    assert runtime["repository_root"] == queue["source"]
+    assert {"data_root", "runs_root", "publication_receipt", "publication_sha256"} <= runtime.keys()
+    sweep.verify(queue)
+
+
+def test_real_runtime_repository_root_mismatch_is_rejected(prepared, tmp_path):
+    queue, _ = prepared
+    path = Path(queue["runtime"])
+    runtime = read_json(path)
+    runtime["repository_root"] = str(tmp_path / "wrong-source")
+    atomic_json(path, runtime)
+    queue["runtime_sha256"] = sha256_file(path)
+    for row in queue["rows"]:
+        row["plan"]["runtime_sha256"] = queue["runtime_sha256"]
+    with pytest.raises(ValueError, match="runtime source binding"):
         sweep.verify(queue)

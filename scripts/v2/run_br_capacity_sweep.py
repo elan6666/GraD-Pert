@@ -151,7 +151,7 @@ def verify(queue: dict) -> None:
             raise ValueError("sealed capacity input changed")
     runtime_path = Path(queue["runtime"]).resolve()
     runtime = read_json(runtime_path)
-    if Path(runtime["source_root"]).resolve() != source.resolve():
+    if Path(runtime["repository_root"]).resolve() != source.resolve():
         raise ValueError("capacity runtime source binding changed")
     matrix = manifest_contract(source, Path(queue["manifest"]))
     if len(queue["rows"]) != len(matrix["rows"]):
