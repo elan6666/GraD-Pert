@@ -1,0 +1,14 @@
+# GM1 graph residual ablation
+
+User requests graphencoder mHC as one ablation. Published prechange source13ab597db5dc784d7dc48f88041bf316c2ae13f8 (BR training sourceb37b171) is preserved. Active BR/F1/N1 source/config/queue untouched; current exact supervisor retains that ownership. Independent local implementation owned by main.
+
+GM1 only changes `graph_mhc: true` relative to sealed BR config075331f51d2ff5699ce0f22386d756ed5b4ee80cce29ee10727cf676c47e62eb. Shared4stream mHC at attention and FFN in all4graphlayers; streams propagate across layers, averaged after layer4. Preserve base graph norm1/norm2/FFN/dropout, graph3singlepass legalneighborhood KDA+sourceaware MLA, no virtualnode, IDs/masks/source/order, GenePT and full prediction/SSL losses. Cell/Response unchanged. Teacher homologous. Add route parameters only on private RNG after common model construction. Default false omitted from architecture payload for old checkpoint compatibility. Unsupported conditionalgraph combination must reject explicitly rather than bypass conditioning.
+
+Acceptance: legacy disabled initialization/state/output preserved; streams1 reduces to ordinary graph residual (output+grad); everygraphlayer has two mHCroute modules; no memory outside legalneighbors enters a layer; finite useful router gradients; multistep nonzeroLR optimizer/EMA/center and exact checkpoint continuation; config singleaxis equality and old schema/regression; local/server sourceclean, published immutable identity. Ten-update CUDA/restore/300-control mandatory later, not during current fitting.
+
+Disjoint delegated ownership:
+- graph_mhc_impl: new src/gradpert/modeling/v2/graph_mhc.py and tests/v2/test_graph_mhc.py only.
+- graph_mhc_queue: scripts/v2/run_unified_ddp.py and tests/v2/test_unified_ddp_queue.py only. Add singlearm GM1 family via generator contract; immutable optional dependency on current queue, wait before acquiringGPUleases. No signals to currentjobs, no GPU tests or deploy.
+- main: config/schema, SparseRead attention factoring, GraDPertV2/GeneGraph integration, generator/configmanifest, docs and publication/staging. Reviewer may read only.
+
+Execution: build/verify/publish → fresh server source/GM1config/runtime and CPU tests → singlearm queue with sealed priorcurrent queue dependency → onlyCPU wait, supervised alongside currentqueue. After exact BR/F1/N1 COMPLETE+hases/true tests, automatically GM1 tenstep preflight; stop at existing explicit acceptancebarrier, handback main for acceptance → formal fresh4/no validation/last18Pearson/zeroPKL → terminal main acceptance. Use commonmicro48/world2/accum2/global192/eval128. User-approved fallbackmicro40/global160 only main-owned freshrepair if needed. No other arms. Current20min supervisor updated only after real new waitingjob identity verified and acknowledged. Do not imply completed science or capacity before receipts.

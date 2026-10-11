@@ -37,6 +37,7 @@ class V2Architecture:
     relay_graph_chunk_rows: int = 64
     relay_sequence_chunk_size: int | None = None
     graph_source_key_gate: bool = False
+    graph_mhc: bool = False
     attention_replacement: str = "none"
     self_readout: str = "final"
     prior_shared_adapter: bool = False
@@ -78,6 +79,7 @@ class V2Architecture:
             "gene_conditioned_readout",
             "direct_target_flag",
             "learned_genept_projection",
+            "graph_mhc",
         ):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f"{name} must be boolean")
@@ -174,6 +176,8 @@ class V2Architecture:
             raise ValueError("propagated graph read currently requires two layers")
         if self.graph_read_mode == "relay" and self.graph_layers != 4:
             raise ValueError("relay graph read requires three KDA plus one MLA layer")
+        if self.graph_mhc and (self.graph_read_mode != "relay" or self.control_conditioned_graph):
+            raise ValueError("graph mHC requires relay graph without control conditioning")
         if self.attention == "relay_full" and (
             self.kda_layers != 2 or self.graph_read_mode != "relay"
         ):
@@ -278,6 +282,8 @@ class V2Architecture:
             values.pop("relay_sequence_chunk_size")
         if not self.graph_source_key_gate:
             values.pop("graph_source_key_gate")
+        if not self.graph_mhc:
+            values.pop("graph_mhc")
         if self.attention_replacement == "none":
             values.pop("attention_replacement")
         if self.self_readout == "final":
@@ -395,6 +401,7 @@ class V2Options:
             "relay_graph_chunk_rows",
             "relay_sequence_chunk_size",
             "graph_source_key_gate",
+            "graph_mhc",
             "attention_replacement",
             "self_readout",
             "prior_shared_adapter",

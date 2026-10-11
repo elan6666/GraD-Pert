@@ -94,6 +94,13 @@ class SparseRead(nn.Module):
     def forward(
         self, query: Tensor, memory: Tensor, neighbors: Tensor, valid: Tensor, sources: Tensor
     ) -> Tensor:
+        x = query + self.dropout(self.attention(query, memory, neighbors, valid, sources))
+        return cast(Tensor, x + self.dropout(self.ffn(self.norm2(x))))
+
+    def attention(
+        self, query: Tensor, memory: Tensor, neighbors: Tensor, valid: Tensor, sources: Tensor
+    ) -> Tensor:
+        """Existing graph attention output, before residual/FFN composition."""
         if neighbors.shape != valid.shape or not valid.any(-1).all():
             raise ValueError("every query needs at least one valid memory edge")
         if sources.shape != (*neighbors.shape, 4):
@@ -131,8 +138,7 @@ class SparseRead(nn.Module):
                 read.reshape(*read.shape[:-1], self.heads, self.head_width)
             ).flatten(-2)
             read = read * F.silu(self.output_gate(self.norm1(query)))
-        x = query + self.dropout(self.output(read))
-        return cast(Tensor, x + self.dropout(self.ffn(self.norm2(x))))
+        return cast(Tensor, self.output(read))
 
 
 class RelayGraphLayer(nn.Module):
@@ -361,6 +367,8 @@ class GeneGraph(nn.Module):
             ]
         )
         self.read_mode = options.graph_read_mode
+        self.mhc = False
+        self.mhc_streams = options.streams
         self.chunk_rows = options.relay_graph_chunk_rows
         self.checkpoint_chunks = options.checkpoint_layers
 
@@ -375,6 +383,8 @@ class GeneGraph(nn.Module):
         if masked_ids is not None:
             memory = memory.index_copy(0, masked_ids, self.mask_token.expand(len(masked_ids), -1))
         x = memory[context.ids]
+        if self.mhc:
+            x = x.unsqueeze(-2).expand(-1, self.mhc_streams, -1)
         for layer in self.layers[:3]:
             x = layer(x, context.neighbors, context.valid, context.sources)
         return x
@@ -433,7 +443,10 @@ class GeneGraph(nn.Module):
                         else read(*args)
                     )
                 return torch.cat(outputs, dim=1)
-            x = self.layers[3](x, x, context.neighbors, context.valid, context.sources)
+            if self.mhc:
+                x = self.layers[3](x, context.neighbors, context.valid, context.sources).mean(-2)
+            else:
+                x = self.layers[3](x, x, context.neighbors, context.valid, context.sources)
             return cast(Tensor, x[context.query_positions])
         if context is None or len(self.layers) != 2:
             raise ValueError("propagated graph read requires two layers and a context")
@@ -640,6 +653,25 @@ class GraDPertV2(nn.Module):
             from .restored_ffn import configure_restored
 
             configure_restored(self, seeds.shape[1], options)
+
+        if options.graph_mhc:
+            from .graph_mhc import GraphManifoldLayer
+
+            # The new route Linear modules are initialized on the CPU before
+            # runtime moves the model; do not reseed unrelated CUDA generators.
+            with torch.random.fork_rng(devices=[]):
+                torch.default_generator.manual_seed((torch.initial_seed() + 0x7204) % (2**63))
+                self.graph.layers = nn.ModuleList(
+                    GraphManifoldLayer(
+                        cast(RelayGraphLayer | SparseRead, core),
+                        d,
+                        options.streams,
+                        options.sinkhorn_backend,
+                    )
+                    for core in self.graph.layers
+                )
+            self.graph.mhc = True
+            self.graph.mhc_streams = options.streams
 
     @staticmethod
     def _prior_mlp(width: int) -> nn.Sequential:

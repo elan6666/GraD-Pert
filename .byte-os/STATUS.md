@@ -1,3 +1,7 @@
+## 2026-10-11：GM1 图 mHC 单变量组实施完成
+
+用户新增GM1：仅相对BR开启图mHC4，四层各attention/FFN独立route，保留原norm、KDA末态/邻域/source、GenePT、Cell/Response和训练/评估协议。Student47,051,014比BR多196,824参数；Teacher同构，新增CPU私有初始化避免CUDA RNG污染。默认关闭保持旧payload。247受影响检查及3源码mypy通过，独立审查 finding已修复；后续发布/服务器CPU复核与CPU依赖等待控制器准备。仅父BR/F1/N1真4轮last18指标及哈希/zeroPKL完成后执行GM1十步预检，仍停主验收屏障；现在不占GPU或修改活动b37。计划plans/GRADPERT_V2_GRAPH_MHC_20261011.plan.md，设计docs/experiments/GRADPERT_V2_GRAPH_MHC_20261011.md。
+
 ## 2026-10-11：正式BR长监督ACK和定时注册已核验
 
 指定“监督查询对话”独立ACK：controller及fit身份/source/queue/preflight哈希匹配，无FAILURE，BR epoch1 step9/250。supervisor ACTIVE20min、exacttarget/currentqueue已主从saved automation核验；returnfallback PAUSED，准备真实终态handback才激活。owner监督、repairbudget0，主结束短监督且不重复查GPU。主保存ACK证据evidence/ffn-dual-coexist-20261011/b37-supervisor-ack.json(SHAab8dabcba03e2ced214312429071cfe160461e3bfdc6cb8c116d86b0b6739a30)。训练仍在进行，非四轮科学完成。

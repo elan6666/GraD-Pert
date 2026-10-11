@@ -1,0 +1,31 @@
+{
+  "schema": "graph-mhc-four-1",
+  "parent": "configs/v2/ffn_four_20261011/BR/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "075331f51d2ff5699ce0f22386d756ed5b4ee80cce29ee10727cf676c47e62eb",
+  "parent_training_commit": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "world_size": 2,
+  "accumulation": 2,
+  "common_microbatch": 48,
+  "global_batch": 192,
+  "eval_batch": 128,
+  "epochs": 4,
+  "validation": "disabled",
+  "test_roles": [
+    "last"
+  ],
+  "seed": 1,
+  "preflight_updates": 10,
+  "priority": [
+    "GM1"
+  ],
+  "rows": [
+    {
+      "name": "GM1",
+      "config": "configs/v2/graph_mhc_four_20261011/GM1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "7b03765950313dba5dacd8067725fa62b1583d03e5f5ffdf96759346a1380ba3",
+      "changes": {
+        "graph_mhc": true
+      }
+    }
+  ]
+}

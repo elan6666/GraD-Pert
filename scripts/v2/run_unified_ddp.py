@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import copy
+import hashlib
 import json
 import os
 import subprocess
@@ -22,7 +23,7 @@ from run_unified_group import (
     probe_command,
     validate_completed,
 )
-from run_unified_overlap import evaluate_attempt, process_identity
+from run_unified_overlap import evaluate_attempt, process_command, process_identity
 from shared_gpu import DUAL_SCHEMA, admit, snapshot, terminate_tree, validate_policy
 
 from gradpert.data._io import atomic_json, read_json
@@ -32,9 +33,12 @@ from gradpert.execution.v2_training_stage import validate_training_stage
 from gradpert.hashing import sha256_file
 
 SCHEMA = "unified-ddp-queue-1"
+SERVER_ROOT = Path("/data/yilangliu")
 CHILD_IDENTITY_TIMEOUT_SECONDS = 2.0
 CHILD_IDENTITY_POLL_INTERVAL_SECONDS = 0.01
 CHILD_STOP_TIMEOUT_SECONDS = 5.0
+DEPENDENCY_POLL_SECONDS = 20
+DEPENDENCY_ARMS = ("BR", "F1", "N1")
 
 
 def _stop_unverified_child(child: subprocess.Popen[bytes]) -> None:
@@ -91,6 +95,11 @@ def _terminate_active_child(active) -> None:
 
 
 def matrix_contract(source: Path, manifest: Path) -> tuple[dict, tuple[str, ...], list[str]]:
+    if read_json(manifest).get("schema") == "graph-mhc-four-1":
+        from generate_graph_mhc import PRIORITY as graph_priority
+        from generate_graph_mhc import verify_manifest as verify_graph
+
+        return verify_graph(source, manifest), graph_priority, ["GM1"]
     if read_json(manifest).get("schema") == "ffn-four-1":
         from generate_ffn_group import PRIORITY as ffn_priority
         from generate_ffn_group import verify_manifest as verify_ffn
@@ -100,11 +109,18 @@ def matrix_contract(source: Path, manifest: Path) -> tuple[dict, tuple[str, ...]
 
 
 def prepare(
-    source: Path, manifest: Path, runtime: Path, output: Path, shared_policy: dict | None = None
+    source: Path,
+    manifest: Path,
+    runtime: Path,
+    output: Path,
+    shared_policy: dict | None = None,
+    dependency_queue: Path | None = None,
 ) -> dict:
-    if not output.resolve().is_relative_to("/data/yilangliu") or output.exists():
+    if not output.resolve().is_relative_to(SERVER_ROOT) or output.exists():
         raise ValueError("queue must be a fresh server directory")
     matrix, priority, initial = matrix_contract(source, manifest)
+    if dependency_queue is not None and priority != ("GM1",):
+        raise ValueError("only GM1 may wait on the BR/F1/N1 dependency")
     indexed = {r["name"]: r for r in matrix["rows"]}
     rows = []
     for name in priority:
@@ -140,6 +156,8 @@ def prepare(
     if shared_policy is not None:
         validate_policy(shared_policy)
         queue["shared_gpu_policy"] = copy.deepcopy(shared_policy)
+    if dependency_queue is not None:
+        queue["dependency"] = seal_dependency(dependency_queue)
     output.mkdir()
     atomic_json(output / "queue.json", queue)
     verify(queue)
@@ -189,6 +207,192 @@ def verify(queue: dict) -> None:
     )
     if identity.commit != queue["source_commit"] or identity.dirty:
         raise ValueError("queue source is not clean and published")
+    if queue.get("dependency") is not None:
+        if manifest["schema"] != "graph-mhc-four-1" or priority != ("GM1",):
+            raise ValueError("only GM1 may wait on the BR/F1/N1 dependency")
+        verify_dependency(queue["dependency"])
+
+
+def _dependency_contract(parent: dict, path: Path) -> dict:
+    """Bind existing parent IDs and paths, without ever resolving another run ID."""
+    if (
+        parent.get("schema") != SCHEMA
+        or [row["name"] for row in parent.get("rows", [])] != list(DEPENDENCY_ARMS)
+        or parent.get("dependency") is not None
+        or read_json(Path(parent["manifest"])).get("schema") != "ffn-four-1"
+    ):
+        raise ValueError("dependency scope must be exactly BR/F1/N1")
+    rows = []
+    for row in parent["rows"]:
+        plan = row["plan"]
+        if (
+            plan["source_commit"] != parent["source_commit"]
+            or plan["repository_root"] != parent["source"]
+            or plan["resolved_config"]["training"]["max_epochs"]["value"] != 4
+        ):
+            raise ValueError("dependency source or four-epoch protocol differs")
+        entry = {
+            key: plan[key]
+            for key in (
+                "run_id",
+                "config",
+                "config_sha256",
+                "source_commit",
+                "repository_root",
+                "run_root",
+                "test_root",
+            )
+        }
+        entry.update(name=row["name"], checkpoint=str(Path(plan["run_root"]) / "fit/last.pt"))
+        for key in ("config", "repository_root", "run_root", "test_root", "checkpoint"):
+            _dependency_server_path(Path(entry[key]))
+        rows.append(entry)
+    if len({row["run_id"] for row in rows}) != 3 or len({row["run_root"] for row in rows}) != 3:
+        raise ValueError("dependency run identities must be distinct")
+    return {
+        "schema": "unified-ddp-dependency-1",
+        "queue": str(path),
+        "queue_sha256": sha256_file(path),
+        "source": parent["source"],
+        "source_commit": parent["source_commit"],
+        "rows": rows,
+    }
+
+
+def _dependency_server_path(path: Path) -> None:
+    if not path.is_absolute() or not path.resolve().is_relative_to(SERVER_ROOT):
+        raise ValueError("dependency paths must be absolute server paths")
+
+
+def seal_dependency(path: Path) -> dict:
+    path = path.resolve(strict=True)
+    _dependency_server_path(path)
+    parent = read_json(path)
+    dependency = _dependency_contract(parent, path)
+    verify(parent)
+    state = read_json(path.parent / "state.json")
+    if state.get("queue_sha256") != dependency["queue_sha256"]:
+        raise ValueError("dependency controller state belongs to another queue")
+    identity = process_identity(state["pid"])
+    if identity is not None:
+        command = process_command(state["pid"]).split(b"\0")
+        if str(path).encode() not in command or not any(
+            item.endswith(b"/scripts/v2/run_unified_ddp.py") for item in command
+        ):
+            raise ValueError("dependency controller command belongs to another queue")
+    dependency["controller_identity"] = identity
+    if identity is None and not (path.parent / "COMPLETE.json").exists():
+        raise ValueError("dependency controller missing without scientific COMPLETE")
+    return dependency
+
+
+def verify_dependency(dependency: dict) -> dict:
+    path = Path(dependency["queue"])
+    _dependency_server_path(path)
+    if sha256_file(path) != dependency["queue_sha256"]:
+        raise ValueError("dependency queue hash changed")
+    parent = read_json(path)
+    expected = _dependency_contract(parent, path)
+    sealed = {key: value for key, value in dependency.items() if key != "controller_identity"}
+    if sealed != expected:
+        raise ValueError("dependency sealed source or run identities changed")
+    verify(parent)
+    return parent
+
+
+def wait_dependency(dependency: dict, state: dict, record) -> None:
+    """Read-only parent supervision; no CUDA queries, leases or child processes."""
+    root = Path(dependency["queue"]).parent
+    state["phase"] = "waiting_dependency"
+    record()
+
+    def observe():
+        raw = (root / "state.json").read_bytes()
+        observed = json.loads(raw)
+        state["dependency_observed"] = {
+            "state": str(root / "state.json"),
+            "state_sha256": hashlib.sha256(raw).hexdigest(),
+            "status": observed.get("status"),
+            "phase": observed.get("phase"),
+            "pid": observed.get("pid"),
+        }
+        record()
+        return observed
+
+    while True:
+        parent = verify_dependency(dependency)
+        observed = observe()
+        if observed.get("queue_sha256") != dependency["queue_sha256"]:
+            raise ValueError("dependency state queue identity changed")
+        if (root / "FAILURE.json").exists() or observed.get("status") == "failed":
+            raise RuntimeError("dependency failed; GM1 cannot start")
+        if (root / "COMPLETE.json").exists():
+            terminal = read_json(root / "COMPLETE.json")
+            # The controller writes final state before COMPLETE; refresh a sample
+            # that may have been taken immediately before this atomic transition.
+            observed = observe()
+            if (
+                terminal != observed
+                or terminal.get("schema") != SCHEMA
+                or terminal.get("status") != "complete"
+                or terminal.get("phase") != "complete"
+                or set(terminal.get("completed", {})) != set(DEPENDENCY_ARMS)
+                or set(terminal.get("plans", {})) != set(DEPENDENCY_ARMS)
+            ):
+                raise ValueError("dependency lacks exact scientific COMPLETE state")
+            completed = {}
+            for row in parent["rows"]:
+                entry = terminal["plans"][row["name"]]
+                plan_path = root / f"{row['name']}.launch-plan.json"
+                if entry["path"] != str(plan_path) or sha256_file(plan_path) != entry["sha256"]:
+                    raise ValueError("dependency finalized plan path or hash changed")
+                plan = read_json(plan_path)
+                original = {
+                    key: value
+                    for key, value in plan.items()
+                    if key
+                    not in (
+                        "cuda_memory_fraction",
+                        "resource_schedule",
+                    )
+                }
+                if original != row["plan"]:
+                    raise ValueError("dependency finalized plan changed frozen run identity")
+                training = validate_training_stage(plan)
+                if (
+                    training["epoch"] != 4
+                    or training["last"]["epoch"] != 4
+                    or training["last"]["file"] != "last.pt"
+                ):
+                    raise ValueError(
+                        "dependency checkpoint differs from the sealed epoch-4 last.pt"
+                    )
+                receipt = validate_completed(plan)
+                if receipt != terminal["completed"][row["name"]]:
+                    raise ValueError("dependency scientific receipt differs from COMPLETE")
+                completed[row["name"]] = receipt
+            if any(root.rglob("*.pkl")):
+                raise ValueError("dependency successful queue contains PKL artifacts")
+            state["dependency_completed"] = {
+                "complete": str(root / "COMPLETE.json"),
+                "complete_sha256": sha256_file(root / "COMPLETE.json"),
+                "rows": completed,
+            }
+            record()
+            return
+        expected = dependency.get("controller_identity")
+        if (
+            observed.get("status") not in ("running", "complete")
+            or expected is None
+            or observed.get("pid") != expected["pid"]
+            or process_identity(expected["pid"]) != expected
+        ):
+            if (root / "COMPLETE.json").exists():
+                continue
+            raise RuntimeError(
+                "dependency controller missing or changed without scientific COMPLETE"
+            )
+        time.sleep(DEPENDENCY_POLL_SECONDS)
 
 
 def probe(row: dict, directory: Path, shared: bool = False) -> list[str]:
@@ -230,6 +434,13 @@ def validate_coexistence_acceptance(queue: dict, ready: dict, acceptance: dict) 
         raise ValueError(
             "coexistence acceptance differs from the exact tested source/queue/receipts"
         )
+
+
+def needs_preflight_acceptance(queue: dict) -> bool:
+    policy = queue.get("shared_gpu_policy")
+    return [row["name"] for row in queue["rows"]] == ["GM1"] or (
+        policy is not None and policy["schema"] == DUAL_SCHEMA
+    )
 
 
 def gpu_processes_owned() -> bool:
@@ -286,17 +497,13 @@ def finalized_plan(row: dict, entry: dict, total_bytes: int, shared_policy=None)
 def execute(queue: dict, directory: Path) -> None:
     if os.environ.get("PYTORCH_ALLOC_CONF") != ALLOCATOR:
         raise ValueError("allocator contract missing")
-    if (
-        not directory.resolve().is_relative_to("/data/yilangliu")
-        or (directory / "state.json").exists()
-    ):
+    if not directory.resolve().is_relative_to(SERVER_ROOT) or (directory / "state.json").exists():
         raise ValueError("execution must be a fresh server queue; no implicit restart")
-    verify(queue)
     state = {
         "schema": SCHEMA,
         "pid": os.getpid(),
         "status": "running",
-        "phase": "preflight",
+        "phase": "waiting_dependency" if queue.get("dependency") is not None else "preflight",
         "queue_sha256": sha256_file(directory / "queue.json"),
         "active": {},
         "preflights": {},
@@ -463,16 +670,20 @@ def execute(queue: dict, directory: Path) -> None:
 
     with contextlib.ExitStack() as stack:
         stack.enter_context(lock(directory / "controller.lock"))
-        stack.enter_context(lock(LEASE_ROOT / "v2-gpu-0.lock"))
-        stack.enter_context(lock(LEASE_ROOT / "v2-gpu-1.lock"))
         record()
         try:
+            verify(queue)
+            if queue.get("dependency") is not None:
+                wait_dependency(queue["dependency"], state, record)
+                verify(queue)
+            stack.enter_context(lock(LEASE_ROOT / "v2-gpu-0.lock"))
+            stack.enter_context(lock(LEASE_ROOT / "v2-gpu-1.lock"))
             indexed = {r["name"]: r for r in queue["rows"]}
             # Expensive CG1 is checked before any formal fit at the common batch.
             for name in queue["initial_preflight"]:
                 preflight(indexed[name], stack)
-            if shared_policy is not None and shared_policy["schema"] == DUAL_SCHEMA:
-                # New dual-GPU coexistence must be inspected before any formal fit.
+            if needs_preflight_acceptance(queue):
+                # GM1 and new dual-GPU coexistence require receipt inspection before fitting.
                 state["phase"] = "waiting_coexistence_acceptance"
                 record()
                 ready = {
@@ -485,7 +696,8 @@ def execute(queue: dict, directory: Path) -> None:
                 atomic_json(directory / "PREFLIGHT_COMPLETE.json", ready)
                 approval = directory / "COEXISTENCE_ACCEPTANCE.json"
                 while not approval.exists():
-                    shared_check("waiting_coexistence_acceptance")
+                    if shared_policy is not None:
+                        shared_check("waiting_coexistence_acceptance")
                     time.sleep(5)
                 validate_coexistence_acceptance(queue, ready, read_json(approval))
             for row in queue["rows"]:
@@ -558,6 +770,7 @@ def main():
     parser.add_argument("--attempt", type=int, default=1)
     parser.add_argument("--uncapped", action="store_true")
     parser.add_argument("--shared-policy", type=Path)
+    parser.add_argument("--dependency-queue", type=Path)
     args = parser.parse_args()
     if args.evaluate:
         evaluate_attempt(
@@ -578,6 +791,7 @@ def main():
             args.runtime,
             args.output,
             read_json(args.shared_policy) if args.shared_policy else None,
+            args.dependency_queue,
         )
 
 

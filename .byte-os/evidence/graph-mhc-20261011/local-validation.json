@@ -1,0 +1,22 @@
+{
+  "parent_code_commit": "13ab597db5dc784d7dc48f88041bf316c2ae13f8",
+  "parent_training_commit": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "GM1_config_sha256": "7b03765950313dba5dacd8067725fa62b1583d03e5f5ffdf96759346a1380ba3",
+  "changes": {
+    "graph_mhc": true
+  },
+  "trainable_parameters": 47051014,
+  "baseline_trainable_parameters": 46854190,
+  "new_graph_routes": 8,
+  "affected_regression_passed": 247,
+  "mypy_source_files": 3,
+  "review": "RNG finding fixed; no remaining actual bug",
+  "gpu_preflight_passed": false,
+  "formal_started": false,
+  "active_parent_unmodified": true,
+  "pending": "server CPU checks and CPU-only dependency waiter",
+  "final_changed_queue_graph_tests": "140 passed in12.42sec",
+  "ruff": "passed",
+  "format": "passed",
+  "wheel": "built gradpert-0.1.0.dev0-py3-none-any.whl"
+}
