@@ -23,3 +23,17 @@ Source `e3c9183dc24e6413efc75a3df29bfe564def826f`; queue `v2-br-capacity-e3c9183
 Checkpoint restore/hash, nonzeroLR, finite gradients,300x5000 single-condition inference passed. Active-rank telemetry free approximately16.9GiB/each, owned approximately14.44GiB/each; snapshots are not full-lifecycle peaks. Controller automatically advanced m56/global224. Same free>=2048MiB and aggregate85% policy. Native m48receipt SHA `9d3e80cf7f2b2876e3507924a8ec58b71b5d4a08087093235b354bf56efb6549`; server main acceptanceSHA `9987a7283ff12d4f834e49b9a7f545bdf12d711c76b5d0499d801ebb276e3756`.20s deployment-confirmation failure retained separately; live matching controller and10-update pass reconciled, never relaunched.
 
 Local/server29 CPU tests and review passed. Earlier22d inventedruntime.source_root fixed to actualrepository_root with deployed-shape regression; failedsource/runtime/publication preserved. Remaining: complete capacity/acceptance -> BR epoch4last18 metrics -> F1/N1/GM1 originalbatch192.
+
+## First search terminal, refine once
+
+| Global | micro/GPU | updates | training-wall cells/s | sampled minfree MiB GPU0/GPU1 | disposition |
+| --- | --- | --- | --- | --- | --- |
+|192|48|10/10|8.063|17212/17214|passed|
+|224|56|10/10|9.376|15734/15734|passed|
+|256|64|10/10|10.718|13158/13158|passed|
+|320|80|10/10|13.397|9526/9528|passed|
+|384|96|10/10|15.832|6940/6940|passed|
+|416|104|0/10|NA|4266/4266|85percent guard terminated, not passed|
+|448|112|1/10|NA|5868/5848|OOM after1update|
+
+Queuefailedm104: owned27836MiB exceeds27715.95MiB allowance, free4266MiB. NoexternalCUDAjobs observed; noforeignsignals.85percent unchanged;2GiBmargin alone didnotcause failure. Native m112OOM confirmed distinctfromguardfailure. m96/global384 passed10updates, fastesttraining-wall15.832cells/s vs8.063m48, +96.3percentshortprobe throughput, notlongtrainingpromise.5s sampling isnotcontinuouspeakproof. Onlym100/global400 remains4-grid; scopedfreshsingleprobe next. Oldfailedsource/config/root/receipts unchanged.

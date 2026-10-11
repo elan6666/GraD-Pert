@@ -449,3 +449,122 @@ def test_real_runtime_repository_root_mismatch_is_rejected(prepared, tmp_path):
         row["plan"]["runtime_sha256"] = queue["runtime_sha256"]
     with pytest.raises(ValueError, match="runtime source binding"):
         sweep.verify(queue)
+
+
+@pytest.fixture
+def single_prepared(prepared):
+    original, output = prepared
+    single_output = output.parent / "single"
+    queue = sweep.prepare(
+        ROOT,
+        Path(original["manifest"]),
+        Path(original["runtime"]),
+        single_output,
+        original["shared_gpu_policy"],
+        single_microbatch=100,
+    )
+    return queue, single_output, original
+
+
+def test_single_prepare_fresh_native_scope(single_prepared):
+    queue, output, original = single_prepared
+    assert queue["single_microbatch"] == 100
+    assert [(r["name"], r["microbatch"]) for r in queue["rows"]] == [("m100", 100)]
+    assert queue["rows"][0]["plan"]["run_id"] not in {r["plan"]["run_id"] for r in original["rows"]}
+    assert (
+        queue["rows"][0]["plan"]["resolved_config"]["training"]["train_batch_size"]["value"] == 400
+    )
+    assert read_json(output / "queue.json") == queue
+    sweep.verify(queue)
+
+
+@pytest.mark.parametrize("micro", [True, 47, 49, 260, [100], None, 104])
+def test_single_verify_rejects_invalid_or_changed_selection(single_prepared, micro):
+    queue, _, _ = single_prepared
+    queue["single_microbatch"] = micro
+    with pytest.raises(ValueError):
+        sweep.verify(queue)
+
+
+def test_single_verify_rejects_multiple_rows_and_removed_mode(single_prepared):
+    queue, _, _ = single_prepared
+    duplicate = copy.deepcopy(queue)
+    duplicate["rows"].append(copy.deepcopy(duplicate["rows"][0]))
+    with pytest.raises(ValueError, match="scope"):
+        sweep.verify(duplicate)
+    del queue["single_microbatch"]
+    with pytest.raises(ValueError, match="scope"):
+        sweep.verify(queue)
+
+
+@pytest.mark.parametrize("field", ["data_root", "runtime_sha256", "publication"])
+def test_single_retains_runtime_binding(single_prepared, field):
+    queue, _, _ = single_prepared
+    queue["rows"][0]["plan"][field] = "/data/yilangliu/wrong"
+    with pytest.raises(ValueError, match="binding"):
+        sweep.verify(queue)
+
+
+def test_single_execute_only_one_point_no_maximum_claim(single_prepared, monkeypatch):
+    queue, output, _ = single_prepared
+    execution_mocks(monkeypatch, queue)
+    starts = []
+
+    def candidate(q, row, directory, guard):
+        guard()
+        starts.append(row["microbatch"])
+        return {"microbatch": row["microbatch"], "status": "passed", "throughput": 10.0}
+
+    monkeypatch.setattr(sweep, "run_candidate", candidate)
+    monkeypatch.setattr(sweep, "next_candidate", lambda *a: pytest.fail("single must not search"))
+    sweep.execute(queue, output)
+    state = read_json(output / "COMPLETE.json")
+    assert starts == [100]
+    assert state["single_probe_status"] == "passed"
+    assert state["highest_passed"] == 100
+    assert not state["maximum_claimed"] and not state["bounded_ceiling_not_maximum"]
+    assert "single" in state["scope"] and not state["scientific_complete"]
+
+
+def test_single_native_oom_is_terminal_failed_point(single_prepared, monkeypatch):
+    queue, output, _ = single_prepared
+    execution_mocks(monkeypatch, queue)
+    monkeypatch.setattr(sweep, "run_candidate", lambda *a: {"microbatch": 100, "status": "oom"})
+    with pytest.raises(RuntimeError, match="native OOM"):
+        sweep.execute(queue, output)
+    failure = read_json(output / "FAILURE.json")
+    assert failure["status"] == "failed" and failure["single_probe_status"] == "oom"
+    assert len(failure["results"]) == 1 and not (output / "COMPLETE.json").exists()
+
+
+def test_single_active_guard_failure_never_classifies_oom(single_prepared, monkeypatch):
+    queue, output, _ = single_prepared
+    execution_mocks(monkeypatch, queue)
+    calls = 0
+
+    def admission(policy, observed):
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            raise RuntimeError("aggregate owned GPU memory budget exceeded")
+
+    monkeypatch.setattr(sweep, "admit", admission)
+    monkeypatch.setattr(sweep, "run_candidate", lambda q, r, d, guard: guard())
+    monkeypatch.setattr(
+        sweep, "is_oom", lambda *a: pytest.fail("guard failure is never OOM evidence")
+    )
+    with pytest.raises(RuntimeError, match="budget exceeded"):
+        sweep.execute(queue, output)
+    failure = read_json(output / "FAILURE.json")
+    assert failure["results"] == [] and failure["active"] == 100
+    assert failure.get("single_probe_status") != "oom"
+
+
+def test_cli_single_microbatch_only_for_prepare(monkeypatch):
+    monkeypatch.setattr(
+        sys, "argv", ["sweep", "--queue", "/missing.json", "--single-microbatch", "100"]
+    )
+    monkeypatch.setattr(sweep, "execute", lambda *a: pytest.fail("must reject execute override"))
+    with pytest.raises(SystemExit) as error:
+        sweep.main()
+    assert error.value.code == 2

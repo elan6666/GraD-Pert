@@ -90,7 +90,25 @@ def manifest_contract(source: Path, manifest: Path) -> dict:
     return matrix
 
 
-def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: dict) -> dict:
+def selected_specs(matrix: dict, single_microbatch: int | None = None) -> list[dict]:
+    if single_microbatch is None:
+        return matrix["rows"]
+    if type(single_microbatch) is not int or single_microbatch not in range(48, 257, 4):
+        raise ValueError("single microbatch must be an existing 48..256 four-grid candidate")
+    rows = [row for row in matrix["rows"] if row["microbatch"] == single_microbatch]
+    if len(rows) != 1:
+        raise ValueError("single microbatch must select exactly one manifest row")
+    return rows
+
+
+def prepare(
+    source: Path,
+    manifest: Path,
+    runtime: Path,
+    output: Path,
+    policy: dict,
+    single_microbatch: int | None = None,
+) -> dict:
     source, manifest, runtime, output = (p.resolve() for p in (source, manifest, runtime, output))
     if not output.is_relative_to(SERVER_ROOT) or output.exists():
         raise ValueError("capacity output must be a fresh server directory")
@@ -99,7 +117,7 @@ def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: d
         raise ValueError("capacity requires the authorized dynamic policy")
     matrix = manifest_contract(source, manifest)
     rows = []
-    for row in matrix["rows"]:
+    for row in selected_specs(matrix, single_microbatch):
         plan = resolve_plan(
             argparse.Namespace(
                 config=source / row["config"],
@@ -128,6 +146,8 @@ def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: d
         "output": str(output),
         "training_authorized": False,
     }
+    if single_microbatch is not None:
+        queue["single_microbatch"] = single_microbatch
     verify(queue)
     output.mkdir(parents=False)
     atomic_json(output / "queue.json", queue)
@@ -154,10 +174,13 @@ def verify(queue: dict) -> None:
     if Path(runtime["repository_root"]).resolve() != source.resolve():
         raise ValueError("capacity runtime source binding changed")
     matrix = manifest_contract(source, Path(queue["manifest"]))
-    if len(queue["rows"]) != len(matrix["rows"]):
+    if "single_microbatch" in queue and queue["single_microbatch"] is None:
+        raise ValueError("sealed single microbatch cannot be null")
+    specs = selected_specs(matrix, queue.get("single_microbatch"))
+    if len(queue["rows"]) != len(specs):
         raise ValueError("capacity queue scope changed")
     ids = set()
-    for row, spec in zip(queue["rows"], matrix["rows"], strict=True):
+    for row, spec in zip(queue["rows"], specs, strict=True):
         plan = row["plan"]
         if (
             row["name"] != spec["name"]
@@ -417,6 +440,15 @@ def execute(queue: dict, directory: Path) -> None:
         "results": [],
     }
 
+    single = queue.get("single_microbatch")
+    if single is not None:
+        state.update(single_microbatch=single, maximum_claimed=False)
+
+    def next_selected():
+        if single is not None:
+            return single if not state["results"] else None
+        return next_candidate(state["results"])
+
     def guard():
         if sha256_file(directory / "queue.json") != queue_sha:
             raise ValueError("capacity queue hash changed")
@@ -438,7 +470,7 @@ def execute(queue: dict, directory: Path) -> None:
             observed = guard()
             if any(p["owned"] for p in observed["processes"]):
                 raise RuntimeError("capacity controller already owns CUDA work")
-            while (micro := next_candidate(state["results"])) is not None:
+            while (micro := next_selected()) is not None:
                 verify(queue)
                 row = next(r for r in queue["rows"] if r["microbatch"] == micro)
                 state["active"] = micro
@@ -446,6 +478,10 @@ def execute(queue: dict, directory: Path) -> None:
                 state["results"].append(run_candidate(queue, row, directory, guard))
                 state["active"] = None
                 atomic_json(directory / "state.json", state)
+                if single is not None:
+                    state["single_probe_status"] = state["results"][0]["status"]
+                    if state["single_probe_status"] != "passed":
+                        raise RuntimeError("single capacity candidate failed with native OOM")
             passed = [r for r in state["results"] if r["status"] == "passed"]
             failed = [r["microbatch"] for r in state["results"] if r["status"] == "oom"]
             state.update(
@@ -453,8 +489,12 @@ def execute(queue: dict, directory: Path) -> None:
                 highest_passed=max((r["microbatch"] for r in passed), default=None),
                 fastest=max(passed, key=lambda r: r["throughput"], default=None),
                 first_oom=min(failed, default=None),
-                bounded_ceiling_not_maximum=not failed,
-                scope="ten-update capacity only; no sustained maximum or scientific completion",
+                bounded_ceiling_not_maximum=not failed and single is None,
+                scope=(
+                    "single ten-update capacity point; no maximum or scientific completion"
+                    if single is not None
+                    else "ten-update capacity only; no sustained maximum or scientific completion"
+                ),
             )
             atomic_json(directory / "state.json", state)
             atomic_json(directory / "COMPLETE.json", state)
@@ -477,6 +517,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--shared-policy", type=Path)
     parser.add_argument("--queue", type=Path)
+    parser.add_argument("--single-microbatch", type=int)
     args = parser.parse_args()
     if args.prepare:
         if args.queue or any(
@@ -487,16 +528,25 @@ def main() -> None:
                 "--prepare requires source/manifest/runtime/output/shared-policy and no queue"
             )
         queue = prepare(
-            args.source, args.manifest, args.runtime, args.output, read_json(args.shared_policy)
+            args.source,
+            args.manifest,
+            args.runtime,
+            args.output,
+            read_json(args.shared_policy),
+            single_microbatch=args.single_microbatch,
         )
         print(
             json.dumps(
                 {"queue": str(args.output / "queue.json"), "source_commit": queue["source_commit"]}
             )
         )
-    elif args.queue and all(
-        getattr(args, k) is None
-        for k in ("source", "manifest", "runtime", "output", "shared_policy")
+    elif (
+        args.queue
+        and args.single_microbatch is None
+        and all(
+            getattr(args, k) is None
+            for k in ("source", "manifest", "runtime", "output", "shared_policy")
+        )
     ):
         execute(read_json(args.queue), args.queue.resolve().parent)
     else:
