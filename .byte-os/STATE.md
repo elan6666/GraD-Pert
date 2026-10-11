@@ -1,3 +1,7 @@
+## 2026-10-11：正式BR长监督ACK和定时注册已核验
+
+指定“监督查询对话”独立ACK：controller及fit身份/source/queue/preflight哈希匹配，无FAILURE，BR epoch1 step9/250。supervisor ACTIVE20min、exacttarget/currentqueue已主从saved automation核验；returnfallback PAUSED，准备真实终态handback才激活。owner监督、repairbudget0，主结束短监督且不重复查GPU。主保存ACK证据evidence/ffn-dual-coexist-20261011/b37-supervisor-ack.json(SHAab8dabcba03e2ced214312429071cfe160461e3bfdc6cb8c116d86b0b6739a30)。训练仍在进行，非四轮科学完成。
+
 ## 2026-10-11：三组共存预检验收通过，BR正式四轮启动
 
 训练SHA b37b171fd68cb29e5c8142c66778aac6da9a6f06；F1/BR/N1均10/10、完整checkpoint恢复、实际300×5000推理、有限梯度、精确source/config哈希通过；两个指定foreign任务在各组全部运行采样均存在。主已独立验收并写精确acceptance；同queue自动启动fresh BR，真实epoch1 step1/250、目标4轮1000更新。随后仅F1→N1各4轮，无验证、last-only18Pearson/zeroPKL，三组共用m48/world2/accum2/global192。降低m40候选未运行，当前不因显存需要降低。性能报告docs/experiments/GRADPERT_V2_FFN_COEXISTENCE_20261011.md；短测试非持续容量/科学结果。Luna终态已退出，主不重复监督；指定长监督交接与20min激活正在完成。旧失败完整保留，绝不修改活动b37服务器源码。

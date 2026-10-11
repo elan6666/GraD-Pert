@@ -1,0 +1,56 @@
+{
+  "attempt": 1,
+  "controller_identity": {
+    "command_sha256": "fd96e8bb3150538855b9233c7ff55fe9d6a7ebbef0ee7eaf8b3f1456d67dca3d",
+    "pid": 2317158,
+    "start_ticks": "711664564"
+  },
+  "formal_start_receipt_sha256": "11eccac3d51a77cd069071cf6dcb217f24a0bde7a985bdebf90539f1147f8d21",
+  "handoff": "/Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/handoffs/2026-10-11-ffn-b37-coexist-formal-supervise.md",
+  "handoff_sha256": "ec07006ee2e1f8db850e57100fbcd85963ad1fdbf9cc029f2bbf9b4f7084af63",
+  "main_acceptance_sha256": "73fb3df6cfb2a396798c2f6452470c3f2bc0567d33bff2ffff31a65aa3ebd59c",
+  "monitor": {
+    "id": "grad-pert-unified-first-supervise",
+    "interval_minutes": 20,
+    "status": "ACTIVE",
+    "target_thread_id": "01a0df0b-4142-7df1-86c0-d959471d80a1"
+  },
+  "observed_at_utc": "2026-10-11T10:22:10Z",
+  "owner_session": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171-20261011T100325Z",
+  "queue_sha256": "c898adbd30dd21b3a61ccb5304aa047bb32333847d23bf8924cc4a733f198f81",
+  "queue_state": {
+    "BR_progress": {
+      "epoch": 1,
+      "epoch_step": 9,
+      "optimizer_steps_completed": 9,
+      "phase": "training"
+    },
+    "active_fit": {
+      "arm": "BR",
+      "command_sha256": "f82f357cffbec1a0c9b53f594237f89ce6b55529f2e5b9ec2bcd1e2fec3b33dc",
+      "pid": 2319843,
+      "run_id": "nadig_jurkat-seed1-20261011T100325Z-2a523ff07938473b983eaa304f70deb7",
+      "start_ticks": "711751275"
+    },
+    "failure_marker": false,
+    "phase": "dual_gpu_fit",
+    "preflight_receipts": {
+      "BR": "01ef2e47c1f3af92a9bfd0164ab975539153d3e84c2a29f743ad91ef331fbc0d",
+      "F1": "aed9d6827193c7cf6c85f9c37cb40f9f746e02405e9c59e4ca639c43e0f8fc74",
+      "N1": "3dcf8e39fdf061426a82acde839161c1abfc10aa9f3c098333d8d8856111a7dc"
+    },
+    "status": "running"
+  },
+  "repair_budget": 0,
+  "resource_policy": "two pinned UID1003 jobs <=1GiB each; physical free >=2GiB; own allocator <=85%; no foreign private inspection or signals",
+  "return_fallback": {
+    "id": "grad-pert-unified-first-return",
+    "status": "PAUSED",
+    "target_thread_id": "01a0c01a-0611-7a90-b3e8-8ad7e017748b"
+  },
+  "run_id": "v2-ffn-coexist-b37b171-20261011T100325Z",
+  "schema": "gradpert-ffn-b37-supervisor-ack-1",
+  "stage": "supervise",
+  "training_source_sha": "b37b171fd68cb29e5c8142c66778aac6da9a6f06"
+}
