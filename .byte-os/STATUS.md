@@ -1,3 +1,7 @@
+## 2026-10-12：BR四轮训练完成，容量测试优先
+
+独立holder source4c8a7ff67b087d306fcd6753a987809bdd8baca2已发布，本地11/服务器65隐藏CUDA检查和复核通过。精确STOP仅两个CPU派发器，BR双rank自然完成，原5秒schema3守卫接力；真实epoch4 TRAIN_COMPLETE+原进程exit0及last SHA f679adf48082e4e334eb18601e487fb4a316ebc6e80365934e2c414c621fb9d2验证。旧CPU派发器已退休，F1未启动，旧queue/state/source保留。BR仍未评估，不是科学完成。用户新增post-BR最大双卡batch十步测试，每卡free>=2GiB且维持owned<=85%；先容量，再补BR last18指标，再接F1/N1/GM1，当前不改变消融batch192。主已实质接续构建容量探针控制器；holder小收据evidence/post-br-capacity-20261012/。
+
 ## 2026-10-12：动态共用修复发布，BR真实恢复
 
 新controller/GM1 source10ad0aae9a586377cda2212f29db6e6fe9a38a1f，187本地/366服务器隐藏CUDA检查及独立复核通过。用户批准schema3仅UID1003/精确ScButterfly脚本的新PID共用，其余1GiB/2GiB/85%/UUID限制不变。新queue v2-ffn-recovery-10ad0aa-20261011T163726Z attempt3，BR科学源仍b37，原epoch2/500完整状态恢复后已实测epoch3/502更新、双rank身份匹配；旁边UID1003任务720MiB仍存活，所有旧失败证据/备份保留，无模型/config/batch/LR改动。F1/N1freshID顺序，GM1新依赖queue仅CPU等待、未预检。现在无科学完成结果。主验收收据evidence/graph-mhc-20261012/2026-10-12-ffn-recovery-10ad0aa-and-GM1-main-acceptance.json，长监督handoff已准备，20min激活与ACK待核验。

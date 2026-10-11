@@ -1,0 +1,83 @@
+{
+  "br_training_complete": {
+    "epoch": 4,
+    "epoch_state_sha256": "9a82a83d196ef93f07109c4b5fb0cb330a642abef9a071437960bebc73488617",
+    "history_sha256": "3fe9181e74afef1dde3e87b498fff80d0b9a2b0e910827d136589b3ff5128861",
+    "last_checkpoint": "epoch-0004.pt",
+    "last_file_sha256_verified": true,
+    "last_sha256": "f679adf48082e4e334eb18601e487fb4a316ebc6e80365934e2c414c621fb9d2",
+    "path": "/data/yilangliu/GraD-Pert/runs-v2-ffn-coexist-b37b171/nadig_jurkat-seed1-20261011T100325Z-2a523ff07938473b983eaa304f70deb7/TRAIN_COMPLETE.json",
+    "scientific_complete": false,
+    "stage": "training_complete"
+  },
+  "cpu_tests": "65 passed in 0.40s",
+  "deploy_exit_code": 0,
+  "dispatchers": {
+    "retired_cpu_dispatchers": true,
+    "signals": [
+      {
+        "identity_matched": true,
+        "pid": 2387859,
+        "process_now_absent": true,
+        "signal": 19
+      },
+      {
+        "identity_matched": true,
+        "pid": 2387993,
+        "process_now_absent": true,
+        "signal": 19
+      }
+    ]
+  },
+  "gm1_queue": {
+    "active": {},
+    "path": "/data/yilangliu/GraD-Pert/development/v2-graph-mhc-10ad0aa-20261011T163726Z/queue.json",
+    "recorded_sha256_match": true,
+    "sha256": "c91efe3f99e47103826337ca7d1e0d2aef55b9bee6140649153d0322aac7cd42",
+    "stale_state_phase": "waiting_dependency"
+  },
+  "gpu_probes_repeated": false,
+  "holder": {
+    "br_training_complete": true,
+    "command_sha256": "32b32fded2eecd26816ad0eb87ef4bc0509824aab3cf7fdad75cddb8f1e709ca",
+    "evaluation_pending": true,
+    "pid": 2430892,
+    "process_now_absent_after_ready": true,
+    "root": "/data/yilangliu/GraD-Pert/development/v2-postbr-holder-4c8a7ff-20261011T195113Z",
+    "scientific_complete": false,
+    "start_ticks": "715191966",
+    "startup_identity_matched": true,
+    "state": "ready"
+  },
+  "holder_telemetry": {
+    "first_five_gpu_samples_show_two_owned_ranks": true,
+    "free_above_2gib": true,
+    "gpu_free_mib_first_five": {
+      "gpu0": 16972,
+      "gpu1": 16452
+    },
+    "observed_owned_fraction_below_85pct": true,
+    "owned_rank_memory_mib": {
+      "gpu0": 15130,
+      "gpu1": 15650
+    },
+    "path": "/data/yilangliu/GraD-Pert/development/v2-postbr-holder-4c8a7ff-20261011T195113Z/telemetry.jsonl",
+    "policy_schema": "shared-gpu-admission-3",
+    "policy_sha256": "bcb9a986c75a76225fbd52fd4035ae72f50f3b7ec6e8a305511fc453296ccd25",
+    "samples": 6
+  },
+  "interpretation": "BR epoch-4 training completion only; evaluator pending, not scientific completion",
+  "observed_local_epoch": 1791748373.977043,
+  "old_scientific_source_commit": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "parent_queue": {
+    "events": [
+      "BR fit start only"
+    ],
+    "f1_started": false,
+    "path": "/data/yilangliu/GraD-Pert/development/v2-ffn-recovery-10ad0aa-20261011T163726Z/queue.json",
+    "recorded_sha256_match": true,
+    "sha256": "17601f562408c7661e1d893e0ba130a72cc7bd7cbda23ff2f81dc09e3f83dc0b",
+    "stale_state_phase": "dual_gpu_fit"
+  },
+  "source_commit": "4c8a7ff67b087d306fcd6753a987809bdd8baca2"
+}

@@ -1,0 +1,44 @@
+{
+  "holder_root": "/data/yilangliu/GraD-Pert/development/v2-postbr-holder-4c8a7ff-20261011T195113Z",
+  "holder_plan": "/data/yilangliu/GraD-Pert/development/v2-postbr-holder-4c8a7ff.plan.json",
+  "holder_plan_sha256": "5c187c475890b9bcf0ec78de6a499dccf504dd2bcf606adadfb17ad50633e6ed",
+  "holder_source": "/data/yilangliu/GraD-Pert/development/source-v2-postbr-holder-4c8a7ff",
+  "holder_commit": "4c8a7ff67b087d306fcd6753a987809bdd8baca2",
+  "publication": "/data/yilangliu/GraD-Pert/development/gradpert-v2-postbr-holder-4c8a7ff-publication.json",
+  "publication_sha256": "966fee07d1e335c1d2e4936b80a6f6d4bf692015dd1f35f5ff4b3b929070ccc1",
+  "holder_identity": {
+    "pid": 2430892,
+    "command_sha256": "32b32fded2eecd26816ad0eb87ef4bc0509824aab3cf7fdad75cddb8f1e709ca",
+    "start_ticks": "715191966"
+  },
+  "holder_phase": "running",
+  "CPU_tests": 0,
+  "CPU_summary": "65 passed in 0.40s",
+  "CPU_test_log": "/data/yilangliu/GraD-Pert/development/v2-postbr-holder-4c8a7ff-cpu-tests.log",
+  "log": "/data/yilangliu/GraD-Pert/development/v2-postbr-holder-4c8a7ff.log",
+  "parent": {
+    "command_sha256": "92e206821a6dde8d30c946d36442ebb97dc7f675e69c81b4226b378fbc579f07",
+    "pid": 2387859,
+    "start_ticks": "714029650"
+  },
+  "fit": {
+    "command_sha256": "91229cd66ac11169ab3699f813fab7749455f7b9bd2efd0fdd12341177200333",
+    "pid": 2388032,
+    "start_ticks": "714031266"
+  },
+  "gm1": {
+    "queue": {
+      "path": "/data/yilangliu/GraD-Pert/development/v2-graph-mhc-10ad0aa-20261011T163726Z/queue.json",
+      "sha256": "c91efe3f99e47103826337ca7d1e0d2aef55b9bee6140649153d0322aac7cd42"
+    },
+    "controller": {
+      "command_sha256": "8b0f8bf5a8786c4e028af3e19a53ced9677282bbfae6c49a003488047dd4b507",
+      "pid": 2387993,
+      "start_ticks": "714031018"
+    }
+  },
+  "parent_queue": {
+    "path": "/data/yilangliu/GraD-Pert/development/v2-ffn-recovery-10ad0aa-20261011T163726Z/queue.json",
+    "sha256": "17601f562408c7661e1d893e0ba130a72cc7bd7cbda23ff2f81dc09e3f83dc0b"
+  }
+}

@@ -1,0 +1,401 @@
+{
+  "schema": "br-capacity-sweep-1",
+  "parent": "configs/v2/ffn_four_20261011/BR/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "075331f51d2ff5699ce0f22386d756ed5b4ee80cce29ee10727cf676c47e62eb",
+  "world_size": 2,
+  "accumulation": 2,
+  "steps": 10,
+  "min_free_mib": 2048,
+  "max_own_memory_fraction": 0.85,
+  "coarse_candidates": [
+    56,
+    64,
+    80,
+    96,
+    112,
+    128,
+    160,
+    192,
+    224,
+    256
+  ],
+  "refinement_grid": 4,
+  "rows": [
+    {
+      "microbatch": 48,
+      "global_batch": 192,
+      "name": "m48",
+      "config": "configs/v2/br_capacity_20261012/m48/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "6ee209330d79ef9d7a1f16c7a201f02df80e49ae296f8b939fceda03d8c8963a"
+    },
+    {
+      "microbatch": 52,
+      "global_batch": 208,
+      "name": "m52",
+      "config": "configs/v2/br_capacity_20261012/m52/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "7a07ac5dfbce01ee0258678946efe1cccedf2cc8cdb6a82a95c5fbfc3b2ff409"
+    },
+    {
+      "microbatch": 56,
+      "global_batch": 224,
+      "name": "m56",
+      "config": "configs/v2/br_capacity_20261012/m56/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "25fb0e8649bbd28aea97710d35b05deb2ffb59bbe1be1264656d4ea5b018f9ef"
+    },
+    {
+      "microbatch": 60,
+      "global_batch": 240,
+      "name": "m60",
+      "config": "configs/v2/br_capacity_20261012/m60/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "f1df773cc5f415e6b913a41885cf0d5cfc465f830a9e3771f2e2d22f132f2440"
+    },
+    {
+      "microbatch": 64,
+      "global_batch": 256,
+      "name": "m64",
+      "config": "configs/v2/br_capacity_20261012/m64/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "1479725d540a4c218c34c763db4197c9521ca0cc520adce1288c5cf362a7447f"
+    },
+    {
+      "microbatch": 68,
+      "global_batch": 272,
+      "name": "m68",
+      "config": "configs/v2/br_capacity_20261012/m68/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "34e2e2fc8d67027ed47b3958d2c9f71334c9d959fc0585e570e74dcf0c95a2fd"
+    },
+    {
+      "microbatch": 72,
+      "global_batch": 288,
+      "name": "m72",
+      "config": "configs/v2/br_capacity_20261012/m72/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "530bfd2acbc8233b24dae571e874d0db63b842a2d61d4ee65060473e5b6f9f27"
+    },
+    {
+      "microbatch": 76,
+      "global_batch": 304,
+      "name": "m76",
+      "config": "configs/v2/br_capacity_20261012/m76/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "21928538d44056f67fc168c72234920731fbbf7e1a121b1e2c792ee3cfcb73f2"
+    },
+    {
+      "microbatch": 80,
+      "global_batch": 320,
+      "name": "m80",
+      "config": "configs/v2/br_capacity_20261012/m80/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "c6c29e1f6d5d11bff460b90ac2b6824115e85f5add3b69446e3e3f2d247de147"
+    },
+    {
+      "microbatch": 84,
+      "global_batch": 336,
+      "name": "m84",
+      "config": "configs/v2/br_capacity_20261012/m84/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "6f8f0b991e1a44d6920634641e0920db16fbaf5f5ce39c181b2dd3cdfd6fd005"
+    },
+    {
+      "microbatch": 88,
+      "global_batch": 352,
+      "name": "m88",
+      "config": "configs/v2/br_capacity_20261012/m88/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "015ce6a4631089f6548b7acb6ec58624c650b94d3e3322484ea2cece2ca239d1"
+    },
+    {
+      "microbatch": 92,
+      "global_batch": 368,
+      "name": "m92",
+      "config": "configs/v2/br_capacity_20261012/m92/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "4bc472837506ce61445b266cf5f8a9d15c442a6251e6fcba498b61f2cbeaef36"
+    },
+    {
+      "microbatch": 96,
+      "global_batch": 384,
+      "name": "m96",
+      "config": "configs/v2/br_capacity_20261012/m96/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "a4e1b5d5fa8497ff15dcbf61be4554bd07dc39e0ecb8c1d77f1c3ffd887cd22b"
+    },
+    {
+      "microbatch": 100,
+      "global_batch": 400,
+      "name": "m100",
+      "config": "configs/v2/br_capacity_20261012/m100/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "03c2e4b5398630d7fccd19da7dc77584d7977ddc4db81464e722535e9081ab80"
+    },
+    {
+      "microbatch": 104,
+      "global_batch": 416,
+      "name": "m104",
+      "config": "configs/v2/br_capacity_20261012/m104/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "fa13d13ef2b07c2dfda0279b83d75f1ca94c5b7739f6fba92afcfcb1e2725d37"
+    },
+    {
+      "microbatch": 108,
+      "global_batch": 432,
+      "name": "m108",
+      "config": "configs/v2/br_capacity_20261012/m108/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "58b8f000b83a66290712b3dd12752212420957b3b1a69a50f7385580c0cd847b"
+    },
+    {
+      "microbatch": 112,
+      "global_batch": 448,
+      "name": "m112",
+      "config": "configs/v2/br_capacity_20261012/m112/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "b4cb85b991784fec91365fe75fea0683c0ae2c15a27545f0f4022011f08315f3"
+    },
+    {
+      "microbatch": 116,
+      "global_batch": 464,
+      "name": "m116",
+      "config": "configs/v2/br_capacity_20261012/m116/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "4841f1ae0b975e6dbdf03334e7926e10378f72aad3271d8cc5f6fab1842a097b"
+    },
+    {
+      "microbatch": 120,
+      "global_batch": 480,
+      "name": "m120",
+      "config": "configs/v2/br_capacity_20261012/m120/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "661a659176421005965cab8c96bb4afd0e2e4ee70a5e6fa611616e0d101bb4b3"
+    },
+    {
+      "microbatch": 124,
+      "global_batch": 496,
+      "name": "m124",
+      "config": "configs/v2/br_capacity_20261012/m124/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "3fb625f4d6c96d732398b82f8f2785ca571737dda18e8ffbb88c08c3c8e61dad"
+    },
+    {
+      "microbatch": 128,
+      "global_batch": 512,
+      "name": "m128",
+      "config": "configs/v2/br_capacity_20261012/m128/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "e94571542d265fda86c4c3f5532e3e721968bf8830652c9b7e8139bc56b3659f"
+    },
+    {
+      "microbatch": 132,
+      "global_batch": 528,
+      "name": "m132",
+      "config": "configs/v2/br_capacity_20261012/m132/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "25e197a90090b4921061ffa554eb16d8540bed16ff908e52fa960f2730c74c5b"
+    },
+    {
+      "microbatch": 136,
+      "global_batch": 544,
+      "name": "m136",
+      "config": "configs/v2/br_capacity_20261012/m136/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "1445e77aef0d427e3dd3202231ef34840546a41d7f798ed6e37304b3db483d7a"
+    },
+    {
+      "microbatch": 140,
+      "global_batch": 560,
+      "name": "m140",
+      "config": "configs/v2/br_capacity_20261012/m140/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "5545a624859900352758e174d8a9f891c7c6e9b3dfc7b5394c0960b672449fa2"
+    },
+    {
+      "microbatch": 144,
+      "global_batch": 576,
+      "name": "m144",
+      "config": "configs/v2/br_capacity_20261012/m144/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "968c773df084ef6c38c45c7c3914eb611d3951e6671591b50981c237490794b7"
+    },
+    {
+      "microbatch": 148,
+      "global_batch": 592,
+      "name": "m148",
+      "config": "configs/v2/br_capacity_20261012/m148/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "49f6c2fe5b6deb66b57c7066a66eb5e75052d7b7d91844a52aa4d26311ead1ec"
+    },
+    {
+      "microbatch": 152,
+      "global_batch": 608,
+      "name": "m152",
+      "config": "configs/v2/br_capacity_20261012/m152/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "293172123ee613a2e55a3ce30950f56d0b31460858130f3373c1e802ce8d06ad"
+    },
+    {
+      "microbatch": 156,
+      "global_batch": 624,
+      "name": "m156",
+      "config": "configs/v2/br_capacity_20261012/m156/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "121e4e71f68616ee9e7b378486f73037c51b4404a61e3ba04b68d40de73f9c8d"
+    },
+    {
+      "microbatch": 160,
+      "global_batch": 640,
+      "name": "m160",
+      "config": "configs/v2/br_capacity_20261012/m160/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "602ffbc85d4f5254a0c45551f6d2d336c6c71f010cdae1162d92a75a423b7808"
+    },
+    {
+      "microbatch": 164,
+      "global_batch": 656,
+      "name": "m164",
+      "config": "configs/v2/br_capacity_20261012/m164/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "4609f0738050441456880033621d5c8d19c4b043279c211537689d2376ae638c"
+    },
+    {
+      "microbatch": 168,
+      "global_batch": 672,
+      "name": "m168",
+      "config": "configs/v2/br_capacity_20261012/m168/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "9dd56f4a8d9cdd5821992eb76bd640d106f0506d763b3b5d16aabcc389856dc9"
+    },
+    {
+      "microbatch": 172,
+      "global_batch": 688,
+      "name": "m172",
+      "config": "configs/v2/br_capacity_20261012/m172/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "7e14bb0b245a185d2faaeb6061d36d5089af4e416c024221e4de35aa70e9e3a3"
+    },
+    {
+      "microbatch": 176,
+      "global_batch": 704,
+      "name": "m176",
+      "config": "configs/v2/br_capacity_20261012/m176/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "dee2faf19bd3f31a42c7541f8b513419dfc91cd89f3b37aab7d4a4bec40afa18"
+    },
+    {
+      "microbatch": 180,
+      "global_batch": 720,
+      "name": "m180",
+      "config": "configs/v2/br_capacity_20261012/m180/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "d3faf56ba229ec8ded3ec301474bd609d83c855824bede66025cfbb6e7de79b2"
+    },
+    {
+      "microbatch": 184,
+      "global_batch": 736,
+      "name": "m184",
+      "config": "configs/v2/br_capacity_20261012/m184/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "20f8566b2b253c1c22c667a82cd758d365dcb4b395933ca4139d19b43a024a59"
+    },
+    {
+      "microbatch": 188,
+      "global_batch": 752,
+      "name": "m188",
+      "config": "configs/v2/br_capacity_20261012/m188/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "0e7b9115d7ae37fca92af066de284fe34f4d091755ce732b86dfb4ede63cd1d9"
+    },
+    {
+      "microbatch": 192,
+      "global_batch": 768,
+      "name": "m192",
+      "config": "configs/v2/br_capacity_20261012/m192/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "8ee020869a4615bd3ad0cffc85b9e7f89f6a93bf1460b75fe7b184ad809a6d24"
+    },
+    {
+      "microbatch": 196,
+      "global_batch": 784,
+      "name": "m196",
+      "config": "configs/v2/br_capacity_20261012/m196/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "883c1298fec00b067c949e419081c07fdd8463420b2301a2f0ca8d777b796025"
+    },
+    {
+      "microbatch": 200,
+      "global_batch": 800,
+      "name": "m200",
+      "config": "configs/v2/br_capacity_20261012/m200/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "33a4f301d53d3056e35ce103c63c0de8962558c5ec65aa2ac61938af4da66b9d"
+    },
+    {
+      "microbatch": 204,
+      "global_batch": 816,
+      "name": "m204",
+      "config": "configs/v2/br_capacity_20261012/m204/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "32a9026dda9a3c893080c25c416cf5f0590bb9ae936f125b86d0f3d369c46a90"
+    },
+    {
+      "microbatch": 208,
+      "global_batch": 832,
+      "name": "m208",
+      "config": "configs/v2/br_capacity_20261012/m208/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "369e827e69dfdf5be4a8aba468ad0d42c97fbdf85e5806295fbd446b5a6f7d69"
+    },
+    {
+      "microbatch": 212,
+      "global_batch": 848,
+      "name": "m212",
+      "config": "configs/v2/br_capacity_20261012/m212/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "48deac06260591b463f45d150741d1080b9cd31fcaf0b0b346337634cac13016"
+    },
+    {
+      "microbatch": 216,
+      "global_batch": 864,
+      "name": "m216",
+      "config": "configs/v2/br_capacity_20261012/m216/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "54c50351b27f63f78b0040d471e7ee2058beb18a65f82c66162452e2ba1f66a4"
+    },
+    {
+      "microbatch": 220,
+      "global_batch": 880,
+      "name": "m220",
+      "config": "configs/v2/br_capacity_20261012/m220/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "45ac10f1157fee413cb4e0b77d1caeafdb57c380b19f27d2406db8ee6f37cb80"
+    },
+    {
+      "microbatch": 224,
+      "global_batch": 896,
+      "name": "m224",
+      "config": "configs/v2/br_capacity_20261012/m224/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "8d5c34c55d0805fba1e9cfa00143ea03196dec67b576dd40823d952fbb6673a0"
+    },
+    {
+      "microbatch": 228,
+      "global_batch": 912,
+      "name": "m228",
+      "config": "configs/v2/br_capacity_20261012/m228/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "018cc8cee4c10350fc3dbc4e73e69aaafa936e071d7fa03799ea297882e88b4c"
+    },
+    {
+      "microbatch": 232,
+      "global_batch": 928,
+      "name": "m232",
+      "config": "configs/v2/br_capacity_20261012/m232/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "b2327a0229e0546966801b928309206b98aa2c8fc0d2322a8ed87693ddd572fa"
+    },
+    {
+      "microbatch": 236,
+      "global_batch": 944,
+      "name": "m236",
+      "config": "configs/v2/br_capacity_20261012/m236/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "bb9361a0412659eb588f9558fa6a7f6993d2ede197fc328bdeebfe843f9c7a70"
+    },
+    {
+      "microbatch": 240,
+      "global_batch": 960,
+      "name": "m240",
+      "config": "configs/v2/br_capacity_20261012/m240/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "3bf4fd38e1f01183975e1d7f2e8593eafdb67d9e14b15816672e674e31f09042"
+    },
+    {
+      "microbatch": 244,
+      "global_batch": 976,
+      "name": "m244",
+      "config": "configs/v2/br_capacity_20261012/m244/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "a2e537c171d4b91d6436bf157bd7082fb63904b71f54555672875282863e639d"
+    },
+    {
+      "microbatch": 248,
+      "global_batch": 992,
+      "name": "m248",
+      "config": "configs/v2/br_capacity_20261012/m248/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "201dcb7b2fc5ffd44664cebfa94d049df0d569929242b1050c97e9fcaf47b2db"
+    },
+    {
+      "microbatch": 252,
+      "global_batch": 1008,
+      "name": "m252",
+      "config": "configs/v2/br_capacity_20261012/m252/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "02d28901548643e9e68916de6b2e7a4beb436d9b5956085786aa6cfc11c16e93"
+    },
+    {
+      "microbatch": 256,
+      "global_batch": 1024,
+      "name": "m256",
+      "config": "configs/v2/br_capacity_20261012/m256/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "c802677c7c2713bb2c5f2ca7f309f2d4f1dd5c65d7c705a7791e1064e06d901c"
+    }
+  ],
+  "training_authorized": false,
+  "only_changed_entries": [
+    "model.parameters.microbatch",
+    "training.train_batch_size"
+  ]
+}
