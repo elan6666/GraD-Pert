@@ -1,0 +1,76 @@
+{
+  "source": "/data/yilangliu/GraD-Pert/development/source-v2-ffn-coexist-b37b171",
+  "source_sha": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "source_clean": true,
+  "native_src_identical_to": "b9035f1f8db872dbb9a64298d157e31023756fe1",
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171-20261011T100325Z",
+  "queue_sha256": "c898adbd30dd21b3a61ccb5304aa047bb32333847d23bf8924cc4a733f198f81",
+  "runtime": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171.runtime.json",
+  "runtime_sha256": "955ce6672c8e080c51c2c7590ba078968740a59bafe9981d7f32d0f8e256d225",
+  "publication": "/data/yilangliu/GraD-Pert/development/gradpert-v2-ffn-coexist-b37b171-publication.json",
+  "publication_sha256": "20cdf03133036d6a781fcc86d93afe99ff4aa4c34bf5e375dd027603b6c09f44",
+  "policy": {
+    "schema": "shared-gpu-admission-2",
+    "max_foreign_memory_mib": 1024,
+    "min_free_memory_mib": 2048,
+    "max_own_memory_fraction": 0.85,
+    "devices": [
+      {
+        "gpu_index": 0,
+        "gpu_uuid": "GPU-23bb1466-b82b-982d-8eaf-9a0002c6a4e7",
+        "foreign_identity": {
+          "pid": 2303173,
+          "uid": 1003,
+          "start_ticks": "711069406",
+          "command_sha256": "60cf8126d13097fdbcc8291effd988605ce25c0a6a54e1aa743720da170fcb3b",
+          "script_basename": "run_scbutterfly_archived_predictions.py"
+        }
+      },
+      {
+        "gpu_index": 1,
+        "gpu_uuid": "GPU-edd7484e-c71d-1938-4831-76c233466ccb",
+        "foreign_identity": {
+          "pid": 2303188,
+          "uid": 1003,
+          "start_ticks": "711069547",
+          "command_sha256": "5c27de9d91176eb0f359e175f41a096d4300b946bb1878b6d0820dba0e2a9429",
+          "script_basename": "run_scbutterfly_archived_predictions.py"
+        }
+      }
+    ]
+  },
+  "policy_path": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171.policy.json",
+  "policy_sha256": "ca97022097db7769c6b3fc7a9724aa50217e5322cb7b2435a6a8e5f67f9114ef",
+  "controller_pid": 2317158,
+  "controller_identity": {
+    "pid": 2317158,
+    "command_sha256": "fd96e8bb3150538855b9233c7ff55fe9d6a7ebbef0ee7eaf8b3f1456d67dca3d",
+    "start_ticks": "711664564"
+  },
+  "runs": {
+    "BR": "nadig_jurkat-seed1-20261011T100325Z-2a523ff07938473b983eaa304f70deb7",
+    "F1": "nadig_jurkat-seed1-20261011T100325Z-9faf94d78de241b28b4f0a8e4de900ce",
+    "N1": "nadig_jurkat-seed1-20261011T100325Z-183447bb1e134eb3a749af15d9b30b7f"
+  },
+  "phase": "preflight",
+  "active": {
+    "preflight": {
+      "attempt": 1,
+      "identity": {
+        "command_sha256": "4e6e812849efa4b55e11e7af86e19e81b6d542871239062297b1d8aaa30f8357",
+        "pid": 2317182,
+        "start_ticks": "711664646"
+      },
+      "log": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171-20261011T100325Z/F1-preflight-attempt1.log",
+      "name": "F1",
+      "pid": 2317182,
+      "run_id": "nadig_jurkat-seed1-20261011T100325Z-9faf94d78de241b28b4f0a8e4de900ce",
+      "stage": "preflight",
+      "started_unix": 1791713007.0500886
+    }
+  },
+  "server_tests": "89 passed, 2 warnings in 29.45s",
+  "formal_started": false,
+  "preflight_passed": false,
+  "initial_foreign_count": 2
+}

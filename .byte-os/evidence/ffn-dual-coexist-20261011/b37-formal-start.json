@@ -1,0 +1,594 @@
+{
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171-20261011T100325Z",
+  "queue_sha256": "c898adbd30dd21b3a61ccb5304aa047bb32333847d23bf8924cc4a733f198f81",
+  "source_commit": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "active_fit": {
+    "attempt": 1,
+    "identity": {
+      "command_sha256": "f82f357cffbec1a0c9b53f594237f89ce6b55529f2e5b9ec2bcd1e2fec3b33dc",
+      "pid": 2319843,
+      "start_ticks": "711751275"
+    },
+    "log": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171-20261011T100325Z/BR-fit-attempt1.log",
+    "name": "BR",
+    "pid": 2319843,
+    "run_id": "nadig_jurkat-seed1-20261011T100325Z-2a523ff07938473b983eaa304f70deb7",
+    "stage": "fit",
+    "started_unix": 1791713873.3389013
+  },
+  "BR_plan": {
+    "config": "/data/yilangliu/GraD-Pert/development/source-v2-ffn-coexist-b37b171/configs/v2/ffn_four_20261011/BR/gradpert_v2/nadig_jurkat.yaml",
+    "config_sha256": "075331f51d2ff5699ce0f22386d756ed5b4ee80cce29ee10727cf676c47e62eb",
+    "cuda_memory_fraction": 0.65,
+    "data_root": "/data/yilangliu/GraD-Pert/data-vnext-a942114",
+    "genept_receipt": "/data/yilangliu/GraD-Pert/contracts/r50-f4bad63-v1/genept-preflight.json",
+    "genept_sha256": "1b8f3e7b84ba7dbe7a688fb1e750640fe6b9230e2617e23988b33e8f70c47dd7",
+    "gpu": "0,1",
+    "postfit_policy": "deferred",
+    "publication": "/data/yilangliu/GraD-Pert/development/gradpert-v2-ffn-coexist-b37b171-publication.json",
+    "publication_sha256": "20cdf03133036d6a781fcc86d93afe99ff4aa4c34bf5e375dd027603b6c09f44",
+    "report_all_validation_metrics": true,
+    "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-ffn-coexist-b37b171",
+    "resolved_config": {
+      "artifacts": {
+        "inference_recipe_schema_version": "inference-recipe-v1",
+        "large_artifacts_server_only": true,
+        "result_mode": "metrics_only",
+        "result_pkl_name": "result.pkl",
+        "root": "runs/v2",
+        "small_sync_extensions": [
+          ".txt",
+          ".json",
+          ".jsonl",
+          ".csv",
+          ".md"
+        ],
+        "sync_requires_dry_run": true
+      },
+      "data": {
+        "canonical_data_root": "data/nadig_jurkat/within_cell_unseen_single/canonical",
+        "dataset_id": "nadig_jurkat",
+        "expected_control_manifest_hash": "from_canonical_manifest",
+        "expected_expression_gene_order_hash": "from_canonical_manifest",
+        "expected_graph_gene_order_hash": "from_canonical_manifest",
+        "expected_split_hash": "from_canonical_manifest",
+        "preprocessing_id": "txpert_within_cell_v1",
+        "protocol_id": "within_cell_unseen_single",
+        "registry_version": "datasets-v2",
+        "split_policy": "grouped_0.5625_0.1875_0.25__gears_default_graph_intersection_v1",
+        "split_seed": 42
+      },
+      "dataset_id": "nadig_jurkat",
+      "evaluation": {
+        "bundle_schema_version": "evaluation-bundle-v1",
+        "control_context_policy": "truth_cell_context_resampling",
+        "evaluation_seed": 20260824,
+        "evaluator_version": "gradpert-evaluator-v1",
+        "headline_metrics": [
+          "txpert_macro_pearson_delta",
+          "trishift_pearson_delta",
+          "systema_pearson"
+        ],
+        "n_controls_per_condition": 300,
+        "prediction_schema_version": "prediction-artifact-v1",
+        "sample_controls_with_replacement": true,
+        "truth_access": "evaluator_only"
+      },
+      "experiment_id": "gradpert_v2__nadig_jurkat",
+      "model": {
+        "exclude_test_target_expression": true,
+        "family": "native_learned",
+        "implementation": "gradpert.modeling.v2",
+        "model_id": "gradpert_v2",
+        "parameters": {
+          "accumulation": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": 2
+          },
+          "attention": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": "relay_full"
+          },
+          "checkpoint_layers": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": true
+          },
+          "dropout": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 0.1
+          },
+          "eval_query_count": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 1000
+          },
+          "ffn_clip": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": false
+          },
+          "ffn_input_norm": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": "historical"
+          },
+          "ffn_type": {
+            "reference": "docs/provenance/GRADPERT_V2_OPERATORS.md",
+            "source": "project_preregistered",
+            "value": "swiglu"
+          },
+          "ffn_variant": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": "mixed"
+          },
+          "gene_initialization": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": "genept"
+          },
+          "genept_artifact_path": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": "/data/yilangliu/DinoGenePT/data/embeddings/seed-go-protein-pathway-master-aligned.npz"
+          },
+          "genept_hidden_width": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": 4096
+          },
+          "genept_middle_width": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": 1024
+          },
+          "genept_projection_activation": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": "gelu"
+          },
+          "genept_sha256": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318"
+          },
+          "global_max_ratio": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": 0.9
+          },
+          "global_min_ratio": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": 0.6
+          },
+          "graph_edge_dropout": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 0.1
+          },
+          "graph_expander_degree": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": 3
+          },
+          "graph_expander_seed": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 1
+          },
+          "graph_expander_type": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": "hamiltonian"
+          },
+          "graph_layers": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": 4
+          },
+          "graph_manifest_path": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": "/data/yilangliu/GraD-Pert/data-vnext-a942114/nadig_jurkat/within_cell_unseen_single/graphs/manifest.json"
+          },
+          "graph_manifest_sha256": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": "0de04502516318f835699683f0c95362386d7031cdefd99800ca3039eb392ae2"
+          },
+          "graph_mask_ratio": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 0.25
+          },
+          "graph_read_mode": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": "relay"
+          },
+          "graph_source_key_gate": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": true
+          },
+          "graph_view_mode": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": "multiscale"
+          },
+          "heads": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 4
+          },
+          "kda_layers": {
+            "reference": "docs/design/GRADPERT_V2.md#glm53-compact-depth",
+            "source": "user_locked",
+            "value": 2
+          },
+          "koleo_exclude_same_condition": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": true
+          },
+          "lambda1": {
+            "reference": "docs/design/GRADPERT_V2.md",
+            "source": "project_preregistered",
+            "value": 1
+          },
+          "lambda2": {
+            "reference": "user 2026-09-27 SSL2 overall weight 1",
+            "source": "user_locked",
+            "value": 1.0
+          },
+          "latent_rank": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 64
+          },
+          "learned_genept_projection": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": true
+          },
+          "local_max_ratio": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": 0.5
+          },
+          "local_min_ratio": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": 0.25
+          },
+          "local_views": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": 2
+          },
+          "loss_reduction": {
+            "reference": "docs/design/GRADPERT_V2.md#18",
+            "source": "user_locked",
+            "value": "row_mean"
+          },
+          "mask_max_ratio": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 0.5
+          },
+          "mask_min_ratio": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 0.1
+          },
+          "mask_probability": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 0.5
+          },
+          "max_conditions": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "user_locked",
+            "value": 0
+          },
+          "microbatch": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": 48
+          },
+          "mlp_profile": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": "restored"
+          },
+          "prediction_loss": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": "cell_mean"
+          },
+          "projector_bottleneck": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 256
+          },
+          "projector_hidden": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 2048
+          },
+          "prototypes": {
+            "reference": "docs/design/GRADPERT_V2.md#glm53-compact-depth",
+            "source": "user_locked",
+            "value": 16384
+          },
+          "query_count": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 1000
+          },
+          "relay_eval_seed": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "project_preregistered",
+            "value": 1
+          },
+          "relay_passes": {
+            "reference": "docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md",
+            "source": "user_locked",
+            "value": 1
+          },
+          "relay_sequence_chunk_size": {
+            "reference": "docs/experiments/GRADPERT_V2_GATE_BATCH_CHUNK_20260928.md",
+            "source": "project_preregistered",
+            "value": 16
+          },
+          "sinkhorn_backend": {
+            "reference": "docs/experiments/GRADPERT_V2_SINGLE_PASS_PERFORMANCE.md",
+            "source": "project_preregistered",
+            "value": "auto"
+          },
+          "ssl1_condition": {
+            "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+            "source": "user_locked",
+            "value": 1.0
+          },
+          "ssl1_node": {
+            "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+            "source": "user_locked",
+            "value": 1.0
+          },
+          "ssl1_reduction": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": "row_mean"
+          },
+          "ssl1_spread": {
+            "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+            "source": "user_locked",
+            "value": 0.0
+          },
+          "ssl2_dino": {
+            "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+            "source": "user_locked",
+            "value": 1.0
+          },
+          "ssl2_ibot": {
+            "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+            "source": "user_locked",
+            "value": 1.0
+          },
+          "ssl2_koleo": {
+            "reference": ".byte-os/plans/GRADPERT_V2_CAP40_THREE_ABLATIONS_20261001.plan.md",
+            "source": "user_locked",
+            "value": 0.0
+          },
+          "streams": {
+            "reference": "docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md",
+            "source": "user_locked",
+            "value": 4
+          },
+          "teacher_end": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 1.0
+          },
+          "teacher_start": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 0.99
+          },
+          "train_selection_path": {
+            "reference": "docs/experiments/GRADPERT_V2_MHC_CAP40_SIX_EPOCH_20260930.md",
+            "source": "user_locked",
+            "value": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-v2-binding-20260930/training_selection.json"
+          },
+          "train_selection_sha256": {
+            "reference": "docs/experiments/GRADPERT_V2_MHC_CAP40_SIX_EPOCH_20260930.md",
+            "source": "user_locked",
+            "value": "aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132"
+          },
+          "validation_mode": {
+            "reference": "docs/experiments/GRADPERT_V2_FUNCTIONAL_B0_K_A_20261006.md",
+            "source": "user_locked",
+            "value": "disabled"
+          },
+          "width": {
+            "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+            "source": "project_preregistered",
+            "value": 256
+          },
+          "world_size": {
+            "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+            "source": "user_locked",
+            "value": 2
+          }
+        },
+        "version": "v2"
+      },
+      "model_id": "gradpert_v2",
+      "schema_version": 1,
+      "source_code": {
+        "commit": "resolve_clean_commit_at_launch",
+        "execution": "native",
+        "license_boundary": "project_repository",
+        "repository": "https://github.com/elan6666/GraD-Pert.git"
+      },
+      "training": {
+        "early_stopping": false,
+        "early_stopping_patience": {
+          "reference": "docs/design/GRADPERT_VNEXT_ABLATIONS.md",
+          "source": "user_locked",
+          "value": 10
+        },
+        "eval_batch_size": {
+          "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+          "source": "project_preregistered",
+          "value": 128
+        },
+        "formal_run_policy": "v2_fixed_4",
+        "learned": true,
+        "learning_rate": {
+          "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+          "source": "project_preregistered",
+          "value": 0.001
+        },
+        "max_epochs": {
+          "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+          "source": "user_locked",
+          "value": 4
+        },
+        "min_delta": 0.0,
+        "monitor": "none",
+        "monitor_mode": "none",
+        "optimizer": {
+          "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+          "source": "project_preregistered",
+          "value": "GLM5MuonSplit_v2"
+        },
+        "run_seeds": [
+          1
+        ],
+        "scheduler": {
+          "reference": "docs/experiments/R50_GLM5_MUON.md",
+          "source": "project_preregistered",
+          "value": {
+            "interval": "step",
+            "max_lr": 0.001,
+            "min_lr": 0.0002,
+            "name": "lr_warmup_cosine_endpoint",
+            "warmup_fraction": 0.16
+          }
+        },
+        "smoke_epochs": {
+          "reference": "user requirement: learned integration gate is exactly one epoch",
+          "source": "user_locked",
+          "value": 1
+        },
+        "train_batch_size": {
+          "reference": "docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md",
+          "source": "project_preregistered",
+          "value": 192
+        },
+        "weight_decay": {
+          "reference": "docs/design/GRADPERT_V2.md#capacity-probe-settings",
+          "source": "project_preregistered",
+          "value": 0.0
+        }
+      }
+    },
+    "resource_schedule": {
+      "capped_eval_fraction": 0.25,
+      "fit_fraction": 0.65,
+      "measured_peak_reserved_bytes": 14650703872,
+      "physical_total_bytes": 34190917632,
+      "preflight_sha256": "01ef2e47c1f3af92a9bfd0164ab975539153d3e84c2a29f743ad91ef331fbc0d",
+      "probe_margin": 1.15,
+      "shared_gpu_policy": {
+        "devices": [
+          {
+            "foreign_identity": {
+              "command_sha256": "60cf8126d13097fdbcc8291effd988605ce25c0a6a54e1aa743720da170fcb3b",
+              "pid": 2303173,
+              "script_basename": "run_scbutterfly_archived_predictions.py",
+              "start_ticks": "711069406",
+              "uid": 1003
+            },
+            "gpu_index": 0,
+            "gpu_uuid": "GPU-23bb1466-b82b-982d-8eaf-9a0002c6a4e7"
+          },
+          {
+            "foreign_identity": {
+              "command_sha256": "5c27de9d91176eb0f359e175f41a096d4300b946bb1878b6d0820dba0e2a9429",
+              "pid": 2303188,
+              "script_basename": "run_scbutterfly_archived_predictions.py",
+              "start_ticks": "711069547",
+              "uid": 1003
+            },
+            "gpu_index": 1,
+            "gpu_uuid": "GPU-edd7484e-c71d-1938-4831-76c233466ccb"
+          }
+        ],
+        "max_foreign_memory_mib": 1024,
+        "max_own_memory_fraction": 0.85,
+        "min_free_memory_mib": 2048,
+        "schema": "shared-gpu-admission-2"
+      }
+    },
+    "run_id": "nadig_jurkat-seed1-20261011T100325Z-2a523ff07938473b983eaa304f70deb7",
+    "run_root": "/data/yilangliu/GraD-Pert/runs-v2-ffn-coexist-b37b171/nadig_jurkat-seed1-20261011T100325Z-2a523ff07938473b983eaa304f70deb7",
+    "runtime": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171.runtime.json",
+    "runtime_sha256": "955ce6672c8e080c51c2c7590ba078968740a59bafe9981d7f32d0f8e256d225",
+    "seed": 1,
+    "source_commit": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+    "stages": [
+      "fit",
+      "configured validation",
+      "curves",
+      "TRAIN_COMPLETE; tests pending"
+    ],
+    "test_root": "/data/yilangliu/GraD-Pert/runs-v2-ffn-coexist-b37b171/nadig_jurkat-seed1-20261011T100325Z-2a523ff07938473b983eaa304f70deb7-test"
+  },
+  "live_progress": {
+    "elapsed_seconds_this_process": 32.81767002400011,
+    "epoch": 1,
+    "epoch_step": 1,
+    "epoch_steps_total": 250,
+    "epochs_total": 4,
+    "fraction_complete": 0.001,
+    "latest_training_terms": {
+      "control_copy_mse": 0.10359802283346653,
+      "gradient_clipped": 1.0,
+      "gradient_norm": 17.973648071289062,
+      "joint_loss": 38.316932037472725,
+      "learning_rate": 0.0,
+      "prediction": 0.24858959019184113,
+      "prediction_mse": 0.24858959019184113,
+      "ssl1_condition": 9.478159427642822,
+      "ssl1_node": 9.674642086029053,
+      "ssl1_spread": -0.0,
+      "ssl2_dino": 9.457576274871826,
+      "ssl2_ibot": 9.457964658737183,
+      "ssl2_koleo": 0.0,
+      "teacher_momentum": 0.99
+    },
+    "optimizer_steps_completed": 1,
+    "optimizer_steps_total": 1000,
+    "phase": "training",
+    "run_id": "nadig_jurkat-seed1-20261011T100325Z-2a523ff07938473b983eaa304f70deb7",
+    "schema_version": "gradpert-v2-live-progress-1",
+    "throughput": {
+      "cells_completed_this_epoch": 192,
+      "cells_per_second_this_epoch": 5.850955222711949,
+      "optimizer_steps_per_second_this_epoch": 0.0304737251182914
+    }
+  },
+  "controller_identity": {
+    "pid": 2317158,
+    "command_sha256": "fd96e8bb3150538855b9233c7ff55fe9d6a7ebbef0ee7eaf8b3f1456d67dca3d",
+    "start_ticks": "711664564"
+  }
+}

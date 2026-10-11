@@ -1,0 +1,143 @@
+{
+  "source_commit": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "queue_sha256": "c898adbd30dd21b3a61ccb5304aa047bb32333847d23bf8924cc4a733f198f81",
+  "acceptance": {
+    "decision": "allow_formal",
+    "queue_sha256": "c898adbd30dd21b3a61ccb5304aa047bb32333847d23bf8924cc4a733f198f81",
+    "source_commit": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+    "preflight_sha256": {
+      "BR": "01ef2e47c1f3af92a9bfd0164ab975539153d3e84c2a29f743ad91ef331fbc0d",
+      "F1": "aed9d6827193c7cf6c85f9c37cb40f9f746e02405e9c59e4ca639c43e0f8fc74",
+      "N1": "3dcf8e39fdf061426a82acde839161c1abfc10aa9f3c098333d8d8856111a7dc"
+    }
+  },
+  "arms": {
+    "BR": {
+      "status": "passed",
+      "steps_completed": 10,
+      "config_sha256": "075331f51d2ff5699ce0f22386d756ed5b4ee80cce29ee10727cf676c47e62eb",
+      "resume_checkpoint_sha256": "98858654ef45451053fc6c12fe3f16e8e8efd72434119c617e42be185f35a3b5",
+      "last_terms": {
+        "control_copy_mse": 0.10183288529515266,
+        "gradient_clipped": 1.0,
+        "gradient_norm": 8.331852912902832,
+        "joint_loss": 38.821860417723656,
+        "learning_rate": 5.6250000000000005e-05,
+        "prediction": 0.14828597009181976,
+        "prediction_mse": 0.14828597009181976,
+        "ssl1_condition": 9.65468454360962,
+        "ssl1_node": 9.722293853759766,
+        "ssl1_spread": -0.0,
+        "ssl2_dino": 9.647738218307495,
+        "ssl2_ibot": 9.648857831954956,
+        "ssl2_koleo": 0.0,
+        "teacher_momentum": 0.9900020024644084
+      },
+      "inference_shape": [
+        300,
+        5000
+      ],
+      "inference_seconds": 8.29472828283906,
+      "inference_condition": "SEC16A+ctrl",
+      "inference_control_manifest_sha256": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528",
+      "runtime_preparation_seconds": 3.0132958628237247,
+      "startup_seconds_until_training": 7.209491821937263,
+      "peak_allocated_bytes": 14411839488,
+      "peak_reserved_bytes": 14650703872,
+      "training_wall_seconds": 238.664674625732,
+      "cells_per_second": 8.65249086195836,
+      "measured_cells_per_second_including_data_wait": 8.187574731882599,
+      "end_to_end_training_cells_per_second": 8.044759883342167,
+      "timing_limitations": "step-boundary synchronization; checkpoints excluded from measured update/gap samples but included in wall time; profiled last update excluded from samples; wall throughput with profiler enabled is diagnostic only",
+      "receipt": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171-20261011T100325Z/BR-preflight/receipt.json",
+      "receipt_sha256": "01ef2e47c1f3af92a9bfd0164ab975539153d3e84c2a29f743ad91ef331fbc0d",
+      "step_seconds_mean_including_data_wait": 23.45016763661988,
+      "foreign_both_present_in_running_samples": 51
+    },
+    "F1": {
+      "status": "passed",
+      "steps_completed": 10,
+      "config_sha256": "837c280829398902da3140c59f3a21b106d87bdf7bc72501ee92a6a219b2dc0b",
+      "resume_checkpoint_sha256": "0156d7d062e6155ee02316f671614b8811b02829e6711c781bc2cb069b0cac89",
+      "last_terms": {
+        "control_copy_mse": 0.10183288529515266,
+        "gradient_clipped": 1.0,
+        "gradient_norm": 2.216926336288452,
+        "joint_loss": 38.83195127174258,
+        "learning_rate": 5.6250000000000005e-05,
+        "prediction": 0.10757626220583916,
+        "prediction_mse": 0.10757626220583916,
+        "ssl1_condition": 9.655820846557617,
+        "ssl1_node": 9.758764266967773,
+        "ssl1_spread": -0.0,
+        "ssl2_dino": 9.653064489364624,
+        "ssl2_ibot": 9.656725406646729,
+        "ssl2_koleo": 0.0,
+        "teacher_momentum": 0.9900020024644084
+      },
+      "inference_shape": [
+        300,
+        5000
+      ],
+      "inference_seconds": 8.953252559527755,
+      "inference_condition": "SEC16A+ctrl",
+      "inference_control_manifest_sha256": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528",
+      "runtime_preparation_seconds": 3.734253075905144,
+      "startup_seconds_until_training": 8.610785999335349,
+      "peak_allocated_bytes": 15293951488,
+      "peak_reserved_bytes": 15541993472,
+      "training_wall_seconds": 244.82127502653748,
+      "cells_per_second": 8.587246796678235,
+      "measured_cells_per_second_including_data_wait": 8.12134104916163,
+      "end_to_end_training_cells_per_second": 7.830478390183731,
+      "timing_limitations": "step-boundary synchronization; checkpoints excluded from measured update/gap samples but included in wall time; profiled last update excluded from samples; wall throughput with profiler enabled is diagnostic only",
+      "receipt": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171-20261011T100325Z/F1-preflight/receipt.json",
+      "receipt_sha256": "aed9d6827193c7cf6c85f9c37cb40f9f746e02405e9c59e4ca639c43e0f8fc74",
+      "step_seconds_mean_including_data_wait": 23.641415726509877,
+      "foreign_both_present_in_running_samples": 52
+    },
+    "N1": {
+      "status": "passed",
+      "steps_completed": 10,
+      "config_sha256": "40dbd308706ef86b92e0ea779a6514a8d0469cb3da3fc421eb0e9dec8730885e",
+      "resume_checkpoint_sha256": "7b34dd3b4f957ceeed6f7a5ebe47eee5002d1682b21ee4d84eab29d4b349fc7a",
+      "last_terms": {
+        "control_copy_mse": 0.10183288529515266,
+        "gradient_clipped": 1.0,
+        "gradient_norm": 1.8013509511947632,
+        "joint_loss": 38.66117018647492,
+        "learning_rate": 5.6250000000000005e-05,
+        "prediction": 0.11748856492340565,
+        "prediction_mse": 0.11748856492340565,
+        "ssl1_condition": 9.588145732879639,
+        "ssl1_node": 9.740593910217285,
+        "ssl1_spread": 0.0,
+        "ssl2_dino": 9.605835437774658,
+        "ssl2_ibot": 9.609106540679932,
+        "ssl2_koleo": 0.0,
+        "teacher_momentum": 0.9900020024644084
+      },
+      "inference_shape": [
+        300,
+        5000
+      ],
+      "inference_seconds": 8.35153032373637,
+      "inference_condition": "SEC16A+ctrl",
+      "inference_control_manifest_sha256": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528",
+      "runtime_preparation_seconds": 3.0053536351770163,
+      "startup_seconds_until_training": 7.5557042714208364,
+      "peak_allocated_bytes": 15069748224,
+      "peak_reserved_bytes": 15302918144,
+      "training_wall_seconds": 225.55527746584266,
+      "cells_per_second": 9.252138146419677,
+      "measured_cells_per_second_including_data_wait": 8.710461605088256,
+      "end_to_end_training_cells_per_second": 8.512325765868008,
+      "timing_limitations": "step-boundary synchronization; checkpoints excluded from measured update/gap samples but included in wall time; profiled last update excluded from samples; wall throughput with profiler enabled is diagnostic only",
+      "receipt": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171-20261011T100325Z/N1-preflight/receipt.json",
+      "receipt_sha256": "3dcf8e39fdf061426a82acde839161c1abfc10aa9f3c098333d8d8856111a7dc",
+      "step_seconds_mean_including_data_wait": 22.042459826450795,
+      "foreign_both_present_in_running_samples": 48
+    }
+  },
+  "scope": "three10step/restore/onecondition300control; no sustained or scientific claim"
+}

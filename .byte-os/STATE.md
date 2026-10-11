@@ -1,3 +1,11 @@
+## 2026-10-11：三组共存预检验收通过，BR正式四轮启动
+
+训练SHA b37b171fd68cb29e5c8142c66778aac6da9a6f06；F1/BR/N1均10/10、完整checkpoint恢复、实际300×5000推理、有限梯度、精确source/config哈希通过；两个指定foreign任务在各组全部运行采样均存在。主已独立验收并写精确acceptance；同queue自动启动fresh BR，真实epoch1 step1/250、目标4轮1000更新。随后仅F1→N1各4轮，无验证、last-only18Pearson/zeroPKL，三组共用m48/world2/accum2/global192。降低m40候选未运行，当前不因显存需要降低。性能报告docs/experiments/GRADPERT_V2_FFN_COEXISTENCE_20261011.md；短测试非持续容量/科学结果。Luna终态已退出，主不重复监督；指定长监督交接与20min激活正在完成。旧失败完整保留，绝不修改活动b37服务器源码。
+
+## 2026-10-11：修复后新共存预检真实启动
+
+训练源码 b37b171fd68cb29e5c8142c66778aac6da9a6f06 干净已发布；本地89/服务器89检查通过。新queue v2-ffn-coexist-b37b171-20261011T100325Z；两张卡被指定外部任务占用时启动，先F1→BR→N1十步/恢复/300control。已修复原始GenePT输入绑定及子进程身份竞态；模型src未改。每卡微48×累积2×双卡=192，四轮协议不变。仅预检运行，未放行正式训练；Luna唯一短监督，长monitor仍PAUSED，主不重复查询。旧091失败保留。详见evidence/ffn-dual-coexist-20261011/b37-startup.json；权威状态在canonical coordination/state.json。
+
 ## 2026-10-11：真实共存启动后修复 GenePT 配置
 
 0916536 队列 v2-ffn-coexist-0916536-20261011T095120Z 首个 F1 预检在0/10更新失败，原始2048先验守卫拒绝继承的PCA256路径；不是容量失败，不代表共存通过。两张卡指定 ScButterfly 进程在启动/退出遥测均存在。旧运行、源码、收据完整保留；BR/N1及正式训练均未启动。三组自包含配置明确改用已核验SHA34d4c81…的原始17730×2048先验，仍按冻结图ID选择；不改变投影模型、batch或其他训练协议。同时修复子进程启动身份采集竞态，防止身份None进入资源回收路径。新版本重新发布及三个十步/恢复/300control实际推理待完成。长监控PAUSED，主拥有执行权。

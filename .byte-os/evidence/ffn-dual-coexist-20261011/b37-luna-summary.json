@@ -1,0 +1,117 @@
+{
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-b37b171-20261011T100325Z",
+  "source_sha": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "queue_sha256": "c898adbd30dd21b3a61ccb5304aa047bb32333847d23bf8924cc4a733f198f81",
+  "phase": "waiting_coexistence_acceptance",
+  "status": "running",
+  "active": {},
+  "formal_started": false,
+  "preflights": {
+    "F1": {
+      "status": "passed",
+      "steps": "10/10 (2 warmups + 8 measured)",
+      "runtime_preparation_seconds": 3.7343,
+      "mean_measured_step_seconds_including_data_wait": 23.6414,
+      "step_range_seconds": [
+        22.7863,
+        24.956
+      ],
+      "cells_per_second": 8.5872,
+      "measured_cells_per_second_including_data_wait": 8.1213,
+      "end_to_end_training_cells_per_second": 7.8305,
+      "finite_gradient_norm": 2.2169,
+      "resume_checkpoint_sha256": "0156d7d062e6155ee02316f671614b8811b02829e6711c781bc2cb069b0cac89",
+      "inference": {
+        "passed": true,
+        "shape": [
+          300,
+          5000
+        ],
+        "condition": "SEC16A+ctrl",
+        "seconds": 8.9533,
+        "control_manifest_sha256": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528"
+      },
+      "telemetry_running_samples": 52,
+      "foreign_pids_present_samples": {
+        "2303173": 52,
+        "2303188": 52
+      },
+      "own_peak_mib_by_gpu": {
+        "0": 15738,
+        "1": 15738
+      }
+    },
+    "BR": {
+      "status": "passed",
+      "steps": "10/10 (2 warmups + 8 measured)",
+      "runtime_preparation_seconds": 3.0133,
+      "mean_measured_step_seconds_including_data_wait": 23.4502,
+      "step_range_seconds": [
+        22.4401,
+        24.7803
+      ],
+      "cells_per_second": 8.6525,
+      "measured_cells_per_second_including_data_wait": 8.1876,
+      "end_to_end_training_cells_per_second": 8.0448,
+      "finite_gradient_norm": 8.3319,
+      "resume_checkpoint_sha256": "98858654ef45451053fc6c12fe3f16e8e8efd72434119c617e42be185f35a3b5",
+      "inference": {
+        "passed": true,
+        "shape": [
+          300,
+          5000
+        ],
+        "condition": "SEC16A+ctrl",
+        "seconds": 8.2947,
+        "control_manifest_sha256": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528"
+      },
+      "telemetry_running_samples": 51,
+      "foreign_pids_present_samples": {
+        "2303173": 51,
+        "2303188": 51
+      },
+      "own_peak_mib_by_gpu": {
+        "0": 14888,
+        "1": 14888
+      }
+    },
+    "N1": {
+      "status": "passed",
+      "steps": "10/10 (2 warmups + 8 measured)",
+      "runtime_preparation_seconds": 3.0054,
+      "mean_measured_step_seconds_including_data_wait": 22.0425,
+      "step_range_seconds": [
+        21.1225,
+        23.4716
+      ],
+      "cells_per_second": 9.2521,
+      "measured_cells_per_second_including_data_wait": 8.7105,
+      "end_to_end_training_cells_per_second": 8.5123,
+      "finite_gradient_norm": 1.8014,
+      "resume_checkpoint_sha256": "7b34dd3b4f957ceeed6f7a5ebe47eee5002d1682b21ee4d84eab29d4b349fc7a",
+      "inference": {
+        "passed": true,
+        "shape": [
+          300,
+          5000
+        ],
+        "condition": "SEC16A+ctrl",
+        "seconds": 8.3515,
+        "control_manifest_sha256": "f76df958701858c2c488bb701f0594ce224779b15e28d0b9567a4d3a824cc528"
+      },
+      "telemetry_running_samples": 48,
+      "foreign_pids_present_samples": {
+        "2303173": 48,
+        "2303188": 48
+      },
+      "own_peak_mib_by_gpu": {
+        "0": 15510,
+        "1": 15510
+      }
+    }
+  },
+  "preflight_complete_source_sha": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "preflight_complete_queue_sha256": "c898adbd30dd21b3a61ccb5304aa047bb32333847d23bf8924cc4a733f198f81",
+  "scientific_complete": false,
+  "acceptance_file_written": false
+}
