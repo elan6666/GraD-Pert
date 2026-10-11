@@ -37,3 +37,7 @@ Local/server29 CPU tests and review passed. Earlier22d inventedruntime.source_ro
 |448|112|1/10|NA|5868/5848|OOM after1update|
 
 Queuefailedm104: owned27836MiB exceeds27715.95MiB allowance, free4266MiB. NoexternalCUDAjobs observed; noforeignsignals.85percent unchanged;2GiBmargin alone didnotcause failure. Native m112OOM confirmed distinctfromguardfailure. m96/global384 passed10updates, fastesttraining-wall15.832cells/s vs8.063m48, +96.3percentshortprobe throughput, notlongtrainingpromise.5s sampling isnotcontinuouspeakproof. Onlym100/global400 remains4-grid; scopedfreshsingleprobe next. Oldfailedsource/config/root/receipts unchanged.
+
+## Deferred BR evaluation launcher prepared
+
+Original BR/F1/N1 CPUdispatcher wasretiredtoallowcapacity; originalBRtraining/checkpointremainsb37. Existingbare --evaluate lacks its5s resourceguard. NewminimalCPU-only `scripts/v2/evaluate_completed_br.py` seals exactoriginalBR finalizedplan/source/config/runtime/publication andepoch4lastcheckpoint, originalscientific25percentGPU0evaluation, sameGPUleases/schema3admission/5scheck/exactownedcleanup, nofit/nopeers. Nativeexit0 plus18metric/source/checkpoint/hash/zeroPKL validation required. Local23CPU checks/Ruff/format/diff andindependentoriginalb37APIreview passed. Evaluationnotstarted; firstm100capacitymustreachacceptedterminal. Noactive1255source changes.

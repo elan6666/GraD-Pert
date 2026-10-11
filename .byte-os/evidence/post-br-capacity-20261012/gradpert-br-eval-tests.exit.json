@@ -1,0 +1,14 @@
+{
+  "exit_code": 0,
+  "tests": "23 passed in 1.37s",
+  "command": "CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/v2/run_cpu_tests.py -- -q tests/v2/test_evaluate_completed_br.py",
+  "log": "/tmp/gradpert-br-eval-tests.log",
+  "ruff_check": "passed",
+  "ruff_format_check": "passed",
+  "diff_check": "passed",
+  "science_source": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "native_entry": "original run_unified_ddp.py --evaluate original BR.launch-plan.json --attempt 1",
+  "native_eval_fraction": 0.25,
+  "server_operations": false,
+  "commits": false
+}
