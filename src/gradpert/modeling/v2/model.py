@@ -636,6 +636,11 @@ class GraDPertV2(nn.Module):
                     self.control_summary = ControlSummary(d)
                     self.graph_modulation = ControlGraphModulation(d, options.heads)
 
+        if options.mlp_profile == "restored":
+            from .restored_ffn import configure_restored
+
+            configure_restored(self, seeds.shape[1], options)
+
     @staticmethod
     def _prior_mlp(width: int) -> nn.Sequential:
         final = nn.Linear(max(1, width // 4), width)

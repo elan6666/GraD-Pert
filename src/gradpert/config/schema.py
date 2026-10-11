@@ -138,6 +138,7 @@ class TrainingConfig(StrictModel):
         "v2_fixed_6",
         "v2_fixed_5",
         "v2_fixed_3",
+        "v2_fixed_4",
         "v2_fixed_1",
         "inference_only",
         "vnext_combination_100",
@@ -171,6 +172,7 @@ class TrainingConfig(StrictModel):
                     "v2_fixed_6",
                     "v2_fixed_5",
                     "v2_fixed_3",
+                    "v2_fixed_4",
                     "v2_fixed_1",
                 }:
                     raise ValueError("LR-only schedule requires R50 policy")
@@ -243,11 +245,13 @@ class TrainingConfig(StrictModel):
                 "v2_fixed_6",
                 "v2_fixed_5",
                 "v2_fixed_3",
+                "v2_fixed_4",
                 "v2_fixed_1",
             }:
                 expected_epochs = {
                     "v2_fixed_1": 1,
                     "v2_fixed_3": 3,
+                    "v2_fixed_4": 4,
                     "v2_fixed_5": 5,
                     "v2_fixed_6": 6,
                     "v2_fixed_20": 20,
@@ -259,7 +263,7 @@ class TrainingConfig(StrictModel):
                         f"epoch{'s' if expected_epochs != 1 else ''} without early stopping"
                     )
                 final_only = (
-                    self.formal_run_policy == "v2_fixed_6"
+                    self.formal_run_policy in {"v2_fixed_6", "v2_fixed_4"}
                     and self.monitor == "none"
                     and self.monitor_mode == "none"
                 )
@@ -438,6 +442,7 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_6",
                 "v2_fixed_5",
                 "v2_fixed_3",
+                "v2_fixed_4",
                 "v2_fixed_1",
                 "fixed_epoch_pilot",
                 "vnext_combination_100",
@@ -463,6 +468,7 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_6",
                 "v2_fixed_5",
                 "v2_fixed_3",
+                "v2_fixed_4",
                 "v2_fixed_1",
             }
             and self.model_id != "gradpert_v2"
@@ -480,9 +486,15 @@ class ExperimentConfig(StrictModel):
             _, options = V2Options.parse_parameters(self.model.parameters)
             disabled = options.validation_mode == "disabled"
             if disabled != (self.training.monitor == "none") or (
-                disabled and (self.training.formal_run_policy != "v2_fixed_6" or self.continuation)
+                disabled
+                and (
+                    self.training.formal_run_policy not in {"v2_fixed_6", "v2_fixed_4"}
+                    or self.continuation
+                )
             ):
-                raise ValueError("disabled validation requires fresh fixed6 and monitor=none")
+                raise ValueError(
+                    "disabled validation requires fresh fixed4/fixed6 and monitor=none"
+                )
             if self.artifacts.result_mode != "metrics_only":
                 raise ValueError("v2 requires metrics_only with server-side best/last checkpoints")
             if self.training.formal_run_policy not in {
@@ -491,10 +503,12 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_6",
                 "v2_fixed_5",
                 "v2_fixed_3",
+                "v2_fixed_4",
                 "v2_fixed_1",
             } or self.training.max_epochs.value != {
                 "v2_fixed_1": 1,
                 "v2_fixed_3": 3,
+                "v2_fixed_4": 4,
                 "v2_fixed_5": 5,
                 "v2_fixed_6": 6,
                 "v2_fixed_20": 20,

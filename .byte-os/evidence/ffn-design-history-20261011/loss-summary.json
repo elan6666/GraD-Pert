@@ -1,0 +1,1168 @@
+{
+  "B0": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-functional-3d3f5ad/nadig_jurkat-seed1-20261005T193537Z-17cddf00a8b3413d8e4cb9cbf8eb8a3a",
+    "history_sha256": "79226d459e098375db99ba690b436d849a040a22a45a97e02bee7ad2afb8ca32",
+    "epochs": [
+      {
+        "epoch": 1,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.6313964597542178,
+          "joint_loss": 36.24066045999908,
+          "learning_rate": 0.0005198843679940412,
+          "prediction": 0.09948970090640201,
+          "ssl1_condition": 8.857531356540592,
+          "ssl1_node": 9.613017976284027,
+          "ssl2_dino": 8.792227193713188,
+          "ssl2_ibot": 8.87839423255487
+        }
+      },
+      {
+        "epoch": 2,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.0740641027011655,
+          "joint_loss": 11.84429738428232,
+          "learning_rate": 0.0009712560344656438,
+          "prediction": 0.059184461292302745,
+          "ssl1_condition": 1.4135667236775837,
+          "ssl1_node": 7.387452475049279,
+          "ssl2_dino": 1.3816402261886238,
+          "ssl2_ibot": 1.6024534980745309
+        }
+      },
+      {
+        "epoch": 3,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.5940653385425155,
+          "joint_loss": 2.7007486964830605,
+          "learning_rate": 0.0008251945369227132,
+          "prediction": 0.05685484130464664,
+          "ssl1_condition": 0.06672233743698928,
+          "ssl1_node": 2.4821845956824045,
+          "ssl2_dino": 0.045987289517804376,
+          "ssl2_ibot": 0.04899963254121593
+        }
+      },
+      {
+        "epoch": 4,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.4009119256992232,
+          "joint_loss": 1.1522473952216552,
+          "learning_rate": 0.0005944245814416718,
+          "prediction": 0.0557300107691183,
+          "ssl1_condition": 0.010719735949929931,
+          "ssl1_node": 1.076174676756967,
+          "ssl2_dino": 0.005719210275608269,
+          "ssl2_ibot": 0.003903761470031565
+        }
+      },
+      {
+        "epoch": 5,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.3148992751640352,
+          "joint_loss": 0.8501437195045995,
+          "learning_rate": 0.00036575185760261174,
+          "prediction": 0.05509202796648341,
+          "ssl1_condition": 0.004716581663325831,
+          "ssl1_node": 0.7867438776249235,
+          "ssl2_dino": 0.0019069901886723528,
+          "ssl2_ibot": 0.001684242061194461
+        }
+      },
+      {
+        "epoch": 6,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.2692536650733514,
+          "joint_loss": 0.7755709565151598,
+          "learning_rate": 0.00022519316702786498,
+          "prediction": 0.05489330598026176,
+          "ssl1_condition": 0.003287258554502676,
+          "ssl1_node": 0.7147202322428877,
+          "ssl2_dino": 0.001350406360994715,
+          "ssl2_ibot": 0.0013197533765130422
+        }
+      }
+    ],
+    "manifest_identity": {
+      "config_sha256": "8961c93fd42bf0141722a42e23a3577c9209e5cdfb9aea1e8bba3c5de92467a5",
+      "run_id": "nadig_jurkat-seed1-20261005T193537Z-17cddf00a8b3413d8e4cb9cbf8eb8a3a",
+      "source": {
+        "commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "18bea8a12bd124838a5fbf7547386c39bbb359118f727f511a0109e0120dcd23",
+        "published_commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-functional-3d3f5ad",
+        "tree_sha256": "0cf8b0af5b454f8c366dada1ea191c7cbe024da0ed76b668e4cbcb7086f8a7e7"
+      }
+    }
+  },
+  "K1": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-functional-3d3f5ad/nadig_jurkat-seed1-20261005T193538Z-ac491d2a121047d1b12cb6fd71d52c3a",
+    "history_sha256": "9c6c5eb060d4b8a5c5d8f083a1a99d440712eb85f5aaa163e4bd968ca1f667bd",
+    "epochs": [
+      {
+        "epoch": 1,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.6292064535346898,
+          "joint_loss": 36.24655500554945,
+          "learning_rate": 0.0005198843679940412,
+          "prediction": 0.0992052002323114,
+          "ssl1_condition": 8.858764504844492,
+          "ssl1_node": 9.612874096090144,
+          "ssl2_dino": 8.792857483029366,
+          "ssl2_ibot": 8.882853721353142
+        }
+      },
+      {
+        "epoch": 2,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.0690572190691123,
+          "joint_loss": 11.85575500768821,
+          "learning_rate": 0.0009712560344656438,
+          "prediction": 0.05914211548356847,
+          "ssl1_condition": 1.4026020386425608,
+          "ssl1_node": 7.386077876795422,
+          "ssl2_dino": 1.381135733681731,
+          "ssl2_ibot": 1.6267972430849278
+        }
+      },
+      {
+        "epoch": 3,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.5905738982625983,
+          "joint_loss": 2.726986299905217,
+          "learning_rate": 0.0008251945369227132,
+          "prediction": 0.05682100604859774,
+          "ssl1_condition": 0.0652591491340321,
+          "ssl1_node": 2.5091389566659927,
+          "ssl2_dino": 0.04076723980423677,
+          "ssl2_ibot": 0.054999948252357586
+        }
+      },
+      {
+        "epoch": 4,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.4086865455928174,
+          "joint_loss": 1.1958549929156355,
+          "learning_rate": 0.0005944245814416718,
+          "prediction": 0.05572228657018224,
+          "ssl1_condition": 0.01380786226681349,
+          "ssl1_node": 1.1174869406968355,
+          "ssl2_dino": 0.0036607143286098358,
+          "ssl2_ibot": 0.005177189053194359
+        }
+      },
+      {
+        "epoch": 5,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.3175223487513987,
+          "joint_loss": 0.8898243874274488,
+          "learning_rate": 0.00036575185760261174,
+          "prediction": 0.055082310864236206,
+          "ssl1_condition": 0.005920332644150635,
+          "ssl1_node": 0.8247777506370436,
+          "ssl2_dino": 0.0013689637293365113,
+          "ssl2_ibot": 0.002675029552681901
+        }
+      },
+      {
+        "epoch": 6,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.27714282722974365,
+          "joint_loss": 0.8135577686557967,
+          "learning_rate": 0.00022519316702786498,
+          "prediction": 0.054880908034233886,
+          "ssl1_condition": 0.004027206501301738,
+          "ssl1_node": 0.7512660808861256,
+          "ssl2_dino": 0.0010101637743156805,
+          "ssl2_ibot": 0.0023734094598198267
+        }
+      }
+    ],
+    "manifest_identity": {
+      "config_sha256": "9dc4030718d725aa0e8940344323211bdf210f080ca1993344cd95c9022ea5da",
+      "run_id": "nadig_jurkat-seed1-20261005T193538Z-ac491d2a121047d1b12cb6fd71d52c3a",
+      "source": {
+        "commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "18bea8a12bd124838a5fbf7547386c39bbb359118f727f511a0109e0120dcd23",
+        "published_commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-functional-3d3f5ad",
+        "tree_sha256": "0cf8b0af5b454f8c366dada1ea191c7cbe024da0ed76b668e4cbcb7086f8a7e7"
+      }
+    }
+  },
+  "K2": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-functional-3d3f5ad/nadig_jurkat-seed1-20261005T193538Z-828c82f5e39548748b81247dd3b019d4",
+    "history_sha256": "6ae735941fc26fc4bf6882e7d04c436aca69c98e4fda24f907ce755299ce6130",
+    "epochs": [
+      {
+        "epoch": 1,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.6369947723366998,
+          "joint_loss": 36.224298456805464,
+          "learning_rate": 0.0005198843679940412,
+          "prediction": 0.09726072978545827,
+          "ssl1_condition": 8.855510905385017,
+          "ssl1_node": 9.611970381303268,
+          "ssl2_dino": 8.787456710907547,
+          "ssl2_ibot": 8.872099729424173
+        }
+      },
+      {
+        "epoch": 2,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.075045652010224,
+          "joint_loss": 11.796383917209988,
+          "learning_rate": 0.0009712560344656438,
+          "prediction": 0.05869889540322633,
+          "ssl1_condition": 1.404027150478214,
+          "ssl1_node": 7.363663345575333,
+          "ssl2_dino": 1.3724432224196128,
+          "ssl2_ibot": 1.5975513033336028
+        }
+      },
+      {
+        "epoch": 3,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.600227723067457,
+          "joint_loss": 2.7083656816470136,
+          "learning_rate": 0.0008251945369227132,
+          "prediction": 0.05683574794304811,
+          "ssl1_condition": 0.06527017632933249,
+          "ssl1_node": 2.489841092716564,
+          "ssl2_dino": 0.042540489115377896,
+          "ssl2_ibot": 0.053878175542691184
+        }
+      },
+      {
+        "epoch": 4,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.4034434365616603,
+          "joint_loss": 1.176388320886376,
+          "learning_rate": 0.0005944245814416718,
+          "prediction": 0.05569045411803844,
+          "ssl1_condition": 0.009663436577697708,
+          "ssl1_node": 1.1007756023583086,
+          "ssl2_dino": 0.003510165894443741,
+          "ssl2_ibot": 0.006748661937887267
+        }
+      },
+      {
+        "epoch": 5,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.33617487812245433,
+          "joint_loss": 0.8648743836510303,
+          "learning_rate": 0.00036575185760261174,
+          "prediction": 0.05506884481292218,
+          "ssl1_condition": 0.0034765953506311316,
+          "ssl1_node": 0.8012511372904886,
+          "ssl2_dino": 0.0014131942444609276,
+          "ssl2_ibot": 0.0036646119525275108
+        }
+      },
+      {
+        "epoch": 6,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.2730808468874205,
+          "joint_loss": 0.78519104688894,
+          "learning_rate": 0.00022519316702786498,
+          "prediction": 0.05491627467563376,
+          "ssl1_condition": 0.0019846682075281437,
+          "ssl1_node": 0.7240702367641709,
+          "ssl2_dino": 0.0007611247402482232,
+          "ssl2_ibot": 0.003458742501359004
+        }
+      }
+    ],
+    "manifest_identity": {
+      "config_sha256": "a315cc5c1c7142a988ab4e2117fd6131c2c4cbe0ef096c875284524090eb6bfc",
+      "run_id": "nadig_jurkat-seed1-20261005T193538Z-828c82f5e39548748b81247dd3b019d4",
+      "source": {
+        "commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "18bea8a12bd124838a5fbf7547386c39bbb359118f727f511a0109e0120dcd23",
+        "published_commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-functional-3d3f5ad",
+        "tree_sha256": "0cf8b0af5b454f8c366dada1ea191c7cbe024da0ed76b668e4cbcb7086f8a7e7"
+      }
+    }
+  },
+  "A1": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-functional-3d3f5ad/nadig_jurkat-seed1-20261005T193538Z-dc7dbdbd591a4b2b9a645cd462d37c51",
+    "history_sha256": "2a5f4cc11af0ab7601086f1dcefef43653954c2ae8927f2067e66af3c9546aca",
+    "epochs": [
+      {
+        "epoch": 1,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.36796589932319795,
+          "joint_loss": 35.80157837317727,
+          "learning_rate": 0.0005198843679940412,
+          "prediction": 0.09465025072726845,
+          "ssl1_condition": 8.782453855330294,
+          "ssl1_node": 9.45682466301051,
+          "ssl2_dino": 8.708511921492489,
+          "ssl2_ibot": 8.75913768261671
+        }
+      },
+      {
+        "epoch": 2,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.9180693516338413,
+          "joint_loss": 8.683297323719176,
+          "learning_rate": 0.0009712560344656438,
+          "prediction": 0.05849367303413932,
+          "ssl1_condition": 1.2589269418227063,
+          "ssl1_node": 4.891791394149715,
+          "ssl2_dino": 1.1939832803380506,
+          "ssl2_ibot": 1.2801020343745635
+        }
+      },
+      {
+        "epoch": 3,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.3616824321956797,
+          "joint_loss": 0.9283417038710798,
+          "learning_rate": 0.0008251945369227132,
+          "prediction": 0.056685967481991444,
+          "ssl1_condition": 0.05304427366619083,
+          "ssl1_node": 0.7635631105777893,
+          "ssl2_dino": 0.029149246777954184,
+          "ssl2_ibot": 0.02589910536715417
+        }
+      },
+      {
+        "epoch": 4,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.2294796250591224,
+          "joint_loss": 0.3945947819629096,
+          "learning_rate": 0.0005944245814416718,
+          "prediction": 0.055642005855175244,
+          "ssl1_condition": 0.007467700615961803,
+          "ssl1_node": 0.32687241888859053,
+          "ssl2_dino": 0.002628837685775083,
+          "ssl2_ibot": 0.001983818917406924
+        }
+      },
+      {
+        "epoch": 5,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.1835933352651244,
+          "joint_loss": 0.2880355571419386,
+          "learning_rate": 0.00036575185760261174,
+          "prediction": 0.055029193447394806,
+          "ssl1_condition": 0.002659000657744896,
+          "ssl1_node": 0.22814553184434772,
+          "ssl2_dino": 0.0013015895039064742,
+          "ssl2_ibot": 0.000900241688544735
+        }
+      },
+      {
+        "epoch": 6,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.15650266908447852,
+          "joint_loss": 0.2600397232409209,
+          "learning_rate": 0.00022519316702786498,
+          "prediction": 0.05486082447036593,
+          "ssl1_condition": 0.0016365370341769778,
+          "ssl1_node": 0.20161017038944093,
+          "ssl2_dino": 0.0011257041065949704,
+          "ssl2_ibot": 0.0008064872403420767
+        }
+      }
+    ],
+    "manifest_identity": {
+      "config_sha256": "3389a9b4064622143bddd0cfdb44e5447f7315a8adcc6073cc2a0c3fb0bafaac",
+      "run_id": "nadig_jurkat-seed1-20261005T193538Z-dc7dbdbd591a4b2b9a645cd462d37c51",
+      "source": {
+        "commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "18bea8a12bd124838a5fbf7547386c39bbb359118f727f511a0109e0120dcd23",
+        "published_commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-functional-3d3f5ad",
+        "tree_sha256": "0cf8b0af5b454f8c366dada1ea191c7cbe024da0ed76b668e4cbcb7086f8a7e7"
+      }
+    }
+  },
+  "A2": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-functional-3d3f5ad/nadig_jurkat-seed1-20261005T193538Z-f6364ab30a2d4b668590e2594c5c81bb",
+    "history_sha256": "7d85ae7f8a1b783bb6615ee86ab2d45a771176481af674dd3379348d0b2632bd",
+    "epochs": [
+      {
+        "epoch": 1,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.4152613787657835,
+          "joint_loss": 36.24952035123186,
+          "learning_rate": 0.0005198843679940412,
+          "prediction": 0.08901911564382979,
+          "ssl1_condition": 8.824529911984097,
+          "ssl1_node": 9.567919687791305,
+          "ssl2_dino": 8.844576047225432,
+          "ssl2_ibot": 8.923475588587197
+        }
+      },
+      {
+        "epoch": 2,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.9804841249503873,
+          "joint_loss": 10.708974158740602,
+          "learning_rate": 0.0009712560344656438,
+          "prediction": 0.05865869778525931,
+          "ssl1_condition": 1.2476197711234405,
+          "ssl1_node": 6.7038547416979615,
+          "ssl2_dino": 1.2625491767645476,
+          "ssl2_ibot": 1.4362917713693937
+        }
+      },
+      {
+        "epoch": 3,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.5163928461684422,
+          "joint_loss": 1.8647612907189712,
+          "learning_rate": 0.0008251945369227132,
+          "prediction": 0.05679957692469047,
+          "ssl1_condition": 0.04778745479945263,
+          "ssl1_node": 1.696246650069952,
+          "ssl2_dino": 0.031053569619044454,
+          "ssl2_ibot": 0.03287403930583175
+        }
+      },
+      {
+        "epoch": 4,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.3730690896680409,
+          "joint_loss": 0.9295747212489996,
+          "learning_rate": 0.0005944245814416718,
+          "prediction": 0.05570904701016843,
+          "ssl1_condition": 0.009308444507372438,
+          "ssl1_node": 0.844683248211037,
+          "ssl2_dino": 0.003427247276290886,
+          "ssl2_ibot": 0.01644673424413089
+        }
+      },
+      {
+        "epoch": 5,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.29975648055022414,
+          "joint_loss": 0.7642354488097308,
+          "learning_rate": 0.00036575185760261174,
+          "prediction": 0.055223222869575365,
+          "ssl1_condition": 0.004030344534839969,
+          "ssl1_node": 0.6768403801728379,
+          "ssl2_dino": 0.0018711012603902914,
+          "ssl2_ibot": 0.026270399972087365
+        }
+      },
+      {
+        "epoch": 6,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.25874133060940285,
+          "joint_loss": 0.7160003378933818,
+          "learning_rate": 0.00022519316702786498,
+          "prediction": 0.05508705889488655,
+          "ssl1_condition": 0.002990924507685122,
+          "ssl1_node": 0.6260554583912546,
+          "ssl2_dino": 0.001617300015616572,
+          "ssl2_ibot": 0.030249596083938905
+        }
+      }
+    ],
+    "manifest_identity": {
+      "config_sha256": "4b3d3351682c8eef7314857abf6e1d0d40c0bc475dae7cc66fb34bb85c4fd102",
+      "run_id": "nadig_jurkat-seed1-20261005T193538Z-f6364ab30a2d4b668590e2594c5c81bb",
+      "source": {
+        "commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "18bea8a12bd124838a5fbf7547386c39bbb359118f727f511a0109e0120dcd23",
+        "published_commit": "3d3f5ad2d6b831baed1eead45d61862fdea2db33",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-functional-3d3f5ad",
+        "tree_sha256": "0cf8b0af5b454f8c366dada1ea191c7cbe024da0ed76b668e4cbcb7086f8a7e7"
+      }
+    }
+  },
+  "L0": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-loss-diagnostic-ab022ca/nadig_jurkat-seed1-20261007T181232Z-580abf8834e0429ba15dc2f2359893bb",
+    "history_sha256": "cb5addc65b2844a9c3fb7ce75194aa1961c5556a98096d698eda68f35497a0e8",
+    "epochs": [
+      {
+        "epoch": 1,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.634296755221757,
+          "joint_loss": 36.24007493426854,
+          "learning_rate": 0.0005198843679940412,
+          "prediction": 0.09939719296314499,
+          "ssl1_condition": 8.85758509283716,
+          "ssl1_node": 9.612173914909363,
+          "ssl2_dino": 8.792337847704237,
+          "ssl2_ibot": 8.878580885854634
+        }
+      },
+      {
+        "epoch": 2,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.0660228610716083,
+          "joint_loss": 11.823549335034015,
+          "learning_rate": 0.0009712560344656438,
+          "prediction": 0.05918560463363643,
+          "ssl1_condition": 1.4142198819159106,
+          "ssl1_node": 7.365708581425927,
+          "ssl2_dino": 1.3829614104681902,
+          "ssl2_ibot": 1.6014738565903495
+        }
+      },
+      {
+        "epoch": 3,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.5929484914310954,
+          "joint_loss": 2.689852134884859,
+          "learning_rate": 0.0008251945369227132,
+          "prediction": 0.056848401986909186,
+          "ssl1_condition": 0.06565136973089962,
+          "ssl1_node": 2.469688083976507,
+          "ssl2_dino": 0.04837776077478007,
+          "ssl2_ibot": 0.049286518415762905
+        }
+      },
+      {
+        "epoch": 4,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.40073364397341554,
+          "joint_loss": 1.1661733860937602,
+          "learning_rate": 0.0005944245814416718,
+          "prediction": 0.05573576758086512,
+          "ssl1_condition": 0.009840743474011437,
+          "ssl1_node": 1.0881784229793332,
+          "ssl2_dino": 0.006682542237533859,
+          "ssl2_ibot": 0.0057359098220166
+        }
+      },
+      {
+        "epoch": 5,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.32009380437772383,
+          "joint_loss": 0.8590862992819811,
+          "learning_rate": 0.00036575185760261174,
+          "prediction": 0.05509166538567198,
+          "ssl1_condition": 0.003651769866172055,
+          "ssl1_node": 0.7939842985096303,
+          "ssl2_dino": 0.003482470537950245,
+          "ssl2_ibot": 0.0028760949825565067
+        }
+      },
+      {
+        "epoch": 6,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.27218089904636145,
+          "joint_loss": 0.7835223580428564,
+          "learning_rate": 0.00022519316702786498,
+          "prediction": 0.05489894046067176,
+          "ssl1_condition": 0.0022695683720402567,
+          "ssl1_node": 0.721338077871637,
+          "ssl2_dino": 0.0026924381935383612,
+          "ssl2_ibot": 0.0023233331449691004
+        }
+      }
+    ],
+    "manifest_identity": {
+      "config_sha256": "705d962aa1182a6ccedd99096d2af2c3b0531a61dc62bb36d1fea974c4a9322c",
+      "run_id": "nadig_jurkat-seed1-20261007T181232Z-580abf8834e0429ba15dc2f2359893bb",
+      "source": {
+        "commit": "ab022caa57a3b45dc5a14c6ae38bc280702112e4",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "f71ebc09c79c5e0458be9d5c530214d5c5e00a12e4ff9e1ef15fd931511f7dd9",
+        "published_commit": "ab022caa57a3b45dc5a14c6ae38bc280702112e4",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-loss-ab022ca",
+        "tree_sha256": "232ef42079ac28a3d7d726df0adf567adb04eed68bf874ee1311979cc2716e45"
+      }
+    }
+  },
+  "U1": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-unseen-preflight10-3f3824f/nadig_jurkat-seed1-20261008T164222Z-59179e205c10494e829bc9d529cf710b",
+    "history_sha256": "eb30e87675e9de6c3a6fa70c2bad147e4ec94a9b135eef90fd511adcb05e73d0",
+    "epochs": [
+      {
+        "epoch": 1,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.7807326238941062,
+          "joint_loss": 36.24915369462476,
+          "learning_rate": 0.0005198843679940412,
+          "prediction": 0.10033883287740702,
+          "ssl1_condition": 8.848449108275501,
+          "ssl1_node": 9.61846621470018,
+          "ssl2_dino": 8.798050118440932,
+          "ssl2_ibot": 8.88384942033074
+        }
+      },
+      {
+        "epoch": 2,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.5884810957041653,
+          "joint_loss": 12.381104602616027,
+          "learning_rate": 0.0009712560344656438,
+          "prediction": 0.061129488558931785,
+          "ssl1_condition": 1.4478257200257345,
+          "ssl1_node": 7.796976062384519,
+          "ssl2_dino": 1.4215702447426422,
+          "ssl2_ibot": 1.6536030869041993
+        }
+      },
+      {
+        "epoch": 3,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.4277560663494198,
+          "joint_loss": 3.4998262773902256,
+          "learning_rate": 0.0008251945369227132,
+          "prediction": 0.05722668913023716,
+          "ssl1_condition": 0.09609353050737726,
+          "ssl1_node": 3.236659036441283,
+          "ssl2_dino": 0.052059761560733685,
+          "ssl2_ibot": 0.057787259750594705
+        }
+      },
+      {
+        "epoch": 4,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.9695818488570777,
+          "joint_loss": 1.5891233231003008,
+          "learning_rate": 0.0005944245814416718,
+          "prediction": 0.05592203436588699,
+          "ssl1_condition": 0.021166675206834705,
+          "ssl1_node": 1.501127242026004,
+          "ssl2_dino": 0.005399306068945655,
+          "ssl2_ibot": 0.005508065432629585
+        }
+      },
+      {
+        "epoch": 5,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.6937734452499584,
+          "joint_loss": 1.1571149017819484,
+          "learning_rate": 0.00036575185760261174,
+          "prediction": 0.05520753329619765,
+          "ssl1_condition": 0.009272880816504105,
+          "ssl1_node": 1.0883568118919025,
+          "ssl2_dino": 0.0022878798929262052,
+          "ssl2_ibot": 0.001989795884417783
+        }
+      },
+      {
+        "epoch": 6,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.5676256377588619,
+          "joint_loss": 1.0481442079567387,
+          "learning_rate": 0.00022519316702786498,
+          "prediction": 0.054999336796093055,
+          "ssl1_condition": 0.006534999180902642,
+          "ssl1_node": 0.9831009734083306,
+          "ssl2_dino": 0.0018379316886074032,
+          "ssl2_ibot": 0.001670966882805012
+        }
+      }
+    ],
+    "manifest_identity": {
+      "config_sha256": "10b9c6d2fc53f42519dd9edc589f891bfad18ac6ac44933ab06a3741ffc138f0",
+      "run_id": "nadig_jurkat-seed1-20261008T164222Z-59179e205c10494e829bc9d529cf710b",
+      "source": {
+        "commit": "3f3824fe6e2d737a70204a599dfc5745780e52e7",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "89b2d35c4557c071d839e944599dc071df65bb6492e349b1cd75b2d34bf01135",
+        "published_commit": "3f3824fe6e2d737a70204a599dfc5745780e52e7",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-preflight10-3f3824f",
+        "tree_sha256": "41be6729fd81d038ad1e5fb0b5f42833d5764dd8d7a169d862b6cc51b3d4d2d3"
+      }
+    }
+  },
+  "U2": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-unseen-preflight10-3f3824f/nadig_jurkat-seed1-20261008T164223Z-e9d8d44d6b2944cca9bc064a6e33c871",
+    "history_sha256": "142c2607cbe0565e3bce1e9d017c1ace7eea6f43c4c37436732f95b09ccdfa03",
+    "epochs": [
+      {
+        "epoch": 1,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.6480767830190334,
+          "joint_loss": 36.224248731085524,
+          "learning_rate": 0.0005198843679940412,
+          "prediction": 0.09916771144013513,
+          "ssl1_condition": 8.852793020280926,
+          "ssl1_node": 9.611780310218984,
+          "ssl2_dino": 8.787003406069495,
+          "ssl2_ibot": 8.873504283075983
+        }
+      },
+      {
+        "epoch": 2,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.0718544108623809,
+          "joint_loss": 11.811894276375163,
+          "learning_rate": 0.0009712560344656438,
+          "prediction": 0.058896787332328546,
+          "ssl1_condition": 1.4079442570747978,
+          "ssl1_node": 7.366779384287921,
+          "ssl2_dino": 1.3750421031251212,
+          "ssl2_ibot": 1.6032317445549944
+        }
+      },
+      {
+        "epoch": 3,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.5902464340694926,
+          "joint_loss": 2.6933815635314784,
+          "learning_rate": 0.0008251945369227132,
+          "prediction": 0.05664685464315963,
+          "ssl1_condition": 0.07017502428656867,
+          "ssl1_node": 2.4744455316527323,
+          "ssl2_dino": 0.046398698612392764,
+          "ssl2_ibot": 0.045715454336624876
+        }
+      },
+      {
+        "epoch": 4,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.39597971601919696,
+          "joint_loss": 1.1698868986139297,
+          "learning_rate": 0.0005944245814416718,
+          "prediction": 0.055699769418093965,
+          "ssl1_condition": 0.013061474738192786,
+          "ssl1_node": 1.09234060567211,
+          "ssl2_dino": 0.004005009352939934,
+          "ssl2_ibot": 0.004780039432592854
+        }
+      },
+      {
+        "epoch": 5,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.31670284465971316,
+          "joint_loss": 0.8626789882882391,
+          "learning_rate": 0.00036575185760261174,
+          "prediction": 0.05509269111048938,
+          "ssl1_condition": 0.005961435668723425,
+          "ssl1_node": 0.7961889058351517,
+          "ssl2_dino": 0.0018507596667983637,
+          "ssl2_ibot": 0.0035851960070761957
+        }
+      },
+      {
+        "epoch": 6,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.2692941300232302,
+          "joint_loss": 0.7857927200645297,
+          "learning_rate": 0.00022519316702786498,
+          "prediction": 0.05491342589216815,
+          "ssl1_condition": 0.004145736557389187,
+          "ssl1_node": 0.721996926448562,
+          "ssl2_dino": 0.0014619900291770384,
+          "ssl2_ibot": 0.003274641137233464
+        }
+      }
+    ],
+    "manifest_identity": {
+      "config_sha256": "7b4f50a2e7ee2dc9a7868709d22cd10ae4ca5db7985512d2e14d0cc8b8a1ba69",
+      "run_id": "nadig_jurkat-seed1-20261008T164223Z-e9d8d44d6b2944cca9bc064a6e33c871",
+      "source": {
+        "commit": "3f3824fe6e2d737a70204a599dfc5745780e52e7",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "89b2d35c4557c071d839e944599dc071df65bb6492e349b1cd75b2d34bf01135",
+        "published_commit": "3f3824fe6e2d737a70204a599dfc5745780e52e7",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-preflight10-3f3824f",
+        "tree_sha256": "41be6729fd81d038ad1e5fb0b5f42833d5764dd8d7a169d862b6cc51b3d4d2d3"
+      }
+    }
+  },
+  "U4": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-deferred-1929cba/nadig_jurkat-seed1-20261009T071927Z-b9c03b0d497c41c18d47edb33f63b566",
+    "history_sha256": "fc64b1d70778b0d02e588e6b5eb19c0edbd6786e27abbe1edea9b11bec7dfc8c",
+    "epochs": [
+      {
+        "epoch": 1,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.3940317901698025,
+          "joint_loss": 36.772724235874854,
+          "learning_rate": 0.0005198843679940412,
+          "prediction": 0.09284860871478239,
+          "ssl1_condition": 9.041330128908157,
+          "ssl1_node": 9.65048564564098,
+          "ssl2_dino": 8.980517604134299,
+          "ssl2_ibot": 9.007542248476636
+        }
+      },
+      {
+        "epoch": 2,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 3.041329453614625,
+          "joint_loss": 13.516654871388296,
+          "learning_rate": 0.0009712560344656438,
+          "prediction": 0.05992092471040616,
+          "ssl1_condition": 1.7327996967360377,
+          "ssl1_node": 8.22155937416987,
+          "ssl2_dino": 1.7123996434013613,
+          "ssl2_ibot": 1.789975232370621
+        }
+      },
+      {
+        "epoch": 3,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 2.708044960417531,
+          "joint_loss": 3.9477315204901307,
+          "learning_rate": 0.0008251945369227132,
+          "prediction": 0.05728978365765546,
+          "ssl1_condition": 0.08917416293512691,
+          "ssl1_node": 3.6809866895729844,
+          "ssl2_dino": 0.06110201786412455,
+          "ssl2_ibot": 0.059178866460239406
+        }
+      },
+      {
+        "epoch": 4,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.4440481588244438,
+          "joint_loss": 1.8008071208450516,
+          "learning_rate": 0.0005944245814416718,
+          "prediction": 0.05607208961472762,
+          "ssl1_condition": 0.016484202655688437,
+          "ssl1_node": 1.7192206050861965,
+          "ssl2_dino": 0.004997397242939108,
+          "ssl2_ibot": 0.004032826245499812
+        }
+      },
+      {
+        "epoch": 5,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.9757411097261038,
+          "joint_loss": 1.352655655573554,
+          "learning_rate": 0.00036575185760261174,
+          "prediction": 0.05529539656973528,
+          "ssl1_condition": 0.006712673911599929,
+          "ssl1_node": 1.287143058736216,
+          "ssl2_dino": 0.0017952156538078932,
+          "ssl2_ibot": 0.001709310702195084
+        }
+      },
+      {
+        "epoch": 6,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.790550605986606,
+          "joint_loss": 1.2399910564893781,
+          "learning_rate": 0.00022519316702786498,
+          "prediction": 0.0550349031268111,
+          "ssl1_condition": 0.004554590217925248,
+          "ssl1_node": 1.1773639659989963,
+          "ssl2_dino": 0.0014286506015692298,
+          "ssl2_ibot": 0.0016089465440762235
+        }
+      }
+    ],
+    "manifest_identity": {
+      "config_sha256": "94472111841e57308f8b2e1a602b9751863ab721bed07863750c96d9a838e439",
+      "run_id": "nadig_jurkat-seed1-20261009T071927Z-b9c03b0d497c41c18d47edb33f63b566",
+      "source": {
+        "commit": "1929cba76bee4c7f868083616a105d2507c7fa54",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "aec49c5c17bc678ad4d5e5f3b977f51082203dcb82552762df3fefdd3881617b",
+        "published_commit": "1929cba76bee4c7f868083616a105d2507c7fa54",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-pipeline-1929cba",
+        "tree_sha256": "9c66de02d7388ba05db3714317d722d60ae1f744368203928e489c15ce5abf2a"
+      }
+    }
+  },
+  "U3": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-deferred-1929cba/nadig_jurkat-seed1-20261009T071928Z-2272edf0ab7c417fb0f6078564a619e6",
+    "history_sha256": "7dd847974182f5b6494c6052ba41c11a35f6d52fc96bb7d5784afeda63fd14ea",
+    "epochs": [
+      {
+        "epoch": 1,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.631060441955924,
+          "joint_loss": 36.239820459593005,
+          "learning_rate": 0.0005198843679940412,
+          "prediction": 0.09942548339974812,
+          "ssl1_condition": 8.857489029114896,
+          "ssl1_node": 9.613048195838928,
+          "ssl2_dino": 8.792089671573855,
+          "ssl2_ibot": 8.877768079665573
+        }
+      },
+      {
+        "epoch": 2,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.0646379556168208,
+          "joint_loss": 11.839837531813167,
+          "learning_rate": 0.0009712560344656438,
+          "prediction": 0.05918176786508411,
+          "ssl1_condition": 1.4112910135987808,
+          "ssl1_node": 7.386748663403771,
+          "ssl2_dino": 1.3796596665104681,
+          "ssl2_ibot": 1.6029564204350621
+        }
+      },
+      {
+        "epoch": 3,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.593269416723739,
+          "joint_loss": 2.6933637876738263,
+          "learning_rate": 0.0008251945369227132,
+          "prediction": 0.056832889475944365,
+          "ssl1_condition": 0.06772608308661306,
+          "ssl1_node": 2.47892375188795,
+          "ssl2_dino": 0.04172337758510283,
+          "ssl2_ibot": 0.04815768563821621
+        }
+      },
+      {
+        "epoch": 4,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.40607326765629376,
+          "joint_loss": 1.1470843751836914,
+          "learning_rate": 0.0005944245814416718,
+          "prediction": 0.055707837412641806,
+          "ssl1_condition": 0.010447523286116351,
+          "ssl1_node": 1.0736085755581206,
+          "ssl2_dino": 0.002759729383383687,
+          "ssl2_ibot": 0.0045607095434289395
+        }
+      },
+      {
+        "epoch": 5,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.3153057585216381,
+          "joint_loss": 0.8472298998433623,
+          "learning_rate": 0.00036575185760261174,
+          "prediction": 0.05508979565506293,
+          "ssl1_condition": 0.004406558587850834,
+          "ssl1_node": 0.7843087908219207,
+          "ssl2_dino": 0.0014060283113973458,
+          "ssl2_ibot": 0.0020187264671304465
+        }
+      },
+      {
+        "epoch": 6,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.27068581051108515,
+          "joint_loss": 0.7738778814436955,
+          "learning_rate": 0.00022519316702786498,
+          "prediction": 0.05488012436862019,
+          "ssl1_condition": 0.0029577535444166806,
+          "ssl1_node": 0.7129996960813348,
+          "ssl2_dino": 0.0012581341111399524,
+          "ssl2_ibot": 0.0017821733381837971
+        }
+      }
+    ],
+    "manifest_identity": {
+      "config_sha256": "c595a1f1add886cb94d00f8f1ce782a90c27b089997f9083c971e4fe475ee1b0",
+      "run_id": "nadig_jurkat-seed1-20261009T071928Z-2272edf0ab7c417fb0f6078564a619e6",
+      "source": {
+        "commit": "1929cba76bee4c7f868083616a105d2507c7fa54",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "aec49c5c17bc678ad4d5e5f3b977f51082203dcb82552762df3fefdd3881617b",
+        "published_commit": "1929cba76bee4c7f868083616a105d2507c7fa54",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-pipeline-1929cba",
+        "tree_sha256": "9c66de02d7388ba05db3714317d722d60ae1f744368203928e489c15ce5abf2a"
+      }
+    }
+  },
+  "N0": {
+    "root": "/data/yilangliu/GraD-Pert/runs-v2-shared-m48-bf42185/nadig_jurkat-seed1-20261010T182419Z-c2f9bb39d8c04792a1a49b2a6b2c1659",
+    "history_sha256": "371bafe81c6688fc5e359a5822d231641c983418e232890acc650451f802219e",
+    "epochs": [
+      {
+        "epoch": 1,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.6832423095703124,
+          "joint_loss": 33.728701177440584,
+          "learning_rate": 0.000517998580383598,
+          "prediction": 0.1017341183051467,
+          "ssl1_condition": 7.891034213066101,
+          "ssl1_node": 9.664862451553345,
+          "ssl2_dino": 7.9216176381111145,
+          "ssl2_ibot": 8.149452756404877
+        }
+      },
+      {
+        "epoch": 2,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 2.4750312471389773,
+          "joint_loss": 9.31470938226697,
+          "learning_rate": 0.0009715883521158851,
+          "prediction": 0.10160233771800994,
+          "ssl1_condition": 0.32163492748141287,
+          "ssl1_node": 8.285685009002686,
+          "ssl2_dino": 0.2605411797154229,
+          "ssl2_ibot": 0.34524592834943907
+        }
+      },
+      {
+        "epoch": 3,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 1.4050060403347016,
+          "joint_loss": 4.280078659374994,
+          "learning_rate": 0.0008258848592795664,
+          "prediction": 0.10142830070853233,
+          "ssl1_condition": 0.015212240842171014,
+          "ssl1_node": 4.142626085758209,
+          "ssl2_dino": 0.009981144346180372,
+          "ssl2_ibot": 0.01083088771990151
+        }
+      },
+      {
+        "epoch": 4,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.7968814587593078,
+          "joint_loss": 2.3845330841077956,
+          "learning_rate": 0.0005950900404173426,
+          "prediction": 0.08201148005202413,
+          "ssl1_condition": 0.003984777659876272,
+          "ssl1_node": 2.294566346168518,
+          "ssl2_dino": 0.001881012821540935,
+          "ssl2_ibot": 0.002089467405836331
+        }
+      },
+      {
+        "epoch": 5,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.5148116085529327,
+          "joint_loss": 1.8092274799132284,
+          "learning_rate": 0.000366144814188084,
+          "prediction": 0.05709372844174504,
+          "ssl1_condition": 0.001500415214628447,
+          "ssl1_node": 1.749894755601883,
+          "ssl2_dino": 0.0003109021883137757,
+          "ssl2_ibot": 0.00042767846665810796
+        }
+      },
+      {
+        "epoch": 6,
+        "global_step": null,
+        "training": {
+          "gradient_norm": 0.4267917448282242,
+          "joint_loss": 1.6423129772937537,
+          "learning_rate": 0.00022529335361552372,
+          "prediction": 0.05590688873082399,
+          "ssl1_condition": 0.000940351324796211,
+          "ssl1_node": 1.5848481187820433,
+          "ssl2_dino": 0.0002591586304624798,
+          "ssl2_ibot": 0.00035845982562750575
+        }
+      }
+    ],
+    "manifest_identity": {
+      "config_sha256": "c734762d96a7879474554059d6079e0019a56e4a828f252a8573d050db02d500",
+      "run_id": "nadig_jurkat-seed1-20261010T182419Z-c2f9bb39d8c04792a1a49b2a6b2c1659",
+      "source": {
+        "commit": "bf4218557210ba266a98d6cc2d1ac15a976c5c91",
+        "dirty": false,
+        "formal_eligibility_reason": null,
+        "formal_eligible": true,
+        "publication_receipt_sha256": "b7c9e1324da10c2d50a8a55247fda8dac73b89e89c669b391fd2dfe6c4d1013e",
+        "published_commit": "bf4218557210ba266a98d6cc2d1ac15a976c5c91",
+        "remote_ref": "refs/heads/main",
+        "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+        "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-shared-m48-bf42185",
+        "tree_sha256": "e2f98a02553cfe91e2b3a4a731f98b3d96ce87365bb31395cc2b4b58811ccd87"
+      }
+    }
+  }
+}

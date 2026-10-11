@@ -34,15 +34,24 @@ from gradpert.hashing import sha256_file
 SCHEMA = "unified-ddp-queue-1"
 
 
+def matrix_contract(source: Path, manifest: Path) -> tuple[dict, tuple[str, ...], list[str]]:
+    if read_json(manifest).get("schema") == "ffn-four-1":
+        from generate_ffn_group import PRIORITY as ffn_priority
+        from generate_ffn_group import verify_manifest as verify_ffn
+
+        return verify_ffn(source, manifest), ffn_priority, ["F1", "BR", "N1"]
+    return verify_manifest(source, manifest), PRIORITY, ["CG1", "N0"]
+
+
 def prepare(
     source: Path, manifest: Path, runtime: Path, output: Path, shared_policy: dict | None = None
 ) -> dict:
     if not output.resolve().is_relative_to("/data/yilangliu") or output.exists():
         raise ValueError("queue must be a fresh server directory")
-    matrix = verify_manifest(source, manifest)
+    matrix, priority, initial = matrix_contract(source, manifest)
     indexed = {r["name"]: r for r in matrix["rows"]}
     rows = []
-    for name in PRIORITY:
+    for name in priority:
         row = indexed[name]
         plan = resolve_plan(
             argparse.Namespace(
@@ -68,9 +77,9 @@ def prepare(
         "runtime": str(runtime),
         "runtime_sha256": sha256_file(runtime),
         "rows": rows,
-        "initial_preflight": ["CG1", "N0"],
+        "initial_preflight": initial,
         "steps": 10,
-        "deferred_arms": [r["name"] for r in matrix["rows"] if r["name"] not in PRIORITY],
+        "deferred_arms": [r["name"] for r in matrix["rows"] if r["name"] not in priority],
     }
     if shared_policy is not None:
         validate_policy(shared_policy)
@@ -84,14 +93,14 @@ def prepare(
 def verify(queue: dict) -> None:
     if queue.get("shared_gpu_policy") is not None:
         validate_policy(queue["shared_gpu_policy"])
-    if queue["schema"] != SCHEMA or [r["name"] for r in queue["rows"]] != list(PRIORITY):
+    manifest, priority, initial = matrix_contract(Path(queue["source"]), Path(queue["manifest"]))
+    if queue["schema"] != SCHEMA or [r["name"] for r in queue["rows"]] != list(priority):
         raise ValueError("queue scope/order changed")
-    if queue["initial_preflight"] != ["CG1", "N0"] or queue["steps"] != 10:
+    if queue["initial_preflight"] != initial or queue["steps"] != 10:
         raise ValueError("bounded preflight protocol changed")
     for field in ("manifest", "runtime"):
         if sha256_file(Path(queue[field])) != queue[field + "_sha256"]:
             raise ValueError("queue file changed")
-    manifest = verify_manifest(Path(queue["source"]), Path(queue["manifest"]))
     indexed = {r["name"]: r for r in manifest["rows"]}
     for row in queue["rows"]:
         plan = row["plan"]
@@ -107,10 +116,10 @@ def verify(queue: dict) -> None:
             or params["accumulation"]["value"] != 2
             or training["train_batch_size"]["value"] != 4 * params["microbatch"]["value"]
             or params["validation_mode"]["value"] != "disabled"
-            or training["max_epochs"]["value"] != 6
+            or training["max_epochs"]["value"] != manifest["epochs"]
             or config.get("continuation") is not None
         ):
-            raise ValueError("DDP launch differs from the six-epoch fresh protocol")
+            raise ValueError("DDP launch differs from the sealed fresh protocol")
         for field in ("config", "publication"):
             if sha256_file(Path(plan[field])) != plan[field + "_sha256"]:
                 raise ValueError("sealed launch dependency changed")

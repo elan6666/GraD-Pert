@@ -702,14 +702,17 @@ class GatedFeedForward(nn.Module):
 
     def __init__(self, width: int, dropout: float) -> None:
         super().__init__()
+        self.clipped = True
         self.gate = nn.Linear(width, 4 * width, bias=False)
         self.up = nn.Linear(width, 4 * width, bias=False)
         self.down = nn.Linear(4 * width, width, bias=False)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: Tensor) -> Tensor:
-        gate = self.gate(x).clamp(max=10)
-        up = self.up(x).clamp(min=-10, max=10)
+        gate, up = self.gate(x), self.up(x)
+        if self.clipped:
+            gate = gate.clamp(max=10)
+            up = up.clamp(min=-10, max=10)
         return cast(Tensor, self.dropout(self.down(self.dropout(F.silu(gate) * up))))
 
 

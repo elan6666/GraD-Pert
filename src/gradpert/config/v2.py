@@ -45,6 +45,11 @@ class V2Architecture:
     learned_genept_projection: bool = False
     genept_projection_activation: str = "none"
     mlp_profile: str = "historical"
+    ffn_variant: str = "mixed"
+    ffn_input_norm: str = "historical"
+    ffn_clip: bool = True
+    genept_hidden_width: int = 0
+    genept_middle_width: int = 0
     control_conditioned_graph: bool = False
     perturbation_injection: str = "per_layer"
     random_gene_order: bool = True
@@ -93,8 +98,37 @@ class V2Architecture:
             or (self.gene_conditioned_readout and self.mlp_profile != "unified")
         ):
             raise ValueError("raw GenePT projection cannot use reduced-prior mechanisms")
-        if self.mlp_profile not in ("historical", "unified"):
+        if self.mlp_profile not in ("historical", "unified", "restored"):
             raise ValueError("unknown MLP profile")
+        if (
+            type(self.ffn_clip) is not bool
+            or self.ffn_variant not in ("mixed", "swiglu")
+            or self.ffn_input_norm not in ("historical", "rmsnorm")
+        ):
+            raise ValueError("invalid restored FFN controls")
+        if self.mlp_profile == "restored":
+            if (
+                self.attention != "relay_full"
+                or not self.learned_genept_projection
+                or self.control_conditioned_graph
+                or self.gene_conditioned_readout
+                or self.genept_projection_activation != "gelu"
+                or any(
+                    type(v) is not int or v < 1
+                    for v in (self.genept_hidden_width, self.genept_middle_width)
+                )
+            ):
+                raise ValueError(
+                    "restored FFN requires relay/raw shared GELU GenePT and positive widths"
+                )
+        elif (
+            self.ffn_variant != "mixed"
+            or self.ffn_input_norm != "historical"
+            or not self.ffn_clip
+            or self.genept_hidden_width != 0
+            or self.genept_middle_width != 0
+        ):
+            raise ValueError("new FFN controls require restored profile")
         if self.perturbation_injection not in ("per_layer", "entry"):
             raise ValueError("unknown perturbation injection")
         if any(
@@ -253,6 +287,11 @@ class V2Architecture:
             values.pop("genept_projection_activation")
         for name, default in (
             ("mlp_profile", "historical"),
+            ("ffn_variant", "mixed"),
+            ("ffn_input_norm", "historical"),
+            ("ffn_clip", True),
+            ("genept_hidden_width", 0),
+            ("genept_middle_width", 0),
             ("control_conditioned_graph", False),
             ("perturbation_injection", "per_layer"),
             ("random_gene_order", True),
@@ -374,6 +413,11 @@ class V2Options:
             "lambda_gene_mask",
             "lambda_cls_mask",
             "mlp_profile",
+            "ffn_variant",
+            "ffn_input_norm",
+            "ffn_clip",
+            "genept_hidden_width",
+            "genept_middle_width",
             "control_conditioned_graph",
             "perturbation_injection",
             "random_gene_order",

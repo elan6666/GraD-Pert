@@ -31,6 +31,7 @@ def collect_run(root: Path) -> list[dict]:
     expected_epochs = {
         "v2_fixed_1": 1,
         "v2_fixed_3": 3,
+        "v2_fixed_4": 4,
         "v2_fixed_5": 5,
         "v2_fixed_6": 6,
         "v2_fixed_20": 20,
@@ -49,11 +50,11 @@ def collect_run(root: Path) -> list[dict]:
     )
     roles = ("last",) if train_only else ("best", "last")
     if train_only and (
-        policy != "v2_fixed_6"
+        policy not in {"v2_fixed_6", "v2_fixed_4"}
         or resolved["training"]["monitor"] != "none"
         or (journal and (selection_metric != "final_epoch" or journal.get("best") is not None))
     ):
-        raise ValueError("invalid train-only fixed-six checkpoint contract")
+        raise ValueError("invalid train-only fixed-four/six checkpoint contract")
     if selection_metric not in (None, "prediction_loss", "joint_loss", "final_epoch") or (
         selection_metric == "final_epoch" and not train_only
     ):

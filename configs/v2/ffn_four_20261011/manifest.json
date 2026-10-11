@@ -1,0 +1,46 @@
+{
+  "schema": "ffn-four-1",
+  "parent": "configs/v2/cap40_functional_b0_ka/B0/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "8961c93fd42bf0141722a42e23a3577c9209e5cdfb9aea1e8bba3c5de92467a5",
+  "world_size": 2,
+  "accumulation": 2,
+  "common_microbatch": 48,
+  "global_batch": 192,
+  "eval_batch": 128,
+  "epochs": 4,
+  "validation": "disabled",
+  "test_roles": [
+    "last"
+  ],
+  "seed": 1,
+  "preflight_updates": 10,
+  "priority": [
+    "BR",
+    "F1",
+    "N1"
+  ],
+  "rows": [
+    {
+      "name": "BR",
+      "config": "configs/v2/ffn_four_20261011/BR/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "518c213f858bb2fdbb4972a6faabee71180382a6d61af31731a484a4da277e1f",
+      "changes": {}
+    },
+    {
+      "name": "F1",
+      "config": "configs/v2/ffn_four_20261011/F1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "01ddf3491463783f9f695f3675fe00c00574d482c0ec74f23ff064c357b6c076",
+      "changes": {
+        "ffn_variant": "swiglu"
+      }
+    },
+    {
+      "name": "N1",
+      "config": "configs/v2/ffn_four_20261011/N1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "f3b512a56138c1ffb3f326b2a200c2ab460e28b1dbe80be7aca911e7f530c4c3",
+      "changes": {
+        "ffn_input_norm": "rmsnorm"
+      }
+    }
+  ]
+}

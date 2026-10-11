@@ -1,0 +1,13 @@
+{
+  "prechange_sha": "c7a663d4d9fdb3b7bbe2e049173c4f4348565f4a",
+  "first_directed_tests": "107 passed",
+  "meaningful_validation": "three nonzero-learning-rate full optimizer/EMA/center updates per arm, exact next-step checkpoint continuation, frozen-prior equality, role bias/norm/width checks and legacy identity",
+  "regression_attempt1": "argv referenced missing test_training_stage.py; zero tests executed; preserved /tmp/gradpert-ffn-regression.log",
+  "regression_retry": "50 passed in 21.89s",
+  "cuda_preflight": "not started",
+  "formal_training": "not started",
+  "final_collector_and_state_suite": "34 passed including fresh4 train-only last collector",
+  "ruff": "passed",
+  "diff_check": "passed",
+  "build": "wheel passed"
+}

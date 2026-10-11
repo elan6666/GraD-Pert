@@ -1,3 +1,7 @@
+## 2026-10-11：BR/F1/N1 四轮替换任务实施中
+
+用户授权仅三组，原bias、无截断、恢复功能B0骨架，保留batch192及共享GenePT(4096/1024隐藏，BR GELU)。旧N0完成、CG1用户停止、未启动其余组，source与产物保留；主已ACK返回owner，两个旧monitor PAUSED。新native FFN/config/四轮lifecycle已实施，107定向检查通过；回归/发布/服务器三组10步与实际300-control推理/正式启动待完成。计划：plans/GRADPERT_V2_FFN_FOUR_20261011.plan.md。最新权威运行状态以canonical coordination/state.json为准。
+
 ## 2026-10-11 02:39：m48预检通过，N0正式fit启动
 
 CG1/N0各10/10＋checkpoint恢复＋实际300control推理已独立验收；训练源码bf4218557210ba266a98d6cc2d1ac15a976c5c91，world2/m48/accum2/global192。只N0→CG1→U24→MR1→P1各6轮无验证、epoch6 last-only。旧m68/.85cap OOM保留；无外部进程，不声称真实共存收益。Luna已结束，canonical Byte owner转指定监督会话，现有20min监控待ACK激活。详细实时状态以canonical coordination/state.json为准。见UNIFIED_DDP报告及shared-gpu-20261011/m48-main-acceptance.json；科学结果未完成。
