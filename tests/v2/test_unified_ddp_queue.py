@@ -4,6 +4,7 @@ import copy
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -13,9 +14,130 @@ from gradpert.config.v2 import V2Options
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/v2"))
+import run_unified_ddp as ddp  # noqa: E402
 from generate_unified_ddp import PRIORITY, configs, verify_manifest  # noqa: E402
 from generate_unified_group import baseline  # noqa: E402
 from run_unified_ddp import fit_budget, probe  # noqa: E402
+
+
+def test_spawn_identity_waits_through_transient_unreadable_samples(monkeypatch):
+    identity = {"pid": 123, "command_sha256": "cmd", "start_ticks": "456"}
+    samples = iter([None, None, identity])
+    monkeypatch.setattr(ddp, "process_identity", lambda pid: next(samples))
+    child = SimpleNamespace(pid=123, poll=lambda: None)
+
+    assert ddp._capture_process_identity(child) == identity
+
+
+def test_spawn_identity_fails_safely_if_child_exits_before_identity(monkeypatch):
+    monkeypatch.setattr(ddp, "process_identity", lambda _pid: None)
+    monkeypatch.setattr(ddp, "terminate_tree", lambda *_: pytest.fail("unsafe termination"))
+    child = SimpleNamespace(pid=123, poll=lambda: 7)
+
+    with pytest.raises(RuntimeError, match="exited before its process identity"):
+        ddp._capture_process_identity(child)
+
+
+def test_cleanup_never_calls_tree_terminator_without_identity(monkeypatch):
+    monkeypatch.setattr(ddp, "terminate_tree", lambda *_: pytest.fail("unsafe termination"))
+    child = SimpleNamespace(pid=123)
+
+    ddp._terminate_active_child((child, {}, {"identity": None}))
+
+
+def test_spawn_identity_timeout_stops_only_the_direct_child(monkeypatch):
+    monkeypatch.setattr(ddp, "CHILD_IDENTITY_TIMEOUT_SECONDS", 0)
+    monkeypatch.setattr(ddp, "process_identity", lambda _pid: None)
+    monkeypatch.setattr(ddp, "terminate_tree", lambda *_: pytest.fail("unsafe termination"))
+    calls = []
+
+    class Child:
+        pid = 123
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            calls.append("terminate-direct-child")
+
+        def wait(self, timeout):
+            calls.append(("wait", timeout))
+            return -15
+
+    child = Child()
+
+    with pytest.raises(RuntimeError, match="timed out reading process identity"):
+        ddp._capture_process_identity(child)
+    assert calls == ["terminate-direct-child", ("wait", ddp.CHILD_STOP_TIMEOUT_SECONDS)]
+
+
+def test_spawn_identity_timeout_kills_direct_child_if_terminate_times_out(monkeypatch):
+    monkeypatch.setattr(ddp, "CHILD_IDENTITY_TIMEOUT_SECONDS", 0)
+    monkeypatch.setattr(ddp, "process_identity", lambda _pid: None)
+    calls = []
+
+    class Child:
+        pid = 123
+
+        def __init__(self):
+            self.waits = 0
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            calls.append("terminate-direct-child")
+
+        def kill(self):
+            calls.append("kill-direct-child")
+
+        def wait(self, timeout):
+            self.waits += 1
+            calls.append(("wait", timeout))
+            if self.waits == 1:
+                raise ddp.subprocess.TimeoutExpired("child", timeout)
+            return -9
+
+    with pytest.raises(RuntimeError, match="timed out reading process identity"):
+        ddp._capture_process_identity(Child())
+    assert calls == [
+        "terminate-direct-child",
+        ("wait", ddp.CHILD_STOP_TIMEOUT_SECONDS),
+        "kill-direct-child",
+        ("wait", ddp.CHILD_STOP_TIMEOUT_SECONDS),
+    ]
+
+
+def test_spawn_identity_rejects_identity_for_another_pid(monkeypatch):
+    monkeypatch.setattr(
+        ddp,
+        "process_identity",
+        lambda _pid: {"pid": 999, "command_sha256": "cmd", "start_ticks": "456"},
+    )
+    calls = []
+    child = SimpleNamespace(
+        pid=123,
+        poll=lambda: None,
+        terminate=lambda: calls.append("terminate-direct-child"),
+        wait=lambda timeout: calls.append(("wait", timeout)),
+    )
+
+    with pytest.raises(RuntimeError, match="identity is incomplete or mismatched"):
+        ddp._capture_process_identity(child)
+    assert calls == ["terminate-direct-child", ("wait", ddp.CHILD_STOP_TIMEOUT_SECONDS)]
+
+
+def test_spawn_identity_does_not_accept_recycled_pid_after_child_exit(monkeypatch):
+    monkeypatch.setattr(
+        ddp,
+        "process_identity",
+        lambda pid: {"pid": pid, "command_sha256": "other", "start_ticks": "999"},
+    )
+    monkeypatch.setattr(ddp, "terminate_tree", lambda *_: pytest.fail("unsafe termination"))
+    child = SimpleNamespace(pid=123, poll=lambda: 7)
+
+    with pytest.raises(RuntimeError, match="exited before its process identity"):
+        ddp._capture_process_identity(child)
 
 
 def test_all_ten_configs_restore_dual_accumulation_and_only_change_execution():

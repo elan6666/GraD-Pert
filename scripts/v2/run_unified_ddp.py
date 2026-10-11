@@ -32,6 +32,62 @@ from gradpert.execution.v2_training_stage import validate_training_stage
 from gradpert.hashing import sha256_file
 
 SCHEMA = "unified-ddp-queue-1"
+CHILD_IDENTITY_TIMEOUT_SECONDS = 2.0
+CHILD_IDENTITY_POLL_INTERVAL_SECONDS = 0.01
+CHILD_STOP_TIMEOUT_SECONDS = 5.0
+
+
+def _stop_unverified_child(child: subprocess.Popen[bytes]) -> None:
+    """Reap a still-owned direct child without signaling an unverified process tree."""
+    if child.poll() is None:
+        child.terminate()
+        try:
+            child.wait(timeout=CHILD_STOP_TIMEOUT_SECONDS)
+        except subprocess.TimeoutExpired:
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=CHILD_STOP_TIMEOUT_SECONDS)
+
+
+def _capture_process_identity(child: subprocess.Popen[bytes]) -> dict:
+    """Wait briefly for /proc identity after spawn, failing closed on races."""
+    deadline = time.monotonic() + CHILD_IDENTITY_TIMEOUT_SECONDS
+    while True:
+        return_code = child.poll()
+        if return_code is not None:
+            raise RuntimeError(
+                f"spawned child {child.pid} exited before its process identity was readable "
+                f"(exit code {return_code})"
+            )
+
+        identity = process_identity(child.pid)
+        if identity is not None:
+            if identity.get("pid") != child.pid or not {"command_sha256", "start_ticks"}.issubset(
+                identity
+            ):
+                _stop_unverified_child(child)
+                raise RuntimeError(
+                    "spawned child identity is incomplete or mismatched; stopped the direct "
+                    "Popen child only, without signaling unverified descendants"
+                )
+            return identity
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            _stop_unverified_child(child)
+            raise RuntimeError(
+                f"timed out reading process identity for spawned child {child.pid}; stopped the "
+                "direct Popen child only, without signaling unverified descendants"
+            )
+        time.sleep(min(CHILD_IDENTITY_POLL_INTERVAL_SECONDS, remaining))
+
+
+def _terminate_active_child(active) -> None:
+    """Stop only children whose identity was captured and can be revalidated."""
+    child, _row, item = active
+    identity = item.get("identity")
+    if identity is not None:
+        terminate_tree(child.pid, identity)
 
 
 def matrix_contract(source: Path, manifest: Path) -> tuple[dict, tuple[str, ...], list[str]]:
@@ -281,11 +337,12 @@ def execute(queue: dict, directory: Path) -> None:
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
+        identity = _capture_process_identity(child)
         item = {
             "name": row["name"],
             "stage": stage,
             "pid": child.pid,
-            "identity": process_identity(child.pid),
+            "identity": identity,
             "log": str(directory / (tag + ".log")),
             "started_unix": time.time(),
             "attempt": attempt,
@@ -310,7 +367,7 @@ def execute(queue: dict, directory: Path) -> None:
                     except subprocess.TimeoutExpired:
                         shared_check(f"{row['name']}-{item['stage']}-running")
             except BaseException:
-                terminate_tree(child.pid, item["identity"])
+                _terminate_active_child(active)
                 child.wait(timeout=10)
                 raise
         receipt = {**item, "exit_code": code, "finished_unix": time.time()}
@@ -478,7 +535,7 @@ def execute(queue: dict, directory: Path) -> None:
             if shared_policy is not None:
                 for active in (active_fit, active_eval):
                     if active is not None:
-                        terminate_tree(active[0].pid, active[2]["identity"])
+                        _terminate_active_child(active)
             # Drain only the already-authorized evaluator, never launch peers.
             state.update(
                 status="failed", phase="failed", error_type=type(error).__name__, error=str(error)

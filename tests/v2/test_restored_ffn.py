@@ -26,6 +26,7 @@ from gradpert.training.v2.optimizer import V2Optimizer
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/v2"))
 from generate_ffn_group import verify_manifest  # noqa: E402
+from generate_unseen_group import RAW_PRIOR, RAW_SHA  # noqa: E402
 from run_unified_ddp import matrix_contract  # noqa: E402
 
 
@@ -146,6 +147,9 @@ def test_four_epoch_manifest_and_only_single_axis_changes():
         assert cfg.training.max_epochs.value == 4 and cfg.training.monitor == "none"
         assert cfg.training.eval_batch_size.value == 128
         assert (opt.microbatch, opt.world_size, opt.accumulation) == (48, 2, 2)
+        assert opt.genept_artifact_path == RAW_PRIOR
+        assert opt.genept_sha256 == RAW_SHA
+        assert arch.learned_genept_projection
         value = cfg.model_dump()
         if baseline is None:
             baseline = value

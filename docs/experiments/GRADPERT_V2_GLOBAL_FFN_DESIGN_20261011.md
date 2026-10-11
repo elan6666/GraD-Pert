@@ -80,3 +80,9 @@ NR与NL的类型对照使用相同位置、eps=1e-6与可训练scale；NL的beta
 拟所有新候选从头4轮、相同cap40/seed/batch/loss与统一4轮warmup+cosine；不计算逐轮验证/预测评估，保留逐轮训练分项loss与gradient norm，结束后评估第4轮last。报告三个Pearson的全部/见过/未见表达组及all/统一DEG、有效条件数，测试不选超参数。小幅差异须后续多seed，不以训练joint一个标量判胜负。
 
 历史为6轮日程，只用于预算诊断；新4轮cosine会重新安排LR，绝不声称等价于历史6轮的前4轮。新的基线需重新训练，旧clipped B0/N0仅历史参考。容量按用户已确认10步预检，不把10步通过写成长期稳定或科学结果。
+
+## Coexistence preflight input binding repair
+
+2026-10-11 source0916536c6132b4a44cb04de5e171e6cc825cf41f started torchrun beside the two pinned ScButterfly jobs (GPU0:720MiB; GPU1:718MiB). F1 failed at0/10 optimizerupdates: the config generator inherited the historical PCA256 file from restored B0 while enabling raw learned GenePT projection. Runtime rejected it before training; no capacity or speed conclusion is possible. Initial receipt inference_exercised=true records intent, not completed inference. Actual checkpointrestore and300-control inference did not pass. Failed queue v2-ffn-coexist-0916536-20261011T095120Z is retained.
+
+Corrected allthree config artifactbindings to the existing original2048prior (17730rows, SHA34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318; live servermetadata verified). Frozen graphgene-ID selection remains unchanged. This is a configbug fix to the already confirmed GenePT design; no model or trainingprotocol change. Testnow asserts the correctpath/hash for every arm. Freshsource/queuepreflightrequired.

@@ -1,0 +1,22 @@
+{
+  "schema": "ffn-coexist-repair-1",
+  "parent_commit": "0916536c6132b4a44cb04de5e171e6cc825cf41f",
+  "config_repair": "all3arms_original_raw2048_prior_binding",
+  "prior_sha256": "34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318",
+  "server_verified_prior_vectors_shape": [
+    17730,
+    2048
+  ],
+  "native_model_changed": false,
+  "batch": [
+    48,
+    2,
+    2,
+    192
+  ],
+  "controller_repair": "bounded2s_identity_acquisition_and_owned_direct_child_cleanup",
+  "own_subagent_tests": 12,
+  "whole_repair_tests": "89 passed in16.42sec",
+  "gpu_test_passed": false,
+  "formal_started": false
+}

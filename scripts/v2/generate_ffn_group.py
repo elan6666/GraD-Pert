@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import yaml
+from generate_unseen_group import RAW_PRIOR, RAW_SHA
 
 from gradpert.config import load_experiment_config
 from gradpert.hashing import sha256_file
@@ -35,6 +36,8 @@ def configs(source: Path, microbatch: int) -> dict:
         "genept_middle_width": 1024,
         "learned_genept_projection": True,
         "genept_projection_activation": "gelu",
+        "genept_artifact_path": RAW_PRIOR,
+        "genept_sha256": RAW_SHA,
         "microbatch": microbatch,
         "world_size": 2,
         "accumulation": 2,

@@ -1,0 +1,38 @@
+{
+  "queue_root": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-0916536-20261011T095120Z",
+  "source_sha": "0916536c6132b4a44cb04de5e171e6cc825cf41f",
+  "queue_sha256": "a035a6c73260b6a303e9e1f32fa89721a86b4fc5088ea473853536f2b8162165",
+  "phase": "failed",
+  "status": "failed",
+  "failed_arm": "F1",
+  "preflight_attempt": 1,
+  "steps_requested": 10,
+  "steps_completed": 0,
+  "warmup_steps": 2,
+  "world_size": 2,
+  "inference_exercised": true,
+  "finite_gradient_receipt_field": "not present; failed before optimizer steps",
+  "restore_receipt_field": "not present",
+  "elapsed_seconds": 7.12,
+  "peak_rss_kib": 913272,
+  "max_observed_own_gpu_memory_mib_per_device": 498,
+  "foreign_pid_gpu0": {
+    "pid": 2303173,
+    "present_in_admission_and_running_samples": true,
+    "memory_mib": 720
+  },
+  "foreign_pid_gpu1": {
+    "pid": 2303188,
+    "present_in_admission_and_running_samples": true,
+    "memory_mib": 718
+  },
+  "failure_type": "ValueError",
+  "failure": "U4 requires the original 2048-wide GenePT prior, not PCA",
+  "failure_log": "/data/yilangliu/GraD-Pert/development/v2-ffn-coexist-0916536-20261011T095120Z/F1-preflight-attempt1.log",
+  "formal_started": false,
+  "other_preflights": "not run",
+  "inference_exercised_field_is_initial_intent": true,
+  "actual_inference_passed": false,
+  "checkpoint_restore_passed": false,
+  "coexistence_full_updates_passed": false
+}
