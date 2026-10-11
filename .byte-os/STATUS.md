@@ -1,3 +1,9 @@
+## 2026-10-11：GM1 已发布；BR 停训原因及恢复修复
+
+GM1图mHC实现已发布93ed39d02fa76730630a718d79c489b6adf64f48；配置仅相对BR打开graph_mhc，Student47,051,014（+196,824）。本地输出/梯度、多步optimizer/EMA/center及checkpoint检查通过；服务器248 CPU检查通过，但测试没有隐藏CUDA，checkpoint RNG抓取创建498MiB上下文并触发BR共享卡保护停训。PID2337434属于我们，不是他人任务；科学源码与资源门不改。旧失败队列/日志保留，GM1尚未形成活动队列或模型GPU预检。
+
+BR最后提交epoch1、250/1000更新，epoch2有16步未提交，恢复会重做这些步。主会话已接回并暂停旧监控，正在实施CPU测试隔离及严格完整状态恢复控制器：BR用原b37源码/原4轮warmup+cosine及checkpoint恢复，F1/N1同原配置新ID。GM1将绑定恢复队列，父三组真终态后才十步预检，主验收后fresh4训练/epoch4评估。不能声称恢复已启动或新mHC已有科学收益。详细证据见plans/GRADPERT_V2_GRAPH_MHC_20261011.plan.md及docs/experiments/GRADPERT_V2_GRAPH_MHC_20261011.md。
+
 ## 2026-10-11：GM1 图 mHC 单变量组实施完成
 
 用户新增GM1：仅相对BR开启图mHC4，四层各attention/FFN独立route，保留原norm、KDA末态/邻域/source、GenePT、Cell/Response和训练/评估协议。Student47,051,014比BR多196,824参数；Teacher同构，新增CPU私有初始化避免CUDA RNG污染。默认关闭保持旧payload。247受影响检查及3源码mypy通过，独立审查 finding已修复；后续发布/服务器CPU复核与CPU依赖等待控制器准备。仅父BR/F1/N1真4轮last18指标及哈希/zeroPKL完成后执行GM1十步预检，仍停主验收屏障；现在不占GPU或修改活动b37。计划plans/GRADPERT_V2_GRAPH_MHC_20261011.plan.md，设计docs/experiments/GRADPERT_V2_GRAPH_MHC_20261011.md。

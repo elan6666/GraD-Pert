@@ -40,3 +40,9 @@ Teacher与Student同构；新增路由在共同模块全部初始化后使用CPU
 GM1预检成功后必须停在主验收屏障，监督会话返主核验；主接受精确source/queue/receipt后才正式fresh4训练与epoch4 last评估。失败保存证据并返主，不静默改变batch、模型、运行ID或当前父任务。用户授权的micro40/global160是必要时独立版本的统一回退候选，尚未运行。
 
 当前实现CPU测试与审查通过；GPU预检和科学结果待父队列完成，不能宣称新图mHC已改善效果、速度或持续容量。
+
+## 部署中断及恢复（2026-10-11）
+
+GM1首个已发布源码为`93ed39d02fa76730630a718d79c489b6adf64f48`。服务器CPU合成检查248通过（56.07秒），但其checkpoint RNG保存意外初始化CUDA：我们自己的pytest PID2337434占用498MiB，不属于活动BR控制器树，导致严格共享GPU保护中止BR。此错误不属于GM1模型容量失败，也不应归因于其他用户。GM1模型CUDA预检/正式训练尚未启动；依赖封存失败，未创建GM1队列。旧发布、测试和BR失败收据原样保留。
+
+后续CPU测试使用显式隐藏CUDA的独立子进程；CPU配置解析与checkpoint核验也隐藏CUDA，不放宽资源门。BR原科学源码`b37b171fd68cb29e5c8142c66778aac6da9a6f06`不变，完整恢复epoch1 checkpoint（SHA256 `b9584aa54883d231e7a64ec5a305eeab950f450de7f4a3d4e866128b786f2130`），包括Student、Teacher、center、optimizer和两rank RNG，继续原4轮1000更新日程；重做未提交的epoch2前16步。新控制器和attempt单独版本化，不覆盖旧队列或原launch。F1/N1未启动，仍使用原科学配置并解析新ID。三组十步预检原证据可重用，因为科学源码/配置均未改变；只验收恢复执行本身。GM1绑定新恢复队列的真终态，不绑定失败队列。

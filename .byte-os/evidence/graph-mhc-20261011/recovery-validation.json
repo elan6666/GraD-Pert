@@ -1,0 +1,13 @@
+{
+  "schema": "graph-mhc-recovery-local-validation-1",
+  "prechange_commit": "93ed39d02fa76730630a718d79c489b6adf64f48",
+  "scientific_recovery_commit": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "reviewed_cpu_tests": 100,
+  "review": "read-only review passed; self-process exclusion, epoch1 backup, checkpoint alias, journal progress and only BR native resume covered",
+  "cpu_launcher_tests": 3,
+  "cpu_launcher_mypy": "passed",
+  "graph_mhc_science": "pending; same GM1 config 7b03765950313dba5dacd8067725fa62b1583d03e5f5ffdf96759346a1380ba3",
+  "server_tests_and_resume": "pending; must hide CUDA before torch import",
+  "cause": "own server CPU pytest lazily initialized CUDA checkpoint RNG context; guard correctly rejected process outside controller tree",
+  "resource_policy_weakened": false
+}

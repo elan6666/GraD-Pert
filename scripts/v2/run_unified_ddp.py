@@ -8,9 +8,11 @@ import copy
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
+from dataclasses import asdict
 from pathlib import Path
 
 from generate_unified_ddp import PRIORITY, verify_manifest
@@ -26,11 +28,12 @@ from run_unified_group import (
 from run_unified_overlap import evaluate_attempt, process_command, process_identity
 from shared_gpu import DUAL_SCHEMA, admit, snapshot, terminate_tree, validate_policy
 
+from gradpert.config.step_schedule import load_training_schedule
 from gradpert.data._io import atomic_json, read_json
 from gradpert.execution.identity import inspect_source_identity
 from gradpert.execution.train_entry import resolve_plan
 from gradpert.execution.v2_training_stage import validate_training_stage
-from gradpert.hashing import sha256_file
+from gradpert.hashing import sha256_file, sha256_json
 
 SCHEMA = "unified-ddp-queue-1"
 SERVER_ROOT = Path("/data/yilangliu")
@@ -39,6 +42,8 @@ CHILD_IDENTITY_POLL_INTERVAL_SECONDS = 0.01
 CHILD_STOP_TIMEOUT_SECONDS = 5.0
 DEPENDENCY_POLL_SECONDS = 20
 DEPENDENCY_ARMS = ("BR", "F1", "N1")
+RECOVERY_SOURCE = "b37b171fd68cb29e5c8142c66778aac6da9a6f06"
+RECOVERY_MODE = "resume_first_BR"
 
 
 def _stop_unverified_child(child: subprocess.Popen[bytes]) -> None:
@@ -165,6 +170,15 @@ def prepare(
 
 
 def verify(queue: dict) -> None:
+    if queue.get("mode") not in (None, RECOVERY_MODE) or (
+        (queue.get("mode") == RECOVERY_MODE) != (queue.get("recovery") is not None)
+    ):
+        raise ValueError("unknown or inconsistent queue recovery mode")
+    if any(
+        any(key.startswith("__resume") for scope in (row, row["plan"]) for key in scope)
+        for row in queue["rows"]
+    ):
+        raise ValueError("resume is controller metadata, never a scientific plan flag")
     if queue.get("shared_gpu_policy") is not None:
         validate_policy(queue["shared_gpu_policy"])
     manifest, priority, initial = matrix_contract(Path(queue["source"]), Path(queue["manifest"]))
@@ -211,6 +225,416 @@ def verify(queue: dict) -> None:
         if manifest["schema"] != "graph-mhc-four-1" or priority != ("GM1",):
             raise ValueError("only GM1 may wait on the BR/F1/N1 dependency")
         verify_dependency(queue["dependency"])
+    if queue.get("mode") == RECOVERY_MODE:
+        verify_recovery(queue)
+
+
+def _file_seal(path: Path) -> dict:
+    return {"path": str(path), "sha256": sha256_file(path)}
+
+
+def _sealed_json(entry: dict) -> dict:
+    path = Path(entry["path"])
+    _dependency_server_path(path)
+    if sha256_file(path) != entry["sha256"]:
+        raise ValueError("recovery sealed file changed")
+    return read_json(path)
+
+
+def _assert_failed_parent(parent: dict, root: Path, *, stopped: bool = True) -> dict:
+    state = read_json(root / "state.json")
+    if (
+        state.get("status") != "failed"
+        or state.get("phase") != "failed"
+        or state.get("queue_sha256") != sha256_file(root / "queue.json")
+        or read_json(root / "FAILURE.json") != state
+        or (root / "COMPLETE.json").exists()
+        or state.get("completed")
+        or parent.get("mode") is not None
+    ):
+        raise ValueError("recovery requires the original unsuccessful BR-only queue")
+    fit_events = [
+        event
+        for event in state.get("events", [])
+        if event.get("event") == "start" and event.get("stage") == "fit"
+    ]
+    if [event["name"] for event in fit_events] != ["BR"]:
+        raise ValueError("recovery only admits one interrupted BR fit, before F1/N1")
+    if any(
+        Path(row["plan"][key]).exists()
+        for row in parent["rows"][1:]
+        for key in ("run_root", "test_root")
+    ):
+        raise ValueError("original F1/N1 artifacts exist; recovery scope is no longer untouched")
+    if stopped:
+        pids = {
+            state["pid"],
+            *(event["pid"] for event in fit_events),
+            *(item["pid"] for item in state.get("active", {}).values()),
+        }
+        if any(process_identity(pid) is not None for pid in pids):
+            raise ValueError("original controller or fit still live; recovery cannot adopt it")
+        paths = {str(root / "queue.json"), str(root / "BR.launch-plan.json")}
+        br = parent["rows"][0]["plan"]
+        paths.add(str(Path(br["run_root"]).parent / (br["run_id"] + ".launch-plan.json")))
+        for proc in Path("/proc").glob("[0-9]*/cmdline"):
+            if proc.parent.name == str(os.getpid()):
+                continue
+            try:
+                command = proc.read_bytes().split(b"\0")
+            except (FileNotFoundError, ProcessLookupError, PermissionError):
+                continue
+            if any(path.encode() in command for path in paths):
+                raise ValueError("original queue descendant is still live")
+    return state
+
+
+def _resume_evidence(plan: dict) -> dict:
+    root = Path(plan["run_root"])
+    journal_path = root / "fit/epoch_state.json"
+    journal = read_json(journal_path)
+    identity = read_json(root / "run_manifest.json")
+    config = plan["resolved_config"]
+    params = config["model"]["parameters"]
+    contract = {
+        "schedule": asdict(load_training_schedule(config["training"]["scheduler"]["value"])),
+        "teacher_start": params["teacher_start"]["value"],
+        "teacher_end": params["teacher_end"]["value"],
+        "microbatch": params["microbatch"]["value"],
+        "bf16": True,
+        "selection_metric": "final_epoch",
+    }
+    if (
+        read_json(root / "launch.json") != plan
+        or read_json(root / "resolved_config.json") != config
+        or journal["identity"] != identity
+        or identity["source"]["commit"] != RECOVERY_SOURCE
+        or identity["source"]["published_commit"] != RECOVERY_SOURCE
+        or identity["source"]["dirty"]
+        or identity["config_sha256"] != plan["config_sha256"]
+        or identity["resolved_config_sha256"] != sha256_json(config)
+        or identity["run_id"] != plan["run_id"]
+        or journal["budget"] != [4, 250]
+        or journal["contract"] != contract
+        or journal["epoch"] != 1
+        or journal["last"]["epoch"] != 1
+        or journal["last"]["file"] != "epoch-0001.pt"
+        or journal["best"] is not None
+        or journal.get("selection_metric") != "final_epoch"
+        or [row["epoch"] for row in read_json(root / "fit/history.json")] != [1]
+        or (root / "COMPLETE.json").exists()
+        or (root / "TRAIN_COMPLETE.json").exists()
+        or (root / "FAILURE.json").exists()
+        or Path(plan["test_root"]).exists()
+        or any(root.rglob("*.pkl"))
+    ):
+        raise ValueError(
+            "BR recovery requires the exact committed epoch-1 identity/budget/contract"
+        )
+    selected = (root / "fit" / journal["last"]["file"]).resolve(strict=True)
+    role = root / "fit/last.pt"
+    if (
+        not selected.is_relative_to((root / "fit").resolve())
+        or sha256_file(selected) != journal["last"]["sha256"]
+        or sha256_file(role) != journal["last"]["sha256"]
+    ):
+        raise ValueError("BR committed checkpoint or last role hash differs")
+    return {
+        "epoch": 1,
+        "budget": [4, 250],
+        "identity": identity,
+        "contract": contract,
+        "journal": _file_seal(journal_path),
+        "checkpoint": _file_seal(selected),
+        "last_role": _file_seal(role),
+        "history": _file_seal(root / "fit/history.json"),
+        "manifest": _file_seal(root / "run_manifest.json"),
+    }
+
+
+def _resolve_recovery_fresh(source: Path, row: dict, runtime: Path) -> dict:
+    """Resolve in the immutable scientific package, with CUDA hidden from CPU preparation."""
+    command = [
+        sys.executable,
+        "-c",
+        "import argparse,json,sys;from pathlib import Path;"
+        "from gradpert.execution.train_entry import resolve_plan;"
+        "print(json.dumps(resolve_plan(argparse.Namespace(config=Path(sys.argv[1]),"
+        "runtime=Path(sys.argv[2]),data_root=None,gpu='0,1',seed=1,defer_test=True))))",
+        str(source / row["config"]),
+        str(runtime),
+    ]
+    return json.loads(
+        subprocess.check_output(
+            command, cwd=source, env=child_environment(str(source), ""), text=True
+        )
+    )
+
+
+def _reused_final_plan(original: dict, base: dict) -> dict:
+    return {
+        **copy.deepcopy(base),
+        **{
+            key: copy.deepcopy(original[key])
+            for key in ("cuda_memory_fraction", "resource_schedule")
+        },
+    }
+
+
+def recovery_fit_command(queue: dict, row: dict, path: Path) -> list[str]:
+    if queue.get("mode") == RECOVERY_MODE and row["name"] == "BR":
+        return [
+            sys.executable,
+            "-m",
+            "torch.distributed.run",
+            "--standalone",
+            "--nproc_per_node",
+            "2",
+            str(Path(queue["source"]) / "scripts/v2/distributed_train.py"),
+            "--plan",
+            str(path),
+            "--resume",
+        ]
+    return [
+        sys.executable,
+        "-c",
+        "import json,sys;from gradpert.execution.train_entry import execute_plan;"
+        "execute_plan(json.load(open(sys.argv[1])))",
+        str(path),
+    ]
+
+
+def prepare_recovery(original_failed_queue_json: Path, output: Path) -> dict:
+    original_failed_queue_json = original_failed_queue_json.resolve(strict=True)
+    _dependency_server_path(original_failed_queue_json)
+    _dependency_server_path(output)
+    if output.exists():
+        raise FileExistsError("recovery requires a fresh queue root")
+    parent = read_json(original_failed_queue_json)
+    _dependency_contract(parent, original_failed_queue_json)
+    if parent["source_commit"] != RECOVERY_SOURCE or parent.get("dependency") is not None:
+        raise ValueError("recovery is restricted to the original b37 BR/F1/N1 scientific source")
+    verify(parent)
+    old_root = original_failed_queue_json.parent
+    state = _assert_failed_parent(parent, old_root)
+    if set(state.get("preflights", {})) != set(DEPENDENCY_ARMS) or (
+        set(state.get("plans", {})) != set(DEPENDENCY_ARMS)
+    ):
+        raise ValueError("recovery needs all three original finalized ten-step preflights")
+    source = Path(parent["source"])
+    matrix, _, _ = matrix_contract(source, Path(parent["manifest"]))
+    matrix_rows = {row["name"]: row for row in matrix["rows"]}
+    rows, seeded, old_plans, final_plans = [], {}, {}, {}
+    for row in parent["rows"]:
+        name = row["name"]
+        validate_preflight(row["plan"], state["preflights"][name])
+        preflight = read_json(state["preflights"][name]["receipt"])
+        if preflight.get("steps_completed") != 10 or preflight.get("kind") != "preflight_only":
+            raise ValueError("recovery needs exact ten-update preflight receipts")
+        old = _sealed_json(state["plans"][name])
+        if state["plans"][name]["path"] != str(old_root / f"{name}.launch-plan.json"):
+            raise ValueError("original finalized plan escaped its queue")
+        if {
+            k: v for k, v in old.items() if k not in ("cuda_memory_fraction", "resource_schedule")
+        } != row["plan"]:
+            raise ValueError("original finalized plan differs from frozen row")
+        expected_final = finalized_plan(
+            row,
+            state["preflights"][name],
+            old["resource_schedule"]["physical_total_bytes"],
+            parent.get("shared_gpu_policy"),
+        )
+        if old != expected_final:
+            raise ValueError("original finalized budget differs from its measured preflight")
+        old_plans[name] = _file_seal(Path(state["plans"][name]["path"]))
+        base = (
+            copy.deepcopy(row["plan"])
+            if name == "BR"
+            else _resolve_recovery_fresh(source, matrix_rows[name], Path(parent["runtime"]))
+        )
+        if name != "BR":
+            if base["run_id"] in {r["plan"]["run_id"] for r in parent["rows"]}:
+                raise ValueError("recovery F1/N1 must use newly resolved run IDs")
+            for key in ("run_root", "test_root"):
+                _dependency_server_path(Path(base[key]))
+                if Path(base[key]).exists():
+                    raise FileExistsError("recovery F1/N1 cannot replace existing artifacts")
+        rows.append({"name": name, "plan": base})
+        final = _reused_final_plan(old, base)
+        final_plans[name] = final
+        seeded[name] = {
+            "preflight": copy.deepcopy(state["preflights"][name]),
+            "plan": {
+                "path": str(output / f"{name}.launch-plan.json"),
+                "sha256": sha256_json(final),
+            },
+        }
+    resume = _resume_evidence(final_plans["BR"])
+    queue = {
+        **copy.deepcopy(parent),
+        "rows": rows,
+        "mode": RECOVERY_MODE,
+        "recovery": {
+            "schema": "unified-ddp-br-recovery-1",
+            "output": str(output),
+            "original_queue": _file_seal(original_failed_queue_json),
+            "original_state": _file_seal(old_root / "state.json"),
+            "original_failure": _file_seal(old_root / "FAILURE.json"),
+            "original_plans": old_plans,
+            "seeded": seeded,
+            "resume": resume,
+            "controller_source": {
+                "repository_root": str(Path(__file__).resolve().parents[2]),
+                "commit": subprocess.check_output(
+                    ["git", "-C", str(Path(__file__).resolve().parents[2]), "rev-parse", "HEAD"],
+                    text=True,
+                ).strip(),
+                "script": _file_seal(Path(__file__).resolve()),
+            },
+        },
+    }
+    output.mkdir()
+    checkpoint_backup = output / "BR-resume-epoch-0001.pt"
+    shutil.copyfile(resume["checkpoint"]["path"], checkpoint_backup)
+    if sha256_file(checkpoint_backup) != resume["checkpoint"]["sha256"]:
+        raise ValueError("recovery checkpoint backup differs from the committed input")
+    queue["recovery"]["checkpoint_backup"] = _file_seal(checkpoint_backup)
+    journal_backup = output / "BR-resume-epoch_state.json"
+    shutil.copyfile(resume["journal"]["path"], journal_backup)
+    if sha256_file(journal_backup) != resume["journal"]["sha256"]:
+        raise ValueError("recovery journal backup differs from the committed input")
+    queue["recovery"]["journal_backup"] = _file_seal(journal_backup)
+    for name, plan in final_plans.items():
+        atomic_json(output / f"{name}.launch-plan.json", plan)
+        seeded[name]["plan"]["sha256"] = sha256_file(output / f"{name}.launch-plan.json")
+    atomic_json(output / "queue.json", queue)
+    verify(queue)
+    return queue
+
+
+def verify_recovery(queue: dict) -> None:
+    recovery = queue["recovery"]
+    if set(recovery) != {
+        "schema",
+        "output",
+        "original_queue",
+        "original_state",
+        "original_failure",
+        "original_plans",
+        "seeded",
+        "resume",
+        "controller_source",
+        "checkpoint_backup",
+        "journal_backup",
+    } or (
+        recovery["schema"] != "unified-ddp-br-recovery-1"
+        or queue["source_commit"] != RECOVERY_SOURCE
+        or [row["name"] for row in queue["rows"]] != list(DEPENDENCY_ARMS)
+        or queue.get("dependency") is not None
+    ):
+        raise ValueError("unknown recovery scope or metadata")
+    root = Path(recovery["output"])
+    _dependency_server_path(root)
+    backup = recovery["checkpoint_backup"]
+    if backup["path"] != str(root / "BR-resume-epoch-0001.pt") or (
+        backup["sha256"] != recovery["resume"]["checkpoint"]["sha256"]
+        or sha256_file(Path(backup["path"])) != backup["sha256"]
+    ):
+        raise ValueError("recovery immutable checkpoint backup changed")
+    journal_backup = recovery["journal_backup"]
+    if journal_backup["path"] != str(root / "BR-resume-epoch_state.json") or (
+        journal_backup["sha256"] != recovery["resume"]["journal"]["sha256"]
+    ):
+        raise ValueError("recovery immutable journal backup changed")
+    _sealed_json(journal_backup)
+    controller = recovery["controller_source"]
+    script = Path(controller["script"]["path"])
+    if set(controller) != {"repository_root", "commit", "script"} or (
+        script != Path(controller["repository_root"]) / "scripts/v2/run_unified_ddp.py"
+        or sha256_file(script) != controller["script"]["sha256"]
+        or len(controller["commit"]) != 40
+        or any(char not in "0123456789abcdef" for char in controller["commit"])
+    ):
+        raise ValueError("recovery controller source metadata differs from its sealed script")
+    if (
+        set(recovery["resume"])
+        != {
+            "epoch",
+            "budget",
+            "identity",
+            "contract",
+            "journal",
+            "checkpoint",
+            "last_role",
+            "history",
+            "manifest",
+        }
+        or recovery["resume"]["epoch"] != 1
+        or recovery["resume"]["budget"] != [4, 250]
+    ):
+        raise ValueError("recovery resume metadata changed its committed boundary")
+    parent = _sealed_json(recovery["original_queue"])
+    verify(parent)
+    old_state = _sealed_json(recovery["original_state"])
+    _sealed_json(recovery["original_failure"])
+    marker = root / "RECOVERY_BR_STARTED.json"
+    _assert_failed_parent(
+        parent, Path(recovery["original_queue"]["path"]).parent, stopped=not marker.exists()
+    )
+    if set(recovery["seeded"]) != set(DEPENDENCY_ARMS) or (
+        set(recovery["original_plans"]) != set(DEPENDENCY_ARMS)
+    ):
+        raise ValueError("recovery preflight or plan scope changed")
+    original_rows = {row["name"]: row for row in parent["rows"]}
+    for row in queue["rows"]:
+        name = row["name"]
+        seed = recovery["seeded"][name]
+        if set(seed) != {"preflight", "plan"} or (
+            seed["preflight"] != old_state["preflights"][name]
+            or recovery["original_plans"][name]
+            != {key: old_state["plans"][name][key] for key in ("path", "sha256")}
+        ):
+            raise ValueError("recovery changed the original passed preflight evidence")
+        validate_preflight(row["plan"], seed["preflight"])
+        original = _sealed_json(recovery["original_plans"][name])
+        actual = _sealed_json(seed["plan"])
+        if seed["plan"]["path"] != str(root / f"{name}.launch-plan.json") or (
+            actual != _reused_final_plan(original, row["plan"])
+        ):
+            raise ValueError("recovery finalized budget or launch identity changed")
+        base = row["plan"]
+        old = original_rows[name]["plan"]
+        omitted = {"run_id", "run_root", "test_root"}
+        if name == "BR":
+            if base != old or actual != original:
+                raise ValueError("only exact BR plan may resume")
+        elif (
+            {k: v for k, v in base.items() if k not in omitted}
+            != {k: v for k, v in old.items() if k not in omitted}
+            or base["run_id"] in {r["plan"]["run_id"] for r in parent["rows"]}
+            or base["run_root"] != str(Path(old["run_root"]).parent / base["run_id"])
+            or base["test_root"] != str(Path(old["test_root"]).parent / (base["run_id"] + "-test"))
+        ):
+            raise ValueError("F1/N1 recovery must be fresh with unchanged scientific settings")
+    if any(
+        len({row["plan"][key] for row in queue["rows"]}) != 3
+        for key in ("run_id", "run_root", "test_root")
+    ):
+        raise ValueError("recovery run IDs and artifact roots must be distinct")
+    if marker.exists():
+        started = read_json(marker)
+        expected_command = recovery_fit_command(
+            queue, queue["rows"][0], root / "BR.launch-plan.json"
+        )
+        if set(started) != {"queue_sha256", "source_commit", "command", "identity"} or (
+            started["queue_sha256"] != sha256_file(root / "queue.json")
+            or started["source_commit"] != RECOVERY_SOURCE
+            or started["command"] != expected_command
+            or not {"pid", "command_sha256", "start_ticks"}.issubset(started["identity"])
+        ):
+            raise ValueError("recovery progress lacks the exact authorized BR launch marker")
+    elif _resume_evidence(read_json(root / "BR.launch-plan.json")) != recovery["resume"]:
+        raise ValueError("BR checkpoint/journal drifted before resume dispatch")
 
 
 def _dependency_contract(parent: dict, path: Path) -> dict:
@@ -362,7 +786,8 @@ def wait_dependency(dependency: dict, state: dict, record) -> None:
                 if (
                     training["epoch"] != 4
                     or training["last"]["epoch"] != 4
-                    or training["last"]["file"] != "last.pt"
+                    or sha256_file(Path(plan["run_root"]) / "fit/last.pt")
+                    != training["last"]["sha256"]
                 ):
                     raise ValueError(
                         "dependency checkpoint differs from the sealed epoch-4 last.pt"
@@ -545,6 +970,24 @@ def execute(queue: dict, directory: Path) -> None:
             start_new_session=True,
         )
         identity = _capture_process_identity(child)
+        if queue.get("mode") == RECOVERY_MODE and row["name"] == "BR" and stage == "fit":
+            marker = directory / "RECOVERY_BR_STARTED.json"
+            if marker.exists() or command != recovery_fit_command(
+                queue, row, directory / "BR.launch-plan.json"
+            ):
+                _stop_unverified_child(child)
+                raise ValueError(
+                    "recovery BR may be dispatched exactly once with its sealed command"
+                )
+            atomic_json(
+                marker,
+                {
+                    "queue_sha256": state["queue_sha256"],
+                    "source_commit": queue["source_commit"],
+                    "command": command,
+                    "identity": identity,
+                },
+            )
         item = {
             "name": row["name"],
             "stage": stage,
@@ -673,6 +1116,19 @@ def execute(queue: dict, directory: Path) -> None:
         record()
         try:
             verify(queue)
+            if queue.get("mode") == RECOVERY_MODE:
+                if (directory / "RECOVERY_BR_STARTED.json").exists():
+                    raise ValueError("recovery queue cannot restart an already dispatched BR")
+                for name, seed in queue["recovery"]["seeded"].items():
+                    plan = read_json(seed["plan"]["path"])
+                    validate_preflight(plan, seed["preflight"])
+                    state["preflights"][name] = copy.deepcopy(seed["preflight"])
+                    state["plans"][name] = {
+                        **copy.deepcopy(seed["plan"]),
+                        "fit_fraction": plan["cuda_memory_fraction"],
+                    }
+                state["phase"] = "recovery_preflight_reused"
+                record()
             if queue.get("dependency") is not None:
                 wait_dependency(queue["dependency"], state, record)
                 verify(queue)
@@ -712,19 +1168,15 @@ def execute(queue: dict, directory: Path) -> None:
                         drain_eval(stack)
                 if active_eval is not None and active_eval[0].poll() is not None:
                     drain_eval(stack)
-                if (
-                    Path(actual["plan"]["run_root"]).exists()
-                    or Path(actual["plan"]["test_root"]).exists()
+                resume_br = queue.get("mode") == RECOVERY_MODE and row["name"] == "BR"
+                if Path(actual["plan"]["test_root"]).exists() or (
+                    Path(actual["plan"]["run_root"]).exists() and not resume_br
                 ):
                     raise FileExistsError("fresh fit cannot replace prior run")
+                if resume_br and _resume_evidence(actual["plan"]) != queue["recovery"]["resume"]:
+                    raise ValueError("BR resume checkpoint changed immediately before dispatch")
                 state["phase"] = "dual_gpu_fit"
-                command = [
-                    sys.executable,
-                    "-c",
-                    "import json,sys;from gradpert.execution.train_entry import execute_plan;"
-                    "execute_plan(json.load(open(sys.argv[1])))",
-                    str(path),
-                ]
+                command = recovery_fit_command(queue, actual, path)
                 active_fit = start(actual, "fit", command, "0,1", stack)
                 if budget == 0.65 and active_eval is None and pending_evals:
                     start_eval(pending_evals.pop(0), stack)
@@ -771,8 +1223,29 @@ def main():
     parser.add_argument("--uncapped", action="store_true")
     parser.add_argument("--shared-policy", type=Path)
     parser.add_argument("--dependency-queue", type=Path)
+    parser.add_argument("--recover-from", type=Path)
     args = parser.parse_args()
-    if args.evaluate:
+    if args.recover_from:
+        if (
+            not args.output
+            or any(
+                (
+                    args.manifest,
+                    args.runtime,
+                    args.queue,
+                    args.evaluate,
+                    args.shared_policy,
+                    args.dependency_queue,
+                    args.uncapped,
+                )
+            )
+            or args.attempt != 1
+        ):
+            parser.error(
+                "recovery requires only recover-from/output; no ordinary preparation flags"
+            )
+        prepare_recovery(args.recover_from, args.output)
+    elif args.evaluate:
         evaluate_attempt(
             read_json(args.evaluate),
             args.attempt,

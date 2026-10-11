@@ -3,6 +3,7 @@
 import contextlib
 import copy
 import json
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,7 +15,7 @@ from gradpert.config import load_experiment_config
 from gradpert.config.v2 import V2Options
 from gradpert.data._io import atomic_json, read_json
 from gradpert.execution import v2_training_stage
-from gradpert.hashing import sha256_file
+from gradpert.hashing import sha256_file, sha256_json
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/v2"))
@@ -239,7 +240,8 @@ def dependency_parent(tmp_path, monkeypatch):
         "rows": [],
     }
     for name in ddp.DEPENDENCY_ARMS:
-        config = source / f"{name}.yaml"
+        config = source / name / "gradpert_v2/nadig_jurkat.yaml"
+        config.parent.mkdir(parents=True)
         config.write_text("{}")
         parent["rows"].append(
             {
@@ -505,6 +507,7 @@ def test_dependency_complete_rejects_bad_scientific_receipts(dependency_parent, 
         (run / "fit/last.pt").write_bytes(b"changed")
     elif corruption == "checkpoint_path":
         (run / "fit/last.pt").rename(run / "fit/other.pt")
+        (run / "fit/last.pt").write_bytes(b"wrong last role alias")
         journal = read_json(run / "fit/epoch_state.json")
         journal["last"]["file"] = "other.pt"
         atomic_json(run / "fit/epoch_state.json", journal)
@@ -691,3 +694,553 @@ def test_exclusive_gm1_stops_after_preflight_until_main_acceptance(tmp_path, mon
     with pytest.raises(RuntimeError, match="synthetic stop at acceptance barrier"):
         ddp.execute(queue, directory)
     assert launches == [["synthetic-preflight"]]
+
+
+@pytest.fixture
+def failed_ffn_parent(tmp_path, monkeypatch):
+    """A stopped BR at a committed epoch boundary, with all three real CPU-valid probes."""
+    resolve_cpu = ddp._resolve_recovery_fresh
+    source, root = tmp_path / "b37-source", tmp_path / "failed-queue"
+    source.mkdir()
+    root.mkdir()
+    monkeypatch.setattr(ddp, "SERVER_ROOT", tmp_path)
+    monkeypatch.setattr(ddp, "LEASE_ROOT", tmp_path / "leases")
+    monkeypatch.setattr(ddp, "process_identity", lambda _pid: None)
+    monkeypatch.setattr(
+        ddp,
+        "inspect_source_identity",
+        lambda *_a, **_kw: SimpleNamespace(commit=ddp.RECOVERY_SOURCE, dirty=False),
+    )
+    publication, runtime = source / "publication.json", tmp_path / "runtime.json"
+    atomic_json(publication, {})
+    atomic_json(runtime, {})
+    parent = {
+        "schema": ddp.SCHEMA,
+        "source": str(source),
+        "source_commit": ddp.RECOVERY_SOURCE,
+        "manifest": str(source / "manifest.json"),
+        "runtime": str(runtime),
+        "runtime_sha256": sha256_file(runtime),
+        "steps": 10,
+        "initial_preflight": ["F1", "BR", "N1"],
+        "rows": [],
+        "deferred_arms": [],
+    }
+    matrix = {"schema": "ffn-four-1", "epochs": 4, "rows": []}
+    for name in ddp.DEPENDENCY_ARMS:
+        original_config = (
+            ROOT / f"configs/v2/ffn_four_20261011/{name}/gradpert_v2/nadig_jurkat.yaml"
+        )
+        config = source / name / "gradpert_v2/nadig_jurkat.yaml"
+        config.parent.mkdir(parents=True)
+        config.write_bytes(original_config.read_bytes())
+        matrix["rows"].append(
+            {"name": name, "config": str(config.relative_to(source)), "sha256": sha256_file(config)}
+        )
+        parent["rows"].append(
+            {
+                "name": name,
+                "plan": {
+                    "run_id": f"original-{name}",
+                    "run_root": str(tmp_path / f"original-{name}"),
+                    "test_root": str(tmp_path / f"original-{name}-test"),
+                    "config": str(config),
+                    "config_sha256": sha256_file(config),
+                    "resolved_config": load_experiment_config(config).model_dump(mode="json"),
+                    "repository_root": str(source),
+                    "source_commit": ddp.RECOVERY_SOURCE,
+                    "runtime": str(runtime),
+                    "runtime_sha256": sha256_file(runtime),
+                    "publication": str(publication),
+                    "publication_sha256": sha256_file(publication),
+                    "data_root": str(tmp_path / "canonical-data"),
+                    "seed": 1,
+                    "gpu": "0,1",
+                    "postfit_policy": "deferred",
+                },
+            }
+        )
+    atomic_json(source / "manifest.json", matrix)
+    parent["manifest_sha256"] = sha256_file(source / "manifest.json")
+    monkeypatch.setattr(
+        ddp, "matrix_contract", lambda *_: (matrix, ddp.DEPENDENCY_ARMS, ["F1", "BR", "N1"])
+    )
+    atomic_json(root / "queue.json", parent)
+    state = {
+        "schema": ddp.SCHEMA,
+        "pid": 9001,
+        "queue_sha256": sha256_file(root / "queue.json"),
+        "status": "failed",
+        "phase": "failed",
+        "completed": {},
+        "active": {},
+        "events": [{"event": "start", "name": "BR", "stage": "fit", "pid": 9002}],
+        "plans": {},
+        "preflights": {},
+    }
+    finals = {}
+    for row in parent["rows"]:
+        name, plan = row["name"], row["plan"]
+        receipt = root / f"{name}-preflight/receipt.json"
+        receipt.parent.mkdir()
+        atomic_json(
+            receipt,
+            {
+                "kind": "preflight_only",
+                "status": "passed",
+                "steps_completed": 10,
+                "resume_checkpoint_sha256": "restored-checkpoint-sha",
+                "inference_exercised": True,
+                "inference_shape": [300, 100],
+                "source": {
+                    "commit": ddp.RECOVERY_SOURCE,
+                    "published_commit": ddp.RECOVERY_SOURCE,
+                    "dirty": False,
+                },
+                "config_sha256": plan["config_sha256"],
+                "data_root": plan["data_root"],
+                "data": {"run_seed": 1},
+                "world_size": 2,
+                "peak_allocated_bytes": 60,
+                "peak_reserved_bytes": 60,
+                "last_terms": {"gradient_norm": 1.0},
+            },
+        )
+        state["preflights"][name] = {"receipt": str(receipt), "sha256": sha256_file(receipt)}
+        final = ddp.finalized_plan(row, state["preflights"][name], 100)
+        path = root / f"{name}.launch-plan.json"
+        atomic_json(path, final)
+        state["plans"][name] = {
+            "path": str(path),
+            "sha256": sha256_file(path),
+            "fit_fraction": final["cuda_memory_fraction"],
+        }
+        finals[name] = final
+    atomic_json(root / "state.json", state)
+    atomic_json(root / "FAILURE.json", state)
+    br_plan = finals["BR"]
+    br = Path(br_plan["run_root"])
+    (br / "fit").mkdir(parents=True)
+    atomic_json(br / "launch.json", br_plan)
+    atomic_json(br / "resolved_config.json", br_plan["resolved_config"])
+    identity = {
+        "source": {
+            "commit": ddp.RECOVERY_SOURCE,
+            "published_commit": ddp.RECOVERY_SOURCE,
+            "dirty": False,
+        },
+        "environment": {"original": True},
+        "config_sha256": br_plan["config_sha256"],
+        "resolved_config_sha256": sha256_json(br_plan["resolved_config"]),
+        "run_id": br_plan["run_id"],
+    }
+    atomic_json(br / "run_manifest.json", identity)
+    atomic_json(br / "fit/history.json", [{"epoch": 1}])
+    checkpoint = br / "fit/epoch-0001.pt"
+    checkpoint.write_bytes(b"synthetic complete optimizer teacher center RNG checkpoint")
+    (br / "fit/last.pt").write_bytes(checkpoint.read_bytes())
+    params, training = (
+        br_plan["resolved_config"]["model"]["parameters"],
+        br_plan["resolved_config"]["training"],
+    )
+    journal = {
+        "identity": identity,
+        "epoch": 1,
+        "budget": [4, 250],
+        "best": None,
+        "selection_metric": "final_epoch",
+        "last": {"epoch": 1, "file": "epoch-0001.pt", "sha256": sha256_file(checkpoint)},
+        "contract": {
+            "schedule": {
+                key: training["scheduler"]["value"][key]
+                for key in ("max_lr", "min_lr", "warmup_fraction")
+            },
+            "teacher_start": params["teacher_start"]["value"],
+            "teacher_end": params["teacher_end"]["value"],
+            "microbatch": params["microbatch"]["value"],
+            "bf16": True,
+            "selection_metric": "final_epoch",
+        },
+    }
+    atomic_json(br / "fit/epoch_state.json", journal)
+    resolved_names = []
+
+    def resolver(_source, row, _runtime):
+        name = row["name"]
+        resolved_names.append(name)
+        assert name in ("F1", "N1"), "BR must preserve its original resolved identity"
+        base = copy.deepcopy(next(r["plan"] for r in parent["rows"] if r["name"] == name))
+        base.update(
+            run_id=f"fresh-{name}",
+            run_root=str(tmp_path / f"fresh-{name}"),
+            test_root=str(tmp_path / f"fresh-{name}-test"),
+        )
+        return base
+
+    monkeypatch.setattr(ddp, "_resolve_recovery_fresh", resolver)
+    ddp.verify(parent)
+    return SimpleNamespace(
+        root=root,
+        source=source,
+        parent=parent,
+        state=state,
+        br=br,
+        journal=journal,
+        finals=finals,
+        resolved_names=resolved_names,
+        prepare=lambda: ddp.prepare_recovery(root / "queue.json", tmp_path / "recovery"),
+        resolve_cpu=resolve_cpu,
+    )
+
+
+def test_recovery_only_br_preserves_original_plans_and_reuses_preflights(failed_ffn_parent):
+    fixture = failed_ffn_parent
+    original_bytes = {str(path): path.read_bytes() for path in fixture.root.rglob("*.json")}
+    original_launch = (fixture.br / "launch.json").read_bytes()
+    queue = fixture.prepare()
+    assert fixture.resolved_names == ["F1", "N1"]
+    assert [row["plan"]["run_id"] for row in queue["rows"]] == [
+        "original-BR",
+        "fresh-F1",
+        "fresh-N1",
+    ]
+    assert queue["rows"][0]["plan"] == fixture.parent["rows"][0]["plan"]
+    assert queue["source_commit"] == ddp.RECOVERY_SOURCE
+    assert queue["recovery"]["resume"]["budget"] == [4, 250]
+    assert queue["recovery"]["resume"]["checkpoint"]["path"].endswith("epoch-0001.pt")
+    assert queue["recovery"]["resume"]["last_role"]["path"].endswith("last.pt")
+    assert (fixture.br / "launch.json").read_bytes() == original_launch
+    for path, payload in original_bytes.items():
+        assert Path(path).read_bytes() == payload
+    for name, seed in queue["recovery"]["seeded"].items():
+        assert seed["preflight"] == fixture.state["preflights"][name]
+        actual = read_json(seed["plan"]["path"])
+        assert actual["resource_schedule"] == fixture.finals[name]["resource_schedule"]
+        assert actual["cuda_memory_fraction"] == fixture.finals[name]["cuda_memory_fraction"]
+    backup = queue["recovery"]["checkpoint_backup"]
+    assert sha256_file(Path(backup["path"])) == queue["recovery"]["resume"]["checkpoint"]["sha256"]
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    [
+        "live",
+        "not_failed",
+        "other_arm_started",
+        "old_f1_root",
+        "budget",
+        "identity",
+        "contract",
+        "epoch",
+        "checkpoint",
+        "alias",
+        "no_journal",
+        "partial_epoch",
+        "probe",
+        "source",
+        "fresh_id",
+        "scope",
+    ],
+)
+def test_recovery_rejects_unowned_or_uncommitted_resume(failed_ffn_parent, monkeypatch, corruption):
+    fixture = failed_ffn_parent
+    if corruption == "live":
+        monkeypatch.setattr(ddp, "process_identity", lambda pid: {"pid": pid})
+    elif corruption in ("not_failed", "other_arm_started"):
+        if corruption == "not_failed":
+            fixture.state["status"] = "running"
+        else:
+            fixture.state["events"].append(
+                {"event": "start", "stage": "fit", "name": "F1", "pid": 9999}
+            )
+        atomic_json(fixture.root / "state.json", fixture.state)
+        atomic_json(fixture.root / "FAILURE.json", fixture.state)
+    elif corruption == "old_f1_root":
+        Path(fixture.parent["rows"][1]["plan"]["run_root"]).mkdir()
+    elif corruption in ("budget", "identity", "contract", "epoch", "partial_epoch"):
+        journal = copy.deepcopy(fixture.journal)
+        if corruption == "budget":
+            journal["budget"] = [4, 251]
+        elif corruption == "identity":
+            journal["identity"]["environment"] = {"changed": True}
+        elif corruption == "contract":
+            journal["contract"]["teacher_end"] = 0.9
+        elif corruption == "epoch":
+            journal["epoch"] = 2
+        else:
+            journal["epoch"] = 0
+        atomic_json(fixture.br / "fit/epoch_state.json", journal)
+    elif corruption in ("checkpoint", "alias", "no_journal"):
+        path = (
+            fixture.br
+            / "fit"
+            / {"checkpoint": "epoch-0001.pt", "alias": "last.pt", "no_journal": "epoch_state.json"}[
+                corruption
+            ]
+        )
+        if corruption == "no_journal":
+            path.unlink()
+        else:
+            path.write_bytes(b"changed")
+    elif corruption == "probe":
+        path = Path(fixture.state["preflights"]["BR"]["receipt"])
+        receipt = read_json(path)
+        receipt["steps_completed"] = 9
+        atomic_json(path, receipt)
+    elif corruption == "source":
+        fixture.parent["source_commit"] = "new-scientific-sha"
+        atomic_json(fixture.root / "queue.json", fixture.parent)
+    elif corruption == "scope":
+        fixture.parent["rows"][2]["name"] = "GM1"
+        atomic_json(fixture.root / "queue.json", fixture.parent)
+    else:
+        monkeypatch.setattr(
+            ddp,
+            "_resolve_recovery_fresh",
+            lambda _s, row, _r: copy.deepcopy(
+                next(r["plan"] for r in fixture.parent["rows"] if r["name"] == row["name"])
+            ),
+        )
+    with pytest.raises((ValueError, FileNotFoundError)):
+        fixture.prepare()
+
+
+@pytest.mark.parametrize("drift", ["journal", "checkpoint", "plan", "preflight", "metadata"])
+def test_recovery_seal_rejects_drift_before_dispatch(failed_ffn_parent, drift):
+    fixture = failed_ffn_parent
+    queue = fixture.prepare()
+    if drift in ("journal", "checkpoint"):
+        path = Path(queue["recovery"]["resume"][drift]["path"])
+        if drift == "journal":
+            value = read_json(path)
+            value["selection_start_epoch"] = 999
+            atomic_json(path, value)
+        else:
+            path.write_bytes(b"new checkpoint")
+    elif drift == "plan":
+        path = Path(queue["recovery"]["seeded"]["BR"]["plan"]["path"])
+        value = read_json(path)
+        value["cuda_memory_fraction"] = 0.3
+        atomic_json(path, value)
+    elif drift == "preflight":
+        path = Path(queue["recovery"]["seeded"]["BR"]["preflight"]["receipt"])
+        path.write_text("{}")
+    else:
+        queue["recovery"]["unexpected_mode"] = True
+    with pytest.raises(ValueError):
+        ddp.verify(queue)
+
+
+def test_recovery_command_and_cpu_resolver_keep_old_scientific_source(
+    failed_ffn_parent, monkeypatch
+):
+    fixture = failed_ffn_parent
+    queue = fixture.prepare()
+    br_command = ddp.recovery_fit_command(
+        queue, queue["rows"][0], Path(queue["recovery"]["seeded"]["BR"]["plan"]["path"])
+    )
+    assert br_command[-1] == "--resume"
+    assert br_command[6] == str(fixture.source / "scripts/v2/distributed_train.py")
+    for row in queue["rows"][1:]:
+        command = ddp.recovery_fit_command(queue, row, Path("fresh.launch-plan.json"))
+        assert "--resume" not in command and "execute_plan" in command[2]
+    from run_unified_group import child_environment
+
+    environment = child_environment(str(fixture.source), "0,1")
+    assert environment["PYTHONPATH"] == str(fixture.source / "src")
+    assert environment["CUDA_VISIBLE_DEVICES"] == "0,1"
+    calls = []
+
+    def resolve(command, **kwargs):
+        calls.append((command, kwargs))
+        return json.dumps(queue["rows"][1]["plan"])
+
+    monkeypatch.setattr(ddp.subprocess, "check_output", resolve)
+    matrix_row = {"config": "F1/gradpert_v2/nadig_jurkat.yaml"}
+    plan = fixture.resolve_cpu(fixture.source, matrix_row, Path(queue["runtime"]))
+    assert plan["source_commit"] == ddp.RECOVERY_SOURCE
+    assert calls[0][1]["cwd"] == fixture.source
+    assert calls[0][1]["env"]["PYTHONPATH"] == str(fixture.source / "src")
+    assert calls[0][1]["env"]["CUDA_VISIBLE_DEVICES"] == ""
+    assert calls[0][0][-2:] == [str(fixture.source / matrix_row["config"]), queue["runtime"]]
+
+
+def test_recovery_executor_reuses_probes_and_resumes_only_br(failed_ffn_parent, monkeypatch):
+    fixture = failed_ffn_parent
+    queue = fixture.prepare()
+    root = Path(queue["recovery"]["output"])
+    original_launch = (fixture.br / "launch.json").read_bytes()
+    monkeypatch.setenv("PYTORCH_ALLOC_CONF", ddp.ALLOCATOR)
+    monkeypatch.setattr(ddp, "probe", lambda *_: pytest.fail("recovery must reuse passed probes"))
+    monkeypatch.setattr(ddp, "snapshot", lambda *_: pytest.fail("exclusive has no shared snapshot"))
+    monkeypatch.setattr(ddp, "gpu_processes_owned", lambda: True)
+    monkeypatch.setattr(ddp, "validate_training_stage", lambda _plan: {})
+    monkeypatch.setattr(ddp, "validate_completed", lambda plan: {"run_id": plan["run_id"]})
+    monkeypatch.setattr(
+        ddp,
+        "_capture_process_identity",
+        lambda child: {"pid": child.pid, "start_ticks": str(child.pid), "command_sha256": "cmd"},
+    )
+    launches = []
+
+    @contextlib.contextmanager
+    def lock(_path):
+        yield
+
+    monkeypatch.setattr(ddp, "lock", lock)
+
+    def launch(command, **kwargs):
+        launches.append(command)
+        assert kwargs["cwd"] == str(fixture.source)
+        assert kwargs["env"]["PYTHONPATH"] == str(fixture.source / "src")
+        assert kwargs["env"]["PYTORCH_ALLOC_CONF"] == ddp.ALLOCATOR
+        assert kwargs["env"]["CUDA_VISIBLE_DEVICES"] in ("0", "0,1")
+        if "--resume" in command:
+            assert len(launches) == 1
+            assert command[6] == str(fixture.source / "scripts/v2/distributed_train.py")
+        elif command[1] == "-c":
+            actual = read_json(command[-1])
+            Path(actual["run_root"]).mkdir()
+
+        def finish():
+            if "--resume" in command:
+                journal = read_json(fixture.br / "fit/epoch_state.json")
+                journal["epoch"] = 2
+                atomic_json(fixture.br / "fit/epoch_state.json", journal)
+                # Match immutable b37 lifecycle pruning after the next epoch commit.
+                (fixture.br / "fit/epoch-0001.pt").unlink()
+            return 0
+
+        return SimpleNamespace(pid=10000 + len(launches), wait=finish, poll=lambda: None)
+
+    monkeypatch.setattr(ddp.subprocess, "Popen", launch)
+    ddp.execute(queue, root)
+    assert len(launches) == 6
+    assert sum("--resume" in command for command in launches) == 1
+    assert read_json(root / "COMPLETE.json")["status"] == "complete"
+    assert list(read_json(root / "state.json")["preflights"]) == ["BR", "F1", "N1"]
+    assert (fixture.br / "launch.json").read_bytes() == original_launch
+    assert read_json(root / "RECOVERY_BR_STARTED.json")["source_commit"] == ddp.RECOVERY_SOURCE
+    assert not (fixture.br / "fit/epoch-0001.pt").exists()
+    backup = Path(queue["recovery"]["checkpoint_backup"]["path"])
+    assert sha256_file(backup) == queue["recovery"]["resume"]["checkpoint"]["sha256"]
+    ddp.verify(queue)
+    backup.write_bytes(b"corrupted preserved input")
+    with pytest.raises(ValueError, match="immutable checkpoint backup"):
+        ddp.verify(queue)
+
+
+@pytest.mark.parametrize("self_process", [True, False])
+def test_recovery_proc_scan_excludes_only_its_own_preparation_process(
+    failed_ffn_parent, tmp_path, monkeypatch, self_process
+):
+    fixture = failed_ffn_parent
+    pid = os.getpid() if self_process else os.getpid() + 100000
+    proc = tmp_path / str(pid) / "cmdline"
+    proc.parent.mkdir()
+    proc.write_bytes(
+        f"python\0new/run_unified_ddp.py\0--recover-from\0{fixture.root}/queue.json\0".encode()
+    )
+    original_glob = Path.glob
+
+    def glob(path, pattern, **kwargs):
+        if str(path) == "/proc" and pattern == "[0-9]*/cmdline":
+            return iter([proc])
+        return original_glob(path, pattern, **kwargs)
+
+    monkeypatch.setattr(Path, "glob", glob)
+    if self_process:
+        assert fixture.prepare()["mode"] == ddp.RECOVERY_MODE
+    else:
+        with pytest.raises(ValueError, match="descendant is still live"):
+            fixture.prepare()
+
+
+def test_fresh_queue_still_rejects_existing_br_root(failed_ffn_parent, monkeypatch):
+    fixture = failed_ffn_parent
+    queue = fixture.prepare()
+    queue.pop("mode")
+    recovery = queue.pop("recovery")
+    root = Path(recovery["output"])
+    monkeypatch.setenv("PYTORCH_ALLOC_CONF", ddp.ALLOCATOR)
+    monkeypatch.setattr(ddp, "probe", lambda *_: pytest.fail("synthetic probes already seeded"))
+    monkeypatch.setattr(
+        ddp.subprocess, "Popen", lambda *_a, **_kw: pytest.fail("existing run launch")
+    )
+    # Only bypass probe production in this default-path regression; freshness remains real.
+    queue["initial_preflight"] = []
+    monkeypatch.setattr(ddp, "verify", lambda *_: None)
+
+    @contextlib.contextmanager
+    def lock(_path):
+        yield
+
+    monkeypatch.setattr(ddp, "lock", lock)
+    monkeypatch.setattr(ddp, "needs_preflight_acceptance", lambda *_: False)
+    # The default path would run probes; prove the same existing-root guard directly
+    # after simulating those already-passed probes through the seeded recovery state.
+    atomic = ddp.atomic_json
+
+    def record(path, value):
+        if path == root / "state.json":
+            for name, seed in recovery["seeded"].items():
+                value["preflights"][name] = seed["preflight"]
+                value["plans"][name] = seed["plan"]
+        atomic(path, value)
+
+    monkeypatch.setattr(ddp, "atomic_json", record)
+    with pytest.raises(FileExistsError, match="fresh fit cannot replace prior run"):
+        ddp.execute(queue, root)
+
+
+def test_recovery_cli_selects_only_recovery_preparation(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_unified_ddp.py", "--recover-from", "old/queue.json", "--output", "new/queue"],
+    )
+    monkeypatch.setattr(
+        ddp, "prepare_recovery", lambda original, output: calls.append((original, output))
+    )
+    monkeypatch.setattr(ddp, "prepare", lambda *_a, **_kw: pytest.fail("ordinary prepare selected"))
+    ddp.main()
+    assert calls == [(Path("old/queue.json"), Path("new/queue"))]
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ["--manifest", "manifest.json"],
+        ["--runtime", "runtime.json"],
+        ["--queue", "queue.json"],
+        ["--evaluate", "plan.json"],
+        ["--dependency-queue", "dependency.json"],
+        ["--shared-policy", "policy.json"],
+        ["--attempt", "2"],
+        ["--uncapped"],
+    ],
+)
+def test_recovery_cli_rejects_mixed_modes(monkeypatch, extra):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run_unified_ddp.py", "--recover-from", "old/queue.json", "--output", "new/queue", *extra],
+    )
+    monkeypatch.setattr(ddp, "prepare_recovery", lambda *_a: pytest.fail("mixed recovery mode"))
+    with pytest.raises(SystemExit) as error:
+        ddp.main()
+    assert error.value.code == 2
+
+
+@pytest.mark.parametrize("field", ["mode", "__resume_flag"])
+def test_queue_verification_rejects_unknown_recovery_mode_or_scientific_resume_flags(
+    failed_ffn_parent, field
+):
+    queue = copy.deepcopy(failed_ffn_parent.parent)
+    if field == "mode":
+        queue["mode"] = "resume_everything"
+    else:
+        queue["rows"][1]["plan"][field] = True
+    with pytest.raises(ValueError, match=r"recovery mode|scientific plan flag"):
+        ddp.verify(queue)

@@ -301,3 +301,17 @@ an active immutable source. Verify clean source/publication identity after stagi
 ## 2026-10-09：不要把最大容量测试当作每次启动门槛
 
 错误：沿用历史128步持续测试，给三个小机制改动逐组重复长压力测试。用户修订：以后默认10次完整优化更新即可，保留恢复和推理检查。预防：新v2队列使用短程10步门；历史长压力测试只作为历史证据，不自动重跑或把短检验称为长期容量证明。
+
+
+## 2026-10-11：CPU 合成测试必须隐藏 CUDA
+
+- 已确认错误：发布 GM1 后在服务器直接运行 pytest，checkpoint RNG 保存调用
+  `torch.cuda.get_rng_state_all()`，使 CPU 测试也创建498MiB CUDA上下文。
+  pytest PID2337434 属于我们 UID1002、在训练控制器树外；共享GPU保护因此
+  正确停止 BR。不能把它描述成其他用户任务或模型 OOM。
+- 修正：服务器CPU测试用 `scripts/v2/run_cpu_tests.py` 的隔离子进程，
+  在导入 torch 前强制 `CUDA_VISIBLE_DEVICES=""` 并检查 CUDA 不可用；
+  CPU 配置解析、checkpoint 核验同样隐藏 GPU。真实CUDA子训练仍显式选择卡。
+- 预防：部署时不能仅凭测试名称或张量device=cpu判断无CUDA副作用。
+  不放宽资源保护；保留失败队列证据，按原科学源码、配置、日程及完整状态
+  从最后已提交 epoch 恢复，并单独记录恢复控制器版本/attempt。
