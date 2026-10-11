@@ -48,3 +48,12 @@ GM1首个已发布源码为`93ed39d02fa76730630a718d79c489b6adf64f48`。服务�
 后续CPU测试使用显式隐藏CUDA的独立子进程；CPU配置解析与checkpoint核验也隐藏CUDA，不放宽资源门。BR原科学源码`b37b171fd68cb29e5c8142c66778aac6da9a6f06`不变，完整恢复epoch1 checkpoint（SHA256 `b9584aa54883d231e7a64ec5a305eeab950f450de7f4a3d4e866128b786f2130`），包括Student、Teacher、center、optimizer和两rank RNG，继续原4轮1000更新日程；重做未提交的epoch2前16步。新控制器和attempt单独版本化，不覆盖旧队列或原launch。F1/N1未启动，仍使用原科学配置并解析新ID。三组十步预检原证据可重用，因为科学源码/配置均未改变；只验收恢复执行本身。GM1绑定新恢复队列的真终态，不绑定失败队列。
 
 恢复控制器首次发布`3102fcd40a04980e22339349973961893d5791d0`服务器CPU隔离复核289通过（60.63秒）。其新恢复队列`v2-ffn-recovery-3102fcd-20261011T123239Z`在无BR子进程时被新ScButterfly PID2337671、UID1003（GPU0 720MiB）拒绝；此进程不属于原pinned白名单。没有BR新更新、没有GM1模型预检，旧队列与备份保留。后续仅改控制器无活动子任务时的资源等待，保留原白名单、内存预算和实际训练5秒保护；不让新PID继承旧许可，不触碰他人的进程。真实训练恢复仍由资源门决定。
+
+## 实际新队列
+
+发布`430a1326aeabdb2e326d840295f6b31d2d9bc3c2`，服务器隐藏CUDA检查295通过（60.69秒）。主与Luna核验两控制器/源码/配置/publication/queue/checkpoint备份：`v2-ffn-recovery-430a132-20261011T124207Z`CPU waiting_shared_resources，`v2-graph-mhc-430a132-20261011T124207Z`CPU waiting_dependency，均无GPU子任务。BR仍只提交epoch1，尚无新恢复更新；新ScButterfly PID不继承旧白名单，资源门保持严格。
+
+资源可用后BR用原b37科学源码及完整状态/原4轮日程恢复，再F1/N1原配置新ID；三组真epoch4评估完成后自动GM1十步预检，主验收后fresh4训练及last评估。GM1仅图mHC4（四层各attention/FFN共8routes），Student47,051,014，+196,824（0.42%）；其他方法/损失/数据/批次不变，无新效果或速度结果。
+
+已准备handoff给监督查询对话，每20min；转交后须验证ACK与ACTIVE。完整小收据`.byte-os/evidence/graph-mhc-20261011/graph-mhc-430a132-startup-20261011.json`；机制文档`docs/experiments/GRADPERT_V2_GRAPH_MHC_20261011.md`。旧失败队列全部保留。
+

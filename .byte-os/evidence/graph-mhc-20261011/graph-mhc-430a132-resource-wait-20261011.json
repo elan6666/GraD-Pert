@@ -1,0 +1,35 @@
+{
+  "checked_at_local_epoch": 1791722623.96498,
+  "controller_commit": "430a1326aeabdb2e326d840295f6b31d2d9bc3c2",
+  "controller_process_identities_matched": true,
+  "cpu_tests": "295 passed, 2 warnings in 60.69s (0:01:00)",
+  "dependency_observed_phase": "waiting_shared_resources",
+  "direct_children_of_controllers": [],
+  "gm1_active": {},
+  "gm1_controller": {
+    "command_sha256": "18b35cb2ed48c47476aa0f7a3f1b961361e2404c30c3af33b87464c0aeacaa66",
+    "pid": 2343122,
+    "start_ticks": "712618568"
+  },
+  "gm1_events": [],
+  "gm1_gpu_preflight_started": false,
+  "gm1_phase": "waiting_dependency",
+  "gm1_queue_sha256": "419437e8d58a51b900f26c207a7ab3b5edc25318ef0695536a3bd5e823e38472",
+  "gm1_root": "/data/yilangliu/GraD-Pert/development/v2-graph-mhc-430a132-20261011T124207Z",
+  "recovery_active": {},
+  "recovery_controller": {
+    "command_sha256": "8ef1aeac320cf5c3f99fa7bfd5c4a8c98a2faa086cd4fa55f0b173934ea1897a",
+    "pid": 2343040,
+    "start_ticks": "712617582"
+  },
+  "recovery_events": [],
+  "recovery_phase": "waiting_shared_resources",
+  "recovery_queue_sha256": "7708bb89c49386687546b1e08dabb76821e4717a118685c81e3700b800e030d2",
+  "recovery_root": "/data/yilangliu/GraD-Pert/development/v2-ffn-recovery-430a132-20261011T124207Z",
+  "recovery_state_status": "running",
+  "recovery_wait_error": "unapproved or grown foreign GPU process; preserve it and stop our dispatch",
+  "recovery_wait_stage": "initial_admission",
+  "recovery_waiting": true,
+  "scientific_source_commit": "b37b171fd68cb29e5c8142c66778aac6da9a6f06",
+  "source_clean": true
+}

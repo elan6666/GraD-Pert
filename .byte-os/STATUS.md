@@ -1,3 +1,11 @@
+## 2026-10-11：GM1图mHC排队；BR严格恢复等待资源
+
+发布`430a1326aeabdb2e326d840295f6b31d2d9bc3c2`，服务器隐藏CUDA检查295通过（60.69秒）。主与Luna核验两控制器/源码/配置/publication/queue/checkpoint备份：`v2-ffn-recovery-430a132-20261011T124207Z`CPU waiting_shared_resources，`v2-graph-mhc-430a132-20261011T124207Z`CPU waiting_dependency，均无GPU子任务。BR仍只提交epoch1，尚无新恢复更新；新ScButterfly PID不继承旧白名单，资源门保持严格。
+
+资源可用后BR用原b37科学源码及完整状态/原4轮日程恢复，再F1/N1原配置新ID；三组真epoch4评估完成后自动GM1十步预检，主验收后fresh4训练及last评估。GM1仅图mHC4（四层各attention/FFN共8routes），Student47,051,014，+196,824（0.42%）；其他方法/损失/数据/批次不变，无新效果或速度结果。
+
+已准备handoff给监督查询对话，每20min；转交后须验证ACK与ACTIVE。完整小收据`.byte-os/evidence/graph-mhc-20261011/graph-mhc-430a132-startup-20261011.json`；机制文档`docs/experiments/GRADPERT_V2_GRAPH_MHC_20261011.md`。旧失败队列全部保留。
+
 ## 2026-10-11：恢复控制器CPU复核通过，新增资源等待门
 
 修复3102fcd40a04980e22339349973961893d5791d0服务器隐藏CUDA检查289通过（60.63秒）。恢复队列v2-ffn-recovery-3102fcd-20261011T123239Z在BR启动前被新UID1003 ScButterfly PID2337671（GPU0约720MiB）拦住；原共用白名单仅绑定已退出的旧PID，不能把新PID静默继承进去。该恢复队列events为空、BR没有执行新更新，失败证据及epoch1备份保留。
