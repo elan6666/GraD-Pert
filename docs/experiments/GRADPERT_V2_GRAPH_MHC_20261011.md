@@ -56,4 +56,3 @@ GM1首个已发布源码为`93ed39d02fa76730630a718d79c489b6adf64f48`。服务�
 资源可用后BR用原b37科学源码及完整状态/原4轮日程恢复，再F1/N1原配置新ID；三组真epoch4评估完成后自动GM1十步预检，主验收后fresh4训练及last评估。GM1仅图mHC4（四层各attention/FFN共8routes），Student47,051,014，+196,824（0.42%）；其他方法/损失/数据/批次不变，无新效果或速度结果。
 
 已准备handoff给监督查询对话，每20min；转交后须验证ACK与ACTIVE。完整小收据`.byte-os/evidence/graph-mhc-20261011/graph-mhc-430a132-startup-20261011.json`；机制文档`docs/experiments/GRADPERT_V2_GRAPH_MHC_20261011.md`。旧失败队列全部保留。
-
