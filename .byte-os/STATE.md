@@ -1,3 +1,9 @@
+## 2026-10-12: post-BR capacity accepted, BR evaluation next
+
+Highestconfirmed4-grid dualGPU capacityglobal400=m100x2GPUsxaccum2,10updates/restore/300x5000inferencepassed. Same2GiBfree/85percentbudget; minimumfree5004/5024MiB, sampledowned27098/27078MiB. Trainingwall16.376cells/s vsbaseline1928.063, +103.1percent boundedprobe; startup12.399s, nativecheckpointrestoreincluded. m104/global416guardfailure andm112/global448OOMpreserved. Source1255a936369fb2085b6da279046ed6558ad412be, native src identicale3c. Tenstepcapacity notlongstability/physicalexactmaximum. ExistingBR/F1/N1/GM1remainbatch192.
+
+BR evaluatorCPUguardwrapperpublished23ca5c4dcfd7598049db2eef792125196cc34d99;23localtests+reviewpassed. Main independentlyacceptedm100terminal, Lunafinished; nextserverCPUcheck/freshevalroot/realoriginalb37epoch4last18metrics, thenlongsupervisor20min. Evaluationnotyetstarted. OldmonitorsPAUSED, nootherfitstarted. Compactevidence/post-br-capacity-20261012/.
+
 ## 2026-10-12: first capacity search terminal; single missing-grid refinement
 
 Independent main verification: m48/56/64/80/96 ten-update passed; global384 fastest15.832training-wall cells/s, sampled free6940MiB eachGPU. m112/global448OOM after1update; m104/global416 stopped at85percentbudget27836MiB, free4266MiB. OldrootFAILED/source/receipts immutable; allworkersgone. Main substantiveACK andbotholdmonitorsPAUSED. Remaining4-grid m100/global400 freshsealed singleprobe implementation/verification inprogress, noresourcepolicyrelaxation/no priorpointrepeat. BR epoch4 last18eval pending; F1/N1/GM1 notstarted andretainoriginalbatch192. Detailed report/receipts: docs/experiments/GRADPERT_V2_BR_CAPACITY_20261012.md andevidence/post-br-capacity-20261012/.

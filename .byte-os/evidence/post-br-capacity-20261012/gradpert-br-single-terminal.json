@@ -1,0 +1,23 @@
+{
+  "controller_or_queue_started": false,
+  "deploy_exit_code": 1,
+  "deploy_failure": "subprocess.TimeoutExpired after 180s while run_cpu_tests.py ran tests/v2/test_br_capacity_sweep.py",
+  "deploy_log": "/tmp/gradpert-br-single-deploy.out",
+  "exit_file": "/tmp/gradpert-br-single-deploy.exit.json",
+  "exit_record": {
+    "exit_code": 1,
+    "finished_unix": 1791753415.939116,
+    "source": "1255a936369fb2085b6da279046ed6558ad412be",
+    "started_unix": 1791753227.503435
+  },
+  "fresh_commit_roots_found": [],
+  "matching_1255a93_or_deploy_processes": [],
+  "new_source_present": true,
+  "observed_local_epoch": 1791753451.890974,
+  "publication_present": true,
+  "remote_cpu_test_log": "/data/yilangliu/GraD-Pert/development/v2-br-single-1255a93-cpu-tests.log",
+  "remote_cpu_test_log_tail": "45 passed in 183.00s (0:03:02)",
+  "scope": "read-only failure reconciliation; no queue or process found; no restart/signals",
+  "source_commit": "1255a936369fb2085b6da279046ed6558ad412be",
+  "ssh_socket": "/tmp/gradpert-br-single.sock"
+}

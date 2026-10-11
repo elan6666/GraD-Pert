@@ -41,3 +41,17 @@ Queuefailedm104: owned27836MiB exceeds27715.95MiB allowance, free4266MiB. Noexte
 ## Deferred BR evaluation launcher prepared
 
 Original BR/F1/N1 CPUdispatcher wasretiredtoallowcapacity; originalBRtraining/checkpointremainsb37. Existingbare --evaluate lacks its5s resourceguard. NewminimalCPU-only `scripts/v2/evaluate_completed_br.py` seals exactoriginalBR finalizedplan/source/config/runtime/publication andepoch4lastcheckpoint, originalscientific25percentGPU0evaluation, sameGPUleases/schema3admission/5scheck/exactownedcleanup, nofit/nopeers. Nativeexit0 plus18metric/source/checkpoint/hash/zeroPKL validation required. Local23CPU checks/Ruff/format/diff andindependentoriginalb37APIreview passed. Evaluationnotstarted; firstm100capacitymustreachacceptedterminal. Noactive1255source changes.
+
+## Final missing-grid m100 accepted
+
+Source1255a936369fb2085b6da279046ed6558ad412be (native srcGittree11c838ea486a8030918d615d745797a16a295031 matches e3c); queuev2-br-single-1255a93-20261011T211855Z, SHAa45f19172f1b18bedbb4a96b31e82ae2461709a02362c222cd1a20ce1ebf157c, actual10update/restore/inferencepassed, allcontroller/ranks exited.
+
+| Final point | micro/GPU | accum | global | trainingwallcells/s | measuredcells/s | minimumfreeMiB GPU0/GPU1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| m100 |100|2|400|16.376|16.963|5004/5024|
+
+Nativeend_to_end_training_cells_per_second is cells/s (notbatches/s); mainreceiptcorrects rawhelperlabel throughput_global_batches_per_second whilepreservingoriginalhelperrecord. Relative192, +103.1percent training-wallthroughput; notfullscientificepochspeedproof. Peakereserved27453816832bytes=25.568GiB, sampledprocess27098/27078MiB=26.463/26.443GiB; allocatorandNVMLprocessmemorydifferent. Native startup12.399s, controllercandidatewall274.363s (startup/controlvalidation/inference); trainingwall andmeasuredupdatetimesdistinct.85percent ownmargin onlyabout618MiB atobservedsampledpeak, still2GiB freecriterionexceeded by~2.89GiB. Tenstepshortcapacityonly, view-dependent latermemorycanvary.
+
+Withinrequested4-grid, highestconfirmedandfastestglobal400; nextgrid416stopped85percentguard,448OOM. Notmaximumforallintegermicrobatchesorlongruns. Remainingscientificarmsprotocol192unchanged pendingexplicitdecision. PreserveearlierfullsearchFAILED andsinglepreparewrapper180s timeout; actualCPU45passed183s, pytestexitnotcapturedafterwrapperkill, assertionssuccesslogsealed/reusedwithoutduplicate tests. Launch-onlybootstrapfreshqueue/sourcepubvalidatedandnativeexit0.
+
+Primary compactmainacceptance:.byte-os/evidence/post-br-capacity-20261012/gradpert-br-single-m100-main-acceptance.json. m100 nativereceiptSHA38ee0c38799a93cf1942ed892836ab6abfb5640ec91e2e12ec4009aebd40199c. Noformalfit orscientificcompletionfromcapacity. NextBR originalepoch4 deferredlast18testafterseparatepublishedguarded-evalserverlaunchgate.
