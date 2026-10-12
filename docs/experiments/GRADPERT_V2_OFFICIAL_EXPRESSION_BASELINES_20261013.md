@@ -1,3 +1,9 @@
+## 2026-10-13：四轮官方基线发布、真实测试及新依赖队列
+
+用户预算更新覆盖旧official2241等待队列：已精确停止controller/wrapper，未启动外部GPU。新source43ccca4fd14dfbdf451d5673da3f5d1b96df833f，163localpassed/1历史skip、Ruff；四actualofficialCPU10/restore/zeroPKL及三canonical审计通过（官方alias清单遗漏SHA一次失败保留，独立attempt2修复）。自有GenePTraw2048全2372，CCDC130存在；project与GEARS数据完全一致；ScELMo候选只减40训练行且592test完全保留。
+
+新CPU等待queue official-four-queue-43ccca4-20261013，SHA56aae90f62de7aa26cb92987080fd48e88691aecab52fc17972194c8cdd89fe7，controller2674076/start723504303/cmd8d3b5fcc5f5859d8dc8923884043e43b43ea821b59c061ce9835998c986771bc，已实核waiting_dependency。顺序projectScouter→scDFM→GEARS，4epochlast统一18指标，scDFM4ceil47836/48=3988updates（等效sample预算）。父F1/N1/GM1真科学完成后自动GPU10gate+formal+last评估；不修改父/旧source/config。官方GenePT对照来源仍待澄清：此前单缺CCDC130的是ScELMo，原始GenePT缺17；该arm未派发，不静默删更多。细节handoffs/2026-10-13-official-four-dependent-supervise.md，small evidence official-four-20261013。
+
 ## 2026-10-13：用户更新为四轮及两个 Scouter 先验版本（覆盖旧预算）
 
 本轮预算统一4 epoch、last-only；模型、官方优化器/LR等设置保留。scDFM沿用条件/群体抽样，一轮定义ceil(Ntrain_pert/48)，当前47836行→997步/轮、总3988步；不是逐细胞遍历，cosine终点为新3988步。Scouter4轮/patience5，GEARS4轮。官方内部验证保留，公共test只last。

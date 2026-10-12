@@ -3,9 +3,9 @@
   "scope": "independent official baseline adapters/build; preserves existing supervisor run ownership",
   "stage": "supervise_dependency",
   "authority_path": "/Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/state.json",
-  "source_commit": "2241c46ed3d320b3e194a1f7ba989637b4587a24",
+  "source_commit": "43ccca4fd14dfbdf451d5673da3f5d1b96df833f",
   "local_checks": {
-    "passed": 140,
+    "passed": 163,
     "skipped": 1,
     "ruff": "passed"
   },
@@ -14,7 +14,7 @@
     "scdfm": "passed10/restore/zeroPKL, final same source",
     "gears": "passed10/restore/zeroPKL, final same source"
   },
-  "scouter_full_data_blocker": "CCDC130/YJU2B official prior vector missing;47 audited aliases inclQARS; waits user completion path",
+  "scouter_full_data_blocker": null,
   "supervisor": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
   "next_action": "parent scientific completion automatically triggers GPU gate/official train/test; one supervisor retargets; terminal/failure returns main",
   "scientific_results": null,
@@ -31,19 +31,31 @@
     "excluded_nnz": 0,
     "both_environment_data_identities_match": true
   },
-  "queue": "/data/yilangliu/GraD-Pert/development/official-expression-queue-2241c46-20261013",
-  "queue_sha256": "049e6fcf8d8277c19fb8c1bddb7f1cb9fa52b6c7e9ffdfce8764a16aff186bd0",
+  "queue": "/data/yilangliu/GraD-Pert/development/official-four-queue-43ccca4-20261013",
+  "queue_sha256": "56aae90f62de7aa26cb92987080fd48e88691aecab52fc17972194c8cdd89fe7",
   "priority": [
+    "scouter_project",
     "scdfm",
     "gears"
   ],
   "supervisor_ack": {
     "accepted": true,
-    "existing_monitor": "grad-pert-br400-four-arm-supervision",
+    "receipt_sha256": "84f623d679f003af6cee3bdf22693fd9dc8d61910864eb5583e5450b1fed20b8",
+    "receipt": "/Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/receipts/official-four-supervision-retarget-ack-20261012T1900Z.json",
     "monitor_status": "ACTIVE",
     "interval_minutes": 20,
-    "return_fallback": "grad-pert-unified-first-return",
+    "target_thread": "01a0df0b-4142-7df1-86c0-d959471d80a1",
     "return_status": "PAUSED",
-    "both_prompts_cover_official_queue_and_scouter_blocker": true
+    "both_saved_prompts_reverified": true
+  },
+  "official_prior_comparison": {
+    "status": "pending_user_source_choice",
+    "scelmo_candidate": "passedCPU10/fullcoverage2371/trainomitCCDC13040rows/noGPUdispatch",
+    "original_genept": "17+missing-targets; not authorized wider omit"
+  },
+  "training_budget": {
+    "epochs": 4,
+    "scdfm_equivalent_updates": 3988,
+    "test_checkpoint": "last"
   }
 }
