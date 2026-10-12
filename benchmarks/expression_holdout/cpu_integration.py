@@ -14,11 +14,13 @@ import numpy as np
 
 from benchmarks.common.official_checkout import official_module_session
 from gradpert.data._io import atomic_json
-from gradpert.hashing import sha256_file
+from gradpert.execution.identity import inspect_source_identity
+from gradpert.hashing import sha256_file, sha256_json
 
 from .config import load_config
 from .data import build_prepared
-from .runner import restore_last
+from .provenance import persist_inference_receipt, verify_cpu_assets, verify_environment
+from .runner import ROOT, restore_last
 
 
 def main():
@@ -32,6 +34,22 @@ def main():
     config = load_config(a.config)
     cfg = deepcopy(config)
     runtime = json.loads(a.runtime.read_text())
+    source = inspect_source_identity(
+        ROOT,
+        formal=True,
+        expected_repository="https://github.com/elan6666/GraD-Pert.git",
+        publication_receipt=Path(runtime["publication_receipt"]),
+        expected_publication_receipt_sha256=runtime["publication_sha256"],
+    )
+    if runtime["source_commit"] != source.commit:
+        raise ValueError("CPU integration runtime/source version differs")
+    identity = {
+        "source_commit": source.commit,
+        "source_clean": not source.dirty,
+        "runtime_sha256": sha256_file(a.runtime),
+        **verify_environment(runtime),
+        **verify_cpu_assets(runtime),
+    }
     with Path(runtime["gears_assets"]).joinpath("gene2go_all.pkl").open("rb") as h:
         go = pickle.load(h)
     with Path(runtime["prior_path"]).open("rb") as h:
@@ -69,6 +87,7 @@ def main():
     runtime.pop("prior_aliases", None)
     runtime.pop("prior_aliases_sha256", None)
     cfg["training"]["batch_size"] = 4
+    cfg["evaluation"].update(cell_batch=3, query_count=16, control_cells=6)
     a.output.mkdir(parents=True)
     adapter = importlib.import_module(f"benchmarks.expression_holdout.{cfg['model_id']}")
     names = {"scouter": ("scouter",), "gears": ("gears", "gears.gears")}
@@ -83,6 +102,7 @@ def main():
     )
     with session:
         fitted = adapter.fit(prepared, cfg, runtime, a.output / "fit", max_updates=10)
+        identity["checkpoint_sha256"] = sha256_file(a.output / "fit/last.pt")
         # Fresh restored weights must produce the same finite prediction with the
         # same official noise and gene identity, including restored excluded input.
         controls = np.random.default_rng(2).uniform(0.01, 2, (6, 32)).astype(np.float32)
@@ -103,10 +123,20 @@ def main():
         if count != 10:
             raise ValueError("actual official update gate is incomplete")
         receipt = {
+            **identity,
             "schema": "official-upstream-cpu-integration-v1",
             "model": cfg["model_id"],
             "official_commit": cfg["source_code"]["commit"],
             "config_sha256": sha256_file(a.config),
+            "resolved_diagnostic_config": cfg,
+            "resolved_diagnostic_config_sha256": sha256_json(cfg),
+            "diagnostic_optimizer_update_limit": 10,
+            "resolved_diagnostic_runtime": {
+                "device": runtime["device"],
+                "seed": runtime["seed"],
+                "required_target_genes": runtime["required_target_genes"],
+            },
+            "synthetic_data_identity": prepared.receipt,
             "optimizer_updates": count,
             "restored_prediction_exact": True,
             "prediction_shape": list(after.shape),
@@ -118,6 +148,7 @@ def main():
         }
         if not receipt["zero_pkl"]:
             raise ValueError("CPU integration leaves scratchPKL")
+        receipt.update(persist_inference_receipt(a.output, fitted, identity))
         atomic_json(a.output / "receipt.json", receipt)
         print(json.dumps(receipt, default=str), flush=True)
 

@@ -18,9 +18,15 @@ from gradpert.evaluation.state import load_evaluation_state
 from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file
 
-from .config import load_config, require_data_identity, validate_preflight
+from .config import (
+    load_config,
+    require_data_identity,
+    require_evaluation_identity,
+    validate_preflight,
+)
 from .data import prepare_data
 from .evaluation import evaluate
+from .provenance import persist_inference_receipt, verify_environment, verify_evaluation_files
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -65,18 +71,19 @@ def run(
     )
     if runtime["source_commit"] != source.commit:
         raise ValueError("runtime/source version differs")
+    environment_identity = verify_environment(runtime)
+    evaluation_identity = verify_evaluation_files(config, Path(runtime["data_root"]))
     identity = {
+        **environment_identity,
+        **evaluation_identity,
         "source_commit": source.commit,
         "source_clean": not source.dirty,
         "official_commit": config["source_code"]["commit"],
         "config_sha256": sha256_file(config_path),
         "runtime_sha256": sha256_file(runtime_path),
-        "environment_lock_sha256": sha256_file(runtime["environment_lock"]),
         "run_id": output.name,
         "checkpoint_role": "last",
     }
-    if identity["environment_lock_sha256"] != runtime["environment_lock_sha256"]:
-        raise ValueError("environment lock seal differs")
     if mode == "full":
         if preflight_path is None:
             raise ValueError("full fit requires an accepted actual official preflight")
@@ -137,6 +144,7 @@ def run(
                     data_root=runtime["data_root"],
                     evaluation_protocol="v2",
                 )
+                require_evaluation_identity(data, reference, config)
 
                 def predictor(*args, **kwargs):
                     return adapter.predict(fitted, *args, **kwargs)
@@ -217,6 +225,7 @@ def run(
                         "evaluation_state_sha256": result["evaluation_state_sha256"],
                         "zero_pkl": not list(output.rglob("*.pkl")),
                     }
+                receipt.update(persist_inference_receipt(output, fitted, identity))
                 if not receipt["zero_pkl"]:
                     raise ValueError("zero-PKL postcondition violated")
                 receipt["wall_seconds"] = time.monotonic() - started

@@ -38,6 +38,10 @@ training:
   n_epochs: 40
   patience: 5
 evaluation:
+  expected_conditions: 592
+  expected_hashes:
+    control_manifest_sha256: 5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20
+    evaluation_state_sha256: 844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770
   protocol: v2
   control_cells: 300
   checkpoint: last

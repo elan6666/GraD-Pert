@@ -50,6 +50,7 @@ def test_probe_requires_actual10_updates_and_restore_with_same_identity():
         "restored_checkpoint_predictions_finite": True,
         "controls_per_condition": 300,
         "zero_pkl": True,
+        **cfg["evaluation"]["expected_hashes"],
     }
     kwargs = dict(
         config=CONFIG,
@@ -67,3 +68,87 @@ def test_probe_requires_actual10_updates_and_restore_with_same_identity():
     ]:
         with pytest.raises(ValueError):
             validate_preflight(receipt | change, **kwargs)
+
+
+def test_frozen_control_reference_identity():
+    from types import SimpleNamespace
+
+    from benchmarks.expression_holdout.config import require_evaluation_identity
+
+    cfg = load_config(CONFIG)
+    data = SimpleNamespace(
+        control_manifest_file_sha256=cfg["evaluation"]["expected_hashes"][
+            "control_manifest_sha256"
+        ],
+        control_manifest=SimpleNamespace(draws=[None] * 592),
+    )
+    ref = SimpleNamespace(
+        manifest_file_sha256=cfg["evaluation"]["expected_hashes"]["evaluation_state_sha256"]
+    )
+    require_evaluation_identity(data, ref, cfg)
+    ref.manifest_file_sha256 = "a" * 64
+    with pytest.raises(ValueError, match="identity differs"):
+        require_evaluation_identity(data, ref, cfg)
+
+
+def test_terminal_requires_sealed18_metrics_and_artifacts(tmp_path):
+    import json
+
+    from benchmarks.expression_holdout.config import validate_terminal
+
+    cfg = load_config(CONFIG)
+    root = tmp_path / "run"
+    (root / "fit").mkdir(parents=True)
+    (root / "fit/last.pt").write_bytes(b"checkpoint")
+    (root / "inference-receipt.json").write_text("{}")
+    ids = [
+        f"{name}_{genes}"
+        for name in ("txpert_macro_pearson_delta", "trishift_pearson_delta", "systema_pearson")
+        for genes in ("all", "deg")
+    ]
+    metrics = [
+        dict(metric_id=k, macro_mean=0.3, finite_condition_count=592, total_condition_count=592)
+        for k in ids
+    ]
+    row = dict(config=str(CONFIG), config_sha256=sha256_file(CONFIG), runtime_sha256="r")
+    expected = dict(
+        source_commit="s",
+        source_clean=True,
+        config_sha256=row["config_sha256"],
+        runtime_sha256="r",
+        official_commit=cfg["source_code"]["commit"],
+        checkpoint_role="last",
+        **cfg["evaluation"]["expected_hashes"],
+    )
+    result = dict(
+        expected,
+        summary=metrics,
+        gene_group_summaries={k: metrics for k in ("seen_expression", "unseen_expression")},
+        condition_metrics=[dict(condition_id=str(i), control_count=300) for i in range(592)],
+    )
+
+    def save(value):
+        (root / "last-test.json").write_text(json.dumps(value))
+        receipt = dict(
+            expected,
+            inference_receipt_sha256=sha256_file(root / "inference-receipt.json"),
+            scientific_complete=True,
+            zero_pkl=True,
+            checkpoint_sha256=sha256_file(root / "fit/last.pt"),
+            last_test_sha256=sha256_file(root / "last-test.json"),
+            data_identity=cfg["data"]["expected_hashes"],
+        )
+        for filename in ("receipt.json", "COMPLETE.json"):
+            (root / filename).write_text(json.dumps(receipt))
+
+    save(result)
+    validate_terminal(root, row, "s")
+    broken = deepcopy(result)
+    broken["summary"] = metrics[:5]
+    save(broken)
+    with pytest.raises(ValueError, match="18 metrics"):
+        validate_terminal(root, row, "s")
+    save(result)
+    (root / "fit/last.pt").write_bytes(b"changed")
+    with pytest.raises(ValueError, match="seal differs"):
+        validate_terminal(root, row, "s")

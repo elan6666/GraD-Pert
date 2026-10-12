@@ -94,3 +94,20 @@ be silently replaced by zero/random vectors or removed from the shared dataset.
 The user has been asked to select a legal completion path. Scouter remains blocked
 until full target coverage is proved; the other two adapters remain independent.
 The original prior files are not changed and remain server-only.
+
+Review repairs bind the historical BR test controls
+`5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20`
+and v2 reference
+`844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770`
+against the original successful BR evaluation receipt at
+`development/v2-br-last-only-7c40df4-20261012T123701Z/evaluation/COMPLETE.json`.
+The runtime checks actual installed environment versions; CPU integration records
+native source, resolved diagnostic configuration and runtime identities. scDFM
+inference noise hashes are persisted after inference. Queue acceptance requires
+all18 metrics/counts, source/config/runtime/prior/checkpoint/test identities and
+whole-run zero-PKL, rather than merely process exit.
+
+Scouter prior completeness is a prerequisite independent of synthetic integration.
+CCDC130/YJU2B has no same-gene vector in the available official priors. No condition
+will be dropped or assigned a zero vector to bypass this issue. The ready scDFM
+and GEARS dependency chain can proceed while Scouter remains explicitly blocked.

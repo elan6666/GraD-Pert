@@ -15,6 +15,33 @@ import numpy as np
 OFFICIAL_SHA = "f374e43e197b295016d80395d7a54ddb81cc6769"
 
 
+def copy_official_assets(runtime: dict, destination: Path) -> dict[str, str]:
+    """Check both pinned inputs before copying, then check the actual copies."""
+    from gradpert.hashing import sha256_file
+
+    names = ("gene2go_all.pkl", "essential_all_data_pert_genes.pkl")
+    expected = runtime["gears_asset_sha256"]
+    if set(expected) != set(names):
+        raise ValueError("GEARS asset digest manifest must name the two official graph assets")
+    assets = Path(runtime["gears_assets"])
+    observed = {}
+    for filename in names:
+        source = assets / filename
+        if not source.is_file():
+            raise FileNotFoundError(f"missing frozen official GEARS graph asset: {source}")
+        observed[filename] = sha256_file(source)
+        if observed[filename] != expected[filename]:
+            raise ValueError(f"GEARS official graph asset digest mismatch: {filename}")
+    for filename in names:
+        target = destination / filename
+        if target.exists():
+            raise FileExistsError(f"GEARS asset copy would overwrite an existing file: {target}")
+        shutil.copyfile(assets / filename, target)
+        if sha256_file(target) != expected[filename]:
+            raise ValueError(f"GEARS official asset changed during copying: {filename}")
+    return observed
+
+
 def masked_official_loss(original: Any, allowed: np.ndarray):
     """Official fourth-power/direction loss on the allowed axis, including ctrl."""
     remap = {int(index): position for position, index in enumerate(allowed)}
@@ -209,14 +236,7 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
     output = Path(output)
     data_root = output / "official_data"
     data_root.mkdir(parents=True, exist_ok=False)
-    assets = Path(runtime["gears_assets"])
-    asset_hashes = {}
-    for filename in ("gene2go_all.pkl", "essential_all_data_pert_genes.pkl"):
-        source = assets / filename
-        if not source.is_file():
-            raise FileNotFoundError(f"missing frozen official GEARS graph asset: {source}")
-        shutil.copyfile(source, data_root / filename)
-        asset_hashes[filename] = sha256_file(source)
+    asset_hashes = copy_official_assets(runtime, data_root)
     data = package.PertData(str(data_root))
     adata = data_utils.get_DE_genes(adata, skip_calc_de=True)
     ranking_receipt = _ranking_metadata(adata, data_utils, allowed)

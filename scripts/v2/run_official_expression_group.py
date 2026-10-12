@@ -15,7 +15,7 @@ from run_br400_group import validate_complete
 from run_group import lock
 from shared_gpu import admit, snapshot, validate_policy
 
-from benchmarks.expression_holdout.config import load_config
+from benchmarks.expression_holdout.config import load_config, validate_preflight, validate_terminal
 from gradpert.data._io import atomic_json
 from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file
@@ -59,7 +59,14 @@ def prepare(runtime_path: Path, output: Path) -> dict:
     policy = json.loads(Path(runtime["policy"]).read_text())
     validate_policy(policy)
     rows = []
-    for name in ["scouter", "scdfm", "gears"]:
+    priority = runtime.get("priority", ["scouter", "scdfm", "gears"])
+    if (
+        not priority
+        or len(set(priority)) != len(priority)
+        or not set(priority) <= {"scouter", "scdfm", "gears"}
+    ):
+        raise ValueError("only explicitly authorized unique baseline names allowed")
+    for name in priority:
         config = ROOT / "configs/v2/official_expression_20261013" / f"{name}_jurkat.yaml"
         load_config(config)
         stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
@@ -115,6 +122,11 @@ def execute(path: Path) -> None:
     root = path.parent
     if queue["schema"] != "official-expression-holdout-queue-v1":
         raise ValueError("queue schema mismatch")
+    source = inspect_source_identity(
+        ROOT, formal=False, expected_repository="https://github.com/elan6666/GraD-Pert.git"
+    )
+    if source.commit != queue["source_commit"] or source.dirty or str(ROOT) != queue["source"]:
+        raise ValueError("queue controller source changed")
     if (root / "state.json").exists():
         raise FileExistsError("do not restart or overwrite an existing official queue attempt")
     state = {
@@ -227,16 +239,21 @@ def execute(path: Path) -> None:
                                 "official receipt source/artifact postcondition differs"
                             )
                         if mode == "full":
-                            if receipt.get("scientific_complete") is not True:
-                                raise ValueError(
-                                    "official fit exit lacks complete common evaluation"
-                                )
+                            receipt = validate_terminal(destination, row, queue["source_commit"])
                             state["completed"][row["name"]] = {
                                 "root": str(destination),
                                 "receipt_sha256": sha256_file(destination / "receipt.json"),
                                 "last_test_sha256": receipt["last_test_sha256"],
                             }
                             atomic_json(root / "state.json", state)
+                        else:
+                            validate_preflight(
+                                receipt,
+                                config=config,
+                                source_commit=queue["source_commit"],
+                                official_commit=load_config(config)["source_code"]["commit"],
+                                runtime_sha256=row["runtime_sha256"],
+                            )
             state.update(status="complete", phase="complete", active=None, scientific_complete=True)
             atomic_json(root / "state.json", state)
             atomic_json(root / "COMPLETE.json", state)

@@ -108,6 +108,24 @@ def masked_official_loss(original: Any, allowed: np.ndarray):
     return loss
 
 
+def official_nonzero_masks(data: Any, allowed: np.ndarray):
+    """Run upstream dropout statistics solely on observed expression columns."""
+    full = data.adata
+    subset = full[:, allowed].copy()
+    data.adata = subset
+    try:
+        data.get_dropout_non_zero_genes()
+    finally:
+        data.adata = full
+    for name, values in subset.uns.items():
+        if name in {"gene_idx_non_zeros", "gene_idx_non_dropout"}:
+            full.uns[name] = {
+                condition: allowed[np.asarray(indices, dtype=np.int64)]
+                for condition, indices in values.items()
+            }
+    return full.uns["gene_idx_non_zeros"]
+
+
 def contextual_dataset_factory(original: Any, prepared: Any, pair_audit: list):
     """Keep official Dataset/ordering; restrict basal pair choices by context."""
     row_names = tuple(map(str, prepared.adata.obs_names))
@@ -218,8 +236,7 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
     data.adata.uns["rank_genes_groups"] = {
         str(c): [] for c in data.adata.obs.condition.unique() if str(c) != "ctrl"
     }
-    data.get_dropout_non_zero_genes()
-    masks = data.adata.uns["gene_idx_non_zeros"]
+    masks = official_nonzero_masks(data, allowed)
     for condition in (*prepared.train_conditions, *prepared.val_conditions):
         if not set(masks.get(condition, ())) & set(allowed):
             raise ValueError(f"no allowed nonzero loss genes: {condition}")
@@ -272,6 +289,7 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
             "checkpoint_role": "last",
             "last_capture": "before_official_best_restore" if final_states else "final_state",
             "official_selection": "validation allowed-expression loss; min_delta=0.001",
+            "official_dropout_statistics_axis": "allowed expression genes only",
             "loss_history": model.loss_history,
             "epochs_requested": training["n_epochs"],
             "epochs_completed": len(model.loss_history["train_loss"]),

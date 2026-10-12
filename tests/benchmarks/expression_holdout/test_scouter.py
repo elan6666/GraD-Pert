@@ -12,6 +12,7 @@ from benchmarks.expression_holdout.scouter import (
     contextual_dataset_factory,
     load_official_prior,
     masked_official_loss,
+    official_nonzero_masks,
     predict,
 )
 
@@ -180,3 +181,22 @@ def test_prior_preflights_test_only_targets_and_requires_audited_aliases(tmp_pat
     assert vectors.loc["ctrl"].tolist() == [0, 0]
     assert receipt["required_target_gene_count"] == 2
     assert "unused" not in vectors.index
+
+
+def test_official_dropout_statistics_only_receive_observed_columns():
+    prepared = _prepared()
+
+    class Data:
+        adata = prepared.adata.copy()
+
+        def get_dropout_non_zero_genes(self):
+            assert tuple(self.adata.var_names) == ("A", "B")
+            self.adata.uns["gene_idx_non_zeros"] = {"A+ctrl": np.asarray([0, 1])}
+            self.adata.uns["gene_idx_non_dropout"] = {"A+ctrl": np.asarray([1])}
+
+    data = Data()
+    original = data.adata
+    masks = official_nonzero_masks(data, np.asarray([0, 2]))
+    assert masks["A+ctrl"].tolist() == [0, 2]
+    assert data.adata.uns["gene_idx_non_dropout"]["A+ctrl"].tolist() == [2]
+    assert data.adata is original

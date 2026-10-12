@@ -9,6 +9,7 @@ import pytest
 from benchmarks.expression_holdout.gears import (
     allowed_training_statistics,
     context_graph_builder,
+    copy_official_assets,
     masked_official_loss,
     predict,
 )
@@ -155,3 +156,26 @@ def test_inference_uses_final_model_and_exact_controls(monkeypatch):
         seed=1,
     )
     np.testing.assert_array_equal(result, controls + 2)
+
+
+def test_asset_source_hashes_all_pass_before_any_copy(tmp_path):
+    from gradpert.hashing import sha256_file
+
+    assets = tmp_path / "assets"
+    copies = tmp_path / "copies"
+    assets.mkdir()
+    copies.mkdir()
+    names = ("gene2go_all.pkl", "essential_all_data_pert_genes.pkl")
+    for i, name in enumerate(names):
+        (assets / name).write_bytes(f"synthetic graph asset {i}".encode())
+    hashes = {name: sha256_file(assets / name) for name in names}
+    runtime = {"gears_assets": str(assets), "gears_asset_sha256": hashes}
+    (assets / names[1]).write_bytes(b"tampered")
+    with pytest.raises(ValueError, match="digest mismatch"):
+        copy_official_assets(runtime, copies)
+    assert list(copies.iterdir()) == []
+    hashes[names[1]] = sha256_file(assets / names[1])
+    assert copy_official_assets(runtime, copies) == hashes
+    assert {name: sha256_file(copies / name) for name in names} == hashes
+    with pytest.raises(FileExistsError, match="overwrite"):
+        copy_official_assets(runtime, copies)
