@@ -1,0 +1,30 @@
+{
+  "source_commit": "43ccca4fd14dfbdf451d5673da3f5d1b96df833f",
+  "queue_sha256": "7a741792d5626d5df51c9eca6a2bd296f434118fe1e5553528c9bcf3b93d67f8",
+  "controller": {
+    "pid": 2719988,
+    "start_ticks": "725165201",
+    "command_sha256": "a52fe0b4c2d93ccd8bab542ac1b7134fdd2a93279151c4a95b741a09c0399e27"
+  },
+  "wrapper_pid": 2719987,
+  "state": {
+    "completed": {},
+    "phase": "waiting_dependency",
+    "pid": 2719988,
+    "queue_sha256": "7a741792d5626d5df51c9eca6a2bd296f434118fe1e5553528c9bcf3b93d67f8",
+    "schema": "official-expression-holdout-queue-v1",
+    "scientific_complete": false,
+    "source_commit": "43ccca4fd14dfbdf451d5673da3f5d1b96df833f",
+    "status": "running"
+  },
+  "phase": "waiting_dependency",
+  "priority": [
+    "scouter_project",
+    "scouter_official",
+    "scdfm",
+    "gears"
+  ],
+  "official_prior": "user-selected official_scouter_scelmo raw1536, omit only train CCDC130+ctrl",
+  "superseded_queue_stop_receipt_sha256": "a504d162439fa4af608f7720557baac0c1d8973209b036b6f0f6176aeecfefbe",
+  "scientific_complete": false
+}

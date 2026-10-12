@@ -1,0 +1,21 @@
+{
+  "queue_sha256": "7a741792d5626d5df51c9eca6a2bd296f434118fe1e5553528c9bcf3b93d67f8",
+  "handoff_sha256": "41b75088034b2557f09593394cd81b39fc881f1f3a902ecee974d9f4f042da86",
+  "supervisor_clarification_receipt_sha256": "3c2903b7ce9fd3b264945e74ed76fb579c6b69742fdd7cea0b2d3848ab8c5d32",
+  "automations": {
+    "grad-pert-br400-four-arm-supervision": {
+      "status": "ACTIVE",
+      "target": "01a0df0b-4142-7df1-86c0-d959471d80a1",
+      "interval_minutes": 20,
+      "saved_toml_sha256": "45b5f04456587f7a1c9ac41c80cef53e870cdf81a5510eaa6ae2630dcfd71884"
+    },
+    "grad-pert-unified-first-return": {
+      "status": "PAUSED",
+      "target": "01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+      "interval_minutes": 20,
+      "saved_toml_sha256": "0b068eced669a2c2859fcfb7031491347b66a50a9e1a727621a027a146ea0316"
+    }
+  },
+  "accepted": true,
+  "scientific_complete": false
+}

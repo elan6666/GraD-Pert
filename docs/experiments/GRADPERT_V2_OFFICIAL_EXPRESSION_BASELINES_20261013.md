@@ -1,3 +1,9 @@
+## 2026-10-13：用户选定官方 ScELMo；四组依赖队列已启动等待
+
+用户明确选此前官方Scouter的scELMo，只忽略训练CCDC130+ctrl（40行），不选原始rawGenePT。实际新queue official-four-all-queue-43ccca4-20261013，SHA7a741792d5626d5df51c9eca6a2bd296f434118fe1e5553528c9bcf3b93d67f8，source43ccca4fd14dfbdf451d5673da3f5d1b96df833f，controller2719988/start725165201/cmdSHAa52fe0b4c2d93ccd8bab542ac1b7134fdd2a93279151c4a95b741a09c0399e27。已实核waiting_dependency。顺序自有GenePT Scouter→官方ScELMo Scouter→scDFM→GEARS，各4epochlast-only；scDFM3988updates。沿用已验证4CPU10/恢复/zeroPKL和完整canonical/prior审计，代码/config不变，不重测同一CPU工作。
+
+只有ScELMo臂训练47796行，其余47836；val41235/control12013相同；完整592tests/frozen300controls/三Pearson×全DEG×allseenunseen仍相同，225测试表达剔除维持。先验种类/维度1536vs2048及40训练行差别明确记录，不能称纯同输入先验比较。旧3arm56aae等待controller/wrapper已精确SIGTERM退出，stopreceiptSHAa504d162439fa4af608f7720557baac0c1d8973209b036b6f0f6176aeecfefbe保留；旧2241和旧3arm都不恢复。父当前消融不触碰，其真终态后自动GPU10gate+正式4轮+last评估。同一监督20minmonitor更新中；handoff coordination/handoffs/2026-10-13-official-four-all-dependent-supervise.md，结果未科学完成。
+
 
 完整HGNC/稳定基因身份补审已完成：两份原始GenePT均仍缺17靶点，其中3个测试条件（FAM207A、INTS2、WDR61）。仅忽略训练CCDC130不能使原始GenePT就绪；拒绝TDGF1→CR、GARS→SMAD1的异基因误映射。原始GenePT的aliases必须direct-first且逐先验审核，不复用ScELMo47map。新官方对照仍待用户来源选择；已授权三组队列不改。
 ## 2026-10-13：四轮官方基线发布、真实测试及新依赖队列

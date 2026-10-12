@@ -10,9 +10,10 @@
     "ruff": "passed"
   },
   "cpu_integrations": {
-    "scouter": "passed10/restore/zeroPKL, final same source",
-    "scdfm": "passed10/restore/zeroPKL, final same source",
-    "gears": "passed10/restore/zeroPKL, final same source"
+    "scouter_project": "same source43ccca4 CPU10/restore/zeroPKL passed",
+    "scouter_official_scelmo": "same source43ccca4 CPU10/restore/zeroPKL passed; canonical-only train CCDC130 omission verified",
+    "scdfm": "same source43ccca4 CPU10/restore/zeroPKL passed",
+    "gears": "same source43ccca4 CPU10/restore/zeroPKL passed"
   },
   "scouter_full_data_blocker": null,
   "supervisor": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
@@ -31,26 +32,43 @@
     "excluded_nnz": 0,
     "both_environment_data_identities_match": true
   },
-  "queue": "/data/yilangliu/GraD-Pert/development/official-four-queue-43ccca4-20261013",
-  "queue_sha256": "56aae90f62de7aa26cb92987080fd48e88691aecab52fc17972194c8cdd89fe7",
+  "queue": "/data/yilangliu/GraD-Pert/development/official-four-all-queue-43ccca4-20261013",
+  "queue_sha256": "7a741792d5626d5df51c9eca6a2bd296f434118fe1e5553528c9bcf3b93d67f8",
   "priority": [
     "scouter_project",
+    "scouter_official",
     "scdfm",
     "gears"
   ],
   "supervisor_ack": {
     "accepted": true,
-    "receipt_sha256": "84f623d679f003af6cee3bdf22693fd9dc8d61910864eb5583e5450b1fed20b8",
-    "receipt": "/Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/receipts/official-four-supervision-retarget-ack-20261012T1900Z.json",
+    "receipt": "/Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/receipts/official-four-all-prompt-clarification-20261012T2340Z.json",
+    "receipt_sha256": "3c2903b7ce9fd3b264945e74ed76fb579c6b69742fdd7cea0b2d3848ab8c5d32",
     "monitor_status": "ACTIVE",
     "interval_minutes": 20,
     "target_thread": "01a0df0b-4142-7df1-86c0-d959471d80a1",
     "return_status": "PAUSED",
-    "both_saved_prompts_reverified": true
+    "both_saved_prompts_reverified": true,
+    "return_gate_accepts_exact_parent_or_official_phase": true,
+    "controls_preserved": 12013,
+    "automation_checks": {
+      "grad-pert-br400-four-arm-supervision": {
+        "status": "ACTIVE",
+        "target": "01a0df0b-4142-7df1-86c0-d959471d80a1",
+        "interval_minutes": 20,
+        "saved_toml_sha256": "45b5f04456587f7a1c9ac41c80cef53e870cdf81a5510eaa6ae2630dcfd71884"
+      },
+      "grad-pert-unified-first-return": {
+        "status": "PAUSED",
+        "target": "01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+        "interval_minutes": 20,
+        "saved_toml_sha256": "0b068eced669a2c2859fcfb7031491347b66a50a9e1a727621a027a146ea0316"
+      }
+    }
   },
   "official_prior_comparison": {
-    "status": "pending_user_source_choice",
-    "scelmo_candidate": "passedCPU10/fullcoverage2371/trainomitCCDC13040rows/noGPUdispatch",
+    "status": "user_selected_official_scouter_scelmo",
+    "scelmo_candidate": "selected official ScELMo; same-source CPU10 and full canonical coverage passed; queued waiting dependency",
     "original_genept": "17+missing-targets; not authorized wider omit",
     "complete_hgnc_audit": {
       "required_target_count": 2372,
@@ -77,11 +95,24 @@
       ],
       "raw_alias_policy": "direct source key first; per-prior audited aliases; not ScELMo47alias reuse",
       "no_expression_access": true
-    }
+    },
+    "authorized_omission": [
+      "CCDC130+ctrl"
+    ],
+    "original_genept_selected": false,
+    "choice_date": "2026-10-13",
+    "next_action": "sealed official ScELMo arm queued after project Scouter; native dependency beforeGPU"
   },
   "training_budget": {
     "epochs": 4,
     "scdfm_equivalent_updates": 3988,
     "test_checkpoint": "last"
-  }
+  },
+  "controller": {
+    "pid": 2719988,
+    "start_ticks": "725165201",
+    "command_sha256": "a52fe0b4c2d93ccd8bab542ac1b7134fdd2a93279151c4a95b741a09c0399e27",
+    "wrapper_pid": 2719987
+  },
+  "superseded_queue_stop_receipt_sha256": "a504d162439fa4af608f7720557baac0c1d8973209b036b6f0f6176aeecfefbe"
 }

@@ -1,0 +1,77 @@
+{
+  "dependency": {
+    "queue_sha256": "e3075fb3f91d5a621529c9d4a15ca78647cdf5cdf426d3bf0e04d3ce86dbbab0",
+    "root": "/data/yilangliu/GraD-Pert/development/v2-br400-remaining-4bfa1f1-20261012T142438Z",
+    "source_commit": "4bfa1f13b95c73b482954e4efd396cfc82cc6afe"
+  },
+  "repair_budget": 0,
+  "rows": [
+    {
+      "config": "/data/yilangliu/GraD-Pert/development/source-official-expression-43ccca4/configs/v2/official_expression_20261013/scouter_project_jurkat.yaml",
+      "config_sha256": "f59719ad3f11af312ebdd76c5e6101d40bc39b2776a7325210fcc86be80f1e96",
+      "gpu": "0",
+      "name": "scouter_project",
+      "preflight_root": "/data/yilangliu/GraD-Pert/runs-official-four-all-43ccca4/scouter_project-jurkat-seed1-20261012T232930Z-10cbbed89df34c7a850752fa7d5b6115-preflight",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-official-four-all-43ccca4/scouter_project-jurkat-seed1-20261012T232930Z-10cbbed89df34c7a850752fa7d5b6115",
+      "runtime": "/data/yilangliu/GraD-Pert/development/official-four-all-queue-43ccca4-20261013/scouter_project.runtime.json",
+      "runtime_sha256": "c7c9f8519279d09a96edab5a7ce2d23ca1e5daf37814a1b802a0f683c56d7c59"
+    },
+    {
+      "config": "/data/yilangliu/GraD-Pert/development/source-official-expression-43ccca4/configs/v2/official_expression_20261013/scouter_official_jurkat.yaml",
+      "config_sha256": "9b3c80f113a5fb50599c1de353a34345ab910566c650941c55fb0b8e8bd48405",
+      "gpu": "0",
+      "name": "scouter_official",
+      "preflight_root": "/data/yilangliu/GraD-Pert/runs-official-four-all-43ccca4/scouter_official-jurkat-seed1-20261012T232930Z-199ef23c2e504987ac86941a5c5274e7-preflight",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-official-four-all-43ccca4/scouter_official-jurkat-seed1-20261012T232930Z-199ef23c2e504987ac86941a5c5274e7",
+      "runtime": "/data/yilangliu/GraD-Pert/development/official-four-all-queue-43ccca4-20261013/scouter_official.runtime.json",
+      "runtime_sha256": "73694cdc6306a2a0c5623746ee69cf222604e03c75aae7ff08fc6ae3100f03a3"
+    },
+    {
+      "config": "/data/yilangliu/GraD-Pert/development/source-official-expression-43ccca4/configs/v2/official_expression_20261013/scdfm_jurkat.yaml",
+      "config_sha256": "82f89a3c705c52f0efb7f506da975da30f0e49b8ad3b68b6092256f22f253b00",
+      "gpu": "0",
+      "name": "scdfm",
+      "preflight_root": "/data/yilangliu/GraD-Pert/runs-official-four-all-43ccca4/scdfm-jurkat-seed1-20261012T232930Z-a2b14a61c65f4e19a8dc8114cc6eecfb-preflight",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-official-four-all-43ccca4/scdfm-jurkat-seed1-20261012T232930Z-a2b14a61c65f4e19a8dc8114cc6eecfb",
+      "runtime": "/data/yilangliu/GraD-Pert/development/official-four-all-queue-43ccca4-20261013/scdfm.runtime.json",
+      "runtime_sha256": "17baccf3454c2a4f82b61802a7e074fcee9fbc0560384e3bbac439151f83392b"
+    },
+    {
+      "config": "/data/yilangliu/GraD-Pert/development/source-official-expression-43ccca4/configs/v2/official_expression_20261013/gears_jurkat.yaml",
+      "config_sha256": "b7c2b23170bb5a16bb61e4199590977e8e7c8c81ad1c2e56a8d39ce4760b0c1c",
+      "gpu": "0",
+      "name": "gears",
+      "preflight_root": "/data/yilangliu/GraD-Pert/runs-official-four-all-43ccca4/gears-jurkat-seed1-20261012T232930Z-781f6526d7354fc582b2becd06f29fa7-preflight",
+      "run_root": "/data/yilangliu/GraD-Pert/runs-official-four-all-43ccca4/gears-jurkat-seed1-20261012T232930Z-781f6526d7354fc582b2becd06f29fa7",
+      "runtime": "/data/yilangliu/GraD-Pert/development/official-four-all-queue-43ccca4-20261013/gears.runtime.json",
+      "runtime_sha256": "5c273e9c90d1580da9121057c17a86b72763df94618e865495059dab46e9ea15"
+    }
+  ],
+  "runtime_sha256": "1dfe87c637ffd65982ea5e9cacdb6fee083421c7a51620ffd2a5b2eecc1c3248",
+  "schema": "official-expression-holdout-queue-v1",
+  "shared_gpu_policy": {
+    "additional_command_basenames": [
+      "run_totalvi_source_validation_development.py"
+    ],
+    "authorization_reference": "2026-10-12-user-shared-memory90-coexistence",
+    "command_basename": "run_scbutterfly_archived_predictions.py",
+    "devices": [
+      {
+        "gpu_index": 0,
+        "gpu_uuid": "GPU-23bb1466-b82b-982d-8eaf-9a0002c6a4e7"
+      },
+      {
+        "gpu_index": 1,
+        "gpu_uuid": "GPU-edd7484e-c71d-1938-4831-76c233466ccb"
+      }
+    ],
+    "foreign_uid": 1003,
+    "max_foreign_memory_mib": 1024,
+    "max_foreign_processes_per_gpu": 1,
+    "max_own_memory_fraction": 0.9,
+    "min_free_memory_mib": 2048,
+    "schema": "shared-gpu-admission-3"
+  },
+  "source": "/data/yilangliu/GraD-Pert/development/source-official-expression-43ccca4",
+  "source_commit": "43ccca4fd14dfbdf451d5673da3f5d1b96df833f"
+}
