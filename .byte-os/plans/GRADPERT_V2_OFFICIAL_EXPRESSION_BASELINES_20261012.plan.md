@@ -49,3 +49,14 @@ protocol; run tests + real upstream CPU integrations; publish immutable version;
 seal dependent queue and supervision handoff; after dependency success run GPU gates,
 then official Scouter -> scDFM -> GEARS and common tests in serial. Long supervision
 uses designated chat, 20min checks and tested return fallback; no duplicate monitoring.
+
+## Accepted current stage (2026-10-13)
+
+Adapters/configs/source2241c46 published;140 local pass/1oldskip; three actual
+same-source CPU10/restored/zeroPKL integrations; both real canonical data envelopes
+agree. H5AD-compatible GEARS environment/source aliases/GO CSV are pinned. Current
+native queue preserved. Ready official queue SHA049e6fcf8d8277c19fb8c1bddb7f1cb9fa52b6c7e9ffdfce8764a16aff186bd0 actuallyCPUwaits for parent science completion; priority scDFM→GEARS, then sharedlast tests. Scouter awaits one missing official vector, no silent fill/deletion.
+The earlier Scouter→scDFM→GEARS ordering is superseded only to allow ready arms to
+proceed while Scouter is explicitly blocked. No other native arms are authorized
+by this handoff. Existing supervisor retarget/return ACK verified; no newGPU/science
+claim. More detail in latest official report and independent buildstate.

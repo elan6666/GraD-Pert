@@ -1,0 +1,43 @@
+{
+  "models": {
+    "scouter": {
+      "receipt": "/data/yilangliu/GraD-Pert/development/official-cpu-2241c46-scouter/receipt.json",
+      "sha256": "ed813b16021e7e88022bd724dc2ea4e7e926dd1d5436d3718386cd3600f3ae48",
+      "source_commit": "2241c46ed3d320b3e194a1f7ba989637b4587a24",
+      "official_commit": "0cfddd000e19b72ff033ba67c8315f7bc3304932",
+      "optimizer_updates": 10,
+      "restored_prediction_exact": true,
+      "zero_pkl": true
+    },
+    "scdfm": {
+      "receipt": "/data/yilangliu/GraD-Pert/development/official-cpu-2241c46-scdfm/receipt.json",
+      "sha256": "e5701c527106a68088f53fef27a9254fb20c218e7f449f7756b74dc840c4e221",
+      "source_commit": "2241c46ed3d320b3e194a1f7ba989637b4587a24",
+      "official_commit": "8de47e7d3d443939f93f768f7902c66e0e82eda2",
+      "optimizer_updates": 10,
+      "restored_prediction_exact": true,
+      "zero_pkl": true
+    },
+    "gears": {
+      "receipt": "/data/yilangliu/GraD-Pert/development/official-cpu-2241c46-gears/receipt.json",
+      "sha256": "0890d5608ed616d21435553c3f5cc429700bd22397b53db0b9aa9d3b33cbbc48",
+      "source_commit": "2241c46ed3d320b3e194a1f7ba989637b4587a24",
+      "official_commit": "f374e43e197b295016d80395d7a54ddb81cc6769",
+      "optimizer_updates": 10,
+      "restored_prediction_exact": true,
+      "zero_pkl": true
+    }
+  },
+  "canonical_receipts": [
+    {
+      "path": "/data/yilangliu/GraD-Pert/development/official-canonical-contract-2241c46-scdfm.receipt.json",
+      "sha256": "84ec2d3694e14a29a99d0e04618b6aa2044575adc5a092cd48ad46a28d5ad0fd"
+    },
+    {
+      "path": "/data/yilangliu/GraD-Pert/development/official-canonical-contract-2241c46-gears.receipt.json",
+      "sha256": "84ec2d3694e14a29a99d0e04618b6aa2044575adc5a092cd48ad46a28d5ad0fd"
+    }
+  ],
+  "canonical_shared_data_identity": true,
+  "scientific_complete": false
+}

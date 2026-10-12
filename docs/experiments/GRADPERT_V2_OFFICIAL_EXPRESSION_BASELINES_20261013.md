@@ -82,19 +82,49 @@ Official single-device routines stay single-device; the existing two-GPU resourc
 policy/locks prevent overlap with the active native queue. Shared control IDs and
 metric aggregation are unaffected by device count.
 
-## Current verification and remaining work
+## Current verification and automatic continuation
 
-Local30 focused tests pass: sanitization, context pools, official loss masks and
-nonzeroLR updates, namespace restoration, full output order, prior coverage,
-18-metric parity, config/source/10-step gate rejection. Real official server CPU
-integration and deferred GPU gates are separate acceptance items, not yet claimed.
+Published model/adapter source: `2241c46ed3d320b3e194a1f7ba989637b4587a24`.
+Local140 tests passed;1 historical test skipped because the local frozen Scouter
+checkout was not configured. Ruff and formatting passed. Three real official
+server CPU integrations on this same clean source each completed10 optimizer
+updates, restored the checkpoint with identical predictions, and passed zeroPKL.
+These are synthetic diagnostics, not GPU capacity or scientific performance.
 
-Scouter raw GenePT_V2 lacks17 targets. Official-supported scELMo covers most after
-HGNC previous-symbol audit; one genuine missing vector is CCDC130/YJU2B. It may not
-be silently replaced by zero/random vectors or removed from the shared dataset.
-The user has been asked to select a legal completion path. Scouter remains blocked
-until full target coverage is proved; the other two adapters remain independent.
-The original prior files are not changed and remain server-only.
+Two real canonical preparations (scDFM/Scouter environment and final GEARS
+compatibility environment) match every data identity:101084 rows x5000 genes;
+train47836, validation41235, compatible controls12013; allowed4775/excluded225,
+excluded nonzero count0. Canonical data, split, gene axes, train/validation/control
+row hashes, cap40 selection, and allowed/excluded identities agree. The final
+GEARS runtime uses AnnData0.12.3 to read null metadata from the unchanged canonical
+H5AD; the other explicit GEARS dependency pins remain official. The null format
+change is documented by [AnnData upstream](https://github.com/scverse/anndata/issues/2052).
+
+Main independently accepted checkpoint/inference/receipt seals and whole-run
+zeroPKL. Small acceptance records are in `.byte-os/evidence/official-expression-20261013`;
+all matrices, priors, checkpoints and raw failure logs stay on the server.
+
+The dependent queue is actually alive in `waiting_dependency`:
+`/data/yilangliu/GraD-Pert/development/official-expression-queue-2241c46-20261013`.
+Queue SHA256:`049e6fcf8d8277c19fb8c1bddb7f1cb9fa52b6c7e9ffdfce8764a16aff186bd0`.
+No new GPU fit has started. After the frozen F1/N1/GM1 parent queue's successful
+scientific completions, the controller automatically performs the actual GPU
+10-update/checkpoint/300-control gate, then official scDFM fit/shared last test,
+then GEARS fit/shared last test. The controller does not infer completion from
+missing processes and does not silently retry failed IDs. It retains the current
+memory90/free2GiB policy, one official GPU device and the allocator contract.
+
+Scouter config and CPU integration are ready, but full-data execution is blocked
+by one missing official prior vector:CCDC130/YJU2B.47 aliases, including QARS via
+canonical/HGNC/official notebook stable-ID evidence, are independently audited.
+No condition is dropped and no missing gene receives a zero/random vector. A new
+prior source/generation requires the pending user completion choice; the other
+two authorized models can proceed independently. The supervisor chat maintains
+one20min monitor and retargets it on transition; the existing return fallback
+handles failures/terminal analysis. Exact handoff:
+`.byte-os/coordination/handoffs/2026-10-13-official-expression-dependent-supervise.md`.
+
+## Preserved implementation and failure history
 
 Review repairs bind the historical BR test controls
 `5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20`

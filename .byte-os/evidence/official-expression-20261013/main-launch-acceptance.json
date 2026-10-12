@@ -1,0 +1,22 @@
+{
+  "schema": "official-expression-queue-main-launch-acceptance-1",
+  "queue": "/data/yilangliu/GraD-Pert/development/official-expression-queue-2241c46-20261013",
+  "queue_sha256": "049e6fcf8d8277c19fb8c1bddb7f1cb9fa52b6c7e9ffdfce8764a16aff186bd0",
+  "controller": {
+    "pid": 2653186,
+    "starttime_ticks": 722874317,
+    "cmdline_sha256": "468caf2f099325d8bb3978eee23fd7bc8484129d2d441c2727a304f45ba30707"
+  },
+  "state": {
+    "completed": {},
+    "phase": "waiting_dependency",
+    "pid": 2653186,
+    "queue_sha256": "049e6fcf8d8277c19fb8c1bddb7f1cb9fa52b6c7e9ffdfce8764a16aff186bd0",
+    "schema": "official-expression-holdout-queue-v1",
+    "scientific_complete": false,
+    "source_commit": "2241c46ed3d320b3e194a1f7ba989637b4587a24",
+    "status": "running"
+  },
+  "scientific_complete": false,
+  "next_action": "parent scientific completion -> GPU10update gate -> official scdfm -> official GEARS -> shared last tests; Scouter blocked missing prior"
+}

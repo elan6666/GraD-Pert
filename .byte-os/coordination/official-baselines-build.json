@@ -1,21 +1,49 @@
 {
   "owner_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
   "scope": "independent official baseline adapters/build; preserves existing supervisor run ownership",
-  "stage": "canonical_environment_verification",
+  "stage": "supervise_dependency",
   "authority_path": "/Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/state.json",
-  "source_commit": "4547ebb71594d06c5df22d09b7703e8f823f727c",
+  "source_commit": "2241c46ed3d320b3e194a1f7ba989637b4587a24",
   "local_checks": {
-    "passed": 139,
+    "passed": 140,
     "skipped": 1,
     "ruff": "passed"
   },
   "cpu_integrations": {
-    "scouter": "passed",
-    "scdfm": "passed",
-    "gears": "passed; final H5AD-compatible env recheck pending"
+    "scouter": "passed10/restore/zeroPKL, final same source",
+    "scdfm": "passed10/restore/zeroPKL, final same source",
+    "gears": "passed10/restore/zeroPKL, final same source"
   },
-  "scouter_full_data_blocker": "one official prior vector missing: CCDC130/YJU2B",
+  "scouter_full_data_blocker": "CCDC130/YJU2B official prior vector missing;47 audited aliases inclQARS; waits user completion path",
   "supervisor": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
-  "next_action": "final GEARS CPU/data checks, seal dependent ready scdfm/gears queue; Scouter config awaits complete official prior",
-  "scientific_results": null
+  "next_action": "parent scientific completion automatically triggers GPU gate/official train/test; one supervisor retargets; terminal/failure returns main",
+  "scientific_results": null,
+  "canonical_contract": {
+    "shape": [
+      101084,
+      5000
+    ],
+    "train": 47836,
+    "validation": 41235,
+    "control": 12013,
+    "allowed": 4775,
+    "excluded": 225,
+    "excluded_nnz": 0,
+    "both_environment_data_identities_match": true
+  },
+  "queue": "/data/yilangliu/GraD-Pert/development/official-expression-queue-2241c46-20261013",
+  "queue_sha256": "049e6fcf8d8277c19fb8c1bddb7f1cb9fa52b6c7e9ffdfce8764a16aff186bd0",
+  "priority": [
+    "scdfm",
+    "gears"
+  ],
+  "supervisor_ack": {
+    "accepted": true,
+    "existing_monitor": "grad-pert-br400-four-arm-supervision",
+    "monitor_status": "ACTIVE",
+    "interval_minutes": 20,
+    "return_fallback": "grad-pert-unified-first-return",
+    "return_status": "PAUSED",
+    "both_prompts_cover_official_queue_and_scouter_blocker": true
+  }
 }
