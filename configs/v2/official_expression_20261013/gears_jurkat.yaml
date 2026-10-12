@@ -34,7 +34,7 @@ model:
 training:
   batch_size: 32
   eval_batch_size: 128
-  epochs: 20
+  epochs: 4
   lr: 0.001
   weight_decay: 0.0005
 evaluation:
@@ -63,3 +63,5 @@ adaptations:
 - context-matched training controls
 - frozen common 300-control evaluation; last checkpoint
 - official model-specific training recipe; no native architecture imports
+- 'project_preregistered: four epochs; official optimizer/model settings retained;
+  last-only common test'

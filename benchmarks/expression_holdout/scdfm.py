@@ -234,6 +234,76 @@ class _NoiseTorch:
         return self.noise.clone()
 
 
+def resolve_training_budget(prepared: Any, requested: dict) -> tuple[dict, dict]:
+    """Resolve mutually exclusive step/epoch budgets without changing the sampler.
+
+    An epoch is an equivalent sample budget: ceil(N_train_pert / batch_size)
+    official condition/population-sampled updates, not a traversal of each row.
+    The old explicit steps budget (and official default) remains supported.
+    """
+    if "epochs" in requested and "steps" in requested:
+        raise ValueError("scDFM epochs and steps budgets are mutually exclusive")
+    training = {**OFFICIAL_RECIPE, **requested}
+    batch = training["batch_size"]
+    if type(batch) is not int or batch <= 0:
+        raise ValueError("scDFM batch_size must be a positive integer")
+    n_train = len(prepared.train_row_ids)
+    if n_train < 1 or len(set(prepared.train_row_ids)) != n_train:
+        raise ValueError("scDFM requires distinct canonical train perturbation rows")
+    steps_per_epoch = (n_train + batch - 1) // batch
+    if "epochs" in requested:
+        epochs = requested["epochs"]
+        if type(epochs) is not int or epochs <= 0:
+            raise ValueError("scDFM epochs must be a positive integer")
+        training.pop("steps")  # Do not silently keep the official 200k default.
+        total = epochs * steps_per_epoch
+        mode = "project_epoch_equivalent_sample_budget"
+        deviation = "official 200000-update budget replaced by requested epoch-equivalent budget"
+    else:
+        total = training["steps"]
+        if type(total) is not int or total <= 0:
+            raise ValueError("scDFM steps must be a positive integer")
+        epochs = None
+        mode = "steps"
+        deviation = (
+            None
+            if total == OFFICIAL_RECIPE["steps"]
+            else "explicit project update budget differs from official 200000 updates"
+        )
+    return training, {
+        "budget_mode": mode,
+        "n_train_perturbed_rows": n_train,
+        "training_batch_size": batch,
+        "steps_per_epoch": steps_per_epoch,
+        "epochs_requested": epochs,
+        "total_optimizer_updates": total,
+        "official_optimizer_updates": OFFICIAL_RECIPE["steps"],
+        "budget_formula": (
+            "s=ceil(N_train_pert/batch_size); total=epochs*s"
+            if epochs is not None
+            else "total=steps; s=ceil(N_train_pert/batch_size)"
+        ),
+        "epoch_semantics": "equivalent sampled-cell budget; not exactly one traversal per cell",
+        "budget_deviation": deviation,
+        "cosine_t_max": total,
+    }
+
+
+def budget_progress(budget: dict, completed_updates: int) -> dict:
+    """Report actual progress; a ten-update preflight cannot claim full epochs."""
+    if not 0 <= completed_updates <= budget["total_optimizer_updates"]:
+        raise ValueError("scDFM completed updates exceed the resolved budget")
+    per_epoch = budget["steps_per_epoch"]
+    return {
+        **budget,
+        "completed_updates": completed_updates,
+        "epochs_completed": completed_updates // per_epoch,
+        "epoch_equivalent_progress": completed_updates / per_epoch,
+        "sampled_target_cell_draws": completed_updates * budget["training_batch_size"],
+        "training_complete": completed_updates == budget["total_optimizer_updates"],
+    }
+
+
 def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: int | None = None):
     """Use upstream train_step and exact Adam -> cosine update ordering."""
     import torch
@@ -241,7 +311,7 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
 
     from .contract import FittedAdapter
 
-    training = {**OFFICIAL_RECIPE, **config["training"]}
+    training, budget = resolve_training_budget(prepared, config["training"])
     model_config = config["model"]
     if model_config.get("model_type", "origin") != "origin":
         raise ValueError("scDFM adapter frozen to official origin recipe")
@@ -249,10 +319,10 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
         raise ValueError("scDFM adapter frozen to official differential_perceiver recipe")
     if training["noise_type"] != "Gaussian" or training["mode"] != "predict_y":
         raise ValueError("scDFM adapter frozen to official Gaussian predict_y recipe")
-    steps = int(training["steps"])
-    count = steps if max_updates is None else min(int(max_updates), steps)
-    if count < 1 or steps < 1:
-        raise ValueError("scDFM update count must be positive")
+    steps = budget["total_optimizer_updates"]
+    if max_updates is not None and (type(max_updates) is not int or max_updates <= 0):
+        raise ValueError("scDFM diagnostic update count must be a positive integer")
+    count = steps if max_updates is None else min(max_updates, steps)
     query_count = min(int(training["infer_top_gene"]), len(prepared.allowed_indices))
     if query_count < 1:
         raise ValueError("scDFM has no allowed expression query genes")
@@ -360,6 +430,8 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
                             "adapter": "scdfm",
                             "update": step + 1,
                             "total_updates": count,
+                            "planned_updates": steps,
+                            "epoch_equivalent_progress": (step + 1) / budget["steps_per_epoch"],
                             "loss": losses[-1],
                         }
                     ),
@@ -387,8 +459,7 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
         "official_recipe": OFFICIAL_RECIPE,
         "resolved_training": training,
         "actual_model": {"d_model": 512, "nhead": 8, "nlayers": 4, "ntoken": len(vocab)},
-        "completed_updates": count,
-        "training_complete": count == steps,
+        **budget_progress(budget, count),
         "last_loss": losses[-1],
         "sampled_target_rows": len(sampled_rows),
         "allowed_expression_gene_indices": allowed.tolist(),
@@ -403,6 +474,7 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
             "coexpression built only from sanitized train targets and compatible train controls",
             "official periodic cell_eval validation omitted; common frozen last-only evaluation",
             "full expression inference uses fixed query blocks and exact supplied controls",
+            "epoch budget uses ceil(train perturbation rows / official batch) sampled updates",
         ],
     }
     return FittedAdapter(model=state, receipt=receipt)

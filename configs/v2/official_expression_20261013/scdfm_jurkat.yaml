@@ -24,7 +24,6 @@ model:
   fusion_method: differential_perceiver
 training:
   batch_size: 48
-  steps: 200000
   lr: 5.0e-05
   eta_min: 1.0e-06
   mode: predict_y
@@ -34,6 +33,7 @@ training:
   gamma: 0.5
   topk: 30
   use_negative_edge: true
+  epochs: 4
 evaluation:
   expected_conditions: 592
   expected_hashes:
@@ -60,3 +60,5 @@ adaptations:
 - context-matched training controls
 - frozen common 300-control evaluation; last checkpoint
 - official model-specific training recipe; no native architecture imports
+- 'project_preregistered: four epochs; official optimizer/model settings retained;
+  last-only common test'

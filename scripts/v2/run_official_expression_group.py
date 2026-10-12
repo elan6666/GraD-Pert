@@ -68,12 +68,12 @@ def prepare(runtime_path: Path, output: Path) -> dict:
     if (
         not priority
         or len(set(priority)) != len(priority)
-        or not set(priority) <= {"scouter", "scdfm", "gears"}
+        or not set(priority) <= {"scouter", "scouter_project", "scouter_official", "scdfm", "gears"}
     ):
         raise ValueError("only explicitly authorized unique baseline names allowed")
     for name in priority:
         config = ROOT / "configs/v2/official_expression_20261013" / f"{name}_jurkat.yaml"
-        load_config(config)
+        cfg = load_config(config)
         stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
         run_id = f"{name}-jurkat-seed1-{stamp}-{uuid.uuid4().hex}"
         output_root = Path(runtime["runs_root"]) / run_id
@@ -85,6 +85,7 @@ def prepare(runtime_path: Path, output: Path) -> dict:
             "seed": 1,
         }
         individual.pop("models")
+        individual["excluded_conditions"] = cfg["data"].get("omit_condition_ids", [])
         validate_cpu_gate(individual, config, source.commit)
         path = output / f"{name}.runtime.json"
         rows.append(

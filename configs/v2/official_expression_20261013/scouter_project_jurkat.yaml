@@ -1,0 +1,69 @@
+schema: official-expression-holdout-v1
+model_id: scouter
+seed: 1
+source_code:
+  repository: https://github.com/PancakeZoy/scouter
+  commit: 0cfddd000e19b72ff033ba67c8315f7bc3304932
+data:
+  dataset_id: nadig_jurkat
+  protocol_id: within_cell_unseen_single
+  registry_version: datasets-v2
+  split_policy: grouped_0.5625_0.1875_0.25__gears_default_graph_intersection_v1
+  split_seed: 42
+  preprocessing_id: txpert_within_cell_v1
+  train_selection_path: /data/yilangliu/GraD-Pert/development/jurkat-cap40-v2-binding-20260930/training_selection.json
+  train_selection_sha256: aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132
+  exclude_test_target_expression: true
+  expected_hashes:
+    canonical_data_sha256: f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861
+    split_content_sha256: ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0
+    expression_gene_order_sha256: 5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74
+    graph_gene_order_sha256: c1d0c76822d5c7ac1f561457010065fa3a195d27954f3c959d6732d107124e10
+model:
+  n_encoder:
+  - 2048
+  - 512
+  n_out_encoder: 64
+  n_decoder:
+  - 2048
+  use_batch_norm: true
+  use_layer_norm: false
+  dropout_rate: 0.0
+training:
+  batch_size: 256
+  loss_gamma: 0.0
+  loss_lambda: 0.5
+  lr: 0.001
+  sched_gamma: 0.9
+  n_epochs: 4
+  patience: 5
+evaluation:
+  expected_conditions: 592
+  expected_hashes:
+    control_manifest_sha256: 5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20
+    evaluation_state_sha256: 844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770
+  protocol: v2
+  control_cells: 300
+  checkpoint: last
+  gene_groups:
+  - all
+  - seen_expression
+  - unseen_expression
+  gene_sets:
+  - all
+  - deg
+  query_count: 1000
+  cell_batch: 128
+artifacts:
+  result_mode: metrics_only
+  zero_pkl: true
+adaptations:
+- canonical cap40 rows/split/axis
+- exclude test-target numeric expression before fitter
+- context-matched training controls
+- frozen common 300-control evaluation; last checkpoint
+- official model-specific training recipe; no native architecture imports
+- 'project_preregistered: four epochs; official optimizer/model settings retained;
+  last-only common test'
+- project GenePT-Seed raw2048 replaces the entire perturbation prior; no mixed embedding
+  spaces

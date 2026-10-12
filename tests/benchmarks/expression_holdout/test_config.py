@@ -101,6 +101,9 @@ def test_terminal_requires_sealed18_metrics_and_artifacts(tmp_path):
     (root / "fit").mkdir(parents=True)
     (root / "fit/last.pt").write_bytes(b"checkpoint")
     (root / "inference-receipt.json").write_text("{}")
+    (root / "fit-receipt.json").write_text(
+        json.dumps({"epochs_requested": 4, "epochs_completed": 4})
+    )
     ids = [
         f"{name}_{genes}"
         for name in ("txpert_macro_pearson_delta", "trishift_pearson_delta", "systema_pearson")

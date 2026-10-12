@@ -50,6 +50,21 @@ def load_official_prior(runtime: dict, fit_targets: set[str]):
         raise ValueError("official prior digest mismatch")
     required = set(map(str, runtime["required_target_genes"])) | fit_targets
     required.discard("ctrl")
+    kind = runtime.get("prior_kind", "official-supported raw prior")
+    representation = runtime.get("prior_representation", "raw")
+    if representation != "raw":
+        raise ValueError("Scouter requires raw source prior vectors, not PCA/learned projections")
+    expected_dimension = runtime.get("prior_dimension")
+    if kind in {"project_genept_seed", "official_genept"} and (
+        not isinstance(expected_dimension, int) or expected_dimension <= 0
+    ):
+        raise ValueError("named GenePT comparison requires an explicit prior_dimension")
+    excluded_conditions = tuple(runtime.get("excluded_conditions", ()))
+    if any(not isinstance(condition, str) or not condition for condition in excluded_conditions):
+        raise ValueError("authorized excluded conditions must be explicit condition identities")
+    excluded_targets = {
+        gene for condition in excluded_conditions for gene in condition.split("+") if gene != "ctrl"
+    }
     aliases = runtime.get("prior_aliases", {})
     if not isinstance(aliases, dict) or any(
         not isinstance(key, str) or not isinstance(value, str) for key, value in aliases.items()
@@ -57,32 +72,82 @@ def load_official_prior(runtime: dict, fit_targets: set[str]):
         raise ValueError("official prior aliases must be an audited gene/source mapping")
     if aliases and sha256_json(aliases) != runtime.get("prior_aliases_sha256"):
         raise ValueError("official prior alias digest mismatch")
-    if set(aliases) - required:
+    if set(aliases) - (required | excluded_targets):
         raise ValueError("prior aliases contain noncanonical target identities")
+    source_model = runtime.get("prior_source_model")
     if prior_path.suffix in {".pickle", ".pkl"}:
         with prior_path.open("rb") as handle:
             values = pickle.load(handle)
         if not isinstance(values, dict):
             raise ValueError("official prior must be a gene/vector dictionary")
-        missing = sorted(gene for gene in required if aliases.get(gene, gene) not in values)
-        if missing:
-            raise ValueError(f"official prior misses canonical fit/test targets: {missing}")
-        embeddings = pd.DataFrame.from_dict(
-            {gene: values[aliases.get(gene, gene)] for gene in sorted(required)}, orient="index"
+        widths = set()
+        for name, vector in values.items():
+            v = np.asarray(vector)
+            if not isinstance(name, str) or not name or v.ndim != 1 or not len(v):
+                raise ValueError("invalid raw prior gene/vector identity")
+            if v.dtype.kind not in "fiu" or not np.isfinite(v).all():
+                raise ValueError("raw prior contains nonfinite or nonnumeric vectors")
+            widths.add(len(v))
+        if len(widths) != 1:
+            raise ValueError("raw prior mixes embedding dimensions")
+        requested_sources = {aliases.get(gene, gene) for gene in required} | {"ctrl"}
+        source = pd.DataFrame.from_dict(
+            {name: vector for name, vector in values.items() if name in requested_sources},
+            orient="index",
+            columns=range(next(iter(widths))),
         )
-        if "ctrl" in values:
-            embeddings.loc["ctrl"] = values["ctrl"]
+    elif prior_path.suffix == ".npz":
+        gene_key = runtime.get("prior_gene_key", "genes")
+        embedding_key = runtime.get("prior_embedding_key", "embeddings")
+        with np.load(prior_path, allow_pickle=False) as archive:
+            genes = archive[gene_key]
+            vectors = archive[embedding_key]
+            if genes.ndim != 1 or vectors.ndim != 2 or len(genes) != len(vectors):
+                raise ValueError("raw NPZ prior gene/vector axes disagree")
+            if genes.dtype.kind not in "US" or vectors.dtype.kind not in "fiu":
+                raise ValueError("raw NPZ prior requires string identities and numeric vectors")
+            names = [
+                name.decode("utf-8") if isinstance(name, bytes) else str(name) for name in genes
+            ]
+            source = pd.DataFrame(vectors, index=names)
+            if "model" in archive:
+                model = archive["model"]
+                if model.ndim != 0 or model.dtype.kind not in "US":
+                    raise ValueError("raw NPZ model provenance must be a scalar string")
+                raw_model = model.item()
+                observed_model = (
+                    raw_model.decode("utf-8") if isinstance(raw_model, bytes) else str(raw_model)
+                )
+                if source_model is not None and observed_model != source_model:
+                    raise ValueError("raw NPZ source-model provenance mismatch")
+                source_model = observed_model
     else:
         source = pd.read_csv(prior_path, index_col=0)
-        if not source.index.is_unique:
-            raise ValueError("official prior gene index is duplicated")
-        missing = sorted(gene for gene in required if aliases.get(gene, gene) not in source.index)
-        if missing:
-            raise ValueError(f"official prior misses canonical fit/test targets: {missing}")
-        embeddings = source.loc[[aliases.get(gene, gene) for gene in sorted(required)]].copy()
-        embeddings.index = sorted(required)
-        if "ctrl" in source.index:
-            embeddings.loc["ctrl"] = source.loc["ctrl"]
+    if not source.index.is_unique or any(
+        not isinstance(name, str) or not name for name in source.index
+    ):
+        raise ValueError("official prior gene index is duplicated or invalid")
+    if not source.shape[1] or (
+        expected_dimension is not None and source.shape[1] != expected_dimension
+    ):
+        raise ValueError("raw prior dimension differs from its frozen declaration")
+    if source.to_numpy().dtype.kind not in "fiu" or not np.isfinite(source.to_numpy()).all():
+        raise ValueError("raw prior contains nonfinite or nonnumeric vectors")
+    missing = {gene for gene in required if aliases.get(gene, gene) not in source.index}
+    authorized_missing = missing & excluded_targets
+    if authorized_missing & fit_targets:
+        raise ValueError("excluded missing-prior target remains in prepared fit data")
+    if len(authorized_missing) > 1:
+        raise ValueError("authorized condition exclusion must identify one unique missing gene")
+    if missing - authorized_missing:
+        raise ValueError(f"official prior misses canonical fit/test targets: {sorted(missing)}")
+    required -= authorized_missing
+    if not required:
+        raise ValueError("raw prior has no remaining canonical targets")
+    embeddings = source.loc[[aliases.get(gene, gene) for gene in sorted(required)]].copy()
+    embeddings.index = sorted(required)
+    if "ctrl" in source.index:
+        embeddings.loc["ctrl"] = source.loc["ctrl"]
     if "ctrl" not in embeddings.index:
         embeddings.loc["ctrl"] = np.zeros(embeddings.shape[1], dtype=np.float32)
     if not embeddings.index.is_unique or not np.isfinite(embeddings.to_numpy()).all():
@@ -93,7 +158,37 @@ def load_official_prior(runtime: dict, fit_targets: set[str]):
         "prior_aliases_sha256": sha256_json(aliases),
         "required_target_gene_count": len(required),
         "prior_subset": "all canonical train/validation/test targets plus ctrl",
+        "prior_kind": kind,
+        "prior_dimension": source.shape[1],
+        "prior_representation": representation,
+        "prior_source_model": source_model,
+        "authorized_exclusions": list(excluded_conditions),
+        "excluded_missing_target_genes": sorted(authorized_missing),
     }
+
+
+def resolve_training_recipe(training: dict) -> dict:
+    """Retain the official train API while preventing stop before the fixed budget."""
+    resolved = dict(training)
+    epochs, patience = int(resolved["n_epochs"]), int(resolved["patience"])
+    if epochs <= 0 or patience <= 0:
+        raise ValueError("Scouter epoch and patience budgets must be positive")
+    resolved["patience"] = max(epochs, patience)
+    return resolved
+
+
+def declared_prior_runtime(config: dict, runtime: dict) -> dict:
+    """Only the sealed config may authorize omitting canonical conditions."""
+    exclusions = config.get("data", {}).get("omit_condition_ids", ())
+    if not isinstance(exclusions, (tuple, list)):
+        raise ValueError("config condition exclusions must be an explicit identity list")
+    declared = tuple(exclusions)
+    runtime_exclusions = runtime.get("excluded_conditions")
+    if runtime_exclusions is not None and (
+        not isinstance(runtime_exclusions, (tuple, list)) or tuple(runtime_exclusions) != declared
+    ):
+        raise ValueError("config/runtime authorized condition exclusions disagree")
+    return {**runtime, "excluded_conditions": declared}
 
 
 def masked_official_loss(original: Any, allowed: np.ndarray):
@@ -234,7 +329,12 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
         for condition in (*prepared.train_conditions, *prepared.val_conditions)
         for gene in condition.split("+")
     }
-    embeddings, prior_receipt = load_official_prior(runtime, required)
+    prior_runtime = declared_prior_runtime(config, runtime)
+    if set((*prepared.train_conditions, *prepared.val_conditions)) & set(
+        prior_runtime.get("excluded_conditions", ())
+    ):
+        raise ValueError("authorized excluded conditions remain in prepared fit data")
+    embeddings, prior_receipt = load_official_prior(prior_runtime, required)
     data = package.ScouterData(adata, embeddings, "condition", "gene_name")
     rows = tuple(map(str, adata.obs_names))
     data.setup_ad("embd_index", slim=False)
@@ -261,7 +361,7 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
     np.random.seed(int(runtime["seed"]))
     model = package.Scouter(data, device=runtime["device"])
     model.model_init(**config["model"])
-    training = dict(config["training"])
+    training = resolve_training_recipe(config["training"])
     if len(prepared.train_row_ids) < int(training["batch_size"]):
         raise ValueError("official drop_last loader would contain zero training batches")
     original_dataset, original_loss = module.BalancedDataset, module.gears_loss
@@ -286,6 +386,8 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
         module.BalancedDataset, module.gears_loss = original_dataset, original_loss
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
+    if max_updates is None and len(model.loss_history["train_loss"]) != training["n_epochs"]:
+        raise RuntimeError("Scouter did not complete the authorized fixed epoch budget")
     torch.save(deepcopy(model.network.state_dict()), output / "last.pt")
     return FittedAdapter(
         model=model,
@@ -293,7 +395,6 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
             "official_sha": OFFICIAL_SHA,
             "official_training_api": "scouter.Scouter.train",
             **prior_receipt,
-            "prior_kind": runtime.get("prior_kind", "official-supported raw prior"),
             "ctrl_embedding": "official zero vector if absent in prior",
             "checkpoint_role": "last",
             "last_capture": "before_official_best_restore" if final_states else "final_state",
@@ -302,6 +403,9 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
             "loss_history": model.loss_history,
             "epochs_requested": training["n_epochs"],
             "epochs_completed": len(model.loss_history["train_loss"]),
+            "early_stopping": False,
+            "configured_patience": config["training"]["patience"],
+            "resolved_patience": training["patience"],
             "pair_count": len(pairs),
             "pair_sha256": sha256_json(pairs),
             "context_pairing": "official fixed pairs; balanced within compatible pools",

@@ -48,6 +48,17 @@ def load_config(path: Path) -> dict:
         raise ValueError("official source/config identity mismatch")
     if value["seed"] != 1 or not value["data"]["exclude_test_target_expression"]:
         raise ValueError("comparison fixes seed1 and expression exclusion")
+    omitted = value["data"].get("omit_condition_ids", [])
+    if (
+        not isinstance(omitted, list)
+        or any(not isinstance(c, str) or "+" not in c for c in omitted)
+        or len(set(omitted)) != len(omitted)
+    ):
+        raise ValueError("prior exclusions require unique canonical condition IDs")
+    if omitted and model != "scouter":
+        raise ValueError("only the authorized Scouter prior coverage arm may omit conditions")
+    if omitted and omitted != ["CCDC130+ctrl"]:
+        raise ValueError("current authorization only excludes CCDC130+ctrl training condition")
     ev = value["evaluation"]
     if (
         set(ev.get("expected_hashes", {})) != {"control_manifest_sha256", "evaluation_state_sha256"}
@@ -192,6 +203,11 @@ def validate_terminal(root: Path, row: dict, source_commit: str) -> dict:
         or any(r["control_count"] != 300 for r in conditions)
     ):
         raise ValueError("official frozen condition/control coverage differs")
+    fit = json.loads((root / "fit-receipt.json").read_text())
+    if config["training"].get("epochs", config["training"].get("n_epochs")) == 4 and (
+        fit.get("epochs_requested") != 4 or fit.get("epochs_completed") != 4
+    ):
+        raise ValueError("project four-epoch training budget incomplete")
     return receipt
 
 
@@ -216,3 +232,5 @@ def validate_cpu_gate(runtime: dict, config: Path, source_commit: str) -> None:
     }
     if any(receipt.get(k) != v for k, v in expected.items()):
         raise ValueError("actual official CPU integration source/config/env mismatch")
+    if "prior_sha256" in runtime and receipt.get("prior_sha256") != runtime["prior_sha256"]:
+        raise ValueError("actual CPU integration used a different prior")

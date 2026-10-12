@@ -52,8 +52,13 @@ def main():
     }
     with Path(runtime["gears_assets"]).joinpath("gene2go_all.pkl").open("rb") as h:
         go = pickle.load(h)
-    with Path(runtime["prior_path"]).open("rb") as h:
-        prior = pickle.load(h)
+    prior_path = Path(runtime["prior_path"])
+    if prior_path.suffix == ".npz":
+        with np.load(prior_path, allow_pickle=False) as archive:
+            prior = set(map(str, archive[runtime.get("prior_gene_key", "genes")]))
+    else:
+        with prior_path.open("rb") as h:
+            prior = pickle.load(h)
     genes = tuple(sorted(set(go) & set(prior))[:32])
     if len(genes) != 32:
         raise ValueError("official graph/prior lacks synthetic integration identities")

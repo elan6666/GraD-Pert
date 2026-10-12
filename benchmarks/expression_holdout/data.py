@@ -60,8 +60,12 @@ def prepare_data(config: dict[str, Any], data_root: Path) -> PreparedData:
             enabled=True,
         )
         assert allowed is not None
-        train = tuple(data.train_row_indices)
-        val_set = set(data.split.val_conditions)
+        omitted = set(anchor.get("omit_condition_ids", ()))
+        known = set(data.split.train_conditions)
+        if omitted - known or data.split.control_condition_id in omitted:
+            raise ValueError("authorized prior exclusions must name canonical training conditions")
+        train = tuple(i for i in data.train_row_indices if data.condition_ids[i] not in omitted)
+        val_set = set(data.split.val_conditions) - omitted
         val = tuple(i for i, c in enumerate(data.condition_ids) if c in val_set)
         targets = train + val
         contexts = {data.context_ids[i] for i in targets}
@@ -85,8 +89,8 @@ def prepare_data(config: dict[str, Any], data_root: Path) -> PreparedData:
             train_row_ids=tuple(data.row_ids[i] for i in train),
             val_row_ids=tuple(data.row_ids[i] for i in val),
             control_row_ids=tuple(data.row_ids[i] for i in controls),
-            train_conditions=tuple(data.split.train_conditions),
-            val_conditions=tuple(data.split.val_conditions),
+            train_conditions=tuple(c for c in data.split.train_conditions if c not in omitted),
+            val_conditions=tuple(c for c in data.split.val_conditions if c not in omitted),
             control_condition=data.split.control_condition_id,
             receipt={
                 "canonical_data_sha256": data.manifest.canonical_adata_sha256,
@@ -97,6 +101,8 @@ def prepare_data(config: dict[str, Any], data_root: Path) -> PreparedData:
                 "expression_policy": policy,
                 "test_condition_ids_sha256": sha256_json(list(data.split.test_conditions)),
                 "test_truth_present_during_fit": False,
+                "authorized_omitted_conditions": sorted(omitted),
+                "omitted_train_row_count": len(data.train_row_indices) - len(train),
             },
         )
 
