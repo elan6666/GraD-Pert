@@ -1,0 +1,15 @@
+{
+  "baseline": "6e2b93cc2715e1be836c7de3058ed58704fcc0cd",
+  "user_authorized": "UID1003 run_totalvi_source_validation_development.py under same limits as ScButterfly",
+  "policy_additional_command_basenames": [
+    "run_totalvi_source_validation_development.py"
+  ],
+  "max_foreign_per_GPU": 1,
+  "max_foreign_mib": 1024,
+  "min_free_mib": 2048,
+  "max_owned_fraction": 0.85,
+  "tests": "127 passed, 1 warning in 14.07s",
+  "exit_code": 0,
+  "cuda_hidden": true,
+  "log_sha256": "9dc0ad3731fd61d8bcd961f8774b47df00a9f31b77c8090de7bc4e87688f0f8e"
+}

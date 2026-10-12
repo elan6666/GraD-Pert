@@ -233,6 +233,56 @@ def test_dynamic_same_account_program_can_restart_and_leave(dynamic_policy, dyna
     shared.admit(dynamic_policy, dynamic_observed)
 
 
+def _totalvi_policy(policy):
+    return {
+        **copy.deepcopy(policy),
+        "additional_command_basenames": [shared.TOTALVI_PROGRAM],
+        "authorization_reference": shared.TOTALVI_AUTHORIZATION,
+    }
+
+
+def test_totalvi_addition_requires_explicit_new_authorization(dynamic_policy, dynamic_observed):
+    dynamic_observed["processes"][1]["identity"]["script_basename"] = shared.TOTALVI_PROGRAM
+    with pytest.raises(RuntimeError, match="unapproved"):
+        shared.admit(dynamic_policy, dynamic_observed)
+    expanded = _totalvi_policy(dynamic_policy)
+    shared.admit(expanded, dynamic_observed)
+    expanded["authorization_reference"] = shared.SCBUTTERFLY_AUTHORIZATION
+    with pytest.raises(ValueError, match="authorization"):
+        shared.admit(expanded, dynamic_observed)
+
+
+@pytest.mark.parametrize("failure", ["program", "uid", "growth", "second", "free", "own"])
+def test_totalvi_expansion_preserves_all_resource_limits(dynamic_policy, dynamic_observed, failure):
+    expanded = _totalvi_policy(dynamic_policy)
+    process = dynamic_observed["processes"][1]
+    process["identity"]["script_basename"] = shared.TOTALVI_PROGRAM
+    if failure == "program":
+        process["identity"]["script_basename"] = "other.py"
+    elif failure == "uid":
+        process["identity"]["uid"] = 1004
+    elif failure == "growth":
+        process["memory_mib"] = 1025
+    elif failure == "second":
+        duplicate = copy.deepcopy(process)
+        duplicate["pid"] = duplicate["identity"]["pid"] = 999
+        dynamic_observed["processes"].append(duplicate)
+    elif failure == "free":
+        dynamic_observed["gpus"][0]["free_mib"] = 2047
+    else:
+        dynamic_observed["processes"][0]["memory_mib"] = 28000
+    with pytest.raises(RuntimeError):
+        shared.admit(expanded, dynamic_observed)
+
+
+@pytest.mark.parametrize("extra", [[], ["other.py"], [shared.TOTALVI_PROGRAM, "other.py"]])
+def test_totalvi_policy_cannot_expand_beyond_exact_authorized_program(dynamic_policy, extra):
+    expanded = _totalvi_policy(dynamic_policy)
+    expanded["additional_command_basenames"] = extra
+    with pytest.raises(ValueError):
+        shared.validate_policy(expanded)
+
+
 @pytest.mark.parametrize(
     "field,value", [("uid", 1002), ("uid", 1004), ("script_basename", "other.py"), ("pid", 999)]
 )

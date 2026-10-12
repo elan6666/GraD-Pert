@@ -15,6 +15,8 @@ SCHEMA = "shared-gpu-admission-1"
 DUAL_SCHEMA = "shared-gpu-admission-2"
 DYNAMIC_SCHEMA = "shared-gpu-admission-3"
 SCBUTTERFLY_AUTHORIZATION = "2026-10-12-user-scbutterfly-coexistence"
+TOTALVI_AUTHORIZATION = "2026-10-12-user-scbutterfly-totalvi-coexistence"
+TOTALVI_PROGRAM = "run_totalvi_source_validation_development.py"
 
 
 def validate_dynamic_policy(policy: dict) -> None:
@@ -31,6 +33,9 @@ def validate_dynamic_policy(policy: dict) -> None:
         "authorization_reference",
     }
     devices = policy.get("devices")
+    expanded = "additional_command_basenames" in policy
+    if expanded:
+        fields.add("additional_command_basenames")
     if (
         set(policy) != fields
         or policy.get("schema") != DYNAMIC_SCHEMA
@@ -41,7 +46,9 @@ def validate_dynamic_policy(policy: dict) -> None:
         or policy.get("max_foreign_memory_mib") != 1024
         or policy.get("min_free_memory_mib") != 2048
         or policy.get("max_own_memory_fraction") != 0.85
-        or policy.get("authorization_reference") != SCBUTTERFLY_AUTHORIZATION
+        or policy.get("authorization_reference")
+        != (TOTALVI_AUTHORIZATION if expanded else SCBUTTERFLY_AUTHORIZATION)
+        or (expanded and policy["additional_command_basenames"] != [TOTALVI_PROGRAM])
         or not isinstance(devices, list)
         or len(devices) != 2
     ):
@@ -302,7 +309,8 @@ def admit_dynamic(policy: dict, observed: dict, gpus: dict) -> None:
         if (
             info is None
             or info.get("uid") != policy["foreign_uid"]
-            or info.get("script_basename") != policy["command_basename"]
+            or info.get("script_basename")
+            not in (policy["command_basename"], *policy.get("additional_command_basenames", []))
             or type(entry.get("pid")) is not int
             or entry["pid"] <= 0
             or info.get("pid") != entry["pid"]

@@ -42,3 +42,7 @@ F1 的原始 GenePT 映射有 gate/up 双支路，训练反向会保存宽度409
 四组均验证3次非零学习率完整更新，包括GM1图mHC的嵌套重计算；输出、梯度、optimizer、Teacher/EMA、center/pending、Torch及NumPy随机状态精确对齐。CPU BF16 autocast映射和反向也对齐。CPU float32、128基因、真实F1映射宽度的去重非持久激活保存量为9,569,280→0字节；参数与冻结先验存储已排除。这仅说明重计算机制有效，不代表CUDA峰值或吞吐收益。
 
 新配置目录 `configs/v2/br400_best_last_checkpoint_20261012`；新预检顺序F1→GM1→BR→N1，正式顺序仍BR→F1→N1→GM1。须在新源码重新通过全部双卡10更新和300-control容量/一致性门，主验收后才能启动四轮训练。资源85%与每卡2GiB余量保持原规则，失败不自动降batch400。
+
+## TotalVI 小任务共用授权
+
+新6e2b93c队列在CUDA子任务启动前发现UID1003的 `run_totalvi_source_validation_development.py`，原ScButterfly名单不允许，保护门安全终止且旧运行保留。用户随后明确允许此程序按相同上限共用。新版schema3政策仅增加该精确程序，必须绑定新的授权reference；旧ScButterfly政策兼容。两种程序合计仍每卡最多一个外部任务、占用≤1GiB、物理free≥2GiB、我们aggregate≤85%，不扩大其他UID/程序授权。127项相关CPU测试通过；新正式工作仍等待四组精确GPU预检。
