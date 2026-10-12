@@ -1,3 +1,7 @@
+## 2026-10-12：BR400 epoch4 last 双卡评估独立验收；剩余三臂协议升级
+
+BR run nadig_jurkat-seed1-20261012T061448Z-cba17ce53a6b426cb8367b767d453cd5 的第4轮last成功评估592条件，18个Pearson/有效条件/hash/zeroPKL已核验；双卡各batch300，约39.3分钟。TxPert整体全/DEG0.228570/0.383056，TriShift0.177556/0.345992，Systema0.095442/0.213948。旧bestlast队列按用户停止保留，不说全队列成功。后续F1→N1→GM1四轮/global400，禁逐轮验证、不选best、只测last，需要新发布源码/config/ID；实现中，尚未训练。当前owner主，Luna本次监督终态结束，无活动定时监控。报告docs/experiments/GRADPERT_V2_BR400_LAST_ONLY_SWITCH_20261012.md；新计划BR400_REMAINING_LAST_ONLY_20261012.plan.md。以下旧阶段历史。
+
 ## Active BR400 best/last stage (2026-10-12)
 
 User approved validationjointbest plus final4last, all BR/F1/N1/GM1 fresh400, common evaluationmax probe. Publishedprechange832a926; old192peercontinuation superseded before dispatch. Build/gates/mainacceptance/launch pending; exact roles and resource boundaries in planGRADPERT_V2_BR400_BEST_LAST_20261012.plan.md.

@@ -1,0 +1,41 @@
+{
+  "baseline": "7c40df452a4b85e814df9e9c9edffdc28a0414d0",
+  "frozen": true,
+  "checks": [
+    {
+      "exit_code": 0,
+      "result": "104 passed, 1 warning in 36.39s",
+      "command": "CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/v2/run_cpu_tests.py -- -q tests/v2/test_br400_group.py tests/v2/test_br400_remaining_last.py tests/v2/test_br400_capacity.py tests/v2/test_train_only.py tests/v2/test_lifecycle.py tests/v2/test_reporting.py tests/v2/test_deferred_postfit.py",
+      "log": "/tmp/gradpert-br400-remaining-tests.log"
+    },
+    {
+      "exit_code": 0,
+      "result": "5 passed, 15 deselected in 1.95s",
+      "command": "CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/v2/run_cpu_tests.py -- -q tests/v2/test_br400_remaining_last.py -k 'remaining_rejects_lower or actual_remaining_eval_leaf_binding'",
+      "log": "/tmp/gradpert-br400-remaining-binding-tests.log"
+    },
+    {
+      "exit_code": 0,
+      "result": "2 passed, 57 deselected in 2.78s",
+      "command": "CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/v2/run_cpu_tests.py -- -q tests/v2/test_br400_group.py tests/v2/test_br400_remaining_last.py -k 'all_gates_before_barrier or all_three_gates_then'",
+      "log": "/tmp/gradpert-br400-remaining-phase-tests.log"
+    }
+  ],
+  "ruff_check_exit_code": 0,
+  "ruff_format_check_exit_code": 0,
+  "scoped_diff_check_exit_code": 0,
+  "cuda_hidden": true,
+  "server_operations": false,
+  "committed": false,
+  "manifest": "configs/v2/br400_remaining_last_20261012/manifest.json",
+  "generator_option": "--remaining-last-only",
+  "formal_order": [
+    "F1",
+    "N1",
+    "GM1"
+  ],
+  "test_roles": [
+    "last"
+  ],
+  "validation_mode": "disabled"
+}

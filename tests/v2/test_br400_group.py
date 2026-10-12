@@ -212,6 +212,9 @@ def training_receipt(queue, row):
     receipt["data"].update(
         graph_manifest_sha256=options.graph_manifest_sha256, genept_sha256=options.genept_sha256
     )
+    if queue["family"] == generator.REMAINING_SCHEMA:
+        receipt.pop("joint_validation_check")
+        receipt["joint_validation_check_requested"] = False
     return receipt
 
 
@@ -391,10 +394,15 @@ def execution_mocks(prepared, monkeypatch, *, fail=None, approval=True):
         if (row["name"], stage) == fail:
             raise RuntimeError("native OOM preserved")
         if stage == "preflight":
-            assert "--joint-validation-check" in command
+            assert ("--joint-validation-check" in command) == (
+                q["family"] != generator.REMAINING_SCHEMA
+            )
             path = output / f"{row['name']}-preflight/receipt.json"
             path.parent.mkdir()
             atomic_json(path, training_receipt(queue, row))
+        elif stage in ("best-last", "last"):
+            phase = "best_last" if stage == "best-last" else "last"
+            assert state["phase"] == f"{row['name']}_{phase}"
         elif stage.startswith("eval-capacity"):
             binding = next(
                 b
@@ -406,11 +414,17 @@ def execution_mocks(prepared, monkeypatch, *, fail=None, approval=True):
             atomic_json(path, eval_receipt(queue, row, binding))
 
     monkeypatch.setattr(runner, "run_stage", run)
-    monkeypatch.setattr(runner, "validate_training_stage", lambda plan: {"epoch": 4})
+    monkeypatch.setattr(runner, "validate_training_contract", lambda plan: {"epoch": 4})
     monkeypatch.setattr(
         runner,
         "validate_complete",
-        lambda plan: {"run_id": plan["run_id"], "roles": ["best", "last"]},
+        lambda plan: {
+            "run_id": plan["run_id"],
+            "roles": ["last"]
+            if plan["resolved_config"]["model"]["parameters"]["validation_mode"]["value"]
+            == "disabled"
+            else ["best", "last"],
+        },
     )
 
     def wait(seconds):

@@ -13,6 +13,9 @@ from gradpert.config import load_experiment_config
 from gradpert.hashing import sha256_file
 
 SCHEMA = "br400-best-last-1"
+REMAINING_SCHEMA = "br400-remaining-last-1"
+REMAINING_PRIORITY = ("F1", "N1", "GM1")
+LAST_REFERENCE = ".byte-os/plans/BR400_REMAINING_LAST_ONLY_20261012.plan.md"
 PRIORITY = ("BR", "F1", "N1", "GM1")
 PREFLIGHT_PRIORITY = ("GM1", "F1", "BR", "N1")
 CHECKPOINT_PREFLIGHT_PRIORITY = ("F1", "GM1", "BR", "N1")
@@ -37,13 +40,24 @@ PARENTS = {
 }
 
 
-def configurations(source: Path, eval_batch: int = 300, checkpoint_genept: bool = False) -> dict:
+def configurations(
+    source: Path,
+    eval_batch: int = 300,
+    checkpoint_genept: bool = False,
+    remaining_last_only: bool = False,
+) -> dict:
+    if type(remaining_last_only) is not bool or (remaining_last_only and not checkpoint_genept):
+        raise ValueError("remaining last-only requires explicit common checkpoint opt-in")
+    if remaining_last_only and eval_batch != 300:
+        raise ValueError("remaining last-only requires frozen common evaluation batch300")
     if type(checkpoint_genept) is not bool:
         raise ValueError("checkpoint_genept must be an explicit bool")
     if type(eval_batch) is not int or not 2 <= eval_batch <= 300:
         raise ValueError("eval cell batch must be an explicit common 2..300")
     result = {}
     for name, (relative, digest) in PARENTS.items():
+        if remaining_last_only and name not in REMAINING_PRIORITY:
+            continue
         path = source / relative
         if sha256_file(path) != digest:
             raise ValueError("frozen scientific parent changed")
@@ -69,11 +83,24 @@ def configurations(source: Path, eval_batch: int = 300, checkpoint_genept: bool 
         ):
             train[key] = {"value": setting, "source": "user_locked", "reference": REFERENCE}
         train.update(formal_run_policy="v2_fixed_4", monitor="val/joint_loss", monitor_mode="min")
+        if remaining_last_only:
+            params["validation_mode"] = {
+                "value": "disabled",
+                "source": "user_locked",
+                "reference": LAST_REFERENCE,
+            }
+            train.update(monitor="none", monitor_mode="none")
         result[name] = value
     return result
 
 
-def metadata(eval_batch: int = 300, checkpoint_genept: bool = False) -> dict:
+def metadata(
+    eval_batch: int = 300, checkpoint_genept: bool = False, remaining_last_only: bool = False
+) -> dict:
+    if type(remaining_last_only) is not bool or (remaining_last_only and not checkpoint_genept):
+        raise ValueError("remaining last-only requires explicit common checkpoint opt-in")
+    if remaining_last_only and eval_batch != 300:
+        raise ValueError("remaining last-only requires frozen common evaluation batch300")
     if type(checkpoint_genept) is not bool:
         raise ValueError("checkpoint_genept must be an explicit bool")
     result = {
@@ -102,6 +129,17 @@ def metadata(eval_batch: int = 300, checkpoint_genept: bool = False) -> dict:
     }
     if checkpoint_genept:
         result["checkpoint_genept"] = True
+    if remaining_last_only:
+        result.update(
+            schema=REMAINING_SCHEMA,
+            priority=list(REMAINING_PRIORITY),
+            preflight_priority=list(REMAINING_PRIORITY),
+            validation="disabled",
+            selection="final_epoch",
+            test_roles=["last"],
+            execution="sequential_dual_fit_then_dual_last",
+        )
+        result["parents"] = {key: result["parents"][key] for key in REMAINING_PRIORITY}
     return result
 
 
@@ -111,12 +149,17 @@ def verify_manifest(source: Path, path: Path) -> dict:
         raise ValueError("manifest must be source-contained")
     manifest = json.loads(path.read_text())
     checkpoint_genept = manifest.get("checkpoint_genept", False)
-    expected = configurations(source, manifest["eval_batch"], checkpoint_genept)
+    if manifest.get("schema") not in (SCHEMA, REMAINING_SCHEMA):
+        raise ValueError("unknown BR400 family")
+    remaining_last_only = manifest["schema"] == REMAINING_SCHEMA
+    expected = configurations(
+        source, manifest["eval_batch"], checkpoint_genept, remaining_last_only
+    )
     if {k: v for k, v in manifest.items() if k != "rows"} != metadata(
-        manifest["eval_batch"], checkpoint_genept
+        manifest["eval_batch"], checkpoint_genept, remaining_last_only
     ):
         raise ValueError("BR400 common protocol changed")
-    if [row["name"] for row in manifest["rows"]] != list(PRIORITY):
+    if [row["name"] for row in manifest["rows"]] != manifest["priority"]:
         raise ValueError("BR400 arm scope/order changed")
     for row in manifest["rows"]:
         config = path.parent / row["name"] / "gradpert_v2/nadig_jurkat.yaml"
@@ -135,13 +178,19 @@ def verify_manifest(source: Path, path: Path) -> dict:
 
 
 def generate(
-    source: Path, output: Path, eval_batch: int = 300, checkpoint_genept: bool = False
+    source: Path,
+    output: Path,
+    eval_batch: int = 300,
+    checkpoint_genept: bool = False,
+    remaining_last_only: bool = False,
 ) -> dict:
     source, output = source.resolve(), output.resolve()
     if output.exists() or not output.is_relative_to(source):
         raise ValueError("fresh source-contained configuration directory required")
     rows = []
-    for name, config in configurations(source, eval_batch, checkpoint_genept).items():
+    for name, config in configurations(
+        source, eval_batch, checkpoint_genept, remaining_last_only
+    ).items():
         path = output / name / "gradpert_v2/nadig_jurkat.yaml"
         path.parent.mkdir(parents=True)
         path.write_text(yaml.safe_dump(config, sort_keys=False))
@@ -150,7 +199,10 @@ def generate(
         )
     path = output / "manifest.json"
     path.write_text(
-        json.dumps({**metadata(eval_batch, checkpoint_genept), "rows": rows}, indent=2) + "\n"
+        json.dumps(
+            {**metadata(eval_batch, checkpoint_genept, remaining_last_only), "rows": rows}, indent=2
+        )
+        + "\n"
     )
     return verify_manifest(source, path)
 
@@ -160,6 +212,7 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--eval-batch", type=int, default=300)
     parser.add_argument("--checkpoint-genept", action="store_true")
+    parser.add_argument("--remaining-last-only", action="store_true")
     args = parser.parse_args()
     print(
         json.dumps(
@@ -167,7 +220,8 @@ if __name__ == "__main__":
                 Path(__file__).resolve().parents[2],
                 args.output,
                 args.eval_batch,
-                args.checkpoint_genept,
+                args.checkpoint_genept or args.remaining_last_only,
+                args.remaining_last_only,
             )
         )
     )

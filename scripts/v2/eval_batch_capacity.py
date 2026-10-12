@@ -33,7 +33,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     validate_policy(queue["shared_gpu_policy"])
     if (
         queue.get("schema") != "unified-ddp-queue-1"
-        or queue.get("family") != "br400-best-last-1"
+        or queue.get("family") not in ("br400-best-last-1", "br400-remaining-last-1")
         or queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA
         or queue.get("source_commit") != source_commit
         or args.gpu not in ("0", "1")
@@ -41,6 +41,12 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         or args.reference_batch != 128
     ):
         raise ValueError("evaluation probe requires the exact BR400 shared-resource queue")
+    if queue.get("family") == "br400-remaining-last-1" and (
+        queue.get("mode") != queue["family"]
+        or [row["name"] for row in queue["rows"]] != ["F1", "N1", "GM1"]
+        or queue.get("steps") != 10
+    ):
+        raise ValueError("remaining evaluation requires the exact last-only three-arm scope")
     rows = [row for row in queue["rows"] if row["name"] == args.row_name]
     if len(rows) != 1:
         raise ValueError("evaluation probe must select one sealed queue row")

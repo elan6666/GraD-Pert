@@ -343,3 +343,7 @@ Current lifecycle commits epoch checkpoints after validation. A training step co
 ## 2026-10-12: align legacy and current handoff pointers
 
 The relay state helper advances current_handoff/history, but older readers can still follow a stale top-level handoff. At transfer, verify all reader-used pointer fields and their SHA against the new exact run/attempt; synchronize them as part of the owned handoff record before announcing transfer. A correct owner/run alone does not prove the reader has the correct handoff.
+
+## Filter scientific terminal markers on the server before printing
+
+Native evaluation COMPLETE may embed hundreds of conditions and ordered cell IDs, and controller COMPLETE may duplicate the entire result. Printing the full marker caused an oversized tool output. Inspect bounded key lists, select identities and 18 summary metrics on the server, assert a small serialized size before transfer, and retain complete scientific details on the server. Do not mistake a file named receipt for a small artifact.

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from collect_results import collect_run
 from generate_br400_group import (
-    PRIORITY,
+    REMAINING_SCHEMA,
     verify_manifest,
 )
 from generate_br400_group import (
@@ -76,8 +76,8 @@ def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: d
         rows.append({"name": spec["name"], "plan": plan})
     queue = {
         "schema": "unified-ddp-queue-1",
-        "mode": FAMILY_SCHEMA,
-        "family": FAMILY_SCHEMA,
+        "mode": matrix["schema"],
+        "family": matrix["schema"],
         "source": str(source),
         "source_commit": rows[0]["plan"]["source_commit"],
         "manifest": str(manifest),
@@ -113,8 +113,8 @@ def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: d
 def verify(queue: dict) -> None:
     if (
         queue.get("schema") != "unified-ddp-queue-1"
-        or queue.get("mode") != FAMILY_SCHEMA
-        or queue.get("family") != FAMILY_SCHEMA
+        or queue.get("mode") not in (FAMILY_SCHEMA, REMAINING_SCHEMA)
+        or queue.get("family") != queue.get("mode")
         or queue.get("steps") != 10
     ):
         raise ValueError("unknown BR400 queue/protocol")
@@ -134,10 +134,18 @@ def verify(queue: dict) -> None:
         if sha256_file(Path(queue[key])) != queue[key + "_sha256"]:
             raise ValueError("sealed BR400 input changed")
     matrix = verify_manifest(source, Path(queue["manifest"]))
+    if (
+        matrix["schema"] == REMAINING_SCHEMA
+        and queue["shared_gpu_policy"]["max_own_memory_fraction"] != 0.90
+    ):
+        raise ValueError("remaining last-only requires the exact approved memory90 policy")
     runtime = read_json(Path(queue["runtime"]))
     if Path(runtime["repository_root"]).resolve() != source.resolve():
         raise ValueError("runtime source binding changed")
-    if [row["name"] for row in queue["rows"]] != list(PRIORITY):
+    if (
+        queue["family"] != matrix["schema"]
+        or [row["name"] for row in queue["rows"]] != matrix["priority"]
+    ):
         raise ValueError("BR400 arm scope/order changed")
     bindings = []
     for row, spec in zip(queue["rows"], matrix["rows"], strict=True):
@@ -197,7 +205,7 @@ def verify(queue: dict) -> None:
                 }
             )
     if bindings != queue["eval_bindings"] or any(
-        len({r["plan"][key] for r in queue["rows"]}) != 4
+        len({r["plan"][key] for r in queue["rows"]}) != len(matrix["rows"])
         for key in ("run_id", "run_root", "test_root")
     ):
         raise ValueError("capacity bindings or unique fresh IDs changed")
@@ -233,7 +241,24 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
         or receipt.get("shared_gpu_policy") != queue["shared_gpu_policy"]
         or receipt.get("shared_queue_sha256") != sha256_file(Path(queue["output"]) / "queue.json")
         or receipt["source"].get("publication_receipt_sha256") != row["plan"]["publication_sha256"]
-        or joint.get("status") != "passed"
+        or not receipt.get("last_terms")
+        or any(
+            not isinstance(value, (int, float)) or not math.isfinite(value)
+            for value in receipt["last_terms"].values()
+        )
+    ):
+        raise ValueError("exact10 restore/inference/read-only joint-validation gate missing")
+    if queue["family"] == REMAINING_SCHEMA:
+        if (
+            row["plan"]["resolved_config"]["model"]["parameters"]["validation_mode"]["value"]
+            != "disabled"
+            or receipt.get("joint_validation_check_requested") is not False
+            or "joint_validation_check" in receipt
+            or "joint_validation_progress" in receipt
+        ):
+            raise ValueError("last-only gate must not perform joint validation")
+    elif (
+        joint.get("status") != "passed"
         or joint.get("validation_mode") != "joint_only"
         or joint.get("split") != "val"
         or joint.get("finite") is not True
@@ -255,13 +280,8 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
         or joint.get("scope") != "one_complete_native_validation_batch_engineering_only"
         or joint.get("full_validation") is not False
         or not all(value is True for value in joint["state_unchanged"].values())
-        or not receipt.get("last_terms")
-        or any(
-            not isinstance(value, (int, float)) or not math.isfinite(value)
-            for value in receipt["last_terms"].values()
-        )
     ):
-        raise ValueError("exact10 restore/inference/read-only joint-validation gate missing")
+        raise ValueError("exact read-only joint-validation gate missing")
     return receipt
 
 
@@ -312,13 +332,14 @@ DATA_HASHES = (
 
 
 def validate_common_gates(queue: dict, state: dict) -> dict:
-    if set(state["preflights"]) != set(PRIORITY) or set(state["eval_capacity"]) != {
-        f"{name}-g{gpu}" for name in PRIORITY for gpu in ("0", "1")
+    priority = [row["name"] for row in queue["rows"]]
+    if set(state["preflights"]) != set(priority) or set(state["eval_capacity"]) != {
+        f"{name}-g{gpu}" for name in priority for gpu in ("0", "1")
     }:
-        raise ValueError("all four update and eight eval gates required")
+        raise ValueError("all configured update and dual eval gates required")
     indexed = {row["name"]: row for row in queue["rows"]}
     expected_data, expected_control = None, None
-    for name in PRIORITY:
+    for name in priority:
         receipt = validate_training_gate(queue, indexed[name], state["preflights"][name])
         data = {key: receipt.get("data", {}).get(key) for key in DATA_HASHES}
         if any(
@@ -380,6 +401,25 @@ def evaluation_command(path: Path) -> list[str]:
     ]
 
 
+def validate_training_contract(plan: dict) -> dict:
+    training = validate_training_stage(plan)
+    if plan["resolved_config"]["model"]["parameters"]["validation_mode"]["value"] == "disabled":
+        root = Path(plan["run_root"])
+        if (
+            training["epoch"] != 4
+            or training["last"]["epoch"] != 4
+            or training["test_roles"] != ["last"]
+            or training["best"] is not None
+            or (root / "fit/best-test.json").exists()
+            or any(
+                row["validation"] != {"validation_mode": "disabled", "performed": False}
+                for row in read_json(root / "fit/history.json")
+            )
+        ):
+            raise ValueError("last-only training must contain no best or actual validation")
+    return training
+
+
 def validate_complete(plan: dict) -> dict:
     root = Path(plan["run_root"])
     if not (root / "COMPLETE.json").is_file() or any(
@@ -391,18 +431,23 @@ def validate_complete(plan: dict) -> dict:
         or read_json(root / "resolved_config.json") != plan["resolved_config"]
     ):
         raise ValueError("completed launch/config changed")
-    training = validate_training_stage(plan)
+    training = validate_training_contract(plan)
+    last_only = (
+        plan["resolved_config"]["model"]["parameters"]["validation_mode"]["value"] == "disabled"
+    )
+    roles = ["last"] if last_only else ["best", "last"]
     if (
         training["epoch"] != 4
         or training["last"]["epoch"] != 4
-        or training["test_roles"] != ["best", "last"]
+        or training["test_roles"] != roles
+        or (last_only and (training["best"] is not None or (root / "fit/best-test.json").exists()))
     ):
         raise ValueError("four epochs and both checkpoint roles required")
     original_complete = read_json(root / "COMPLETE.json")
     if finalize_deferred_run(plan, training) != original_complete:
         raise ValueError("canonical completion changed")
     rows = collect_run(root)
-    if [row["role"] for row in rows] != ["best", "last"]:
+    if [row["role"] for row in rows] != roles:
         raise ValueError("both role metrics required")
     for row in rows:
         role = row["role"]
@@ -440,9 +485,7 @@ def validate_complete(plan: dict) -> dict:
         "run_id": plan["run_id"],
         "complete_sha256": sha256_file(root / "COMPLETE.json"),
         "roles": rows,
-        "test_sha256": {
-            role: sha256_file(root / "fit" / f"{role}-test.json") for role in ("best", "last")
-        },
+        "test_sha256": {role: sha256_file(root / "fit" / f"{role}-test.json") for role in roles},
     }
 
 
@@ -582,7 +625,9 @@ def execute(queue: dict, directory: Path) -> None:
             indexed = {row["name"]: row for row in queue["rows"]}
             for name in matrix["preflight_priority"]:
                 row = indexed[name]
-                command = [*probe(row, directory, shared=True), "--joint-validation-check"]
+                command = probe(row, directory, shared=True)
+                if queue["family"] != REMAINING_SCHEMA:
+                    command = [*command, "--joint-validation-check"]
                 run_stage(queue, row, "preflight", command, "0,1", state, guard)
                 entry = gate_entry(directory / f"{name}-preflight/receipt.json")
                 validate_training_gate(queue, row, entry)
@@ -608,7 +653,7 @@ def execute(queue: dict, directory: Path) -> None:
                 "source_commit": queue["source_commit"],
                 "preflights": state["preflights"],
                 "eval_capacity": state["eval_capacity"],
-                "formal_order": list(PRIORITY),
+                "formal_order": matrix["priority"],
             }
             atomic_json(directory / "PREFLIGHT_COMPLETE.json", ready)
             state["phase"] = "waiting_main_acceptance"
@@ -632,9 +677,11 @@ def execute(queue: dict, directory: Path) -> None:
                     raise ValueError("sealed formal plan changed")
                 state["phase"] = f"{row['name']}_fit"
                 run_stage(queue, row, "fit", training_command(path), "0,1", state, guard)
-                validate_training_stage(row["plan"])
-                state["phase"] = f"{row['name']}_best_last"
-                run_stage(queue, row, "best-last", evaluation_command(path), "0,1", state, guard)
+                validate_training_contract(row["plan"])
+                eval_stage = "last" if queue["family"] == REMAINING_SCHEMA else "best-last"
+                phase = "last" if queue["family"] == REMAINING_SCHEMA else "best_last"
+                state["phase"] = f"{row['name']}_{phase}"
+                run_stage(queue, row, eval_stage, evaluation_command(path), "0,1", state, guard)
                 state["completed"][row["name"]] = validate_complete(row["plan"])
                 atomic_json(directory / "state.json", state)
             state.update(status="complete", phase="complete", scientific_complete=True)

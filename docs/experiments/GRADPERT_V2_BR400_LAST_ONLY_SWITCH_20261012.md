@@ -11,3 +11,17 @@
 ## 控制器验证
 
 独立last-only守护controller28项CPU检查通过（3.06秒、1项既有Torch弃用warning），Ruff/format/diff通过，read-onlyreviewREADY。真实原生plan resolver和shards merge互调覆盖；旧postfit-best partial原有JSON集合/hash封存不变，freshoutput与原run/queue/source隔离，wholezeroPKL；eval原源码6a8c612、newcontroller另记版本。两卡GPU lease与5秒资源guard保持90%/2GiB/已授权精确foreign限制。本地检查不能代替真实双卡eval完成；待新运行receipt。
+
+## 双卡实际评估完成（2026-10-12 21:18北京时间）
+
+主会话独立核验 native COMPLETE、controller COMPLETE、last epoch4/checkpoint SHA、科学来源6a8c612、config、两卡296+296条件和全训练/评估目录zeroPKL。科学评估成功；旧bestlast队列仍属于用户停止，未追认其完整成功。GPU0/1 worker墙时2271.20/2358.94秒，总评估约39.3分钟（并行墙时，非两卡耗时相加）；每卡batch300、峰值allocated8.02GiB、reserved10.39GiB。
+
+小结果收据：[BR400-last-epoch4-summary.json](../../.byte-os/evidence/br400-best-last-20261012/BR400-last-epoch4-summary.json)，SHA256 `5d838875dceb9bd6e42b658900867997474008125d88ef9f88d911a8b68cc064`。MSE 0.0054789308249717315。训练/科学评估SHA `6a8c612bd7733d2f03b5c041aeff63c5f6ec8339`；独立控制器SHA `7c40df452a4b85e814df9e9c9edffdc28a0414d0`。
+
+| 基因范围 | TxPert全／DEG | TriShift全／DEG | Systema全／DEG | 有效条件全／DEG |
+|---|---|---|---|---|
+| 全部 | 0.228570 / 0.383056 | 0.177556 / 0.345992 | 0.095442 / 0.213948 | 592 / 590 |
+| 见过表达（4775） | 0.421572 / 0.466754 | 0.313974 / 0.421965 | 0.234951 / 0.266813 | 592 / 590 |
+| 未见表达（225） | 0.129746 / 0.172539 | 0.120777 / 0.119170 | -0.004309 / 0.041480 | 592 / 147 |
+
+后续F1→N1→GM1使用新的disabled-validation/last-only配置，保持四轮/global400；未见DEG仅147条件，缺失不得填零。结果不用于选择架构/超参数。

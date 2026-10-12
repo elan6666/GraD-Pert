@@ -1,0 +1,60 @@
+{
+  "schema": "br400-remaining-last-1",
+  "parents": {
+    "F1": {
+      "config": "configs/v2/ffn_four_20261011/F1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "837c280829398902da3140c59f3a21b106d87bdf7bc72501ee92a6a219b2dc0b"
+    },
+    "N1": {
+      "config": "configs/v2/ffn_four_20261011/N1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "40dbd308706ef86b92e0ea779a6514a8d0469cb3da3fc421eb0e9dec8730885e"
+    },
+    "GM1": {
+      "config": "configs/v2/graph_mhc_four_20261011/GM1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "7b03765950313dba5dacd8067725fa62b1583d03e5f5ffdf96759346a1380ba3"
+    }
+  },
+  "priority": [
+    "F1",
+    "N1",
+    "GM1"
+  ],
+  "preflight_priority": [
+    "F1",
+    "N1",
+    "GM1"
+  ],
+  "common_microbatch": 100,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 400,
+  "epochs": 4,
+  "seed": 1,
+  "eval_batch": 300,
+  "eval_capacity_reference_batch": 128,
+  "validation": "disabled",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "execution": "sequential_dual_fit_then_dual_last",
+  "checkpoint_genept": true,
+  "rows": [
+    {
+      "name": "F1",
+      "config": "configs/v2/br400_remaining_last_20261012/F1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "0d0074b831cf97564b1b06a1f60527051f33541e10a648c34721c9fed784d9c3"
+    },
+    {
+      "name": "N1",
+      "config": "configs/v2/br400_remaining_last_20261012/N1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "de7f7a4e1c4bfdf6c91ef8a0bed77bec74ca17886728b9de32b527b5ae6e0e8f"
+    },
+    {
+      "name": "GM1",
+      "config": "configs/v2/br400_remaining_last_20261012/GM1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "98c7ab0bc5d8d55a3835a9b4d7faa78ba8aeb048b732c508f4a80cc5bfb811b5"
+    }
+  ]
+}

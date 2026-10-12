@@ -88,6 +88,16 @@ def validation_state(runtime: Any) -> dict[str, str]:
     }
 
 
+def inference_identity(evaluation: Any, draw: Any) -> dict[str, str]:
+    """Audit the actual inference population independently of validation mode."""
+    from gradpert.hashing import sha256_json
+
+    return {
+        "ordered_control_row_ids_sha256": sha256_json(list(draw.ordered_row_ids)),
+        "inference_expression_gene_order_sha256": evaluation.manifest.expression_gene_order_sha256,
+    }
+
+
 def joint_validation_check(
     runtime: Any, *, batch_size: int, bf16: bool, on_batch_complete: Any = None
 ) -> dict[str, Any]:
@@ -562,13 +572,7 @@ def main() -> None:
                     validation["inference_control_manifest_sha256"] = (
                         evaluation.control_manifest_file_sha256
                     )
-                    if args.joint_validation_check:
-                        validation["ordered_control_row_ids_sha256"] = sha256_json(
-                            list(draw.ordered_row_ids)
-                        )
-                        validation["inference_expression_gene_order_sha256"] = (
-                            evaluation.manifest.expression_gene_order_sha256
-                        )
+                    validation.update(inference_identity(evaluation, draw))
                 return validation
 
             if args.joint_validation_check:

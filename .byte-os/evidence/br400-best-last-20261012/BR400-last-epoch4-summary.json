@@ -1,0 +1,163 @@
+{
+  "schema": "gradpert-BR400-last-summary-1",
+  "root": "/data/yilangliu/GraD-Pert/development/v2-br-last-only-7c40df4-20261012T123701Z",
+  "evaluation_sha256": "4c41d861d7a5d855e58142b9882625b8d943d94140604ba8820090cb9dc7dd9d",
+  "controller_sha": "7c40df452a4b85e814df9e9c9edffdc28a0414d0",
+  "training_sha": "6a8c612bd7733d2f03b5c041aeff63c5f6ec8339",
+  "evaluation_sha": "6a8c612bd7733d2f03b5c041aeff63c5f6ec8339",
+  "checkpoint": {
+    "checkpoint_epoch": 4,
+    "checkpoint_role": "last",
+    "checkpoint_sha256": "85ca4a88f392dc29cca651eab5801e252d96d823bbe3209b15498842c6671975",
+    "evaluation_complete_sha256": "4c41d861d7a5d855e58142b9882625b8d943d94140604ba8820090cb9dc7dd9d"
+  },
+  "config_sha256": "d7877c03839645901f930817d5258638ca8738c650bd23fc42e5da33415e6f50",
+  "split": "test",
+  "conditions": 592,
+  "metrics": [
+    {
+      "metric_id": "txpert_macro_pearson_delta_all",
+      "macro_mean": 0.22857035029797224,
+      "finite_condition_count": 592,
+      "total_condition_count": 592
+    },
+    {
+      "metric_id": "txpert_macro_pearson_delta_deg",
+      "macro_mean": 0.3830561275103227,
+      "finite_condition_count": 590,
+      "total_condition_count": 592
+    },
+    {
+      "metric_id": "trishift_pearson_delta_all",
+      "macro_mean": 0.17755633101411925,
+      "finite_condition_count": 592,
+      "total_condition_count": 592
+    },
+    {
+      "metric_id": "trishift_pearson_delta_deg",
+      "macro_mean": 0.3459922415556256,
+      "finite_condition_count": 590,
+      "total_condition_count": 592
+    },
+    {
+      "metric_id": "systema_pearson_all",
+      "macro_mean": 0.09544183501725563,
+      "finite_condition_count": 592,
+      "total_condition_count": 592
+    },
+    {
+      "metric_id": "systema_pearson_deg",
+      "macro_mean": 0.21394775506401487,
+      "finite_condition_count": 590,
+      "total_condition_count": 592
+    }
+  ],
+  "groups": {
+    "seen_expression": {
+      "gene_count": 4775,
+      "gene_ids_sha256": "fd70e611f2403cc805b47dedf4608a23f0103c9e123ea320ef363db665d48150",
+      "metrics": [
+        {
+          "metric_id": "txpert_macro_pearson_delta_all",
+          "macro_mean": 0.42157227645827,
+          "finite_condition_count": 592,
+          "total_condition_count": 592
+        },
+        {
+          "metric_id": "txpert_macro_pearson_delta_deg",
+          "macro_mean": 0.46675377606697865,
+          "finite_condition_count": 590,
+          "total_condition_count": 592
+        },
+        {
+          "metric_id": "trishift_pearson_delta_all",
+          "macro_mean": 0.31397355509595676,
+          "finite_condition_count": 592,
+          "total_condition_count": 592
+        },
+        {
+          "metric_id": "trishift_pearson_delta_deg",
+          "macro_mean": 0.42196478450414315,
+          "finite_condition_count": 590,
+          "total_condition_count": 592
+        },
+        {
+          "metric_id": "systema_pearson_all",
+          "macro_mean": 0.234951231080018,
+          "finite_condition_count": 592,
+          "total_condition_count": 592
+        },
+        {
+          "metric_id": "systema_pearson_deg",
+          "macro_mean": 0.2668127954256853,
+          "finite_condition_count": 590,
+          "total_condition_count": 592
+        }
+      ]
+    },
+    "unseen_expression": {
+      "gene_count": 225,
+      "gene_ids_sha256": "6d18ae5dad48d50d251d17a46cfbdf2b883d99bde8ad2234952fc9805c2c0fc7",
+      "metrics": [
+        {
+          "metric_id": "txpert_macro_pearson_delta_all",
+          "macro_mean": 0.1297455623010686,
+          "finite_condition_count": 592,
+          "total_condition_count": 592
+        },
+        {
+          "metric_id": "txpert_macro_pearson_delta_deg",
+          "macro_mean": 0.17253948071763364,
+          "finite_condition_count": 147,
+          "total_condition_count": 592
+        },
+        {
+          "metric_id": "trishift_pearson_delta_all",
+          "macro_mean": 0.12077728175284172,
+          "finite_condition_count": 592,
+          "total_condition_count": 592
+        },
+        {
+          "metric_id": "trishift_pearson_delta_deg",
+          "macro_mean": 0.11916967710711379,
+          "finite_condition_count": 147,
+          "total_condition_count": 592
+        },
+        {
+          "metric_id": "systema_pearson_all",
+          "macro_mean": -0.004309346476687274,
+          "finite_condition_count": 592,
+          "total_condition_count": 592
+        },
+        {
+          "metric_id": "systema_pearson_deg",
+          "macro_mean": 0.04148035835642601,
+          "finite_condition_count": 147,
+          "total_condition_count": 592
+        }
+      ]
+    }
+  },
+  "prediction_loss": 0.0054789308249717315,
+  "runtime": [
+    {
+      "cell_batch": 300,
+      "condition_count": 296,
+      "cpu_training_state": true,
+      "cuda_memory_fraction": 0.9,
+      "peak_allocated_bytes": 8614128640,
+      "peak_reserved_bytes": 11161042944,
+      "wall_seconds": 2271.196780459024
+    },
+    {
+      "cell_batch": 300,
+      "condition_count": 296,
+      "cpu_training_state": true,
+      "cuda_memory_fraction": 0.9,
+      "peak_allocated_bytes": 8614128640,
+      "peak_reserved_bytes": 11161042944,
+      "wall_seconds": 2358.9435592312366
+    }
+  ],
+  "zero_pkl": true
+}
