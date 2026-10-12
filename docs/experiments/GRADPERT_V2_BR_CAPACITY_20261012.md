@@ -59,3 +59,21 @@ Primary compactmainacceptance:.byte-os/evidence/post-br-capacity-20261012/gradpe
 ## Original BR epoch4 evaluation launch accepted
 
 Aftercapacityterminal, newcontroller source057a428585dbd7fb61128c3928ef2b3d51365ebd publishedclean matchinglocal/GitHub/server, server23hiddenCUDA CPUchecks passed. Exactqueue `v2-br-eval-057a428-20261011T212820Z` SHA `872646792996f294ef70de1c9b6803138515ac2fe1df0c603e69f32a920159fa`, controller2451592/start715774601/cmdSHA `05b86beaffee3d01ec7ddfea2086e1aa7821e91e3c8c1ac3090d274bfedf5a62`. Originalscientificb37/checkpoint/config preserved; childnative--evaluate oldBRplan--attempt1 withGPU0/25percentcap. Nativeprogress10/592 inspectedindependentlyafterLunaended, so actualevaluationstarted, notjustCPUdispatch. MainserverreceiptSHA `1380ee0aba00cffe78c4ed88c0733ddacfead989c1cd73ddff30b6c0461039a5`. Expect18Pearsonvariants/effectivecounts/lineage/zeroPKL beforedeclareBRscientificcomplete. NoF1/N1/GM1 launched. Longsupervisor20min staged; ACK/ACTIVE pendingverification, returnfallbackPAUSED.
+
+## BR epoch4 scientific acceptance
+
+Training/evaluationb37b171fd68cb29e5c8142c66778aac6da9a6f06; originalepoch4lastf679adf48082e4e334eb18601e487fb4a316ebc6e80365934e2c414c621fb9d2; native18metrics/hashes/zeroPKL validated. All592conditionsprocessed; followingcountsarefinitePearsonconditions, notcompletioncounts.
+
+| Gene group | Metric | AllgenesPearson (finiteconditions) | UnifiedDEGPearson (finiteconditions) |
+| --- | --- | --- | --- |
+|overall|TxPert|0.218508 (592/592)|0.389176 (590/592)|
+|overall|TriShift|0.164770 (592/592)|0.356504 (590/592)|
+|overall|Systema|0.103747 (592/592)|0.211304 (590/592)|
+|seen_expression|TxPert|0.399414 (592/592)|0.468538 (590/592)|
+|seen_expression|TriShift|0.286624 (592/592)|0.430325 (590/592)|
+|seen_expression|Systema|0.234746 (592/592)|0.255470 (590/592)|
+|unseen_expression|TxPert|0.111474 (592/592)|0.125046 (147/592)|
+|unseen_expression|TriShift|0.101001 (592/592)|0.129684 (147/592)|
+|unseen_expression|Systema|0.002878 (592/592)|0.025545 (147/592)|
+
+Seen4775genes, unseen225genes; unseenDEGfinite147/592, unavailableconditionsnotimputed. Parentcomplete d18f48a4133cb11f3e5993cff8abedfa5a6df154c9410f82f2187de9a2b30eba, lasttest b34ed315cc085ca88e8660afba34f27ef6b297048ab75b421c462d7bcf5e3b25, zeroPKLwholeoriginalBRroot. Fullcompactnativeacceptance in evidence/post-br-capacity-20261012/gradpert-BR-epoch4-terminal-main-acceptance.json. NoF1/N1/GM1scientificresults yet; newcontroller neededtoimportcompleteBR/skipsandfreshpeers.

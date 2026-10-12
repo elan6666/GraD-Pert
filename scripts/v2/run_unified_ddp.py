@@ -44,6 +44,12 @@ DEPENDENCY_POLL_SECONDS = 20
 DEPENDENCY_ARMS = ("BR", "F1", "N1")
 RECOVERY_SOURCE = "b37b171fd68cb29e5c8142c66778aac6da9a6f06"
 RECOVERY_MODE = "resume_first_BR"
+COMPLETED_BR_MODE = "continue_after_completed_BR"
+COMPLETED_BR_SCHEMA = "unified-ddp-completed-br-continuation-1"
+COMPLETED_BR_PARENT_NAME = "v2-ffn-recovery-10ad0aa-20261011T163726Z"
+COMPLETED_BR_PARENT_SHA = "17601f562408c7661e1d893e0ba130a72cc7bd7cbda23ff2f81dc09e3f83dc0b"
+COMPLETED_BR_COMPLETE_SHA = "d18f48a4133cb11f3e5993cff8abedfa5a6df154c9410f82f2187de9a2b30eba"
+COMPLETED_BR_CHECKPOINT_SHA = "f679adf48082e4e334eb18601e487fb4a316ebc6e80365934e2c414c621fb9d2"
 RECOVERY_SCHEMA_V1 = "unified-ddp-br-recovery-1"
 RECOVERY_SCHEMA_V2 = "unified-ddp-br-recovery-2"
 RESOURCE_POLICY_DECISION = ".byte-os/decisions/2026-10-12-scbutterfly-resource-policy.md"
@@ -183,8 +189,13 @@ def prepare(
 
 
 def verify(queue: dict) -> None:
-    if queue.get("mode") not in (None, RECOVERY_MODE) or (
-        (queue.get("mode") == RECOVERY_MODE) != (queue.get("recovery") is not None)
+    if (
+        queue.get("mode") not in (None, RECOVERY_MODE, COMPLETED_BR_MODE)
+        or ((queue.get("mode") == RECOVERY_MODE) != (queue.get("recovery") is not None))
+        or (
+            (queue.get("mode") == COMPLETED_BR_MODE)
+            != (queue.get("completed_br_continuation") is not None)
+        )
     ):
         raise ValueError("unknown or inconsistent queue recovery mode")
     if any(
@@ -240,6 +251,8 @@ def verify(queue: dict) -> None:
         verify_dependency(queue["dependency"])
     if queue.get("mode") == RECOVERY_MODE:
         verify_recovery(queue)
+    elif queue.get("mode") == COMPLETED_BR_MODE:
+        verify_completed_br_continuation(queue)
 
 
 def _file_seal(path: Path) -> dict:
@@ -573,6 +586,373 @@ def prepare_recovery(
     atomic_json(output / "queue.json", queue)
     verify(queue)
     return queue
+
+
+def _completed_br_parent_state(parent: dict, path: Path) -> dict:
+    _dependency_contract(parent, path)
+    if (
+        path.parent.name != COMPLETED_BR_PARENT_NAME
+        or sha256_file(path) != COMPLETED_BR_PARENT_SHA
+        or parent.get("mode") != RECOVERY_MODE
+        or parent["source_commit"] != RECOVERY_SOURCE
+    ):
+        raise ValueError("completed BR continuation requires the exact retired 10ad parent")
+    state = read_json(path.parent / "state.json")
+    fits = [
+        event
+        for event in state.get("events", [])
+        if event.get("event") == "start" and event.get("stage") == "fit"
+    ]
+    if (
+        state.get("status") != "running"
+        or state.get("phase") != "dual_gpu_fit"
+        or state.get("queue_sha256") != COMPLETED_BR_PARENT_SHA
+        or state.get("completed")
+        or [event["name"] for event in fits] != ["BR"]
+        or set(state.get("active", {})) != {"fit"}
+        or state["active"]["fit"].get("name") != "BR"
+        or set(state.get("plans", {})) != set(DEPENDENCY_ARMS)
+        or set(state.get("preflights", {})) != set(DEPENDENCY_ARMS)
+    ):
+        raise ValueError("retired parent must preserve its BR-only state and untouched peers")
+    if any(
+        Path(row["plan"][key]).exists()
+        for row in parent["rows"][1:]
+        for key in ("run_root", "test_root")
+    ):
+        raise ValueError("original reserved F1/N1 artifacts must remain absent")
+    pids = {
+        state["pid"],
+        *(event["pid"] for event in state.get("events", []) if "pid" in event),
+        *(item["pid"] for item in state["active"].values()),
+    }
+    if any(process_identity(pid) is not None for pid in pids):
+        raise ValueError("original controller or scientific child is still live")
+    paths = {
+        str(path),
+        *(str(path.parent / f"{name}.launch-plan.json") for name in DEPENDENCY_ARMS),
+    }
+    paths.update(
+        str(Path(row["plan"]["run_root"]).parent / (row["plan"]["run_id"] + ".launch-plan.json"))
+        for row in parent["rows"]
+    )
+    for proc in Path("/proc").glob("[0-9]*/cmdline"):
+        if proc.parent.name == str(os.getpid()):
+            continue
+        try:
+            args = proc.read_bytes().split(b"\0")
+        except (FileNotFoundError, ProcessLookupError, PermissionError):
+            continue
+        if any(path.encode() in args for path in paths):
+            raise ValueError("original queue science process is still live")
+    return state
+
+
+def _completed_br_preflight(plan: dict, entry: dict) -> None:
+    validate_preflight(plan, entry)
+    receipt = read_json(entry["receipt"])
+    if (
+        receipt.get("kind") != "preflight_only"
+        or receipt.get("steps_requested") != 10
+        or receipt.get("steps_completed") != 10
+        or receipt.get("gpu") != "0,1"
+        or receipt.get("world_size") != 2
+        or receipt.get("inference_shape") != [300, 5000]
+        or receipt["source"].get("publication_receipt_sha256") != plan["publication_sha256"]
+    ):
+        raise ValueError(
+            "continuation requires the exact native ten-step restore/inference receipt"
+        )
+
+
+def _completed_br_evidence(plan: dict) -> dict:
+    training = validate_training_stage(plan)
+    root = Path(plan["run_root"])
+    if (
+        training["epoch"] != 4
+        or training["last"]["epoch"] != 4
+        or training["last"]["sha256"] != COMPLETED_BR_CHECKPOINT_SHA
+        or sha256_file(root / "fit/last.pt") != COMPLETED_BR_CHECKPOINT_SHA
+        or sha256_file(root / "COMPLETE.json") != COMPLETED_BR_COMPLETE_SHA
+    ):
+        raise ValueError("completed BR terminal or epoch4 last checkpoint changed")
+    completed = validate_completed(plan)
+    last_test = read_json(root / "fit/last-test.json")
+    independent = Path(last_test["independent_evaluation_receipt"])
+    if not independent.resolve().is_relative_to(root.resolve()):
+        raise ValueError("completed BR evaluation receipt escaped its original run")
+    files = [
+        root / name
+        for name in (
+            "COMPLETE.json",
+            "TRAIN_COMPLETE.json",
+            "launch.json",
+            "resolved_config.json",
+            "run_manifest.json",
+            "fit/epoch_state.json",
+            "fit/history.json",
+            "fit/last.pt",
+            "fit/last-test.json",
+        )
+    ]
+    files.extend((root / "fit" / training["last"]["file"], independent))
+    return {
+        "completed": completed,
+        "training": training,
+        "files": [_file_seal(path) for path in files],
+    }
+
+
+def _continuation_original_plans(parent: dict, path: Path, state: dict) -> dict:
+    runtime = read_json(Path(parent["runtime"]))
+    plans = {}
+    for row in parent["rows"]:
+        name, base = row["name"], row["plan"]
+        if (
+            Path(base["runtime"]).resolve() != Path(parent["runtime"]).resolve()
+            or base["runtime_sha256"] != parent["runtime_sha256"]
+            or Path(base["data_root"]).resolve() != Path(runtime["data_root"]).resolve()
+            or Path(base["publication"]).resolve() != Path(runtime["publication_receipt"]).resolve()
+            or base["publication_sha256"] != runtime["publication_sha256"]
+        ):
+            raise ValueError("continuation scientific runtime/data/publication binding changed")
+        _completed_br_preflight(base, state["preflights"][name])
+        old = _sealed_json(state["plans"][name])
+        if (
+            state["plans"][name]["path"] != str(path.parent / f"{name}.launch-plan.json")
+            or {
+                k: v
+                for k, v in old.items()
+                if k not in ("cuda_memory_fraction", "resource_schedule")
+            }
+            != base
+            or old
+            != finalized_plan(
+                row,
+                state["preflights"][name],
+                old["resource_schedule"]["physical_total_bytes"],
+                old["resource_schedule"].get("shared_gpu_policy"),
+            )
+            or old["cuda_memory_fraction"] != 0.65
+            or old["resource_schedule"]["capped_eval_fraction"] != 0.25
+        ):
+            raise ValueError("continuation must preserve original measured fit/eval budgets")
+        plans[name] = old
+    return plans
+
+
+def prepare_completed_br(
+    original_queue: Path, output: Path, shared_policy: dict, controller_publication: Path
+) -> dict:
+    original_queue = original_queue.resolve(strict=True)
+    output = output.resolve()
+    _dependency_server_path(original_queue)
+    _dependency_server_path(output)
+    if output.exists() or output.is_relative_to(original_queue.parent):
+        raise ValueError("completed BR continuation requires a fresh independent root")
+    parent = read_json(original_queue)
+    verify(parent)
+    state = _completed_br_parent_state(parent, original_queue)
+    _validate_execution_policy_override(parent["shared_gpu_policy"], shared_policy)
+    old_plans = _continuation_original_plans(parent, original_queue, state)
+    br = _completed_br_evidence(old_plans["BR"])
+    source = Path(parent["source"])
+    matrix, _, _ = matrix_contract(source, Path(parent["manifest"]))
+    specs = {row["name"]: row for row in matrix["rows"]}
+    reserved = {row["plan"]["run_id"] for row in parent["rows"]} | _ancestry_run_ids(
+        parent["recovery"]["ancestry"]
+    )
+    rows, finals, seeded = [], {}, {}
+    for row in parent["rows"]:
+        name = row["name"]
+        base = (
+            copy.deepcopy(row["plan"])
+            if name == "BR"
+            else _resolve_recovery_fresh(source, specs[name], Path(parent["runtime"]))
+        )
+        if name != "BR" and (
+            base["run_id"] in reserved
+            or any(Path(base[key]).exists() for key in ("run_root", "test_root"))
+        ):
+            raise ValueError("F1/N1 continuation requires fresh native IDs and artifacts")
+        rows.append({"name": name, "plan": base})
+        finals[name] = _reused_final_plan(old_plans[name], base)
+        seeded[name] = {
+            "preflight": copy.deepcopy(state["preflights"][name]),
+            "plan": {
+                "path": str(output / f"{name}.launch-plan.json"),
+                "sha256": sha256_json(finals[name]),
+            },
+        }
+    root = Path(__file__).resolve().parents[2]
+    for protected in (
+        source,
+        root,
+        original_queue.parent,
+        *(Path(row["plan"][key]) for row in parent["rows"] for key in ("run_root", "test_root")),
+    ):
+        if output.is_relative_to(protected.resolve()):
+            raise ValueError("continuation must preserve old science/source/queue roots")
+    publication = _file_seal(controller_publication.resolve(strict=True))
+    identity = inspect_source_identity(
+        root,
+        formal=True,
+        expected_repository=rows[0]["plan"]["resolved_config"]["source_code"]["repository"],
+        publication_receipt=publication["path"],
+        expected_publication_receipt_sha256=publication["sha256"],
+    )
+    if identity.dirty:
+        raise ValueError("continuation controller must be clean and published")
+    queue = {k: copy.deepcopy(v) for k, v in parent.items() if k not in ("recovery", "mode")}
+    queue.update(
+        rows=rows,
+        mode=COMPLETED_BR_MODE,
+        shared_gpu_policy=copy.deepcopy(shared_policy),
+        completed_br_continuation={
+            "schema": COMPLETED_BR_SCHEMA,
+            "output": str(output),
+            "original_queue": _file_seal(original_queue),
+            "original_state": _file_seal(original_queue.parent / "state.json"),
+            "original_plans": {
+                name: _file_seal(Path(state["plans"][name]["path"])) for name in DEPENDENCY_ARMS
+            },
+            "seeded": seeded,
+            "br": br,
+            "controller_source": {
+                "repository_root": str(root),
+                "commit": identity.commit,
+                "script": _file_seal(Path(__file__).resolve()),
+                "publication": publication,
+            },
+            "execution_policy": {
+                "previous": parent["shared_gpu_policy"],
+                "active": copy.deepcopy(shared_policy),
+                "decision": _file_seal(root / RESOURCE_POLICY_DECISION),
+            },
+        },
+    )
+    output.mkdir()
+    for name, plan in finals.items():
+        atomic_json(output / f"{name}.launch-plan.json", plan)
+        seeded[name]["plan"]["sha256"] = sha256_file(output / f"{name}.launch-plan.json")
+    atomic_json(output / "queue.json", queue)
+    verify(queue)
+    return queue
+
+
+def verify_completed_br_continuation(queue: dict) -> None:
+    meta = queue["completed_br_continuation"]
+    if (
+        set(meta)
+        != {
+            "schema",
+            "output",
+            "original_queue",
+            "original_state",
+            "original_plans",
+            "seeded",
+            "br",
+            "controller_source",
+            "execution_policy",
+        }
+        or meta["schema"] != COMPLETED_BR_SCHEMA
+        or queue["source_commit"] != RECOVERY_SOURCE
+        or queue.get("dependency") is not None
+        or set(meta["seeded"]) != set(DEPENDENCY_ARMS)
+        or set(meta["original_plans"]) != set(DEPENDENCY_ARMS)
+    ):
+        raise ValueError("unknown completed BR continuation scope")
+    root = Path(meta["output"])
+    _dependency_server_path(root)
+    parent = _sealed_json(meta["original_queue"])
+    verify(parent)
+    path = Path(meta["original_queue"]["path"])
+    state = _completed_br_parent_state(parent, path)
+    if state != _sealed_json(meta["original_state"]):
+        raise ValueError("immutable retired parent state changed")
+    old_plans = _continuation_original_plans(parent, path, state)
+    if meta["br"] != _completed_br_evidence(old_plans["BR"]):
+        raise ValueError("imported BR completed evidence changed")
+    controller = meta["controller_source"]
+    controller_root = Path(controller["repository_root"])
+    if (
+        set(controller) != {"repository_root", "commit", "script", "publication"}
+        or Path(controller["script"]["path"]) != controller_root / "scripts/v2/run_unified_ddp.py"
+        or controller["script"] != _file_seal(Path(controller["script"]["path"]))
+    ):
+        raise ValueError("continuation controller source/script changed")
+    publication = _sealed_json(controller["publication"])
+    identity = inspect_source_identity(
+        controller_root,
+        formal=True,
+        expected_repository=queue["rows"][0]["plan"]["resolved_config"]["source_code"][
+            "repository"
+        ],
+        publication_receipt=controller["publication"]["path"],
+        expected_publication_receipt_sha256=controller["publication"]["sha256"],
+    )
+    if (
+        identity.dirty
+        or identity.commit != controller["commit"]
+        or publication["published_commit"] != identity.commit
+    ):
+        raise ValueError("continuation controller is not its clean published version")
+    policy = meta["execution_policy"]
+    if (
+        set(policy) != {"previous", "active", "decision"}
+        or policy["previous"] != parent["shared_gpu_policy"]
+        or policy["active"] != queue["shared_gpu_policy"]
+        or policy["decision"] != _file_seal(controller_root / RESOURCE_POLICY_DECISION)
+    ):
+        raise ValueError("continuation shared policy authorization changed")
+    _validate_execution_policy_override(policy["previous"], policy["active"])
+    reserved = {row["plan"]["run_id"] for row in parent["rows"]} | _ancestry_run_ids(
+        parent["recovery"]["ancestry"]
+    )
+    originals = {row["name"]: row["plan"] for row in parent["rows"]}
+    omitted = {"run_id", "run_root", "test_root"}
+    for row in queue["rows"]:
+        name, base = row["name"], row["plan"]
+        seed = meta["seeded"][name]
+        if (
+            set(seed) != {"preflight", "plan"}
+            or seed["preflight"] != state["preflights"][name]
+            or meta["original_plans"][name] != _file_seal(Path(state["plans"][name]["path"]))
+            or seed["plan"]["path"] != str(root / f"{name}.launch-plan.json")
+            or _sealed_json(seed["plan"]) != _reused_final_plan(old_plans[name], base)
+        ):
+            raise ValueError("continuation changed its preflight or finalized plan seals")
+        _completed_br_preflight(base, seed["preflight"])
+        old = originals[name]
+        if name == "BR":
+            if base != old:
+                raise ValueError("completed BR must keep its original scientific identity")
+        elif (
+            {k: v for k, v in base.items() if k not in omitted}
+            != {k: v for k, v in old.items() if k not in omitted}
+            or base["run_id"] in reserved
+            or base["run_root"] != str(Path(old["run_root"]).parent / base["run_id"])
+            or base["test_root"] != str(Path(old["test_root"]).parent / (base["run_id"] + "-test"))
+        ):
+            raise ValueError("continuation peers must be fresh with unchanged science")
+        for key in ("run_root", "test_root"):
+            _dependency_server_path(Path(base[key]))
+    if any(len({row["plan"][key] for row in queue["rows"]}) != 3 for key in omitted):
+        raise ValueError("continuation identities must be distinct")
+    if any(
+        root.resolve().is_relative_to(protected.resolve())
+        for protected in (
+            controller_root,
+            Path(parent["source"]),
+            path.parent,
+            *(
+                Path(row["plan"][key])
+                for row in parent["rows"]
+                for key in ("run_root", "test_root")
+            ),
+        )
+    ):
+        raise ValueError("continuation root overlaps immutable parent science")
 
 
 def _recovery_backup_paths(root: Path, schema: str, epoch: int) -> tuple[Path, Path]:
@@ -1149,6 +1529,19 @@ def finalized_plan(row: dict, entry: dict, total_bytes: int, shared_policy=None)
 
 
 def execute(queue: dict, directory: Path) -> None:
+    if queue.get("mode") == COMPLETED_BR_MODE:
+        metadata = queue["completed_br_continuation"]
+        controller = metadata["controller_source"]
+        if (
+            os.environ.get("CUDA_VISIBLE_DEVICES") != ""
+            or directory.resolve() != Path(metadata["output"]).resolve()
+            or read_json(directory / "queue.json") != queue
+            or Path(controller["repository_root"]).resolve() != Path(__file__).resolve().parents[2]
+            or controller["script"] != _file_seal(Path(__file__).resolve())
+        ):
+            raise ValueError(
+                "completed BR continuation execution source/root/queue or CPU visibility changed"
+            )
     if os.environ.get("PYTORCH_ALLOC_CONF") != ALLOCATOR:
         raise ValueError("allocator contract missing")
     if not directory.resolve().is_relative_to(SERVER_ROOT) or (directory / "state.json").exists():
@@ -1290,7 +1683,12 @@ def execute(queue: dict, directory: Path) -> None:
         active_eval = None
         if code:
             failure = Path(row["plan"]["run_root"]) / "POSTFIT_ATTEMPT1_FAILURE.json"
-            if item["attempt"] == 1 and failure.exists() and read_json(failure)["oom"]:
+            if (
+                queue.get("mode") != COMPLETED_BR_MODE
+                and item["attempt"] == 1
+                and failure.exists()
+                and read_json(failure)["oom"]
+            ):
                 # The next fit is not launched until this exact eval retry drains.
                 start_eval(row, stack, attempt=2)
                 drain_eval(stack)
@@ -1301,9 +1699,13 @@ def execute(queue: dict, directory: Path) -> None:
 
     def start_eval(row, stack, attempt=1, uncapped=False):
         nonlocal active_eval
+        if queue.get("mode") == COMPLETED_BR_MODE and (attempt != 1 or uncapped):
+            raise ValueError("continuation only permits capped attempt1 evaluation")
         command = [
             sys.executable,
-            str(Path(__file__).resolve()),
+            str(Path(queue["source"]) / "scripts/v2/run_unified_ddp.py")
+            if queue.get("mode") == COMPLETED_BR_MODE
+            else str(Path(__file__).resolve()),
             "--evaluate",
             str(directory / f"{row['name']}.launch-plan.json"),
             "--attempt",
@@ -1368,10 +1770,18 @@ def execute(queue: dict, directory: Path) -> None:
         record()
         try:
             verify(queue)
-            if queue.get("mode") == RECOVERY_MODE:
-                if (directory / "RECOVERY_BR_STARTED.json").exists():
+            if queue.get("mode") in (RECOVERY_MODE, COMPLETED_BR_MODE):
+                metadata = (
+                    queue["recovery"]
+                    if queue["mode"] == RECOVERY_MODE
+                    else queue["completed_br_continuation"]
+                )
+                if (
+                    queue["mode"] == RECOVERY_MODE
+                    and (directory / "RECOVERY_BR_STARTED.json").exists()
+                ):
                     raise ValueError("recovery queue cannot restart an already dispatched BR")
-                for name, seed in queue["recovery"]["seeded"].items():
+                for name, seed in metadata["seeded"].items():
                     plan = read_json(seed["plan"]["path"])
                     validate_preflight(plan, seed["preflight"])
                     state["preflights"][name] = copy.deepcopy(seed["preflight"])
@@ -1380,12 +1790,24 @@ def execute(queue: dict, directory: Path) -> None:
                         "fit_fraction": plan["cuda_memory_fraction"],
                     }
                 state["phase"] = "recovery_preflight_reused"
+                if queue["mode"] == COMPLETED_BR_MODE:
+                    state["completed"]["BR"] = copy.deepcopy(metadata["br"]["completed"])
+                    state["events"].append(
+                        {
+                            "event": "import_completed",
+                            "name": "BR",
+                            "run_id": queue["rows"][0]["plan"]["run_id"],
+                        }
+                    )
+                    state["scientific_source_commit"] = queue["source_commit"]
+                    state["controller_source"] = copy.deepcopy(metadata["controller_source"])
+                    state["phase"] = "completed_br_preflights_reused"
                 state["execution_shared_gpu_policy"] = copy.deepcopy(shared_policy)
                 state["historical_measured_shared_gpu_policies"] = {
                     name: read_json(seed["plan"]["path"])["resource_schedule"].get(
                         "shared_gpu_policy"
                     )
-                    for name, seed in queue["recovery"]["seeded"].items()
+                    for name, seed in metadata["seeded"].items()
                 }
                 record()
                 if needs_preflight_acceptance(queue):
@@ -1417,6 +1839,8 @@ def execute(queue: dict, directory: Path) -> None:
                     time.sleep(5)
                 validate_coexistence_acceptance(queue, ready, read_json(approval))
             for row in queue["rows"]:
+                if queue.get("mode") == COMPLETED_BR_MODE and row["name"] == "BR":
+                    continue
                 preflight(row, stack)
                 path = directory / f"{row['name']}.launch-plan.json"
                 actual = {**row, "plan": read_json(path)}
@@ -1453,7 +1877,11 @@ def execute(queue: dict, directory: Path) -> None:
                     raise RuntimeError(f"{row['name']} fit failed; no later fit dispatched")
                 active_fit = None
                 validate_training_stage(actual["plan"])
-                pending_evals.append(actual)
+                if queue.get("mode") == COMPLETED_BR_MODE:
+                    start_eval(actual, stack)
+                    drain_eval(stack)
+                else:
+                    pending_evals.append(actual)
             drain_eval(stack)
             while pending_evals:
                 start_eval(pending_evals.pop(0), stack, uncapped=True)
@@ -1490,8 +1918,40 @@ def main():
     parser.add_argument("--shared-policy", type=Path)
     parser.add_argument("--dependency-queue", type=Path)
     parser.add_argument("--recover-from", type=Path)
+    parser.add_argument("--continue-completed-br", type=Path)
+    parser.add_argument("--controller-publication", type=Path)
     args = parser.parse_args()
-    if args.recover_from:
+    if args.continue_completed_br:
+        if (
+            not args.output
+            or not args.shared_policy
+            or not args.controller_publication
+            or any(
+                (
+                    args.recover_from,
+                    args.manifest,
+                    args.runtime,
+                    args.queue,
+                    args.evaluate,
+                    args.dependency_queue,
+                    args.uncapped,
+                )
+            )
+            or args.attempt != 1
+        ):
+            parser.error(
+                "completed BR continuation requires parent/output/shared-policy/"
+                "controller-publication only"
+            )
+        prepare_completed_br(
+            args.continue_completed_br,
+            args.output,
+            read_json(args.shared_policy),
+            args.controller_publication,
+        )
+    elif args.controller_publication:
+        parser.error("controller-publication is only for completed BR continuation")
+    elif args.recover_from:
         if (
             not args.output
             or any(
