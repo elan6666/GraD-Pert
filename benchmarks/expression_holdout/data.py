@@ -175,7 +175,8 @@ def build_prepared(
         "excluded_gene_ids_sha256": sha256_json([gene_ids[i] for i in excluded]),
         "sanitization": "read_allowed_columns_only; full_axis_placeholders_are_not_targets",
         "control_pairing": "cell_type::batch",
-        "raw_layers_obsm_uns_absent": True,
+        "raw_auxiliary_layers_obsm_uns_absent": True,
+        "primary_X_layer_alias": "AnnData>=0.13 may expose layers[None] as identical X",
     }
     return PreparedData(
         adata,

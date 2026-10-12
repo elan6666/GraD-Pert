@@ -210,6 +210,7 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
         _allowed,
         _UpdateLimitReached,
         bounded_official_updates,
+        require_sanitized_expression,
     )
     from gradpert.hashing import sha256_file, sha256_json
 
@@ -226,8 +227,7 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
         raise ValueError("GEARS official DE selection requires at least20 allowed genes")
     adata = prepared.adata.copy()
     adata.X = sparse.csr_matrix(adata.X)
-    if adata.raw is not None or len(adata.layers) or adata.X[:, prepared.excluded_indices].nnz:
-        raise ValueError("excluded expression side channel present during GEARS fit")
+    require_sanitized_expression(adata, prepared.excluded_indices)
     # Frozen GEARS parses single targets as gene+ctrl and combo targets as gene+gene.
     if any(c != "ctrl" and len(c.split("+")) != 2 for c in adata.obs.condition.astype(str)):
         raise ValueError("GEARS requires canonical gene+ctrl/combo condition strings")

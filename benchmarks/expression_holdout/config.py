@@ -193,3 +193,26 @@ def validate_terminal(root: Path, row: dict, source_commit: str) -> dict:
     ):
         raise ValueError("official frozen condition/control coverage differs")
     return receipt
+
+
+def validate_cpu_gate(runtime: dict, config: Path, source_commit: str) -> None:
+    path = Path(runtime["cpu_integration_receipt"])
+    if sha256_file(path) != runtime["cpu_integration_receipt_sha256"]:
+        raise ValueError("CPU integration receipt seal differs")
+    receipt = json.loads(path.read_text())
+    cfg = load_config(config)
+    expected = {
+        "schema": "official-upstream-cpu-integration-v1",
+        "model": cfg["model_id"],
+        "source_commit": source_commit,
+        "source_clean": True,
+        "official_commit": cfg["source_code"]["commit"],
+        "config_sha256": sha256_file(config),
+        "optimizer_updates": 10,
+        "restored_prediction_exact": True,
+        "zero_pkl": True,
+        "environment_lock_sha256": runtime["environment_lock_sha256"],
+        "environment_receipt_sha256": runtime["environment_receipt_sha256"],
+    }
+    if any(receipt.get(k) != v for k, v in expected.items()):
+        raise ValueError("actual official CPU integration source/config/env mismatch")

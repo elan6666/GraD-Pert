@@ -15,7 +15,12 @@ from run_br400_group import validate_complete
 from run_group import lock
 from shared_gpu import admit, snapshot, validate_policy
 
-from benchmarks.expression_holdout.config import load_config, validate_preflight, validate_terminal
+from benchmarks.expression_holdout.config import (
+    load_config,
+    validate_cpu_gate,
+    validate_preflight,
+    validate_terminal,
+)
 from gradpert.data._io import atomic_json
 from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file
@@ -80,6 +85,7 @@ def prepare(runtime_path: Path, output: Path) -> dict:
             "seed": 1,
         }
         individual.pop("models")
+        validate_cpu_gate(individual, config, source.commit)
         path = output / f"{name}.runtime.json"
         rows.append(
             {

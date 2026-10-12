@@ -152,3 +152,36 @@ def test_terminal_requires_sealed18_metrics_and_artifacts(tmp_path):
     (root / "fit/last.pt").write_bytes(b"changed")
     with pytest.raises(ValueError, match="seal differs"):
         validate_terminal(root, row, "s")
+
+
+def test_cpu_gate_rejects_stale_actual_environment(tmp_path):
+    import json
+
+    from benchmarks.expression_holdout.config import validate_cpu_gate
+
+    cfg = load_config(CONFIG)
+    receipt = tmp_path / "cpu.json"
+    content = dict(
+        schema="official-upstream-cpu-integration-v1",
+        model="scouter",
+        source_commit="s",
+        source_clean=True,
+        official_commit=cfg["source_code"]["commit"],
+        config_sha256=sha256_file(CONFIG),
+        optimizer_updates=10,
+        restored_prediction_exact=True,
+        zero_pkl=True,
+        environment_lock_sha256="l",
+        environment_receipt_sha256="e",
+    )
+    receipt.write_text(json.dumps(content))
+    runtime = dict(
+        cpu_integration_receipt=str(receipt),
+        cpu_integration_receipt_sha256=sha256_file(receipt),
+        environment_lock_sha256="l",
+        environment_receipt_sha256="e",
+    )
+    validate_cpu_gate(runtime, CONFIG, "s")
+    runtime["environment_receipt_sha256"] = "different"
+    with pytest.raises(ValueError, match="source/config/env mismatch"):
+        validate_cpu_gate(runtime, CONFIG, "s")

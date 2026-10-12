@@ -111,3 +111,15 @@ Scouter prior completeness is a prerequisite independent of synthetic integratio
 CCDC130/YJU2B has no same-gene vector in the available official priors. No condition
 will be dropped or assigned a zero vector to bypass this issue. The ready scDFM
 and GEARS dependency chain can proceed while Scouter remains explicitly blocked.
+
+First real CPU attempts (native063f26abe7a822e56ccbf6ee4fd4291a96577edb):
+scDFM passed10updates/restored exact/zeroPKL; Scouter failed a conservative hygiene
+check because actual AnnData0.13 exposes the primary X as layers[None]; GEARS
+failed import of unversioned upstream dependency dcor. Preserve all attempt1 logs.
+The repair accepts only an identical-object primaryX alias, still rejects raw,
+named/auxiliary layers and nonzero excluded coordinates. GEARS uses a separate
+isolated environment with dcor0.6; the passed scDFM environment is unchanged.
+The project numerical stack differs from historical upstream environment pins;
+actual versions are sealed and integration-tested, not claimed bit-identical to
+an original author environment. The dependent queue additionally seals a real
+CPU integration receipt for each model before GPU dispatch.

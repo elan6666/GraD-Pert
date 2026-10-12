@@ -26,6 +26,18 @@ def _allowed(prepared: Any) -> np.ndarray:
     return indices
 
 
+def require_sanitized_expression(adata: Any, excluded: Any):
+    """Reject auxiliary expression, allowing AnnData0.13's primary-X alias."""
+    if adata.raw is not None or any(key is not None for key in adata.layers):
+        raise ValueError("unsanitized expression side channels")
+    # AnnData0.13 stores its primary X in layers[None]. It is not a separate
+    # expression source; only accept this representation when it aliases X.
+    if None in adata.layers and adata.layers[None] is not adata.X:
+        raise ValueError("None layer is not the sanitized primary expression matrix")
+    if adata.X[:, excluded].nnz:
+        raise ValueError("excluded expression is visible during fit")
+
+
 def load_official_prior(runtime: dict, fit_targets: set[str]):
     """Read a hashed official prior and only materialize audited target vectors."""
     import pandas as pd
@@ -216,10 +228,7 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
     allowed = _allowed(prepared)
     adata = prepared.adata.copy()
     adata.X = sparse.csr_matrix(adata.X)
-    if adata.raw is not None or len(adata.layers):
-        raise ValueError("unsanitized expression side channels")
-    if adata.X[:, prepared.excluded_indices].nnz:
-        raise ValueError("excluded expression is visible during fit")
+    require_sanitized_expression(adata, prepared.excluded_indices)
     required = {
         gene
         for condition in (*prepared.train_conditions, *prepared.val_conditions)

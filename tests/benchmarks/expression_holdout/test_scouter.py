@@ -14,6 +14,7 @@ from benchmarks.expression_holdout.scouter import (
     masked_official_loss,
     official_nonzero_masks,
     predict,
+    require_sanitized_expression,
 )
 
 
@@ -200,3 +201,21 @@ def test_official_dropout_statistics_only_receive_observed_columns():
     assert masks["A+ctrl"].tolist() == [0, 2]
     assert data.adata.uns["gene_idx_non_dropout"]["A+ctrl"].tolist() == [2]
     assert data.adata is original
+
+
+def test_anndata_primary_x_layer_alias_is_not_auxiliary_expression():
+    from scipy import sparse
+
+    matrix = sparse.csr_matrix(np.asarray([[1.0, 0.0, 2.0]]))
+    adata = SimpleNamespace(X=matrix, raw=None, layers={None: matrix})
+    require_sanitized_expression(adata, (1,))
+    adata.layers = {None: matrix.copy()}
+    with pytest.raises(ValueError, match="not the sanitized primary"):
+        require_sanitized_expression(adata, (1,))
+    adata.layers = {"counts": matrix}
+    with pytest.raises(ValueError, match="side channels"):
+        require_sanitized_expression(adata, (1,))
+    adata.layers = {None: matrix}
+    adata.raw = object()
+    with pytest.raises(ValueError, match="side channels"):
+        require_sanitized_expression(adata, (1,))
