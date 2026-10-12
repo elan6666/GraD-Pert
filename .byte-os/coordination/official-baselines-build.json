@@ -51,7 +51,33 @@
   "official_prior_comparison": {
     "status": "pending_user_source_choice",
     "scelmo_candidate": "passedCPU10/fullcoverage2371/trainomitCCDC13040rows/noGPUdispatch",
-    "original_genept": "17+missing-targets; not authorized wider omit"
+    "original_genept": "17+missing-targets; not authorized wider omit",
+    "complete_hgnc_audit": {
+      "required_target_count": 2372,
+      "ada_missing_count": 17,
+      "ada_affected_conditions": {
+        "train": 11,
+        "validation": 3,
+        "test": 3
+      },
+      "gpt35_missing_count": 17,
+      "gpt35_affected_conditions": {
+        "train": 12,
+        "validation": 2,
+        "test": 3
+      },
+      "missing_test_targets": [
+        "FAM207A",
+        "INTS2",
+        "WDR61"
+      ],
+      "unsafe_aliases_rejected": [
+        "TDGF1→CR (different HGNC gene)",
+        "GARS→SMAD1 (different HGNC gene)"
+      ],
+      "raw_alias_policy": "direct source key first; per-prior audited aliases; not ScELMo47alias reuse",
+      "no_expression_access": true
+    }
   },
   "training_budget": {
     "epochs": 4,

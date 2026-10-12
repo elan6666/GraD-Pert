@@ -1,3 +1,5 @@
+
+完整HGNC/稳定基因身份补审已完成：两份原始GenePT均仍缺17靶点，其中3个测试条件（FAM207A、INTS2、WDR61）。仅忽略训练CCDC130不能使原始GenePT就绪；拒绝TDGF1→CR、GARS→SMAD1的异基因误映射。原始GenePT的aliases必须direct-first且逐先验审核，不复用ScELMo47map。新官方对照仍待用户来源选择；已授权三组队列不改。
 ## 2026-10-13：四轮官方基线发布、真实测试及新依赖队列
 
 用户预算更新覆盖旧official2241等待队列：已精确停止controller/wrapper，未启动外部GPU。新source43ccca4fd14dfbdf451d5673da3f5d1b96df833f，163localpassed/1历史skip、Ruff；四actualofficialCPU10/restore/zeroPKL及三canonical审计通过（官方alias清单遗漏SHA一次失败保留，独立attempt2修复）。自有GenePTraw2048全2372，CCDC130存在；project与GEARS数据完全一致；ScELMo候选只减40训练行且592test完全保留。
