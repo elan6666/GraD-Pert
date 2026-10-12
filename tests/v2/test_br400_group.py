@@ -87,7 +87,7 @@ def test_generator_invalid_common_eval_chunk_rejected(batch):
 
 
 @pytest.fixture
-def prepared(tmp_path, monkeypatch):
+def prepared(tmp_path, monkeypatch, request):
     runtime, publication = tmp_path / "runtime.json", tmp_path / "publication.json"
     atomic_json(publication, {"published_commit": "c" * 40})
     atomic_json(
@@ -132,8 +132,33 @@ def prepared(tmp_path, monkeypatch):
 
     monkeypatch.setattr(runner, "resolve_plan", resolve)
     output = tmp_path / "queue"
-    queue = runner.prepare(ROOT, MANIFEST, runtime, output, policy())
+    shared_policy = policy()
+    if getattr(request, "param", 0.85) == 0.90:
+        shared_policy.update(
+            additional_command_basenames=["run_totalvi_source_validation_development.py"],
+            authorization_reference="2026-10-12-user-shared-memory90-coexistence",
+            max_own_memory_fraction=0.90,
+        )
+    queue = runner.prepare(ROOT, MANIFEST, runtime, output, shared_policy)
     return queue, output
+
+
+@pytest.mark.parametrize("prepared", [0.85, 0.90], indirect=True)
+def test_fit_and_test_use_exact_sealed_policy_fraction(prepared, monkeypatch):
+    import gradpert.execution.v2_deferred_postfit as native
+
+    queue, output = prepared
+    fraction = queue["shared_gpu_policy"]["max_own_memory_fraction"]
+    calls = []
+    monkeypatch.setattr(native, "run_deferred_postfit", lambda plan, **kw: calls.append((plan, kw)))
+    path = output / "BR.launch-plan.json"
+    monkeypatch.setattr(sys, "argv", ["test", str(path)])
+    exec(runner.evaluation_command(path)[2], {})
+    assert calls == [(queue["rows"][0]["plan"], {"gpu": "0,1", "cuda_memory_fraction": fraction})]
+    assert all(row["plan"]["cuda_memory_fraction"] == fraction for row in queue["rows"])
+    queue["rows"][0]["plan"]["cuda_memory_fraction"] = 0.70
+    with pytest.raises(ValueError):
+        runner.verify(queue)
 
 
 def training_receipt(queue, row):
@@ -414,7 +439,8 @@ def test_all_gates_before_barrier_then_sequential_fit_best_last(prepared, monkey
         assert gpu == "0,1"
         if stage == "best-last":
             assert (
-                "run_deferred_postfit" in command[2] and "cuda_memory_fraction=0.85" in command[2]
+                "run_deferred_postfit" in command[2]
+                and "cuda_memory_fraction=p['cuda_memory_fraction']" in command[2]
             )
     ready = read_json(output / "PREFLIGHT_COMPLETE.json")
     assert len(ready["preflights"]) == 4 and len(ready["eval_capacity"]) == 8

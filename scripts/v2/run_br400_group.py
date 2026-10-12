@@ -152,7 +152,7 @@ def verify(queue: dict) -> None:
             or plan["gpu"] != "0,1"
             or plan["seed"] != 1
             or plan["postfit_policy"] != "deferred"
-            or plan["cuda_memory_fraction"] != 0.85
+            or plan["cuda_memory_fraction"] != queue["shared_gpu_policy"]["max_own_memory_fraction"]
             or Path(plan["runtime"]).resolve() != Path(queue["runtime"]).resolve()
             or plan["runtime_sha256"] != queue["runtime_sha256"]
             or Path(plan["data_root"]).resolve() != Path(runtime["data_root"]).resolve()
@@ -374,7 +374,8 @@ def evaluation_command(path: Path) -> list[str]:
         sys.executable,
         "-c",
         "import json,sys;from gradpert.execution.v2_deferred_postfit import run_deferred_postfit;"
-        "run_deferred_postfit(json.load(open(sys.argv[1])),gpu='0,1',cuda_memory_fraction=0.85)",
+        "p=json.load(open(sys.argv[1]));"
+        "run_deferred_postfit(p,gpu='0,1',cuda_memory_fraction=p['cuda_memory_fraction'])",
         str(path),
     ]
 

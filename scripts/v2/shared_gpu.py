@@ -16,6 +16,7 @@ DUAL_SCHEMA = "shared-gpu-admission-2"
 DYNAMIC_SCHEMA = "shared-gpu-admission-3"
 SCBUTTERFLY_AUTHORIZATION = "2026-10-12-user-scbutterfly-coexistence"
 TOTALVI_AUTHORIZATION = "2026-10-12-user-scbutterfly-totalvi-coexistence"
+TOTALVI_MEMORY90_AUTHORIZATION = "2026-10-12-user-shared-memory90-coexistence"
 TOTALVI_PROGRAM = "run_totalvi_source_validation_development.py"
 
 
@@ -34,6 +35,7 @@ def validate_dynamic_policy(policy: dict) -> None:
     }
     devices = policy.get("devices")
     expanded = "additional_command_basenames" in policy
+    memory90 = policy.get("authorization_reference") == TOTALVI_MEMORY90_AUTHORIZATION
     if expanded:
         fields.add("additional_command_basenames")
     if (
@@ -45,9 +47,15 @@ def validate_dynamic_policy(policy: dict) -> None:
         or policy["max_foreign_processes_per_gpu"] != 1
         or policy.get("max_foreign_memory_mib") != 1024
         or policy.get("min_free_memory_mib") != 2048
-        or policy.get("max_own_memory_fraction") != 0.85
+        or policy.get("max_own_memory_fraction") != (0.90 if memory90 else 0.85)
         or policy.get("authorization_reference")
-        != (TOTALVI_AUTHORIZATION if expanded else SCBUTTERFLY_AUTHORIZATION)
+        != (
+            TOTALVI_MEMORY90_AUTHORIZATION
+            if memory90 and expanded
+            else TOTALVI_AUTHORIZATION
+            if expanded
+            else SCBUTTERFLY_AUTHORIZATION
+        )
         or (expanded and policy["additional_command_basenames"] != [TOTALVI_PROGRAM])
         or not isinstance(devices, list)
         or len(devices) != 2

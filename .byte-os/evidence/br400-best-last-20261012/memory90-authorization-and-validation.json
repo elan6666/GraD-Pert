@@ -1,0 +1,15 @@
+{
+  "user_instruction": "Memory requirements need not be so strict",
+  "adopted_max_own_fraction": 0.9,
+  "unchanged_min_free_mib": 2048,
+  "unchanged_foreign_max_mib": 1024,
+  "unchanged_foreign_max_per_gpu": 1,
+  "authorization_reference": "2026-10-12-user-shared-memory90-coexistence",
+  "baseline_sha": "c0a6a0869b82f472696291e447822c6aa55fdc4c",
+  "tests": "130 passed, 1 warning in 13.58s",
+  "exit_code": 0,
+  "cuda_hidden": true,
+  "log_sha256": "3a6e609d2f17b56e086122fa02f84b9e5ce1c6576fc3e4713126cf8f0cd1fe08",
+  "same_fraction_fit_and_best_last": true,
+  "ibot_recompute_adopted": false
+}

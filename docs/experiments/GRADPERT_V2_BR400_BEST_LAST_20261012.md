@@ -46,3 +46,11 @@ F1 的原始 GenePT 映射有 gate/up 双支路，训练反向会保存宽度409
 ## TotalVI 小任务共用授权
 
 新6e2b93c队列在CUDA子任务启动前发现UID1003的 `run_totalvi_source_validation_development.py`，原ScButterfly名单不允许，保护门安全终止且旧运行保留。用户随后明确允许此程序按相同上限共用。新版schema3政策仅增加该精确程序，必须绑定新的授权reference；旧ScButterfly政策兼容。两种程序合计仍每卡最多一个外部任务、占用≤1GiB、物理free≥2GiB、我们aggregate≤85%，不扩大其他UID/程序授权。127项相关CPU测试通过；新正式工作仍等待四组精确GPU预检。
+
+## 最新用户调整：自有显存上限90%
+
+c0a6a08的F1预检仍被85%保护门停止：最后遥测自有27828/27826MiB，预算27715.95MiB，物理free4274/4276MiB；没有OOM证据。GenePT映射重计算已有约280MiB采样改善，但这不是成功容量结论。所有worker已退出，未开始正式fit。
+
+用户随后要求显存约束不必太严格，现将自有占比上限设为90%，每卡实际free≥2048MiB、精确UID1003小任务合计≤1个且≤1024MiB保持不变。新policy必须绑定独立授权reference；旧85%policy行为不变。训练与best/last评估统一读取同一封存policy/plan的fraction，不混用硬编码85%。本段覆盖前文85%的新运行设置，历史失败证据不改。
+
+SSL2 iBOT完整投影/CE重计算的只读CPU测量发现潜在激活节省，但本轮暂不采用，没有额外修改数学路径。继续用现有共同GenePT checkpoint配置做新source/freshroot四组精确十步门；正式顺序BR→F1→N1→GM1、batch400、4epoch、最低验证joint选best、epoch4last不变。

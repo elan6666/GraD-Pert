@@ -283,6 +283,28 @@ def test_totalvi_policy_cannot_expand_beyond_exact_authorized_program(dynamic_po
         shared.validate_policy(expanded)
 
 
+def test_memory90_requires_new_authorization_and_keeps_physical_reserve(
+    dynamic_policy, dynamic_observed
+):
+    expanded = _totalvi_policy(dynamic_policy)
+    expanded["max_own_memory_fraction"] = 0.90
+    with pytest.raises(ValueError):
+        shared.validate_policy(expanded)
+    expanded["authorization_reference"] = shared.TOTALVI_MEMORY90_AUTHORIZATION
+    dynamic_observed["processes"][0]["memory_mib"] = 28000
+    shared.admit(expanded, dynamic_observed)
+    dynamic_observed["gpus"][0]["free_mib"] = 2047
+    with pytest.raises(RuntimeError, match="reserve"):
+        shared.admit(expanded, dynamic_observed)
+    dynamic_observed["gpus"][0]["free_mib"] = 3000
+    dynamic_observed["processes"][0]["memory_mib"] = 30000
+    with pytest.raises(RuntimeError, match="own GPU"):
+        shared.admit(expanded, dynamic_observed)
+    expanded["max_own_memory_fraction"] = 0.95
+    with pytest.raises(ValueError):
+        shared.validate_policy(expanded)
+
+
 @pytest.mark.parametrize(
     "field,value", [("uid", 1002), ("uid", 1004), ("script_basename", "other.py"), ("pid", 999)]
 )

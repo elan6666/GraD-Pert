@@ -562,3 +562,7 @@ Source2898882 GM1 gate passed, F1 exceeded85% owned memory (28108MiB vs27715.95M
 ## TotalVI coexistence now authorized
 
 User approved UID1003 run_totalvi_source_validation_development.py under unchanged limits. SharedGPU schema3 optionally adds only this exact program with explicit new authorization; ScButterfly retained; combined1foreign/GPU≤1GiB/free≥2GiB/owned≤85%. CPU127passed. Prior6e2b93c attempt stopped before GPUchildren; preserve terminal evidence. Fresh published-source preflight pending; then BR/F1/N1/GM1 global400 four epochs bestjoint+last tests.
+
+## User supersedes strict85% with90% for fresh BR400
+
+Latest user asks less strict memory guard: own90% with physicalfree2GiB, UID1003 exact ScButterfly/TotalVI oneperGPU≤1GiB unchanged; newreference seals policy. Old85%runs remainhistorical.130CPUchecks+samefit/testfraction regressionpassed; model/loss unchanged, no iBOTremat adopted. Freshpublication/allfour10step+joint/eval300 preflight pending before formalBR/F1/N1/GM1 four-epoch bestjoint/last.
