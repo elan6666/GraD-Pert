@@ -16,13 +16,16 @@ OFFICIAL_SHA = "f374e43e197b295016d80395d7a54ddb81cc6769"
 
 
 def copy_official_assets(runtime: dict, destination: Path) -> dict[str, str]:
-    """Check both pinned inputs before copying, then check the actual copies."""
+    """Check all pinned inputs before copying, then check the actual copies."""
     from gradpert.hashing import sha256_file
 
     names = ("gene2go_all.pkl", "essential_all_data_pert_genes.pkl")
-    expected = runtime["gears_asset_sha256"]
+    expected = dict(runtime["gears_asset_sha256"])
     if set(expected) != set(names):
         raise ValueError("GEARS asset digest manifest must name the two official graph assets")
+    go_csv = "go_essential_all/go_essential_all.csv"
+    expected[go_csv] = runtime["gears_go_csv_sha256"]
+    names = (*names, go_csv)
     assets = Path(runtime["gears_assets"])
     observed = {}
     for filename in names:
@@ -36,10 +39,20 @@ def copy_official_assets(runtime: dict, destination: Path) -> dict[str, str]:
         target = destination / filename
         if target.exists():
             raise FileExistsError(f"GEARS asset copy would overwrite an existing file: {target}")
+        target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(assets / filename, target)
         if sha256_file(target) != expected[filename]:
             raise ValueError(f"GEARS official asset changed during copying: {filename}")
     return observed
+
+
+def official_control_metadata(adata: Any):
+    """Match frozen upstream integer control labels before its .loc assignment."""
+    # GEARS get_DE_genes derives 0 for gene+ctrl/combo and 1 for ctrl. Native
+    # sanitation uses a bool flag; pandas strict dtype assignment rejects ints
+    # into that column. This conversion changes labels only, never expression.
+    adata.obs["control"] = (adata.obs.condition.astype(str) == "ctrl").astype(np.int64)
+    return adata
 
 
 def masked_official_loss(original: Any, allowed: np.ndarray):
@@ -238,7 +251,7 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
     data_root.mkdir(parents=True, exist_ok=False)
     asset_hashes = copy_official_assets(runtime, data_root)
     data = package.PertData(str(data_root))
-    adata = data_utils.get_DE_genes(adata, skip_calc_de=True)
+    adata = data_utils.get_DE_genes(official_control_metadata(adata), skip_calc_de=True)
     ranking_receipt = _ranking_metadata(adata, data_utils, allowed)
     pairs = []
     original_builder = data.create_cell_graph_dataset
@@ -325,6 +338,7 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
             "diagnostic_limit_reached": stopped,
             "seen_expression_gene_indices": allowed.tolist(),
             "ranking_receipt": ranking_receipt,
+            "control_metadata_encoding": "official 0=perturbed,1=control int labels",
             "adaptations": [
                 "input expression exclusion",
                 "allowed official loss including ctrl",

@@ -11,6 +11,7 @@ from benchmarks.expression_holdout.gears import (
     context_graph_builder,
     copy_official_assets,
     masked_official_loss,
+    official_control_metadata,
     predict,
 )
 from tests.benchmarks.expression_holdout.test_scouter import _prepared
@@ -169,13 +170,35 @@ def test_asset_source_hashes_all_pass_before_any_copy(tmp_path):
     for i, name in enumerate(names):
         (assets / name).write_bytes(f"synthetic graph asset {i}".encode())
     hashes = {name: sha256_file(assets / name) for name in names}
-    runtime = {"gears_assets": str(assets), "gears_asset_sha256": hashes}
+    go_csv = assets / "go_essential_all/go_essential_all.csv"
+    go_csv.parent.mkdir()
+    go_csv.write_text("source,target,importance\nA,A,1\n")
+    runtime = {
+        "gears_assets": str(assets),
+        "gears_asset_sha256": hashes,
+        "gears_go_csv_sha256": sha256_file(go_csv),
+    }
     (assets / names[1]).write_bytes(b"tampered")
     with pytest.raises(ValueError, match="digest mismatch"):
         copy_official_assets(runtime, copies)
     assert list(copies.iterdir()) == []
     hashes[names[1]] = sha256_file(assets / names[1])
-    assert copy_official_assets(runtime, copies) == hashes
+    observed = copy_official_assets(runtime, copies)
+    assert observed == {**hashes, "go_essential_all/go_essential_all.csv": sha256_file(go_csv)}
     assert {name: sha256_file(copies / name) for name in names} == hashes
+    assert sha256_file(copies / "go_essential_all/go_essential_all.csv") == sha256_file(go_csv)
     with pytest.raises(FileExistsError, match="overwrite"):
         copy_official_assets(runtime, copies)
+
+
+def test_official_control_metadata_uses_integer_flags_without_touching_expression():
+    prepared = _prepared()
+    adata = prepared.adata.copy()
+    before = adata.X.copy()
+    before_ids = tuple(adata.obs_names)
+    assert adata.obs.control.dtype == bool
+    assert official_control_metadata(adata) is adata
+    assert adata.obs.control.dtype == np.int64
+    assert adata.obs.control.tolist() == [0, 0, 1, 1]
+    assert tuple(adata.obs_names) == before_ids
+    np.testing.assert_array_equal(adata.X.toarray(), before.toarray())

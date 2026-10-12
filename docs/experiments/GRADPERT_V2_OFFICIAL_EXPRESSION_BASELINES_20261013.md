@@ -123,3 +123,14 @@ The project numerical stack differs from historical upstream environment pins;
 actual versions are sealed and integration-tested, not claimed bit-identical to
 an original author environment. The dependent queue additionally seals a real
 CPU integration receipt for each model before GPU dispatch.
+
+Second CPU attempts (native e5a041b189df3a616818d523f3ba37bded41ebe2):
+Scouter and scDFM both pass10updates/restore/zeroPKL. GEARS fails before fit on
+Pandas3 bool-to-int metadata assignment; preserve its failed scratch assets/logs.
+A subsequent GEARS repair uses official0/1 control metadata and binds the existing
+frozen GO CSV (`99622d9215462e7bbea99a5f6c0b1e86febfef9f57226269418053484fcb3f9f`),
+avoiding an upstream network redownload. Its separate final environment restores
+GEARS requirements' explicit numpy/pandas/scipy/scanpy/sklearn/networkx/tqdm pins;
+Torch/PyG CUDA are retained and recorded. AnnData0.10.9/Zarr2 compatibility pins are
+project runtime choices, not alleged explicit author requirements. No active
+native or successful scDFM environment is changed.
