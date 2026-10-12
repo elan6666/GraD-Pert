@@ -30,3 +30,15 @@ BR旧400短测只证明旧BR配置10更新范围内可用；新增加joint验证
 ## Local verification
 
 Both new group/capacity suites together57passed1TorchJITdeprecationwarning10.89s, exit0, hiddenCUDA; Ruff/format/diff passed. Real producer/validator interoperation, cross-arm6dataSHA re-sealing rejection, manual main barrier, true native best+last samecheckpoint/incorrectbest/missingmetric/PKL cases covered. Boundedjoint11protectedstates and eval128↔300 fixedatol/rtol2e-6. Not GPU evidence yet. Small local receipt .byte-os/evidence/br400-best-last-20261012/local-validation.json.
+
+## Source2898882 first GPU gate failed
+
+ServerCPU checks exit0; queuev2-br400-2898882-20261012T043957Z exactSHA6dc193717d020b76c9da67f5c546acdd9eb28cbb982cb3c87356b867770f487d. GM1 native10/10/restore/nonzeroLR/finitegrad/boundedjoint100 andGPU0/GPU1 fresheval300 vs128passed. F1 ownGPU28108MiB percard exceeded85%budget27715.95MiB, free3994MiB; guard terminatedourworkers, noCUDA OOM evidence. F1receiptstep0/running isinterrupted—notpass. ControllerfailureSHA3811c1591359db439712664a6417b3fd22b73c05f0ba5514fd2665c737489ed7; allownedworkersgone, noMAIN_ACCEPTANCE/noformalfit. BR/N1notprobed. EquivalentGenePT mapping activationrecompute repair proposedwithinapproved400/resourcebounds; noresult/effectimprovementclaim. Oldroot immutable.
+
+## 等价显存修复：GenePT 映射激活重计算
+
+F1 的原始 GenePT 映射有 gate/up 双支路，训练反向会保存宽度4096的激活。新版本仅对 Student 在有梯度的训练映射使用非重入 activation checkpoint：前向仍计算相同映射，反向按需重算内部激活；Teacher、评估与无梯度路径直接计算。参数与映射公式、Norm/bias、随机顺序、loss及更新时点均不变。四组共同启用以避免比较混入不同内存策略，旧配置默认关闭、旧架构payload不增加字段。
+
+四组均验证3次非零学习率完整更新，包括GM1图mHC的嵌套重计算；输出、梯度、optimizer、Teacher/EMA、center/pending、Torch及NumPy随机状态精确对齐。CPU BF16 autocast映射和反向也对齐。CPU float32、128基因、真实F1映射宽度的去重非持久激活保存量为9,569,280→0字节；参数与冻结先验存储已排除。这仅说明重计算机制有效，不代表CUDA峰值或吞吐收益。
+
+新配置目录 `configs/v2/br400_best_last_checkpoint_20261012`；新预检顺序F1→GM1→BR→N1，正式顺序仍BR→F1→N1→GM1。须在新源码重新通过全部双卡10更新和300-control容量/一致性门，主验收后才能启动四轮训练。资源85%与每卡2GiB余量保持原规则，失败不自动降batch400。

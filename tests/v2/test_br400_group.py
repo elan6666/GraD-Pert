@@ -634,3 +634,77 @@ def test_cross_arm_resealed_data_drift_rejected_at_common_barrier(prepared, monk
     runner.validate_eval_gate(queue, row, binding, state["eval_capacity"]["F1-g0"])
     with pytest.raises(ValueError, match="common data"):
         runner.validate_common_gates(queue, state)
+
+
+CHECKPOINT_MANIFEST = ROOT / "configs/v2/br400_best_last_checkpoint_20261012/manifest.json"
+
+
+def test_checkpoint_family_only_adds_common_optin_and_preserves_old_bytes():
+    old = generator.verify_manifest(ROOT, MANIFEST)
+    checkpoint = generator.verify_manifest(ROOT, CHECKPOINT_MANIFEST)
+    assert "checkpoint_genept" not in old
+    assert checkpoint["checkpoint_genept"] is True
+    assert checkpoint["preflight_priority"] == ["F1", "GM1", "BR", "N1"]
+    assert checkpoint["priority"] == old["priority"] == ["BR", "F1", "N1", "GM1"]
+    for old_row, new_row in zip(old["rows"], checkpoint["rows"], strict=True):
+        old_path, new_path = ROOT / old_row["config"], ROOT / new_row["config"]
+        before = old_path.read_bytes()
+        original = yaml.safe_load(before)
+        updated = yaml.safe_load(new_path.read_text())
+        assert "checkpoint_genept_mapping" not in original["model"]["parameters"]
+        extra = updated["model"]["parameters"].pop("checkpoint_genept_mapping")
+        assert extra == {
+            "value": True,
+            "source": "project_preregistered",
+            "reference": generator.REFERENCE,
+        }
+        assert updated == original
+        assert sha256_file(old_path) == old_row["sha256"]
+        assert before == old_path.read_bytes()
+        old_arch, _ = V2Options.parse_parameters(load_experiment_config(old_path).model.parameters)
+        new_arch, _ = V2Options.parse_parameters(load_experiment_config(new_path).model.parameters)
+        assert "checkpoint_genept_mapping" not in old_arch.payload()
+        payload = new_arch.payload()
+        assert payload.pop("checkpoint_genept_mapping") is True
+        assert payload == old_arch.payload()
+
+
+@pytest.mark.parametrize("flag", [1, None, "true"])
+def test_checkpoint_generator_rejects_non_boolean_optin(flag):
+    with pytest.raises(ValueError, match="explicit bool"):
+        generator.configurations(ROOT, checkpoint_genept=flag)
+
+
+def test_old_default_configs_and_metadata_remain_identical():
+    old = read_json(MANIFEST)
+    assert generator.metadata() == {key: value for key, value in old.items() if key != "rows"}
+    expected = generator.configurations(ROOT)
+    for row in old["rows"]:
+        assert expected[row["name"]] == yaml.safe_load((ROOT / row["config"]).read_text())
+
+
+def test_checkpoint_runner_reads_verified_manifest_priority(prepared, monkeypatch):
+    queue, output, calls = execution_mocks(prepared, monkeypatch, approval=False)
+    matrix = generator.verify_manifest(ROOT, CHECKPOINT_MANIFEST)
+    queue["manifest"] = str(CHECKPOINT_MANIFEST)
+    queue["manifest_sha256"] = sha256_file(CHECKPOINT_MANIFEST)
+    by_name = {row["name"]: row for row in matrix["rows"]}
+    for row in queue["rows"]:
+        spec = by_name[row["name"]]
+        row["plan"]["config"] = str(ROOT / spec["config"])
+        row["plan"]["config_sha256"] = spec["sha256"]
+        row["plan"]["resolved_config"] = load_experiment_config(row["plan"]["config"]).model_dump(
+            mode="json"
+        )
+        atomic_json(output / f"{row['name']}.launch-plan.json", row["plan"])
+    atomic_json(output / "queue.json", queue)
+    runner.verify(queue)
+    with pytest.raises(KeyboardInterrupt):
+        runner.execute(queue, output)
+    assert [name for name, stage, _, _ in calls if stage == "preflight"] == [
+        "F1",
+        "GM1",
+        "BR",
+        "N1",
+    ]
+    assert not (output / "MAIN_ACCEPTANCE.json").exists()

@@ -16,7 +16,6 @@ from pathlib import Path
 
 from collect_results import collect_run
 from generate_br400_group import (
-    PREFLIGHT_PRIORITY,
     PRIORITY,
     verify_manifest,
 )
@@ -544,6 +543,7 @@ def execute(queue: dict, directory: Path) -> None:
     ):
         raise ValueError("fresh CPU-only execution must match sealed source/root/queue")
     verify(queue)
+    matrix = verify_manifest(Path(queue["source"]), Path(queue["manifest"]))
     queue_sha = sha256_file(directory / "queue.json")
     state = {
         "status": "running",
@@ -579,7 +579,7 @@ def execute(queue: dict, directory: Path) -> None:
             if any(p["owned"] for p in guard()["processes"]):
                 raise RuntimeError("other owned CUDA work exists")
             indexed = {row["name"]: row for row in queue["rows"]}
-            for name in PREFLIGHT_PRIORITY:
+            for name in matrix["preflight_priority"]:
                 row = indexed[name]
                 command = [*probe(row, directory, shared=True), "--joint-validation-check"]
                 run_stage(queue, row, "preflight", command, "0,1", state, guard)

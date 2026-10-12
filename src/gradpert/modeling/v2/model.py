@@ -371,9 +371,20 @@ class GeneGraph(nn.Module):
         self.mhc_streams = options.streams
         self.chunk_rows = options.relay_graph_chunk_rows
         self.checkpoint_chunks = options.checkpoint_layers
+        self.checkpoint_genept_mapping = options.checkpoint_genept_mapping
 
     def identities(self, ids: Tensor | None = None) -> Tensor:
         seeds = self.embedding.weight if ids is None else self.embedding(ids)
+        if self.checkpoint_genept_mapping and self.training and torch.is_grad_enabled():
+            return cast(
+                Tensor,
+                checkpoint(
+                    self._map_identities, seeds, use_reentrant=False, preserve_rng_state=True
+                ),
+            )
+        return self._map_identities(seeds)
+
+    def _map_identities(self, seeds: Tensor) -> Tensor:
         if self.prior_adapter is not None:
             seeds = seeds + self.prior_adapter(seeds)
         return cast(Tensor, self.norm(self.projection_activation(self.adapter(seeds))))

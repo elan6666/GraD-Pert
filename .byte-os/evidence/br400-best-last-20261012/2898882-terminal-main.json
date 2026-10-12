@@ -1,0 +1,17 @@
+{
+  "root": "/data/yilangliu/GraD-Pert/development/v2-br400-2898882-20261012T043957Z",
+  "queue_sha256": "6dc193717d020b76c9da67f5c546acdd9eb28cbb982cb3c87356b867770f487d",
+  "failure_sha256": "3811c1591359db439712664a6417b3fd22b73c05f0ba5514fd2665c737489ed7",
+  "source_commit": "28988821549a010fd74ae9dcbf1fbd786cd61f31",
+  "failure_arm": "F1",
+  "reason": "own GPU workload exceeds the approved memory allowance",
+  "sampled_own_memory_mib": 28108,
+  "sampled_free_mib": 3994,
+  "no_oom_evidence": true,
+  "formal_started": false,
+  "GM1_passed_gates": 3,
+  "F1_passed_gates": 0,
+  "BR_N1_not_probed": true,
+  "controller_and_owned_workers_absent": true,
+  "observed_unix": 1791780830.869547
+}

@@ -15,6 +15,7 @@ from gradpert.hashing import sha256_file
 SCHEMA = "br400-best-last-1"
 PRIORITY = ("BR", "F1", "N1", "GM1")
 PREFLIGHT_PRIORITY = ("GM1", "F1", "BR", "N1")
+CHECKPOINT_PREFLIGHT_PRIORITY = ("F1", "GM1", "BR", "N1")
 REFERENCE = ".byte-os/plans/GRADPERT_V2_BR400_BEST_LAST_20261012.plan.md"
 PARENTS = {
     "BR": (
@@ -36,7 +37,9 @@ PARENTS = {
 }
 
 
-def configurations(source: Path, eval_batch: int = 300) -> dict:
+def configurations(source: Path, eval_batch: int = 300, checkpoint_genept: bool = False) -> dict:
+    if type(checkpoint_genept) is not bool:
+        raise ValueError("checkpoint_genept must be an explicit bool")
     if type(eval_batch) is not int or not 2 <= eval_batch <= 300:
         raise ValueError("eval cell batch must be an explicit common 2..300")
     result = {}
@@ -53,6 +56,12 @@ def configurations(source: Path, eval_batch: int = 300) -> dict:
             ("validation_mode", "joint_only"),
         ):
             params[key] = {"value": setting, "source": "user_locked", "reference": REFERENCE}
+        if checkpoint_genept:
+            params["checkpoint_genept_mapping"] = {
+                "value": True,
+                "source": "project_preregistered",
+                "reference": REFERENCE,
+            }
         for key, setting in (
             ("train_batch_size", 400),
             ("eval_batch_size", eval_batch),
@@ -64,15 +73,19 @@ def configurations(source: Path, eval_batch: int = 300) -> dict:
     return result
 
 
-def metadata(eval_batch: int = 300) -> dict:
-    return {
+def metadata(eval_batch: int = 300, checkpoint_genept: bool = False) -> dict:
+    if type(checkpoint_genept) is not bool:
+        raise ValueError("checkpoint_genept must be an explicit bool")
+    result = {
         "schema": SCHEMA,
         "parents": {
             name: {"config": relative, "sha256": digest}
             for name, (relative, digest) in PARENTS.items()
         },
         "priority": list(PRIORITY),
-        "preflight_priority": list(PREFLIGHT_PRIORITY),
+        "preflight_priority": list(
+            CHECKPOINT_PREFLIGHT_PRIORITY if checkpoint_genept else PREFLIGHT_PRIORITY
+        ),
         "common_microbatch": 100,
         "world_size": 2,
         "accumulation": 2,
@@ -87,6 +100,9 @@ def metadata(eval_batch: int = 300) -> dict:
         "preflight_updates": 10,
         "execution": "sequential_dual_fit_then_dual_best_last",
     }
+    if checkpoint_genept:
+        result["checkpoint_genept"] = True
+    return result
 
 
 def verify_manifest(source: Path, path: Path) -> dict:
@@ -94,8 +110,11 @@ def verify_manifest(source: Path, path: Path) -> dict:
     if not path.is_relative_to(source):
         raise ValueError("manifest must be source-contained")
     manifest = json.loads(path.read_text())
-    expected = configurations(source, manifest["eval_batch"])
-    if {k: v for k, v in manifest.items() if k != "rows"} != metadata(manifest["eval_batch"]):
+    checkpoint_genept = manifest.get("checkpoint_genept", False)
+    expected = configurations(source, manifest["eval_batch"], checkpoint_genept)
+    if {k: v for k, v in manifest.items() if k != "rows"} != metadata(
+        manifest["eval_batch"], checkpoint_genept
+    ):
         raise ValueError("BR400 common protocol changed")
     if [row["name"] for row in manifest["rows"]] != list(PRIORITY):
         raise ValueError("BR400 arm scope/order changed")
@@ -115,12 +134,14 @@ def verify_manifest(source: Path, path: Path) -> dict:
     return manifest
 
 
-def generate(source: Path, output: Path, eval_batch: int = 300) -> dict:
+def generate(
+    source: Path, output: Path, eval_batch: int = 300, checkpoint_genept: bool = False
+) -> dict:
     source, output = source.resolve(), output.resolve()
     if output.exists() or not output.is_relative_to(source):
         raise ValueError("fresh source-contained configuration directory required")
     rows = []
-    for name, config in configurations(source, eval_batch).items():
+    for name, config in configurations(source, eval_batch, checkpoint_genept).items():
         path = output / name / "gradpert_v2/nadig_jurkat.yaml"
         path.parent.mkdir(parents=True)
         path.write_text(yaml.safe_dump(config, sort_keys=False))
@@ -128,7 +149,9 @@ def generate(source: Path, output: Path, eval_batch: int = 300) -> dict:
             {"name": name, "config": str(path.relative_to(source)), "sha256": sha256_file(path)}
         )
     path = output / "manifest.json"
-    path.write_text(json.dumps({**metadata(eval_batch), "rows": rows}, indent=2) + "\n")
+    path.write_text(
+        json.dumps({**metadata(eval_batch, checkpoint_genept), "rows": rows}, indent=2) + "\n"
+    )
     return verify_manifest(source, path)
 
 
@@ -136,5 +159,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--eval-batch", type=int, default=300)
+    parser.add_argument("--checkpoint-genept", action="store_true")
     args = parser.parse_args()
-    print(json.dumps(generate(Path(__file__).resolve().parents[2], args.output, args.eval_batch)))
+    print(
+        json.dumps(
+            generate(
+                Path(__file__).resolve().parents[2],
+                args.output,
+                args.eval_batch,
+                args.checkpoint_genept,
+            )
+        )
+    )

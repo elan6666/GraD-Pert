@@ -1,0 +1,15 @@
+{
+  "scope": "CPU_float32_forward_retained_autograd_storages_not_CUDA_peak",
+  "genes": 128,
+  "mapping_widths": [
+    2048,
+    4096,
+    1024,
+    256
+  ],
+  "excludes": "persistent_parameter_and_frozen_prior_storage; aliases_deduplicated",
+  "baseline_unique_activation_bytes": 9569280,
+  "checkpoint_unique_activation_bytes": 0,
+  "baseline_logical_saved_tensor_bytes": 29494272,
+  "checkpoint_logical_saved_tensor_bytes": 1048576
+}

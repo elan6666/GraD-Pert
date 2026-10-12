@@ -1,0 +1,12 @@
+{
+  "baseline": "28988821549a010fd74ae9dcbf1fbd786cd61f31",
+  "cpu_cuda_hidden": true,
+  "test_result": "151 passed, 1 warning in 33.26s",
+  "exit_code": 0,
+  "log_sha256": "e014343cd2e511ae163b41916e50ea6c19af348ce143eff687e95f0f7abec024",
+  "ruff": true,
+  "format": true,
+  "read_only_review": "READY",
+  "gpu_capacity_verified": false,
+  "scope": "GenePT mapping equivalent activation rematerialization and common four-arm configuration"
+}

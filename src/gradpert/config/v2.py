@@ -44,6 +44,7 @@ class V2Architecture:
     gene_conditioned_readout: bool = False
     direct_target_flag: bool = False
     learned_genept_projection: bool = False
+    checkpoint_genept_mapping: bool = False
     genept_projection_activation: str = "none"
     mlp_profile: str = "historical"
     ffn_variant: str = "mixed"
@@ -79,6 +80,7 @@ class V2Architecture:
             "gene_conditioned_readout",
             "direct_target_flag",
             "learned_genept_projection",
+            "checkpoint_genept_mapping",
             "graph_mhc",
         ):
             if type(getattr(self, name)) is not bool:
@@ -100,6 +102,8 @@ class V2Architecture:
             or (self.gene_conditioned_readout and self.mlp_profile != "unified")
         ):
             raise ValueError("raw GenePT projection cannot use reduced-prior mechanisms")
+        if self.checkpoint_genept_mapping and not self.learned_genept_projection:
+            raise ValueError("GenePT mapping checkpoint requires the learned raw-prior projection")
         if self.mlp_profile not in ("historical", "unified", "restored"):
             raise ValueError("unknown MLP profile")
         if (
@@ -284,6 +288,8 @@ class V2Architecture:
             values.pop("graph_source_key_gate")
         if not self.graph_mhc:
             values.pop("graph_mhc")
+        if not self.checkpoint_genept_mapping:
+            values.pop("checkpoint_genept_mapping")
         if self.attention_replacement == "none":
             values.pop("attention_replacement")
         if self.self_readout == "final":
@@ -408,6 +414,7 @@ class V2Options:
             "gene_conditioned_readout",
             "direct_target_flag",
             "learned_genept_projection",
+            "checkpoint_genept_mapping",
             "genept_projection_activation",
             "koleo_exclude_same_condition",
             "graph_view_mode",
