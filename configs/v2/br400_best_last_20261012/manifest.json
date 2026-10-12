@@ -1,0 +1,71 @@
+{
+  "schema": "br400-best-last-1",
+  "parents": {
+    "BR": {
+      "config": "configs/v2/ffn_four_20261011/BR/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "075331f51d2ff5699ce0f22386d756ed5b4ee80cce29ee10727cf676c47e62eb"
+    },
+    "F1": {
+      "config": "configs/v2/ffn_four_20261011/F1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "837c280829398902da3140c59f3a21b106d87bdf7bc72501ee92a6a219b2dc0b"
+    },
+    "N1": {
+      "config": "configs/v2/ffn_four_20261011/N1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "40dbd308706ef86b92e0ea779a6514a8d0469cb3da3fc421eb0e9dec8730885e"
+    },
+    "GM1": {
+      "config": "configs/v2/graph_mhc_four_20261011/GM1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "7b03765950313dba5dacd8067725fa62b1583d03e5f5ffdf96759346a1380ba3"
+    }
+  },
+  "priority": [
+    "BR",
+    "F1",
+    "N1",
+    "GM1"
+  ],
+  "preflight_priority": [
+    "GM1",
+    "F1",
+    "BR",
+    "N1"
+  ],
+  "common_microbatch": 100,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 400,
+  "epochs": 4,
+  "seed": 1,
+  "eval_batch": 300,
+  "eval_capacity_reference_batch": 128,
+  "validation": "joint_only",
+  "selection": "minimum_validation_joint_loss",
+  "test_roles": [
+    "best",
+    "last"
+  ],
+  "preflight_updates": 10,
+  "execution": "sequential_dual_fit_then_dual_best_last",
+  "rows": [
+    {
+      "name": "BR",
+      "config": "configs/v2/br400_best_last_20261012/BR/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "cf4e70e06fec058acccc251d3f88705e4f17e9207cfd4e0e2a4c01435a830f41"
+    },
+    {
+      "name": "F1",
+      "config": "configs/v2/br400_best_last_20261012/F1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "817d73a3f95e00bf1fc3d93c02978269e409bf89b25f71574cf179dc415131b6"
+    },
+    {
+      "name": "N1",
+      "config": "configs/v2/br400_best_last_20261012/N1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "61d7f8b33f622995ecf63a68c94f30b744b06621bd516bc4f5b907c434ede9ed"
+    },
+    {
+      "name": "GM1",
+      "config": "configs/v2/br400_best_last_20261012/GM1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "22938602725934ba6f223ca5999195627affe5d60440e895852821c2928c7e52"
+    }
+  ]
+}

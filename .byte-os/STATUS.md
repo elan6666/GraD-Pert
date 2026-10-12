@@ -1,3 +1,7 @@
+## 2026-10-12: user supersedes pending192 peers with fresh BR400 best/last family
+
+Authorized BR/F1/N1/GM1 fresh4epoch/global400=m100/world2/accum2; each epochjoint-onlyvalidation selectsbest, epoch4last; both18metricroles. Evalbatch300 capacity target, same85percent/2GiB/schema3policy. OldBRscientificcompleteand400shortprobe retained; pending192peercontinuationnotlaunched. Implementation/deployment/gatesinprogress, noformalnewrunstarted. Plan plans/GRADPERT_V2_BR400_BEST_LAST_20261012.plan.md.
+
 ## 2026-10-12: BR epoch4 scientific completion accepted; continue peers
 
 Main independentlyverified nativevalidate_completed and18metrics/source/config/checkpoint/data/control/environment/zeroPKL. BRsourceb37, checkpointf679...9d2; TxPertall/DEG0.218508/0.389176, TriShift0.164770/0.356504, Systema0.103747/0.211304. Overallfinite592all/590DEG, unseen225genesDEG147conditions. All592processed, noimputation. Original10ad CPUqueue retired, F1/N1untouched withsource/config/data10-stepcheckedpreflightsandoriginal.65fitplans. NewcompletedBRimportmodebuildownedmain, freshF1N1IDs/common192/4epochs/sourceb37, noBRfit/evalrepeat. GM1requiresfreshparentdependency afterremainingpeerqueuecreated; originalGM1retired. Oldevalmonitor deleted, returnfallbackpausedaftermainACK. Evidencepost-br-capacity-20261012/gradpert-BR-epoch4-terminal-main-acceptance.json; nextplanGRADPERT_V2_POST_BR_CAPACITY_20261012.plan.md.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import itertools
 import json
 import math
@@ -11,6 +12,130 @@ import time
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
+
+
+def state_fingerprint(value: Any) -> str:
+    """Hash nested optimizer/RNG state exactly without holding a second model copy."""
+    import numpy as np
+    import torch
+
+    digest = hashlib.sha256()
+
+    def visit(item: Any) -> None:
+        if isinstance(item, torch.Tensor):
+            tensor = item.detach().cpu().contiguous()
+            digest.update(f"tensor:{tensor.dtype}:{tuple(tensor.shape)}:".encode())
+            digest.update(tensor.reshape(-1).view(torch.uint8).numpy().tobytes())
+        elif isinstance(item, np.ndarray):
+            digest.update(f"array:{item.dtype}:{item.shape}:".encode())
+            digest.update(np.ascontiguousarray(item).tobytes())
+        elif isinstance(item, dict):
+            digest.update(b"mapping[")
+            for key in sorted(item, key=lambda key: (type(key).__name__, repr(key))):
+                visit(key)
+                visit(item[key])
+            digest.update(b"]")
+        elif isinstance(item, (tuple, list)):
+            digest.update(f"{type(item).__name__}[".encode())
+            for element in item:
+                visit(element)
+            digest.update(b"]")
+        else:
+            digest.update(f"{type(item).__name__}:{item!r};".encode())
+
+    visit(value)
+    return digest.hexdigest()
+
+
+def validation_state(runtime: Any) -> dict[str, str]:
+    """Capture state that a joint-only validation is forbidden to update."""
+    import random
+
+    import numpy as np
+    import torch
+
+    objective = runtime.objective
+    return {
+        "student": state_fingerprint(objective.student.state_dict()),
+        "teacher": state_fingerprint(objective.teacher.state_dict()),
+        "centers": state_fingerprint(
+            {name: value for name, value in objective.named_buffers() if name.endswith("_center")}
+        ),
+        "optimizer": state_fingerprint(runtime.optimizer.state_dict()),
+        "gradients": state_fingerprint(
+            {name: parameter.grad for name, parameter in objective.named_parameters()}
+        ),
+        "numpy_rng": state_fingerprint(
+            (np.random.get_state(), runtime.generator.bit_generator.state)
+        ),
+        "python_rng": state_fingerprint(random.getstate()),
+        "torch_rng": state_fingerprint(
+            (
+                torch.get_rng_state(),
+                torch.cuda.get_rng_state_all() if runtime.device.type == "cuda" else [],
+            )
+        ),
+        "pending_statistics": state_fingerprint(objective.pending),
+        "auxiliary_statistics": state_fingerprint(
+            getattr(objective, "auxiliary_rng_counter", None)
+        ),
+        "module_modes": state_fingerprint(
+            {
+                name: (module.training, getattr(module, "randomize_relay_order", None))
+                for name, module in objective.named_modules()
+            }
+        ),
+    }
+
+
+def joint_validation_check(
+    runtime: Any, *, batch_size: int, bf16: bool, on_batch_complete: Any = None
+) -> dict[str, Any]:
+    """Run real fixed validation batches and independently verify read-only state."""
+    from gradpert.training.v2.joint_validation import evaluate_joint_loss
+
+    before = validation_state(runtime)
+    started = time.perf_counter()
+    batches = runtime.validation_batches(batch_size=batch_size)
+    try:
+        # One complete native batch is the bounded engineering gate; formal
+        # per-epoch validation still traverses the entire frozen validation split.
+        joint = evaluate_joint_loss(
+            runtime.objective,
+            itertools.islice(batches, 1),
+            bf16=bf16,
+            on_batch_complete=on_batch_complete,
+        )
+    finally:
+        batches.close()
+    elapsed = time.perf_counter() - started
+    after = validation_state(runtime)
+    unchanged = {name: before[name] == after[name] for name in before}
+    if not all(unchanged.values()):
+        raise ValueError(
+            "joint validation mutated protected state: "
+            + ", ".join(name for name, same in unchanged.items() if not same)
+        )
+    if not math.isfinite(joint["joint_loss"]) or any(
+        not math.isfinite(value) for value in joint["components"].values()
+    ):
+        raise FloatingPointError("joint validation check produced nonfinite losses")
+    if joint["batch_count"] < 1 or joint["cell_count"] < 1:
+        raise ValueError("joint validation check requires nonempty real validation data")
+    return {
+        "status": "passed",
+        "validation_mode": "joint_only",
+        "split": "val",
+        "finite": True,
+        "scope": "one_complete_native_validation_batch_engineering_only",
+        "full_validation": False,
+        "batch_size": batch_size,
+        "seconds": elapsed,
+        "state_unchanged": unchanged,
+        "before_sha256": before,
+        "after_sha256": after,
+        **joint,
+    }
 
 
 def probe_policy(
@@ -58,6 +183,7 @@ def main() -> None:
     parser.add_argument("--fused-gram", action="store_true")
     parser.add_argument("--shared-queue", type=Path)
     parser.add_argument("--resource-owner-pid", type=int)
+    parser.add_argument("--joint-validation-check", action="store_true")
     args = parser.parse_args()
     if bool(args.shared_queue) != bool(args.resource_owner_pid):
         parser.error("shared preflight requires both the sealed queue and controller PID")
@@ -74,6 +200,8 @@ def main() -> None:
         )
     except ValueError as error:
         parser.error(str(error))
+    if args.joint_validation_check and kind not in ("preflight_only", "capacity_only"):
+        parser.error("joint-validation-check requires a ten-update or longer training preflight")
     if args.warmup_steps is not None:
         if not args.benchmark_only or not 1 <= args.warmup_steps < args.steps:
             parser.error("custom warmup requires benchmark-only and measured updates")
@@ -192,6 +320,7 @@ def main() -> None:
         "save_no_grad_sinkhorn_diagnostic_only": args.save_no_grad_sinkhorn,
         "fused_gram_diagnostic_only": args.fused_gram,
         "sequence_checkpoint_disabled_diagnostic_only": args.no_sequence_checkpoint,
+        "joint_validation_check_requested": args.joint_validation_check,
         "hardware": environment_snapshot(torch),
         "host_before": host_snapshot(),
     }
@@ -433,8 +562,32 @@ def main() -> None:
                     validation["inference_control_manifest_sha256"] = (
                         evaluation.control_manifest_file_sha256
                     )
+                    if args.joint_validation_check:
+                        validation["ordered_control_row_ids_sha256"] = sha256_json(
+                            list(draw.ordered_row_ids)
+                        )
+                        validation["inference_expression_gene_order_sha256"] = (
+                            evaluation.manifest.expression_gene_order_sha256
+                        )
                 return validation
 
+            if args.joint_validation_check:
+                joint_batch = min(
+                    runtime.options.microbatch, int(config.training.eval_batch_size.value)
+                )
+
+                def progress(done: int, mean_loss: float) -> None:
+                    receipt["joint_validation_progress"] = {
+                        "batches_completed": done,
+                        "joint_loss_running_mean": mean_loss,
+                    }
+                    atomic_json(args.output / "receipt.json", receipt)
+
+                receipt["joint_validation_check"] = primary_call(
+                    lambda: joint_validation_check(
+                        runtime, batch_size=joint_batch, bf16=True, on_batch_complete=progress
+                    )
+                )
             if kind in ("preflight_only", "capacity_only"):
                 receipt.update(primary_call(validation_probe))
             local_measurement = {

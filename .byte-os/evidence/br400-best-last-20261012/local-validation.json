@@ -1,0 +1,37 @@
+{
+  "exit_code": 0,
+  "tests": "57 passed, 1 warning in 10.89s",
+  "command": "CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/v2/run_cpu_tests.py -- -q tests/v2/test_br400_group.py tests/v2/test_br400_capacity.py",
+  "log": "/tmp/gradpert-br400-group-tests.log",
+  "ruff_check": "passed",
+  "ruff_format_check": "passed",
+  "diff_check": "passed",
+  "own_sources": [
+    "scripts/v2/generate_br400_group.py",
+    "scripts/v2/run_br400_group.py",
+    "tests/v2/test_br400_group.py"
+  ],
+  "configs": "configs/v2/br400_best_last_20261012/manifest.json",
+  "initial_eval_batch": 300,
+  "microbatch": 100,
+  "global_batch": 400,
+  "formal_order": [
+    "BR",
+    "F1",
+    "N1",
+    "GM1"
+  ],
+  "preflight_order": [
+    "GM1",
+    "F1",
+    "BR",
+    "N1"
+  ],
+  "main_acceptance": "copy entire PREFLIGHT_COMPLETE.json plus approved:true",
+  "source_clean_checks": "native publication plus runtime repository_root/source/config/data bindings",
+  "server_operations": false,
+  "commits": false,
+  "prechange_commit": "832a9262af73b9a3a56e4cb92fdf413572882d3a",
+  "log_sha256": "1cf4086ebe0b224adc14f2dd2816274e63d18a0fc21664e658e29b2f920be4c0",
+  "warning": "Torch jit.script deprecation; no test failure"
+}
