@@ -1,0 +1,221 @@
+{
+  "schema": "br400-user-last-only-switch-1",
+  "reason": "User stops fourth validation and selects last-only dual-GPU batch300 evaluation before next fit; validation completed naturally before safe signal",
+  "queue_sha256": "82a37b89d09c0be82bc5fa550c6172f2d0fa318386a5a836f026cb71613994bd",
+  "source_commit": "6a8c612bd7733d2f03b5c041aeff63c5f6ec8339",
+  "training_complete_sha256": "15707ca35d73c2b265891e461dda1473e6e01d4bc5b8e33d46f163aeb9dc9891",
+  "last": {
+    "epoch": 4,
+    "file": "epoch-0004.pt",
+    "joint_loss": 38.659387267718564,
+    "sha256": "85ca4a88f392dc29cca651eab5801e252d96d823bbe3209b15498842c6671975"
+  },
+  "original_state": {
+    "active": {
+      "identity": {
+        "command_sha256": "291e0ceb42e894fb20fb1e63d4a9d9a31e42d3b2e09aedaddb5638965b8944df",
+        "pid": 2586641,
+        "start_ticks": "721092258"
+      },
+      "name": "BR",
+      "stage": "best-last"
+    },
+    "completed": {},
+    "eval_capacity": {
+      "BR-g0": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/BR-eval-b300-g0/receipt.json",
+        "sha256": "ed4dddf8d9e3d1468317f5885a04874659775342512662fec629df52fff709df"
+      },
+      "BR-g1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/BR-eval-b300-g1/receipt.json",
+        "sha256": "e1a517116621a5e16e946fd3147ed3e642f8074bbdc0256dd52b023cfb53b3e7"
+      },
+      "F1-g0": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/F1-eval-b300-g0/receipt.json",
+        "sha256": "7dc98041fe98bff48cd81d49100f075d875fe5abf260db073ac81a8be7471ba7"
+      },
+      "F1-g1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/F1-eval-b300-g1/receipt.json",
+        "sha256": "6f297d3fe0175189e4e1984d0fd6835410346f9fd3dc66c83af4b8e6024ca74b"
+      },
+      "GM1-g0": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/GM1-eval-b300-g0/receipt.json",
+        "sha256": "e85cb87e29530a85f64343dfab5dedc2662217757e31ee943e21237c25474c05"
+      },
+      "GM1-g1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/GM1-eval-b300-g1/receipt.json",
+        "sha256": "782c26e0cbe41b05fe87a646291051c16654b718346de7f308dce50ff7f4c22f"
+      },
+      "N1-g0": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/N1-eval-b300-g0/receipt.json",
+        "sha256": "7e525d1e2ccd2fb712df21d9ca83862c49156432d5402658684cc0e06f244439"
+      },
+      "N1-g1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/N1-eval-b300-g1/receipt.json",
+        "sha256": "c9a3fcbcbd0951bea73452822f02b488e3929aec9891d8be3bb7869b04909b27"
+      }
+    },
+    "phase": "BR_best_last",
+    "pid": 2524465,
+    "preflights": {
+      "BR": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/BR-preflight/receipt.json",
+        "sha256": "a2a76ce385bdceb7f8c5415919892aaab8d15ccbdba685a3f574a4fb3381c19f"
+      },
+      "F1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/F1-preflight/receipt.json",
+        "sha256": "5413bf9984dc759af9a9b6350b89f5cd64f3d4625ea74a9b862211ac30c71ac2"
+      },
+      "GM1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/GM1-preflight/receipt.json",
+        "sha256": "6f4549d3ef115c8fd8effd8145f701eea045905e591d5cd3fc76dacc860ebcf5"
+      },
+      "N1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/N1-preflight/receipt.json",
+        "sha256": "4434a680f0536fbed6005ceadfa4dcffdd1143fcbcf23eaaa14b3a429b7bb52d"
+      }
+    },
+    "queue_sha256": "82a37b89d09c0be82bc5fa550c6172f2d0fa318386a5a836f026cb71613994bd",
+    "scientific_complete": false,
+    "source_commit": "6a8c612bd7733d2f03b5c041aeff63c5f6ec8339",
+    "status": "running"
+  },
+  "controller_identity": {
+    "pid": 2524465,
+    "uid": 1002,
+    "ppid": 1,
+    "start_ticks": "718932953",
+    "command_sha256": "903db95118638b03ee0398b101f6817e01bd979a36fe9696f177605ed6ba4d39",
+    "script_basename": "run_br400_group.py"
+  },
+  "owned_process_identities": [
+    {
+      "pid": 2524465,
+      "uid": 1002,
+      "ppid": 1,
+      "start_ticks": "718932953",
+      "command_sha256": "903db95118638b03ee0398b101f6817e01bd979a36fe9696f177605ed6ba4d39",
+      "script_basename": "run_br400_group.py"
+    },
+    {
+      "pid": 2586641,
+      "uid": 1002,
+      "ppid": 2524465,
+      "start_ticks": "721092258",
+      "command_sha256": "291e0ceb42e894fb20fb1e63d4a9d9a31e42d3b2e09aedaddb5638965b8944df",
+      "script_basename": null
+    },
+    {
+      "pid": 2586674,
+      "uid": 1002,
+      "ppid": 2586641,
+      "start_ticks": "721092788",
+      "command_sha256": "69269f22a5d8f9abd71720cb3e6f56e3ae69aec35c4eb9b82dab5e42fa103fb8",
+      "script_basename": null
+    },
+    {
+      "pid": 2586675,
+      "uid": 1002,
+      "ppid": 2586641,
+      "start_ticks": "721092788",
+      "command_sha256": "f5dcb4062b52e3f2646a97cb278c60b46f7f3071118a4df47f270a01e09ea765",
+      "script_basename": null
+    }
+  ],
+  "signaled_controller_only": 2524465,
+  "requested_unix": 1791807382.3058586,
+  "pending_arms_not_started": true,
+  "all_old_owned_processes_exited": true,
+  "request_sha256": "5a57a3c5d7a7f4da2dd4fe66576620998ca940c5cc2b7f195aa8727511db7f92",
+  "checkpoint_preserved": true,
+  "post_stop_state": {
+    "active": {
+      "identity": {
+        "command_sha256": "291e0ceb42e894fb20fb1e63d4a9d9a31e42d3b2e09aedaddb5638965b8944df",
+        "pid": 2586641,
+        "start_ticks": "721092258"
+      },
+      "name": "BR",
+      "stage": "best-last"
+    },
+    "completed": {},
+    "error": "BR400 controller interrupted",
+    "error_type": "KeyboardInterrupt",
+    "eval_capacity": {
+      "BR-g0": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/BR-eval-b300-g0/receipt.json",
+        "sha256": "ed4dddf8d9e3d1468317f5885a04874659775342512662fec629df52fff709df"
+      },
+      "BR-g1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/BR-eval-b300-g1/receipt.json",
+        "sha256": "e1a517116621a5e16e946fd3147ed3e642f8074bbdc0256dd52b023cfb53b3e7"
+      },
+      "F1-g0": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/F1-eval-b300-g0/receipt.json",
+        "sha256": "7dc98041fe98bff48cd81d49100f075d875fe5abf260db073ac81a8be7471ba7"
+      },
+      "F1-g1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/F1-eval-b300-g1/receipt.json",
+        "sha256": "6f297d3fe0175189e4e1984d0fd6835410346f9fd3dc66c83af4b8e6024ca74b"
+      },
+      "GM1-g0": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/GM1-eval-b300-g0/receipt.json",
+        "sha256": "e85cb87e29530a85f64343dfab5dedc2662217757e31ee943e21237c25474c05"
+      },
+      "GM1-g1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/GM1-eval-b300-g1/receipt.json",
+        "sha256": "782c26e0cbe41b05fe87a646291051c16654b718346de7f308dce50ff7f4c22f"
+      },
+      "N1-g0": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/N1-eval-b300-g0/receipt.json",
+        "sha256": "7e525d1e2ccd2fb712df21d9ca83862c49156432d5402658684cc0e06f244439"
+      },
+      "N1-g1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/N1-eval-b300-g1/receipt.json",
+        "sha256": "c9a3fcbcbd0951bea73452822f02b488e3929aec9891d8be3bb7869b04909b27"
+      }
+    },
+    "phase": "failed",
+    "pid": 2524465,
+    "preflights": {
+      "BR": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/BR-preflight/receipt.json",
+        "sha256": "a2a76ce385bdceb7f8c5415919892aaab8d15ccbdba685a3f574a4fb3381c19f"
+      },
+      "F1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/F1-preflight/receipt.json",
+        "sha256": "5413bf9984dc759af9a9b6350b89f5cd64f3d4625ea74a9b862211ac30c71ac2"
+      },
+      "GM1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/GM1-preflight/receipt.json",
+        "sha256": "6f4549d3ef115c8fd8effd8145f701eea045905e591d5cd3fc76dacc860ebcf5"
+      },
+      "N1": {
+        "receipt": "/data/yilangliu/GraD-Pert/development/v2-br400-6a8c612-20261012T061335Z/N1-preflight/receipt.json",
+        "sha256": "4434a680f0536fbed6005ceadfa4dcffdd1143fcbcf23eaaa14b3a429b7bb52d"
+      }
+    },
+    "queue_sha256": "82a37b89d09c0be82bc5fa550c6172f2d0fa318386a5a836f026cb71613994bd",
+    "scientific_complete": false,
+    "source_commit": "6a8c612bd7733d2f03b5c041aeff63c5f6ec8339",
+    "status": "failed"
+  },
+  "resource_snapshot": {
+    "observed_unix": 1791807387.9135654,
+    "gpus": {
+      "0": {
+        "uuid": "GPU-23bb1466-b82b-982d-8eaf-9a0002c6a4e7",
+        "total_mib": 32607,
+        "used_mib": 2,
+        "free_mib": 32110
+      },
+      "1": {
+        "uuid": "GPU-edd7484e-c71d-1938-4831-76c233466ccb",
+        "total_mib": 32607,
+        "used_mib": 2,
+        "free_mib": 32110
+      }
+    },
+    "processes": []
+  }
+}

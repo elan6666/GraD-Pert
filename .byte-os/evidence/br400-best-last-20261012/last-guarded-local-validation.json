@@ -1,0 +1,15 @@
+{
+  "exit_code": 0,
+  "result": "28 passed, 1 warning in 3.06s",
+  "command": "CUDA_VISIBLE_DEVICES='' .venv/bin/python scripts/v2/run_cpu_tests.py -- -q tests/v2/test_evaluate_last_guarded.py",
+  "log": "/tmp/gradpert-last-guarded-tests.log",
+  "baseline": "6a8c612bd7733d2f03b5c041aeff63c5f6ec8339",
+  "ruff_check_exit_code": 0,
+  "ruff_format_check_exit_code": 0,
+  "whitespace_check_exit_code": 0,
+  "cuda_hidden": true,
+  "server_operations": false,
+  "committed": false,
+  "frozen": true,
+  "review": "readonly READY: no actual blocker"
+}

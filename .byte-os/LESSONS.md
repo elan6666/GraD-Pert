@@ -335,3 +335,11 @@ an active immutable source. Verify clean source/publication identity after stagi
 ## 2026-10-12：晚到review与真实runtime契约
 
 实施agent FINAL后进入idle，send_message不会开启修复turn；晚到finding要followup_task，并确认running。容量启动校验曾错用mock里的source_root，真实runtime使用repository_root（native源定位来自repository_root函数）；27 CPU检查未捕捉现实字段，server prepare在GPU派发前KeyError。接入边界测试应使用真实已脱敏runtime字段结构，先对照native消费点，再mock行为；不能凭fixture发明字段或给旧失败配置补假字段绕过。失败source/runtime/pub/log保留，新版本新ID重试。
+
+## 2026-10-12: checkpoint before interrupting validation
+
+Current lifecycle commits epoch checkpoints after validation. A training step counter at the final epoch is not proof that the final weights are on disk. Before cancelling a validation process, check epoch journal, TRAIN_COMPLETE and full checkpoint SHA. If final weights exist only in memory and no supported cancel/save interface exists, do not kill them; preserve updates until the nearest verified checkpoint boundary. Future cancellation support should save a receipt-backed training checkpoint before validation.
+
+## 2026-10-12: align legacy and current handoff pointers
+
+The relay state helper advances current_handoff/history, but older readers can still follow a stale top-level handoff. At transfer, verify all reader-used pointer fields and their SHA against the new exact run/attempt; synchronize them as part of the owned handoff record before announcing transfer. A correct owner/run alone does not prove the reader has the correct handoff.

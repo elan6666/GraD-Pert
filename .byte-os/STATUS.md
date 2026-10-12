@@ -986,3 +986,7 @@ User approved UID1003 run_totalvi_source_validation_development.py under unchang
 ## User supersedes strict85% with90% for fresh BR400
 
 Latest user asks less strict memory guard: own90% with physicalfree2GiB, UID1003 exact ScButterfly/TotalVI oneperGPU≤1GiB unchanged; newreference seals policy. Old85%runs remainhistorical.130CPUchecks+samefit/testfraction regressionpassed; model/loss unchanged, no iBOTremat adopted. Freshpublication/allfour10step+joint/eval300 preflight pending before formalBR/F1/N1/GM1 four-epoch bestjoint/last.
+
+## BR fourth-epoch validation completed before safe user cancellation
+
+Epoch4last SHA85ca4a88f392dc29cca651eab5801e252d96d823bbe3209b15498842c6671975 saved+validated; oldcontroller2524465 ownedtree stopped, allowned exited, allpendingarms unstarted. Oldroot userstop preserved. Publish independent guardedlast-onlyeval withscienceSHA6a8c612, GPU0,1 eachbatch300/owned90/free2GiB. Evaluatefirst, then newnone-validation/last-onlyremainingF1/N1/GM1. No current CUDAjob/noactiveoldsupervisormonitor; mainownsbuild.
