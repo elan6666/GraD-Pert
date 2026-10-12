@@ -1,0 +1,21 @@
+{
+  "owner_session": "codex:01a0c01a-0611-7a90-b3e8-8ad7e017748b",
+  "scope": "independent official baseline adapters/build; preserves existing supervisor run ownership",
+  "stage": "canonical_environment_verification",
+  "authority_path": "/Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/state.json",
+  "source_commit": "4547ebb71594d06c5df22d09b7703e8f823f727c",
+  "local_checks": {
+    "passed": 139,
+    "skipped": 1,
+    "ruff": "passed"
+  },
+  "cpu_integrations": {
+    "scouter": "passed",
+    "scdfm": "passed",
+    "gears": "passed; final H5AD-compatible env recheck pending"
+  },
+  "scouter_full_data_blocker": "one official prior vector missing: CCDC130/YJU2B",
+  "supervisor": "codex:01a0df0b-4142-7df1-86c0-d959471d80a1",
+  "next_action": "final GEARS CPU/data checks, seal dependent ready scdfm/gears queue; Scouter config awaits complete official prior",
+  "scientific_results": null
+}

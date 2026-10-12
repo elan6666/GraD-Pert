@@ -9,8 +9,9 @@ implementation, testing and automatic execution after the active queue finishes.
 All configs bind the same canonical Jurkat file, frozen condition split, cap40
 train-row selection and expression axis. Fitting receives only selected train
 rows, validation rows, and compatible controls; test perturbation rows are absent.
-The sanitizer reads allowed expression columns only, then assembles a full-axis
-placeholder matrix. No canonical raw/layers/uns/var expression summaries reach fit.
+The sanitizer reads selected rows in bounded blocks, discards excluded columns
+before assembling the prepared matrix, and adds full-axis missing-value placeholders.
+Temporary row IO buffers remain inside the reader and never reach the official fitter. No canonical raw/layers/uns/var expression summaries reach fit.
 Excluded test-target genes retain identity/perturbation/prior eligibility; their
 placeholder coordinates are excluded from losses, DE selection and numeric graph
 statistics. Controls pair within the exact cell_type::batch context.
@@ -134,3 +135,11 @@ GEARS requirements' explicit numpy/pandas/scipy/scanpy/sklearn/networkx/tqdm pin
 Torch/PyG CUDA are retained and recorded. AnnData0.10.9/Zarr2 compatibility pins are
 project runtime choices, not alleged explicit author requirements. No active
 native or successful scDFM environment is changed.
+
+Real data audit found the old reader double-fancy-index limitation. The revised
+reader uses one fancy row index and a contiguous expression-prefix slice, then
+discards excluded columns within each1024-row block before matrix assembly. It
+reads no test rows or graph-only expression, makes no statistics on excluded
+values, and does not change canonical data. Modern scDFM/Scouter and final GEARS
+AnnData0.12.3 environments require final same-source CPU/data rechecks. The earlier
+0.10.9 transport failure and failed receipt normalization attempts remain historical.

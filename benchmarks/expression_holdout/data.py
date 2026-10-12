@@ -15,6 +15,24 @@ from gradpert.training.v2.train_selection import apply_train_selection
 from .contract import PreparedData
 
 
+def read_allowed_rows(adata, rows, allowed, expression_count: int, chunk_rows: int = 1024):
+    """Bounded one-array backed IO; only allowed values leave the reader.
+
+    Older AnnData/h5py cannot apply two fancy index vectors. Read selected
+    rows on the contiguous expression prefix, then discard excluded columns
+    before retaining a block. No test rows, graph-only expression, numeric
+    statistics or excluded values enter the prepared upstream object.
+    """
+    from scipy import sparse
+
+    blocks = []
+    for offset in range(0, len(rows), chunk_rows):
+        block = adata[np.asarray(rows[offset : offset + chunk_rows]), :expression_count].X
+        block = block[:, allowed] if sparse.issparse(block) else np.asarray(block)[:, allowed]
+        blocks.append(sparse.csr_matrix(block, dtype=np.float32))
+    return sparse.vstack(blocks, format="csr")
+
+
 def prepare_data(config: dict[str, Any], data_root: Path) -> PreparedData:
     """Only a bounded server invocation may materialize canonical expression."""
     if not data_root.resolve().is_relative_to("/data/yilangliu"):
@@ -53,8 +71,9 @@ def prepare_data(config: dict[str, Any], data_root: Path) -> PreparedData:
             if c == data.split.control_condition_id and data.context_ids[i] in contexts
         )
         selected = tuple(sorted((*train, *val, *controls)))
-        # Read ONLY allowed columns. No full-expression copy/raw/layers/uns enters fit.
-        matrix = data._adata[np.asarray(selected), allowed].X
+        # Only allowed values are retained across the fitter boundary. The
+        # bounded reader discards excluded columns before assembling any matrix.
+        matrix = read_allowed_rows(data._adata, selected, allowed, len(data.expression_gene_ids))
         return build_prepared(
             matrix=matrix,
             allowed_indices=tuple(map(int, allowed)),
@@ -173,7 +192,10 @@ def build_prepared(
         "control_row_ids_sha256": sha256_json(list(control_row_ids)),
         "allowed_gene_ids_sha256": sha256_json([gene_ids[i] for i in allowed_indices]),
         "excluded_gene_ids_sha256": sha256_json([gene_ids[i] for i in excluded]),
-        "sanitization": "read_allowed_columns_only; full_axis_placeholders_are_not_targets",
+        "sanitization": (
+            "selected_rows_only; excluded_columns_discarded_before_upstream; "
+            "full_axis_placeholders_are_not_targets"
+        ),
         "control_pairing": "cell_type::batch",
         "raw_auxiliary_layers_obsm_uns_absent": True,
         "primary_X_layer_alias": "AnnData>=0.13 may expose layers[None] as identical X",

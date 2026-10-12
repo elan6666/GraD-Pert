@@ -46,3 +46,24 @@ def test_heldout_identity_or_nan_cannot_be_silently_dropped():
         toy(allowed_indices=(2, 0))
     with pytest.raises(ValueError, match="nonfinite"):
         toy(matrix=np.array([[1, np.nan], [3, 4], [5, 6], [7, 8]]))
+
+
+def test_backed_reader_uses_one_fancy_axis_and_discards_excluded_values():
+    from types import SimpleNamespace
+
+    from benchmarks.expression_holdout.data import read_allowed_rows
+
+    values = np.arange(42, dtype=np.float32).reshape(7, 6)
+    values[:, 1] = np.nan  # Must not affect allowed data or any later numeric statistics.
+    calls = []
+
+    class OldBacked:
+        def __getitem__(self, key):
+            rows, cols = key
+            assert isinstance(cols, slice) and cols.stop == 5
+            calls.extend(rows.tolist())
+            return SimpleNamespace(X=values[rows, cols])
+
+    result = read_allowed_rows(OldBacked(), (0, 2, 6), np.array([0, 2, 4]), 5, chunk_rows=2)
+    np.testing.assert_array_equal(result.toarray(), values[[0, 2, 6]][:, [0, 2, 4]])
+    assert calls == [0, 2, 6] and np.isfinite(result.data).all()
