@@ -354,3 +354,6 @@ Native evaluation COMPLETE may embed hundreds of conditions and ordered cell IDs
 
 ## 2026-10-13: distinguish official baselines from native comparison anchor
 User corrected “恢复基线” to official scDFM/GEARS, not native BR. Reuse completed BR400 as the native reference and forbid BR/Scouter rerun in new matrix; identify model names and immutable terminal receipts before interpreting a resume request.
+
+## 2026-10-13: launch each official arm with its frozen Python
+GEARS CPU integration was incorrectly launched with scDFM Python, and correctly failed anndata-version guard. Always select runtime[python] per arm (GEARS and scDFM dependency sets differ), never reuse the previous arm command interpreter. Retain the failed log; rerun with fresh output identity.

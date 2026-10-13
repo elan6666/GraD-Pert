@@ -1,3 +1,7 @@
+## 2026-10-13：新TotalVI共用授权；官方环境按臂选择
+
+用户明确允许UID1003 run_totalvi_s2_formal.py按相同限制共用（单卡外部≤1GiB/最多1个、物理≥2GiB、我们≤90%）。新增精确authorization_reference，旧策略不能借此扩大脚本范围；66资源门检查通过。387abab scDFM真实CPU10更新/恢复精确/zeroPKL成功；GEARS首次手动启动误用scDFM Python，被anndata版本门拦住，失败保留。后续按runtime[python]选择各自冻结环境，最终发布版本重新执行两组CPU门。没有正式训练/科学完成；五组native须等待两官方真实last终态，BR不重跑。
+
 ## 2026-10-13：恢复官方基线，准备五组FFN及训练诊断
 
 用户授权仅恢复scDFM→GEARS测试/四轮训练/last18指标评估；BR和Scouter不重跑。五组DP→FN→FG→FB→PO已自包含配置，global400/m100×双卡×accum2/四轮/无验证/仅last，须等待两官方真实终态。原始clean基线141989e已与GitHub main一致。原型/逐层token/输出及共享graph梯度探针已实现，训练前后RNG/Student/Teacher/center/optimizer/grad等合成多步精确检查；155+6本地检查通过。

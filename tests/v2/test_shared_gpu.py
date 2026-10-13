@@ -290,6 +290,7 @@ def test_memory90_requires_new_authorization_and_keeps_physical_reserve(
     expanded["max_own_memory_fraction"] = 0.90
     with pytest.raises(ValueError):
         shared.validate_policy(expanded)
+
     expanded["authorization_reference"] = shared.TOTALVI_MEMORY90_AUTHORIZATION
     dynamic_observed["processes"][0]["memory_mib"] = 28000
     shared.admit(expanded, dynamic_observed)
@@ -303,6 +304,28 @@ def test_memory90_requires_new_authorization_and_keeps_physical_reserve(
     expanded["max_own_memory_fraction"] = 0.95
     with pytest.raises(ValueError):
         shared.validate_policy(expanded)
+
+
+def test_authorized_totalvi_formal_program_keeps_limits(dynamic_policy, dynamic_observed):
+    policy = _totalvi_policy(dynamic_policy)
+    policy.update(
+        authorization_reference=shared.TOTALVI_FORMAL_AUTHORIZATION,
+        max_own_memory_fraction=0.90,
+        additional_command_basenames=[shared.TOTALVI_PROGRAM, shared.TOTALVI_FORMAL_PROGRAM],
+    )
+    process = dynamic_observed["processes"][1]
+    process["identity"]["script_basename"] = shared.TOTALVI_FORMAL_PROGRAM
+    shared.admit(policy, dynamic_observed)
+    process["memory_mib"] = 1025
+    with pytest.raises(RuntimeError, match="unapproved"):
+        shared.admit(policy, dynamic_observed)
+    process["memory_mib"] = 800
+    process["identity"]["script_basename"] = "other.py"
+    with pytest.raises(RuntimeError, match="unapproved"):
+        shared.admit(policy, dynamic_observed)
+    policy["additional_command_basenames"].append("other.py")
+    with pytest.raises(ValueError):
+        shared.validate_policy(policy)
 
 
 @pytest.mark.parametrize(

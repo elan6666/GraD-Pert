@@ -18,6 +18,8 @@ SCBUTTERFLY_AUTHORIZATION = "2026-10-12-user-scbutterfly-coexistence"
 TOTALVI_AUTHORIZATION = "2026-10-12-user-scbutterfly-totalvi-coexistence"
 TOTALVI_MEMORY90_AUTHORIZATION = "2026-10-12-user-shared-memory90-coexistence"
 TOTALVI_PROGRAM = "run_totalvi_source_validation_development.py"
+TOTALVI_FORMAL_PROGRAM = "run_totalvi_s2_formal.py"
+TOTALVI_FORMAL_AUTHORIZATION = "2026-10-13-user-totalvi-s2-memory90-coexistence"
 
 
 def validate_dynamic_policy(policy: dict) -> None:
@@ -35,7 +37,11 @@ def validate_dynamic_policy(policy: dict) -> None:
     }
     devices = policy.get("devices")
     expanded = "additional_command_basenames" in policy
-    memory90 = policy.get("authorization_reference") == TOTALVI_MEMORY90_AUTHORIZATION
+    formal_totalvi = policy.get("authorization_reference") == TOTALVI_FORMAL_AUTHORIZATION
+    memory90 = policy.get("authorization_reference") in (
+        TOTALVI_MEMORY90_AUTHORIZATION,
+        TOTALVI_FORMAL_AUTHORIZATION,
+    )
     if expanded:
         fields.add("additional_command_basenames")
     if (
@@ -50,13 +56,19 @@ def validate_dynamic_policy(policy: dict) -> None:
         or policy.get("max_own_memory_fraction") != (0.90 if memory90 else 0.85)
         or policy.get("authorization_reference")
         != (
-            TOTALVI_MEMORY90_AUTHORIZATION
+            TOTALVI_FORMAL_AUTHORIZATION
+            if formal_totalvi and expanded
+            else TOTALVI_MEMORY90_AUTHORIZATION
             if memory90 and expanded
             else TOTALVI_AUTHORIZATION
             if expanded
             else SCBUTTERFLY_AUTHORIZATION
         )
-        or (expanded and policy["additional_command_basenames"] != [TOTALVI_PROGRAM])
+        or (
+            expanded
+            and policy["additional_command_basenames"]
+            != ([TOTALVI_PROGRAM, TOTALVI_FORMAL_PROGRAM] if formal_totalvi else [TOTALVI_PROGRAM])
+        )
         or not isinstance(devices, list)
         or len(devices) != 2
     ):
