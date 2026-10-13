@@ -1,0 +1,2432 @@
+{
+  "schema": "prototype-diagnostic-summary-1",
+  "server_root": "/data/yilangliu/GraD-Pert/development/prototype-br400-285a1fe-20261013T051929Z",
+  "aggregate_sha256": "354354b0ef8446f56c153eabc461e830cfb526b7d47f3c35d186c358c1a8c4d1",
+  "diagnostic_source_sha": "285a1fe1de9cdf4bc7d925677cefbadb8855d6ae",
+  "rows": {
+    "BR400": {
+      "method_source_sha": "6a8c612bd7733d2f03b5c041aeff63c5f6ec8339",
+      "config_sha256": "d7877c03839645901f930817d5258638ca8738c650bd23fc42e5da33415e6f50",
+      "checkpoint_sha256": "85ca4a88f392dc29cca651eab5801e252d96d823bbe3209b15498842c6671975",
+      "checkpoint_epoch": 4,
+      "input_sha256": "18be00133a764435abec130b4674c17706bea3226a7cf13df5ea9363b897304e",
+      "distributions": {
+        "student.ssl1_cls": {
+          "argmax_prototypes_used": 89,
+          "effective_marginal_prototypes": 16363.879719493973,
+          "entropy_fraction_of_uniform": 0.993948115628427,
+          "largest_argmax_fraction": 0.046875,
+          "marginal_entropy": 9.702831728710247,
+          "marginal_top10": [
+            [
+              15675,
+              0.00013289631063289728
+            ],
+            [
+              10599,
+              0.0001270566179426208
+            ],
+            [
+              10714,
+              0.00011851799753065376
+            ],
+            [
+              12988,
+              0.00010584382979837004
+            ],
+            [
+              5651,
+              0.00010241839250329328
+            ],
+            [
+              237,
+              0.00010052270111473824
+            ],
+            [
+              3464,
+              9.890792812089831e-05
+            ],
+            [
+              5688,
+              9.811377509557494e-05
+            ],
+            [
+              12107,
+              9.790577693441496e-05
+            ],
+            [
+              7781,
+              9.784966983540268e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.645332675590005,
+          "mean_temperature_scaled_logit_std": 0.30644829898030496,
+          "mean_top1_probability": 0.00026127006601375216,
+          "sample_dependence_js": 0.057499053120242394,
+          "samples": 256
+        },
+        "student.ssl1_node": {
+          "argmax_prototypes_used": 780,
+          "effective_marginal_prototypes": 16356.13679042667,
+          "entropy_fraction_of_uniform": 0.9934572226573801,
+          "largest_argmax_fraction": 0.04334843492586491,
+          "marginal_entropy": 9.702358444767405,
+          "marginal_top10": [
+            [
+              6286,
+              0.00023282947324313485
+            ],
+            [
+              20,
+              0.0001497385463518065
+            ],
+            [
+              11445,
+              0.0001430161677884742
+            ],
+            [
+              3596,
+              0.0001357465901827637
+            ],
+            [
+              5689,
+              0.00012799201217395312
+            ],
+            [
+              11159,
+              0.0001214217705876903
+            ],
+            [
+              11291,
+              0.00012135109153386291
+            ],
+            [
+              1268,
+              0.00012052005577591632
+            ],
+            [
+              7122,
+              0.00011680170139292647
+            ],
+            [
+              14818,
+              0.0001136748411298412
+            ]
+          ],
+          "mean_sample_entropy": 9.640569020486275,
+          "mean_temperature_scaled_logit_std": 0.2996183489000192,
+          "mean_top1_probability": 0.00035089003107424303,
+          "sample_dependence_js": 0.06178942428113032,
+          "samples": 9712
+        },
+        "student.ssl2_cls": {
+          "argmax_prototypes_used": 49,
+          "effective_marginal_prototypes": 16379.59343984593,
+          "entropy_fraction_of_uniform": 0.9978325450309361,
+          "largest_argmax_fraction": 0.10546875,
+          "marginal_entropy": 9.7037915365768,
+          "marginal_top10": [
+            [
+              14919,
+              8.338187428162752e-05
+            ],
+            [
+              5568,
+              7.617983051810515e-05
+            ],
+            [
+              14349,
+              7.407789216221627e-05
+            ],
+            [
+              12342,
+              7.394755665147302e-05
+            ],
+            [
+              1626,
+              7.394450340271182e-05
+            ],
+            [
+              6959,
+              7.278971965419821e-05
+            ],
+            [
+              471,
+              7.264159650929407e-05
+            ],
+            [
+              15466,
+              7.230656232929588e-05
+            ],
+            [
+              7758,
+              7.218801005134098e-05
+            ],
+            [
+              10357,
+              7.184838050984433e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.683027413628071,
+          "mean_temperature_scaled_logit_std": 0.17729348139363282,
+          "mean_top1_probability": 0.00013693211827567434,
+          "sample_dependence_js": 0.020764122948728314,
+          "samples": 256
+        },
+        "student.ssl2_node": {
+          "argmax_prototypes_used": 93,
+          "effective_marginal_prototypes": 16376.78038265731,
+          "entropy_fraction_of_uniform": 0.9978265818481982,
+          "largest_argmax_fraction": 0.12106036324786325,
+          "marginal_entropy": 9.703619780251708,
+          "marginal_top10": [
+            [
+              14712,
+              8.1509455806776e-05
+            ],
+            [
+              12749,
+              7.866454775250848e-05
+            ],
+            [
+              1128,
+              7.721735158393981e-05
+            ],
+            [
+              3531,
+              7.692694750302159e-05
+            ],
+            [
+              14382,
+              7.5284705087254e-05
+            ],
+            [
+              4864,
+              7.5006900591085e-05
+            ],
+            [
+              15153,
+              7.461515105116028e-05
+            ],
+            [
+              11893,
+              7.405686480644177e-05
+            ],
+            [
+              13486,
+              7.397947095695194e-05
+            ],
+            [
+              9802,
+              7.380562139114204e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.682969546541845,
+          "mean_temperature_scaled_logit_std": 0.18460011718130742,
+          "mean_top1_probability": 0.0001341700221931181,
+          "sample_dependence_js": 0.02065023370986374,
+          "samples": 14976
+        },
+        "teacher.ssl1_cls": {
+          "argmax_prototypes_used": 64,
+          "effective_marginal_prototypes": 16363.845079922445,
+          "entropy_fraction_of_uniform": 0.9938367231951679,
+          "largest_argmax_fraction": 0.046875,
+          "marginal_entropy": 9.702829611876783,
+          "marginal_top10": [
+            [
+              15675,
+              0.00013096904247751886
+            ],
+            [
+              10599,
+              0.00012840951220887518
+            ],
+            [
+              10714,
+              0.00011940231267031646
+            ],
+            [
+              12988,
+              0.00010537443718754045
+            ],
+            [
+              5651,
+              0.0001021240544589244
+            ],
+            [
+              237,
+              0.0001004543690719441
+            ],
+            [
+              57,
+              9.825461801420902e-05
+            ],
+            [
+              7781,
+              9.810421499055443e-05
+            ],
+            [
+              5688,
+              9.79340002490066e-05
+            ],
+            [
+              10265,
+              9.793276252678282e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.644251716675315,
+          "mean_temperature_scaled_logit_std": 0.31106111107100903,
+          "mean_top1_probability": 0.0002616721613799905,
+          "sample_dependence_js": 0.058577895201468166,
+          "samples": 128
+        },
+        "teacher.ssl1_node": {
+          "argmax_prototypes_used": 1296,
+          "effective_marginal_prototypes": 16356.785550308454,
+          "entropy_fraction_of_uniform": 0.992710949773191,
+          "largest_argmax_fraction": 0.03974464579901153,
+          "marginal_entropy": 9.702398108596586,
+          "marginal_top10": [
+            [
+              6286,
+              0.0002329130809623892
+            ],
+            [
+              20,
+              0.00015103508422044292
+            ],
+            [
+              11445,
+              0.00014240261568954847
+            ],
+            [
+              3596,
+              0.00013334469022743364
+            ],
+            [
+              5689,
+              0.00012766745018374088
+            ],
+            [
+              11159,
+              0.00012179670907115396
+            ],
+            [
+              1268,
+              0.00012045853115968875
+            ],
+            [
+              11291,
+              0.00012019118546729667
+            ],
+            [
+              7122,
+              0.0001147192586199087
+            ],
+            [
+              14818,
+              0.00011312144090829789
+            ]
+          ],
+          "mean_sample_entropy": 9.633327143247818,
+          "mean_temperature_scaled_logit_std": 0.3267927103527552,
+          "mean_top1_probability": 0.00036554923469352417,
+          "sample_dependence_js": 0.069070965348768,
+          "samples": 9712
+        },
+        "teacher.ssl2_cls": {
+          "argmax_prototypes_used": 47,
+          "effective_marginal_prototypes": 16379.572191379113,
+          "entropy_fraction_of_uniform": 0.9978466140201891,
+          "largest_argmax_fraction": 0.109375,
+          "marginal_entropy": 9.703790239323563,
+          "marginal_top10": [
+            [
+              14919,
+              8.244795845092975e-05
+            ],
+            [
+              5568,
+              7.55534681138579e-05
+            ],
+            [
+              12342,
+              7.384613431552997e-05
+            ],
+            [
+              14349,
+              7.376772983373811e-05
+            ],
+            [
+              1626,
+              7.36396804701539e-05
+            ],
+            [
+              6959,
+              7.29193564675928e-05
+            ],
+            [
+              15466,
+              7.231705847581114e-05
+            ],
+            [
+              471,
+              7.218144129318897e-05
+            ],
+            [
+              7758,
+              7.174173389269979e-05
+            ],
+            [
+              2293,
+              7.157518387131109e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.68316393995135,
+          "mean_temperature_scaled_logit_std": 0.1774277862071104,
+          "mean_top1_probability": 0.00013616875064882062,
+          "sample_dependence_js": 0.020626299372214163,
+          "samples": 128
+        },
+        "teacher.ssl2_node": {
+          "argmax_prototypes_used": 125,
+          "effective_marginal_prototypes": 16376.411810888952,
+          "entropy_fraction_of_uniform": 0.9978022959721,
+          "largest_argmax_fraction": 0.09695512820512821,
+          "marginal_entropy": 9.703597274245809,
+          "marginal_top10": [
+            [
+              14712,
+              8.150980301006129e-05
+            ],
+            [
+              12749,
+              7.773765523891085e-05
+            ],
+            [
+              1128,
+              7.703718597813863e-05
+            ],
+            [
+              3531,
+              7.659310952776391e-05
+            ],
+            [
+              4864,
+              7.522734367541732e-05
+            ],
+            [
+              15153,
+              7.445001761032643e-05
+            ],
+            [
+              14382,
+              7.383024642708519e-05
+            ],
+            [
+              13486,
+              7.375262566224099e-05
+            ],
+            [
+              11893,
+              7.372115910910979e-05
+            ],
+            [
+              655,
+              7.324393564425907e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.682733874930216,
+          "mean_temperature_scaled_logit_std": 0.18659863464499826,
+          "mean_top1_probability": 0.00013469109469958188,
+          "sample_dependence_js": 0.020863399315592446,
+          "samples": 14976
+        }
+      },
+      "features": {
+        "student.ssl1_cls.bottleneck": {
+          "covariance_effective_rank": 18.405226321289224,
+          "mean_norm": 12.498997993779959,
+          "mean_pair_cosine": 0.5531859490678895,
+          "relative_centered_variance": 0.4618392468559089,
+          "samples": 256,
+          "total_centered_variance": 74.69614412332234
+        },
+        "student.ssl1_cls.input": {
+          "covariance_effective_rank": 36.966438174774325,
+          "mean_norm": 16.259101312153312,
+          "mean_pair_cosine": 0.4237242410827968,
+          "relative_centered_variance": 0.5537339438449058,
+          "samples": 256,
+          "total_centered_variance": 150.78673856455094
+        },
+        "student.ssl1_node.bottleneck": {
+          "covariance_effective_rank": 12.881701905946175,
+          "mean_norm": 9.108513057568008,
+          "mean_pair_cosine": 0.6051385265211576,
+          "relative_centered_variance": 0.4216197907589642,
+          "samples": 9712,
+          "total_centered_variance": 36.384811801363476
+        },
+        "student.ssl1_node.input": {
+          "covariance_effective_rank": 44.853061778911474,
+          "mean_norm": 9.548577143409085,
+          "mean_pair_cosine": 0.2710554465281022,
+          "relative_centered_variance": 0.753551625025269,
+          "samples": 9712,
+          "total_centered_variance": 71.05411314316775
+        },
+        "student.ssl2_cls.bottleneck": {
+          "covariance_effective_rank": 7.630723932644912,
+          "mean_norm": 16.839071894598177,
+          "mean_pair_cosine": 0.8256473466264288,
+          "relative_centered_variance": 0.16934947251712645,
+          "samples": 256,
+          "total_centered_variance": 48.2787637360026
+        },
+        "student.ssl2_cls.input": {
+          "covariance_effective_rank": 10.757756068326634,
+          "mean_norm": 15.98140004576576,
+          "mean_pair_cosine": 0.8551213516597167,
+          "relative_centered_variance": 0.1442844283399287,
+          "samples": 256,
+          "total_centered_variance": 36.85099048426237
+        },
+        "student.ssl2_node.bottleneck": {
+          "covariance_effective_rank": 7.62452729262334,
+          "mean_norm": 15.818940805342388,
+          "mean_pair_cosine": 0.8288911538366774,
+          "relative_centered_variance": 0.1703567215391663,
+          "samples": 14976,
+          "total_centered_variance": 42.86224020025418
+        },
+        "student.ssl2_node.input": {
+          "covariance_effective_rank": 10.648279919080188,
+          "mean_norm": 15.980608351817628,
+          "mean_pair_cosine": 0.8452241199602619,
+          "relative_centered_variance": 0.1547464376067887,
+          "samples": 14976,
+          "total_centered_variance": 39.51912561898905
+        },
+        "teacher.ssl1_cls.bottleneck": {
+          "covariance_effective_rank": 14.15590809693268,
+          "mean_norm": 12.367363330799096,
+          "mean_pair_cosine": 0.8972956081122971,
+          "relative_centered_variance": 0.10192636684791445,
+          "samples": 128,
+          "total_centered_variance": 15.681851974739287
+        },
+        "teacher.ssl1_cls.input": {
+          "covariance_effective_rank": 26.830609339669437,
+          "mean_norm": 16.37070986549492,
+          "mean_pair_cosine": 0.7944011074155848,
+          "relative_centered_variance": 0.20528337909652403,
+          "samples": 128,
+          "total_centered_variance": 55.04033567098135
+        },
+        "teacher.ssl1_node.bottleneck": {
+          "covariance_effective_rank": 13.021639367840388,
+          "mean_norm": 6.899382120661056,
+          "mean_pair_cosine": 0.8814620614379703,
+          "relative_centered_variance": 0.1212733283411543,
+          "samples": 9712,
+          "total_centered_variance": 5.806915780002175
+        },
+        "teacher.ssl1_node.input": {
+          "covariance_effective_rank": 50.39924922715792,
+          "mean_norm": 16.41008575699055,
+          "mean_pair_cosine": 0.813237275085755,
+          "relative_centered_variance": 0.18774734770889442,
+          "samples": 9712,
+          "total_centered_variance": 50.57985863541536
+        },
+        "teacher.ssl2_cls.bottleneck": {
+          "covariance_effective_rank": 5.673615118831951,
+          "mean_norm": 12.866302944445323,
+          "mean_pair_cosine": 0.9590074454447685,
+          "relative_centered_variance": 0.04050016675017221,
+          "samples": 128,
+          "total_centered_variance": 6.720998471239434
+        },
+        "teacher.ssl2_cls.input": {
+          "covariance_effective_rank": 8.236750075208468,
+          "mean_norm": 15.989070238528234,
+          "mean_pair_cosine": 0.9489512938768693,
+          "relative_centered_variance": 0.050640964159840665,
+          "samples": 128,
+          "total_centered_variance": 12.946381572995861
+        },
+        "teacher.ssl2_node.bottleneck": {
+          "covariance_effective_rank": 6.117017488047442,
+          "mean_norm": 12.002792870004955,
+          "mean_pair_cosine": 0.9606183630417561,
+          "relative_centered_variance": 0.04054089905626006,
+          "samples": 14976,
+          "total_centered_variance": 5.855822057685048
+        },
+        "teacher.ssl2_node.input": {
+          "covariance_effective_rank": 7.7863861383174005,
+          "mean_norm": 15.989026564797435,
+          "mean_pair_cosine": 0.916220752085519,
+          "relative_centered_variance": 0.08376981811591225,
+          "samples": 14976,
+          "total_centered_variance": 21.41566845593444
+        }
+      },
+      "pairs": {
+        "student.ssl1_cls": {
+          "cross_entropy": 9.645230635261425,
+          "sample_pair_count": 384,
+          "teacher_entropy": 9.64425171671139,
+          "teacher_to_student_kl": 0.0009789185500382047
+        },
+        "student.ssl1_node": {
+          "cross_entropy": 9.641115325035502,
+          "sample_pair_count": 9712,
+          "teacher_entropy": 9.633327143435837,
+          "teacher_to_student_kl": 0.007788181599665215
+        },
+        "student.ssl2_cls": {
+          "cross_entropy": 9.683213539663326,
+          "sample_pair_count": 384,
+          "teacher_entropy": 9.683163939946757,
+          "teacher_to_student_kl": 4.959971657007382e-05
+        },
+        "student.ssl2_node": {
+          "cross_entropy": 9.683180572920307,
+          "sample_pair_count": 29952,
+          "teacher_entropy": 9.682733874958327,
+          "teacher_to_student_kl": 0.0004466979619808438
+        }
+      },
+      "state": {
+        "centers_unchanged": true,
+        "checkpoint_unchanged": true,
+        "optimizer_updates": 0,
+        "selection_use": "none",
+        "teacher_updates": 0
+      },
+      "receipt_path": "/data/yilangliu/GraD-Pert/development/prototype-br400-285a1fe-20261013T051929Z/BR400/receipt.json",
+      "receipt_sha256": "2d3a672a9126f7d5bc27d4ee7a672800c943351eea15b99d8275073bcee1cdd5"
+    },
+    "F1": {
+      "method_source_sha": "4bfa1f13b95c73b482954e4efd396cfc82cc6afe",
+      "config_sha256": "0d0074b831cf97564b1b06a1f60527051f33541e10a648c34721c9fed784d9c3",
+      "checkpoint_sha256": "559994939dd394154449ae95019a5ac4261608c34b641c10f2c3a6872bd13aac",
+      "checkpoint_epoch": 4,
+      "input_sha256": "18be00133a764435abec130b4674c17706bea3226a7cf13df5ea9363b897304e",
+      "distributions": {
+        "student.ssl1_cls": {
+          "argmax_prototypes_used": 89,
+          "effective_marginal_prototypes": 16383.989334074518,
+          "entropy_fraction_of_uniform": 0.9999987337986209,
+          "largest_argmax_fraction": 0.19921875,
+          "marginal_entropy": 9.704059876842594,
+          "marginal_top10": [
+            [
+              2519,
+              6.13694842873523e-05
+            ],
+            [
+              1440,
+              6.134536386993576e-05
+            ],
+            [
+              9579,
+              6.133398443255972e-05
+            ],
+            [
+              14690,
+              6.131049591049509e-05
+            ],
+            [
+              7379,
+              6.130055131942092e-05
+            ],
+            [
+              12501,
+              6.129598790031743e-05
+            ],
+            [
+              11607,
+              6.12927967350512e-05
+            ],
+            [
+              14461,
+              6.129176928743683e-05
+            ],
+            [
+              3603,
+              6.129116444614643e-05
+            ],
+            [
+              2604,
+              6.12853365829046e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.704048240544411,
+          "mean_temperature_scaled_logit_std": 0.004207121835012278,
+          "mean_top1_probability": 6.204037033852991e-05,
+          "sample_dependence_js": 1.1636298182793325e-05,
+          "samples": 256
+        },
+        "student.ssl1_node": {
+          "argmax_prototypes_used": 164,
+          "effective_marginal_prototypes": 16383.959762030876,
+          "entropy_fraction_of_uniform": 0.9999356133525641,
+          "largest_argmax_fraction": 0.20479818780889622,
+          "marginal_entropy": 9.704058071905486,
+          "marginal_top10": [
+            [
+              6003,
+              6.20134844765728e-05
+            ],
+            [
+              9385,
+              6.201059834594526e-05
+            ],
+            [
+              3387,
+              6.199197935311038e-05
+            ],
+            [
+              8902,
+              6.197771595395422e-05
+            ],
+            [
+              6035,
+              6.188718692660526e-05
+            ],
+            [
+              4220,
+              6.186581103522886e-05
+            ],
+            [
+              1230,
+              6.179216284055486e-05
+            ],
+            [
+              3714,
+              6.17921392390711e-05
+            ],
+            [
+              8248,
+              6.178294420509711e-05
+            ],
+            [
+              14101,
+              6.175960070929432e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.703435715915331,
+          "mean_temperature_scaled_logit_std": 0.028285403512244685,
+          "mean_top1_probability": 6.860884204451974e-05,
+          "sample_dependence_js": 0.0006223559901545883,
+          "samples": 9712
+        },
+        "student.ssl2_cls": {
+          "argmax_prototypes_used": 15,
+          "effective_marginal_prototypes": 16379.36732898036,
+          "entropy_fraction_of_uniform": 0.9996106025402625,
+          "largest_argmax_fraction": 0.56640625,
+          "marginal_entropy": 9.703777732056738,
+          "marginal_top10": [
+            [
+              3400,
+              6.953763723782492e-05
+            ],
+            [
+              10081,
+              6.900116434830992e-05
+            ],
+            [
+              4355,
+              6.89832233570531e-05
+            ],
+            [
+              10552,
+              6.892994615282512e-05
+            ],
+            [
+              6798,
+              6.878032537110494e-05
+            ],
+            [
+              2205,
+              6.864943470008257e-05
+            ],
+            [
+              12374,
+              6.855289182992374e-05
+            ],
+            [
+              5510,
+              6.844260918484981e-05
+            ],
+            [
+              10802,
+              6.80363385707369e-05
+            ],
+            [
+              6210,
+              6.794945393950771e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.700281791320554,
+          "mean_temperature_scaled_logit_std": 0.07285104669246897,
+          "mean_top1_probability": 8.119857307238218e-05,
+          "sample_dependence_js": 0.0034959407361832007,
+          "samples": 256
+        },
+        "student.ssl2_node": {
+          "argmax_prototypes_used": 14,
+          "effective_marginal_prototypes": 16371.42280081197,
+          "entropy_fraction_of_uniform": 0.9988253498426386,
+          "largest_argmax_fraction": 0.2566773504273504,
+          "marginal_entropy": 9.703292581726457,
+          "marginal_top10": [
+            [
+              6222,
+              9.050720823992924e-05
+            ],
+            [
+              12564,
+              8.572221055184005e-05
+            ],
+            [
+              184,
+              8.417109234924357e-05
+            ],
+            [
+              6235,
+              7.852243983610148e-05
+            ],
+            [
+              5857,
+              7.843577219073417e-05
+            ],
+            [
+              11662,
+              7.797947419145657e-05
+            ],
+            [
+              11235,
+              7.766195851415225e-05
+            ],
+            [
+              5376,
+              7.763470943193262e-05
+            ],
+            [
+              8855,
+              7.757966128171765e-05
+            ],
+            [
+              4516,
+              7.756110085302131e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.692661651613163,
+          "mean_temperature_scaled_logit_std": 0.11668982134480979,
+          "mean_top1_probability": 0.00011670670862373385,
+          "sample_dependence_js": 0.010630930113293857,
+          "samples": 14976
+        },
+        "teacher.ssl1_cls": {
+          "argmax_prototypes_used": 77,
+          "effective_marginal_prototypes": 16383.971119055272,
+          "entropy_fraction_of_uniform": 0.9999981616463745,
+          "largest_argmax_fraction": 0.078125,
+          "marginal_entropy": 9.704058765084707,
+          "marginal_top10": [
+            [
+              6868,
+              6.14709153012124e-05
+            ],
+            [
+              6933,
+              6.146847950528307e-05
+            ],
+            [
+              13481,
+              6.146495106967806e-05
+            ],
+            [
+              3729,
+              6.146041695813413e-05
+            ],
+            [
+              8865,
+              6.14545191915857e-05
+            ],
+            [
+              4189,
+              6.14544888614179e-05
+            ],
+            [
+              11958,
+              6.144529635471631e-05
+            ],
+            [
+              9509,
+              6.142279748997741e-05
+            ],
+            [
+              2865,
+              6.141141807916334e-05
+            ],
+            [
+              7340,
+              6.141022275304782e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.70404268834438,
+          "mean_temperature_scaled_logit_std": 0.005361165307964691,
+          "mean_top1_probability": 6.231524316433256e-05,
+          "sample_dependence_js": 1.6076740326553818e-05,
+          "samples": 128
+        },
+        "teacher.ssl1_node": {
+          "argmax_prototypes_used": 758,
+          "effective_marginal_prototypes": 16383.992870123766,
+          "entropy_fraction_of_uniform": 0.9999110653835797,
+          "largest_argmax_fraction": 0.10142092257001648,
+          "marginal_entropy": 9.70406009266603,
+          "marginal_top10": [
+            [
+              13899,
+              6.158425626195753e-05
+            ],
+            [
+              3387,
+              6.15534248492411e-05
+            ],
+            [
+              9385,
+              6.153195639731762e-05
+            ],
+            [
+              6003,
+              6.15292899884752e-05
+            ],
+            [
+              13257,
+              6.151452500157757e-05
+            ],
+            [
+              8902,
+              6.150899412239616e-05
+            ],
+            [
+              4220,
+              6.146107592515062e-05
+            ],
+            [
+              1530,
+              6.144228431873168e-05
+            ],
+            [
+              10264,
+              6.143684223210689e-05
+            ],
+            [
+              4222,
+              6.142004540668982e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.70319750093847,
+          "mean_temperature_scaled_logit_std": 0.034770773866155916,
+          "mean_top1_probability": 7.029345171348374e-05,
+          "sample_dependence_js": 0.0008625917275590922,
+          "samples": 9712
+        },
+        "teacher.ssl2_cls": {
+          "argmax_prototypes_used": 13,
+          "effective_marginal_prototypes": 16378.434392019708,
+          "entropy_fraction_of_uniform": 0.9995876885130257,
+          "largest_argmax_fraction": 0.5625,
+          "marginal_entropy": 9.70372077237618,
+          "marginal_top10": [
+            [
+              3400,
+              7.024234502644682e-05
+            ],
+            [
+              4355,
+              6.963192777629493e-05
+            ],
+            [
+              10081,
+              6.955428891754839e-05
+            ],
+            [
+              2205,
+              6.936486334680172e-05
+            ],
+            [
+              6798,
+              6.928718072577625e-05
+            ],
+            [
+              10552,
+              6.912646511262708e-05
+            ],
+            [
+              12374,
+              6.900379257366659e-05
+            ],
+            [
+              5510,
+              6.900325588643474e-05
+            ],
+            [
+              6210,
+              6.84359228762069e-05
+            ],
+            [
+              4942,
+              6.836109676713957e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.700059432213312,
+          "mean_temperature_scaled_logit_std": 0.07479147768828379,
+          "mean_top1_probability": 8.184688154986508e-05,
+          "sample_dependence_js": 0.0036613401628677877,
+          "samples": 128
+        },
+        "teacher.ssl2_node": {
+          "argmax_prototypes_used": 31,
+          "effective_marginal_prototypes": 16370.885887514147,
+          "entropy_fraction_of_uniform": 0.997838778808656,
+          "largest_argmax_fraction": 0.258079594017094,
+          "marginal_entropy": 9.703259785425928,
+          "marginal_top10": [
+            [
+              6222,
+              8.894643585548876e-05
+            ],
+            [
+              12564,
+              8.394687253147425e-05
+            ],
+            [
+              184,
+              8.259371604206908e-05
+            ],
+            [
+              5857,
+              7.716409968952788e-05
+            ],
+            [
+              11662,
+              7.714095177778355e-05
+            ],
+            [
+              6235,
+              7.696455862526722e-05
+            ],
+            [
+              5376,
+              7.667783508293286e-05
+            ],
+            [
+              11235,
+              7.654955361939138e-05
+            ],
+            [
+              4516,
+              7.597775235290358e-05
+            ],
+            [
+              8855,
+              7.577907850959681e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.683087906584383,
+          "mean_temperature_scaled_logit_std": 0.16739018678115883,
+          "mean_top1_probability": 0.0001326735710541725,
+          "sample_dependence_js": 0.02017187884154481,
+          "samples": 14976
+        }
+      },
+      "features": {
+        "student.ssl1_cls.bottleneck": {
+          "covariance_effective_rank": 1.0856456776199013,
+          "mean_norm": 61.16864908163307,
+          "mean_pair_cosine": 0.9159908823158084,
+          "relative_centered_variance": 0.1856714307298382,
+          "samples": 256,
+          "total_centered_variance": 745.45056499278
+        },
+        "student.ssl1_cls.input": {
+          "covariance_effective_rank": 3.0827143577027245,
+          "mean_norm": 14.45652135139016,
+          "mean_pair_cosine": 0.776364027529299,
+          "relative_centered_variance": 0.2352515501274193,
+          "samples": 256,
+          "total_centered_variance": 49.30757384248087
+        },
+        "student.ssl1_node.bottleneck": {
+          "covariance_effective_rank": 1.2493810383695099,
+          "mean_norm": 47.77625840774854,
+          "mean_pair_cosine": 0.9887702201343238,
+          "relative_centered_variance": 0.09938595440871414,
+          "samples": 9712,
+          "total_centered_variance": 248.64261052193368
+        },
+        "student.ssl1_node.input": {
+          "covariance_effective_rank": 3.3714079582833265,
+          "mean_norm": 15.82362742528008,
+          "mean_pair_cosine": 0.9295595972055152,
+          "relative_centered_variance": 0.09026111773121455,
+          "samples": 9712,
+          "total_centered_variance": 22.890466112432076
+        },
+        "student.ssl2_cls.bottleneck": {
+          "covariance_effective_rank": 1.2561755187342238,
+          "mean_norm": 17.344716261256206,
+          "mean_pair_cosine": 0.9439948173397025,
+          "relative_centered_variance": 0.055555635837947016,
+          "samples": 256,
+          "total_centered_variance": 16.733430387813016
+        },
+        "student.ssl2_cls.input": {
+          "covariance_effective_rank": 1.9765942360835527,
+          "mean_norm": 15.99251614364271,
+          "mean_pair_cosine": 0.9673432933250612,
+          "relative_centered_variance": 0.032526866152358315,
+          "samples": 256,
+          "total_centered_variance": 8.319089964558788
+        },
+        "student.ssl2_node.bottleneck": {
+          "covariance_effective_rank": 2.871377800714594,
+          "mean_norm": 15.713395386292088,
+          "mean_pair_cosine": 0.9162440842002618,
+          "relative_centered_variance": 0.07845803890489068,
+          "samples": 14976,
+          "total_centered_variance": 19.631084560328908
+        },
+        "student.ssl2_node.input": {
+          "covariance_effective_rank": 3.393875194648564,
+          "mean_norm": 15.990497915034267,
+          "mean_pair_cosine": 0.9045904081255748,
+          "relative_centered_variance": 0.09538868625674911,
+          "samples": 14976,
+          "total_centered_variance": 24.39050818048419
+        },
+        "teacher.ssl1_cls.bottleneck": {
+          "covariance_effective_rank": 2.1638889968954698,
+          "mean_norm": 22.976451249568115,
+          "mean_pair_cosine": 0.9999463049334765,
+          "relative_centered_variance": 0.0001539510837540481,
+          "samples": 128,
+          "total_centered_variance": 0.08128162079378858
+        },
+        "teacher.ssl1_cls.input": {
+          "covariance_effective_rank": 3.725984437104004,
+          "mean_norm": 14.018631601487956,
+          "mean_pair_cosine": 0.9957741124658076,
+          "relative_centered_variance": 0.004226658563382029,
+          "samples": 128,
+          "total_centered_variance": 0.8306454886127339
+        },
+        "teacher.ssl1_node.bottleneck": {
+          "covariance_effective_rank": 3.263111083032442,
+          "mean_norm": 3.9982018282724736,
+          "mean_pair_cosine": 0.9975396512029829,
+          "relative_centered_variance": 0.002842499282640014,
+          "samples": 9712,
+          "total_centered_variance": 0.045456482585751176
+        },
+        "teacher.ssl1_node.input": {
+          "covariance_effective_rank": 3.814857283591005,
+          "mean_norm": 14.030255778907783,
+          "mean_pair_cosine": 0.9947706892049277,
+          "relative_centered_variance": 0.005323686546515562,
+          "samples": 9712,
+          "total_centered_variance": 1.048015248721698
+        },
+        "teacher.ssl2_cls.bottleneck": {
+          "covariance_effective_rank": 1.0880245572305742,
+          "mean_norm": 12.237811846348492,
+          "mean_pair_cosine": 0.9906767437859658,
+          "relative_centered_variance": 0.009265972771048105,
+          "samples": 128,
+          "total_centered_variance": 1.3878012899314707
+        },
+        "teacher.ssl2_cls.input": {
+          "covariance_effective_rank": 1.3637697943221394,
+          "mean_norm": 16.000061962495028,
+          "mean_pair_cosine": 0.9924663382930748,
+          "relative_centered_variance": 0.007474670953956907,
+          "samples": 128,
+          "total_centered_variance": 1.9135305860866025
+        },
+        "teacher.ssl2_node.bottleneck": {
+          "covariance_effective_rank": 2.168788704694571,
+          "mean_norm": 10.682013085331437,
+          "mean_pair_cosine": 0.9530180110515963,
+          "relative_centered_variance": 0.049516433491431935,
+          "samples": 14976,
+          "total_centered_variance": 5.738231700452783
+        },
+        "teacher.ssl2_node.input": {
+          "covariance_effective_rank": 2.073706499460369,
+          "mean_norm": 15.997813163766375,
+          "mean_pair_cosine": 0.9065821881513452,
+          "relative_centered_variance": 0.0933937355327576,
+          "samples": 14976,
+          "total_centered_variance": 23.902261590648706
+        }
+      },
+      "pairs": {
+        "student.ssl1_cls": {
+          "cross_entropy": 9.704049766370478,
+          "sample_pair_count": 384,
+          "teacher_entropy": 9.704042688344378,
+          "teacher_to_student_kl": 7.0780261022298134e-06
+        },
+        "student.ssl1_node": {
+          "cross_entropy": 9.703417997770032,
+          "sample_pair_count": 9712,
+          "teacher_entropy": 9.70319750093845,
+          "teacher_to_student_kl": 0.00022049683158203526
+        },
+        "student.ssl2_cls": {
+          "cross_entropy": 9.700236215132799,
+          "sample_pair_count": 384,
+          "teacher_entropy": 9.700059432214823,
+          "teacher_to_student_kl": 0.0001767829179758068
+        },
+        "student.ssl2_node": {
+          "cross_entropy": 9.692933290006554,
+          "sample_pair_count": 29952,
+          "teacher_entropy": 9.683087906590078,
+          "teacher_to_student_kl": 0.009845383416473315
+        }
+      },
+      "state": {
+        "centers_unchanged": true,
+        "checkpoint_unchanged": true,
+        "optimizer_updates": 0,
+        "selection_use": "none",
+        "teacher_updates": 0
+      },
+      "receipt_path": "/data/yilangliu/GraD-Pert/development/prototype-br400-285a1fe-20261013T051929Z/F1/receipt.json",
+      "receipt_sha256": "5e478675f853878353d74a84dad92a8034c01518c0049ddfa56b9d72004f3620"
+    },
+    "N1": {
+      "method_source_sha": "4bfa1f13b95c73b482954e4efd396cfc82cc6afe",
+      "config_sha256": "de7f7a4e1c4bfdf6c91ef8a0bed77bec74ca17886728b9de32b527b5ae6e0e8f",
+      "checkpoint_sha256": "8652674e7e323eb65d7db66baf1baf0b7bde912baf37d82edc02b59658c208fa",
+      "checkpoint_epoch": 4,
+      "input_sha256": "18be00133a764435abec130b4674c17706bea3226a7cf13df5ea9363b897304e",
+      "distributions": {
+        "student.ssl1_cls": {
+          "argmax_prototypes_used": 66,
+          "effective_marginal_prototypes": 107.15753171834622,
+          "entropy_fraction_of_uniform": 0.05622087352363913,
+          "largest_argmax_fraction": 0.015625,
+          "marginal_entropy": 4.674300010801073,
+          "marginal_top10": [
+            [
+              8556,
+              0.016382958867235585
+            ],
+            [
+              11145,
+              0.01583534282125482
+            ],
+            [
+              5208,
+              0.01559493991125592
+            ],
+            [
+              11208,
+              0.015590133515253629
+            ],
+            [
+              13834,
+              0.015586988731388342
+            ],
+            [
+              8355,
+              0.015576784377335926
+            ],
+            [
+              13572,
+              0.015575323927689679
+            ],
+            [
+              12995,
+              0.015554490759378576
+            ],
+            [
+              13329,
+              0.015543203517990907
+            ],
+            [
+              15172,
+              0.01553882453908723
+            ]
+          ],
+          "mean_sample_entropy": 0.5455707596013883,
+          "mean_temperature_scaled_logit_std": 1.5282125502015282,
+          "mean_top1_probability": 0.8517917961972293,
+          "sample_dependence_js": 4.128729251199684,
+          "samples": 256
+        },
+        "student.ssl1_node": {
+          "argmax_prototypes_used": 1127,
+          "effective_marginal_prototypes": 6959.1947230910355,
+          "entropy_fraction_of_uniform": 0.6837608846059781,
+          "largest_argmax_fraction": 0.023167215815485996,
+          "marginal_entropy": 8.847819045929311,
+          "marginal_top10": [
+            [
+              6868,
+              0.01013693491439178
+            ],
+            [
+              1511,
+              0.009728315645078544
+            ],
+            [
+              3213,
+              0.006909386854779293
+            ],
+            [
+              5380,
+              0.006600607316569301
+            ],
+            [
+              8078,
+              0.005662287188293325
+            ],
+            [
+              10157,
+              0.004636629183888367
+            ],
+            [
+              6683,
+              0.004392749636610441
+            ],
+            [
+              7539,
+              0.0033089816976518793
+            ],
+            [
+              7496,
+              0.0032160352344141655
+            ],
+            [
+              13751,
+              0.0031427994296637624
+            ]
+          ],
+          "mean_sample_entropy": 6.635257010785309,
+          "mean_temperature_scaled_logit_std": 1.7435390863438323,
+          "mean_top1_probability": 0.1150202194501847,
+          "sample_dependence_js": 2.2125620351440025,
+          "samples": 9712
+        },
+        "student.ssl2_cls": {
+          "argmax_prototypes_used": 60,
+          "effective_marginal_prototypes": 93.36217979216832,
+          "entropy_fraction_of_uniform": 0.054625921221875026,
+          "largest_argmax_fraction": 0.046875,
+          "marginal_entropy": 4.5364863359508965,
+          "marginal_top10": [
+            [
+              4769,
+              0.04345978855025678
+            ],
+            [
+              13778,
+              0.031173483881841182
+            ],
+            [
+              15653,
+              0.03031957331428654
+            ],
+            [
+              6358,
+              0.02580667320168623
+            ],
+            [
+              819,
+              0.01567330721034842
+            ],
+            [
+              15681,
+              0.015623812108311876
+            ],
+            [
+              13971,
+              0.015604899974803488
+            ],
+            [
+              3710,
+              0.015604397542421527
+            ],
+            [
+              9943,
+              0.015601097132217318
+            ],
+            [
+              2740,
+              0.015594351006404045
+            ]
+          ],
+          "mean_sample_entropy": 0.530093245926053,
+          "mean_temperature_scaled_logit_std": 1.6686352934156958,
+          "mean_top1_probability": 0.8531474460532783,
+          "sample_dependence_js": 4.006393090024844,
+          "samples": 256
+        },
+        "student.ssl2_node": {
+          "argmax_prototypes_used": 51,
+          "effective_marginal_prototypes": 94.42310286034434,
+          "entropy_fraction_of_uniform": 0.0832583643985397,
+          "largest_argmax_fraction": 0.045272435897435896,
+          "marginal_entropy": 4.547785776899139,
+          "marginal_top10": [
+            [
+              5317,
+              0.03390551247775369
+            ],
+            [
+              15459,
+              0.033770215373137936
+            ],
+            [
+              9151,
+              0.0322389799409998
+            ],
+            [
+              10221,
+              0.0314261194798062
+            ],
+            [
+              3158,
+              0.02952575607747637
+            ],
+            [
+              11959,
+              0.02863303384457542
+            ],
+            [
+              5501,
+              0.027797171659506147
+            ],
+            [
+              8869,
+              0.025363422551550264
+            ],
+            [
+              14983,
+              0.025300561001959307
+            ],
+            [
+              14557,
+              0.02529823006820471
+            ]
+          ],
+          "mean_sample_entropy": 0.8079442075723244,
+          "mean_temperature_scaled_logit_std": 1.66014534006167,
+          "mean_top1_probability": 0.774723073316366,
+          "sample_dependence_js": 3.7398415693268143,
+          "samples": 14976
+        },
+        "teacher.ssl1_cls": {
+          "argmax_prototypes_used": 64,
+          "effective_marginal_prototypes": 99.69684203769236,
+          "entropy_fraction_of_uniform": 0.04678961207537533,
+          "largest_argmax_fraction": 0.015625,
+          "marginal_entropy": 4.602134001819123,
+          "marginal_top10": [
+            [
+              11145,
+              0.015891375602416706
+            ],
+            [
+              8556,
+              0.015837466352155688
+            ],
+            [
+              2376,
+              0.01562412558046184
+            ],
+            [
+              8355,
+              0.015623790150502494
+            ],
+            [
+              5208,
+              0.015622057061825656
+            ],
+            [
+              11208,
+              0.01562083704206359
+            ],
+            [
+              13834,
+              0.015611525956667283
+            ],
+            [
+              13572,
+              0.015610254796840013
+            ],
+            [
+              4672,
+              0.0156039055940463
+            ],
+            [
+              7517,
+              0.015594680588483921
+            ]
+          ],
+          "mean_sample_entropy": 0.45404922765355976,
+          "mean_temperature_scaled_logit_std": 3.3206748540813864,
+          "mean_top1_probability": 0.8546969091731766,
+          "sample_dependence_js": 4.1480847741655635,
+          "samples": 128
+        },
+        "teacher.ssl1_node": {
+          "argmax_prototypes_used": 1228,
+          "effective_marginal_prototypes": 7016.305457896052,
+          "entropy_fraction_of_uniform": 0.6587037380205678,
+          "largest_argmax_fraction": 0.019975288303130147,
+          "marginal_entropy": 8.855992070432697,
+          "marginal_top10": [
+            [
+              6868,
+              0.010303580959240244
+            ],
+            [
+              1511,
+              0.009580090368405703
+            ],
+            [
+              3213,
+              0.00695613112085573
+            ],
+            [
+              5380,
+              0.006509260553118797
+            ],
+            [
+              8078,
+              0.005571477435987504
+            ],
+            [
+              10157,
+              0.004627692101145028
+            ],
+            [
+              6683,
+              0.004286380298359504
+            ],
+            [
+              7496,
+              0.0033157011671718943
+            ],
+            [
+              7539,
+              0.003255791581539634
+            ],
+            [
+              10952,
+              0.003112530756714426
+            ]
+          ],
+          "mean_sample_entropy": 6.392100943665548,
+          "mean_temperature_scaled_logit_std": 2.1367283487259794,
+          "mean_top1_probability": 0.11901340316858096,
+          "sample_dependence_js": 2.463891126767149,
+          "samples": 9712
+        },
+        "teacher.ssl2_cls": {
+          "argmax_prototypes_used": 60,
+          "effective_marginal_prototypes": 89.08002425378798,
+          "entropy_fraction_of_uniform": 0.0477588148813241,
+          "largest_argmax_fraction": 0.046875,
+          "marginal_entropy": 4.489535114658865,
+          "marginal_top10": [
+            [
+              4769,
+              0.04450226075202982
+            ],
+            [
+              13778,
+              0.03124787499801256
+            ],
+            [
+              15653,
+              0.030413611665343687
+            ],
+            [
+              6358,
+              0.025684296791539142
+            ],
+            [
+              819,
+              0.015823578249444706
+            ],
+            [
+              3710,
+              0.015674682597640963
+            ],
+            [
+              13015,
+              0.015627041300733724
+            ],
+            [
+              9943,
+              0.015625337198134522
+            ],
+            [
+              13971,
+              0.015625048238149527
+            ],
+            [
+              2740,
+              0.01562425473528798
+            ]
+          ],
+          "mean_sample_entropy": 0.46345443034623823,
+          "mean_temperature_scaled_logit_std": 3.7700609057867474,
+          "mean_top1_probability": 0.8487904805414135,
+          "sample_dependence_js": 4.0260806843126264,
+          "samples": 128
+        },
+        "teacher.ssl2_node": {
+          "argmax_prototypes_used": 58,
+          "effective_marginal_prototypes": 84.13692873607415,
+          "entropy_fraction_of_uniform": 0.06780527914715831,
+          "largest_argmax_fraction": 0.045272435897435896,
+          "marginal_entropy": 4.432445575666765,
+          "marginal_top10": [
+            [
+              5317,
+              0.03848680473868874
+            ],
+            [
+              15459,
+              0.03391310545237861
+            ],
+            [
+              9151,
+              0.032659775093407985
+            ],
+            [
+              10221,
+              0.03151635573936377
+            ],
+            [
+              3158,
+              0.03009387394702628
+            ],
+            [
+              11959,
+              0.028820354191120213
+            ],
+            [
+              5501,
+              0.028004340453386345
+            ],
+            [
+              8869,
+              0.025462900162484065
+            ],
+            [
+              14983,
+              0.025370727088862878
+            ],
+            [
+              12209,
+              0.025226069079181807
+            ]
+          ],
+          "mean_sample_entropy": 0.6579865329510597,
+          "mean_temperature_scaled_logit_std": 3.724190776298045,
+          "mean_top1_probability": 0.7804061026888727,
+          "sample_dependence_js": 3.774459042715706,
+          "samples": 14976
+        }
+      },
+      "features": {
+        "student.ssl1_cls.bottleneck": {
+          "covariance_effective_rank": 44.84016045317164,
+          "mean_norm": 8.379196144814872,
+          "mean_pair_cosine": 0.027618791222090926,
+          "relative_centered_variance": 0.9690646250954397,
+          "samples": 256,
+          "total_centered_variance": 68.49551470418263
+        },
+        "student.ssl1_cls.input": {
+          "covariance_effective_rank": 47.77203775849997,
+          "mean_norm": 18.32661103087774,
+          "mean_pair_cosine": 0.06670934926596969,
+          "relative_centered_variance": 0.928852221495905,
+          "samples": 256,
+          "total_centered_variance": 331.3979635976205
+        },
+        "student.ssl1_node.bottleneck": {
+          "covariance_effective_rank": 39.31040059347581,
+          "mean_norm": 7.749541637545455,
+          "mean_pair_cosine": 0.032368586949109636,
+          "relative_centered_variance": 0.9699726977064602,
+          "samples": 9712,
+          "total_centered_variance": 59.39554521234406
+        },
+        "student.ssl1_node.input": {
+          "covariance_effective_rank": 88.04039028825396,
+          "mean_norm": 6.317610485136759,
+          "mean_pair_cosine": 0.0734339963573932,
+          "relative_centered_variance": 0.9335310390710732,
+          "samples": 9712,
+          "total_centered_variance": 38.3069204189797
+        },
+        "student.ssl2_cls.bottleneck": {
+          "covariance_effective_rank": 36.18591493487883,
+          "mean_norm": 8.743785191425626,
+          "mean_pair_cosine": 0.023414162613157076,
+          "relative_centered_variance": 0.9726007423438218,
+          "samples": 256,
+          "total_centered_variance": 74.74855323975666
+        },
+        "student.ssl2_cls.input": {
+          "covariance_effective_rank": 33.909116731022166,
+          "mean_norm": 16.067604734626332,
+          "mean_pair_cosine": 0.04784912457933569,
+          "relative_centered_variance": 0.9484316893141165,
+          "samples": 256,
+          "total_centered_variance": 244.85469754985004
+        },
+        "student.ssl2_node.bottleneck": {
+          "covariance_effective_rank": 27.688909319252552,
+          "mean_norm": 9.297610766566951,
+          "mean_pair_cosine": 0.04957562510919003,
+          "relative_centered_variance": 0.9498956328526758,
+          "samples": 14976,
+          "total_centered_variance": 82.42930565317707
+        },
+        "student.ssl2_node.input": {
+          "covariance_effective_rank": 27.382673751119157,
+          "mean_norm": 16.06781300247804,
+          "mean_pair_cosine": 0.06769062752450915,
+          "relative_centered_variance": 0.9322433520168865,
+          "samples": 14976,
+          "total_centered_variance": 240.68161522727985
+        },
+        "teacher.ssl1_cls.bottleneck": {
+          "covariance_effective_rank": 37.955033301688935,
+          "mean_norm": 6.701794513344687,
+          "mean_pair_cosine": 0.0182161468116314,
+          "relative_centered_variance": 0.9745248317377428,
+          "samples": 128,
+          "total_centered_variance": 43.87538564779599
+        },
+        "teacher.ssl1_cls.input": {
+          "covariance_effective_rank": 41.69865070739674,
+          "mean_norm": 20.025265626541493,
+          "mean_pair_cosine": 0.12779380589993694,
+          "relative_centered_variance": 0.865609916057667,
+          "samples": 128,
+          "total_centered_variance": 347.30918878896927
+        },
+        "teacher.ssl1_node.bottleneck": {
+          "covariance_effective_rank": 35.44826616255024,
+          "mean_norm": 4.915396677794149,
+          "mean_pair_cosine": 0.13378375913730184,
+          "relative_centered_variance": 0.8720875987048801,
+          "samples": 9712,
+          "total_centered_variance": 21.37090147179351
+        },
+        "teacher.ssl1_node.input": {
+          "covariance_effective_rank": 96.3153602831108,
+          "mean_norm": 19.176330087498496,
+          "mean_pair_cosine": 0.19602649165080416,
+          "relative_centered_variance": 0.8061931553240009,
+          "samples": 9712,
+          "total_centered_variance": 296.8459988417383
+        },
+        "teacher.ssl2_cls.bottleneck": {
+          "covariance_effective_rank": 30.13870867902452,
+          "mean_norm": 6.9141511388176795,
+          "mean_pair_cosine": 0.017340856697093985,
+          "relative_centered_variance": 0.9748516827141778,
+          "samples": 128,
+          "total_centered_variance": 46.694349531441695
+        },
+        "teacher.ssl2_cls.input": {
+          "covariance_effective_rank": 27.94118675304176,
+          "mean_norm": 16.052017807697865,
+          "mean_pair_cosine": 0.07547304993011153,
+          "relative_centered_variance": 0.917303898743748,
+          "samples": 128,
+          "total_centered_variance": 236.35922580819815
+        },
+        "teacher.ssl2_node.bottleneck": {
+          "covariance_effective_rank": 23.83162545751347,
+          "mean_norm": 7.058649379781347,
+          "mean_pair_cosine": 0.04660031433848116,
+          "relative_centered_variance": 0.9527663178275286,
+          "samples": 14976,
+          "total_centered_variance": 47.51383804353674
+        },
+        "teacher.ssl2_node.input": {
+          "covariance_effective_rank": 24.04680702731229,
+          "mean_norm": 16.052191414984783,
+          "mean_pair_cosine": 0.10612137670371963,
+          "relative_centered_variance": 0.8938160310372193,
+          "samples": 14976,
+          "total_centered_variance": 230.3121470621944
+        }
+      },
+      "pairs": {
+        "student.ssl1_cls": {
+          "cross_entropy": 0.47114697720656656,
+          "sample_pair_count": 384,
+          "teacher_entropy": 0.4540492425969794,
+          "teacher_to_student_kl": 0.01709773460958716
+        },
+        "student.ssl1_node": {
+          "cross_entropy": 6.593828193826751,
+          "sample_pair_count": 9712,
+          "teacher_entropy": 6.392100925764818,
+          "teacher_to_student_kl": 0.20172726806193322
+        },
+        "student.ssl2_cls": {
+          "cross_entropy": 0.4772284731061389,
+          "sample_pair_count": 384,
+          "teacher_entropy": 0.4634544111032877,
+          "teacher_to_student_kl": 0.013774062002851023
+        },
+        "student.ssl2_node": {
+          "cross_entropy": 0.680737275523269,
+          "sample_pair_count": 29952,
+          "teacher_entropy": 0.6579866215360569,
+          "teacher_to_student_kl": 0.02275065398721214
+        }
+      },
+      "state": {
+        "centers_unchanged": true,
+        "checkpoint_unchanged": true,
+        "optimizer_updates": 0,
+        "selection_use": "none",
+        "teacher_updates": 0
+      },
+      "receipt_path": "/data/yilangliu/GraD-Pert/development/prototype-br400-285a1fe-20261013T051929Z/N1/receipt.json",
+      "receipt_sha256": "3f73347b5ae962452c5d3facc239503f7736ec34f07d06155edb28d025f7fd73"
+    },
+    "GM1": {
+      "method_source_sha": "4bfa1f13b95c73b482954e4efd396cfc82cc6afe",
+      "config_sha256": "98c7ab0bc5d8d55a3835a9b4d7faa78ba8aeb048b732c508f4a80cc5bfb811b5",
+      "checkpoint_sha256": "e8ed8d8b382a77a9bd02a583df8942449f057d1b54f8355b895e0b2940d32828",
+      "checkpoint_epoch": 4,
+      "input_sha256": "18be00133a764435abec130b4674c17706bea3226a7cf13df5ea9363b897304e",
+      "distributions": {
+        "student.ssl1_cls": {
+          "argmax_prototypes_used": 86,
+          "effective_marginal_prototypes": 16311.732148375795,
+          "entropy_fraction_of_uniform": 0.9897179496667888,
+          "largest_argmax_fraction": 0.05078125,
+          "marginal_entropy": 9.699639891593222,
+          "marginal_top10": [
+            [
+              10599,
+              0.00020211973348726724
+            ],
+            [
+              57,
+              0.00019530115562931528
+            ],
+            [
+              15675,
+              0.00019141147460301507
+            ],
+            [
+              80,
+              0.00016707309702137792
+            ],
+            [
+              10265,
+              0.0001638327723503356
+            ],
+            [
+              237,
+              0.00016353907439795213
+            ],
+            [
+              10714,
+              0.00016109115742349802
+            ],
+            [
+              11158,
+              0.0001594792180888924
+            ],
+            [
+              7781,
+              0.0001540994238317477
+            ],
+            [
+              12107,
+              0.000153569189519653
+            ]
+          ],
+          "mean_sample_entropy": 9.604282889055463,
+          "mean_temperature_scaled_logit_std": 0.379691866654337,
+          "mean_top1_probability": 0.0003858941485285245,
+          "sample_dependence_js": 0.09535700253775836,
+          "samples": 256
+        },
+        "student.ssl1_node": {
+          "argmax_prototypes_used": 767,
+          "effective_marginal_prototypes": 16318.877872819125,
+          "entropy_fraction_of_uniform": 0.9914975799767775,
+          "largest_argmax_fraction": 0.0914332784184514,
+          "marginal_entropy": 9.700077868361227,
+          "marginal_top10": [
+            [
+              5112,
+              0.00029349879945703177
+            ],
+            [
+              6286,
+              0.00028988153460408894
+            ],
+            [
+              384,
+              0.00025482189589751613
+            ],
+            [
+              20,
+              0.0002333768444930601
+            ],
+            [
+              12950,
+              0.00021165725369506628
+            ],
+            [
+              3596,
+              0.0002034380821897649
+            ],
+            [
+              1268,
+              0.00018512791819716253
+            ],
+            [
+              11445,
+              0.00018344412768998933
+            ],
+            [
+              5689,
+              0.000181539466047596
+            ],
+            [
+              6796,
+              0.00015932036247940702
+            ]
+          ],
+          "mean_sample_entropy": 9.62155252930077,
+          "mean_temperature_scaled_logit_std": 0.3206854857434407,
+          "mean_top1_probability": 0.0004640079507026153,
+          "sample_dependence_js": 0.078525339060457,
+          "samples": 9712
+        },
+        "student.ssl2_cls": {
+          "argmax_prototypes_used": 41,
+          "effective_marginal_prototypes": 16368.432434811657,
+          "entropy_fraction_of_uniform": 0.9962254928537658,
+          "largest_argmax_fraction": 0.125,
+          "marginal_entropy": 9.703109907369035,
+          "marginal_top10": [
+            [
+              14919,
+              0.00018796005177849077
+            ],
+            [
+              983,
+              0.00011551886263245847
+            ],
+            [
+              12342,
+              0.0001144049663812455
+            ],
+            [
+              1626,
+              0.00010519853504866479
+            ],
+            [
+              5568,
+              0.00010257622139393338
+            ],
+            [
+              4132,
+              9.975287767150366e-05
+            ],
+            [
+              14081,
+              9.789907030466116e-05
+            ],
+            [
+              14349,
+              9.079495137694837e-05
+            ],
+            [
+              7758,
+              9.027146977139064e-05
+            ],
+            [
+              13662,
+              8.839385109668567e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.667432482029415,
+          "mean_temperature_scaled_logit_std": 0.2155896775913464,
+          "mean_top1_probability": 0.00025066788829429765,
+          "sample_dependence_js": 0.03567742533961926,
+          "samples": 256
+        },
+        "student.ssl2_node": {
+          "argmax_prototypes_used": 67,
+          "effective_marginal_prototypes": 16368.509376138949,
+          "entropy_fraction_of_uniform": 0.9964054819951589,
+          "largest_argmax_fraction": 0.13555021367521367,
+          "marginal_entropy": 9.703114607950276,
+          "marginal_top10": [
+            [
+              12749,
+              0.0001150116237852433
+            ],
+            [
+              13486,
+              9.606085092922675e-05
+            ],
+            [
+              5727,
+              9.326227129071411e-05
+            ],
+            [
+              1128,
+              9.227907366750489e-05
+            ],
+            [
+              6886,
+              9.203446393068641e-05
+            ],
+            [
+              13819,
+              8.968017221706634e-05
+            ],
+            [
+              9802,
+              8.893876296620265e-05
+            ],
+            [
+              11576,
+              8.877562464261124e-05
+            ],
+            [
+              14382,
+              8.758663536222607e-05
+            ],
+            [
+              14712,
+              8.756581229801517e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.669179107551848,
+          "mean_temperature_scaled_logit_std": 0.22521460290038608,
+          "mean_top1_probability": 0.00017974604771728208,
+          "sample_dependence_js": 0.033935500398428076,
+          "samples": 14976
+        },
+        "teacher.ssl1_cls": {
+          "argmax_prototypes_used": 70,
+          "effective_marginal_prototypes": 16312.192363966113,
+          "entropy_fraction_of_uniform": 0.9896131510761522,
+          "largest_argmax_fraction": 0.03125,
+          "marginal_entropy": 9.699668104973263,
+          "marginal_top10": [
+            [
+              10599,
+              0.00020469533052307627
+            ],
+            [
+              57,
+              0.00019773944377695512
+            ],
+            [
+              15675,
+              0.00019078560621210944
+            ],
+            [
+              80,
+              0.00016820827841626778
+            ],
+            [
+              10265,
+              0.0001652351628891362
+            ],
+            [
+              237,
+              0.00016176658872241048
+            ],
+            [
+              11158,
+              0.00016162683183849625
+            ],
+            [
+              10714,
+              0.00016157901200228143
+            ],
+            [
+              7781,
+              0.00015506910729952452
+            ],
+            [
+              12107,
+              0.00015415385530670602
+            ]
+          ],
+          "mean_sample_entropy": 9.603265917188693,
+          "mean_temperature_scaled_logit_std": 0.38436874084118505,
+          "mean_top1_probability": 0.00039019017628748846,
+          "sample_dependence_js": 0.09640218778456955,
+          "samples": 128
+        },
+        "teacher.ssl1_node": {
+          "argmax_prototypes_used": 1263,
+          "effective_marginal_prototypes": 16320.540884881751,
+          "entropy_fraction_of_uniform": 0.9906810985796911,
+          "largest_argmax_fraction": 0.06301482701812192,
+          "marginal_entropy": 9.700179770424889,
+          "marginal_top10": [
+            [
+              5112,
+              0.0002993740593073795
+            ],
+            [
+              6286,
+              0.00028886126099981926
+            ],
+            [
+              384,
+              0.0002541266435491651
+            ],
+            [
+              20,
+              0.00023864574105282398
+            ],
+            [
+              12950,
+              0.00021496028143282633
+            ],
+            [
+              3596,
+              0.00019880161345236068
+            ],
+            [
+              1268,
+              0.0001855364925884249
+            ],
+            [
+              11445,
+              0.00018424361676605097
+            ],
+            [
+              5689,
+              0.00018055151717302173
+            ],
+            [
+              6796,
+              0.00015834630029114107
+            ]
+          ],
+          "mean_sample_entropy": 9.61362934440359,
+          "mean_temperature_scaled_logit_std": 0.35005881828441443,
+          "mean_top1_probability": 0.00048375632027247267,
+          "sample_dependence_js": 0.08655042602129903,
+          "samples": 9712
+        },
+        "teacher.ssl2_cls": {
+          "argmax_prototypes_used": 39,
+          "effective_marginal_prototypes": 16368.285443409619,
+          "entropy_fraction_of_uniform": 0.9962369362077593,
+          "largest_argmax_fraction": 0.125,
+          "marginal_entropy": 9.703100927152839,
+          "marginal_top10": [
+            [
+              14919,
+              0.00018077396747465569
+            ],
+            [
+              983,
+              0.00011459426707199146
+            ],
+            [
+              12342,
+              0.00011342499507717207
+            ],
+            [
+              1626,
+              0.00010437102504473756
+            ],
+            [
+              5568,
+              0.00010198314900545598
+            ],
+            [
+              4132,
+              9.963888100487404e-05
+            ],
+            [
+              14081,
+              9.778027035305464e-05
+            ],
+            [
+              14349,
+              9.043352876591765e-05
+            ],
+            [
+              7758,
+              8.945356435871003e-05
+            ],
+            [
+              13662,
+              8.849506707687009e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.66754352902921,
+          "mean_temperature_scaled_logit_std": 0.21569094589110335,
+          "mean_top1_probability": 0.00024278337440085678,
+          "sample_dependence_js": 0.035557398123629014,
+          "samples": 128
+        },
+        "teacher.ssl2_node": {
+          "argmax_prototypes_used": 94,
+          "effective_marginal_prototypes": 16367.614200331553,
+          "entropy_fraction_of_uniform": 0.9963689636683598,
+          "largest_argmax_fraction": 0.12065972222222222,
+          "marginal_entropy": 9.703059917552647,
+          "marginal_top10": [
+            [
+              12749,
+              0.00011566406065911168
+            ],
+            [
+              13486,
+              9.67999469333097e-05
+            ],
+            [
+              5727,
+              9.377026064888875e-05
+            ],
+            [
+              1128,
+              9.362030535015522e-05
+            ],
+            [
+              6886,
+              9.207784218744215e-05
+            ],
+            [
+              13819,
+              8.999700383936483e-05
+            ],
+            [
+              9802,
+              8.974336057175068e-05
+            ],
+            [
+              11576,
+              8.894941757758166e-05
+            ],
+            [
+              14712,
+              8.887551338690741e-05
+            ],
+            [
+              535,
+              8.759207322128103e-05
+            ]
+          ],
+          "mean_sample_entropy": 9.668824731498214,
+          "mean_temperature_scaled_logit_std": 0.22572990357616846,
+          "mean_top1_probability": 0.00017989558349490415,
+          "sample_dependence_js": 0.03423518605443299,
+          "samples": 14976
+        }
+      },
+      "features": {
+        "student.ssl1_cls.bottleneck": {
+          "covariance_effective_rank": 18.96533579388396,
+          "mean_norm": 11.152515834172137,
+          "mean_pair_cosine": 0.46761614806998975,
+          "relative_centered_variance": 0.5321166000673253,
+          "samples": 256,
+          "total_centered_variance": 67.76890124347494
+        },
+        "student.ssl1_cls.input": {
+          "covariance_effective_rank": 37.51155862258623,
+          "mean_norm": 15.471750427334845,
+          "mean_pair_cosine": 0.42839724426323567,
+          "relative_centered_variance": 0.5415481010315238,
+          "samples": 256,
+          "total_centered_variance": 132.73897147426732
+        },
+        "student.ssl1_node.bottleneck": {
+          "covariance_effective_rank": 12.803970404983277,
+          "mean_norm": 9.26733264175141,
+          "mean_pair_cosine": 0.5848972084485323,
+          "relative_centered_variance": 0.43463727302566907,
+          "samples": 9712,
+          "total_centered_variance": 38.70442963773872
+        },
+        "student.ssl1_node.input": {
+          "covariance_effective_rank": 45.44974163642548,
+          "mean_norm": 9.717923609963421,
+          "mean_pair_cosine": 0.25199739428126655,
+          "relative_centered_variance": 0.7720040233058353,
+          "samples": 9712,
+          "total_centered_variance": 75.16734848343512
+        },
+        "student.ssl2_cls.bottleneck": {
+          "covariance_effective_rank": 7.799502721495236,
+          "mean_norm": 16.815421813111676,
+          "mean_pair_cosine": 0.8099287009010181,
+          "relative_centered_variance": 0.18318289552619568,
+          "samples": 256,
+          "total_centered_variance": 52.217771765066324
+        },
+        "student.ssl2_cls.input": {
+          "covariance_effective_rank": 9.655913002607713,
+          "mean_norm": 15.983548125771394,
+          "mean_pair_cosine": 0.8482027818617809,
+          "relative_centered_variance": 0.15115838058793843,
+          "samples": 256,
+          "total_centered_variance": 38.617013622153756
+        },
+        "student.ssl2_node.bottleneck": {
+          "covariance_effective_rank": 7.600277977598365,
+          "mean_norm": 15.984572993932037,
+          "mean_pair_cosine": 0.812120913733556,
+          "relative_centered_variance": 0.18551780272852614,
+          "samples": 14976,
+          "total_centered_variance": 47.68937165505092
+        },
+        "student.ssl2_node.input": {
+          "covariance_effective_rank": 9.27377220158766,
+          "mean_norm": 15.981595237359855,
+          "mean_pair_cosine": 0.8440254352646828,
+          "relative_centered_variance": 0.1559327876352837,
+          "samples": 14976,
+          "total_centered_variance": 39.827014818050834
+        },
+        "teacher.ssl1_cls.bottleneck": {
+          "covariance_effective_rank": 13.641968134001251,
+          "mean_norm": 11.236310954731364,
+          "mean_pair_cosine": 0.8641412946441448,
+          "relative_centered_variance": 0.13291645233870056,
+          "samples": 128,
+          "total_centered_variance": 16.9166474186814
+        },
+        "teacher.ssl1_cls.input": {
+          "covariance_effective_rank": 26.21975134770564,
+          "mean_norm": 16.059287562409196,
+          "mean_pair_cosine": 0.7906349089903832,
+          "relative_centered_variance": 0.20947025762347593,
+          "samples": 128,
+          "total_centered_variance": 54.04727641869874
+        },
+        "teacher.ssl1_node.bottleneck": {
+          "covariance_effective_rank": 12.07725375208511,
+          "mean_norm": 6.422779551046512,
+          "mean_pair_cosine": 0.8691208967929476,
+          "relative_centered_variance": 0.13307338988672351,
+          "samples": 9712,
+          "total_centered_variance": 5.524535988394842
+        },
+        "teacher.ssl1_node.input": {
+          "covariance_effective_rank": 50.772512348497465,
+          "mean_norm": 16.118204061976495,
+          "mean_pair_cosine": 0.8098805503614579,
+          "relative_centered_variance": 0.1912740389951926,
+          "samples": 9712,
+          "total_centered_variance": 49.71141630151543
+        },
+        "teacher.ssl2_cls.bottleneck": {
+          "covariance_effective_rank": 5.017733952571654,
+          "mean_norm": 12.63327555333762,
+          "mean_pair_cosine": 0.947701306125368,
+          "relative_centered_variance": 0.05097964652140133,
+          "samples": 128,
+          "total_centered_variance": 8.172809710725803
+        },
+        "teacher.ssl2_cls.input": {
+          "covariance_effective_rank": 6.521563531007598,
+          "mean_norm": 15.990465549433576,
+          "mean_pair_cosine": 0.9373608361662943,
+          "relative_centered_variance": 0.06213347007589278,
+          "samples": 128,
+          "total_centered_variance": 15.887217673672271
+        },
+        "teacher.ssl2_node.bottleneck": {
+          "covariance_effective_rank": 5.405718036174727,
+          "mean_norm": 11.804757954585504,
+          "mean_pair_cosine": 0.9523517609609675,
+          "relative_centered_variance": 0.04848168562137989,
+          "samples": 14976,
+          "total_centered_variance": 6.779759845947066
+        },
+        "teacher.ssl2_node.input": {
+          "covariance_effective_rank": 7.3119888237295445,
+          "mean_norm": 15.989612804309347,
+          "mean_pair_cosine": 0.9145081176068501,
+          "relative_centered_variance": 0.085478813449106,
+          "samples": 14976,
+          "total_centered_variance": 21.854173973518794
+        }
+      },
+      "pairs": {
+        "student.ssl1_cls": {
+          "cross_entropy": 9.604398993326752,
+          "sample_pair_count": 384,
+          "teacher_entropy": 9.603265917096552,
+          "teacher_to_student_kl": 0.0011330762301955076
+        },
+        "student.ssl1_node": {
+          "cross_entropy": 9.622146259923525,
+          "sample_pair_count": 9712,
+          "teacher_entropy": 9.613629344781174,
+          "teacher_to_student_kl": 0.008516915142352678
+        },
+        "student.ssl2_cls": {
+          "cross_entropy": 9.667593579800915,
+          "sample_pair_count": 384,
+          "teacher_entropy": 9.66754352911033,
+          "teacher_to_student_kl": 5.005069058567254e-05
+        },
+        "student.ssl2_node": {
+          "cross_entropy": 9.669049603649952,
+          "sample_pair_count": 29952,
+          "teacher_entropy": 9.668824731499084,
+          "teacher_to_student_kl": 0.0002248721508679384
+        }
+      },
+      "state": {
+        "centers_unchanged": true,
+        "checkpoint_unchanged": true,
+        "optimizer_updates": 0,
+        "selection_use": "none",
+        "teacher_updates": 0
+      },
+      "receipt_path": "/data/yilangliu/GraD-Pert/development/prototype-br400-285a1fe-20261013T051929Z/GM1/receipt.json",
+      "receipt_sha256": "32cce077f29e1a336defc19c4f144fe73df59871d1bc100807033fd4fb90e9c8"
+    }
+  }
+}

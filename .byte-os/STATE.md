@@ -1,3 +1,7 @@
+## 2026-10-13：BR400/F1/N1/GM1 原型诊断完成
+
+用户要求检查蒸馏9.7与N1低loss差异；诊断工具285a1fe，原模型分别保持训练6a8c612/4bfa1f1。相同4×16真实训练输入与完整视图，4组input SHA一致、eval/BF16、无optimizer/EMA/center更新，原checkpoint与逐张量模型状态不变；四组exit0。N1目标尖锐且跨样本JS2.46–4.15，不支持常量/单原型坍塌；低CE主要由Teacher entropy下降解释。BR/GM1目标近均匀且KL小；F1图condition Teacher JS1.6e-5、瓶颈相对方差1.54e-4/秩2.16，严重退化迹象。报告docs/experiments/GRADPERT_V2_PROTOTYPE_DIAGNOSTICS_20261013.md与evidence/prototype-diagnostics-20261013/summary.json。仅有限输入诊断，不判定生物学效用或重训；Luna短监督已终态，未建新定时监控。此前官方scDFM修复仍未正式启动：88卸载GPU多步对照失败，旧失败证据保留；本诊断不覆盖该未完成事项。
+
 ## 2026-10-13：scDFM batch48 显存修复（保存激活卸载）
 
 设备别名修复f83a44e542c0245b296ed4f29e9f74df91a54841两组真实CPU10-update/恢复通过，但新queue official-remaining-f83a44e-20261013T042152Z的scDFM GPU preflight在官方differential attention前向OOM：27.30GiB allocated，28.22GiB allowed，下一临时张量需1.43GiB。无正式fit，无GEARS启动；旧失败root/源码/config保持。本段覆盖“等待GPU预检”的状态。
