@@ -1,0 +1,71 @@
+{
+  "schema": "ffn-five-last-1",
+  "parents": {
+    "BR": {
+      "config": "configs/v2/br400_best_last_checkpoint_20261012/BR/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "d7877c03839645901f930817d5258638ca8738c650bd23fc42e5da33415e6f50"
+    }
+  },
+  "priority": [
+    "DP",
+    "FN",
+    "FG",
+    "FB",
+    "PO"
+  ],
+  "preflight_priority": [
+    "DP",
+    "FN",
+    "FG",
+    "FB",
+    "PO"
+  ],
+  "common_microbatch": 100,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 400,
+  "epochs": 4,
+  "seed": 1,
+  "eval_batch": 300,
+  "validation": "disabled",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "execution": "official_dependency_then_dual_preflight_then_dual_fit_last",
+  "requires_official_baselines": [
+    "scdfm",
+    "gears"
+  ],
+  "rerun_BR": false,
+  "process_diagnostics": "fixed_training_only_epoch_boundaries",
+  "rows": [
+    {
+      "name": "DP",
+      "config": "configs/v2/ffn_five_20261013/DP/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "826a1c9dd905045c4ca1a168a980e37cc1defc2bacffe3e460b97b4cde0cf19f"
+    },
+    {
+      "name": "FN",
+      "config": "configs/v2/ffn_five_20261013/FN/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "5281d7e5409ededb7488a6e06acc35cfd1e84dc037055830b3e0cbb88e37e06d"
+    },
+    {
+      "name": "FG",
+      "config": "configs/v2/ffn_five_20261013/FG/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "7a48a09d6bfa4dae080d3bd5daf2bff7e20d2f3d914351e8719b40bc962ef3ee"
+    },
+    {
+      "name": "FB",
+      "config": "configs/v2/ffn_five_20261013/FB/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "27401644954cdef4703de827f2823f8abfc13734dfb2a7f376a6045ac0c33529"
+    },
+    {
+      "name": "PO",
+      "config": "configs/v2/ffn_five_20261013/PO/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "7386c15de7536e28277c3008c916f9a253d9eeb772afbb221bfffc3eb1e14e27"
+    }
+  ]
+}

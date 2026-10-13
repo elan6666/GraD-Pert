@@ -716,7 +716,23 @@ class GraDPertV2(nn.Module):
         *,
         query_gene_ids: Tensor | None = None,
         target_mask: Tensor | None = None,
+        control: Tensor | None = None,
     ) -> Tensor:
+        score = self.decode_score(joint, query_gene_ids=query_gene_ids, target_mask=target_mask)
+        if self.options.prediction_parameterization == "softplus":
+            if control is None or control.shape != score.shape:
+                raise ValueError("Softplus delta requires aligned control expression")
+            return F.softplus(score.float()) - control
+        return score
+
+    def decode_score(
+        self,
+        joint: Tensor,
+        *,
+        query_gene_ids: Tensor | None = None,
+        target_mask: Tensor | None = None,
+    ) -> Tensor:
+        """Raw task score; residual in BR, unconstrained expression score in PO."""
         if self.options.direct_target_flag:
             if (
                 target_mask is None
@@ -853,9 +869,10 @@ class GraDPertV2(nn.Module):
                 block_cls_to_gene=block_response_cls_to_gene,
             )
             joint = torch.cat((response[:, :-1], condition[:, None, :].expand_as(basal)), dim=-1)
-            delta = self.decode_delta(joint, query_gene_ids=query_gene_ids, target_mask=target_mask)
+            score = self.decode_score(joint, query_gene_ids=query_gene_ids, target_mask=target_mask)
+            prediction, delta = self.prediction_outputs(score, control)
             return {
-                "prediction": control + delta,
+                "prediction": prediction,
                 "delta": delta,
                 "control_cls": control_cls,
                 "response_cls": response[:, -1],
@@ -869,11 +886,20 @@ class GraDPertV2(nn.Module):
             ),
             block_cls_to_gene=block_response_cls_to_gene,
         )
-        delta = self.prediction(response[:, :-1]).squeeze(-1)
+        score = self.prediction(response[:, :-1]).squeeze(-1)
+        prediction, delta = self.prediction_outputs(score, control)
         return {
-            "prediction": control + delta,
+            "prediction": prediction,
             "delta": delta,
             "control_cls": control_cls,
             "response_cls": response[:, -1],
             "response_tokens": response[:, :-1],
         }
+
+    def prediction_outputs(self, score: Tensor, control: Tensor) -> tuple[Tensor, Tensor]:
+        if self.options.prediction_parameterization == "softplus":
+            # Predict directly instead of reconstructing tiny positive values by
+            # subtracting and readding control in reduced precision.
+            prediction = F.softplus(score.float())
+            return prediction, prediction - control
+        return control + score, score

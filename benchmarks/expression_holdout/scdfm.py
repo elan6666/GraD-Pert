@@ -333,12 +333,48 @@ def _require_accelerator_device(accelerator: Any, requested: Any):
     return requested
 
 
+def _pack_saved_tensor_layout(tensor: Any):
+    """Copy the addressed storage span, retaining broadcast/view strides.
+
+    Ordinary pinned save_on_cpu allocates a contiguous destination. That can
+    change backward GEMM layouts even though element values are unchanged.
+    This adapter stores a flat span and restores the original logical view.
+    Gaps in a sliced view are retained; no values are serialized or exported.
+    """
+    import torch
+
+    if tensor.layout != torch.strided or tensor.is_conj() or tensor.is_neg():
+        raise ValueError("scDFM saved activation requires an ordinary strided tensor")
+    shape, stride = tuple(tensor.shape), tuple(tensor.stride())
+    offset = tensor.storage_offset()
+    span = 1 + sum((size - 1) * step for size, step in zip(shape, stride, strict=True))
+    if not tensor.numel():
+        span = 0
+    pinned = tensor.device.type == "cuda"
+    storage_span = offset + span if span else 0
+    host = torch.empty(storage_span, dtype=tensor.dtype, device="cpu", pin_memory=pinned)
+    if span:
+        # Preserve the offset too: moving a slice to offset zero can change
+        # pointer alignment and therefore the backward kernel's arithmetic.
+        raw = tensor.detach().as_strided((storage_span,), (1,), 0)
+        host.copy_(raw)
+    return tensor.device, shape, stride, offset, host
+
+
+def _unpack_saved_tensor_layout(packed: Any):
+    device, shape, stride, offset, host = packed
+    flat = host.to(device, non_blocking=host.is_pinned())
+    return flat.as_strided(shape, stride, offset)
+
+
 def _training_activation_context(training: dict, device: Any):
-    """Offload saved backward tensors without changing upstream arithmetic."""
+    """Offload backward storage while preserving upstream tensor layouts."""
     import torch
 
     if training.get("activation_offload", "none") == "cpu" and torch.device(device).type == "cuda":
-        return torch.autograd.graph.save_on_cpu(pin_memory=True)
+        return torch.autograd.graph.saved_tensors_hooks(
+            _pack_saved_tensor_layout, _unpack_saved_tensor_layout
+        )
     return contextlib.nullcontext()
 
 

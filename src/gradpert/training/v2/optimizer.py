@@ -19,6 +19,11 @@ from gradpert.modeling.v2.operators import (
 
 def routes(model: nn.Module) -> list[dict[str, Any]]:
     modules = dict(model.named_modules())
+    layernorm_score_path = (
+        "prediction.1.2"
+        if getattr(getattr(model, "options", None), "ffn_input_norm", None) == "layernorm"
+        else None
+    )
     result = []
     for name, parameter in model.named_parameters():
         if not parameter.requires_grad:
@@ -32,6 +37,7 @@ def routes(model: nn.Module) -> list[dict[str, Any]]:
             and field == "weight"
             and "prototypes" not in path
             and path not in ("prediction.2", "control_reconstruction.gene")
+            and path != layernorm_score_path
             and projection != "route"
         )
         heads = 1
@@ -72,15 +78,32 @@ def routes(model: nn.Module) -> list[dict[str, Any]]:
 
 
 class V2Optimizer:
-    def __init__(self, model: nn.Module, lr: float, weight_decay: float) -> None:
+    def __init__(
+        self,
+        model: nn.Module,
+        lr: float,
+        weight_decay: float,
+        *,
+        prototype_freeze_steps: int = 0,
+    ) -> None:
+        if type(prototype_freeze_steps) is not int or prototype_freeze_steps < 0:
+            raise ValueError("prototype freeze step budget must be a nonnegative integer")
+        if getattr(getattr(model, "options", None), "prototype_freeze_epochs", 0) and not (
+            prototype_freeze_steps
+        ):
+            raise ValueError("prototype freeze epochs require a resolved positive step budget")
+        self.prototype_freeze_steps = prototype_freeze_steps
         self.routes = routes(model)
         parameters = dict(model.named_parameters())
         self.views: list[tuple[nn.Parameter, list[nn.Parameter]]] = []
-        matrix, auxiliary = [], []
+        matrix, auxiliary, prototypes = [], [], []
         for route in self.routes:
             p = parameters[route["name"]]
             if route["optimizer"] == "adamw":
-                auxiliary.append(p)
+                if prototype_freeze_steps and "prototypes." in route["name"]:
+                    prototypes.append(p)
+                else:
+                    auxiliary.append(p)
             else:
                 parts = [nn.Parameter(t) for t in p.detach().chunk(route["heads"], 0)]
                 self.views.append((p, parts))
@@ -100,11 +123,16 @@ class V2Optimizer:
             if matrix
             else None
         )
+        auxiliary_groups: list[Any] = (
+            [{"params": auxiliary}, {"params": prototypes, "prototype_group": True}]
+            if prototypes
+            else auxiliary
+        )
         self.adamw = (
             torch.optim.AdamW(
-                auxiliary, lr=lr, weight_decay=weight_decay, betas=(0.9, 0.999), eps=1e-8
+                auxiliary_groups, lr=lr, weight_decay=weight_decay, betas=(0.9, 0.999), eps=1e-8
             )
-            if auxiliary
+            if auxiliary or prototypes
             else None
         )
         if self.muon is None and self.adamw is None:
@@ -127,21 +155,31 @@ class V2Optimizer:
             if opt is None:
                 continue
             for group in opt.param_groups:
-                group["lr"] = lr
+                group["lr"] = (
+                    0.0
+                    if group.get("prototype_group", False)
+                    and self.steps < self.prototype_freeze_steps
+                    else lr
+                )
             opt.step()  # type: ignore[no-untyped-call]
         self.steps += 1
 
     def state_dict(self) -> dict[str, Any]:
-        return {
+        state = {
             "muon": self.muon.state_dict() if self.muon is not None else None,
             "adamw": self.adamw.state_dict() if self.adamw is not None else None,
             "routes": self.routes,
             "steps": self.steps,
         }
+        if self.prototype_freeze_steps:
+            state["prototype_freeze_steps"] = self.prototype_freeze_steps
+        return state
 
     def load_state_dict(self, state: dict[str, Any]) -> None:
         if state["routes"] != self.routes:
             raise ValueError("checkpoint optimizer routes differ")
+        if state.get("prototype_freeze_steps", 0) != self.prototype_freeze_steps:
+            raise ValueError("checkpoint prototype freeze budget differs")
         for key, opt in (("muon", self.muon), ("adamw", self.adamw)):
             if opt is None:
                 if state[key] is not None:

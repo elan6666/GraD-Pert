@@ -351,3 +351,6 @@ The relay state helper advances current_handoff/history, but older readers can s
 ## Filter scientific terminal markers on the server before printing
 
 Native evaluation COMPLETE may embed hundreds of conditions and ordered cell IDs, and controller COMPLETE may duplicate the entire result. Printing the full marker caused an oversized tool output. Inspect bounded key lists, select identities and 18 summary metrics on the server, assert a small serialized size before transfer, and retain complete scientific details on the server. Do not mistake a file named receipt for a small artifact.
+
+## 2026-10-13: distinguish official baselines from native comparison anchor
+User corrected “恢复基线” to official scDFM/GEARS, not native BR. Reuse completed BR400 as the native reference and forbid BR/Scouter rerun in new matrix; identify model names and immutable terminal receipts before interpreting a resume request.

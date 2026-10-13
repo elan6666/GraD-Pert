@@ -374,7 +374,10 @@ def main() -> None:
             total_steps = int(config.training.max_epochs.value) * runtime.steps_per_epoch
             receipt["data"] = runtime.identity
             receipt["optimizer_routes"] = runtime.optimizer.routes
-            loss_diagnostics_enabled = runtime.options.prediction_reduction_override != "inherit"
+            loss_diagnostics_enabled = (
+                runtime.options.prediction_reduction_override != "inherit"
+                or runtime.options.process_diagnostics
+            )
             if loss_diagnostics_enabled and kind in (
                 "preflight_only",
                 "capacity_only",

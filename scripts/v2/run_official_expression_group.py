@@ -97,6 +97,7 @@ def prepare(runtime_path: Path, output: Path) -> dict:
                 "runtime_sha256": None,
                 "run_root": str(output_root),
                 "preflight_root": str(output_root) + "-preflight",
+                "numerics_root": str(output_root) + "-numerics",
                 "gpu": "0",
             }
         )
@@ -176,7 +177,27 @@ def execute(path: Path) -> None:
                             raise ValueError("immutable official queue changed")
                         admit(queue["shared_gpu_policy"], snapshot(os.getpid()))
 
-                    guard()
+                    # Wait before CUDA dispatch, without approving another user's
+                    # new program or weakening the sealed resource policy.
+                    while True:
+                        try:
+                            guard()
+                            break
+                        except RuntimeError as error:
+                            if str(error) not in (
+                                "unapproved or grown foreign GPU process; "
+                                "preserve it and stop our dispatch",
+                                "shared-GPU physical free-memory reserve exhausted",
+                                "own GPU workload exceeds the approved memory allowance",
+                            ):
+                                raise
+                            state.update(
+                                phase="waiting_resources",
+                                active=None,
+                                resource_wait_reason=str(error),
+                            )
+                            atomic_json(root / "state.json", state)
+                            time.sleep(60)
                     environment = {
                         **os.environ,
                         "PYTHONPATH": str(ROOT / "src") + os.pathsep + str(ROOT),
@@ -187,7 +208,11 @@ def execute(path: Path) -> None:
                         "OPENBLAS_NUM_THREADS": "2",
                     }
                     python = json.loads(runtime.read_text())["python"]
-                    for mode, destination in [("preflight", probe), ("full", run)]:
+                    cfg = load_config(config)
+                    stages = [("preflight", probe), ("full", run)]
+                    if name_needs_numerics(row["name"], cfg):
+                        stages.insert(0, ("numerics", Path(row["numerics_root"])))
+                    for mode, destination in stages:
                         state.update(
                             phase=f"{row['name']}_{mode}",
                             active={
@@ -200,16 +225,18 @@ def execute(path: Path) -> None:
                         argv = [
                             python,
                             "-m",
-                            "benchmarks.expression_holdout.runner",
+                            "benchmarks.expression_holdout.scdfm_parity"
+                            if mode == "numerics"
+                            else "benchmarks.expression_holdout.runner",
                             "--config",
                             str(config),
                             "--runtime",
                             str(runtime),
                             "--output",
                             str(destination),
-                            "--mode",
-                            mode,
                         ]
+                        if mode != "numerics":
+                            argv += ["--mode", mode]
                         if mode == "full":
                             argv += ["--preflight", str(probe / "receipt.json")]
                         with (root / f"{row['name']}-{mode}.log").open("x") as log:
@@ -245,7 +272,14 @@ def execute(path: Path) -> None:
                             raise ValueError(
                                 "official receipt source/artifact postcondition differs"
                             )
-                        if mode == "full":
+                        if mode == "numerics":
+                            validate_numerics(receipt, row)
+                            state["scdfm_numerics"] = {
+                                "root": str(destination),
+                                "receipt_sha256": sha256_file(destination / "receipt.json"),
+                            }
+                            atomic_json(root / "state.json", state)
+                        elif mode == "full":
                             receipt = validate_terminal(destination, row, queue["source_commit"])
                             state["completed"][row["name"]] = {
                                 "root": str(destination),
@@ -271,6 +305,27 @@ def execute(path: Path) -> None:
         atomic_json(root / "state.json", state)
         atomic_json(root / "FAILURE.json", state)
         raise
+
+
+def name_needs_numerics(name: str, config: dict) -> bool:
+    return name == "scdfm" and config["training"].get("activation_offload", "none") == "cpu"
+
+
+def validate_numerics(receipt: dict, row: dict) -> None:
+    if (
+        receipt.get("schema") != "scdfm-layout-offload-parity-1"
+        or receipt.get("status") != "passed"
+        or receipt.get("source_clean") is not True
+        or receipt.get("rtol") != 1e-6
+        or receipt.get("atol") != 1e-7
+        or receipt.get("config_sha256") != row["config_sha256"]
+        or receipt.get("runtime_sha256") != row["runtime_sha256"]
+        or set(receipt.get("pairs", {})) != {"none-b", "cpu"}
+        or any(p["failures"] or p["tensors"] < 1 for p in receipt["pairs"].values())
+        or set(receipt.get("modes", {})) != {"none-a", "none-b", "cpu"}
+        or any(p["updates"] != 3 for p in receipt["modes"].values())
+    ):
+        raise ValueError("scDFM strict repeat/offload numeric gate missing")
 
 
 def main():

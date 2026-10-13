@@ -1,3 +1,9 @@
+## 2026-10-13：恢复官方基线，准备五组FFN及训练诊断
+
+用户授权仅恢复scDFM→GEARS测试/四轮训练/last18指标评估；BR和Scouter不重跑。五组DP→FN→FG→FB→PO已自包含配置，global400/m100×双卡×accum2/四轮/无验证/仅last，须等待两官方真实终态。原始clean基线141989e已与GitHub main一致。原型/逐层token/输出及共享graph梯度探针已实现，训练前后RNG/Student/Teacher/center/optimizer/grad等合成多步精确检查；155+6本地检查通过。
+
+scDFM新增保留stride与storage offset的CPU保存激活卸载；普通repeat及原容差GPUparity是正式preflight之前的硬门，不改模型/MMD/FP32/48batch。旧OOM/容差失败保留。当前GPU0有UID1003 run_totalvi_s2_formal.py约796MiB，现白名单不覆盖，新GPU探针被门拦住；授权问题已发，未扩白名单。新controller只允许CPU等待资源，不批准未知进程。尚无新GPUparity/训练/科学完成。详细计划plans/OFFICIAL_RECOVERY_FFN_DIAGNOSTICS_20261013.plan.md，报告docs/experiments/GRADPERT_V2_FFN_FIVE_DIAGNOSTICS_20261013.md。下一步发布clean新源码、真实CPU10/恢复、启动带numeric门的独立官方队列，再准备依赖native队列并交唯一监督。
+
 ## 2026-10-13：BR400/F1/N1/GM1 原型诊断完成
 
 用户要求检查蒸馏9.7与N1低loss差异；诊断工具285a1fe，原模型分别保持训练6a8c612/4bfa1f1。相同4×16真实训练输入与完整视图，4组input SHA一致、eval/BF16、无optimizer/EMA/center更新，原checkpoint与逐张量模型状态不变；四组exit0。N1目标尖锐且跨样本JS2.46–4.15，不支持常量/单原型坍塌；低CE主要由Teacher entropy下降解释。BR/GM1目标近均匀且KL小；F1图condition Teacher JS1.6e-5、瓶颈相对方差1.54e-4/秩2.16，严重退化迹象。报告docs/experiments/GRADPERT_V2_PROTOTYPE_DIAGNOSTICS_20261013.md与evidence/prototype-diagnostics-20261013/summary.json。仅有限输入诊断，不判定生物学效用或重训；Luna短监督已终态，未建新定时监控。此前官方scDFM修复仍未正式启动：88卸载GPU多步对照失败，旧失败证据保留；本诊断不覆盖该未完成事项。

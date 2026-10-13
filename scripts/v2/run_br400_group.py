@@ -17,11 +17,15 @@ from pathlib import Path
 from collect_results import collect_run
 from generate_br400_group import (
     REMAINING_SCHEMA,
-    verify_manifest,
 )
 from generate_br400_group import (
     SCHEMA as FAMILY_SCHEMA,
 )
+from generate_br400_group import (
+    verify_manifest as verify_br_manifest,
+)
+from generate_ffn_five import SCHEMA as FFN_SCHEMA
+from generate_ffn_five import verify_manifest as verify_ffn_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -46,6 +50,49 @@ from gradpert.hashing import sha256_file, sha256_json
 
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
+LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA)
+
+
+def verify_manifest(source: Path, manifest: Path) -> dict:
+    if read_json(manifest).get("schema") == FFN_SCHEMA:
+        return verify_ffn_manifest(source, manifest)
+    return verify_br_manifest(source, manifest)
+
+
+def official_dependency_ready(spec: dict) -> bool:
+    """Verify both actual official terminal evaluations before native dispatch."""
+    from benchmarks.expression_holdout.config import validate_terminal
+
+    root = Path(spec["root"])
+    queue_path = root / "queue.json"
+    if not root.resolve().is_relative_to(SERVER_ROOT):
+        raise ValueError("official dependency must stay on server")
+    if sha256_file(queue_path) != spec["queue_sha256"]:
+        raise ValueError("official dependency queue changed")
+    queue = read_json(queue_path)
+    if queue["source_commit"] != spec["source_commit"]:
+        raise ValueError("official dependency source changed")
+    if (root / "FAILURE.json").exists():
+        raise RuntimeError("official dependency failed; native arms remain unstarted")
+    if not (root / "COMPLETE.json").exists():
+        return False
+    complete = read_json(root / "COMPLETE.json")
+    if not complete.get("scientific_complete") or complete.get("status") != "complete":
+        raise ValueError("official process exit is not scientific completion")
+    rows = {row["name"]: row for row in queue["rows"]}
+    for name in ("scdfm", "gears"):
+        if name not in rows or name not in complete["completed"]:
+            raise ValueError("scDFM and GEARS both required before FFN arms")
+        row = rows[name]
+        terminal = validate_terminal(Path(row["run_root"]), row, queue["source_commit"])
+        expected = {
+            "root": row["run_root"],
+            "receipt_sha256": sha256_file(Path(row["run_root"]) / "receipt.json"),
+            "last_test_sha256": terminal["last_test_sha256"],
+        }
+        if complete["completed"][name] != expected:
+            raise ValueError("official terminal identity differs")
+    return True
 
 
 def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: dict) -> dict:
@@ -91,6 +138,8 @@ def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: d
         "policy_sha256": sha256_json(policy),
         "eval_bindings": [],
     }
+    if matrix["schema"] == FFN_SCHEMA:
+        queue["official_dependency"] = read_json(runtime)["official_dependency"]
     for row in rows:
         for gpu in ("0", "1"):
             queue["eval_bindings"].append(
@@ -113,7 +162,7 @@ def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: d
 def verify(queue: dict) -> None:
     if (
         queue.get("schema") != "unified-ddp-queue-1"
-        or queue.get("mode") not in (FAMILY_SCHEMA, REMAINING_SCHEMA)
+        or queue.get("mode") not in (FAMILY_SCHEMA, *LAST_ONLY_FAMILIES)
         or queue.get("family") != queue.get("mode")
         or queue.get("steps") != 10
     ):
@@ -135,11 +184,16 @@ def verify(queue: dict) -> None:
             raise ValueError("sealed BR400 input changed")
     matrix = verify_manifest(source, Path(queue["manifest"]))
     if (
-        matrix["schema"] == REMAINING_SCHEMA
+        matrix["schema"] in LAST_ONLY_FAMILIES
         and queue["shared_gpu_policy"]["max_own_memory_fraction"] != 0.90
     ):
         raise ValueError("remaining last-only requires the exact approved memory90 policy")
     runtime = read_json(Path(queue["runtime"]))
+    if matrix["schema"] == FFN_SCHEMA and (
+        not isinstance(runtime.get("official_dependency"), dict)
+        or queue.get("official_dependency") != runtime["official_dependency"]
+    ):
+        raise ValueError("FFN official dependency must be explicitly sealed")
     if Path(runtime["repository_root"]).resolve() != source.resolve():
         raise ValueError("runtime source binding changed")
     if (
@@ -248,7 +302,7 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
         )
     ):
         raise ValueError("exact10 restore/inference/read-only joint-validation gate missing")
-    if queue["family"] == REMAINING_SCHEMA:
+    if queue["family"] in LAST_ONLY_FAMILIES:
         if (
             row["plan"]["resolved_config"]["model"]["parameters"]["validation_mode"]["value"]
             != "disabled"
@@ -257,6 +311,18 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
             or "joint_validation_progress" in receipt
         ):
             raise ValueError("last-only gate must not perform joint validation")
+        if queue["family"] == FFN_SCHEMA:
+            for key in ("initial_loss_diagnostic", "updated_loss_diagnostic"):
+                observed = receipt.get(key, {}).get("process", {})
+                if (
+                    observed.get("split") != "train"
+                    or observed.get("selection_use") != "none"
+                    or observed.get("schema") != "training-process-diagnostics-1"
+                    or not observed.get("distributions")
+                    or not observed.get("features")
+                    or not observed.get("outputs")
+                ):
+                    raise ValueError("FFN training-process probes missing from capacity gate")
     elif (
         joint.get("status") != "passed"
         or joint.get("validation_mode") != "joint_only"
@@ -618,6 +684,15 @@ def execute(queue: dict, directory: Path) -> None:
     try:
         with contextlib.ExitStack() as stack:
             stack.enter_context(lock(directory / "controller.lock"))
+            if queue["family"] == FFN_SCHEMA:
+                state["phase"] = "waiting_official_baselines"
+                atomic_json(directory / "state.json", state)
+                while not official_dependency_ready(queue["official_dependency"]):
+                    if sha256_file(directory / "queue.json") != queue_sha:
+                        raise ValueError("sealed dependent FFN queue changed")
+                    time.sleep(60)
+                state["phase"] = "preflight"
+                atomic_json(directory / "state.json", state)
             for gpu in ("0", "1"):
                 stack.enter_context(lock(LEASE_ROOT / f"v2-gpu-{gpu}.lock"))
             if any(p["owned"] for p in guard()["processes"]):
@@ -626,7 +701,7 @@ def execute(queue: dict, directory: Path) -> None:
             for name in matrix["preflight_priority"]:
                 row = indexed[name]
                 command = probe(row, directory, shared=True)
-                if queue["family"] != REMAINING_SCHEMA:
+                if queue["family"] not in LAST_ONLY_FAMILIES:
                     command = [*command, "--joint-validation-check"]
                 run_stage(queue, row, "preflight", command, "0,1", state, guard)
                 entry = gate_entry(directory / f"{name}-preflight/receipt.json")
@@ -678,8 +753,8 @@ def execute(queue: dict, directory: Path) -> None:
                 state["phase"] = f"{row['name']}_fit"
                 run_stage(queue, row, "fit", training_command(path), "0,1", state, guard)
                 validate_training_contract(row["plan"])
-                eval_stage = "last" if queue["family"] == REMAINING_SCHEMA else "best-last"
-                phase = "last" if queue["family"] == REMAINING_SCHEMA else "best_last"
+                eval_stage = "last" if queue["family"] in LAST_ONLY_FAMILIES else "best-last"
+                phase = "last" if queue["family"] in LAST_ONLY_FAMILIES else "best_last"
                 state["phase"] = f"{row['name']}_{phase}"
                 run_stage(queue, row, eval_stage, evaluation_command(path), "0,1", state, guard)
                 state["completed"][row["name"]] = validate_complete(row["plan"])

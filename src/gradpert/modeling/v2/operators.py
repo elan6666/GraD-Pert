@@ -752,7 +752,7 @@ class ManifoldResidual(nn.Module):
         self.sinkhorn_save_no_grad_diagnostic = False
         self.sinkhorn_backend = "native"
         self.resolved_sinkhorn_backend = "unused"
-        self.norm = nn.RMSNorm(width)
+        self.norm: nn.Module = nn.RMSNorm(width)
         if streams > 1:
             self.route = nn.Linear(streams * width, 2 * streams + streams * streams, bias=False)
             self.scales = nn.Parameter(torch.full((3,), 0.01))

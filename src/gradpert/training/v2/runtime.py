@@ -103,9 +103,21 @@ class Runtime:
             batch = next(stream)
         finally:
             stream.close()
-        return evaluate_loss_diagnostics(
-            self.objective, slice_cells(batch, 0, min(4, len(batch.control))), bf16=True
-        )
+        fixed = slice_cells(batch, 0, min(4, len(batch.control)))
+        result = evaluate_loss_diagnostics(self.objective, fixed, bf16=True)
+        if self.options.process_diagnostics:
+            from .process_diagnostics import (
+                evaluate_graph_gradient_diagnostics,
+                evaluate_process_diagnostics,
+            )
+
+            result["process"] = evaluate_process_diagnostics(
+                self.objective, fixed, bf16=True, seed=0x71A1
+            )
+            result["process"]["graph_gradients"] = evaluate_graph_gradient_diagnostics(
+                self.objective, fixed, bf16=True
+            )
+        return result
 
     def validation_batches(self, *, batch_size: int) -> Iterator[tuple[TrainingBatch, str]]:
         """Replay one fixed validation view recipe without consuming training RNG."""
@@ -318,6 +330,21 @@ def prepare_runtime(
             student,
             lr=float(config.training.learning_rate.value),
             weight_decay=float(config.training.weight_decay.value),
+            prototype_freeze_steps=(
+                arch.prototype_freeze_epochs
+                * data.steps_per_epoch(
+                    batch_size=int(config.training.train_batch_size.value),
+                    max_unique_conditions=(
+                        0
+                        if options.max_conditions == 0
+                        else min(
+                            options.max_conditions, int(config.training.train_batch_size.value)
+                        )
+                    ),
+                )
+                if arch.prototype_freeze_epochs
+                else 0
+            ),
         )
         if world > 1:
             # Model initialization is shared; dropout streams are rank-specific.

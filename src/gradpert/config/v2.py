@@ -50,6 +50,10 @@ class V2Architecture:
     ffn_variant: str = "mixed"
     ffn_input_norm: str = "historical"
     ffn_clip: bool = True
+    ffn_linear_bias: str = "historical"
+    prototype_weight_norm: bool = False
+    prototype_freeze_epochs: int = 0
+    prediction_parameterization: str = "residual"
     genept_hidden_width: int = 0
     genept_middle_width: int = 0
     control_conditioned_graph: bool = False
@@ -108,10 +112,27 @@ class V2Architecture:
             raise ValueError("unknown MLP profile")
         if (
             type(self.ffn_clip) is not bool
-            or self.ffn_variant not in ("mixed", "swiglu")
-            or self.ffn_input_norm not in ("historical", "rmsnorm")
+            or self.ffn_variant not in ("mixed", "swiglu", "gelu")
+            or self.ffn_input_norm not in ("historical", "rmsnorm", "layernorm")
         ):
             raise ValueError("invalid restored FFN controls")
+        if (
+            self.ffn_linear_bias not in ("historical", "none")
+            or type(self.prototype_weight_norm) is not bool
+            or type(self.prototype_freeze_epochs) is not int
+            or self.prototype_freeze_epochs < 0
+            or self.prediction_parameterization not in ("residual", "softplus")
+        ):
+            raise ValueError("invalid five-arm FFN controls")
+        if self.prototype_freeze_epochs and not self.prototype_weight_norm:
+            raise ValueError("prototype freeze requires the explicit weight-normalized arm")
+        if (
+            self.ffn_linear_bias != "historical"
+            or self.prototype_weight_norm
+            or self.prototype_freeze_epochs
+            or self.prediction_parameterization != "residual"
+        ) and self.mlp_profile != "restored":
+            raise ValueError("five-arm FFN controls require restored profile")
         if self.mlp_profile == "restored":
             if (
                 self.attention != "relay_full"
@@ -302,6 +323,10 @@ class V2Architecture:
             ("ffn_variant", "mixed"),
             ("ffn_input_norm", "historical"),
             ("ffn_clip", True),
+            ("ffn_linear_bias", "historical"),
+            ("prototype_weight_norm", False),
+            ("prototype_freeze_epochs", 0),
+            ("prediction_parameterization", "residual"),
             ("genept_hidden_width", 0),
             ("genept_middle_width", 0),
             ("control_conditioned_graph", False),
@@ -380,6 +405,7 @@ class V2Options:
     lambda_masked_response: float = 0.0
     population_response: bool = False
     lambda_mmd: float = 1.0
+    process_diagnostics: bool = False
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -430,6 +456,10 @@ class V2Options:
             "ffn_variant",
             "ffn_input_norm",
             "ffn_clip",
+            "ffn_linear_bias",
+            "prototype_weight_norm",
+            "prototype_freeze_epochs",
+            "prediction_parameterization",
             "genept_hidden_width",
             "genept_middle_width",
             "control_conditioned_graph",
@@ -443,6 +473,7 @@ class V2Options:
             "lambda_masked_response",
             "population_response",
             "lambda_mmd",
+            "process_diagnostics",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -462,6 +493,8 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
+        if type(self.process_diagnostics) is not bool:
+            raise ValueError("process diagnostics must be boolean")
         if self.ssl1_local_layout not in ("go_string", "go_string_random", "go_go_string_string"):
             raise ValueError("unknown SSL1 Local layout")
         for value in (self.ssl1_local_views, self.ssl2_local_views):

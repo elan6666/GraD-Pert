@@ -231,7 +231,10 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             batches=runtime.batches,
             validate=validate if runtime.options.validation_mode != "disabled" else None,
             diagnose=runtime.loss_diagnostics
-            if runtime.options.prediction_reduction_override != "inherit"
+            if (
+                runtime.options.prediction_reduction_override != "inherit"
+                or runtime.options.process_diagnostics
+            )
             else None,
             schedule=(
                 ConstantStageLR(config.continuation.learning_rate)

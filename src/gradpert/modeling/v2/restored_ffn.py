@@ -8,7 +8,7 @@ from torch.nn import functional as F
 
 from gradpert.config.v2 import V2Architecture
 
-from .model import GraDPertV2, RelayGraphLayer, SparseRead
+from .model import GraDPertV2, RelayGraphLayer, RelayResponseEncoder, SparseRead
 from .operators import GatedFeedForward, ManifoldResidual
 
 
@@ -25,8 +25,35 @@ class UnclippedGate(nn.Module):
         return cast(Tensor, self.down(F.silu(self.gate(x)) * self.up(x)))
 
 
+class Float32LayerNorm(nn.LayerNorm):
+    """FP32 mean/variance and affine arithmetic, returning the input dtype."""
+
+    def forward(self, x: Tensor) -> Tensor:
+        return F.layer_norm(
+            x.float(),
+            self.normalized_shape,
+            None if self.weight is None else self.weight.float(),
+            None if self.bias is None else self.bias.float(),
+            self.eps,
+        ).to(x.dtype)
+
+
+class MatchedGELUFeedForward(nn.Module):
+    """Two matrices with 6d hidden width match the original three 4d matrices."""
+
+    def __init__(self, width: int, dropout: float) -> None:
+        super().__init__()
+        self.up = nn.Linear(width, 6 * width, bias=False)
+        self.down = nn.Linear(6 * width, width, bias=False)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return cast(Tensor, self.dropout(self.down(self.dropout(F.gelu(self.up(x))))))
+
+
 def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architecture) -> None:
     d = options.width
+    response = cast(RelayResponseEncoder, model.response)
     devices = (
         [model.graph.embedding.weight.device.index] if model.graph.embedding.weight.is_cuda else []
     )
@@ -48,29 +75,73 @@ def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architectur
                 UnclippedGate(raw_width, h, m), nn.SiLU(), nn.Linear(m, d)
             )
             model.expression = nn.Sequential(UnclippedGate(1, d, d), nn.LayerNorm(d))
-            model.response.injections = nn.ModuleList(
-                UnclippedGate(2 * d, d, d) for _ in model.response.injections
+            response.injections = nn.ModuleList(
+                UnclippedGate(2 * d, d, d) for _ in response.injections
             )
             model.prediction = UnclippedGate(2 * d, d, 1)
             for head in (model.ssl1_cls, model.ssl1_node, model.ssl2_cls, model.ssl2_node):
                 head.features = UnclippedGate(
                     d, options.projector_hidden, options.projector_bottleneck
                 )
-        if options.ffn_input_norm == "rmsnorm":
+        if options.ffn_variant == "gelu":
             for module in list(model.modules()):
                 if isinstance(module, (SparseRead, RelayGraphLayer)):
-                    module.norm2 = nn.RMSNorm(d, eps=1e-6)
+                    module.ffn = MatchedGELUFeedForward(d, options.dropout)
                 elif isinstance(module, ManifoldResidual) and isinstance(
                     module.sublayer, GatedFeedForward
                 ):
-                    module.norm = nn.RMSNorm(d, eps=1e-6)
+                    module.sublayer = MatchedGELUFeedForward(d, options.dropout)
+        if options.ffn_input_norm in ("rmsnorm", "layernorm"):
+
+            def pre_norm(width: int) -> nn.Module:
+                return (
+                    nn.RMSNorm(width, eps=1e-6)
+                    if options.ffn_input_norm == "rmsnorm"
+                    else Float32LayerNorm(width, eps=1e-6)
+                )
+
+            for module in list(model.modules()):
+                if isinstance(module, (SparseRead, RelayGraphLayer)):
+                    module.norm2 = pre_norm(d)
+                elif isinstance(module, ManifoldResidual) and isinstance(
+                    module.sublayer, (GatedFeedForward, MatchedGELUFeedForward)
+                ):
+                    module.norm = pre_norm(d)
             # Lift expression to a vector before normalization; never RMSNorm a scalar.
-            model.expression.insert(1, nn.RMSNorm(d, eps=1e-6))
-            model.graph.adapter.insert(0, nn.RMSNorm(raw_width, eps=1e-6))
-            model.response.injections = nn.ModuleList(
-                nn.Sequential(nn.RMSNorm(2 * d, eps=1e-6), block)
-                for block in model.response.injections
+            model.expression.insert(1, pre_norm(d))
+            cast(nn.Sequential, model.graph.adapter).insert(0, pre_norm(raw_width))
+            response.injections = nn.ModuleList(
+                nn.Sequential(pre_norm(2 * d), block) for block in response.injections
             )
-            model.prediction = nn.Sequential(nn.RMSNorm(2 * d, eps=1e-6), model.prediction)
+            model.prediction = nn.Sequential(pre_norm(2 * d), model.prediction)
             for head in (model.ssl1_cls, model.ssl1_node, model.ssl2_cls, model.ssl2_node):
-                head.features = nn.Sequential(nn.RMSNorm(d, eps=1e-6), head.features)
+                head.features = nn.Sequential(pre_norm(d), head.features)
+        if options.ffn_linear_bias == "none":
+            # These role roots exclude Q/K/V, KDA state gates, mHC routing and norm beta.
+            roles: list[nn.Module] = [model.graph.adapter, model.expression, model.prediction]
+            roles.extend(response.injections)
+            roles.extend(cast(nn.Module, layer.ffn) for layer in model.graph.layers)
+            roles.extend(
+                module.sublayer
+                for module in model.modules()
+                if isinstance(module, ManifoldResidual)
+                and isinstance(module.sublayer, (GatedFeedForward, MatchedGELUFeedForward))
+            )
+            roles.extend(
+                head.features
+                for head in (model.ssl1_cls, model.ssl1_node, model.ssl2_cls, model.ssl2_node)
+            )
+            for root in roles:
+                for module in root.modules():
+                    if isinstance(module, nn.Linear):
+                        module.register_parameter("bias", None)
+        if options.prototype_weight_norm:
+            from torch.nn.utils.parametrizations import weight_norm
+
+            for head in (model.ssl1_cls, model.ssl1_node, model.ssl2_cls, model.ssl2_node):
+                weight_norm(head.prototypes, name="weight", dim=0)
+                # v retains the original Linear initialization; g begins at one.
+                with torch.no_grad():
+                    dict(head.prototypes.named_parameters())[
+                        "parametrizations.weight.original0"
+                    ].fill_(1)
