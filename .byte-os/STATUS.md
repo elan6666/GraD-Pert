@@ -1,3 +1,7 @@
+## 2026-10-13：用户授权空闲GPU1并行GEARS，调度迁移准备
+
+GPU1实测无CUDA进程（2MiB/0%），GPU0 scDFM full仍运行。旧顺序派发器占双卡锁且保护会拒绝独立GEARS，不能直接另起。主已ACK监督handoff，旧monitor PAUSED。新调度器只接管CPU派发，不重启scDFM：精确PID/tick/cmd树参与原资源门；GEARS保留原source/config/runtime/run，物理GPU改为1。科学src/benchmarks逐文件哈希不变是硬门，训练SHA仍9607981，调度新SHA另记。75项检查及lint/format通过，实际部署/迁移/GEARS启动尚未完成。计划plans/OFFICIAL_PARALLEL_GEARS_20261013.plan.md。
+
 ## 2026-10-13：GPU数值门通过，官方恢复与后续五组依赖已启动
 
 训练发布SHA `9607981fd7d44b3982574167132d06f739bc1b7e`，服务器独立干净checkout已核对。最终scDFM/GEARS各自冻结环境CPU十更新、恢复预测精确和zero-PKL均通过。scDFM保留布局的激活卸载GPU三更新对照通过：两组各1065张量最大绝对差0，原rtol1e-6/atol1e-7未变。真实官方batch48十步fit已完成，300-control预检收据尚待核对；这不是正式训练或科学结果。
