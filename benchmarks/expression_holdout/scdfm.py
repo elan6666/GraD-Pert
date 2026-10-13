@@ -244,6 +244,8 @@ def resolve_training_budget(prepared: Any, requested: dict) -> tuple[dict, dict]
     if "epochs" in requested and "steps" in requested:
         raise ValueError("scDFM epochs and steps budgets are mutually exclusive")
     training = {**OFFICIAL_RECIPE, **requested}
+    if training.get("activation_offload", "none") not in ("none", "cpu"):
+        raise ValueError("scDFM activation_offload must be none or cpu")
     batch = training["batch_size"]
     if type(batch) is not int or batch <= 0:
         raise ValueError("scDFM batch_size must be a positive integer")
@@ -329,6 +331,15 @@ def _require_accelerator_device(accelerator: Any, requested: Any):
             f"{actual} != {requested}"
         )
     return requested
+
+
+def _training_activation_context(training: dict, device: Any):
+    """Offload saved backward tensors without changing upstream arithmetic."""
+    import torch
+
+    if training.get("activation_offload", "none") == "cpu" and torch.device(device).type == "cuda":
+        return torch.autograd.graph.save_on_cpu(pin_memory=True)
+    return contextlib.nullcontext()
 
 
 def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: int | None = None):
@@ -430,16 +441,17 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
                 perturbation_tokens(vocab, _targets(condition)), dtype=torch.long, device=device
             ).repeat(len(source), 1)
             official.utils.set_requires_grad_for_p_only(vf, p_only=training["mode"])
-            loss = official.run.train_step(
-                torch.tensor(source, device=device),
-                torch.tensor(target, device=device),
-                perturbation,
-                vf,
-                criterion,
-                accelerator,
-                noise_type=training["noise_type"],
-                mode=training["mode"],
-            )
+            with _training_activation_context(training, device):
+                loss = official.run.train_step(
+                    torch.tensor(source, device=device),
+                    torch.tensor(target, device=device),
+                    perturbation,
+                    vf,
+                    criterion,
+                    accelerator,
+                    noise_type=training["noise_type"],
+                    mode=training["mode"],
+                )
             if not torch.isfinite(loss):
                 raise FloatingPointError(f"scDFM nonfinite loss at update {step + 1}")
             optimizer.zero_grad(set_to_none=True)
@@ -482,6 +494,7 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
         "inference_routine": "src.script.run.generate_sample",
         "official_recipe": OFFICIAL_RECIPE,
         "resolved_training": training,
+        "training_activation_storage": training.get("activation_offload", "none"),
         "actual_model": {"d_model": 512, "nhead": 8, "nlayers": 4, "ntoken": len(vocab)},
         **budget_progress(budget, count),
         "last_loss": losses[-1],

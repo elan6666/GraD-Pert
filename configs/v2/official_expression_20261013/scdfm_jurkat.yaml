@@ -34,6 +34,7 @@ training:
   topk: 30
   use_negative_edge: true
   epochs: 4
+  activation_offload: cpu
 evaluation:
   expected_conditions: 592
   expected_hashes:
@@ -62,3 +63,5 @@ adaptations:
 - official model-specific training recipe; no native architecture imports
 - 'project_preregistered: four epochs; official optimizer/model settings retained;
   last-only common test'
+- 'project_preregistered: saved backward tensors offloaded to CPU; official batch48,
+  FP32 arithmetic, MMD and update order unchanged'

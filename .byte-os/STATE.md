@@ -1,3 +1,9 @@
+## 2026-10-13：scDFM batch48 显存修复（保存激活卸载）
+
+设备别名修复f83a44e542c0245b296ed4f29e9f74df91a54841两组真实CPU10-update/恢复通过，但新queue official-remaining-f83a44e-20261013T042152Z的scDFM GPU preflight在官方differential attention前向OOM：27.30GiB allocated，28.22GiB allowed，下一临时张量需1.43GiB。无正式fit，无GEARS启动；旧失败root/源码/config保持。本段覆盖“等待GPU预检”的状态。
+
+保留官方batch48、FP32、完整batch MMD、Adam/cosine/3988updates与所有数据/评估规则。仅适配器在官方train_step前向外包PyTorch save_on_cpu(pin_memory=True)，将反向保存张量转存CPU，反向取回；不改官方模型/attention函数、不切半精度、不分批近似MMD。新增显式training.activation_offload=cpu及适配记录；默认none与CPU路径无改动。89本地检查通过；Ruff/format通过。需要同源真实GPU输出/梯度/多步optimizer及checkpoint预测对照、CPU10/恢复、再真实batch48十步/300-control预检。CPU卸载可能增加传输时间，不宣称提速或科学完成。主保持owner，旧跨会话监控PAUSED；短诊断交Luna，不重复查询。
+
 ## 2026-10-13：scDFM 设备别名误判修复，接续剩余两组
 
 本段覆盖此前“四臂等待/运行”状态：BR400/F1/N1/GM1及两组Scouter均已完成各自last评估。官方四臂queue official-four-all-queue-43ccca4-20261013在scDFM GPU preflight失败，controller exit1，GEARS未启动；原queue、失败收据与已完成Scouter产物保留，不重跑。主会话已接回，两个旧monitor保持PAUSED；authority见 /Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/state.json。
