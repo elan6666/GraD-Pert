@@ -304,6 +304,33 @@ def budget_progress(budget: dict, completed_updates: int) -> dict:
     }
 
 
+def _require_accelerator_device(accelerator: Any, requested: Any):
+    """Compare physical CUDA indices, retaining the isolated single-device guard."""
+    import torch
+
+    if accelerator.num_processes != 1:
+        raise ValueError("scDFM external runner is single-device; do not launch with torchrun")
+    requested = torch.device(requested)
+    actual = torch.device(accelerator.device)
+    if requested.type != actual.type:
+        raise ValueError(
+            "scDFM Accelerator device differs from requested isolated device: "
+            f"{actual} != {requested}"
+        )
+    if actual.type == "cuda":
+        # Accelerate can report 'cuda' for a single-process job. Its device is
+        # the current visible CUDA index, not necessarily index zero.
+        current = torch.cuda.current_device() if None in (actual.index, requested.index) else None
+        actual = torch.device("cuda", current if actual.index is None else actual.index)
+        requested = torch.device("cuda", current if requested.index is None else requested.index)
+    if actual != requested:
+        raise ValueError(
+            "scDFM Accelerator device differs from requested isolated device: "
+            f"{actual} != {requested}"
+        )
+    return requested
+
+
 def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: int | None = None):
     """Use upstream train_step and exact Adam -> cosine update ordering."""
     import torch
@@ -373,10 +400,7 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
             optimizer, T_max=steps, eta_min=float(training["eta_min"])
         )
         accelerator = Accelerator(cpu=device.type == "cpu")
-        if accelerator.num_processes != 1:
-            raise ValueError("scDFM external runner is single-device; do not launch with torchrun")
-        if accelerator.device != device:
-            raise ValueError("scDFM Accelerator device differs from requested isolated device")
+        device = _require_accelerator_device(accelerator, device)
         vf, optimizer, scheduler = accelerator.prepare(vf, optimizer, scheduler)
         official.run.config = SimpleNamespace(**{**training, "infer_top_gene": query_count})
         official.run.device = device

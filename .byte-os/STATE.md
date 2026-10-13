@@ -1,3 +1,11 @@
+## 2026-10-13：scDFM 设备别名误判修复，接续剩余两组
+
+本段覆盖此前“四臂等待/运行”状态：BR400/F1/N1/GM1及两组Scouter均已完成各自last评估。官方四臂queue official-four-all-queue-43ccca4-20261013在scDFM GPU preflight失败，controller exit1，GEARS未启动；原queue、失败收据与已完成Scouter产物保留，不重跑。主会话已接回，两个旧monitor保持PAUSED；authority见 /Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/state.json。
+
+根因已实复现：服务器Accelerate1.9.0返回torch.device('cuda')，与配置cuda:0直接比较为False，即使current CUDA index是0。适配器现在只把未编号CUDA设备解析为current_device，再严格比较设备类型/编号；CPU、错误GPU、多进程拒绝规则保持。仅benchmarks/expression_holdout/scdfm.py改动，native模型、上游checkout、数据/loss/预算/推理规则不变。预修改基线5159085e4ef3b84098864eaca6f65de318f89e6e已确认clean且GitHub main一致。本地80个适配/配置检查及6个dispatch检查通过，新增10个设备guard检查含在前80中；Ruff/format通过。新source发布、同源真实官方CPU10-update/恢复及scDFM GPU预检尚待执行。
+
+下一步：独立发布源码及新ID，只推进scDFM→GEARS，各4epoch，scDFM3988optimizerupdates；GPU十步/恢复/300-control预检后自动正式训练和18指标last评估。完成启动门后交监督查询对话20min监督，旧失败queue绝不续写。实现计划 plans/SCDFM_DEVICE_ALIAS_REPAIR_20261013.plan.md。
+
 ## 2026-10-13：用户选定官方 ScELMo；四组依赖队列已启动等待
 
 用户明确选此前官方Scouter的scELMo，只忽略训练CCDC130+ctrl（40行），不选原始rawGenePT。实际新queue official-four-all-queue-43ccca4-20261013，SHA7a741792d5626d5df51c9eca6a2bd296f434118fe1e5553528c9bcf3b93d67f8，source43ccca4fd14dfbdf451d5673da3f5d1b96df833f，controller2719988/start725165201/cmdSHAa52fe0b4c2d93ccd8bab542ac1b7134fdd2a93279151c4a95b741a09c0399e27。已实核waiting_dependency。顺序自有GenePT Scouter→官方ScELMo Scouter→scDFM→GEARS，各4epochlast-only；scDFM3988updates。沿用已验证4CPU10/恢复/zeroPKL和完整canonical/prior审计，代码/config不变，不重测同一CPU工作。

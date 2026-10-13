@@ -1,0 +1,9 @@
+# scDFM device alias repair and remaining official queue
+
+Overall outcome remains official adapted Scouter (two priors), scDFM and GEARS four-epoch last-only evaluation under frozen cap40/expression-holdout/300-control/18-metric protocols. Native BR400 family and both Scouter arms are terminal successes; do not repeat them.
+
+Baseline: clean published5159085e4ef3b84098864eaca6f65de318f89e6e. Old failed queue7a741792d5626d5df51c9eca6a2bd296f434118fe1e5553528c9bcf3b93d67f8 and failure393cb9be3b22a0d323989a828a9bb54988ecaf6fa6798fab20f0b3b3d31a9cfe stay immutable. Root cause independently reproduced on real Accelerate1.9.0: cuda != cuda:0 despite same current device.
+
+Bounded repair: canonicalize CUDA aliases in adapter only; reject wrong index/type and distributed launch; verify CPU must not initialize CUDA, targeted full adapter and dispatch suites. Preserve official model/optimizer/scheduler/update order and native model source. Publish on main, clean new server source, same-source CPU10/restore receipts for scDFM/GEARS. Generate fresh remaining queue with priority scdfm,gears using existing controller and existing complete native parent dependency; no old run overwrite, no Scouter replay, no resource relaxation. Preflight10-update/restore/300-control before formal4. scDFM3988updates, GEARS4epochs.
+
+Waiting: use authorized Luna read-only helper for short CPU/GPU probes without duplicate main polling. Hand long formal queue to exact supervisor01a0df0b-4142-7df1-86c0-d959471d80a1 after verified source/config/run identity and startup, verify20min heartbeat and main return fallback. Final acceptance per arm: last checkpoint/hash, threePearsons x all/DEG x overall/seen/unseen, finitecounts, common ordered control/truth hashes, upstream/source/environment identity and whole-rootzeroPKL. Do not claim preflight is scientific completion.
