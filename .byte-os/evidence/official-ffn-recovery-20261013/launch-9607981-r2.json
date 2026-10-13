@@ -1,0 +1,42 @@
+{
+  "schema": "official-ffn-recovery-launch-1",
+  "observed_at_utc": "2026-10-13T10:44:26.534883+00:00",
+  "source_commit": "9607981fd7d44b3982574167132d06f739bc1b7e",
+  "source": "/data/yilangliu/GraD-Pert/development/source-official-ffn-9607981-standalone",
+  "official_queue": "/data/yilangliu/GraD-Pert/development/official-recovery-9607981-20261013-r2",
+  "official_queue_sha256": "2510997b7b19a8a4f72f2cb1cb66dbc5182b53de4918064043c8d4400c6d5197",
+  "official_controller_pid": 2818852,
+  "attempt": 2,
+  "official_phase": "scdfm_preflight",
+  "numeric_receipt_sha256": "4ef8d357e4f5d8e85f198b77ec23379892cd2aa395b4ce1446e1471951629c7c",
+  "numeric_comparison": {
+    "updates": 3,
+    "tensors_per_pair": 1065,
+    "max_abs": 0.0,
+    "rtol": 1e-06,
+    "atol": 1e-07
+  },
+  "preflight_fit_updates": 10,
+  "preflight_300_control_receipt": "pending",
+  "native_queue": "/data/yilangliu/GraD-Pert/development/native-ffn-five-9607981-20261013-r2",
+  "native_queue_sha256": "3c2a49585d41d6fbb30977f336d8268b74228d8fa82c5aae2c598d13d05999de",
+  "native_controller_pid": 2820803,
+  "native_phase": "waiting_official_baselines",
+  "native_execution_python": "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+  "native_order": [
+    "DP",
+    "FN",
+    "FG",
+    "FB",
+    "PO"
+  ],
+  "scientific_complete": false,
+  "BR_rerun": false,
+  "Scouter_rerun": false,
+  "failed_attempts_preserved": [
+    "official-recovery-9607981-20261013: missing run parent directory before numeric comparison",
+    "native initial preparation: wrong CLI policy flag",
+    "native r2 preparation initial: nonexistent Python path"
+  ],
+  "monitor_status": "handoff_pending"
+}

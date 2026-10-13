@@ -1,3 +1,9 @@
+## 2026-10-13：GPU数值门通过，官方恢复与后续五组依赖已启动
+
+训练发布SHA `9607981fd7d44b3982574167132d06f739bc1b7e`，服务器独立干净checkout已核对。最终scDFM/GEARS各自冻结环境CPU十更新、恢复预测精确和zero-PKL均通过。scDFM保留布局的激活卸载GPU三更新对照通过：两组各1065张量最大绝对差0，原rtol1e-6/atol1e-7未变。真实官方batch48十步fit已完成，300-control预检收据尚待核对；这不是正式训练或科学结果。
+
+官方新attempt2 `official-recovery-9607981-20261013-r2` controller2818852已运行；先scDFM预检/3988更新及last评估，再GEARS四轮及last评估。依赖native队列 `native-ffn-five-9607981-20261013-r2` controller2820803仅CPU等待两组实际18指标终态，不占GPU锁。然后DP→FN→FG→FB→PO十步及评估容量门，PREFLIGHT_COMPLETE后须主会话验收并生成MAIN_ACCEPTANCE才训练，不能由监督绕过。BR/Scouter不重跑。旧missing-parent失败和CLI/Python启动失败原样保留。机器资源门仅新增用户刚授权的UID1003 TotalVI s2脚本，上限不变。精确队列SHA/数值证据/阶段见evidence/official-ffn-recovery-20261013/launch-9607981-r2.json；长监督ACK/定时激活待单独收据，当前仍主owner。
+
 ## 2026-10-13：新TotalVI共用授权；官方环境按臂选择
 
 用户明确允许UID1003 run_totalvi_s2_formal.py按相同限制共用（单卡外部≤1GiB/最多1个、物理≥2GiB、我们≤90%）。新增精确authorization_reference，旧策略不能借此扩大脚本范围；66资源门检查通过。387abab scDFM真实CPU10更新/恢复精确/zeroPKL成功；GEARS首次手动启动误用scDFM Python，被anndata版本门拦住，失败保留。后续按runtime[python]选择各自冻结环境，最终发布版本重新执行两组CPU门。没有正式训练/科学完成；五组native须等待两官方真实last终态，BR不重跑。
