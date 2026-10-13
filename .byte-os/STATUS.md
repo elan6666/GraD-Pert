@@ -1,3 +1,7 @@
+## 2026-10-14：启动核对通过，准备交唯一长监督
+
+Luna短startup已结束：GEARS新源7798605构图1781/1781用5:49，仍preflight，尚无GPU十步通过收据；scDFM原worker继续3000/3988。新native r1启动因缺少显式CUDA_VISIBLE_DEVICES空值被CPU门拒绝，旧queue/log保留；fresh r2 PID2897522/start731623535已核实running/waiting_official_baselines、空CUDA、queue SHA583496f99cba00325055d34ed16d61c08a8bde8393ba199d2377740e18728e72。之前dd02…/PID2895684不再有效。两startup收据见handoff；当前main持权，唯一监督handoff SHA672da021bc8c50789af3fd4bcb9e38c482694342c160bd8eee77129a15c177af已准备，两个monitor现PAUSED；需relay、精确监督ACK和ACTIVE20min验证后结束main轮询。新native待两官方真终态后只启动预检，MAIN_ACCEPTANCE仍由主验收。
+
 ## 2026-10-14：GEARS准备修复验证并启动独立接续
 
 7798605源：服务器196检查、官方CPU10updates/restore/zeroPKL、真实8cell graph/pair/RNG精确parity通过。CSR重映射2.583s，原转换>5min；局部graph10.674→0.037s，不能称端到端285x。原parallel已foreign资源门终态，scDFM原worker保留；GPU1重新空闲后生成新terminal-adoption mixed source schedule，controller2894437，GEARS fresh ID/source7798605，仍10步→四轮last18metrics。新native CPU依赖waiter2895684、五组顺序/主验收屏障不变，旧waiter精确退休。Luna唯一短startup核验进行中；长监督尚未ACK/重新ACTIVE，主owner/build。报告docs/experiments/GEARS_PREPARATION_PERFORMANCE_20261014.md及小receipts；旧失败和探针中断均保留。
