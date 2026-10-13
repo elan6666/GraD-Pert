@@ -7,3 +7,5 @@
 两个模型真实终态独立核验后，在旧队列写明确completion-controller/schedule身份的验证转发收据；旧queue.json绝不变，已有native依赖无须重启/改hash。迁移代码仅新脚本+测试+文档；src/benchmarks Python逐文件哈希必须与旧源码完全相同。新调度commit与旧科学训练/评估commit分别记录。
 
 验收：75项迁移/资源门检查通过；迁移仅发送CPUcontroller信号，任何失败不触碰scDFM worker；PID重用、非空GPU1、科学代码变化、GEARS已启动、旧terminal覆盖均拒绝。发布后服务器隐藏CUDA重测；安全迁移收据、worker PID/tick保持、实际日志/步数继续，GEARS GPU1真实启动，之后唯一监督20min接管。GEARS或调度失败保留收据且不自动停止adopted scDFM，交主修复；不启动BR/Scouter。
+
+发布调度源码4bf0db46f6398b4241df76b447ae2303c0d7415d；服务器同源隐藏CUDA 75检查通过。publication SHA fc7779084a0dc9053d8ca2b3d10ab97cf3718a316dd2d64845ced00abb2451cb。实际迁移CLI exit0，精确旧CPUcontroller现场SigCgt/SigIgn证明SIGTERM default，不安装会终止子进程的handler。新调度root /data/yilangliu/GraD-Pert/development/official-parallel-gears-4bf0db4-20261013；原scDFM worker2823360保持，GEARS GPU1实际启动和日志进度交Luna单一短监督核验。主不同时查询；核验后再交指定长监督，旧monitor保持PAUSED。

@@ -1,3 +1,7 @@
+## 2026-10-13：GEARS已在GPU1实际启动预检，scDFM原训练连续保留
+
+调度发布4bf0db46f6398b4241df76b447ae2303c0d7415d，本地/服务器75检查通过。仅旧CPUcontroller2818852安全退休；原scDFM worker2823360/start729241036不变，实际日志1600/3988。新并行controller2853681，schedule SHA e43f560e3c735b002c8bbe1289a986227b5679eb6e2105313315bba807669b77，GEARS preflight2853707实际CUDA_VISIBLE_DEVICES=1，当前CPU数据准备，尚无GPU/训练更新证据。Luna短监督结束，主独立核对，无FAILURE。两runner科学源/配置/数据/评估仍9607981，GEARS原尚未启动run保持；native依赖不变，须两真终态strictforward后才推进五组门。长监督新handoff待ACK/ACTIVE，不重跑BR/Scouter；旧controller消失不能当成scDFM停训。小收据evidence/official-ffn-recovery-20261013/parallel-4bf0db4-main-startup.json。
+
 ## 2026-10-13：用户授权空闲GPU1并行GEARS，调度迁移准备
 
 GPU1实测无CUDA进程（2MiB/0%），GPU0 scDFM full仍运行。旧顺序派发器占双卡锁且保护会拒绝独立GEARS，不能直接另起。主已ACK监督handoff，旧monitor PAUSED。新调度器只接管CPU派发，不重启scDFM：精确PID/tick/cmd树参与原资源门；GEARS保留原source/config/runtime/run，物理GPU改为1。科学src/benchmarks逐文件哈希不变是硬门，训练SHA仍9607981，调度新SHA另记。75项检查及lint/format通过，实际部署/迁移/GEARS启动尚未完成。计划plans/OFFICIAL_PARALLEL_GEARS_20261013.plan.md。
