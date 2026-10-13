@@ -1,0 +1,65 @@
+{
+  "adapter_speedup": 285.5799733694069,
+  "cache_spec": {
+    "config_sha256": "b7c2b23170bb5a16bb61e4199590977e8e7c8c81ad1c2e56a8d39ce4760b0c1c",
+    "data_receipt_sha256": "89ae735cb13081774cf8355c855a7c2c3091b9a68d7a7bd1167ed3682e2d9bf2",
+    "parent_run_root": "/data/yilangliu/GraD-Pert/runs-official-recovery-9607981/gears-jurkat-seed1-20261013T103748Z-749e8f77d85547d0bfbbda8ecf1fe8aa-preflight",
+    "parent_run_sha256": "0bf498834c6755235e3f8fa2018f97e021f11e6e26f16ee32a4e4ecba64d542c",
+    "path": "/data/yilangliu/GraD-Pert/runs-official-recovery-9607981/gears-jurkat-seed1-20261013T103748Z-749e8f77d85547d0bfbbda8ecf1fe8aa-preflight/fit/official_data/expression_holdout/perturb_processed.h5ad",
+    "ranking_method_sha256": "420617907190550374454a8586fe89e6ea6a62e4761b1e7de77f28e28beba83f",
+    "sha256": "4f67d273913f0dc9336abcdc65ad75ea8fa56fb12b6a8296ac5d6c11dbd094ea",
+    "source_commit": "9607981fd7d44b3982574167132d06f739bc1b7e"
+  },
+  "input_load_validate_seconds": 30.465490967966616,
+  "modes": {
+    "cached": {
+      "cache_statistics": {
+        "official_row_calls": 8,
+        "pool_hits": 1,
+        "pool_materializations": 7
+      },
+      "graph_count": 16,
+      "graph_sha256": "e1cff3421125ad101bef2b76aff4a3ae6260b427e437bdb8e7d64916222d8eb9",
+      "numpy_rng_sha256": "aa0da2122fc9cccdfedd853b9c07a6310d6a0f5467474eb036d216bccfeb3b63",
+      "pair_sha256": "9bdec70224217e54d8574be5a7b62971cde2a33e860ed1908440b903a3624bfe",
+      "seconds": 0.037377272732555866,
+      "torch_rng_sha256": "3f64191e6164e903f97b779de39149f9ea730d1e4fc08e275dae90edd6e0653b"
+    },
+    "original": {
+      "cache_statistics": null,
+      "graph_count": 16,
+      "graph_sha256": "e1cff3421125ad101bef2b76aff4a3ae6260b427e437bdb8e7d64916222d8eb9",
+      "numpy_rng_sha256": "aa0da2122fc9cccdfedd853b9c07a6310d6a0f5467474eb036d216bccfeb3b63",
+      "pair_sha256": "9bdec70224217e54d8574be5a7b62971cde2a33e860ed1908440b903a3624bfe",
+      "seconds": 10.674200551584363,
+      "torch_rng_sha256": "3f64191e6164e903f97b779de39149f9ea730d1e4fc08e275dae90edd6e0653b"
+    }
+  },
+  "official_commit": "f374e43e197b295016d80395d7a54ddb81cc6769",
+  "old_adapter_sha256": "cb6bfa7a07ad8ea22e5fb263c60eff724f969b73f6415b459bdb8451c7e1657b",
+  "old_source_commit": "9607981fd7d44b3982574167132d06f739bc1b7e",
+  "optimizer_steps": 0,
+  "ranking_cache_validated": {
+    "cache_reused": true,
+    "cache_sha256": "4f67d273913f0dc9336abcdc65ad75ea8fa56fb12b6a8296ac5d6c11dbd094ea",
+    "cache_source_commit": "9607981fd7d44b3982574167132d06f739bc1b7e",
+    "ranking_axis": "allowed_only",
+    "ranking_method_sha256": "420617907190550374454a8586fe89e6ea6a62e4761b1e7de77f28e28beba83f",
+    "singleton_rank_fallbacks": [
+      "jurkat_BIRC5+ctrl_1+1",
+      "jurkat_ECT2+ctrl_1+1",
+      "jurkat_RACGAP1+ctrl_1+1",
+      "jurkat_RPL7A+ctrl_1+1",
+      "jurkat_RRM1+ctrl_1+1",
+      "jurkat_SEC13+ctrl_1+1"
+    ]
+  },
+  "sample_cells": 8,
+  "sample_rows_sha256": "bbc45a6766bddc2bcd45d39ae76d0e1cf777f110b5fe52b9736956ecc1a9ad2b",
+  "schema": "gears-preparation-parity-1",
+  "scientific_complete": false,
+  "source_clean": true,
+  "source_commit": "7798605001bda2a03933b71e84cdfde7faf811c5",
+  "status": "passed",
+  "zero_pkl": true
+}

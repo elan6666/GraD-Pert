@@ -1,0 +1,243 @@
+{
+  "checkpoint_sha256": "5442e1b2ce4d86d6b12a3a26248e683d0d175bf8a928b66bc190004a015feeee",
+  "config_sha256": "b7c2b23170bb5a16bb61e4199590977e8e7c8c81ad1c2e56a8d39ce4760b0c1c",
+  "diagnostic_deviations": [
+    "synthetic32genes/32rows; batch4; CPU;10updates;query16"
+  ],
+  "diagnostic_optimizer_update_limit": 10,
+  "environment_lock_sha256": "c58d03a00531a4df805d8dabb5a8c750e055c1fc9ac6d1ea3f105d6829980e7d",
+  "environment_receipt_sha256": "d9a8084848674b7a87728756b15ff74486e65b7b5cd9822c044892d22bd6e4cb",
+  "fit": {
+    "adaptations": [
+      "input expression exclusion",
+      "allowed official loss including ctrl",
+      "allowed coexpression/DE/validation statistics",
+      "context control pools"
+    ],
+    "checkpoint_role": "last",
+    "context_pairing": "official uniform replacement within compatible pools",
+    "control_metadata_encoding": "official 0=perturbed,1=control int labels",
+    "diagnostic_limit_reached": true,
+    "diagnostic_update_limit": 10,
+    "diagnostic_updates_completed": 10,
+    "epochs_completed": null,
+    "epochs_requested": 4,
+    "graph_builder_cache": {
+      "official_row_calls": 28,
+      "pool_hits": 26,
+      "pool_materializations": 2
+    },
+    "last_capture": "official model.model final state",
+    "official_asset_sha256": {
+      "essential_all_data_pert_genes.pkl": "46c3dfe354d8ad5c0da22c69f3d0ca451987b1a61ed9d984279b22b9565ff8d7",
+      "gene2go_all.pkl": "f145c5e84a53048d87942a417d870a4f2d8db50200b96e492b358c13aba8c771",
+      "go_essential_all/go_essential_all.csv": "99622d9215462e7bbea99a5f6c0b1e86febfef9f57226269418053484fcb3f9f"
+    },
+    "official_selection": "validation top20 DE MSE on allowed genes",
+    "official_sha": "f374e43e197b295016d80395d7a54ddb81cc6769",
+    "official_test_loader_batch_size": 128,
+    "official_training_api": "gears.GEARS.train",
+    "pair_count": 28,
+    "pair_sha256": "17c0df6d3dc0e236482741c684a9557136337ed6f2caa5b10610a58600aed723",
+    "ranking_receipt": {
+      "ranking_axis": "allowed_only",
+      "singleton_rank_fallbacks": []
+    },
+    "scratch_cleanup": [
+      {
+        "path": "official_data/gene2go_all.pkl",
+        "sha256": "f145c5e84a53048d87942a417d870a4f2d8db50200b96e492b358c13aba8c771"
+      },
+      {
+        "path": "official_data/essential_all_data_pert_genes.pkl",
+        "sha256": "46c3dfe354d8ad5c0da22c69f3d0ca451987b1a61ed9d984279b22b9565ff8d7"
+      },
+      {
+        "path": "official_data/canonical_split.pkl",
+        "sha256": "7d47b99d683af9e3090b63d0227b76aa126455972229240be50a1e347e7382da"
+      },
+      {
+        "path": "official_data/expression_holdout/data_pyg/cell_graphs.pkl",
+        "sha256": "56b3d76d0d0fb7d6ae74cd6a92f4012e7cb6ab1984092124baccb1cc24072bf0"
+      }
+    ],
+    "seen_expression_gene_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29
+    ],
+    "validation_batch_size": 4
+  },
+  "formal_capacity_passed": false,
+  "gears_asset_sha256": {
+    "essential_all_data_pert_genes.pkl": "46c3dfe354d8ad5c0da22c69f3d0ca451987b1a61ed9d984279b22b9565ff8d7",
+    "gene2go_all.pkl": "f145c5e84a53048d87942a417d870a4f2d8db50200b96e492b358c13aba8c771"
+  },
+  "inference_receipt_sha256": "1e3c5a5b222502c4e887183b03665122343b9fc8319e87affe67962b25609a92",
+  "model": "gears",
+  "official_commit": "f374e43e197b295016d80395d7a54ddb81cc6769",
+  "optimizer_updates": 10,
+  "prediction_shape": [
+    6,
+    32
+  ],
+  "prior_sha256": "5ae51808e26d33f8a4bce5e48e05e2e733c21ee3b38f733d68816b8709267f36",
+  "python_executable": "/data/yilangliu/GraD-Pert/envs/expression-gears-h5ad-20261013/bin/python",
+  "python_version": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "resolved_diagnostic_config": {
+    "adaptations": [
+      "canonical cap40 rows/split/axis",
+      "exclude test-target numeric expression before fitter",
+      "context-matched training controls",
+      "frozen common 300-control evaluation; last checkpoint",
+      "official model-specific training recipe; no native architecture imports",
+      "project_preregistered: four epochs; official optimizer/model settings retained; last-only common test"
+    ],
+    "artifacts": {
+      "result_mode": "metrics_only",
+      "zero_pkl": true
+    },
+    "data": {
+      "dataset_id": "nadig_jurkat",
+      "exclude_test_target_expression": true,
+      "expected_hashes": {
+        "canonical_data_sha256": "f051343c191dcdb02cabfae66a6bfe10b2770752b6503802da33d4b74e845861",
+        "expression_gene_order_sha256": "5a5fa323684587fae68df9163137bffb24bbd1fdc99e11297f50edf84fe75f74",
+        "graph_gene_order_sha256": "c1d0c76822d5c7ac1f561457010065fa3a195d27954f3c959d6732d107124e10",
+        "split_content_sha256": "ecb2099cea9c231e9bf16c7db9bf94f2ac715df6bffece79caf0b661e863cdd0"
+      },
+      "preprocessing_id": "txpert_within_cell_v1",
+      "protocol_id": "within_cell_unseen_single",
+      "registry_version": "datasets-v2",
+      "split_policy": "grouped_0.5625_0.1875_0.25__gears_default_graph_intersection_v1",
+      "split_seed": 42,
+      "train_selection_path": "/data/yilangliu/GraD-Pert/development/jurkat-cap40-v2-binding-20260930/training_selection.json",
+      "train_selection_sha256": "aa0916dfb91fff78d7a43f7d7325879a11c1a904e9bf31586420ca11cce84132"
+    },
+    "evaluation": {
+      "cell_batch": 3,
+      "checkpoint": "last",
+      "control_cells": 6,
+      "expected_conditions": 592,
+      "expected_hashes": {
+        "control_manifest_sha256": "5d4437766dcafcc096693b35fae57882720f418507e7783c358f3f9d544a2c20",
+        "evaluation_state_sha256": "844b572a80ac06fe835827de9d942c02c7e06d3080bc85cf67892962bede1770"
+      },
+      "gene_groups": [
+        "all",
+        "seen_expression",
+        "unseen_expression"
+      ],
+      "gene_sets": [
+        "all",
+        "deg"
+      ],
+      "protocol": "v2",
+      "query_count": 16
+    },
+    "model": {
+      "coexpress_threshold": 0.4,
+      "decoder_hidden_size": 16,
+      "direction_lambda": 0.1,
+      "hidden_size": 64,
+      "no_perturb": false,
+      "num_gene_gnn_layers": 1,
+      "num_go_gnn_layers": 1,
+      "num_similar_genes_co_express_graph": 20,
+      "num_similar_genes_go_graph": 20,
+      "uncertainty": false,
+      "uncertainty_reg": 1.0
+    },
+    "model_id": "gears",
+    "schema": "official-expression-holdout-v1",
+    "seed": 1,
+    "source_code": {
+      "commit": "f374e43e197b295016d80395d7a54ddb81cc6769",
+      "repository": "https://github.com/snap-stanford/GEARS"
+    },
+    "training": {
+      "batch_size": 4,
+      "epochs": 4,
+      "eval_batch_size": 128,
+      "lr": 0.001,
+      "weight_decay": 0.0005
+    }
+  },
+  "resolved_diagnostic_config_sha256": "29d229dda36b5bed8535602ed182ad434efaf1daff81b26e1641d27ab57415cf",
+  "resolved_diagnostic_runtime": {
+    "device": "cpu",
+    "required_target_genes": [
+      "A1BG",
+      "A1CF",
+      "A2M",
+      "A2ML1"
+    ],
+    "seed": 1
+  },
+  "restored_prediction_exact": true,
+  "runtime_sha256": "66e6458fcd83f85e6b9fa76c52c6d538a7d187eca829e002b97a579bd8149c7e",
+  "schema": "official-upstream-cpu-integration-v1",
+  "scientific_complete": false,
+  "source_clean": true,
+  "source_commit": "7798605001bda2a03933b71e84cdfde7faf811c5",
+  "synthetic_data_identity": {
+    "allowed_gene_ids_sha256": "0ac2507b1e2ec958b8876d01c9aba22b10a4441c175f6ee46c3443a47279f8f9",
+    "control_pairing": "cell_type::batch",
+    "control_row_ids_sha256": "89867b639a9e393ff194ab60ae513102dd579ec893eca9c08af1c98be448a72a",
+    "excluded_gene_ids_sha256": "6960e6d4c686645ad46444f1388749c0c1b31100fd536c09c20bc2e7f8b4e653",
+    "primary_X_layer_alias": "AnnData>=0.13 may expose layers[None] as identical X",
+    "raw_auxiliary_layers_obsm_uns_absent": true,
+    "sanitization": "selected_rows_only; excluded_columns_discarded_before_upstream; full_axis_placeholders_are_not_targets",
+    "schema": "official-expression-holdout-data-v1",
+    "train_row_ids_sha256": "6086537f35f889e17dceaf83315d807b498f52327011255e829084629b4c479b",
+    "val_row_ids_sha256": "b99655cb573dadc83b1d5d096732fb57054d3c7d9973315d34dcc989b92cc862"
+  },
+  "verified_distribution_versions": {
+    "anndata": "0.12.3",
+    "asciitree": "0.3.3",
+    "dcor": "0.6",
+    "deprecated": "1.2.18",
+    "fasteners": "0.20",
+    "networkx": "3.3",
+    "numcodecs": "0.15.1",
+    "numpy": "1.26.4",
+    "pandas": "2.2.2",
+    "pytz": "2026.5",
+    "scanpy": "1.10.2",
+    "scikit-learn": "1.5.1",
+    "scipy": "1.14.1",
+    "torch": "2.13.0",
+    "torch-geometric": "2.8.0.post1",
+    "tqdm": "4.66.5",
+    "zarr": "2.18.7"
+  },
+  "verified_distribution_versions_sha256": "04cdf27d0bfc00616bddb4fd3b2a658c80990ebe0f9f448f3ee2b0caba50c907",
+  "zero_pkl": true
+}

@@ -1,3 +1,7 @@
+## 2026-10-14：GEARS准备修复验证并启动独立接续
+
+7798605源：服务器196检查、官方CPU10updates/restore/zeroPKL、真实8cell graph/pair/RNG精确parity通过。CSR重映射2.583s，原转换>5min；局部graph10.674→0.037s，不能称端到端285x。原parallel已foreign资源门终态，scDFM原worker保留；GPU1重新空闲后生成新terminal-adoption mixed source schedule，controller2894437，GEARS fresh ID/source7798605，仍10步→四轮last18metrics。新native CPU依赖waiter2895684、五组顺序/主验收屏障不变，旧waiter精确退休。Luna唯一短startup核验进行中；长监督尚未ACK/重新ACTIVE，主owner/build。报告docs/experiments/GEARS_PREPARATION_PERFORMANCE_20261014.md及小receipts；旧失败和探针中断均保留。
+
 ## 2026-10-14：GEARS准备第二阶段（十步不变）
 
 透明阶段探针定位build_prepared的CSR→COO转换：初始化0.802s、读取12.017s，后续转换多分钟仍无完成；旧21min探针保存中断证据。新canonical CSR索引重映射和context候选tuple共享已实现；数值/顺序/输入不变检查进行中，真实输入parity与新CPU十步待验证。scDFM原worker继续，旧GEARS准备仍运行，未启动新正式GEARS。主owner/build，长monitor PAUSED；Luna唯一监督短stage1探针。
