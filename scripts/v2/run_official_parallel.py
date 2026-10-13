@@ -14,6 +14,7 @@ import os
 import signal
 import subprocess
 import time
+import uuid
 from pathlib import Path
 
 from run_group import lock
@@ -65,11 +66,16 @@ def verify_parent(previous: Path, seal: str) -> dict:
         for name in ("config", "runtime"):
             if sha256_file(Path(row[name])) != row[f"{name}_sha256"]:
                 raise ValueError("original scientific inputs changed")
-    source = inspect_source_identity(queue["source"], formal=False, expected_repository=REPOSITORY)
-    if source.dirty or source.commit != queue["source_commit"]:
-        raise ValueError("original scientific source changed")
-    if scientific_tree(ROOT) != scientific_tree(Path(queue["source"])):
-        raise ValueError("parallel scheduling must not change scientific code")
+    for row in queue["rows"]:
+        source = inspect_source_identity(
+            row.get("scientific_source_root", queue["source"]),
+            formal=False,
+            expected_repository=REPOSITORY,
+        )
+        if source.dirty or source.commit != row.get(
+            "scientific_source_commit", queue["source_commit"]
+        ):
+            raise ValueError("original scientific source changed")
     return queue
 
 
@@ -111,6 +117,8 @@ def migrate(previous: Path, seal: str, output: Path, publication: Path, pub_sha:
         expected_publication_receipt_sha256=pub_sha,
     )
     queue = verify_parent(previous, seal)
+    if scientific_tree(ROOT) != scientific_tree(Path(queue["source"])):
+        raise ValueError("initial parallel migration must not change scientific code")
     current = read(previous / "state.json")
     if current["status"] != "running" or current["phase"] != "scdfm_full":
         raise ValueError("only a live scDFM full stage may be adopted")
@@ -213,13 +221,229 @@ def terminal_entry(row: dict, source_commit: str) -> dict:
     }
 
 
+def repair_gears(
+    previous_schedule: Path,
+    seal: str,
+    output: Path,
+    runtime_path: Path,
+    publication: Path,
+    pub_sha: str,
+) -> None:
+    """Replace only a still-preparing GEARS attempt, preserving active scDFM."""
+    previous_schedule, output = previous_schedule.resolve(), output.resolve()
+    if output.exists() or not all(
+        p.is_relative_to(SERVER) for p in (previous_schedule, output, runtime_path.resolve())
+    ):
+        raise ValueError("fresh server-only GEARS repair schedule/runtime required")
+    old_path = previous_schedule / "schedule.json"
+    if sha256_file(old_path) != seal:
+        raise ValueError("parent adoption schedule seal changed")
+    old = read(old_path)
+    parent = verify_parent(Path(old["previous"]), old["previous_queue_sha256"])
+    old_tree = scientific_tree(
+        Path(parent["rows"][0].get("scientific_source_root", parent["source"]))
+    )
+    new_tree = scientific_tree(ROOT)
+    changed = {
+        key for key in set(old_tree) | set(new_tree) if old_tree.get(key) != new_tree.get(key)
+    }
+    if not changed <= {
+        "benchmarks/expression_holdout/gears.py",
+        "benchmarks/expression_holdout/gears_preparation_probe.py",
+    }:
+        raise ValueError("GEARS preparation repair must not change other scientific code")
+    identity = inspect_source_identity(
+        ROOT,
+        formal=True,
+        expected_repository=REPOSITORY,
+        publication_receipt=publication,
+        expected_publication_receipt_sha256=pub_sha,
+    )
+    current = read(previous_schedule / "state.json")
+    if current["status"] != "running" or current["phase"] != "parallel":
+        raise ValueError("repair only adopts the live parallel preparation stage")
+    active = current["active"]
+    if active["name"] != "gears" or active["mode"] != "preflight":
+        raise ValueError("GEARS must still be in preflight")
+    failed_probe = Path(active["run_root"])
+    if (failed_probe / "fit-receipt.json").exists():
+        raise ValueError("GEARS fitting already finished; reconcile instead of replacing")
+    controller, child = process_info(current["pid"]), process_info(active["pid"])
+    worker = old["adopted_worker"]
+    if (
+        controller is None
+        or child is None
+        or any(p["uid"] != os.getuid() for p in (controller, child))
+    ):
+        raise ValueError("repair requires exact live owned dispatcher/preparation child")
+    if not same_process(worker, process_info(worker["pid"])):
+        raise ValueError("preserved scDFM must still be live; reconcile terminal first")
+    if child["ppid"] != controller["pid"] or os.getpgid(child["pid"]) != child["pid"]:
+        raise ValueError("GEARS preparation is not the exact isolated child")
+    command = Path(f"/proc/{controller['pid']}/cmdline").read_bytes().split(b"\0")
+    if str(previous_schedule).encode() not in command or not any(
+        x.endswith(b"run_official_parallel.py") for x in command
+    ):
+        raise ValueError("wrong parallel dispatcher")
+    config_path = ROOT / "configs/v2/official_expression_20261013/gears_jurkat.yaml"
+    config_hash = sha256_file(config_path)
+    if config_hash != parent["rows"][1]["config_sha256"]:
+        raise ValueError("preparation repair cannot change GEARS scientific configuration")
+    runtime = read(runtime_path)
+    if runtime["source_commit"] != identity.commit or runtime["publication_sha256"] != pub_sha:
+        raise ValueError("new GEARS runtime/source/publication mismatch")
+    validate_cpu_gate(runtime, config_path, identity.commit)
+    # Admitted resource snapshot includes only this dispatcher and its exact scDFM.
+    observed = owned_snapshot(worker)
+    for entry in observed["processes"]:
+        if entry["pid"] == child["pid"] and same_process(child, entry["identity"]):
+            entry["owned"] = True
+    admit(parent["shared_gpu_policy"], observed)
+    gpu1 = parent["shared_gpu_policy"]["devices"][1]["gpu_uuid"]
+    if any(p["gpu_uuid"] == gpu1 and p["pid"] != child["pid"] for p in observed["processes"]):
+        raise ValueError("another GPU1 process exists; preserve it and defer repair")
+    status = Path(f"/proc/{controller['pid']}/status").read_text().splitlines()
+    if any(
+        int(line.split()[1], 16) & (1 << (signal.SIGTERM - 1))
+        for line in status
+        if line.startswith(("SigCgt:", "SigIgn:"))
+    ):
+        raise ValueError("dispatcher SIGTERM is not default; preserve worker and review")
+    os.kill(controller["pid"], signal.SIGSTOP)
+    retired = False
+    try:
+        if read(previous_schedule / "state.json") != current or not same_process(
+            child, process_info(child["pid"])
+        ):
+            raise ValueError("GEARS preparation advanced before freezing dispatch")
+        stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+        run = Path(runtime["runs_root"]) / f"gears-jurkat-seed1-{stamp}-{uuid.uuid4().hex}"
+        gears = {
+            "name": "gears",
+            "config": str(config_path),
+            "config_sha256": config_hash,
+            "runtime": str(runtime_path),
+            "runtime_sha256": sha256_file(runtime_path),
+            "run_root": str(run),
+            "preflight_root": str(run) + "-preflight",
+            "numerics_root": str(run) + "-numerics",
+            "gpu": "1",
+            "scientific_source_commit": identity.commit,
+            "scientific_source_root": str(ROOT),
+        }
+        scdfm = {
+            **parent["rows"][0],
+            "scientific_source_commit": parent["rows"][0].get(
+                "scientific_source_commit", parent["source_commit"]
+            ),
+            "scientific_source_root": parent["rows"][0].get(
+                "scientific_source_root", parent["source"]
+            ),
+        }
+        output.mkdir()
+        new_parent = output / "official-parent"
+        new_parent.mkdir()
+        queue = {
+            **parent,
+            "source": str(ROOT),
+            "source_commit": identity.commit,
+            "rows": [scdfm, gears],
+            "mixed_scientific_sources": True,
+        }
+        atomic_json(new_parent / "queue.json", queue)
+        atomic_json(
+            new_parent / "state.json",
+            {
+                "status": "running",
+                "source_commit": identity.commit,
+                "phase": "adopted_scdfm_and_repaired_gears",
+                "completed": {},
+                "scientific_complete": False,
+            },
+        )
+        schedule = {
+            **old,
+            "previous": str(new_parent),
+            "previous_queue_sha256": sha256_file(new_parent / "queue.json"),
+            "controller_source": str(ROOT),
+            "controller_commit": identity.commit,
+            "publication": str(publication),
+            "publication_sha256": pub_sha,
+            "source_commit": identity.commit,
+            "retired_controller": controller,
+            "rows": queue["rows"],
+            "repair_parent_schedule": str(previous_schedule),
+            "repair_parent_schedule_sha256": seal,
+            "scientific_inputs_unchanged": False,
+            "gears_training_config_unchanged": True,
+            "changed_adapter": "cached control pool and sealed ranking reuse",
+        }
+        atomic_json(output / "schedule.json", schedule)
+        atomic_json(
+            previous_schedule / "SCHEDULING_SUPERSEDED.json",
+            {
+                "new_schedule": str(output),
+                "schedule_sha256": sha256_file(output / "schedule.json"),
+                "reason": "Replace excessive CPU preparation; keep ten-update preflight",
+                "retired_controller": controller,
+                "stopped_gears_preparation": child,
+                "preserved_scdfm": worker,
+            },
+        )
+        # Terminate only the selected preparatory worker; its dispatcher is frozen.
+        os.killpg(child["pid"], signal.SIGTERM)
+        for _ in range(300):
+            if process_info(child["pid"]) is None:
+                break
+            time.sleep(0.1)
+        if process_info(child["pid"]) is not None:
+            raise RuntimeError("old GEARS preparation did not exit; do not launch replacement")
+        atomic_json(
+            previous_schedule / "INTERRUPTED.json",
+            {
+                "reason": "CPU preparation replaced, no training receipt completed",
+                "child": child,
+                "new_schedule": str(output),
+                "preserved_scdfm": worker,
+            },
+        )
+        os.kill(controller["pid"], signal.SIGTERM)
+        os.kill(controller["pid"], signal.SIGCONT)
+        retired = True
+        for _ in range(30):
+            if process_info(controller["pid"]) is None:
+                break
+            time.sleep(0.1)
+        if process_info(controller["pid"]) is not None or not same_process(
+            worker, process_info(worker["pid"])
+        ):
+            raise RuntimeError("repair migration did not preserve exact scDFM or retire dispatcher")
+        atomic_json(
+            output / "MIGRATION.json",
+            {
+                "schedule_sha256": sha256_file(output / "schedule.json"),
+                "controller_retired": True,
+                "worker_preserved": True,
+                "old_gears_preparation_retired": True,
+            },
+        )
+    finally:
+        if not retired and same_process(controller, process_info(controller["pid"])):
+            os.kill(controller["pid"], signal.SIGCONT)
+
+
 def forward_completion(schedule: dict, directory: Path, completed: dict) -> dict:
     """Forward only two independently validated terminals into the old dependency."""
     previous = Path(schedule["previous"])
     queue = verify_parent(previous, schedule["previous_queue_sha256"])
     if set(completed) != {"scdfm", "gears"}:
         raise ValueError("both scientific terminals required before forwarding")
-    expected = {row["name"]: terminal_entry(row, queue["source_commit"]) for row in queue["rows"]}
+    expected = {
+        row["name"]: terminal_entry(
+            row, row.get("scientific_source_commit", queue["source_commit"])
+        )
+        for row in queue["rows"]
+    }
     if completed != expected:
         raise ValueError("scientific terminal receipt identities changed")
     if (previous / "COMPLETE.json").exists() or (previous / "FAILURE.json").exists():
@@ -303,7 +527,9 @@ def execute(directory: Path) -> None:
                     schedule["adopted_worker"], process_info(schedule["adopted_worker"]["pid"])
                 )
                 if not worker_live and "scdfm" not in state["completed"]:
-                    state["completed"]["scdfm"] = terminal_entry(scdfm, queue["source_commit"])
+                    state["completed"]["scdfm"] = terminal_entry(
+                        scdfm, scdfm.get("scientific_source_commit", queue["source_commit"])
+                    )
                 observed = owned_snapshot(schedule["adopted_worker"])
                 admit(queue["shared_gpu_policy"], observed)
                 if child is None and "gears" not in state["completed"]:
@@ -328,20 +554,20 @@ def execute(directory: Path) -> None:
                     ]
                     if stage == "full":
                         argv += ["--preflight", str(Path(gears["preflight_root"]) / "receipt.json")]
+                    gears_source = gears.get("scientific_source_root", queue["source"])
                     environment = {
                         **os.environ,
                         "CUDA_VISIBLE_DEVICES": "1",
-                        "PYTHONPATH": str(Path(queue["source"]) / "src")
-                        + os.pathsep
-                        + queue["source"],
+                        "PYTHONPATH": str(Path(gears_source) / "src") + os.pathsep + gears_source,
                         "PYTHONDONTWRITEBYTECODE": "1",
+                        "PYTHONUNBUFFERED": "1",
                         "OMP_NUM_THREADS": "2",
                         "OPENBLAS_NUM_THREADS": "2",
                     }
                     log = stack.enter_context((directory / f"gears-{stage}.log").open("x"))
                     child = subprocess.Popen(
                         argv,
-                        cwd=queue["source"],
+                        cwd=gears_source,
                         env=environment,
                         stdout=log,
                         stderr=subprocess.STDOUT,
@@ -362,13 +588,17 @@ def execute(directory: Path) -> None:
                         validate_preflight(
                             read(Path(gears["preflight_root"]) / "receipt.json"),
                             config=Path(gears["config"]),
-                            source_commit=queue["source_commit"],
+                            source_commit=gears.get(
+                                "scientific_source_commit", queue["source_commit"]
+                            ),
                             official_commit=config["source_code"]["commit"],
                             runtime_sha256=gears["runtime_sha256"],
                         )
                         stage = "full"
                     else:
-                        state["completed"]["gears"] = terminal_entry(gears, queue["source_commit"])
+                        state["completed"]["gears"] = terminal_entry(
+                            gears, gears.get("scientific_source_commit", queue["source_commit"])
+                        )
                     child = None
                     state["active"] = None
                 state["updated_unix"] = time.time()
@@ -404,8 +634,27 @@ def main() -> None:
     parser.add_argument("--publication", type=Path)
     parser.add_argument("--publication-sha256")
     parser.add_argument("--execute", type=Path)
+    parser.add_argument("--repair-gears", type=Path)
+    parser.add_argument("--new-gears-runtime", type=Path)
     args = parser.parse_args()
-    if (
+    if args.repair_gears and all(
+        (
+            args.previous_sha256,
+            args.output,
+            args.publication,
+            args.publication_sha256,
+            args.new_gears_runtime,
+        )
+    ):
+        repair_gears(
+            args.repair_gears,
+            args.previous_sha256,
+            args.output,
+            args.new_gears_runtime,
+            args.publication,
+            args.publication_sha256,
+        )
+    elif (
         args.migrate
         and all((args.previous_sha256, args.output, args.publication, args.publication_sha256))
         and not args.execute

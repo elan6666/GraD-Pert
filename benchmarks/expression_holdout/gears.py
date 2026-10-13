@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 import pickle
 import shutil
 from contextlib import contextmanager
@@ -13,6 +14,7 @@ from typing import Any
 import numpy as np
 
 OFFICIAL_SHA = "f374e43e197b295016d80395d7a54ddb81cc6769"
+CACHE_SERVER_ROOT = Path("/data/yilangliu")
 
 
 def copy_official_assets(runtime: dict, destination: Path) -> dict[str, str]:
@@ -79,10 +81,17 @@ def masked_official_loss(original: Any, allowed: np.ndarray):
 
 
 def context_graph_builder(original: Any, prepared: Any, pair_audit: list):
-    """Delegate every graph to upstream while restricting its basal candidates."""
+    """Delegate every graph to upstream, caching identical compatible pools.
+
+    Upstream only reads the supplied AnnData views. Reusing a pool and avoiding
+    per-cell deep copies does not change its sampler, graph tensors or row order.
+    """
     names = tuple(map(str, prepared.adata.obs_names))
     lookup = {name: index for index, name in enumerate(names)}
     maps = {**prepared.train_control_indices, **prepared.val_control_indices}
+    control_flags = prepared.adata.obs.condition.astype(str).to_numpy() == "ctrl"
+    pools: dict[str, list[tuple[tuple[int, ...], Any]]] = {}
+    statistics = {"pool_materializations": 0, "pool_hits": 0, "official_row_calls": 0}
 
     def build(instance, split_adata, pert_category, num_samples=1):
         if pert_category == "ctrl":
@@ -93,17 +102,32 @@ def context_graph_builder(original: Any, prepared: Any, pair_audit: list):
         try:
             for row in rows:
                 row = str(row)
-                candidates = tuple(int(i) for i in maps.get(row, ()))
-                if not candidates or any(
-                    prepared.row_context_ids[i] != prepared.row_context_ids[lookup[row]]
-                    or str(prepared.adata.obs.condition.iloc[i]) != "ctrl"
-                    for i in candidates
-                ):
-                    raise ValueError(f"invalid canonical control candidates for {row}")
+                candidate_ids = maps.get(row, ())
+                context = prepared.row_context_ids[lookup[row]]
+                cached = next(
+                    (entry for entry in pools.get(context, ()) if entry[0] == candidate_ids), None
+                )
+                if cached is None:
+                    candidates = tuple(int(i) for i in candidate_ids)
+                    if not candidates or any(
+                        i < 0
+                        or i >= len(names)
+                        or prepared.row_context_ids[i] != context
+                        or not control_flags[i]
+                        for i in candidates
+                    ):
+                        raise ValueError(f"invalid canonical control candidates for {row}")
+                    pool_view = prepared.adata[[names[i] for i in candidates]]
+                    cached = (candidates, pool_view)
+                    pools.setdefault(context, []).append(cached)
+                    statistics["pool_materializations"] += 1
+                else:
+                    statistics["pool_hits"] += 1
+                candidates, pool_view = cached
                 # The original sampler draws uniformly with replacement. Keep that
                 # sampler, but give it only the row's compatible candidate pool.
-                instance.ctrl_adata = prepared.adata[[names[i] for i in candidates]].copy()
-                target = split_adata[[row]].copy()
+                instance.ctrl_adata = pool_view
+                target = split_adata[[row]]
                 original_randint = np.random.randint
                 sampled: list[int] = []
 
@@ -126,6 +150,7 @@ def context_graph_builder(original: Any, prepared: Any, pair_audit: list):
                 np.random.randint = record_randint
                 try:
                     built = original(target, pert_category, num_samples)
+                    statistics["official_row_calls"] += 1
                 finally:
                     np.random.randint = original_randint
                 if len(sampled) != len(built):
@@ -136,6 +161,7 @@ def context_graph_builder(original: Any, prepared: Any, pair_audit: list):
             instance.ctrl_adata = original_controls
         return graphs
 
+    build.cache_statistics = statistics
     return build
 
 
@@ -213,6 +239,72 @@ def _ranking_metadata(adata, utils, allowed):
     return {"singleton_rank_fallbacks": sorted(map(str, singleton)), "ranking_axis": "allowed_only"}
 
 
+def reuse_ranking_metadata(adata, allowed: np.ndarray, runtime: dict):
+    """Reuse sealed official statistics only after exact sanitized-input checks."""
+    cache = runtime.get("gears_ranking_cache")
+    if cache is None:
+        return None
+    import hashlib
+
+    import anndata
+    import pandas as pd
+
+    from gradpert.hashing import sha256_file
+
+    path = Path(cache["path"])
+    if not path.resolve().is_relative_to(CACHE_SERVER_ROOT):
+        raise ValueError("GEARS ranking cache must stay on the server")
+    method_hash = hashlib.sha256(inspect.getsource(_ranking_metadata).encode()).hexdigest()
+    if method_hash != cache["ranking_method_sha256"] or sha256_file(path) != cache["sha256"]:
+        raise ValueError("official ranking method/cache identity changed")
+    parent = Path(cache["parent_run_root"])
+    if (
+        path.resolve()
+        != (parent / "fit/official_data/expression_holdout/perturb_processed.h5ad").resolve()
+    ):
+        raise ValueError("ranking cache must be the parent's actual official output")
+    for file, key in (
+        ("RUN.json", "parent_run_sha256"),
+        ("data-receipt.json", "data_receipt_sha256"),
+    ):
+        if sha256_file(parent / file) != cache[key]:
+            raise ValueError("ranking cache parent identity changed")
+    import json
+
+    parent_identity = json.loads((parent / "RUN.json").read_text())
+    if (
+        parent_identity["source_commit"] != cache["source_commit"]
+        or parent_identity["config_sha256"] != cache["config_sha256"]
+        or parent_identity["environment_lock_sha256"] != runtime["environment_lock_sha256"]
+    ):
+        raise ValueError("ranking cache source/config/environment differs")
+    cached = anndata.read_h5ad(path)
+    # H5AD writing categorizes string columns; compare their exact values/axes.
+    pd.testing.assert_frame_equal(cached.obs.astype(object), adata.obs.astype(object))
+    pd.testing.assert_frame_equal(cached.var.astype(object), adata.var.astype(object))
+    if cached.X.shape != adata.X.shape or (cached.X != adata.X).nnz:
+        raise ValueError("ranking cache sanitized expression differs")
+    allowed_names = set(map(str, adata.var_names[allowed]))
+    for values in cached.uns["rank_genes_groups_cov_all"].values():
+        if not set(map(str, values)) <= allowed_names:
+            raise ValueError("ranking cache includes excluded expression genes")
+    allowed_set = set(map(int, allowed))
+    for key in ("non_zeros_gene_idx", "non_dropout_gene_idx"):
+        if any(not set(map(int, ids)) <= allowed_set for ids in cached.uns[key].values()):
+            raise ValueError("ranking cache numeric mask includes excluded genes")
+    for key in ("rank_genes_groups_cov_all", "non_zeros_gene_idx", "non_dropout_gene_idx"):
+        adata.uns[key] = cached.uns[key]
+    counts = adata.obs.condition_name.astype(str).value_counts()
+    return {
+        "singleton_rank_fallbacks": sorted(map(str, counts[counts < 2].index)),
+        "ranking_axis": "allowed_only",
+        "cache_reused": True,
+        "cache_sha256": cache["sha256"],
+        "ranking_method_sha256": method_hash,
+        "cache_source_commit": cache["source_commit"],
+    }
+
+
 def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
     import torch
     from scipy import sparse
@@ -252,12 +344,13 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
     asset_hashes = copy_official_assets(runtime, data_root)
     data = package.PertData(str(data_root))
     adata = data_utils.get_DE_genes(official_control_metadata(adata), skip_calc_de=True)
-    ranking_receipt = _ranking_metadata(adata, data_utils, allowed)
+    ranking_receipt = reuse_ranking_metadata(adata, allowed, runtime)
+    if ranking_receipt is None:
+        ranking_receipt = _ranking_metadata(adata, data_utils, allowed)
     pairs = []
     original_builder = data.create_cell_graph_dataset
-    data.create_cell_graph_dataset = MethodType(
-        context_graph_builder(original_builder, prepared, pairs), data
-    )
+    builder = context_graph_builder(original_builder, prepared, pairs)
+    data.create_cell_graph_dataset = MethodType(builder, data)
     try:
         data.new_data_process("expression_holdout", adata=adata, skip_calc_de=True)
     finally:
@@ -332,6 +425,7 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
             "scratch_cleanup": cleanup,
             "pair_count": len(pairs),
             "pair_sha256": sha256_json(pairs),
+            "graph_builder_cache": dict(builder.cache_statistics),
             "context_pairing": "official uniform replacement within compatible pools",
             "diagnostic_update_limit": max_updates,
             "diagnostic_updates_completed": counter["updates"] if max_updates else None,

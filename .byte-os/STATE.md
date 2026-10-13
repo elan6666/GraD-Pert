@@ -1,3 +1,7 @@
+## 2026-10-14：GEARS十步预检的CPU准备瓶颈接回
+
+max_updates一直为10；26/1781是CPU条件构图数，不是训练step。现原预检1h51未进GPU、多数条件48sec，主已接回owner/build，旧monitor PAUSED，scDFM原worker继续。修复仅缓存同context/control候选池和只读target视图；官方构图/随机采样保持。已完成官方排序H5AD仅在文件/原RUN/data/config/env/method及完整sanitize输入严格核对后复用。新的独立GEARS源码/运行记录和保留scDFM旧源码的混合source调度准备中，真实数据耗时/原新graph RNG对照及新GPU十步尚未完成。计划plans/GEARS_PREPARATION_REPAIR_20261014.plan.md。
+
 ## 2026-10-13：GEARS已在GPU1实际启动预检，scDFM原训练连续保留
 
 调度发布4bf0db46f6398b4241df76b447ae2303c0d7415d，本地/服务器75检查通过。仅旧CPUcontroller2818852安全退休；原scDFM worker2823360/start729241036不变，实际日志1600/3988。新并行controller2853681，schedule SHA e43f560e3c735b002c8bbe1289a986227b5679eb6e2105313315bba807669b77，GEARS preflight2853707实际CUDA_VISIBLE_DEVICES=1，当前CPU数据准备，尚无GPU/训练更新证据。Luna短监督结束，主独立核对，无FAILURE。两runner科学源/配置/数据/评估仍9607981，GEARS原尚未启动run保持；native依赖不变，须两真终态strictforward后才推进五组门。长监督新handoff待ACK/ACTIVE，不重跑BR/Scouter；旧controller消失不能当成scDFM停训。小收据evidence/official-ffn-recovery-20261013/parallel-4bf0db4-main-startup.json。

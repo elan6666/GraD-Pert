@@ -84,7 +84,9 @@ def official_dependency_ready(spec: dict) -> bool:
         if name not in rows or name not in complete["completed"]:
             raise ValueError("scDFM and GEARS both required before FFN arms")
         row = rows[name]
-        terminal = validate_terminal(Path(row["run_root"]), row, queue["source_commit"])
+        terminal = validate_terminal(
+            Path(row["run_root"]), row, row.get("scientific_source_commit", queue["source_commit"])
+        )
         expected = {
             "root": row["run_root"],
             "receipt_sha256": sha256_file(Path(row["run_root"]) / "receipt.json"),
