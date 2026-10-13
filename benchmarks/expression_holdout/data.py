@@ -157,22 +157,44 @@ def build_prepared(
         or any(conditions[indices[r]] != control_condition for r in control_row_ids)
     ):
         raise ValueError("row assignments differ from condition split")
-    values = sparse.coo_matrix(matrix, dtype=np.float32)
-    if not np.isfinite(values.data).all():
-        raise ValueError("nonfinite allowed expression")
-    safe = sparse.csr_matrix(
-        (values.data, (values.row, np.asarray(allowed_indices)[values.col])),
-        shape=(len(row_ids), n),
-        dtype=np.float32,
-    )
-    excluded = tuple(i for i in range(n) if i not in set(allowed_indices))
+    # The backed reader already returns canonical float32 CSR. Increasing
+    # allowed IDs preserve column order, so remap indices without expanding
+    # one row coordinate per nonzero and converting the entire matrix twice.
+    if sparse.isspmatrix_csr(matrix) and matrix.dtype == np.float32 and matrix.has_canonical_format:
+        if not np.isfinite(matrix.data).all():
+            raise ValueError("nonfinite allowed expression")
+        safe = sparse.csr_matrix(
+            (
+                matrix.data.copy(),
+                np.asarray(allowed_indices)[matrix.indices],
+                matrix.indptr.copy(),
+            ),
+            shape=(len(row_ids), n),
+        )
+    else:
+        # Preserve the original duplicate/format conversion semantics for
+        # other callers; only the canonical reader uses the fast path.
+        values = sparse.coo_matrix(matrix, dtype=np.float32)
+        if not np.isfinite(values.data).all():
+            raise ValueError("nonfinite allowed expression")
+        safe = sparse.csr_matrix(
+            (values.data, (values.row, np.asarray(allowed_indices)[values.col])),
+            shape=(len(row_ids), n),
+            dtype=np.float32,
+        )
+    allowed_set = set(allowed_indices)
+    excluded = tuple(i for i in range(n) if i not in allowed_set)
     pools: dict[str, list[int]] = {}
     for row in control_row_ids:
         i = indices[row]
         pools.setdefault(contexts[i], []).append(i)
 
+    # Candidate tuples are immutable and identical for every row in a context.
+    # Share them instead of copying the full control list for every target.
+    frozen_pools = {context: tuple(pool) for context, pool in pools.items()}
+
     def candidates(rows: tuple[str, ...]) -> dict[str, tuple[int, ...]]:
-        result = {row: tuple(pools.get(contexts[indices[row]], ())) for row in rows}
+        result = {row: frozen_pools.get(contexts[indices[row]], ()) for row in rows}
         if any(not pool for pool in result.values()):
             raise ValueError("target row lacks context-compatible control")
         return result

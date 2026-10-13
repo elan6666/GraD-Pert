@@ -67,3 +67,38 @@ def test_backed_reader_uses_one_fancy_axis_and_discards_excluded_values():
     result = read_allowed_rows(OldBacked(), (0, 2, 6), np.array([0, 2, 4]), 5, chunk_rows=2)
     np.testing.assert_array_equal(result.toarray(), values[[0, 2, 6]][:, [0, 2, 4]])
     assert calls == [0, 2, 6] and np.isfinite(result.data).all()
+
+
+@pytest.mark.parametrize("format", ["csr", "csc", "coo", "duplicate_csr"])
+def test_sparse_identity_remap_matches_original_without_input_mutation(format):
+    from scipy import sparse
+
+    matrix = sparse.csr_matrix(np.array([[1, 0], [3, 4], [5, 6], [0, 8]], dtype=np.float32))
+    if format == "duplicate_csr":
+        matrix = sparse.csr_matrix(
+            (
+                np.array([1, 2, 3, 4, 5, 6, 8], dtype=np.float32),
+                np.array([0, 0, 0, 1, 0, 1, 1]),
+                np.array([0, 1, 4, 6, 7]),
+            ),
+            shape=(4, 2),
+        )
+    else:
+        matrix = matrix.asformat(format)
+    before = matrix.copy()
+    coo = sparse.coo_matrix(matrix, dtype=np.float32)
+    reference = sparse.csr_matrix((coo.data, (coo.row, np.array([0, 2])[coo.col])), shape=(4, 3))
+    prepared = toy(matrix=matrix)
+    for key in ("data", "indices", "indptr"):
+        np.testing.assert_array_equal(getattr(prepared.adata.X, key), getattr(reference, key))
+    np.testing.assert_array_equal(matrix.toarray(), before.toarray())
+    prepared.adata.X.data[:] = 0
+    np.testing.assert_array_equal(matrix.toarray(), before.toarray())
+
+
+def test_control_candidate_tuples_shared_without_changing_order_or_rows():
+    prepared = toy(
+        contexts=("J::0",) * 4,
+    )
+    assert prepared.train_control_indices["a"] == prepared.val_control_indices["v"] == (0, 2)
+    assert prepared.train_control_indices["a"] is prepared.val_control_indices["v"]

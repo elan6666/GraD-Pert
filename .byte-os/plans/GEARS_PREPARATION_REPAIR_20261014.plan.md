@@ -9,3 +9,10 @@
 阶段验收：本地synthetic/contract及服务器CPU检查；真实小队列原/新官方graph张量与RNG一致且实测耗时；同源官方CPU十步/恢复/zeroPKL。之后只终止旧GEARS预处理和CPU调度器，scDFM原PID/tick/模型源码不变。新GEARS独立run源码SHA/原配置/数据协议/四轮/last18指标，先十步真实GPU预检。混合source队列逐row核验科学源码，不伪称scDFM使用新源码；native依赖新两模型实际终态，并仍需主验收native预检。旧日志/run/cache/源码全部保存。不放宽GPU90%/2GiB/foreign1GiB门，不重跑BR/Scouter，不改活动源码。
 
 预处理parity probe含加载/校验时间单列，sample8 cells/2control draws；它不是GPU吞吐、全数据长期稳定性或科学结果。Luna监督短探针，主不重复查。新实际预检启动后再交唯一长监督20min，失败保存证据交主。
+
+
+### 追加诊断与第二阶段修复
+
+edf19aa真实8细胞parity探针在准备输入阶段超过21分钟，未进入图对照，已保存INTERRUPTED.json并只停止该CPU探针；scDFM和原GEARS未被信号影响。透明阶段wrapper的独立stage1探针显示CanonicalTrainingData初始化0.802s、read_allowed_rows12.017s；多次30s Python栈仍在build_prepared line160的SciPy CSR→COO转换。perf因系统perf_event_paranoid=4拒绝，未提升权限或修改策略。
+
+对canonical float32 CSR新增直接列索引重映射：allowed轴严格递增，因此映射后保持排序且不改变数据值；独立复制data/indptr，其他格式/重复项保持旧COO转换回退。各context控制候选tuple改为构造一次并共享不可变值。增加四格式（含重复CSR）原算法逐数组对照、输入不变及控制顺序/共享性检查。这个修复只影响新GEARS准备源码；旧scDFM原源码和worker保留。真数据完整sanitize X仍必须与原官方缓存严格相等，不能靠manifest跳过值验证。新source的CPU十步和真实parity/耗时尚待执行，不能声明提速或GPU预检完成。

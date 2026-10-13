@@ -250,6 +250,7 @@ def repair_gears(
     if not changed <= {
         "benchmarks/expression_holdout/gears.py",
         "benchmarks/expression_holdout/gears_preparation_probe.py",
+        "benchmarks/expression_holdout/data.py",
     }:
         raise ValueError("GEARS preparation repair must not change other scientific code")
     identity = inspect_source_identity(

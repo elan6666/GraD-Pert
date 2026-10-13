@@ -1,3 +1,7 @@
+## 2026-10-14：GEARS准备第二阶段（十步不变）
+
+透明阶段探针定位build_prepared的CSR→COO转换：初始化0.802s、读取12.017s，后续转换多分钟仍无完成；旧21min探针保存中断证据。新canonical CSR索引重映射和context候选tuple共享已实现；数值/顺序/输入不变检查进行中，真实输入parity与新CPU十步待验证。scDFM原worker继续，旧GEARS准备仍运行，未启动新正式GEARS。主owner/build，长monitor PAUSED；Luna唯一监督短stage1探针。
+
 ## 2026-10-14：GEARS十步预检的CPU准备瓶颈接回
 
 max_updates一直为10；26/1781是CPU条件构图数，不是训练step。现原预检1h51未进GPU、多数条件48sec，主已接回owner/build，旧monitor PAUSED，scDFM原worker继续。修复仅缓存同context/control候选池和只读target视图；官方构图/随机采样保持。已完成官方排序H5AD仅在文件/原RUN/data/config/env/method及完整sanitize输入严格核对后复用。新的独立GEARS源码/运行记录和保留scDFM旧源码的混合source调度准备中，真实数据耗时/原新graph RNG对照及新GPU十步尚未完成。计划plans/GEARS_PREPARATION_REPAIR_20261014.plan.md。
