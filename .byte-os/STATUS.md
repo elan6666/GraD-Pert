@@ -1,3 +1,7 @@
+## 2026-10-14：DP科学完成；每臂自动训练诊断报告
+
+当前native-ffn-five-eval128-420d3a1-20261014，source420d3a1五臂正常自动推进。DP四轮/480更新/last18评估/zeroPKL已独立核对，checkpoint f0800c5e...，last-test a8edfbb8...。后续FN在训练，现有controller/source不动。用户新增每臂终态自动分析：独立CPU仅读小聚合JSON工具，中文报告+4图+7CSV/原型/逐层表征/输出/梯度/最终18指标，analysis与training SHA分开。7合同检查通过；DP实际报告生成和新监督自动化绑定待服务器收据。权威coordination已短回主/build/in_progress，旧monitor暂PAUSED；完成后立即新handoff恢复唯一20min监督。不改旧训练、不增加GPU诊断、不重跑官方/BR；scDFM评估延期原pt保留。方法/限制见 docs/experiments/GRADPERT_V2_AUTOMATIC_ABLATION_ANALYSIS_20261014.md。
+
 ## 2026-10-14: GEARS audit accepted; native FB eval300 gate failed
 
 GEARS source7798605/checkpoint624ca968 preserved. Read-only diagnostic21ac1c9 (receipt5f2c9a37ae8218038dee8131442ecb6c98a34c3889b31b75cd1f478527ab8d1d) replays3fixed conditions with original300controls on CPU:225unseen mean deltas exactly0, truth std nonzero, manual/official/common Pearson constant_vector consistent; final independent decoder weight/bias~1e-41, exact masked gradients0. Coupled Adam weight_decay and no output supervision explains collapse toward control-copy. No scientific result overwrite/optimizer update. Report docs/experiments/GEARS_UNSEEN_ZERO_DELTA_AUDIT_20261014.md; small receipts evidence/gears-unseen-audit-20261014/. GPU audit old runtime policy denied current previously-authorized TotalVI-s2; no policy relaxed; initialCPUdiagnostic reference-order assertion corrected to condition-ID lookup, official eval alreadycorrect.

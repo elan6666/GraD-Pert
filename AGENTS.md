@@ -187,6 +187,31 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
 - Implementation agents require disjoint directory ownership from a plan.
 - Review agents do not modify code unless reassigned to a repair plan.
 
+## V2 ablation completion analysis
+
+- For newly authorized v2 ablations, enable existing training-only process
+  diagnostics at initialization and epoch boundaries. Never change an active
+  run or pretend historical missing diagnostics were collected.
+- Each arm's true training and last-test completion triggers an automatic
+  Chinese analysis report and figures, alongside all 18 Pearson entries and
+  valid counts. Read saved aggregate JSON using
+  `scripts/v2/analyze_completed_ablation.py`; no extra model/GPU job is needed.
+- Include component loss/time, Student/Teacher prototype entropy and JS,
+  argmax occupancy, actual CE=H+KL decomposition; gene/CLS/projector variance
+  and effective rank; output/control-copy errors, effect-scale statistics,
+  negative predictions; weighted shared-gradient norms/cosines. Expose missing
+  diagnostics explicitly. Describe fixed rank0 prefix budgets and correlated
+  views; these are not population estimates or collapse/biology verdicts.
+- Original training source/checkpoint/test receipts remain immutable. Analysis
+  uses its own clean published source and fresh independent server output,
+  recording input/output hashes; never change selection or optimizer/EMA/center.
+  Pull only reviewed small aggregate reports/figures/receipts, not matrices.
+- The unique supervisor runs the CPU-only postprocessor once per completed
+  arm, verifies the receipt and notifies main with its analysis. The controller
+  continues the next authorized arm; do not duplicate/pause training for a
+  report. A reporting failure is separate from scientific completion and must
+  return for repair. Representation comparisons require matching probe hashes.
+
 ## Maintenance
 
 - Last reviewed: 2026-08-24
