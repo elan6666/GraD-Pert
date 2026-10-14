@@ -1,0 +1,90 @@
+{
+  "active": {
+    "identity": {
+      "command_sha256": "7061e9dec111ce425999682b73e2fdb5453a3986acf62a621006d9aa65b487b3",
+      "pid": 3049542,
+      "start_ticks": "735695108"
+    },
+    "name": "FN",
+    "stage": "preflight"
+  },
+  "completed": {},
+  "error": null,
+  "gate_receipts": {
+    "DP-eval-b300-g0/receipt.json": {
+      "cell_batch": 300,
+      "gpu": "0",
+      "peak_allocated_bytes": 8614390784,
+      "reference_batch": 128,
+      "sha256": "8f99f23f524f425000d6a2e161743a959f627bdfff32417cc1ce196723a81439",
+      "status": "passed",
+      "steps_completed": null,
+      "steps_requested": null
+    },
+    "DP-eval-b300-g1/receipt.json": {
+      "cell_batch": 300,
+      "gpu": "1",
+      "peak_allocated_bytes": 8614390784,
+      "reference_batch": 128,
+      "sha256": "b4026330bb7df401c1ac549aeb58869384f7753dc195b4e62db2ece0a895e385",
+      "status": "passed",
+      "steps_completed": null,
+      "steps_requested": null
+    },
+    "DP-preflight/receipt.json": {
+      "cell_batch": null,
+      "gpu": "0,1",
+      "peak_allocated_bytes": 26903244800,
+      "reference_batch": null,
+      "sha256": "4c245b6303d470cb7394bc5da3f20bc5253eab5c52e2ab8e675ad8445b8e1239",
+      "status": "passed",
+      "steps_completed": 10,
+      "steps_requested": 10
+    },
+    "FN-preflight/receipt.json": {
+      "cell_batch": null,
+      "gpu": "0,1",
+      "peak_allocated_bytes": null,
+      "reference_batch": null,
+      "sha256": "3f1251732a97162efda54068fa23ed37f81c9719929643b5dfda0e99083c25a5",
+      "status": "running",
+      "steps_completed": 0,
+      "steps_requested": 10
+    }
+  },
+  "observed_unix": 1791953509.6433575,
+  "phase": "preflight",
+  "processes": {
+    "3046624": {
+      "cmd": "/data/yilangliu/GraD-Pert/source/.venv/bin/python /data/yilangliu/GraD-Pert/development/source-native-ffn-leaf-3ee8ef3/scripts/v2/run_br400_group.py --queue /data/yilangliu/GraD-Pert/development/native-ffn-five-leaf-3ee8",
+      "cmdline_sha256": "892d5f2f5da774c7dd44106cdc6fc8161e7bd03dcf2a48e48a8ab70bd21a675b",
+      "env": [
+        "PYTORCH_ALLOC_CONF=expandable_segments:True",
+        "CUDA_VISIBLE_DEVICES="
+      ],
+      "ppid": "1",
+      "present": true,
+      "start_ticks": "735652620",
+      "uid": "1002"
+    },
+    "3049542": {
+      "cmd": "/data/yilangliu/GraD-Pert/source/.venv/bin/python -m torch.distributed.run --standalone --nproc_per_node 2 /data/yilangliu/GraD-Pert/development/source-native-ffn-leaf-3ee8ef3/scripts/v2/capacity_probe.py --config /data/",
+      "cmdline_sha256": "7061e9dec111ce425999682b73e2fdb5453a3986acf62a621006d9aa65b487b3",
+      "env": [
+        "PYTORCH_ALLOC_CONF=expandable_segments:True",
+        "CUDA_VISIBLE_DEVICES=0,1"
+      ],
+      "ppid": "3046624",
+      "present": true,
+      "start_ticks": "735695108",
+      "uid": "1002"
+    }
+  },
+  "queue_path": "/data/yilangliu/GraD-Pert/development/native-ffn-five-leaf-3ee8ef3-20261014/queue.json",
+  "queue_sha256": "01a9f4239cf0412446f1497f58b2d5e46d35b8fc63163997d03fb14f9e48a7a9",
+  "runtime_sha256": "5f76311010cb773632170f31c89fd7f0eee323a2d2132a60ec5c525062acb2c7",
+  "scientific_complete": false,
+  "source_commit": "3ee8ef3b343efa5223f0be4f7dd570e839651f88",
+  "state_sha256": "09530c8f00fffc4246e3568a6bdf1873ff985a8eb1f3744d74219d4428d729ce",
+  "status": "running"
+}

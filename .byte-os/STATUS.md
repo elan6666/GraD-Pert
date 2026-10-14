@@ -1,3 +1,11 @@
+## 2026-10-14: DP gates accepted, FN running; long handoff prepared
+
+DP ten updates/restore and GPU0/GPU1 eval300-vs128 receipts passed. Latest Luna snapshot SHA9f24f2e6cf7fe3471fced0418890fa7738375fba3250228db3e847d9c84c8754 reviewed; FN preflight running. Luna ended, no duplicate polling. Queue native-ffn-five-leaf-3ee8ef3-20261014/source3ee8ef3 remains immutable. Handoff79941c7b28f81e77545dfce8b8b6ae34cbd61d1a48c01ba4033a4be86ee75230 prepared for exact supervisor01a0df0b-4142-7df1-86c0-d959471d80a1. Monitor/return fallback staged PAUSED; pending transfer/ACK/ACTIVE20min verification. At PREFLIGHT_COMPLETE supervisor returns main for independent exact MAIN_ACCEPTANCE, then formal DP/FN/FG/FB/PO four epochs/last. No formal fit yet; scDFM evaluation remains deferred and its original last.pt preserved. Small startup/handoff evidence: evidence/native-ffn-five-20261014/.
+
+## 2026-10-14：新五组队列真实启动，短监督预检
+
+发布源3ee8ef3b343efa5223f0be4f7dd570e839651f88，本地和服务器101检查通过。新queue native-ffn-five-leaf-3ee8ef3-20261014 SHA01a9f4239cf0412446f1497f58b2d5e46d35b8fc63163997d03fb14f9e48a7a9；runtime5f76311010cb773632170f31c89fd7f0eee323a2d2132a60ec5c525062acb2c7。startup a26da90737bfcc04e0aecdc1d5f2de13fafb960e681753a7f12c50039d7d0516：controller3046624/start735652620/真实cmd892d5f2f5da774c7dd44106cdc6fc8161e7bd03dcf2a48e48a8ab70bd21a675b；DP torchrun3046781/start735653056，CUDA0,1/allocator合规；真实进度8/10。main核对小receipt SHA，Luna唯一只读监督后续45min预检，主不重复查。仍需五臂10update/restore及双卡300vs128 eval全部门、主MAIN_ACCEPTANCE，正式训练未开始。scDFM评估延期/原pt保留，旧failed队列保留、没有重跑BR。长监督/return monitors PAUSED，待确需长监督再唯一交接。
+
 ## 2026-10-14：DP十步通过，eval队列范围检查修复
 
 1fa8cd4 queue已终态failed：DP十步/恢复通过，receipt275b27b94c2a6cf5954d86a355b57ef0675bcf7c2d377e08d494f378314ede40；eval-capacity-g0在计算前被旧BR family guard拒绝。失败监督收据0cd174237b4d1d4c89e89384430bd6459c5bf5a5fae6cf4bbfe3eb63e5dc6561保留，无正式臂启动。main独立确认state失败，Luna已结束。本地补精确FFN五臂/order/mode/10steps及原leaf绑定测试，101检查通过、Ruff/diff通过；模型/config/数值容差/资源策略不改。下一步发布新源/新ID并重验预检，scDFM原pt不动、评估延期。下文启动状态为历史。
