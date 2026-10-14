@@ -144,7 +144,10 @@ def audit(args):
             evaluation_protocol="v2",
         )
         require_evaluation_identity(data, reference, cfg)
-        assert tuple(reference.manifest.condition_ids) == tuple(data.split.test_conditions)
+        reference_positions = {
+            condition: i for i, condition in enumerate(reference.manifest.condition_ids)
+        }
+        assert set(data.split.test_conditions) <= set(reference_positions)
         genes = list(data.expression_gene_ids)
         h5 = anndata.read_h5ad(
             run / "fit/official_data/expression_holdout/perturb_processed.h5ad", backed="r"
@@ -245,7 +248,9 @@ def audit(args):
                 prediction=pred,
                 input_control=controls,
                 truth=truth,
-                metric_control_pool_mean=reference.metric_control_means[index],
+                metric_control_pool_mean=reference.metric_control_means[
+                    reference_positions[draw.condition_id]
+                ],
                 de_gene_indices=reference.manifest.de_gene_indices[draw.condition_id],
                 systema_reference=reference.systema_reference,
                 de_unavailable_reason=reference.manifest.de_unavailable_reasons.get(
