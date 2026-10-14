@@ -716,7 +716,7 @@ def gate_entry(path: Path) -> dict:
     return {"receipt": str(path), "sha256": sha256_file(path)}
 
 
-def execute(queue: dict, directory: Path) -> None:
+def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -> None:
     if (
         os.environ.get("CUDA_VISIBLE_DEVICES") != ""
         or os.environ.get("PYTORCH_ALLOC_CONF") != ALLOCATOR
@@ -728,6 +728,10 @@ def execute(queue: dict, directory: Path) -> None:
         raise ValueError("fresh CPU-only execution must match sealed source/root/queue")
     verify(queue)
     matrix = verify_manifest(Path(queue["source"]), Path(queue["manifest"]))
+    if eval_only_row is not None and (
+        queue["family"] != FFN_SCHEMA or eval_only_row not in matrix["priority"]
+    ):
+        raise ValueError("evaluation-only engineering requires one exact FFN arm")
     queue_sha = sha256_file(directory / "queue.json")
     state = {
         "status": "running",
@@ -741,6 +745,8 @@ def execute(queue: dict, directory: Path) -> None:
         "eval_capacity": {},
         "completed": {},
     }
+    if eval_only_row is not None:
+        state["engineering_only_row"] = eval_only_row
 
     def guard():
         if sha256_file(directory / "queue.json") != queue_sha:
@@ -772,16 +778,18 @@ def execute(queue: dict, directory: Path) -> None:
             if any(p["owned"] for p in guard()["processes"]):
                 raise RuntimeError("other owned CUDA work exists")
             indexed = {row["name"]: row for row in queue["rows"]}
-            for name in matrix["preflight_priority"]:
+            priority = [eval_only_row] if eval_only_row else matrix["preflight_priority"]
+            for name in priority:
                 row = indexed[name]
-                command = probe(row, directory, shared=True)
-                if queue["family"] not in LAST_ONLY_FAMILIES:
-                    command = [*command, "--joint-validation-check"]
-                run_stage(queue, row, "preflight", command, "0,1", state, guard)
-                entry = gate_entry(directory / f"{name}-preflight/receipt.json")
-                validate_training_gate(queue, row, entry)
-                state["preflights"][name] = entry
-                atomic_json(directory / "state.json", state)
+                if eval_only_row is None:
+                    command = probe(row, directory, shared=True)
+                    if queue["family"] not in LAST_ONLY_FAMILIES:
+                        command = [*command, "--joint-validation-check"]
+                    run_stage(queue, row, "preflight", command, "0,1", state, guard)
+                    entry = gate_entry(directory / f"{name}-preflight/receipt.json")
+                    validate_training_gate(queue, row, entry)
+                    state["preflights"][name] = entry
+                    atomic_json(directory / "state.json", state)
                 for binding in (b for b in queue["eval_bindings"] if b["row_name"] == name):
                     run_stage(
                         queue,
@@ -795,6 +803,11 @@ def execute(queue: dict, directory: Path) -> None:
                     entry = gate_entry(Path(binding["output"]) / "receipt.json")
                     validate_eval_gate(queue, row, binding, entry)
                     state["eval_capacity"][f"{name}-g{binding['gpu']}"] = entry
+            if eval_only_row is not None:
+                state.update(status="completed", phase="engineering_eval_complete", active=None)
+                atomic_json(directory / "state.json", state)
+                atomic_json(directory / "EVAL_CAPACITY_COMPLETE.json", state)
+                return
             common = validate_common_gates(queue, state)
             ready = {
                 "common_identity": common,
@@ -855,14 +868,22 @@ def main() -> None:
     for key in ("source", "manifest", "runtime", "output", "shared-policy", "queue"):
         parser.add_argument("--" + key, type=Path)
     parser.add_argument("--prepare", action="store_true")
+    parser.add_argument("--eval-only-row", choices=("DP", "FN", "FG", "FB", "PO"))
     args = parser.parse_args()
     fields = ("source", "manifest", "runtime", "output", "shared_policy")
-    if args.prepare and not args.queue and all(getattr(args, key) is not None for key in fields):
+    if (
+        args.prepare
+        and not args.queue
+        and not args.eval_only_row
+        and all(getattr(args, key) is not None for key in fields)
+    ):
         prepare(
             args.source, args.manifest, args.runtime, args.output, read_json(args.shared_policy)
         )
     elif args.queue and not args.prepare and all(getattr(args, key) is None for key in fields):
-        execute(read_json(args.queue), args.queue.resolve().parent)
+        execute(
+            read_json(args.queue), args.queue.resolve().parent, eval_only_row=args.eval_only_row
+        )
     else:
         parser.error(
             "choose --prepare with source/manifest/runtime/output/shared-policy or --queue"

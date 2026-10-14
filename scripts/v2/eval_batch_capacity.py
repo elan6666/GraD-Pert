@@ -103,7 +103,9 @@ def compare_predictions(reference: Any, prediction: Any) -> dict[str, Any]:
         "precision": "native_float32_inference_finite_precision_not_bitwise_equality",
     }
     if not result["allclose"]:
-        raise ValueError("evaluation cell batching exceeded the fixed inference parity tolerance")
+        error = ValueError("evaluation cell batching exceeded the fixed inference parity tolerance")
+        error.comparison = result
+        raise error
     return result
 
 
@@ -475,6 +477,8 @@ def main() -> None:
             },
         )
     except BaseException as error:
+        if hasattr(error, "comparison"):
+            receipt["comparison"] = error.comparison
         receipt.update(
             status="failed",
             error_type=type(error).__name__,

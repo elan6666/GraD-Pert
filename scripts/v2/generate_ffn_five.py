@@ -26,7 +26,9 @@ CHANGES = {
 }
 
 
-def configurations(source: Path) -> dict:
+def configurations(source: Path, *, eval_batch: int = 300) -> dict:
+    if type(eval_batch) is not int or eval_batch not in (128, 192, 256, 300):
+        raise ValueError("FFN evaluation batch must be one of128/192/256/300")
     parent = source / PARENT
     if sha256_file(parent) != PARENT_SHA:
         raise ValueError("completed BR400 anchor changed")
@@ -40,6 +42,12 @@ def configurations(source: Path) -> dict:
                 "reference": REFERENCE,
             }
         cfg["training"].update(monitor="none", monitor_mode="none")
+        if eval_batch != 300:
+            cfg["training"]["eval_batch_size"] = {
+                "value": eval_batch,
+                "source": "project_preregistered",
+                "reference": REFERENCE,
+            }
         cfg["model"]["parameters"]["process_diagnostics"] = {
             "value": True,
             "source": "user_locked",
@@ -49,7 +57,7 @@ def configurations(source: Path) -> dict:
     return result
 
 
-def metadata() -> dict:
+def metadata(*, eval_batch: int = 300) -> dict:
     return {
         "schema": SCHEMA,
         "parents": {"BR": {"config": PARENT, "sha256": PARENT_SHA}},
@@ -61,7 +69,7 @@ def metadata() -> dict:
         "global_batch": 400,
         "epochs": 4,
         "seed": 1,
-        "eval_batch": 300,
+        "eval_batch": eval_batch,
         "validation": "disabled",
         "selection": "final_epoch",
         "test_roles": ["last"],
@@ -79,11 +87,12 @@ def verify_manifest(source: Path, path: Path) -> dict:
     if not path.is_relative_to(source):
         raise ValueError("FFN manifest must be source-contained")
     manifest = json.loads(path.read_text())
-    if {k: v for k, v in manifest.items() if k != "rows"} != metadata():
+    eval_batch = manifest.get("eval_batch")
+    expected = configurations(source, eval_batch=eval_batch)
+    if {k: v for k, v in manifest.items() if k != "rows"} != metadata(eval_batch=eval_batch):
         raise ValueError("FFN five-arm protocol changed")
     if [row["name"] for row in manifest["rows"]] != list(PRIORITY):
         raise ValueError("FFN scope/order must exclude BR")
-    expected = configurations(source)
     for row in manifest["rows"]:
         cfg_path = path.parent / row["name"] / "gradpert_v2/nadig_jurkat.yaml"
         if (
@@ -96,12 +105,12 @@ def verify_manifest(source: Path, path: Path) -> dict:
     return manifest
 
 
-def generate(source: Path, output: Path) -> dict:
+def generate(source: Path, output: Path, *, eval_batch: int = 300) -> dict:
     source, output = source.resolve(), output.resolve()
     if output.exists() or not output.is_relative_to(source):
         raise ValueError("fresh source-contained config directory required")
     rows = []
-    for name, cfg in configurations(source).items():
+    for name, cfg in configurations(source, eval_batch=eval_batch).items():
         path = output / name / "gradpert_v2/nadig_jurkat.yaml"
         path.parent.mkdir(parents=True)
         path.write_text(yaml.safe_dump(cfg, sort_keys=False))
@@ -109,12 +118,17 @@ def generate(source: Path, output: Path) -> dict:
             {"name": name, "config": str(path.relative_to(source)), "sha256": sha256_file(path)}
         )
     path = output / "manifest.json"
-    path.write_text(json.dumps({**metadata(), "rows": rows}, indent=2) + "\n")
+    path.write_text(json.dumps({**metadata(eval_batch=eval_batch), "rows": rows}, indent=2) + "\n")
     return verify_manifest(source, path)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--eval-batch", type=int, choices=(128, 192, 256, 300), default=300)
     args = parser.parse_args()
-    print(json.dumps(generate(Path(__file__).resolve().parents[2], args.output)))
+    print(
+        json.dumps(
+            generate(Path(__file__).resolve().parents[2], args.output, eval_batch=args.eval_batch)
+        )
+    )

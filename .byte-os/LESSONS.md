@@ -357,3 +357,9 @@ User corrected “恢复基线” to official scDFM/GEARS, not native BR. Reuse 
 
 ## 2026-10-13: launch each official arm with its frozen Python
 GEARS CPU integration was incorrectly launched with scDFM Python, and correctly failed anndata-version guard. Always select runtime[python] per arm (GEARS and scDFM dependency sets differ), never reuse the previous arm command interpreter. Retain the failed log; rerun with fresh output identity.
+
+## 2026-10-14: masked output gradients and keyed evaluation references
+
+Excluding a gene from numeric supervision does not freeze its parameters: dense zero-gradient rows still receive coupled Adam L2 updates. For gene-specific readouts, audit parameter scale and actual per-cell/mean delta, rather than interpreting null Pearson as0 or blaming the evaluator. Keep this protocol effect distinct from ordinary unseen-perturbation generalization.
+
+Evaluation-state condition IDs may cover more populations or use a different order than test draws. Reuse the public evaluator's condition-ID lookup; do not index reference means by test loop position or assume ordered-list equality. The CPU diagnostic assertion caught this wrong assumption before results were saved; production evaluator already used the correct lookup.

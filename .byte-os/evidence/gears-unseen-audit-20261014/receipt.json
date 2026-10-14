@@ -1,0 +1,455 @@
+{
+  "audit_source": {
+    "commit": "21ac1c9491ed7cdbc0795b3c83616e17a4a7cde5",
+    "dirty": false,
+    "formal_eligibility_reason": null,
+    "formal_eligible": true,
+    "publication_receipt_sha256": "6b948f353f393dbaefcd91a9b4eaefb7e9df3367c9924bf6f6b0977c0ba94da5",
+    "published_commit": "21ac1c9491ed7cdbc0795b3c83616e17a4a7cde5",
+    "remote_ref": "refs/heads/main",
+    "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+    "repository_root": "/data/yilangliu/GraD-Pert/development/source-gears-audit-21ac1c9",
+    "tree_sha256": "ea570a333b4d75a85324f99c28c729ca77eb3a9d99d8cf950f03e13a81422ec0"
+  },
+  "checkpoint_sha256": "624ca968f585cd8f5730cb01967c8fdf6ce1fd31e8890ec94dd19f1e768dbcdf",
+  "checkpoint_unchanged": true,
+  "conditions": [
+    {
+      "all_metric_replay": [
+        {
+          "metric_id": "txpert_macro_pearson_delta_all",
+          "recorded": 0.5597620355998751,
+          "value": 0.559762033100036
+        },
+        {
+          "metric_id": "txpert_macro_pearson_delta_deg",
+          "recorded": 0.8075081688077184,
+          "value": 0.8075081656913926
+        },
+        {
+          "metric_id": "trishift_pearson_delta_all",
+          "recorded": 0.5814100561143477,
+          "value": 0.5814100532154316
+        },
+        {
+          "metric_id": "trishift_pearson_delta_deg",
+          "recorded": 0.8191626306694244,
+          "value": 0.8191626300362099
+        },
+        {
+          "metric_id": "systema_pearson_all",
+          "recorded": 0.3935385216627385,
+          "value": 0.39353851145697116
+        },
+        {
+          "metric_id": "systema_pearson_deg",
+          "recorded": 0.6836300810335704,
+          "value": 0.6836300644362773
+        }
+      ],
+      "condition": "UTP6+ctrl",
+      "control_count": 300,
+      "control_ids_sha256": "310e1698187fba8c18160b60e377847a2895db781ae3dcc0157957fb2d292f2b",
+      "manual_reason": "constant_vector",
+      "manual_txpert": null,
+      "metric_reason": "constant_vector",
+      "metric_txpert": null,
+      "raw_decoder_delta": [
+        {
+          "float32": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 1.4893140208690588e-40,
+            "rms": 5.580086844709249e-41,
+            "std": 5.579484125854547e-41
+          },
+          "float64_same_features": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 1.4893647580579388e-40,
+            "rms": 5.580117530666727e-41,
+            "std": 5.579515128388251e-41
+          }
+        },
+        {
+          "float32": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 1.4893140208690588e-40,
+            "rms": 5.580086844709249e-41,
+            "std": 5.579484125854547e-41
+          },
+          "float64_same_features": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 1.4893647580579388e-40,
+            "rms": 5.580117530666727e-41,
+            "std": 5.579515128388251e-41
+          }
+        },
+        {
+          "float32": {
+            "count": 9900,
+            "exact_zero_count": 0,
+            "max_abs": 1.4893140208690588e-40,
+            "rms": 5.580086844709249e-41,
+            "std": 5.579484125854546e-41
+          },
+          "float64_same_features": {
+            "count": 9900,
+            "exact_zero_count": 0,
+            "max_abs": 1.4893647580579388e-40,
+            "rms": 5.580117530666727e-41,
+            "std": 5.57951512838825e-41
+          }
+        }
+      ],
+      "recorded_reason": "constant_vector",
+      "unseen_cell_delta": {
+        "count": 67500,
+        "exact_zero_count": 33981,
+        "max_abs": 1.4893140208690588e-40,
+        "rms": 4.0439169397194034e-41,
+        "std": 4.0439139685304543e-41
+      },
+      "unseen_mean_delta": {
+        "count": 225,
+        "exact_zero_count": 225,
+        "max_abs": 0.0,
+        "rms": 0.0,
+        "std": 0.0
+      },
+      "unseen_truth_delta": {
+        "count": 225,
+        "exact_zero_count": 0,
+        "max_abs": 0.6591899461771402,
+        "rms": 0.09591191337371101,
+        "std": 0.09493366432793555
+      }
+    },
+    {
+      "all_metric_replay": [
+        {
+          "metric_id": "txpert_macro_pearson_delta_all",
+          "recorded": -0.09797233433957148,
+          "value": -0.0979723185316825
+        },
+        {
+          "metric_id": "txpert_macro_pearson_delta_deg",
+          "recorded": -0.705639145527243,
+          "value": -0.7056391602153192
+        },
+        {
+          "metric_id": "trishift_pearson_delta_all",
+          "recorded": -0.05771136471000724,
+          "value": -0.05771132011204757
+        },
+        {
+          "metric_id": "trishift_pearson_delta_deg",
+          "recorded": -0.7164729867216978,
+          "value": -0.7164730351657954
+        },
+        {
+          "metric_id": "systema_pearson_all",
+          "recorded": -0.18954555533195644,
+          "value": -0.18954527635052576
+        },
+        {
+          "metric_id": "systema_pearson_deg",
+          "recorded": -0.6016524216110989,
+          "value": -0.6016522393020917
+        }
+      ],
+      "condition": "DDX3X+ctrl",
+      "control_count": 300,
+      "control_ids_sha256": "9325cbf8dcd3b75626283de24d24aa7e182c183c087bcd8f62147eeaf492bafb",
+      "manual_reason": "constant_vector",
+      "manual_txpert": null,
+      "metric_reason": "constant_vector",
+      "metric_txpert": null,
+      "raw_decoder_delta": [
+        {
+          "float32": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 8.620648022679842e-41,
+            "rms": 3.169089646969943e-41,
+            "std": 3.1690566710790175e-41
+          },
+          "float64_same_features": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 8.620609832559115e-41,
+            "rms": 3.1690837879766113e-41,
+            "std": 3.1690508356711873e-41
+          }
+        },
+        {
+          "float32": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 8.620648022679842e-41,
+            "rms": 3.169089646969943e-41,
+            "std": 3.1690566710790175e-41
+          },
+          "float64_same_features": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 8.620609832559115e-41,
+            "rms": 3.1690837879766113e-41,
+            "std": 3.1690508356711873e-41
+          }
+        },
+        {
+          "float32": {
+            "count": 9900,
+            "exact_zero_count": 0,
+            "max_abs": 8.620648022679842e-41,
+            "rms": 3.169089646969943e-41,
+            "std": 3.1690566710790175e-41
+          },
+          "float64_same_features": {
+            "count": 9900,
+            "exact_zero_count": 0,
+            "max_abs": 8.620609832559115e-41,
+            "rms": 3.169083787976611e-41,
+            "std": 3.1690508356711873e-41
+          }
+        }
+      ],
+      "recorded_reason": "constant_vector",
+      "unseen_cell_delta": {
+        "count": 67500,
+        "exact_zero_count": 34022,
+        "max_abs": 8.620648022679842e-41,
+        "rms": 2.306725266198778e-41,
+        "std": 2.306576894010819e-41
+      },
+      "unseen_mean_delta": {
+        "count": 225,
+        "exact_zero_count": 225,
+        "max_abs": 0.0,
+        "rms": 0.0,
+        "std": 0.0
+      },
+      "unseen_truth_delta": {
+        "count": 225,
+        "exact_zero_count": 0,
+        "max_abs": 0.44542793879906334,
+        "rms": 0.06656092388992776,
+        "std": 0.06588388922506756
+      }
+    },
+    {
+      "all_metric_replay": [
+        {
+          "metric_id": "txpert_macro_pearson_delta_all",
+          "recorded": 0.3114684185464554,
+          "value": 0.31146841921681
+        },
+        {
+          "metric_id": "txpert_macro_pearson_delta_deg",
+          "recorded": 0.7128848950251787,
+          "value": 0.7128848975991694
+        },
+        {
+          "metric_id": "trishift_pearson_delta_all",
+          "recorded": 0.3221030823703696,
+          "value": 0.3221030811636786
+        },
+        {
+          "metric_id": "trishift_pearson_delta_deg",
+          "recorded": 0.7465180986945925,
+          "value": 0.7465181035645865
+        },
+        {
+          "metric_id": "systema_pearson_all",
+          "recorded": 0.08483413911924313,
+          "value": 0.08483412929786772
+        },
+        {
+          "metric_id": "systema_pearson_deg",
+          "recorded": 0.6030836601685868,
+          "value": 0.6030836553654717
+        }
+      ],
+      "condition": "RPAP3+ctrl",
+      "control_count": 300,
+      "control_ids_sha256": "fb6eca3743c9fc96f8e32ff4c06c44cc3a252b3f783bf77d726e1713c354d517",
+      "manual_reason": "constant_vector",
+      "manual_txpert": null,
+      "metric_reason": "constant_vector",
+      "metric_txpert": null,
+      "raw_decoder_delta": [
+        {
+          "float32": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 1.0081922061277761e-40,
+            "rms": 3.719272231624338e-41,
+            "std": 3.7191499821327935e-41
+          },
+          "float64_same_features": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 1.0082259249293771e-40,
+            "rms": 3.719297952017946e-41,
+            "std": 3.7191754295699076e-41
+          }
+        },
+        {
+          "float32": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 1.0081922061277761e-40,
+            "rms": 3.719272231624338e-41,
+            "std": 3.7191499821327935e-41
+          },
+          "float64_same_features": {
+            "count": 28800,
+            "exact_zero_count": 0,
+            "max_abs": 1.0082259249293771e-40,
+            "rms": 3.719297952017946e-41,
+            "std": 3.7191754295699076e-41
+          }
+        },
+        {
+          "float32": {
+            "count": 9900,
+            "exact_zero_count": 0,
+            "max_abs": 1.0081922061277761e-40,
+            "rms": 3.719272231624338e-41,
+            "std": 3.7191499821327935e-41
+          },
+          "float64_same_features": {
+            "count": 9900,
+            "exact_zero_count": 0,
+            "max_abs": 1.0082259249293771e-40,
+            "rms": 3.7192979520179457e-41,
+            "std": 3.7191754295699076e-41
+          }
+        }
+      ],
+      "recorded_reason": "constant_vector",
+      "unseen_cell_delta": {
+        "count": 67500,
+        "exact_zero_count": 37628,
+        "max_abs": 1.0081922061277761e-40,
+        "rms": 2.549579674788326e-41,
+        "std": 2.54944381494443e-41
+      },
+      "unseen_mean_delta": {
+        "count": 225,
+        "exact_zero_count": 225,
+        "max_abs": 0.0,
+        "rms": 0.0,
+        "std": 0.0
+      },
+      "unseen_truth_delta": {
+        "count": 225,
+        "exact_zero_count": 0,
+        "max_abs": 0.4442129203925531,
+        "rms": 0.0921664115243842,
+        "std": 0.09207381415051787
+      }
+    }
+  ],
+  "config_sha256": "b7c2b23170bb5a16bb61e4199590977e8e7c8c81ad1c2e56a8d39ce4760b0c1c",
+  "decoder_parameters": {
+    "indv_b1": {
+      "seen": {
+        "count": 4775,
+        "exact_zero_count": 0,
+        "max_abs": 0.0015978716546669602,
+        "rms": 2.8236128577415996e-05,
+        "std": 2.8230415701036544e-05
+      },
+      "unseen": {
+        "count": 225,
+        "exact_zero_count": 0,
+        "max_abs": 2.8077545621840727e-08,
+        "rms": 1.8971137001905024e-09,
+        "std": 1.8943541569323727e-09
+      }
+    },
+    "indv_b2": {
+      "seen": {
+        "count": 4775,
+        "exact_zero_count": 0,
+        "max_abs": 0.13100290298461914,
+        "rms": 0.009069964049549442,
+        "std": 0.008500553633587487
+      },
+      "unseen": {
+        "count": 225,
+        "exact_zero_count": 0,
+        "max_abs": 3.2064511460680464e-41,
+        "rms": 1.1612311465277646e-41,
+        "std": 1.1593857067490593e-41
+      }
+    },
+    "indv_w1": {
+      "seen": {
+        "count": 305600,
+        "exact_zero_count": 17,
+        "max_abs": 0.1287485659122467,
+        "rms": 0.0002806572345596748,
+        "std": 0.0002806565081596273
+      },
+      "unseen": {
+        "count": 14400,
+        "exact_zero_count": 0,
+        "max_abs": 0.011606177315115929,
+        "rms": 9.676078512105365e-05,
+        "std": 9.675717925537657e-05
+      }
+    },
+    "indv_w2": {
+      "seen": {
+        "count": 310375,
+        "exact_zero_count": 0,
+        "max_abs": 0.05743639916181564,
+        "rms": 0.0019794616607823287,
+        "std": 0.0019783708063710027
+      },
+      "unseen": {
+        "count": 14625,
+        "exact_zero_count": 2,
+        "max_abs": 5.129593158507425e-41,
+        "rms": 1.427932756188202e-41,
+        "std": 1.4279202012116603e-41
+      }
+    }
+  },
+  "device": "cpu",
+  "graph_hashes": {
+    "co_edges": "2f88758467814472df7e26da73063031caf73ab179320e785deb1e19ff5b8c87",
+    "co_weights": "900cf2eb779226dac4bcb6b95f758b7a51d2226bb721375c3886f0ce223802cd",
+    "go_edges": "c0cf6f8f3ee89571119c0e526b46433b0d3e932fe6802dbd62f1732239b1f219",
+    "go_weights": "1b81637ad958ed6bbb5fa286e20f24c2bb2071680b628036a72b95fefabbb1a8"
+  },
+  "historical_evaluation_source": "7798605001bda2a03933b71e84cdfde7faf811c5",
+  "kind": "gears-unseen-read-only-audit-1",
+  "masked_gradient": {
+    "indv_b2": {
+      "count": 225,
+      "exact_zero_count": 225,
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "std": 0.0
+    },
+    "indv_w2": {
+      "count": 14625,
+      "exact_zero_count": 14625,
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "std": 0.0
+    }
+  },
+  "no_original_artifact_write": true,
+  "official_commit": "f374e43e197b295016d80395d7a54ddb81cc6769",
+  "optimizer_updates": 0,
+  "runtime_sha256": "2ebb7c637db82e1ce8f1bd71842460447a2c0f0459ff809f121ba85012765571",
+  "training_source": "7798605001bda2a03933b71e84cdfde7faf811c5",
+  "wall_seconds": 79.25009727291763
+}

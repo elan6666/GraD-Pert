@@ -1,5 +1,13 @@
 # 2026-10-14 用户授权更新：先运行五组，scDFM评估延期
 
+## 2026-10-14 FB数值门后的工程接续
+
+3ee8ef3新队列DP/FN/FG全部工程门、FB十步通过，FB GPU0 eval300与reference128超固定2e-6容差，终态failed，无正式fit。失败保留并回交主，两个monitor暂停。不得把误差阈值放宽或覆盖旧队列。
+
+只测试执行分块256→192→128，取通过的最高候选；每次均保留同一300control清单、5000基因轴、seed、query1000、指标/DEG/归约，训练仍四轮/global400/m100×双卡×accum2/无验证/last。增加明确的eval-only工程入口，只运行所选已授权FFN arm两卡容量门，不跑训练/不写科学COMPLETE或MAIN_ACCEPTANCE。工程输出明确标为EVAL_CAPACITY_COMPLETE。失败收据现在保存实际abs/relative误差统计，原阈值不变。先在FB检查候选，再所有五臂同一batch重新通过完整门和主验收，才正式派发；128是既有参考执行路径，不将同batch一致宣称为跨batch数值验证。所有候选config自包含/版本化，旧300家族默认和历史不改。
+
+GEARS用户请求的constant-vector审计已完成，详见docs/experiments/GEARS_UNSEEN_ZERO_DELTA_AUDIT_20261014.md：官方输出没有硬置零，未监督基因特异最终读出经官方coupled Adam weight decay退化到~1e-41，三个固定条件的预测均值Δ精确零；checkpoint保持。没有修改GEARS优化器、架构或旧结果。
+
 此段覆盖下文“必须等待两官方完整测试终态才派发native”的旧顺序要求。用户明确要求先推进之前五组，scDFM评估以后再优化，保留当前pt。五组仍为DP→FN→FG→FB→PO，各从头四轮、global400=m100×2卡×accum2、不逐轮验证、只测last的18个Pearson及原训练过程诊断；BR/Scouter/scDFM不重跑。
 
 只调整native调度依赖，不改变native模型、五组配置/manifest、数据/表达剔除、损失/优化器或评估协议。运行时显式 completion_policy=scdfm_fit_gears_terminal_evaluation_deferred_v1 和 user:2026-10-14-native-five-scdfm-eval-deferred：要求原scDFM RUN/fit receipt/source/config/runtime完整身份、3988/3988和四轮预算完成、last.pt路径/SHA未变，以及GEARS真实终态/18指标/zeroPKL。scDFM测试仍deferred_by_user，不写COMPLETE、不把48/592部分结果当成完成。原strict默认仍要求两官方完整评估，未知policy/缺授权/变更checkpoint/未完成fit/GEARS不齐必须拦住。此policy和proof也绑定在PREFLIGHT_COMPLETE/MAIN_ACCEPTANCE中。

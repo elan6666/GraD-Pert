@@ -1,0 +1,71 @@
+{
+  "schema": "ffn-five-last-1",
+  "parents": {
+    "BR": {
+      "config": "configs/v2/br400_best_last_checkpoint_20261012/BR/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "d7877c03839645901f930817d5258638ca8738c650bd23fc42e5da33415e6f50"
+    }
+  },
+  "priority": [
+    "DP",
+    "FN",
+    "FG",
+    "FB",
+    "PO"
+  ],
+  "preflight_priority": [
+    "DP",
+    "FN",
+    "FG",
+    "FB",
+    "PO"
+  ],
+  "common_microbatch": 100,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 400,
+  "epochs": 4,
+  "seed": 1,
+  "eval_batch": 256,
+  "validation": "disabled",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "execution": "official_dependency_then_dual_preflight_then_dual_fit_last",
+  "requires_official_baselines": [
+    "scdfm",
+    "gears"
+  ],
+  "rerun_BR": false,
+  "process_diagnostics": "fixed_training_only_epoch_boundaries",
+  "rows": [
+    {
+      "name": "DP",
+      "config": "configs/v2/ffn_five_eval256_20261014/DP/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "3b5d649b0187493b2e576b44dfe14456625d9ba2199b93a02f08756a647144b7"
+    },
+    {
+      "name": "FN",
+      "config": "configs/v2/ffn_five_eval256_20261014/FN/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "9602ebe53e9b0972dc5c5e97c8abadb511c02b96d50468c212ad3ebd150e8089"
+    },
+    {
+      "name": "FG",
+      "config": "configs/v2/ffn_five_eval256_20261014/FG/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "1abde05cf2d004d47d89e5d633a41b561f01bc106450ea542f69ae44667fc4dc"
+    },
+    {
+      "name": "FB",
+      "config": "configs/v2/ffn_five_eval256_20261014/FB/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "ad97d6c752bb478eb691efe0559e10b1f5ede2d9f9d2bc2eb441668e1bf047d8"
+    },
+    {
+      "name": "PO",
+      "config": "configs/v2/ffn_five_eval256_20261014/PO/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "3414d43c81f9e35b82955add2c4c35793ec2e759de971c0d8d06eafd7e762797"
+    }
+  ]
+}

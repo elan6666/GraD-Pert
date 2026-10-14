@@ -1,0 +1,298 @@
+{
+  "audit_source": {
+    "commit": "21ac1c9491ed7cdbc0795b3c83616e17a4a7cde5",
+    "dirty": false,
+    "formal_eligibility_reason": null,
+    "formal_eligible": true,
+    "publication_receipt_sha256": "6b948f353f393dbaefcd91a9b4eaefb7e9df3367c9924bf6f6b0977c0ba94da5",
+    "published_commit": "21ac1c9491ed7cdbc0795b3c83616e17a4a7cde5",
+    "remote_ref": "refs/heads/main",
+    "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+    "repository_root": "/data/yilangliu/GraD-Pert/development/source-gears-audit-21ac1c9",
+    "tree_sha256": "ea570a333b4d75a85324f99c28c729ca77eb3a9d99d8cf950f03e13a81422ec0"
+  },
+  "checkpoint_sha256": "624ca968f585cd8f5730cb01967c8fdf6ce1fd31e8890ec94dd19f1e768dbcdf",
+  "checkpoint_unchanged": true,
+  "conditions": [
+    {
+      "condition": "UTP6+ctrl",
+      "control_count": 300,
+      "manual_reason": "constant_vector",
+      "manual_txpert": null,
+      "max_abs_metric_replay_diff": 1.6597293095443888e-08,
+      "metric_reason": "constant_vector",
+      "metric_txpert": null,
+      "raw_fp32_fp64": [
+        {
+          "float32_max_abs": 1.4893140208690588e-40,
+          "float64_same_features_max_abs": 1.4893647580579388e-40
+        },
+        {
+          "float32_max_abs": 1.4893140208690588e-40,
+          "float64_same_features_max_abs": 1.4893647580579388e-40
+        },
+        {
+          "float32_max_abs": 1.4893140208690588e-40,
+          "float64_same_features_max_abs": 1.4893647580579388e-40
+        }
+      ],
+      "recorded_reason": "constant_vector",
+      "six_metric_replay": [
+        {
+          "abs_diff": 2.4998391134900544e-09,
+          "metric_id": "txpert_macro_pearson_delta_all",
+          "recorded": 0.5597620355998751,
+          "value": 0.559762033100036
+        },
+        {
+          "abs_diff": 3.1163257530053556e-09,
+          "metric_id": "txpert_macro_pearson_delta_deg",
+          "recorded": 0.8075081688077184,
+          "value": 0.8075081656913926
+        },
+        {
+          "abs_diff": 2.8989161071635294e-09,
+          "metric_id": "trishift_pearson_delta_all",
+          "recorded": 0.5814100561143477,
+          "value": 0.5814100532154316
+        },
+        {
+          "abs_diff": 6.332144808496309e-10,
+          "metric_id": "trishift_pearson_delta_deg",
+          "recorded": 0.8191626306694244,
+          "value": 0.8191626300362099
+        },
+        {
+          "abs_diff": 1.0205767342341687e-08,
+          "metric_id": "systema_pearson_all",
+          "recorded": 0.3935385216627385,
+          "value": 0.39353851145697116
+        },
+        {
+          "abs_diff": 1.6597293095443888e-08,
+          "metric_id": "systema_pearson_deg",
+          "recorded": 0.6836300810335704,
+          "value": 0.6836300644362773
+        }
+      ],
+      "truth_delta_std": 0.09493366432793555,
+      "unseen_cell_delta": {
+        "count": 67500,
+        "exact_zero_count": 33981,
+        "max_abs": 1.4893140208690588e-40,
+        "rms": 4.0439169397194034e-41,
+        "std": 4.0439139685304543e-41
+      },
+      "unseen_mean_delta": {
+        "count": 225,
+        "exact_zero_count": 225,
+        "max_abs": 0.0,
+        "rms": 0.0,
+        "std": 0.0
+      },
+      "unseen_truth_delta": {
+        "count": 225,
+        "exact_zero_count": 0,
+        "max_abs": 0.6591899461771402,
+        "rms": 0.09591191337371101,
+        "std": 0.09493366432793555
+      }
+    },
+    {
+      "condition": "DDX3X+ctrl",
+      "control_count": 300,
+      "manual_reason": "constant_vector",
+      "manual_txpert": null,
+      "max_abs_metric_replay_diff": 2.7898143067917047e-07,
+      "metric_reason": "constant_vector",
+      "metric_txpert": null,
+      "raw_fp32_fp64": [
+        {
+          "float32_max_abs": 8.620648022679842e-41,
+          "float64_same_features_max_abs": 8.620609832559115e-41
+        },
+        {
+          "float32_max_abs": 8.620648022679842e-41,
+          "float64_same_features_max_abs": 8.620609832559115e-41
+        },
+        {
+          "float32_max_abs": 8.620648022679842e-41,
+          "float64_same_features_max_abs": 8.620609832559115e-41
+        }
+      ],
+      "recorded_reason": "constant_vector",
+      "six_metric_replay": [
+        {
+          "abs_diff": 1.5807888970043038e-08,
+          "metric_id": "txpert_macro_pearson_delta_all",
+          "recorded": -0.09797233433957148,
+          "value": -0.0979723185316825
+        },
+        {
+          "abs_diff": 1.4688076199753652e-08,
+          "metric_id": "txpert_macro_pearson_delta_deg",
+          "recorded": -0.705639145527243,
+          "value": -0.7056391602153192
+        },
+        {
+          "abs_diff": 4.45979596724877e-08,
+          "metric_id": "trishift_pearson_delta_all",
+          "recorded": -0.05771136471000724,
+          "value": -0.05771132011204757
+        },
+        {
+          "abs_diff": 4.844409762227997e-08,
+          "metric_id": "trishift_pearson_delta_deg",
+          "recorded": -0.7164729867216978,
+          "value": -0.7164730351657954
+        },
+        {
+          "abs_diff": 2.7898143067917047e-07,
+          "metric_id": "systema_pearson_all",
+          "recorded": -0.18954555533195644,
+          "value": -0.18954527635052576
+        },
+        {
+          "abs_diff": 1.8230900722393528e-07,
+          "metric_id": "systema_pearson_deg",
+          "recorded": -0.6016524216110989,
+          "value": -0.6016522393020917
+        }
+      ],
+      "truth_delta_std": 0.06588388922506756,
+      "unseen_cell_delta": {
+        "count": 67500,
+        "exact_zero_count": 34022,
+        "max_abs": 8.620648022679842e-41,
+        "rms": 2.306725266198778e-41,
+        "std": 2.306576894010819e-41
+      },
+      "unseen_mean_delta": {
+        "count": 225,
+        "exact_zero_count": 225,
+        "max_abs": 0.0,
+        "rms": 0.0,
+        "std": 0.0
+      },
+      "unseen_truth_delta": {
+        "count": 225,
+        "exact_zero_count": 0,
+        "max_abs": 0.44542793879906334,
+        "rms": 0.06656092388992776,
+        "std": 0.06588388922506756
+      }
+    },
+    {
+      "condition": "RPAP3+ctrl",
+      "control_count": 300,
+      "manual_reason": "constant_vector",
+      "manual_txpert": null,
+      "max_abs_metric_replay_diff": 9.821375407392807e-09,
+      "metric_reason": "constant_vector",
+      "metric_txpert": null,
+      "raw_fp32_fp64": [
+        {
+          "float32_max_abs": 1.0081922061277761e-40,
+          "float64_same_features_max_abs": 1.0082259249293771e-40
+        },
+        {
+          "float32_max_abs": 1.0081922061277761e-40,
+          "float64_same_features_max_abs": 1.0082259249293771e-40
+        },
+        {
+          "float32_max_abs": 1.0081922061277761e-40,
+          "float64_same_features_max_abs": 1.0082259249293771e-40
+        }
+      ],
+      "recorded_reason": "constant_vector",
+      "six_metric_replay": [
+        {
+          "abs_diff": 6.703546051589626e-10,
+          "metric_id": "txpert_macro_pearson_delta_all",
+          "recorded": 0.3114684185464554,
+          "value": 0.31146841921681
+        },
+        {
+          "abs_diff": 2.5739906872601637e-09,
+          "metric_id": "txpert_macro_pearson_delta_deg",
+          "recorded": 0.7128848950251787,
+          "value": 0.7128848975991694
+        },
+        {
+          "abs_diff": 1.2066910248798024e-09,
+          "metric_id": "trishift_pearson_delta_all",
+          "recorded": 0.3221030823703696,
+          "value": 0.3221030811636786
+        },
+        {
+          "abs_diff": 4.869993963652064e-09,
+          "metric_id": "trishift_pearson_delta_deg",
+          "recorded": 0.7465180986945925,
+          "value": 0.7465181035645865
+        },
+        {
+          "abs_diff": 9.821375407392807e-09,
+          "metric_id": "systema_pearson_all",
+          "recorded": 0.08483413911924313,
+          "value": 0.08483412929786772
+        },
+        {
+          "abs_diff": 4.803115127849367e-09,
+          "metric_id": "systema_pearson_deg",
+          "recorded": 0.6030836601685868,
+          "value": 0.6030836553654717
+        }
+      ],
+      "truth_delta_std": 0.09207381415051787,
+      "unseen_cell_delta": {
+        "count": 67500,
+        "exact_zero_count": 37628,
+        "max_abs": 1.0081922061277761e-40,
+        "rms": 2.549579674788326e-41,
+        "std": 2.54944381494443e-41
+      },
+      "unseen_mean_delta": {
+        "count": 225,
+        "exact_zero_count": 225,
+        "max_abs": 0.0,
+        "rms": 0.0,
+        "std": 0.0
+      },
+      "unseen_truth_delta": {
+        "count": 225,
+        "exact_zero_count": 0,
+        "max_abs": 0.4442129203925531,
+        "rms": 0.0921664115243842,
+        "std": 0.09207381415051787
+      }
+    }
+  ],
+  "config_sha256": "b7c2b23170bb5a16bb61e4199590977e8e7c8c81ad1c2e56a8d39ce4760b0c1c",
+  "device": "cpu",
+  "masked_gradient": {
+    "indv_b2": {
+      "count": 225,
+      "exact_zero_count": 225,
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "std": 0.0
+    },
+    "indv_w2": {
+      "count": 14625,
+      "exact_zero_count": 14625,
+      "max_abs": 0.0,
+      "rms": 0.0,
+      "std": 0.0
+    }
+  },
+  "max_abs_metric_replay_diff_all_conditions": 2.7898143067917047e-07,
+  "observed_unix": 1791956172.4361799,
+  "official_commit": "f374e43e197b295016d80395d7a54ddb81cc6769",
+  "optimizer_updates": 0,
+  "process_present": false,
+  "receipt_path": "/data/yilangliu/GraD-Pert/development/gears-unseen-audit-21ac1c9-cpu-20261014/receipt.json",
+  "receipt_sha256": "5f2c9a37ae8218038dee8131442ecb6c98a34c3889b31b75cd1f478527ab8d1d",
+  "receipt_wall_seconds": 79.25009727291763,
+  "runtime_sha256": "2ebb7c637db82e1ce8f1bd71842460447a2c0f0459ff809f121ba85012765571",
+  "source_commit": "21ac1c9491ed7cdbc0795b3c83616e17a4a7cde5"
+}
