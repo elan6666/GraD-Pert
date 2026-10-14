@@ -1,3 +1,7 @@
+## 2026-10-14：用户停止scDFM评估，checkpoint保留
+
+监督精确SIGTERM仅scDFM评估worker2823360，主已独立SSH核实进程退出、fit/last.pt存在且SHA2569dff79f7e2836482ea6f272dd619c9df967e73f8e5b16f911679c3d557c62a8c前后相同（702057381字节）。训练3988/3988、四轮预算完成；评估48/592中断，缺last-test/COMPLETE，不能标为官方基线完成。原运行/权重/已有产物保留，GEARS未改且已完成；native未启动、仍等待scDFM。官方controller因用户中断终态失败，禁止重启。两个监督/返回monitor均PAUSED，owner已回主build并实质ACK；停止请求已完成，等待用户下一决策。验收 .byte-os/evidence/gears-preparation-20261014/scdfm-user-stop-main-acceptance.json，详细停止收据在权威coordination目录；此状态覆盖此前运行/监督中的叙述。
+
 ## 2026-10-14：启动核对通过，准备交唯一长监督
 
 Luna短startup已结束：GEARS新源7798605构图1781/1781用5:49，仍preflight，尚无GPU十步通过收据；scDFM原worker继续3000/3988。新native r1启动因缺少显式CUDA_VISIBLE_DEVICES空值被CPU门拒绝，旧queue/log保留；fresh r2 PID2897522/start731623535已核实running/waiting_official_baselines、空CUDA、queue SHA583496f99cba00325055d34ed16d61c08a8bde8393ba199d2377740e18728e72。之前dd02…/PID2895684不再有效。两startup收据见handoff；当前main持权，唯一监督handoff SHA672da021bc8c50789af3fd4bcb9e38c482694342c160bd8eee77129a15c177af已准备，两个monitor现PAUSED；需relay、精确监督ACK和ACTIVE20min验证后结束main轮询。新native待两官方真终态后只启动预检，MAIN_ACCEPTANCE仍由主验收。

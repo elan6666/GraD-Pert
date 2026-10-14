@@ -1,0 +1,20 @@
+{
+  "schema": "scdfm-user-stop-main-acceptance-1",
+  "run_id": "official-parallel-gears-prep-7798605-20261014",
+  "attempt": 1,
+  "stop_receipt_sha256": "93d94a12e57c5a340e3429f918d709384c555ced6f07f4c7cdf7ba7a04be95f2",
+  "handoff_sha256": "e347d29986122194d65c716794b0d5c39f8f8f0efd18c3fc816c8a43fb677c85",
+  "server_verified_process_absent": true,
+  "checkpoint_path": "/data/yilangliu/GraD-Pert/runs-official-recovery-9607981/scdfm-jurkat-seed1-20261013T103748Z-1cba65fce8c941a49ea7cdf6a6f08455/fit/last.pt",
+  "checkpoint_sha256": "9dff79f7e2836482ea6f272dd619c9df967e73f8e5b16f911679c3d557c62a8c",
+  "checkpoint_bytes": 702057381,
+  "training_updates": 3988,
+  "training_budget_epochs": 4,
+  "evaluation_stopped_at": 48,
+  "evaluation_total": 592,
+  "last_test_present": false,
+  "scientific_complete": false,
+  "stop_request_complete": true,
+  "supervisor_monitor": "PAUSED",
+  "return_monitor": "PAUSED"
+}
