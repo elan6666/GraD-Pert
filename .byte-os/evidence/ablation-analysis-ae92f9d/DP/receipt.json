@@ -1,0 +1,81 @@
+{
+  "schema": "completed-ablation-analysis-receipt-1",
+  "status": "completed",
+  "run_id": "nadig_jurkat-seed1-20261014T060444Z-f53ca749778b42b5a48ab79e23647df9",
+  "analysis_identity": {
+    "commit": "ae92f9db7f4f511b0f9d88238d707129bdda20d8",
+    "script_sha256": "8b11b9427a9a75d9cafd0b726fa1f47d1f4f14e7842b8d8ba4134c99cc332e03",
+    "python": "3.12.3",
+    "training_method_unchanged": true
+  },
+  "input_hashes": {
+    "run_manifest.json": "d361d75d3c17b742a9ea5860263cd05a0ee8197dab4ac5d5aa8bf12d5b0b023f",
+    "COMPLETE.json": "58d713b3613aadeb9647cd509c1735ccca9a839f661a28cb5d60979af7e84231",
+    "resolved_config.json": "21024ef6c386e7ce00a4f8e32e6732a898866a12c5c3228b2f2569410222d659",
+    "fit/history.json": "9c5797180076beae8f9d2359fca9d57993080990577d81b8bdd5a67e527ffc20",
+    "fit/last-test.json": "a8edfbb8a39544dd19fc708f3b108421fef6aa9796b41511910c9f795fd58c65",
+    "fit/loss-diagnostic-epoch-0000.json": "9f54c454ccfabaf7da5a06903cae61fb9fe04f664ff1d670fba2878025d1f26c",
+    "fit/loss-diagnostic-epoch-0001.json": "982098c1de5bfe406b69eb0e5f03280e473e9c4f1a7c49084a7901504f52118b",
+    "fit/loss-diagnostic-epoch-0002.json": "86c20088c26e899bfb95d72b7e33befe253940bfc3ec2f2660c6a9ba9240c44e",
+    "fit/loss-diagnostic-epoch-0003.json": "98e3a81644242e76c43893a40a7acce43504f4bab254c65f62f1c9d2cb65287b",
+    "fit/loss-diagnostic-epoch-0004.json": "7f8122a8d62724a02fa52862b5eec6dc043007782e87d6468d838a7b68ffc9a9"
+  },
+  "outputs": {
+    "01_losses.png": {
+      "sha256": "256392b8602d8b076adee7ef687d69afb3cdbee0c2008b443ab4770d59fa1ff6",
+      "bytes": 112175
+    },
+    "02_prototypes.png": {
+      "sha256": "bbdef1665f5c351f72b777bab5a1fd9e5a6d76fe0a8c819f1b141b70b3c584c4",
+      "bytes": 100938
+    },
+    "03_representations.png": {
+      "sha256": "8260e78b73ce71976449514ff7ccdfc7568e2ab364938e74bc41973ed96c8b39",
+      "bytes": 126861
+    },
+    "04_outputs_gradients.png": {
+      "sha256": "278a6466f28118134771d2beaec91d32579f85834df535bcab2049ff0d8d3689",
+      "bytes": 158481
+    },
+    "features.csv": {
+      "sha256": "9c57b634c88ddf9dbccee27b8de5062ab385f9e03cff2c9182e95b5d3e9dee3b",
+      "bytes": 49446
+    },
+    "gradients.csv": {
+      "sha256": "0f2d39adae6e49c489555fdba33f4a49893a531290b6b36cc7c44840b3f7cc3d",
+      "bytes": 1755
+    },
+    "heads.csv": {
+      "sha256": "2333ac3cd644a6a99dcbadae4a4d4575ce3b77e2d2d17b6f4f845e7828b348c8",
+      "bytes": 6234
+    },
+    "metrics.csv": {
+      "sha256": "5f4283ca7feb62c3d1bbc63af0101c1cfedefbc125f9f5e7f4d78272eb5c90ea",
+      "bytes": 1286
+    },
+    "outputs.csv": {
+      "sha256": "0d85cb699a0352aeea2fe3c23d4bbfe0728794039fb296054a956039ad9ed2aa",
+      "bytes": 1662
+    },
+    "pairs.csv": {
+      "sha256": "9a3bf8ea0346dea63ebca744a062c4613e28a0e9f9891e129dd55790ef14040f",
+      "bytes": 2194
+    },
+    "report.md": {
+      "sha256": "dfb4049c7d6dba9692d5ef9ac6232289b76d4007b83d6b5ccf0060ea9c6d80d1",
+      "bytes": 6889
+    },
+    "summary.json": {
+      "sha256": "1d70bb6263290cd7dade63ce6d7187b5bc9058e7b6d20c65588e9eab04eab1b9",
+      "bytes": 223208
+    },
+    "training.csv": {
+      "sha256": "a53b6526771be594cf89cb3e0d46249bf3e161336dfc0d5e40f5a58824cbe595",
+      "bytes": 1336
+    }
+  },
+  "model_loads": 0,
+  "optimizer_updates": 0,
+  "gpu_work": false,
+  "scope": "read_only_saved_aggregate_postprocessing"
+}

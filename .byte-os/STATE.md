@@ -1,3 +1,7 @@
+## 2026-10-14: DP representation/prototype/output report accepted
+
+Analysis source ae92f9db7f4f511b0f9d88238d707129bdda20d8 clean/published; 7 local and 7 server contract checks passed. Training/evaluation source420d3a1 unchanged. Actual CPU report receipt643e4944..., model_loads0/updates0/GPUfalse; 4PNG/7CSV/summary/report hashes verified; dry-run-reviewed transfer795811 bytes. Graph token rank7.97->48.28, Cellgene4.85->44.14, Responsegene final2.23; TeacherSSL1condition JS3.7586, SSL2node prefix concentrated argmax/JS0.00972, with small-probe caveats. Interpretation docs/experiments/DP_TRAINING_PROCESS_ANALYSIS_20261014.md. AGENTS adds per-arm completion report rule. Next: new formal+analysis handoff and unique20min supervisor ACK/ACTIVE; process FN/FG/FB/PO saved aggregates on CPU without changing controller or adding GPU work. scDFM checkpoint preserved/evaluation deferred.
+
 ## 2026-10-14：DP科学完成；每臂自动训练诊断报告
 
 当前native-ffn-five-eval128-420d3a1-20261014，source420d3a1五臂正常自动推进。DP四轮/480更新/last18评估/zeroPKL已独立核对，checkpoint f0800c5e...，last-test a8edfbb8...。后续FN在训练，现有controller/source不动。用户新增每臂终态自动分析：独立CPU仅读小聚合JSON工具，中文报告+4图+7CSV/原型/逐层表征/输出/梯度/最终18指标，analysis与training SHA分开。7合同检查通过；DP实际报告生成和新监督自动化绑定待服务器收据。权威coordination已短回主/build/in_progress，旧monitor暂PAUSED；完成后立即新handoff恢复唯一20min监督。不改旧训练、不增加GPU诊断、不重跑官方/BR；scDFM评估延期原pt保留。方法/限制见 docs/experiments/GRADPERT_V2_AUTOMATIC_ABLATION_ANALYSIS_20261014.md。
