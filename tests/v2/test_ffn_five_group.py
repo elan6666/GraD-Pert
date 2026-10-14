@@ -91,3 +91,136 @@ def test_official_dependency_requires_both_evaluated_terminals(tmp_path, monkeyp
     (root / "FAILURE.json").write_text("{}")
     with pytest.raises(RuntimeError, match="remain unstarted"):
         runner.official_dependency_ready(spec)
+
+
+def deferred_fixture(tmp_path, monkeypatch):
+    from benchmarks.expression_holdout import config as official_config
+
+    monkeypatch.setattr(runner, "SERVER_ROOT", tmp_path)
+    root = tmp_path / "official"
+    root.mkdir()
+    rows = []
+    for name in ("scdfm", "gears"):
+        run = root / name
+        (run / "fit").mkdir(parents=True)
+        config = run / "config.yaml"
+        config.write_text(
+            (ROOT / f"configs/v2/official_expression_20261013/{name}_jurkat.yaml").read_text()
+        )
+        runtime = run / "runtime.json"
+        runtime.write_text("{}")
+        rows.append(
+            {
+                "name": name,
+                "run_root": str(run),
+                "config": str(config),
+                "config_sha256": sha256_file(config),
+                "runtime": str(runtime),
+                "runtime_sha256": sha256_file(runtime),
+                "scientific_source_commit": name + "-source",
+            }
+        )
+    queue = {"source_commit": "a" * 40, "rows": rows}
+    (root / "queue.json").write_text(json.dumps(queue))
+    row = rows[0]
+    config = official_config.load_config(Path(row["config"]))
+    identity = {
+        "source_commit": "scdfm-source",
+        "source_clean": True,
+        "config_sha256": row["config_sha256"],
+        "runtime_sha256": row["runtime_sha256"],
+        "checkpoint_role": "last",
+        "official_commit": config["source_code"]["commit"],
+        **config["evaluation"]["expected_hashes"],
+        "scientific_complete": False,
+    }
+    scdfm = Path(row["run_root"])
+    checkpoint = scdfm / "fit/last.pt"
+    checkpoint.write_bytes(b"preserved-checkpoint")
+    (scdfm / "RUN.json").write_text(json.dumps(identity))
+    (scdfm / "fit-receipt.json").write_text(
+        json.dumps(
+            {
+                **identity,
+                "training_complete": True,
+                "epochs_completed": 4,
+                "completed_updates": 3988,
+                "total_optimizer_updates": 3988,
+                "checkpoint": str(checkpoint),
+            }
+        )
+    )
+    gears = Path(rows[1]["run_root"])
+    (gears / "receipt.json").write_text("{}")
+    (gears / "COMPLETE.json").write_text("{}")
+    # The old parent remains failed; no synthetic COMPLETE is ever written.
+    (root / "FAILURE.json").write_text("{}")
+    calls = []
+
+    def terminal(path, row, sha):
+        calls.append((path, row["name"], sha))
+        return {"last_test_sha256": "gears-test-hash"}
+
+    monkeypatch.setattr(official_config, "validate_terminal", terminal)
+    spec = {
+        "root": str(root),
+        "queue_sha256": sha256_file(root / "queue.json"),
+        "source_commit": queue["source_commit"],
+        "completion_policy": runner.DEFERRED_SCDFM_POLICY,
+        "authorization_reference": "user:2026-10-14-native-five-scdfm-eval-deferred",
+        "scdfm_fit": {
+            "evaluation_status": "deferred_by_user",
+            "run_receipt_sha256": sha256_file(scdfm / "RUN.json"),
+            "fit_receipt_sha256": sha256_file(scdfm / "fit-receipt.json"),
+            "checkpoint_sha256": sha256_file(checkpoint),
+        },
+        "gears_receipt_sha256": sha256_file(gears / "receipt.json"),
+        "gears_last_test_sha256": "gears-test-hash",
+    }
+    return root, scdfm, gears, spec, calls
+
+
+def test_explicit_deferral_releases_only_with_preserved_fit_and_real_gears(tmp_path, monkeypatch):
+    root, scdfm, _, spec, calls = deferred_fixture(tmp_path, monkeypatch)
+    assert runner.official_dependency_ready(spec) is True
+    assert [entry[1:] for entry in calls] == [("gears", "gears-source")]
+    assert not (scdfm / "COMPLETE.json").exists()
+    assert not (root / "COMPLETE.json").exists()
+    assert json.loads((scdfm / "RUN.json").read_text())["scientific_complete"] is False
+    strict = {k: v for k, v in spec.items() if k in ("root", "queue_sha256", "source_commit")}
+    with pytest.raises(RuntimeError, match="remain unstarted"):
+        runner.official_dependency_ready(strict)
+
+
+@pytest.mark.parametrize("change", ["checkpoint", "fit", "source", "authorization", "gears"])
+def test_deferred_dependency_rejects_incomplete_or_changed_evidence(tmp_path, monkeypatch, change):
+    _, scdfm, _, spec, _ = deferred_fixture(tmp_path, monkeypatch)
+    if change == "checkpoint":
+        (scdfm / "fit/last.pt").write_bytes(b"different")
+    elif change == "fit":
+        path = scdfm / "fit-receipt.json"
+        fit = json.loads(path.read_text())
+        fit["completed_updates"] = 3987
+        path.write_text(json.dumps(fit))
+        spec["scdfm_fit"]["fit_receipt_sha256"] = sha256_file(path)
+    elif change == "source":
+        path = scdfm / "RUN.json"
+        record = json.loads(path.read_text())
+        record["source_commit"] = "wrong"
+        path.write_text(json.dumps(record))
+        spec["scdfm_fit"]["run_receipt_sha256"] = sha256_file(path)
+    elif change == "authorization":
+        spec.pop("authorization_reference")
+    else:
+        spec["gears_last_test_sha256"] = "wrong"
+    with pytest.raises(ValueError):
+        runner.official_dependency_ready(spec)
+
+
+def test_deferred_dependency_waits_for_gears_and_rejects_unknown_policy(tmp_path, monkeypatch):
+    _, _, gears, spec, _ = deferred_fixture(tmp_path, monkeypatch)
+    (gears / "COMPLETE.json").unlink()
+    assert runner.official_dependency_ready(spec) is False
+    spec["completion_policy"] = "skip_everything"
+    with pytest.raises(ValueError, match="unknown"):
+        runner.official_dependency_ready(spec)

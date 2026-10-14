@@ -1,3 +1,7 @@
+## 2026-10-14：用户授权五组优先，scDFM评估延期
+
+主已持权build；先DP→FN→FG→FB→PO，原四轮/global400/双卡累积2/no-validation/last18metrics和诊断保持。新增显式调度policy验证原scDFM训练完成+原pt保留及GEARS真正完成，scDFM评估仍延期而非完成；原strict默认不变。旧native r2仍CPU等依赖，无正式消融；新源码测试/发布/独立预检准备中。每卡约800MiB的UID1003 TotalVI source-validation在既有许可内，资源门不改。scDFM fit/last.pt SHA9dff79f7e2836482ea6f272dd619c9df967e73f8e5b16f911679c3d557c62a8c保持，禁止重启评估。详见更新后的plans/OFFICIAL_RECOVERY_FFN_DIAGNOSTICS_20261013.plan.md。
+
 ## 2026-10-14：用户停止scDFM评估，checkpoint保留
 
 监督精确SIGTERM仅scDFM评估worker2823360，主已独立SSH核实进程退出、fit/last.pt存在且SHA2569dff79f7e2836482ea6f272dd619c9df967e73f8e5b16f911679c3d557c62a8c前后相同（702057381字节）。训练3988/3988、四轮预算完成；评估48/592中断，缺last-test/COMPLETE，不能标为官方基线完成。原运行/权重/已有产物保留，GEARS未改且已完成；native未启动、仍等待scDFM。官方controller因用户中断终态失败，禁止重启。两个监督/返回monitor均PAUSED，owner已回主build并实质ACK；停止请求已完成，等待用户下一决策。验收 .byte-os/evidence/gears-preparation-20261014/scdfm-user-stop-main-acceptance.json，详细停止收据在权威coordination目录；此状态覆盖此前运行/监督中的叙述。

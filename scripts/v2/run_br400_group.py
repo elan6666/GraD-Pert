@@ -51,6 +51,73 @@ from gradpert.hashing import sha256_file, sha256_json
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
 LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA)
+DEFERRED_SCDFM_POLICY = "scdfm_fit_gears_terminal_evaluation_deferred_v1"
+
+
+def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
+    """Honor an explicit user deferral without inventing a scDFM test result."""
+    from benchmarks.expression_holdout.config import load_config, validate_terminal
+
+    if spec.get("authorization_reference") != "user:2026-10-14-native-five-scdfm-eval-deferred":
+        raise ValueError("deferred scDFM evaluation needs its explicit authorization")
+    rows = {row["name"]: row for row in queue["rows"]}
+    if set(rows) != {"scdfm", "gears"}:
+        raise ValueError("deferred dependency still requires scDFM and GEARS evidence")
+    for dependency in rows.values():
+        for key in ("config", "runtime"):
+            if sha256_file(Path(dependency[key])) != dependency[key + "_sha256"]:
+                raise ValueError("preserved official inputs changed")
+    row = rows["scdfm"]
+    root = Path(row["run_root"])
+    if not root.resolve().is_relative_to(SERVER_ROOT):
+        raise ValueError("preserved scDFM checkpoint must stay on server")
+    proof = spec["scdfm_fit"]
+    if proof.get("evaluation_status") != "deferred_by_user":
+        raise ValueError("scDFM evaluation must be explicitly marked deferred")
+    for filename, key in (
+        ("RUN.json", "run_receipt_sha256"),
+        ("fit-receipt.json", "fit_receipt_sha256"),
+    ):
+        if sha256_file(root / filename) != proof[key]:
+            raise ValueError("preserved scDFM training receipts changed")
+    identity, fit = read_json(root / "RUN.json"), read_json(root / "fit-receipt.json")
+    config = load_config(Path(row["config"]))
+    expected = {
+        "source_commit": row.get("scientific_source_commit", queue["source_commit"]),
+        "source_clean": True,
+        "config_sha256": row["config_sha256"],
+        "runtime_sha256": row["runtime_sha256"],
+        "official_commit": config["source_code"]["commit"],
+        "checkpoint_role": "last",
+        **config["evaluation"]["expected_hashes"],
+    }
+    if any(record.get(k) != v for record in (identity, fit) for k, v in expected.items()):
+        raise ValueError("preserved scDFM source/config/evaluation identity differs")
+    if (
+        fit.get("training_complete") is not True
+        or fit.get("epochs_completed") != config["training"]["epochs"]
+        or fit.get("completed_updates") != fit.get("total_optimizer_updates")
+        or not isinstance(fit.get("completed_updates"), int)
+        or fit["completed_updates"] <= 0
+        or Path(fit["checkpoint"]).resolve() != (root / "fit/last.pt").resolve()
+        or sha256_file(root / "fit/last.pt") != proof["checkpoint_sha256"]
+    ):
+        raise ValueError("preserved scDFM training/checkpoint is incomplete or changed")
+    gears = rows["gears"]
+    gears_root = Path(gears["run_root"])
+    if not gears_root.resolve().is_relative_to(SERVER_ROOT):
+        raise ValueError("GEARS dependency must stay on server")
+    if not (gears_root / "COMPLETE.json").exists():
+        return False
+    terminal = validate_terminal(
+        gears_root, gears, gears.get("scientific_source_commit", queue["source_commit"])
+    )
+    if (
+        sha256_file(gears_root / "receipt.json") != spec["gears_receipt_sha256"]
+        or terminal["last_test_sha256"] != spec["gears_last_test_sha256"]
+    ):
+        raise ValueError("GEARS terminal dependency changed")
+    return True
 
 
 def verify_manifest(source: Path, manifest: Path) -> dict:
@@ -72,6 +139,11 @@ def official_dependency_ready(spec: dict) -> bool:
     queue = read_json(queue_path)
     if queue["source_commit"] != spec["source_commit"]:
         raise ValueError("official dependency source changed")
+    policy = spec.get("completion_policy", "all_official_evaluations")
+    if policy == DEFERRED_SCDFM_POLICY:
+        return deferred_official_dependency_ready(spec, queue)
+    if policy != "all_official_evaluations":
+        raise ValueError("unknown official dependency completion policy")
     if (root / "FAILURE.json").exists():
         raise RuntimeError("official dependency failed; native arms remain unstarted")
     if not (root / "COMPLETE.json").exists():
@@ -732,6 +804,8 @@ def execute(queue: dict, directory: Path) -> None:
                 "eval_capacity": state["eval_capacity"],
                 "formal_order": matrix["priority"],
             }
+            if queue["family"] == FFN_SCHEMA:
+                ready["official_dependency"] = queue["official_dependency"]
             atomic_json(directory / "PREFLIGHT_COMPLETE.json", ready)
             state["phase"] = "waiting_main_acceptance"
             atomic_json(directory / "state.json", state)
