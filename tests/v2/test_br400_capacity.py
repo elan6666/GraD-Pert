@@ -89,6 +89,44 @@ def test_joint_check_rejects_a_validation_side_effect(monkeypatch):
         probe.joint_validation_check(runtime, batch_size=2, bf16=False)
 
 
+@pytest.mark.parametrize("change", [None, "scope", "mode", "steps", "gpu", "config"])
+def test_ffn_five_eval_leaf_preserves_exact_scope_and_binding(tmp_path, change):
+    from generate_ffn_five import PRIORITY, SCHEMA
+
+    queue, row, binding, _, _ = _queue(tmp_path)
+    queue.update(family=SCHEMA, mode=SCHEMA, steps=10)
+    queue["rows"] = [{**row, "name": name} for name in PRIORITY]
+    row = queue["rows"][0]
+    binding.update(row_name=row["name"], output=str(tmp_path / "queue/DP-eval-b300-g0"))
+    args = SimpleNamespace(
+        config=Path(row["plan"]["config"]),
+        data_root=Path(row["plan"]["data_root"]),
+        publication=Path(row["plan"]["publication"]),
+        publication_sha256=row["plan"]["publication_sha256"],
+        shared_queue=tmp_path / "queue/queue.json",
+        output=Path(binding["output"]),
+        row_name=row["name"],
+        gpu="0",
+        cell_batch=300,
+        reference_batch=128,
+    )
+    if change == "scope":
+        queue["rows"].append({**row, "name": "BR"})
+    elif change == "mode":
+        queue["mode"] = "br400-best-last-1"
+    elif change == "steps":
+        queue["steps"] = 128
+    elif change == "gpu":
+        args.gpu = "1"
+    elif change == "config":
+        row["plan"]["config_sha256"] = "0" * 64
+    if change:
+        with pytest.raises(ValueError):
+            evaluation.validate_eval_binding(queue, args, queue["source_commit"])
+    else:
+        assert evaluation.validate_eval_binding(queue, args, queue["source_commit"]) == row
+
+
 def _queue(tmp_path):
     source = tmp_path / "source"
     source.mkdir()

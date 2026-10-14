@@ -1,3 +1,11 @@
+## 2026-10-14：DP十步通过，eval队列范围检查修复
+
+1fa8cd4 queue已终态failed：DP十步/恢复通过，receipt275b27b94c2a6cf5954d86a355b57ef0675bcf7c2d377e08d494f378314ede40；eval-capacity-g0在计算前被旧BR family guard拒绝。失败监督收据0cd174237b4d1d4c89e89384430bd6459c5bf5a5fae6cf4bbfe3eb63e5dc6561保留，无正式臂启动。main独立确认state失败，Luna已结束。本地补精确FFN五臂/order/mode/10steps及原leaf绑定测试，101检查通过、Ruff/diff通过；模型/config/数值容差/资源策略不改。下一步发布新源/新ID并重验预检，scDFM原pt不动、评估延期。下文启动状态为历史。
+
+## 2026-10-14：五组预检实际启动
+
+新source1fa8cd48d89b1bf590a9fdf73a633505d2e522a8，本地/服务器134 checks通过。queue native-ffn-five-deferred-1fa8cd4-20261014 SHA b911097330eb914bf0eefc311c3a1552fd4f65dda1463eb1549f92a603c92360，controller3042404/start735567114，DP child3042493/start735567519，CUDA0,1/allocator匹配，容量收据running。Luna只读监督短门，主不重复查；正式训练尚未开始，待五组10步/restore及双卡eval容量门、主MAIN_ACCEPTANCE。scDFM评估延期且原pt保留，GEARS终态验证；旧CPU等待器精确退休。仍DP→FN→FG→FB→PO四轮、global400、accum2、无验证、last18指标/zeroPKL及原过程诊断。监督/返回monitor现PAUSED。
+
 ## 2026-10-14：用户授权五组优先，scDFM评估延期
 
 主已持权build；先DP→FN→FG→FB→PO，原四轮/global400/双卡累积2/no-validation/last18metrics和诊断保持。新增显式调度policy验证原scDFM训练完成+原pt保留及GEARS真正完成，scDFM评估仍延期而非完成；原strict默认不变。旧native r2仍CPU等依赖，无正式消融；新源码测试/发布/独立预检准备中。每卡约800MiB的UID1003 TotalVI source-validation在既有许可内，资源门不改。scDFM fit/last.pt SHA9dff79f7e2836482ea6f272dd619c9df967e73f8e5b16f911679c3d557c62a8c保持，禁止重启评估。详见更新后的plans/OFFICIAL_RECOVERY_FFN_DIAGNOSTICS_20261013.plan.md。

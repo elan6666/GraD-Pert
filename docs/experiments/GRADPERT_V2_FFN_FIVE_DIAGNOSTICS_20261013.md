@@ -1,5 +1,30 @@
 # Five FFN arms after official scDFM and GEARS
 
+## Current override: 2026-10-14
+
+The user prioritizes DP→FN→FG→FB→PO while deferring scDFM evaluation. The explicit
+`scdfm_fit_gears_terminal_evaluation_deferred_v1` policy verifies original completed
+scDFM fit/checkpoint hashes and GEARS real terminal metrics; it never invents a
+scDFM COMPLETE or uses its interrupted 48/592-condition evaluation as a result.
+The strict all-evaluations default remains unchanged. Original scDFM last.pt stays
+server-only with SHA256 `9dff79f7e2836482ea6f272dd619c9df967e73f8e5b16f911679c3d557c62a8c`.
+
+Source `1fa8cd48d89b1bf590a9fdf73a633505d2e522a8` passed 134 local/server
+checks and DP ten-update/restore gate. Its fresh queue
+`native-ffn-five-deferred-1fa8cd4-20261014` then failed before evaluation computation:
+the eval leaf allowed only historical BR queue families. DP receipt SHA256
+`275b27b94c2a6cf5954d86a355b57ef0675bcf7c2d377e08d494f378314ede40`;
+failure receipt SHA256 `0cd174237b4d1d4c89e89384430bd6459c5bf5a5fae6cf4bbfe3eb63e5dc6561`.
+DP eight measured updates took about21.84–23.21seconds each; peak allocated
+26,903,244,800bytes/reserved27,277,656,064bytes. These are short engineering
+measurements, not scientific results. No formal arm launched.
+
+Repair adds the exact five-arm family/order/mode/ten-step leaf check, preserving
+per-row source/config/publication/GPU/batch bindings and inference tolerances.
+Tests accept the valid leaf and reject extra BR, wrong mode/steps/GPU/config.
+Fresh immutable publication and a new queue are required; old failed evidence
+and original scDFM checkpoint are preserved. Scientific configurations unchanged.
+
 User authorization: 2026-10-13. Clean pre-change main/GitHub source: `141989eeb18719aad2d790012eb6fc7366c31e9b`. This family does not rerun BR or completed Scouter arms. The baseline means official scDFM/GEARS; completed native BR400 is the comparison anchor (training `6a8c612bd7733d2f03b5c041aeff63c5f6ec8339`).
 
 ## Protocol and scope
