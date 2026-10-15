@@ -170,6 +170,7 @@ class RelayGraphLayer(nn.Module):
         neighbors: Tensor,
         valid: Tensor,
         sources: Tensor,
+        target_positions: Tensor,
     ) -> Tensor:
         read = self.read.graph(
             query=normalized_query,
@@ -178,6 +179,11 @@ class RelayGraphLayer(nn.Module):
             valid=valid,
             sources=sources,
             neighborhoods_validated=self.validate_once,
+            **(
+                {"target_positions": target_positions}
+                if getattr(self.read, "all_kda_prefix", False)
+                else {}
+            ),
         )
         x = query + self.dropout(read)
         return cast(Tensor, x + self.dropout(self.ffn(self.norm2(x))))
@@ -196,6 +202,7 @@ class RelayGraphLayer(nn.Module):
                 neighbors[start:end],
                 valid[start:end],
                 sources[start:end],
+                torch.arange(start, end, device=memory.device),
             )
             outputs.append(
                 checkpoint(self._chunk, *args, use_reentrant=False)
@@ -574,6 +581,10 @@ class GraDPertV2(nn.Module):
                 module.replay_sequences = options.relay_kernel == "cudagraphs"
                 module.short_graph_kernel = options.short_graph_kernel
                 module.cache_kda_constants = options.cache_kda_constants
+                module.all_kda_prefix = options.all_kda_prefix
+                module.fixed_gene_order = options.fixed_gene_order
+                if options.all_kda_prefix:
+                    module.self_readout = "position"
                 module.eval_seed = (
                     options.relay_eval_seed if options.relay_eval_seed is not None else 1
                 )
@@ -697,7 +708,7 @@ class GraDPertV2(nn.Module):
     ) -> PredictionMetadata:
         """Identity-only metadata on the output axis; never infer IDs from embeddings."""
         metadata: PredictionMetadata = {}
-        if self.options.gene_conditioned_readout:
+        if self.options.gene_conditioned_readout or self.options.fixed_gene_order:
             metadata["query_gene_ids"] = query_ids
         if self.options.direct_target_flag:
             if query_ids.ndim != 1 or target_ids.ndim != 2:
@@ -794,6 +805,7 @@ class GraDPertV2(nn.Module):
         expression_mask: Tensor | None = None,
         *,
         mask_token: Tensor | None = None,
+        query_gene_ids: Tensor | None = None,
     ) -> tuple[Tensor, Tensor, tuple[Tensor, ...] | None]:
         """Basal encoding without perturbation targets or a raw-expression skip."""
         if control.ndim != 2 or control.shape[1] != gene.shape[-2]:
@@ -809,9 +821,15 @@ class GraDPertV2(nn.Module):
             )
         x = expression + (gene.unsqueeze(0) if gene.ndim == 2 else gene)
         relay = self.options.attention == "relay_full"
+        if self.options.fixed_gene_order and (
+            query_gene_ids is None or query_gene_ids.shape != (control.shape[1],)
+        ):
+            raise ValueError("fixed order requires aligned query gene IDs")
         order = (
             tuple(
-                relay_order(
+                query_gene_ids.argsort().expand(len(control), -1)
+                if self.options.fixed_gene_order
+                else relay_order(
                     len(control),
                     control.shape[1],
                     control.device,
@@ -854,7 +872,9 @@ class GraDPertV2(nn.Module):
         query_gene_ids: Tensor | None = None,
         target_mask: Tensor | None = None,
     ) -> dict[str, Tensor]:
-        basal, control_cls, order = self.encode_control(gene, control, expression_mask)
+        basal, control_cls, order = self.encode_control(
+            gene, control, expression_mask, query_gene_ids=query_gene_ids
+        )
         relay = self.options.attention == "relay_full"
         if relay:
             if not isinstance(order, tuple):

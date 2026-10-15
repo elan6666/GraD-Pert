@@ -40,6 +40,8 @@ class V2Architecture:
     graph_mhc: bool = False
     attention_replacement: str = "none"
     self_readout: str = "final"
+    all_kda_prefix: bool = False
+    fixed_gene_order: bool = False
     prior_shared_adapter: bool = False
     gene_conditioned_readout: bool = False
     direct_target_flag: bool = False
@@ -86,6 +88,8 @@ class V2Architecture:
             "learned_genept_projection",
             "checkpoint_genept_mapping",
             "graph_mhc",
+            "all_kda_prefix",
+            "fixed_gene_order",
         ):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f"{name} must be boolean")
@@ -103,7 +107,7 @@ class V2Architecture:
             raise ValueError("unseen-gene mechanisms require the relay profile")
         if self.learned_genept_projection and (
             self.prior_shared_adapter
-            or (self.gene_conditioned_readout and self.mlp_profile != "unified")
+            or (self.gene_conditioned_readout and self.mlp_profile not in ("unified", "restored"))
         ):
             raise ValueError("raw GenePT projection cannot use reduced-prior mechanisms")
         if self.checkpoint_genept_mapping and not self.learned_genept_projection:
@@ -137,8 +141,6 @@ class V2Architecture:
             if (
                 self.attention != "relay_full"
                 or not self.learned_genept_projection
-                or self.control_conditioned_graph
-                or self.gene_conditioned_readout
                 or self.genept_projection_activation != "gelu"
                 or any(
                     type(v) is not int or v < 1
@@ -170,9 +172,11 @@ class V2Architecture:
         ) and self.attention != "relay_full":
             raise ValueError("new mechanism profiles require relay attention")
         if self.control_conditioned_graph and (
-            self.mlp_profile != "unified" or not self.graph_source_key_gate
+            self.mlp_profile not in ("unified", "restored") or not self.graph_source_key_gate
         ):
-            raise ValueError("conditional graph requires unified MLP and source key gate")
+            raise ValueError(
+                "conditional graph requires an explicit MLP profile and source key gate"
+            )
         if self.mlp_profile == "unified" and self.genept_projection_activation != "none":
             raise ValueError("unified MLP replaces the historical GenePT activation")
         if self.genept_projection_activation not in ("none", "gelu"):
@@ -255,6 +259,18 @@ class V2Architecture:
             self.relay_passes != 1 or self.attention_replacement != "none"
         ):
             raise ValueError("position readout requires single-pass self-KDA")
+        if self.fixed_gene_order and (self.random_gene_order or self.attention != "relay_full"):
+            raise ValueError("fixed ID order requires nonrandom relay attention")
+        if self.all_kda_prefix and (
+            not self.fixed_gene_order
+            or self.self_readout != "final"
+            or self.relay_passes != 1
+            or self.relay_kernel != "eager"
+            or self.attention_replacement != "none"
+            or self.short_graph_kernel
+            or self.graph_mhc
+        ):
+            raise ValueError("all-KDA prefix requires fixed ID order, single-pass eager KDA")
         if self.attention_replacement != "none" and (
             self.short_graph_kernel or self.cache_kda_constants or self.relay_passes != 1
         ):
@@ -315,6 +331,9 @@ class V2Architecture:
             values.pop("attention_replacement")
         if self.self_readout == "final":
             values.pop("self_readout")
+        for name in ("all_kda_prefix", "fixed_gene_order"):
+            if not getattr(self, name):
+                values.pop(name)
         if self.genept_projection_activation == "none":
             # Preserve the architecture identity of historical linear U4 checkpoints.
             values.pop("genept_projection_activation")
@@ -436,6 +455,8 @@ class V2Options:
             "graph_mhc",
             "attention_replacement",
             "self_readout",
+            "all_kda_prefix",
+            "fixed_gene_order",
             "prior_shared_adapter",
             "gene_conditioned_readout",
             "direct_target_flag",

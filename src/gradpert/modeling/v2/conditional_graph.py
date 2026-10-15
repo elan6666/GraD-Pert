@@ -17,12 +17,23 @@ class ControlSummary(nn.Module):
     view. All genes share the three feature, contribution, and summary MLPs.
     """
 
-    def __init__(self, width: int) -> None:
+    def __init__(self, width: int, *, gelu: bool = False) -> None:
         super().__init__()
         self.width = width
-        self.feature = UnifiedMLP(2 * width, 4 * width, width)
-        self.weight = UnifiedMLP(width, 4 * width, width)
-        self.summary = UnifiedMLP(width, 4 * width, width)
+
+        def hidden(input_width: int) -> nn.Module:
+            if not gelu:
+                return UnifiedMLP(input_width, 4 * width, width)
+            return nn.Sequential(
+                nn.RMSNorm(input_width, eps=1e-6),
+                nn.Linear(input_width, 4 * width),
+                nn.GELU(),
+                nn.Linear(4 * width, width),
+            )
+
+        self.feature = hidden(2 * width)
+        self.weight = hidden(width)
+        self.summary = hidden(width)
 
     def forward(self, identity: Tensor, expression: Tensor) -> Tensor:
         if identity.ndim != 2 or expression.ndim != 3:

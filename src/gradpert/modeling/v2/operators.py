@@ -317,6 +317,8 @@ class RelayDeltaAttention(DeltaAttention):
         self.scan_chunk_size = 32
         self.sequence_chunk_size: int | None = None
         self.self_readout = "final"
+        self.all_kda_prefix = False
+        self.fixed_gene_order = False
 
     def random_order_enabled(self) -> bool:
         return self.training if self.randomize_order is None else self.randomize_order
@@ -396,8 +398,12 @@ class RelayDeltaAttention(DeltaAttention):
     ) -> Tensor:
         genes = x.shape[1] - int(has_cls)
         if order is None:
-            order = relay_order(
-                len(x), genes, x.device, self.random_order_enabled(), seed=self.eval_seed
+            order = (
+                torch.arange(genes, device=x.device).expand(len(x), -1)
+                if self.fixed_gene_order
+                else relay_order(
+                    len(x), genes, x.device, self.random_order_enabled(), seed=self.eval_seed
+                )
             )
         if order.shape != (len(x), genes):
             raise ValueError("relay permutation must cover every gene exactly once")
@@ -454,6 +460,24 @@ class RelayDeltaAttention(DeltaAttention):
     def cross(self, query: Tensor, control: Tensor, *, order: Tensor) -> Tensor:
         if len(query) != len(control) or order.shape != control.shape[:2]:
             raise ValueError("cross KDA needs aligned control order")
+        if self.all_kda_prefix:
+            genes = control.shape[1]
+            if query.shape[1] != genes + 1:
+                raise ValueError("prefix cross requires aligned genes and one response CLS")
+            ordered_query = self._ordered(query[:, :genes], order)
+            shape = (*ordered_query.shape[:2], self.heads, self.head_width)
+            q = F.normalize(self.query(ordered_query).reshape(shape).float(), dim=-1)
+            writes = tuple(self._ordered(t, order) for t in self._project_writes(control))
+            y, state = chunk_delta_scan_state(
+                q / math.sqrt(self.head_width),
+                *writes,
+                chunk_size=self.sequence_chunk_size or self.scan_chunk_size,
+            )
+            y = self.head_norm(y.to(query.dtype)).flatten(-2)
+            y = self.output(y * F.silu(self.output_gate(ordered_query)))
+            return torch.cat(
+                (self._ordered(y, order.argsort(-1)), self._read(query[:, genes:], state)), dim=1
+            )
         state = self._write_state(self._project_writes(control), order)
         return self._read(query, state)
 
@@ -467,6 +491,7 @@ class RelayDeltaAttention(DeltaAttention):
         *,
         order: Tensor | None = None,
         neighborhoods_validated: bool = False,
+        target_positions: Tensor | None = None,
     ) -> Tensor:
         if neighbors.shape != valid.shape or sources.shape != (*neighbors.shape, 4):
             raise ValueError("invalid graph neighborhood shape")
@@ -477,6 +502,8 @@ class RelayDeltaAttention(DeltaAttention):
         key, value, decay, beta = self._project_writes(selected)
         decay = decay.masked_fill(~valid[:, :, None, None], 0)
         beta = beta.masked_fill(~valid[:, :, None], 0)
+        if order is None and self.fixed_gene_order:
+            order = neighbors.masked_fill(~valid, torch.iinfo(neighbors.dtype).max).argsort(-1)
         if order is None:
             scores = (
                 torch.rand(n, length, device=query.device)
@@ -487,6 +514,28 @@ class RelayDeltaAttention(DeltaAttention):
                 )
             )
             order = scores.masked_fill(~valid, float("inf")).argsort(-1)
+        if self.all_kda_prefix:
+            if target_positions is None or target_positions.shape != (n,):
+                raise ValueError("graph prefix requires explicit target positions")
+            ordered_neighbors = self._ordered(neighbors, order)
+            target_hit = (ordered_neighbors == target_positions[:, None]) & self._ordered(
+                valid, order
+            )
+            if not (target_hit.sum(-1) == 1).all():
+                raise ValueError("graph prefix requires one valid self edge per target")
+            shape = (n, 1, self.heads, self.head_width)
+            q = F.normalize(self.query(query).reshape(shape).float(), dim=-1)
+            writes = tuple(self._ordered(t, order) for t in (key, value, decay, beta))
+            reads, _ = chunk_delta_scan_state(
+                q.expand(-1, length, -1, -1) / math.sqrt(self.head_width),
+                *writes,
+                chunk_size=self.scan_chunk_size,
+            )
+            selected_read = reads[
+                torch.arange(n, device=query.device), target_hit.long().argmax(-1)
+            ]
+            y = self.head_norm(selected_read.to(query.dtype)).flatten(-2)
+            return cast(Tensor, self.output(y * F.silu(self.output_gate(query))))
         if self.short_graph_kernel:
             from .short_graph_kda import short_graph_final_state
 

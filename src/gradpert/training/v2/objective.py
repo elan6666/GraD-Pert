@@ -248,7 +248,9 @@ class JointObjective(nn.Module):
         self, batch: TrainingBatch, positions: Tensor | None = None
     ) -> PredictionMetadata:
         if not (
-            self.student.options.gene_conditioned_readout or self.student.options.direct_target_flag
+            self.student.options.gene_conditioned_readout
+            or self.student.options.direct_target_flag
+            or self.student.options.fixed_gene_order
         ):
             return {}
         query_positions = (
@@ -550,7 +552,11 @@ class JointObjective(nn.Module):
             mask = torch.zeros_like(batch.control, dtype=torch.bool).scatter_(1, positions, True)
             gene = graph[batch.query_positions]
             basal, cls, _ = self.student.encode_control(
-                gene, batch.control, mask, mask_token=decoder.mask_token
+                gene,
+                batch.control,
+                mask,
+                mask_token=decoder.mask_token,
+                query_gene_ids=batch.graph.ids[batch.query_positions],
             )
             token, cell = decoder(basal, cls, gene)
             targets = batch.control.float()

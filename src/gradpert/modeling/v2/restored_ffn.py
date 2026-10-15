@@ -8,6 +8,7 @@ from torch.nn import functional as F
 
 from gradpert.config.v2 import V2Architecture
 
+from .conditional_graph import ControlGraphModulation, ControlSummary
 from .model import GraDPertV2, RelayGraphLayer, RelayResponseEncoder, SparseRead
 from .operators import GatedFeedForward, ManifoldResidual
 
@@ -145,3 +146,22 @@ def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architectur
                     dict(head.prototypes.named_parameters())[
                         "parametrizations.weight.original0"
                     ].fill_(1)
+    # Optional mechanisms have their own RNG streams; common B0 initialization
+    # and dropout streams are identical when an adapter starts at zero.
+    if options.gene_conditioned_readout:
+        with torch.random.fork_rng(devices=devices):
+            torch.manual_seed((torch.initial_seed() + 0x71F1) % (2**63))
+            final = nn.Linear(max(1, d // 4), d)
+            model.prior_readout = nn.Sequential(
+                nn.RMSNorm(raw_width, eps=1e-6),
+                nn.Linear(raw_width, max(1, d // 4)),
+                nn.GELU(),
+                final,
+            )
+            nn.init.zeros_(final.weight)
+            nn.init.zeros_(final.bias)
+    if options.control_conditioned_graph:
+        with torch.random.fork_rng(devices=devices):
+            torch.manual_seed((torch.initial_seed() + 0x71F2) % (2**63))
+            model.control_summary = ControlSummary(d, gelu=True)
+            model.graph_modulation = ControlGraphModulation(d, options.heads)
