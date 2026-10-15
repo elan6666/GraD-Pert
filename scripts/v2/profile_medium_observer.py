@@ -106,7 +106,7 @@ def execute(args):
     state = {"status": "running", "source": identity, "training_sha": METHOD_SHA}
     write(args.output / "state.json", state)
 
-    def run(label, backend, *, full=False):
+    def run(label, backend, *, full=False, resume_from=None):
         output = args.output / label
         command = [
             sys.executable,
@@ -131,7 +131,16 @@ def execute(args):
             "--stats-backend",
             backend,
             "--deterministic",
+            "--checkpoint-conditions",
+            "100" if full else "1",
         ]
+        if resume_from is not None:
+            command += [
+                "--resume-from",
+                str(resume_from),
+                "--resume-from-sha256",
+                sha(resume_from),
+            ]
         if not full:
             command += ["--limit", "3", "--gate-indices", "0,1,15"]
             if args.capture_profile:
@@ -149,10 +158,19 @@ def execute(args):
 
     try:
         reference = run("reference-probe", "reference")
+        run(
+            "restored-reference-probe",
+            "reference",
+            resume_from=args.output / "reference-probe/recovery/0001.json",
+        )
+        restored_parity = compare(
+            args.output / "reference-probe", args.output / "restored-reference-probe"
+        )
         fast = run("fast-probe", "fast")
         parity = compare(args.output / "reference-probe", args.output / "fast-probe")
         probe = {
             "parity": parity,
+            "recovery_parity": restored_parity,
             "reference_seconds": reference["elapsed_seconds"],
             "fast_seconds": fast["elapsed_seconds"],
             "reference_regions": reference["observer_timings"],

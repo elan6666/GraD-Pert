@@ -20,6 +20,7 @@ from pathlib import Path
 
 import numpy as np
 from cap40_posthoc_accel import ObserverTimings, reduced_distribution, sample_moments
+from cap40_posthoc_recovery import load_recovery, save_recovery
 from cap40_posthoc_stats import (
     Distribution,
     Moments,
@@ -988,6 +989,10 @@ def run(args):
         basic_within_trace = defaultdict(float)
         basic_within_count = defaultdict(int)
         gradients = []
+        elapsed_offset = 0.0
+        peak_before_resume = 0.0
+        recovery = None
+        recovery_writes = []
         profiler = (
             torch.profiler.profile(
                 activities=[
@@ -1018,7 +1023,42 @@ def run(args):
                         m.add(values[indices])
                         global_features[f"student.{module}.{name}"] = m
             schedule = select_schedule(manifest["schedule"], args.limit, args.gate_indices)
-            for number, g in enumerate(schedule):
+            binding = {
+                "analysis": analysis,
+                "method_sha": identity["source"]["commit"],
+                "manifest_sha256": args.manifest_sha256,
+                "config_sha256": sha(args.config),
+                "checkpoint_sha256": cp["sha256"],
+                "schedule_sha256": digest_json(schedule),
+                "stats_backend": getattr(args, "stats_backend", "reference"),
+                "deterministic": torch.are_deterministic_algorithms_enabled(),
+                "physical_gpu": os.environ.get("CUDA_VISIBLE_DEVICES"),
+                "torch_version": torch.__version__,
+                "state_before": before,
+            }
+            resume_index = 0
+            if getattr(args, "resume_from", None):
+                server_path(args.resume_from)
+                if sha(args.resume_from) != args.resume_from_sha256:
+                    raise ValueError("recovery receipt hash differs")
+                saved, recovery = load_recovery(
+                    args.resume_from, binding=binding, schedule_size=len(schedule)
+                )
+                resume_index = saved["next_index"]
+                rows_out, basic_features = saved["rows_out"], saved["basic_features"]
+                deep_results, gradients = saved["deep_results"], saved["gradients"]
+                global_heads, global_features = saved["global_heads"], saved["global_features"]
+                basic_global, basic_between = saved["basic_global"], saved["basic_between"]
+                basic_within_trace = defaultdict(float, saved["basic_within_trace"])
+                basic_within_count = defaultdict(int, saved["basic_within_count"])
+                stages.seconds, stages.calls = saved["timing_seconds"], saved["timing_calls"]
+                elapsed_offset = saved["elapsed_seconds"]
+                peak_before_resume = saved["peak_allocated_mib"]
+                torch.set_rng_state(torch.from_numpy(saved["cpu_rng"]))
+                torch.cuda.set_rng_state(torch.from_numpy(saved["cuda_rng"]))
+                if len(rows_out) != sum(len(g["rows"]) for g in schedule[:resume_index]):
+                    raise ValueError("recovery rows do not cover the completed schedule prefix")
+            for number, g in enumerate(schedule[resume_index:], start=resume_index):
                 with stages.region("resource_check"):
                     check_resources()
                 t = time.perf_counter()
@@ -1159,10 +1199,43 @@ def run(args):
                     "conditions_total": len(schedule),
                     "rows_done": len(rows_out),
                     "rows_total": manifest["rows"],
-                    "elapsed_seconds": time.perf_counter() - start,
+                    "elapsed_seconds": elapsed_offset + time.perf_counter() - start,
                     "condition_seconds": time.perf_counter() - t,
-                    "peak_allocated_mib": torch.cuda.max_memory_allocated() / 2**20,
+                    "peak_allocated_mib": max(
+                        peak_before_resume, torch.cuda.max_memory_allocated() / 2**20
+                    ),
                 }
+                interval = getattr(args, "checkpoint_conditions", 0)
+                if interval and ((number + 1) % interval == 0 or number + 1 == len(schedule)):
+                    if obj.pending:
+                        raise ValueError("recovery boundary has pending teacher statistics")
+                    snapshot = {
+                        "next_index": number + 1,
+                        "rows_out": rows_out,
+                        "basic_features": basic_features,
+                        "deep_results": deep_results,
+                        "gradients": gradients,
+                        "global_heads": global_heads,
+                        "global_features": global_features,
+                        "basic_global": basic_global,
+                        "basic_between": basic_between,
+                        "basic_within_trace": dict(basic_within_trace),
+                        "basic_within_count": dict(basic_within_count),
+                        "timing_seconds": stages.seconds,
+                        "timing_calls": stages.calls,
+                        "elapsed_seconds": progress["elapsed_seconds"],
+                        "peak_allocated_mib": progress["peak_allocated_mib"],
+                        "cpu_rng": torch.get_rng_state().numpy(),
+                        "cuda_rng": torch.cuda.get_rng_state().cpu().numpy(),
+                    }
+                    recovery_path = save_recovery(
+                        args.output / "recovery", binding=binding, state=snapshot
+                    )
+                    recovery_writes.append(str(recovery_path))
+                    write(
+                        args.output / "recovery-latest.json",
+                        {"receipt": str(recovery_path), "sha256": sha(recovery_path)},
+                    )
                 write(args.output / "progress.json", progress)
                 print(json.dumps(progress), flush=True)
         if getattr(args, "profile", False):
@@ -1257,8 +1330,17 @@ def run(args):
             "stats_backend": getattr(args, "stats_backend", "reference"),
             "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
             "observer_timings": stages.result(),
-            "elapsed_seconds": time.perf_counter() - start,
-            "peak_allocated_mib": torch.cuda.max_memory_allocated() / 2**20,
+            "elapsed_seconds": elapsed_offset + time.perf_counter() - start,
+            "peak_allocated_mib": max(
+                peak_before_resume, torch.cuda.max_memory_allocated() / 2**20
+            ),
+            "recovery": {
+                "parent": None if recovery is None else str(args.resume_from),
+                "parent_sha256": None if recovery is None else sha(args.resume_from),
+                "resumed_conditions": resume_index,
+                "writes": recovery_writes,
+                "total_wall_includes_prior_completed_prefix_and_reload": True,
+            },
             "limits": [
                 "Frozen eval-mode checkpoint probes; not historical training activations.",
                 (
@@ -1317,9 +1399,16 @@ def cli():
     p.add_argument("--stats-backend", choices=("reference", "fast"), default="reference")
     p.add_argument("--profile", action="store_true")
     p.add_argument("--deterministic", action="store_true")
+    p.add_argument("--checkpoint-conditions", type=int, default=0)
+    p.add_argument("--resume-from", type=Path)
+    p.add_argument("--resume-from-sha256")
     args = p.parse_args()
     if args.profile and (args.mode != "run" or not args.limit):
         p.error("profiler requires a bounded run --limit")
+    if args.checkpoint_conditions < 0 or (args.resume_from and args.mode != "run"):
+        p.error("recovery requires a run and a nonnegative checkpoint interval")
+    if bool(args.resume_from) != bool(args.resume_from_sha256):
+        p.error("recovery needs the exact parent receipt and SHA256 together")
     if args.mode == "seal":
         seal(args)
     elif args.mode == "seal-medium":
