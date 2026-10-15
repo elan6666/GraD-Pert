@@ -328,6 +328,42 @@ def test_authorized_totalvi_formal_program_keeps_limits(dynamic_policy, dynamic_
         shared.validate_policy(policy)
 
 
+@pytest.mark.parametrize("failure", [None, "old_authority", "uid", "other", "growth", "free"])
+def test_scipenn_specific_proposal_preserves_original_gate(
+    dynamic_policy, dynamic_observed, failure
+):
+    policy = _totalvi_policy(dynamic_policy)
+    policy.update(
+        authorization_reference=shared.SCIPENN_AUTHORIZATION,
+        max_own_memory_fraction=0.90,
+        additional_command_basenames=[
+            shared.TOTALVI_PROGRAM,
+            shared.TOTALVI_FORMAL_PROGRAM,
+            shared.SCIPENN_PROGRAM,
+        ],
+    )
+    process = dynamic_observed["processes"][1]
+    process["identity"]["script_basename"] = shared.SCIPENN_PROGRAM
+    # Preparing this validator does not activate it in any existing policy.
+    with pytest.raises(RuntimeError, match="unapproved"):
+        shared.admit(dynamic_policy, dynamic_observed)
+    if failure == "old_authority":
+        policy["authorization_reference"] = shared.TOTALVI_FORMAL_AUTHORIZATION
+    elif failure == "uid":
+        process["identity"]["uid"] = 1004
+    elif failure == "other":
+        process["identity"]["script_basename"] = "other.py"
+    elif failure == "growth":
+        process["memory_mib"] = 1025
+    elif failure == "free":
+        dynamic_observed["gpus"][0]["free_mib"] = 2047
+    if failure is None:
+        shared.admit(policy, dynamic_observed)
+    else:
+        with pytest.raises((RuntimeError, ValueError)):
+            shared.admit(policy, dynamic_observed)
+
+
 @pytest.mark.parametrize(
     "field,value", [("uid", 1002), ("uid", 1004), ("script_basename", "other.py"), ("pid", 999)]
 )
