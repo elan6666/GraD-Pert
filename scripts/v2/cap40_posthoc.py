@@ -15,9 +15,11 @@ import os
 import subprocess
 import time
 from collections import defaultdict
+from contextlib import nullcontext
 from pathlib import Path
 
 import numpy as np
+from cap40_posthoc_accel import ObserverTimings, reduced_distribution, sample_moments
 from cap40_posthoc_stats import (
     Distribution,
     Moments,
@@ -453,7 +455,11 @@ def feature(value):
 
 
 class Collector:
-    def __init__(self, batch, records, seed):
+    def __init__(self, batch, records, seed, *, stats_backend="reference"):
+        if stats_backend not in ("reference", "fast"):
+            raise ValueError("unknown statistics backend")
+        self.stats_backend = stats_backend
+        self.timings = ObserverTimings()
         self.batch, self.records, self.seed = batch, records, seed
         self.features = defaultdict(lambda: None)
         self.distributions = {}
@@ -488,22 +494,35 @@ class Collector:
         return active[call_index]
 
     def add_features(self, key, value):
-        x = npval(feature(value))
-        if x.ndim == 3:
+        with self.timings.region("feature_statistics"):
+            self._add_features(key, value)
+
+    def _add_features(self, key, value):
+        tensor = feature(value)
+        x = None if self.stats_backend == "fast" else npval(tensor)
+        if tensor.ndim == 3:
             # Sample actual identities by a shared seeded hash, never a prefix.
             ids = (
                 self.current[2]
-                if self.current is not None and len(self.current[2]) == x.shape[1]
-                else np.arange(x.shape[1])
+                if self.current is not None and len(self.current[2]) == tensor.shape[1]
+                else np.arange(tensor.shape[1])
             )
             selected = np.argsort([seeded_int(int(g), self.seed) for g in ids])[
                 : min(128, len(ids))
             ]
-            sampled = x[:, selected]
+            if self.stats_backend == "fast":
+                import torch
+
+                index = torch.as_tensor(selected, device=tensor.device)
+                sampled = npval(tensor.index_select(1, index))
+            else:
+                sampled = x[:, selected]
             # Same-gene differences across controls; gene identity is held fixed.
-            for context in sorted({r["context_id"] for r in self.records[: len(x)]}):
+            for context in sorted({r["context_id"] for r in self.records[: len(sampled)]}):
                 indices = [
-                    i for i, r in enumerate(self.records[: len(x)]) if r["context_id"] == context
+                    i
+                    for i, r in enumerate(self.records[: len(sampled)])
+                    if r["context_id"] == context
                 ]
                 unique = {}
                 for i in indices:
@@ -522,9 +541,13 @@ class Collector:
                         "gene_ids_sha256": digest_json(np.asarray(ids)[selected].tolist()),
                     }
                 )
-            for i, row in enumerate(self.records[: len(x)]):
-                m = Moments(x.shape[-1])
-                m.add(sampled[i])
+            for i, row in enumerate(self.records[: len(sampled)]):
+                if self.stats_backend == "fast":
+                    result = sample_moments(sampled[i])
+                else:
+                    m = Moments(tensor.shape[-1])
+                    m.add(sampled[i])
+                    result = m.result()
                 self.per_cell.append(
                     {
                         "feature": key,
@@ -534,11 +557,13 @@ class Collector:
                         "cell_type": row["cell_type"],
                         "batch": row["batch"],
                         "gene_ids_sha256": digest_json(np.asarray(ids)[selected].tolist()),
-                        **m.result(),
+                        **result,
                     }
                 )
-            x = sampled.reshape(-1, x.shape[-1])
+            x = sampled.reshape(-1, tensor.shape[-1])
         else:
+            if x is None:
+                x = npval(tensor)
             x = x.reshape(-1, x.shape[-1])
         if self.features[key] is None:
             self.features[key] = Moments(x.shape[-1])
@@ -642,9 +667,13 @@ class Collector:
                         if role == "student"
                         else (output.float() - center) / 0.04
                     )
-                    dist = Distribution(output.shape[-1])
-                    for chunk in scaled.reshape(-1, scaled.shape[-1]).split(128):
-                        dist.add(npval(chunk))
+                    with self.timings.region("prototype_statistics"):
+                        if self.stats_backend == "fast":
+                            dist = reduced_distribution(scaled)
+                        else:
+                            dist = Distribution(output.shape[-1])
+                            for chunk in scaled.reshape(-1, scaled.shape[-1]).split(128):
+                                dist.add(npval(chunk))
                     self.distributions[key] = dist.result()
                     self.distribution_objects[key] = dist
                     # Cell/gene rows already correctly selected by the objective.
@@ -734,6 +763,7 @@ class Collector:
                         }
                     )
         return {
+            "observer_timings": self.timings.result(),
             "features": {k: v.result() for k, v in self.features.items() if v is not None},
             "heads": self.distributions,
             "pairs": self.pairs,
@@ -929,6 +959,7 @@ def run(args):
         raise ValueError("allocator contract missing")
     torch.cuda.set_per_process_memory_fraction(policy["max_own_memory_fraction"], 0)
     start = time.perf_counter()
+    stages = ObserverTimings()
     with prepare(
         config,
         data_root=args.data_root,
@@ -952,7 +983,20 @@ def run(args):
         basic_within_trace = defaultdict(float)
         basic_within_count = defaultdict(int)
         gradients = []
-        with torch.random.fork_rng(devices=[0]):
+        profiler = (
+            torch.profiler.profile(
+                activities=[
+                    torch.profiler.ProfilerActivity.CPU,
+                    torch.profiler.ProfilerActivity.CUDA,
+                ],
+                record_shapes=False,
+                profile_memory=False,
+                with_stack=False,
+            )
+            if getattr(args, "profile", False)
+            else nullcontext()
+        )
+        with profiler, torch.random.fork_rng(devices=[0]):
             torch.manual_seed(manifest["seed"])
             with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
                 cached = static_graph(rt)
@@ -970,15 +1014,22 @@ def run(args):
                         global_features[f"student.{module}.{name}"] = m
             schedule = select_schedule(manifest["schedule"], args.limit, args.gate_indices)
             for number, g in enumerate(schedule):
-                check_resources()
+                with stages.region("resource_check"):
+                    check_resources()
                 t = time.perf_counter()
-                raw_batch = assemble(rt, g["rows"], g["queries"], g["view_seed"], deep=False)
-                batch = _move_batch_tree(raw_batch, rt.device)
+                with stages.region("basic_assembly"):
+                    raw_batch = assemble(rt, g["rows"], g["queries"], g["view_seed"], deep=False)
+                    batch = _move_batch_tree(raw_batch, rt.device)
                 local_features = {}
-                with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
+                with (
+                    stages.region("basic_forward"),
+                    torch.no_grad(),
+                    torch.autocast("cuda", dtype=torch.bfloat16),
+                ):
                     parity = verify_cache(rt, batch, cached) if number == 0 else None
                     response = main_response(rt, batch, cached)
-                output = output_rows(response, batch, g["rows"])
+                with stages.region("basic_output_statistics"):
+                    output = output_rows(response, batch, g["rows"])
                 rows_out.extend(output)
                 for key in ("control_cls", "response_cls"):
                     val = npval(response[key])
@@ -1023,12 +1074,22 @@ def run(args):
                             "actual view/mask/gene/edge recipe differs from common manifest"
                         )
                     deep_batch = _move_batch_tree(deep_cpu, rt.device)
-                    collector = Collector(deep_batch, g["deep_rows"], manifest["seed"])
+                    collector = Collector(
+                        deep_batch,
+                        g["deep_rows"],
+                        manifest["seed"],
+                        stats_backend=getattr(args, "stats_backend", "reference"),
+                    )
                     collector.install(obj)
                     try:
-                        with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
+                        with (
+                            stages.region("deep_forward_including_observer"),
+                            torch.no_grad(),
+                            torch.autocast("cuda", dtype=torch.bfloat16),
+                        ):
                             loss, terms = obj(deep_batch)
-                        deep = collector.result()
+                        with stages.region("deep_finalize_statistics"):
+                            deep = collector.result()
                         for key, dist in collector.distribution_objects.items():
                             total = global_heads.setdefault(key, Distribution(len(dist.sum)))
                             total.n += dist.n
@@ -1065,9 +1126,10 @@ def run(args):
                         g["view_seed"],
                         deep=True,
                     )
-                    gradient = evaluate_graph_gradient_diagnostics(
-                        obj, _move_batch_tree(grad_cpu, rt.device), bf16=True
-                    )
+                    with stages.region("gradient_forward_and_three_derivatives"):
+                        gradient = evaluate_graph_gradient_diagnostics(
+                            obj, _move_batch_tree(grad_cpu, rt.device), bf16=True
+                        )
                     gradients.append(
                         {
                             "condition_id": g["condition_id"],
@@ -1098,6 +1160,9 @@ def run(args):
                 }
                 write(args.output / "progress.json", progress)
                 print(json.dumps(progress), flush=True)
+        if getattr(args, "profile", False):
+            profiler.export_chrome_trace(str(args.output / "profile.json"))
+        write(args.output / "observer_timings.json", stages.result())
         if validation_state(rt) != before or sha(checkpoint) != cp["sha256"] or obj.pending:
             raise ValueError(
                 "posthoc mutated model/teacher/center/optimizer/gradients/RNG/checkpoint"
@@ -1184,6 +1249,8 @@ def run(args):
             "state_before": before,
             "state_after": validation_state(rt),
             "updates": 0,
+            "stats_backend": getattr(args, "stats_backend", "reference"),
+            "observer_timings": stages.result(),
             "elapsed_seconds": time.perf_counter() - start,
             "peak_allocated_mib": torch.cuda.max_memory_allocated() / 2**20,
             "limits": [
@@ -1241,7 +1308,11 @@ def cli():
     p.add_argument("--seed", type=int, default=20261015)
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--gate-indices", default="")
+    p.add_argument("--stats-backend", choices=("reference", "fast"), default="reference")
+    p.add_argument("--profile", action="store_true")
     args = p.parse_args()
+    if args.profile and (args.mode != "run" or not args.limit):
+        p.error("profiler requires a bounded run --limit")
     if args.mode == "seal":
         seal(args)
     elif args.mode == "seal-medium":

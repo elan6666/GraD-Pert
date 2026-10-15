@@ -152,7 +152,20 @@ def test_periodic_and_initial_checks_use_the_same_owner_path():
     # Regression: the first parallel attempt changed startup only. The next
     # per-condition native guard then rejected the other GPU analysis.
     text = (Path(__file__).parents[1] / "scripts/v2/cap40_posthoc.py").read_text()
-    assert "for number, g in enumerate(schedule):\n                check_resources()" in text
+    import ast
+
+    run = next(
+        n for n in ast.parse(text).body if isinstance(n, ast.FunctionDef) and n.name == "run"
+    )
+    loop = next(
+        n
+        for n in ast.walk(run)
+        if isinstance(n, ast.For) and ast.unparse(n.target) == "(number, g)"
+    )
+    assert any(
+        isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "check_resources"
+        for n in ast.walk(loop.body[0])
+    )
     assert "snapshot(dispatcher_owner(owner)" in text
 
 
