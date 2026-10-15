@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts/v2"))
-from cap40_posthoc import medium_schedule
+from cap40_posthoc import medium_cells, medium_schedule
 from cap40_posthoc_queue import ordered_rows
 
 
@@ -71,3 +71,18 @@ def test_priority_order_does_not_mutate_canonical_comparison_order():
     q["execution_order"][-1] = "PO"
     with pytest.raises(ValueError, match="exactly once"):
         ordered_rows(q)
+
+
+def test_contexts_beyond_four_are_seeded_per_condition_not_a_fixed_prefix():
+    universe = [f"T::{i:02d}" for i in range(20)]
+    selected = []
+    for p in range(12):
+        rows = [
+            {"condition_id": f"p{p}", "truth_row_id": f"t{p}-{i}", "context_id": c}
+            for i, c in enumerate(universe)
+        ]
+        actual = medium_cells(rows, 4, 42)
+        assert actual == medium_cells(list(reversed(rows)), 4, 42)
+        selected.append({r["context_id"] for r in actual})
+    assert len(set.union(*selected)) > 4
+    assert any(x != set(universe[:4]) for x in selected)

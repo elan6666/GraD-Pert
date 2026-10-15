@@ -9,6 +9,13 @@ preserves DP198conditions/6679rows and full old queue/source/output. Old results
 are partial, not completed scientific analysis.
 
 New shared medium manifest: all1335conditions,<=4context-balanced cells each;
+Context order must be seeded percondition, not lexical: parent has up to40
+contexts/condition and1312conditions exceed4. Initial1539506 seal/gates passed
+model parity but its lexical context prefix was rejected before formal launch.
+Preserve that seal/gates as superseded; publish/reseal fresh identity. Query,
+graph-view/mask recipes depend on seed/query/anchors and cellcount (frozen views.py),
+not row/control IDs; if all shapes/queries/seeds match, retain the already hashed
+recipes, with every actual native assembly rechecked at gates/full worker.
 128deep conditions stratified by context-set and original condition-size bins,
 32gradient conditions nested in them; budgets<=5340/512/128 cells. Reuse original
 row/control pairing, query panels/order/seeds; reseal actual masks for new cell

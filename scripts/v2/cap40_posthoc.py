@@ -208,6 +208,25 @@ def recipe(batch):
     }
 
 
+def medium_cells(rows, limit, seed):
+    """Seeded context order per condition avoids always taking lexically first batches."""
+    groups = defaultdict(list)
+    for row in rows:
+        groups[row["context_id"]].append(row)
+    for values in groups.values():
+        values.sort(key=lambda r: seeded_int(r["truth_row_id"], seed))
+    condition = rows[0]["condition_id"]
+    order = sorted(groups, key=lambda c: seeded_int([condition, c], seed))
+    selected = []
+    for rank in range(max(map(len, groups.values()))):
+        for context in order:
+            if rank < len(groups[context]):
+                selected.append(groups[context][rank])
+                if len(selected) == limit:
+                    return selected
+    return selected
+
+
 def medium_schedule(parent, *, cells=4, deep_conditions=128, gradient_conditions=32):
     """Outcome-independent context/size stratification, exact parent row/control IDs."""
     if not (0 < gradient_conditions <= deep_conditions <= len(parent["schedule"])):
@@ -238,7 +257,7 @@ def medium_schedule(parent, *, cells=4, deep_conditions=128, gradient_conditions
     for group in parent["schedule"]:
         rows = [
             {**r, "control_treatment": "control", "paired_perturbation": group["condition_id"]}
-            for r in select_balanced(group["rows"].copy(), cells, seed + 13)
+            for r in medium_cells(group["rows"], cells, seed + 13)
         ]
         schedule.append(
             {

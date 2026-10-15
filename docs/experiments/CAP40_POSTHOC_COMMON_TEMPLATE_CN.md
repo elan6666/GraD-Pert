@@ -2,6 +2,8 @@
 
 当前用户改用中等规模；旧全量清单/未完成产物保留，不能并入中等结果。
 共同清单从原cap40清单按context分层取每条件最多4细胞，保留全部1335条件；
+context按condition和固定seed打乱，不能总取字典序前4个batch；超过4context时
+当前清单不可能覆盖每个条件的全部batch，必须披露实际覆盖与未覆盖数。
 深度为固定128条件（按context集合及原条件细胞数分层），梯度32条件为其子集。
 最多5340基础行/512深度行/128梯度行，实际数以封存清单为准，singleton不复制。
 同一五臂共享原始truth/control/query/view种子和新实际mask/edge recipes。
