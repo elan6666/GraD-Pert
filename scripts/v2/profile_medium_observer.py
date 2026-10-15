@@ -141,6 +141,8 @@ def execute(args):
         with (args.output / (label + ".log")).open("x") as log:
             subprocess.run(command, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
         s = read(output / "summary.json")
+        if not s["deterministic_algorithms"]:
+            raise ValueError("deterministic analysis policy was not actually applied")
         if not read(output / "COMPLETE.json")["state_unchanged"]:
             raise ValueError("analysis mutated state")
         return s

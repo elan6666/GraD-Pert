@@ -282,12 +282,6 @@ def seal_medium(args):
         raise ValueError("parent manifest identity differs")
     parent = read(args.parent_manifest)
     torch, config, identity, prepare, _ = runtime_args(args)
-    if getattr(args, "deterministic", False):
-        if os.environ.get("CUBLAS_WORKSPACE_CONFIG") != ":4096:8":
-            raise ValueError("deterministic validation requires a bound cuBLAS workspace")
-        # Read-only analysis policy, identical for reference and candidate.
-        # Never change the historical training runtime or its checkpoint.
-        torch.use_deterministic_algorithms(True)
     schedule = medium_schedule(parent)
     args.output.mkdir(parents=True)
     with prepare(
@@ -921,6 +915,11 @@ def run(args):
     if sha(args.manifest) != args.manifest_sha256:
         raise ValueError("shared manifest hash differs")
     torch, config, identity, prepare, _ = runtime_args(args)
+    if getattr(args, "deterministic", False):
+        if os.environ.get("CUBLAS_WORKSPACE_CONFIG") != ":4096:8":
+            raise ValueError("deterministic validation requires a bound cuBLAS workspace")
+        # Both benchmark arms use this read-only policy; training is unchanged.
+        torch.use_deterministic_algorithms(True)
     journal = read(args.run_root / "fit/epoch_state.json")
     cp = journal["last"]
     checkpoint = args.run_root / "fit" / cp["file"]
