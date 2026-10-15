@@ -101,6 +101,7 @@ def execute(args):
         PYTORCH_ALLOC_CONF="expandable_segments:True",
         CUDA_VISIBLE_DEVICES="0",
         OMP_NUM_THREADS="1",
+        CUBLAS_WORKSPACE_CONFIG=":4096:8",
     )
     state = {"status": "running", "source": identity, "training_sha": METHOD_SHA}
     write(args.output / "state.json", state)
@@ -129,9 +130,12 @@ def execute(args):
             "DP",
             "--stats-backend",
             backend,
+            "--deterministic",
         ]
         if not full:
-            command += ["--limit", "3", "--gate-indices", "0,1,15", "--profile"]
+            command += ["--limit", "3", "--gate-indices", "0,1,15"]
+            if args.capture_profile:
+                command.append("--profile")
         state.update(phase=label, command=command)
         write(args.output / "state.json", state)
         with (args.output / (label + ".log")).open("x") as log:
@@ -155,9 +159,12 @@ def execute(args):
         write(args.output / "PROBE_COMPLETE.json", probe)
         if fast["elapsed_seconds"] >= reference["elapsed_seconds"]:
             raise ValueError("candidate has no end-to-end probe gain; do not expand")
+        full_reference = run("reference-medium", "reference", full=True)
         full = run("fast-medium", "fast", full=True)
-        parity_full = compare(Path(row["formal"]), args.output / "fast-medium")
-        old = read(Path(row["formal"]) / "summary.json")
+        parity_full = compare(args.output / "reference-medium", args.output / "fast-medium")
+        if full["elapsed_seconds"] >= full_reference["elapsed_seconds"]:
+            raise ValueError("candidate has no full-medium walltime gain")
+        historical = read(Path(row["formal"]) / "summary.json")
         write(
             args.output / "COMPLETE.json",
             {
@@ -168,10 +175,14 @@ def execute(args):
                 "checkpoint_sha256": row["checkpoint_sha256"],
                 "probe": probe,
                 "full_parity": parity_full,
-                "full_reference_seconds": old["elapsed_seconds"],
+                "full_reference_seconds": full_reference["elapsed_seconds"],
                 "full_fast_seconds": full["elapsed_seconds"],
                 "full_peak_allocated_mib": full["peak_allocated_mib"],
-                "reference_measurement": "sealed full reference; current paired short profiles",
+                "historical_nondeterministic_reference_seconds": historical["elapsed_seconds"],
+                "reference_measurement": (
+                    "current paired deterministic full-medium; historical timing contextual only"
+                ),
+                "deterministic_algorithms": True,
                 "same_sample_scope": True,
                 "model_updates": 0,
             },
@@ -190,4 +201,5 @@ if __name__ == "__main__":
     p.add_argument("--parent-queue", type=Path, required=True)
     p.add_argument("--parent-queue-sha256", required=True)
     p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--capture-profile", action="store_true")
     execute(p.parse_args())

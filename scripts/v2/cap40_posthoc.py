@@ -282,6 +282,12 @@ def seal_medium(args):
         raise ValueError("parent manifest identity differs")
     parent = read(args.parent_manifest)
     torch, config, identity, prepare, _ = runtime_args(args)
+    if getattr(args, "deterministic", False):
+        if os.environ.get("CUBLAS_WORKSPACE_CONFIG") != ":4096:8":
+            raise ValueError("deterministic validation requires a bound cuBLAS workspace")
+        # Read-only analysis policy, identical for reference and candidate.
+        # Never change the historical training runtime or its checkpoint.
+        torch.use_deterministic_algorithms(True)
     schedule = medium_schedule(parent)
     args.output.mkdir(parents=True)
     with prepare(
@@ -1250,6 +1256,7 @@ def run(args):
             "state_after": validation_state(rt),
             "updates": 0,
             "stats_backend": getattr(args, "stats_backend", "reference"),
+            "deterministic_algorithms": torch.are_deterministic_algorithms_enabled(),
             "observer_timings": stages.result(),
             "elapsed_seconds": time.perf_counter() - start,
             "peak_allocated_mib": torch.cuda.max_memory_allocated() / 2**20,
@@ -1310,6 +1317,7 @@ def cli():
     p.add_argument("--gate-indices", default="")
     p.add_argument("--stats-backend", choices=("reference", "fast"), default="reference")
     p.add_argument("--profile", action="store_true")
+    p.add_argument("--deterministic", action="store_true")
     args = p.parse_args()
     if args.profile and (args.mode != "run" or not args.limit):
         p.error("profiler requires a bounded run --limit")
