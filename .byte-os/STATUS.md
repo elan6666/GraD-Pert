@@ -1,3 +1,9 @@
+## 2026-10-16：CG1首个更新触发显存保护，共同batch回退320
+
+3397408十臂queue在CG1完成0/10更新时终态failed，FAILURE SHA4cd70fdd702baae3704acf01dd28a9b898ec363fde4f44d7d215a8b02ae37178。rank0/1实际CUDA进程显存29590/29508MiB，超过32607MiB×90%=29346.3MiB上限；余量2512/2594MiB且无foreign，首因是own allowance，并非foreign或后续SIGTERM。初始固定训练诊断已完成，正式训练未启动。失败源码/queue/日志/收据不覆盖，两个monitor保持PAUSED。
+
+按已授权共同容量回退，新十臂目录configs/v2/fgpo_node0_20261016_b320：共同m80×2GPU×accum2=320，其余模型、损失、视图、采样、4轮、无验证、last18、eval128和中等分析均不变；逐臂与400配置逐字段核对仅microbatch/train_batch_size两项变动。新B0也从头使用同一320，不与旧400锚点混用。新clean发布/独立ID/全十臂10step+restore+双GPUeval重新验证后主验收。分析优化已验收15.079%测量区间缩短的结论保持；历史文字如下。
+
 ## 2026-10-16：完整中等提速已验收，推进新家族预检
 
 同一DP权重、同一1335条件/5317行、128深度条件/506细胞、32梯度条件/125细胞的完整配对已独立验收：reference 3060.477s → fast 2598.974s，测量区间缩短15.079%；159654浮点统计最大差4.91e-11（门限1e-8），预测/CLS CSV一致、状态更新0，峰值allocated均8211.816MiB。该区间含进程内数据准备/模型加载/分析，未含解释器导入和最终绘图，不称整个交付流程提速。服务器COMPLETE SHA aeccac2f41c3d112d5a5b9917c8d399bcc688d1c5ffed4ed98fb0854d47b2460；主验收收据SHA d3fe46262065336f3f6c7aeb396e19db3d4247619d11bf7b4c0ede6f553ecc7c。

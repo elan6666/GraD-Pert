@@ -1,0 +1,134 @@
+{
+  "schema": "fgpo-node0-medium-1",
+  "family": "fgpo_node0_20261015",
+  "priority": [
+    "B0",
+    "VH",
+    "S12-L4",
+    "CG1",
+    "U24",
+    "MR1",
+    "P1",
+    "C1",
+    "O1",
+    "K2-fixed-prefix"
+  ],
+  "preflight_priority": [
+    "CG1",
+    "S12-L4",
+    "VH",
+    "K2-fixed-prefix",
+    "B0",
+    "U24",
+    "MR1",
+    "P1",
+    "C1",
+    "O1"
+  ],
+  "common_microbatch": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 320,
+  "epochs": 4,
+  "seed": 1,
+  "eval_batch": 128,
+  "validation": "disabled",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "analysis": "same medium basic/deep/gradient lists; declared view recipes resealed",
+  "rerun_old_BR_or_officials": false,
+  "rows": [
+    {
+      "name": "B0",
+      "config": "configs/v2/fgpo_node0_20261016_b320/B0/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "80f5ee1d6c4d826d9d2c023f304c08f1734b5a05acd28d565f7053e367117830",
+      "changes": {}
+    },
+    {
+      "name": "VH",
+      "config": "configs/v2/fgpo_node0_20261016_b320/VH/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "14a9e6286dc07290e0209b8d03d16090dc88e0b968030d55bd87d60951a2e111",
+      "changes": {
+        "global_min_ratio": 0.8,
+        "global_max_ratio": 1.0,
+        "local_min_ratio": 0.4,
+        "local_max_ratio": 0.65
+      }
+    },
+    {
+      "name": "S12-L4",
+      "config": "configs/v2/fgpo_node0_20261016_b320/S12-L4/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "c255d3b003d7f20b19d61607fbe9e30287847c52eb723f4bf281fed0848a4817",
+      "changes": {
+        "ssl1_local_views": 4,
+        "ssl2_local_views": 4,
+        "ssl1_local_layout": "go_go_string_string"
+      }
+    },
+    {
+      "name": "CG1",
+      "config": "configs/v2/fgpo_node0_20261016_b320/CG1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "2254afab0f3cb4601742f893daa81fd29f9a20cc078db3fa5cc9735a57dc58fe",
+      "changes": {
+        "control_conditioned_graph": true
+      }
+    },
+    {
+      "name": "U24",
+      "config": "configs/v2/fgpo_node0_20261016_b320/U24/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "2c3de564ac1528e5067503f0b54c63820282087171f9a7b848ffb0ee5978a8c7",
+      "changes": {
+        "gene_conditioned_readout": true
+      }
+    },
+    {
+      "name": "MR1",
+      "config": "configs/v2/fgpo_node0_20261016_b320/MR1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "aaea4f96a01709be6ca164dbef1081ce6a37005d3e6cefd0f58536e424686542",
+      "changes": {
+        "masked_response_ratio": 0.25,
+        "lambda_masked_response": 1.0
+      }
+    },
+    {
+      "name": "P1",
+      "config": "configs/v2/fgpo_node0_20261016_b320/P1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "665ef5ec52a962e989016c79f261619139ba32603f0689dd0800ca44f207bba4",
+      "changes": {
+        "population_response": true,
+        "max_conditions": 1
+      }
+    },
+    {
+      "name": "C1",
+      "config": "configs/v2/fgpo_node0_20261016_b320/C1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "a21647972a4cc18398724f5251b06329a3b90e5207711074b4c338bdc187b911",
+      "changes": {
+        "perturbation_injection": "entry"
+      }
+    },
+    {
+      "name": "O1",
+      "config": "configs/v2/fgpo_node0_20261016_b320/O1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "76d9c3d2ede6646405ffde1b583449b9ad7f4867436405ab914a692b3c197a07",
+      "changes": {
+        "random_gene_order": false,
+        "fixed_gene_order": true
+      }
+    },
+    {
+      "name": "K2-fixed-prefix",
+      "config": "configs/v2/fgpo_node0_20261016_b320/K2-fixed-prefix/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "ccedce7e69afb9dcdc118191b6dd3ac1ab9392881c16d39b8bafbbcfb7c35274",
+      "changes": {
+        "random_gene_order": false,
+        "fixed_gene_order": true,
+        "all_kda_prefix": true
+      }
+    }
+  ]
+}

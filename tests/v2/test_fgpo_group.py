@@ -22,6 +22,25 @@ from test_br400_group import eval_receipt, training_receipt  # noqa: E402
 from test_br400_group import prepared as prepared  # noqa: E402
 
 
+def test_common_capacity_fallback_changes_only_the_declared_batch():
+    old = family.verify_manifest(ROOT, ROOT / "configs/v2/fgpo_node0_20261015/manifest.json")
+    new = family.verify_manifest(ROOT, ROOT / "configs/v2/fgpo_node0_20261016_b320/manifest.json")
+    assert new["global_batch"] == 320 and new["common_microbatch"] == 80
+    assert new["priority"] == old["priority"]
+    for before, after in zip(old["rows"], new["rows"], strict=True):
+        import yaml
+
+        a = yaml.safe_load((ROOT / before["config"]).read_text())
+        b = yaml.safe_load((ROOT / after["config"]).read_text())
+        assert a["model"]["parameters"]["microbatch"]["value"] == 100
+        assert b["model"]["parameters"]["microbatch"]["value"] == 80
+        assert a["training"]["train_batch_size"]["value"] == 400
+        assert b["training"]["train_batch_size"]["value"] == 320
+        a["model"]["parameters"]["microbatch"]["value"] = 80
+        a["training"]["train_batch_size"]["value"] = 320
+        assert a == b
+
+
 def sampling_fixture(tmp_path):
     deep = {0, 1, *range(7, 133)}
     grad = {0, *range(7, 38)}

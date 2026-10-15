@@ -26,3 +26,10 @@ float comparisons,max4.91e-11/1e-8,CSV exact,updates0,peak8211.816MiB both.
 Native041ca06 CPU suite250passed4failed due test using Collector.remove instead of
 close and leaving global CE hook installed. Preserve failedroot; correct cleanup,
 verify published fresh source, rerun affected server CPU checks then ten-arm GPU gates.
+
+2026-10-16 capacity fallback: 3397408 CG1 reached29590/29508MiB physical own
+memory before its first complete update, exceeding unchanged90% cap29346.3MiB.
+Noformalfit; FAILURE4cd70fdd702baae3704acf01dd28a9b898ec363fde4f44d7d215a8b02ae37178.
+New selfcontained family fgpo_node0_20261016_b320 uses commonm80*a2*2=320,
+only the two explicit batch fields change in alltenarms. Preserve400 family/root,
+revalidate allten gates under a new clean published source/queue; no guard relaxation.
