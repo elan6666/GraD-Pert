@@ -1209,7 +1209,7 @@ def run(args):
                 if interval and ((number + 1) % interval == 0 or number + 1 == len(schedule)):
                     if obj.pending:
                         raise ValueError("recovery boundary has pending teacher statistics")
-                    snapshot = {
+                    recovery_state = {
                         "next_index": number + 1,
                         "rows_out": rows_out,
                         "basic_features": basic_features,
@@ -1229,7 +1229,7 @@ def run(args):
                         "cuda_rng": torch.cuda.get_rng_state().cpu().numpy(),
                     }
                     recovery_path = save_recovery(
-                        args.output / "recovery", binding=binding, state=snapshot
+                        args.output / "recovery", binding=binding, state=recovery_state
                     )
                     recovery_writes.append(str(recovery_path))
                     write(
