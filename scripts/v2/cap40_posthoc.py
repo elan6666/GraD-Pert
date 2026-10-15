@@ -669,15 +669,21 @@ def verify_cache(rt, batch, cached):
     pieces = [
         main_response(rt, slice_cells(batch, i, i + 1), cached) for i in range(len(batch.control))
     ]
-    chunk = max(
-        float((original[k] - torch.cat([p[k] for p in pieces])).abs().max()) for k in original
-    )
-    if chunk > 2e-6:
-        raise ValueError(f"cell-chunk parity failed: {chunk}")
+    differences = {
+        k: float((original[k] - torch.cat([p[k] for p in pieces])).abs().max()) for k in original
+    }
+    chunk = max(differences.values())
+    # This is an optional, rejected execution transformation, not the reference
+    # path. All actual diagnostics keep each sealed condition group intact.
     return {
         "graph_max_abs": difference,
         "response_max_abs": maximum,
+        "used_path_passed": True,
         "cell_chunk_max_abs": chunk,
+        "cell_chunk_by_tensor": differences,
+        "cell_chunk_passed": chunk <= 2e-6,
+        "cell_chunk_used": False,
+        "cell_batch_policy": "sealed groups unchanged; never split/rebatch cells",
         "tolerance": 2e-6,
     }
 
@@ -853,7 +859,13 @@ def run(args):
                     gradient = evaluate_graph_gradient_diagnostics(
                         obj, _move_batch_tree(grad_cpu, rt.device), bf16=True
                     )
-                    gradients.append({"condition_id": g["condition_id"], **gradient})
+                    gradients.append(
+                        {
+                            "condition_id": g["condition_id"],
+                            "cells": len(g["gradient_rows"] or g["deep_rows"][:4]),
+                            **gradient,
+                        }
+                    )
                 # Save condition evidence atomically; no per-cell activation matrix persists.
                 write(
                     args.output / "condition_states" / f"{g['index']:04d}.json",
@@ -971,6 +983,7 @@ def run(args):
                 ),
                 "SSL1 condition/node units are conditions/graph nodes, not cell replicates.",
                 "Single Jurkat cell line cannot estimate cross-cell-line differences.",
+                "BF16 cell-chunk transformation failed parity and is NOT used; sealed grouping stays fixed.",
             ],
         }
         write(args.output / "summary.json", summary)

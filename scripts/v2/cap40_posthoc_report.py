@@ -129,7 +129,7 @@ def render(args):
         [
             summary["rows"],
             summary["deep_rows"],
-            sum(g.get("performed", False) * 4 for g in gradients),
+            sum(g.get("cells", 0) for g in gradients if g.get("performed", False)),
         ],
     )
     ax.set(

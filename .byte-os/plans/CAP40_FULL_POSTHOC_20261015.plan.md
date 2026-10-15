@@ -38,3 +38,16 @@ Deliver: common schema v2, each arm's report/receipt and full aggregate CSV inde
 comparison report embedding every produced figure; missing/unidentifiable items
 explicitly labeled. Per-cell matrices/checkpoints remain server-only. Persist
 current run and next action in Byte status; no duplicate monitor.
+
+## Rejected optional transformation (2026-10-15)
+
+Shared manifest sealed: cc208dc56b2eaa45eb0ce4b005729c049f98349860fb6d148576f3fc99fbc6e1,
+47836 rows, 1335 conditions, 10532 deep rows, 256 gradient rows, 11793 controls.
+First ca65644 DP preflight preserved as FAILED: singleton-cell vs full-group
+BF16 forward max tensor difference 0.04460430145263672 exceeded 2e-6.
+Do not relax tolerance or adopt cell splitting. Full-group native vs cached
+path had passed the preceding strict comparison. Repair only makes optional
+chunk rejection explicit; every used path must still pass the original 2e-6
+reference/cache comparison. Keep the exact sealed condition groups for all arms.
+Record per-tensor errors, no claims about the cause until independently tested.
+Fresh preflight/analysis IDs; old source/results untouched.
