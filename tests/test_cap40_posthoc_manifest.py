@@ -70,7 +70,8 @@ def test_recipe_binds_actual_mask_edges_gene_and_view_identity():
     assert a["queries"] == [1, 2]
 
 
-def test_report_contains_all_figures_tables_and_hashes(tmp_path):
+@pytest.mark.parametrize("scope", ["full_cap40_train", "medium_cap40_stratified"])
+def test_report_contains_all_figures_tables_and_hashes(tmp_path, scope):
     from cap40_posthoc import sha, write
     from cap40_posthoc_report import render
 
@@ -92,7 +93,7 @@ def test_report_contains_all_figures_tables_and_hashes(tmp_path):
         "rows": 2,
         "conditions": 1,
         "deep_rows": 2,
-        "scope": "full_cap40_train",
+        "scope": scope,
         "global_heads": {"teacher.ssl1_cls.view0": {"H_sample": 1.0, "JS": 0.2}},
         "global_features": {"student.main.response_cls": moments},
         "metrics": {"prediction_mse": {"condition_mean": 0.1}},
@@ -136,7 +137,7 @@ def test_report_contains_all_figures_tables_and_hashes(tmp_path):
     write(
         source / "COMPLETE.json",
         {
-            "scope": "full_cap40_train",
+            "scope": scope,
             "state_unchanged": True,
             "outputs": {p.name: {"sha256": sha(p)} for p in source.iterdir()},
         },

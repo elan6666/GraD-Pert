@@ -68,6 +68,11 @@ def compare(args):
             outputs.append({"arm": arm, "metric": key, **v})
         with (report / "outputs_full.csv").open() as f:
             rows[arm] = list(csv.DictReader(f))
+    if (
+        len({(s["scope"], s["rows"], s["conditions"], s["deep_rows"]) for s in summaries.values()})
+        != 1
+    ):
+        raise ValueError("analysis scope or population differs across arms")
     reference = rows["DP"]
 
     def identity(r):
@@ -197,14 +202,14 @@ def compare(args):
         "相同truth/control/query的训练输出MSE差值，先在每个条件内平均，再条件等权；95%区间以条件bootstrap。负值仅表示该训练输入诊断中误差低于DP，不作为测试选参证据。",
     )
     text = [
-        "# DP/FN/FG/FB/PO：cap40 全量分组补测总报告\n",
+        "# DP/FN/FG/FB/PO：cap40 同清单分组补测总报告\n",
         "五组使用同一份实际row/control/query/view/mask清单，加载原last.pt，只读前向和autograd探针，无重训或状态更新。\n",
         "## 版本与覆盖\n" + table(sources),
         "共同清单SHA：`"
         + q["manifest_sha256"]
-        + "`。各臂全量47836训练行、1335条件；深度覆盖每个条件，梯度固定64条件。单Jurkat不能估计跨细胞系差异。\n",
+        + f"`。各臂同清单{summaries['DP']['rows']}行/{summaries['DP']['conditions']}条件；范围{summaries['DP']['scope']}，深度{summaries['DP']['deep_rows']}行，梯度条件数见各臂报告。中等规模不冒称全量总体；单Jurkat不能估计跨细胞系差异。\n",
         "## 正式测试全部18指标与有效条件数\n" + table(metrics),
-        "## 全量输出与条件配对差值\n" + table(outputs) + table(paired),
+        "## 当前清单输出与条件配对差值\n" + table(outputs) + table(paired),
         "## 四头原型：Student/Teacher/视图完整表\n" + table(heads),
         "## 模块表示完整汇总\n" + table(features),
         "## 读图与解释边界\nH、JS、KL与有效秩衡量不同对象，不能将低CE或单独低秩判成学习成功/坍塌。报告保留同细胞基因、同基因跨control、同条件同context、不同条件均值、跨view各自的表。冻结last补测不是过去epoch的训练激活轨迹；历史数据另标。\n",

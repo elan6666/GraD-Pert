@@ -1,5 +1,33 @@
 # Cap40 full posthoc diagnostics
 
+## Superseding user scope: medium analysis (2026-10-15)
+
+User rejected the20h full run. Main verified exact identities, stopped only the
+new priority controller3321763 then read-only DP3317381 with SIGTERM; no other
+processes/checkpoints touched. STOP receipt db93990425805e2febaa865b57300174b1109d127f95a3216ee71428c6739a44
+preserves DP198conditions/6679rows and full old queue/source/output. Old results
+are partial, not completed scientific analysis.
+
+New shared medium manifest: all1335conditions,<=4context-balanced cells each;
+128deep conditions stratified by context-set and original condition-size bins,
+32gradient conditions nested in them; budgets<=5340/512/128 cells. Reuse original
+row/control pairing, query panels/order/seeds; reseal actual masks for new cell
+counts onCPU. No test-result selection. Condition-equal basic summaries cover
+allconditions; deep diagnostics describe only the fixed stratified subset.
+Frozen checkpoint/method and actual formulas unchanged. Explicit medium scope
+in receipts/plots/reports; do not reuse full-scope gates or claim full coverage.
+CLS between-condition decomposition now fixes querypanel+context, control label
+kept distinct from paired perturbation. Do not treat4cell ranks as global ranks.
+
+Fresh published source/run/config: verify basic-only and deep/gradient paths,
+strict native/cache parity and no state updates for allfive, then automatic
+PO→DP→FN→FG→FB and reports/comparison. Gate waits/sealing use one Luna helper;
+then main independently accepts, launches full medium queue and hands exact
+run to the existing unique20min supervisor. Old monitor stays paused until
+new real job/ACK. Estimate duration from actual pilot, never from old four-cell
+probe timings. Full Chinese common template/reports/all9arm figures and4master
+figures/all aggregate table indices remain required; large raw files stay server.
+
 Outcome: one sealed diagnostic manifest, read-only last-checkpoint analysis for
 DP/FN/FG/FB/PO, complete grouped Chinese reports, all figures and underlying
 aggregate tables. No training, selection, EMA/center/optimizer updates, or edits

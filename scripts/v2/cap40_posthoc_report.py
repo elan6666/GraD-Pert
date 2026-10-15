@@ -54,12 +54,17 @@ def render(args):
     if root.exists():
         raise ValueError("report requires fresh destination")
     completion = read(args.input / "COMPLETE.json")
-    if completion["scope"] != "full_cap40_train" or not completion["state_unchanged"]:
-        raise ValueError("report requires completed full-population immutable analysis")
+    if (
+        completion["scope"] not in ("full_cap40_train", "medium_cap40_stratified")
+        or not completion["state_unchanged"]
+    ):
+        raise ValueError("report requires completed preregistered immutable analysis")
     for name, entry in completion["outputs"].items():
         if sha(args.input / name) != entry["sha256"]:
             raise ValueError("analysis output checksum mismatch")
     summary, deep = read(args.input / "summary.json"), read(args.input / "deep.json")
+    scope_name = "中等规模" if summary["scope"] == "medium_cap40_stratified" else "全量"
+    scope_text = summary.get("manifest_scope", "cap40训练全集；深度覆盖所有条件")
     gradients = read(args.input / "gradients.json")
     old = read(args.original / "summary.json")
     if old["checkpoint_sha256"] != summary["checkpoint_sha256"]:
@@ -125,7 +130,7 @@ def render(args):
 
     fig, ax = plt.subplots(figsize=(8, 3))
     ax.bar(
-        ["Full rows", "Deep rows", "Gradient rows"],
+        ["Basic rows", "Deep rows", "Gradient rows"],
         [
             summary["rows"],
             summary["deep_rows"],
@@ -139,7 +144,7 @@ def render(args):
     save(
         "05_coverage.png",
         fig,
-        "全量输出覆盖全部训练行；深度探针覆盖全部条件，梯度仅固定条件子集。视图不增加独立细胞数，实际去重control数见清单。",
+        f"{scope_name}覆盖：基础{summary['rows']}行/{summary['conditions']}条件；深度{summary['deep_rows']}行/{summary.get('deep_conditions', len(deep))}条件。视图不增加独立细胞数。{scope_text}",
     )
     names = list(summary["global_heads"])
     fig, axes = plt.subplots(1, 2, figsize=(15, 5))
@@ -191,11 +196,13 @@ def render(args):
     save(
         "09_grouped_gradients.png",
         fig,
-        "固定64个条件、每条件最多4个细胞，在共享图参数上比较加权预测与SSL梯度。没有optimizer/EMA/center更新，也没有梯度写入param.grad。负余弦表示该probe中的局部方向冲突，不等于蒸馏无效。",
+        f"固定{len(gradients)}个条件、每条件最多4个细胞，在共享图参数上比较加权预测与SSL梯度。没有optimizer/EMA/center更新，也没有梯度写入param.grad。负余弦表示该probe中的局部方向冲突，不等于蒸馏无效。",
     )
     sections = [
-        f"# {summary['arm']}：cap40 全量与分组补测报告\n",
-        "## 1. 结论与证据范围\n仅重载第4轮last.pt，无重训、无选参。全量指cap40训练细胞全集，不是未经下采样的原始数据，也不是所有control×truth的笛卡尔积。\n",
+        f"# {summary['arm']}：cap40 {scope_name}与分组补测报告\n",
+        "## 1. 结论与证据范围\n仅重载第4轮last.pt，无重训、无选参。"
+        + scope_text
+        + "。中等规模不是全部训练细胞；深度统计只描述固定分层条件子集，不冒称全体条件总体估计。\n",
         "## 2. 版本与校验\n"
         + table(
             [
@@ -266,7 +273,7 @@ def render(args):
             + table(tables["features"])
             + table(tables["per_cell_summary"])
             + table(tables["cls_decomposition"]),
-            "within-condition部分固定condition和context并去重control；between部分单列条件均值。全局秩包含基因身份与条件差异，不能直接视为细胞区分能力；同基因跨control与同细胞跨view详表分别见same_gene.csv/cross_view.csv。\n",
+            "within-condition部分固定condition和context并去重control；CLS的between部分固定query panel和context再比较条件均值，避免不同查询基因组成造成混淆。control_treatment仍为control，paired_perturbation只是配对标签。全局秩包含基因身份与条件差异，不能直接视为细胞区分能力；同基因跨control与同细胞跨view详表分别见same_gene.csv/cross_view.csv。每条件最多4细胞时CLS条件内秩上限很低，应看有效N。\n",
             "## 9. 输出与效应校准\n" + table(tables["outputs"]),
             "## 10. 梯度与效率\n"
             + table([{k: summary[k] for k in ("elapsed_seconds", "peak_allocated_mib", "updates")}])

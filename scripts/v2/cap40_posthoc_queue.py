@@ -11,6 +11,14 @@ from pathlib import Path
 from cap40_posthoc import read, sha, source_identity, write
 
 
+def ordered_rows(q):
+    by_arm = {row["arm"]: row for row in q["rows"]}
+    order = q.get("execution_order", list(by_arm))
+    if len(by_arm) != len(q["rows"]) or len(order) != len(by_arm) or set(order) != set(by_arm):
+        raise ValueError("execution order must contain each arm exactly once")
+    return [by_arm[arm] for arm in order]
+
+
 def execute(args):
     q = read(args.queue)
     if sha(args.queue) != args.queue_sha256:
@@ -30,9 +38,10 @@ def execute(args):
         OPENBLAS_NUM_THREADS="1",
     )
     try:
+        ordered = ordered_rows(q)
         phases = ("gate",) if args.gate_only else ("formal",)
         for phase in phases:
-            for row in q["rows"]:
+            for row in ordered:
                 arm = row["arm"]
                 if phase == "formal":
                     for peer in q["rows"]:

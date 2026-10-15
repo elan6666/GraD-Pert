@@ -208,6 +208,124 @@ def recipe(batch):
     }
 
 
+def medium_schedule(parent, *, cells=4, deep_conditions=128, gradient_conditions=32):
+    """Outcome-independent context/size stratification, exact parent row/control IDs."""
+    if not (0 < gradient_conditions <= deep_conditions <= len(parent["schedule"])):
+        raise ValueError("invalid medium condition budgets")
+    if cells < 2:
+        raise ValueError("medium within-condition diagnostics need at least two cells")
+    seed = parent["seed"]
+    strata = defaultdict(list)
+    for group in parent["schedule"]:
+        rows = group["rows"]
+        size = len(rows)
+        size_bin = (
+            "singleton" if size == 1 else "2-7" if size < 8 else "8-19" if size < 20 else "20+"
+        )
+        key = (tuple(sorted({r["context_id"] for r in rows})), size_bin)
+        strata[key].append(group)
+    for values in strata.values():
+        values.sort(key=lambda g: seeded_int(g["condition_id"], seed + 11))
+    keys = sorted(strata, key=lambda k: seeded_int(k, seed + 12))
+    ordered = [
+        strata[k][rank]["condition_id"]
+        for rank in range(max(map(len, strata.values())))
+        for k in keys
+        if rank < len(strata[k])
+    ]
+    deep_ids, grad_ids = set(ordered[:deep_conditions]), set(ordered[:gradient_conditions])
+    schedule = []
+    for group in parent["schedule"]:
+        rows = [
+            {**r, "control_treatment": "control", "paired_perturbation": group["condition_id"]}
+            for r in select_balanced(group["rows"].copy(), cells, seed + 13)
+        ]
+        schedule.append(
+            {
+                **group,
+                "rows": rows,
+                "deep_rows": rows if group["condition_id"] in deep_ids else [],
+                "gradient_rows": rows if group["condition_id"] in grad_ids else [],
+                "recipe_file": None,
+                "recipe_sha256": None,
+            }
+        )
+    return schedule
+
+
+def seal_medium(args):
+    server_path(args.output)
+    if args.output.exists():
+        raise ValueError("medium manifest needs a fresh output ID")
+    if not args.parent_manifest or sha(args.parent_manifest) != args.parent_manifest_sha256:
+        raise ValueError("parent manifest identity differs")
+    parent = read(args.parent_manifest)
+    torch, config, identity, prepare, _ = runtime_args(args)
+    schedule = medium_schedule(parent)
+    args.output.mkdir(parents=True)
+    with prepare(
+        config,
+        data_root=args.data_root,
+        run_seed=1,
+        device=torch.device("cpu"),
+        purpose="evaluation",
+    ) as rt:
+        if rt.identity != parent["data"] or rt.identity != identity["data"]:
+            raise ValueError("medium/parent/runtime data differ")
+        for number, g in enumerate(schedule):
+            if g["deep_rows"]:
+                batch = assemble(
+                    rt, g["deep_rows"], g["queries"], g["view_seed"], deep=True, dummy=True
+                )
+                path = args.output / "recipes" / f"{g['index']:04d}.json"
+                write(path, recipe(batch))
+                g.update(recipe_file=str(path), recipe_sha256=sha(path))
+            if number % 100 == 0:
+                print(json.dumps({"medium_seal_conditions": number + 1}), flush=True)
+    records = [r for g in schedule for r in g["rows"]]
+    manifest = {
+        **parent,
+        "analysis": source_identity(Path(__file__).resolve().parents[2]),
+        "analysis_scope": "medium_cap40_stratified",
+        "parent_manifest": str(args.parent_manifest),
+        "parent_manifest_sha256": args.parent_manifest_sha256,
+        "rows": len(records),
+        "conditions": len(schedule),
+        "independent_controls": len({r["control_row_id"] for r in records}),
+        "deep_rows": sum(len(g["deep_rows"]) for g in schedule),
+        "deep_conditions": sum(bool(g["deep_rows"]) for g in schedule),
+        "gradient_rows": sum(len(g["gradient_rows"]) for g in schedule),
+        "gradient_conditions": sum(bool(g["gradient_rows"]) for g in schedule),
+        "schedule": schedule,
+        "scope": (
+            "medium: every cap40 condition, at most four context-balanced paired cells; "
+            "128 context/condition-size stratified deep conditions, 32 gradient conditions; "
+            "not full train-population estimates; rare singleton conditions retained"
+        ),
+    }
+    write(args.output / "manifest.json", manifest)
+    write(
+        args.output / "COMPLETE.json",
+        {
+            "status": "completed",
+            "scope": manifest["analysis_scope"],
+            "manifest_sha256": sha(args.output / "manifest.json"),
+            **{
+                k: manifest[k]
+                for k in (
+                    "rows",
+                    "conditions",
+                    "deep_rows",
+                    "deep_conditions",
+                    "gradient_rows",
+                    "gradient_conditions",
+                )
+            },
+        },
+    )
+    print(json.dumps(read(args.output / "COMPLETE.json")), flush=True)
+
+
 def seal(args):
     server_path(args.output)
     if args.output.exists():
@@ -830,10 +948,13 @@ def run(args):
                             "feature": key,
                             "truth_rows": len(g["rows"]),
                             "cell_line": "Jurkat",
+                            "query_panel_sha256": digest_json(g["queries"]),
+                            "control_treatment": "control",
+                            "paired_perturbation": g["condition_id"],
                             **m.result(),
                         }
                         basic_features.append(entry)
-                        label = key + ":" + context
+                        label = key + ":" + context + ":panel=" + digest_json(g["queries"])
                         global_m = basic_global.setdefault(label, Moments(val.shape[-1]))
                         global_m.merge(m.n, m.mean, m.m2, m.norm_sum)
                         basic_between.setdefault(label, Moments(val.shape[-1])).add(m.mean[None])
@@ -844,47 +965,51 @@ def run(args):
                             "mean": m.mean.tolist(),
                             "variance": float(np.trace(m.m2) / max(m.n, 1)),
                         }
-                deep_cpu = assemble(rt, g["deep_rows"], g["queries"], g["view_seed"], deep=True)
-                if sha(g["recipe_file"]) != g["recipe_sha256"] or digest_json(
-                    recipe(deep_cpu)
-                ) != digest_json(read(g["recipe_file"])):
-                    raise ValueError(
-                        "actual view/mask/gene/edge recipe differs from common manifest"
+                deep = None
+                if g["deep_rows"]:
+                    deep_cpu = assemble(rt, g["deep_rows"], g["queries"], g["view_seed"], deep=True)
+                    if sha(g["recipe_file"]) != g["recipe_sha256"] or digest_json(
+                        recipe(deep_cpu)
+                    ) != digest_json(read(g["recipe_file"])):
+                        raise ValueError(
+                            "actual view/mask/gene/edge recipe differs from common manifest"
+                        )
+                    deep_batch = _move_batch_tree(deep_cpu, rt.device)
+                    collector = Collector(deep_batch, g["deep_rows"], manifest["seed"])
+                    collector.install(obj)
+                    try:
+                        with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
+                            loss, terms = obj(deep_batch)
+                        deep = collector.result()
+                        for key, dist in collector.distribution_objects.items():
+                            total = global_heads.setdefault(key, Distribution(len(dist.sum)))
+                            total.n += dist.n
+                            total.sum += dist.sum
+                            total.hits += dist.hits
+                            total.entropy_sum += dist.entropy_sum
+                            total.top1_sum += dist.top1_sum
+                            total.logit_std_sum += dist.logit_std_sum
+                        for key, m in collector.features.items():
+                            if m is not None:
+                                global_features.setdefault(key, Moments(len(m.mean))).merge(
+                                    m.n, m.mean, m.m2, m.norm_sum
+                                )
+                    finally:
+                        collector.close()
+                        obj.pending.clear()
+                    deep.update(
+                        {
+                            "condition_id": g["condition_id"],
+                            "independent_truth_rows": len(g["deep_rows"]),
+                            "independent_controls": len(
+                                {r["control_row_id"] for r in g["deep_rows"]}
+                            ),
+                            "joint": float(loss),
+                            "loss_terms": {k: float(v) for k, v in terms.items()},
+                        }
                     )
-                deep_batch = _move_batch_tree(deep_cpu, rt.device)
-                collector = Collector(deep_batch, g["deep_rows"], manifest["seed"])
-                collector.install(obj)
-                try:
-                    with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
-                        loss, terms = obj(deep_batch)
-                    deep = collector.result()
-                    for key, dist in collector.distribution_objects.items():
-                        total = global_heads.setdefault(key, Distribution(len(dist.sum)))
-                        total.n += dist.n
-                        total.sum += dist.sum
-                        total.hits += dist.hits
-                        total.entropy_sum += dist.entropy_sum
-                        total.top1_sum += dist.top1_sum
-                        total.logit_std_sum += dist.logit_std_sum
-                    for key, m in collector.features.items():
-                        if m is not None:
-                            global_features.setdefault(key, Moments(len(m.mean))).merge(
-                                m.n, m.mean, m.m2, m.norm_sum
-                            )
-                finally:
-                    collector.close()
-                    obj.pending.clear()
-                deep.update(
-                    {
-                        "condition_id": g["condition_id"],
-                        "independent_truth_rows": len(g["deep_rows"]),
-                        "independent_controls": len({r["control_row_id"] for r in g["deep_rows"]}),
-                        "joint": float(loss),
-                        "loss_terms": {k: float(v) for k, v in terms.items()},
-                    }
-                )
-                deep_results.append(deep)
-                if g["gradient_rows"] or args.limit:
+                    deep_results.append(deep)
+                if g["gradient_rows"] or (args.limit and g["deep_rows"]):
                     grad_cpu = assemble(
                         rt,
                         g["gradient_rows"] or g["deep_rows"][:4],
@@ -954,8 +1079,14 @@ def run(args):
             "resolved_config_sha256": identity["resolved_config_sha256"],
             "manifest_sha256": args.manifest_sha256,
             "data": rt.identity,
-            "scope": "gate_subset" if args.limit else "full_cap40_train",
+            "scope": "gate_subset"
+            if args.limit
+            else manifest.get("analysis_scope", "full_cap40_train"),
             "conditions": len(schedule),
+            "deep_conditions": len(deep_results),
+            "gradient_conditions": len(gradients),
+            "gradient_rows": sum(g["cells"] for g in gradients),
+            "manifest_scope": manifest["scope"],
             "rows": len(rows_out),
             "deep_rows": sum(d["independent_truth_rows"] for d in deep_results),
             "centers": {
@@ -1046,12 +1177,14 @@ def run(args):
 
 def cli():
     p = argparse.ArgumentParser()
-    p.add_argument("mode", choices=("seal", "run"))
+    p.add_argument("mode", choices=("seal", "seal-medium", "run"))
     for name in ("run-root", "config", "data-root", "output", "manifest", "resource-queue"):
         p.add_argument(
             "--" + name, type=Path, required=name in ("run-root", "config", "data-root", "output")
         )
     p.add_argument("--manifest-sha256")
+    p.add_argument("--parent-manifest", type=Path)
+    p.add_argument("--parent-manifest-sha256")
     p.add_argument("--arm", default="DP")
     p.add_argument("--seed", type=int, default=20261015)
     p.add_argument("--limit", type=int, default=0)
@@ -1059,6 +1192,8 @@ def cli():
     args = p.parse_args()
     if args.mode == "seal":
         seal(args)
+    elif args.mode == "seal-medium":
+        seal_medium(args)
     else:
         from run_group import lock
 
