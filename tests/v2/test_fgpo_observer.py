@@ -42,7 +42,8 @@ def test_observer_labels_actual_forward_paths_and_never_changes_model_or_loss(ar
         try:
             loss, terms = obj(batch)
         finally:
-            collector.remove()
+            collector.close()
+    assert collector.module.cross_entropy_terms is collector.original_ce
     assert torch.equal(loss, expected_loss)
     assert terms.keys() == expected_terms.keys()
     for k in terms:

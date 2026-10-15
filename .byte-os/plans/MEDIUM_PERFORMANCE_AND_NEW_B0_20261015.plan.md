@@ -19,3 +19,10 @@ New method SHA and per-arm recipe config are explicit. MR1 auxiliary response an
 per-view conditional graphs receive separate provenance labels. Disabled node heads
 remain uncollected instead of being rendered as zero-entropy results. Local checks passed;
 new Torch observer tests and real server preflights remain prerequisites for use.
+
+2026-10-16 phase1 accepted: full same-population reference3060.477s/fast2598.974s,
+15.079% shorter measured process span (excludes import/admission/final report),159654
+float comparisons,max4.91e-11/1e-8,CSV exact,updates0,peak8211.816MiB both.
+Native041ca06 CPU suite250passed4failed due test using Collector.remove instead of
+close and leaving global CE hook installed. Preserve failedroot; correct cleanup,
+verify published fresh source, rerun affected server CPU checks then ten-arm GPU gates.
