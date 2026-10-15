@@ -246,6 +246,9 @@ def report(data: dict) -> str:
     ]
     for head in HEADS:
         a, b = first["distributions"]["teacher." + head], last["distributions"]["teacher." + head]
+        if not a.get("samples") or not b.get("samples"):
+            lines.append(f"| {head} | 未采集：该头未调用 | — | — | — | — |")
+            continue
         lines.append(
             f"| {head} | {b['mean_sample_entropy']:.4f}"
             f" | {a['sample_dependence_js']:.4f}"
@@ -264,7 +267,10 @@ def report(data: dict) -> str:
         "|---|---:|---:|---:|",
     ]
     for head in HEADS:
-        a, b = first["pairs"][head], last["pairs"][head]
+        a, b = first["pairs"].get(head), last["pairs"].get(head)
+        if a is None or b is None:
+            lines.append(f"| {head} | 未采集：无有效配对 | — | — |")
+            continue
         lines.append(
             f"| {head} | {a['cross_entropy']:.4f}"
             f"→{b['cross_entropy']:.4f} "
@@ -289,7 +295,13 @@ def report(data: dict) -> str:
         "|---|---:|---:|---:|",
     ]
     for feature in FEATURES:
-        a, b = first["features"]["student." + feature], last["features"]["student." + feature]
+        a, b = (
+            first["features"].get("student." + feature),
+            last["features"].get("student." + feature),
+        )
+        if not a or not b or not a.get("samples") or not b.get("samples"):
+            lines.append(f"| {feature} | 未采集：未调用 | — | 0 |")
+            continue
         lines.append(
             f"| {feature} | {a['covariance_effective_rank']:.2f}"
             f"→{b['covariance_effective_rank']:.2f}"
@@ -368,6 +380,8 @@ def report(data: dict) -> str:
     ]
     for head in HEADS:
         d = last["distributions"]["teacher." + head]
+        if not d.get("samples"):
+            continue
         if d["largest_argmax_fraction"] >= 0.95:
             share = d["largest_argmax_fraction"]
             lines.append(
@@ -438,7 +452,13 @@ def plots(data: dict, output: Path) -> None:
     a.legend(loc="lower left")
     ax[0].set_title("Epoch training means (different axes)")
     for head in HEADS:
-        ax[1].plot(x, [p["pairs"][head]["cross_entropy"] for p in points], "o-", label=head)
+        if any(head in p["pairs"] for p in points):
+            ax[1].plot(
+                x,
+                [p["pairs"].get(head, {}).get("cross_entropy") for p in points],
+                "o-",
+                label=head,
+            )
     ax[1].set_title("Fixed-probe CE pair means")
     ax[1].legend(fontsize=7)
     for a in ax:
@@ -448,9 +468,9 @@ def plots(data: dict, output: Path) -> None:
     fig, ax = plt.subplots(1, 2, figsize=(11, 3.6))
     for head in HEADS:
         for a, key in zip(ax, ("mean_sample_entropy", "sample_dependence_js"), strict=True):
-            a.plot(
-                x, [p["distributions"]["teacher." + head][key] for p in points], "o-", label=head
-            )
+            values = [p["distributions"]["teacher." + head].get(key) for p in points]
+            if any(v is not None for v in values):
+                a.plot(x, values, "o-", label=head)
     ax[0].set_title("Teacher entropy (head-prefix rows)")
     ax[1].set_title("Teacher sample dependence JS")
     for a in ax:
@@ -464,7 +484,10 @@ def plots(data: dict, output: Path) -> None:
             ax, ("covariance_effective_rank", "relative_centered_variance"), strict=True
         ):
             a.plot(
-                x, [p["features"]["student." + feature][key] for p in points], "o-", label=feature
+                x,
+                [p["features"].get("student." + feature, {}).get(key) for p in points],
+                "o-",
+                label=feature,
             )
     ax[0].set_title("Student effective covariance rank")
     ax[1].set_title("Student relative centered variance")

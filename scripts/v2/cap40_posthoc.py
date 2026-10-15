@@ -7,6 +7,7 @@ analysis checkout. The two identities are verified and recorded independently.
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import dataclasses
 import hashlib
@@ -84,7 +85,7 @@ def server_path(path):
         raise ValueError("scientific materialization is server-only")
 
 
-def method_imports():
+def method_imports(expected_sha=METHOD_SHA):
     import torch
 
     from gradpert.config import load_experiment_config
@@ -94,17 +95,23 @@ def method_imports():
 
     root = Path(module.__file__).resolve().parents[4]
     identity = source_identity(root)
-    if identity["commit"] != METHOD_SHA:
-        raise ValueError("method imports must resolve to original 420d3a1")
+    if (
+        not isinstance(expected_sha, str)
+        or len(expected_sha) != 40
+        or any(c not in "0123456789abcdef" for c in expected_sha)
+        or identity["commit"] != expected_sha
+    ):
+        raise ValueError("method imports must match the explicitly bound training SHA")
     return torch, load_experiment_config, sha256_json, prepare_runtime, root
 
 
 def runtime_args(args):
-    torch, load, json_hash, prepare, method_root = method_imports()
+    expected_sha = getattr(args, "method_sha", METHOD_SHA)
+    torch, load, json_hash, prepare, method_root = method_imports(expected_sha)
     config = load(args.config)
     identity = read(args.run_root / "run_manifest.json")
     if (
-        identity["source"]["commit"] != METHOD_SHA
+        identity["source"]["commit"] != expected_sha
         or json_hash(config.model_dump(mode="json")) != identity["resolved_config_sha256"]
     ):
         raise ValueError("checkpoint/config/method mismatch")
@@ -275,6 +282,45 @@ def medium_schedule(parent, *, cells=4, deep_conditions=128, gradient_conditions
     return schedule
 
 
+def reuse_medium_schedule(parent):
+    """Keep the exact medium population; only new arm view recipes are resealed."""
+    if parent.get("analysis_scope") != "medium_cap40_stratified":
+        raise ValueError("schedule reuse requires an actual medium parent")
+    schedule = copy.deepcopy(parent["schedule"])
+    counts = {
+        "conditions": len(schedule),
+        "rows": sum(len(g["rows"]) for g in schedule),
+        "deep_conditions": sum(bool(g["deep_rows"]) for g in schedule),
+        "deep_rows": sum(len(g["deep_rows"]) for g in schedule),
+        "gradient_conditions": sum(bool(g["gradient_rows"]) for g in schedule),
+        "gradient_rows": sum(len(g["gradient_rows"]) for g in schedule),
+    }
+    if any(parent.get(k) != value for k, value in counts.items()):
+        raise ValueError("medium parent counts differ from its actual schedule")
+    for g in schedule:
+        g.update(recipe_file=None, recipe_sha256=None)
+    return schedule
+
+
+def population_identity(schedule):
+    """Compare scientific sampling independently of intentionally changed views."""
+    fields = ("index", "condition_id", "rows", "deep_rows", "gradient_rows", "queries", "view_seed")
+    return digest_json([{k: group[k] for k in fields} for group in schedule])
+
+
+def validate_method_manifest(manifest, method_sha, config_sha):
+    if manifest.get("method_sha", METHOD_SHA) != method_sha:
+        raise ValueError("analysis manifest belongs to a different scientific method")
+    recipe_config = manifest.get("view_recipe_config_sha256")
+    if recipe_config is not None and recipe_config != config_sha:
+        raise ValueError("view recipes must be sealed for the exact arm config")
+    if method_sha != METHOD_SHA and recipe_config is None:
+        raise ValueError("new scientific methods require explicitly resealed view recipes")
+    population = manifest.get("diagnostic_population_sha256")
+    if population is not None and population != population_identity(manifest["schedule"]):
+        raise ValueError("diagnostic population identity changed")
+
+
 def seal_medium(args):
     server_path(args.output)
     if args.output.exists():
@@ -283,7 +329,11 @@ def seal_medium(args):
         raise ValueError("parent manifest identity differs")
     parent = read(args.parent_manifest)
     torch, config, identity, prepare, _ = runtime_args(args)
-    schedule = medium_schedule(parent)
+    schedule = (
+        reuse_medium_schedule(parent)
+        if getattr(args, "reuse_medium_schedule", False)
+        else medium_schedule(parent)
+    )
     args.output.mkdir(parents=True)
     with prepare(
         config,
@@ -308,6 +358,9 @@ def seal_medium(args):
     manifest = {
         **parent,
         "analysis": source_identity(Path(__file__).resolve().parents[2]),
+        "method_sha": identity["source"]["commit"],
+        "view_recipe_config_sha256": sha(args.config),
+        "diagnostic_population_sha256": population_identity(schedule),
         "analysis_scope": "medium_cap40_stratified",
         "parent_manifest": str(args.parent_manifest),
         "parent_manifest_sha256": args.parent_manifest_sha256,
@@ -400,7 +453,7 @@ def seal(args):
         manifest = {
             "schema": "cap40-posthoc-manifest-1",
             "analysis": analysis,
-            "method_sha": METHOD_SHA,
+            "method_sha": identity["source"]["commit"],
             "data": rt.identity,
             "seed": args.seed,
             "rows": len(records),
@@ -474,6 +527,7 @@ class Collector:
         )
         self.current = None
         self.response_count = defaultdict(int)
+        self.graph_main_count = defaultdict(int)
         self.head_count = defaultdict(int)
         self.node_view_ids = {
             "ssl1_node": [
@@ -579,26 +633,63 @@ class Collector:
         self.module = module
         for role in ("student", "teacher"):
             model = getattr(obj, role)
+            auxiliary_response = bool(obj.masked_response_ratio) and role == "student"
+            active_cell_views = (
+                self.batch.cell_views if obj.weights[1][0] else self.batch.cell_views[:2]
+            )
+            response_layout = (
+                [("main", None)] + ([("masked_response", None)] if auxiliary_response else [])
+                if role == "student"
+                else []
+            )
+            response_layout += [
+                (f"view{i}", v.positions)
+                for i, v in enumerate(active_cell_views)
+                if (role == "student" or i < 2) and obj.lambda2
+            ]
+            graph_main_layout = (
+                ["main"]
+                + (["masked_response"] if auxiliary_response else [])
+                + ["ssl2." + name for name, _ in response_layout if name.startswith("view")]
+            )
 
-            def graph_hook(mod, inputs, output, role=role):
+            def graph_hook(
+                mod,
+                inputs,
+                output,
+                role=role,
+                _layout=graph_main_layout,
+                _conditional=model.options.control_conditioned_graph,
+            ):
                 label = self.graph_view_names[id(inputs[0])]
+                if label == "main" and _conditional:
+                    index = self.graph_main_count[role]
+                    self.graph_main_count[role] += 1
+                    if index >= len(_layout):
+                        raise ValueError("unexpected conditional graph probe path")
+                    label = _layout[index]
                 ids = inputs[0].detach().cpu().numpy()
                 selected = np.argsort([seeded_int(int(g), self.seed) for g in ids])[:512]
-                self.add_features(f"{role}.graph.{label}", output[selected])
+                if output.ndim == 3:
+                    previous = self.current
+                    self.current = (role, label, ids[selected])
+                    try:
+                        self.add_features(f"{role}.graph.{label}", output[:, selected])
+                    finally:
+                        self.current = previous
+                else:
+                    self.add_features(f"{role}.graph.{label}", output[selected])
 
             self.handles.append(model.graph.register_forward_hook(graph_hook))
             original = model.encode_response
             self.wrappers.append((model, original))
 
-            def wrapped(*values, _role=role, _original=original, **kw):
+            def wrapped(*values, _role=role, _original=original, _layout=response_layout, **kw):
                 index = self.response_count[_role]
                 self.response_count[_role] += 1
-                view = (
-                    "main"
-                    if _role == "student" and index == 0
-                    else f"view{index - 1 if _role == 'student' else index}"
-                )
-                pos = None if view == "main" else self.batch.cell_views[int(view[4:])].positions
+                if index >= len(_layout):
+                    raise ValueError("unexpected response forward beyond declared probe paths")
+                view, pos = _layout[index]
                 ids = (
                     self.batch.graph.ids[
                         self.batch.query_positions
@@ -748,7 +839,9 @@ class Collector:
 
         for role in ("student", "teacher"):
             available = [
-                (v, x) for (r, v), x in self.response_cache.items() if r == role and v != "main"
+                (v, x)
+                for (r, v), x in self.response_cache.items()
+                if r == role and v.startswith("view")
             ]
             for i, (va, a) in enumerate(available):
                 for vb, b in available[i + 1 :]:
@@ -835,12 +928,22 @@ def static_graph(rt):
         device=rt.device,
         induced=False,
     )
+    if rt.objective.student.options.control_conditioned_graph:
+        return {"prefix": rt.objective.student.graph.relay_prefix(view.context)}
     graph, _ = rt.objective._graph(rt.objective.student, view, False)
     return graph
 
 
 def main_response(rt, batch, cached):
     obj = rt.objective
+    if isinstance(cached, dict):
+        graph, condition = obj._batch_graph(obj.student, batch, prefix=cached["prefix"])
+        return obj.student.encode_response(
+            obj._select_graph(graph, batch.query_positions),
+            batch.control,
+            condition,
+            **obj.response_metadata(batch),
+        )
     ids = batch.graph.ids
     target_ids = ids[batch.graph.target_positions.clamp_min(0)]
     target = cached[target_ids] * batch.graph.target_valid.unsqueeze(-1)
@@ -856,10 +959,17 @@ def verify_cache(rt, batch, cached):
 
     obj = rt.objective
     graph, condition = obj._batch_graph(obj.student, batch)
-    selected = cached[batch.graph.ids]
+    selected = (
+        obj._batch_graph(obj.student, batch, prefix=cached["prefix"])[0]
+        if isinstance(cached, dict)
+        else cached[batch.graph.ids]
+    )
     difference = float((selected - graph).abs().max())
     original = obj.student.encode_response(
-        graph[batch.query_positions], batch.control, condition, **obj.response_metadata(batch)
+        obj._select_graph(graph, batch.query_positions),
+        batch.control,
+        condition,
+        **obj.response_metadata(batch),
     )
     optimized = main_response(rt, batch, cached)
     maximum = max(float((original[k] - optimized[k]).abs().max()) for k in original)
@@ -916,6 +1026,7 @@ def run(args):
     if sha(args.manifest) != args.manifest_sha256:
         raise ValueError("shared manifest hash differs")
     torch, config, identity, prepare, _ = runtime_args(args)
+    validate_method_manifest(manifest, identity["source"]["commit"], sha(args.config))
     if getattr(args, "deterministic", False):
         if os.environ.get("CUBLAS_WORKSPACE_CONFIG") != ":4096:8":
             raise ValueError("deterministic validation requires a bound cuBLAS workspace")
@@ -1016,7 +1127,12 @@ def run(args):
                     "seen_expression_genes": rt.allowed_expression_ids,
                     "unseen_expression_genes": np.setdiff1d(numeric, rt.allowed_expression_ids),
                 }
-                for module, x in (("genept", obj.student.graph.identities()), ("graph", cached)):
+                graph_feature = (
+                    ("graph_prefix_H3", cached["prefix"])
+                    if isinstance(cached, dict)
+                    else ("graph", cached)
+                )
+                for module, x in (("genept", obj.student.graph.identities()), graph_feature):
                     values = npval(x)
                     for name, indices in groups.items():
                         m = Moments(x.shape[-1])
@@ -1261,7 +1377,13 @@ def run(args):
             "schema": "cap40-posthoc-1",
             "arm": args.arm,
             "analysis": analysis,
-            "method_sha": METHOD_SHA,
+            "method_sha": identity["source"]["commit"],
+            "graph_full_axis_semantics": (
+                "CG1 shared H3 prefix only; H4 is control-specific and recorded in deep views"
+                if isinstance(cached, dict)
+                else "static full H4 graph"
+            ),
+            "loss_weights": {"ssl1": list(obj.weights[0]), "ssl2": list(obj.weights[1])},
             "checkpoint_epoch": cp["epoch"],
             "checkpoint_sha256": cp["sha256"],
             "run_root": str(args.run_root),
@@ -1269,6 +1391,7 @@ def run(args):
             "config_sha256": sha(args.config),
             "resolved_config_sha256": identity["resolved_config_sha256"],
             "manifest_sha256": args.manifest_sha256,
+            "diagnostic_population_sha256": population_identity(manifest["schedule"]),
             "data": rt.identity,
             "scope": "gate_subset"
             if args.limit
@@ -1386,6 +1509,8 @@ def cli():
             "--" + name, type=Path, required=name in ("run-root", "config", "data-root", "output")
         )
     p.add_argument("--manifest-sha256")
+    p.add_argument("--method-sha", default=METHOD_SHA)
+    p.add_argument("--reuse-medium-schedule", action="store_true")
     p.add_argument("--peer-receipt", type=Path)
     p.add_argument("--peer-receipt-sha256")
     p.add_argument("--owner-receipt", type=Path)

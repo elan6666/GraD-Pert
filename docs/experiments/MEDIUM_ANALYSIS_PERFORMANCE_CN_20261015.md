@@ -43,3 +43,9 @@
 ## 后续顺序
 
 性能验收后先B0→VH→S12-L4；再按已授权顺序CG1、U24、MR1、P1、C1、O1、K2-fixed-prefix。新的FG+PO/node0基线及所有模型机制仍需双卡10步/恢复/推理预检，不使用synthetic通过替代真实容量门。每组完成只做上述中等诊断及共同中文报告。
+
+## 资源中断与无损恢复（2026-10-15）
+
+旧完整参考在1206/1335条件、4801/5317行、2550.44s时被资源守卫拒绝；无full COMPLETE，fast未启动。不能用该部分耗时宣称完整提速。新恢复机制在server保存FP64充分统计、标量行、RNG和时间，严格绑定源码/config/checkpoint/manifest/schedule/backend，fresh输出恢复、不覆盖旧运行；未保存checkpoint之前的旧1206条件不能事后恢复。恢复本身不保存权重或激活矩阵。
+
+用户新增SciPENN确切脚本共用授权，原资源上限不变。c9efc24运行的恢复探针1927项统计完全相同；参考47.4157s、fast40.4107s，短探针下降14.77%，但有共享GPU调度波动，只视为短阶段证据。完整reference/fast仍顺序测量，全部统计和完整walltime验收尚未完成。PROBE_COMPLETE SHA `501dea148e8c703f3a7297b36f81c275531dffd9d118d4183df34b8cd7a62dd2`。

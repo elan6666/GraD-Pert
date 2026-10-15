@@ -1,3 +1,11 @@
+## 2026-10-15：共用策略已授权，恢复探针通过，完整中等配对测速继续
+
+旧fb01436全中等参考在1206/1335条件被外部资源门中止；2765fd6恢复写入变量遮蔽错误已修复。d37c645参考三条件完成后，恢复段因新SciPENN脚本被原名单拒绝。失败源码、ID、产物全部保留。用户现明确允许UID1003 `run_scipenn_strict_b_s2_smoke.py` 共用，仍每卡外部≤1GiB/最多1个、物理余量≥2GiB、我们≤90%，未知身份仍拒绝。
+
+新分析源c9efc242ace04ea709723d001a8be28e256eeaa6 clean/pushed，与服务器一致；78资源/恢复检查通过。独立运行 `/data/yilangliu/GraD-Pert/development/medium-observer-c9efc24-20261015`：恢复与连续分析1927统计最大差0；fast对reference最大差2.55e-11/1e-8，47.42s→40.41s（短探针14.77%下降）。PROBE_COMPLETE SHA501dea148e8c703f3a7297b36f81c275531dffd9d118d4183df34b8cd7a62dd2。当前reference-medium→fast-medium完整配对；完整收益尚未验收。原1335条件/5317行/128深度/32梯度/128基因与科学source420d3a1保持；每100条件无损保存恢复点。
+
+Luna短监督已结束；主继续新family调度和诊断兼容测试，之后交唯一长监督。新FG+PO/node0 B0→VH→S12-L4优先，4轮/global400候选/无验证/last18/只做同中等诊断。没有正式消融启动；权威owner/run见v2-gene-exposure-eval coordination。下列运行状态是历史。
+
 ## 2026-10-15：中等诊断性能优化，新消融尚未启动
 
 原共同中等范围1335条件/5317行、深度128条件/506细胞、梯度32条件/125细胞、每细胞128基因保持。新GPU充分统计、身份选择前移、小Gram有效秩优化已通过确定性短探针：1927浮点数最大差2.55e-11；42.88s→40.85s，深度统计7.11s→4.73s。完整配对 `/data/yilangliu/GraD-Pert/development/medium-observer-fb01436-20261015` 正在运行，分析源码fb01436e544328e5e56effff51dd7c74f1d54dd8、科学源码420d3a1；尚未验收完整收益。旧失败/重复参考证据保留。

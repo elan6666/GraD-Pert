@@ -26,6 +26,8 @@ from generate_br400_group import (
 )
 from generate_ffn_five import SCHEMA as FFN_SCHEMA
 from generate_ffn_five import verify_manifest as verify_ffn_manifest
+from generate_fgpo_family import SCHEMA as FGPO_SCHEMA
+from generate_fgpo_family import verify_manifest as verify_fgpo_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -50,7 +52,7 @@ from gradpert.hashing import sha256_file, sha256_json
 
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
-LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA)
+LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA, FGPO_SCHEMA)
 DEFERRED_SCDFM_POLICY = "scdfm_fit_gears_terminal_evaluation_deferred_v1"
 
 
@@ -121,6 +123,8 @@ def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
 
 
 def verify_manifest(source: Path, manifest: Path) -> dict:
+    if read_json(manifest).get("schema") == FGPO_SCHEMA:
+        return verify_fgpo_manifest(source, manifest)
     if read_json(manifest).get("schema") == FFN_SCHEMA:
         return verify_ffn_manifest(source, manifest)
     return verify_br_manifest(source, manifest)
@@ -214,6 +218,8 @@ def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: d
     }
     if matrix["schema"] == FFN_SCHEMA:
         queue["official_dependency"] = read_json(runtime)["official_dependency"]
+    elif matrix["schema"] == FGPO_SCHEMA:
+        queue["medium_analysis"] = read_json(runtime)["medium_analysis"]
     for row in rows:
         for gpu in ("0", "1"):
             queue["eval_bindings"].append(
@@ -263,6 +269,14 @@ def verify(queue: dict) -> None:
     ):
         raise ValueError("remaining last-only requires the exact approved memory90 policy")
     runtime = read_json(Path(queue["runtime"]))
+    if matrix["schema"] == FGPO_SCHEMA:
+        from run_fgpo_medium import validate_analysis_spec
+
+        if queue.get("medium_analysis") != runtime.get("medium_analysis"):
+            raise ValueError("new B0 medium analysis must be explicitly bound")
+        validate_analysis_spec(queue["medium_analysis"])
+        if "official_dependency" in queue or "official_dependency" in runtime:
+            raise ValueError("new family must not dispatch deferred official baselines")
     if matrix["schema"] == FFN_SCHEMA and (
         not isinstance(runtime.get("official_dependency"), dict)
         or queue.get("official_dependency") != runtime["official_dependency"]
@@ -385,7 +399,7 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
             or "joint_validation_progress" in receipt
         ):
             raise ValueError("last-only gate must not perform joint validation")
-        if queue["family"] == FFN_SCHEMA:
+        if queue["family"] in (FFN_SCHEMA, FGPO_SCHEMA):
             for key in ("initial_loss_diagnostic", "updated_loss_diagnostic"):
                 observed = receipt.get(key, {}).get("process", {})
                 if (
@@ -773,8 +787,9 @@ def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -
                     time.sleep(60)
                 state["phase"] = "preflight"
                 atomic_json(directory / "state.json", state)
+            gpu_leases = stack.enter_context(contextlib.ExitStack())
             for gpu in ("0", "1"):
-                stack.enter_context(lock(LEASE_ROOT / f"v2-gpu-{gpu}.lock"))
+                gpu_leases.enter_context(lock(LEASE_ROOT / f"v2-gpu-{gpu}.lock"))
             if any(p["owned"] for p in guard()["processes"]):
                 raise RuntimeError("other owned CUDA work exists")
             indexed = {row["name"]: row for row in queue["rows"]}
@@ -848,6 +863,28 @@ def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -
                 run_stage(queue, row, eval_stage, evaluation_command(path), "0,1", state, guard)
                 state["completed"][row["name"]] = validate_complete(row["plan"])
                 atomic_json(directory / "state.json", state)
+                if queue["family"] == FGPO_SCHEMA:
+                    from run_fgpo_medium import medium_command, validate_medium_complete
+
+                    # The child acquires the normal GPU0 lease itself. Do not
+                    # bypass the worker's lock or hold the same lock in its parent.
+                    gpu_leases.close()
+                    state["phase"] = f"{row['name']}_medium_analysis"
+                    run_stage(
+                        queue,
+                        row,
+                        "medium-analysis",
+                        medium_command(queue, row),
+                        "0",
+                        state,
+                        guard,
+                    )
+                    state.setdefault("medium_analysis", {})[row["name"]] = validate_medium_complete(
+                        queue, row
+                    )
+                    atomic_json(directory / "state.json", state)
+                    for gpu in ("0", "1"):
+                        gpu_leases.enter_context(lock(LEASE_ROOT / f"v2-gpu-{gpu}.lock"))
             state.update(status="complete", phase="complete", scientific_complete=True)
             atomic_json(directory / "state.json", state)
             atomic_json(directory / "COMPLETE.json", state)

@@ -7,7 +7,14 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts/v2"))
-from cap40_posthoc import medium_cells, medium_schedule
+from cap40_posthoc import (
+    METHOD_SHA,
+    medium_cells,
+    medium_schedule,
+    population_identity,
+    reuse_medium_schedule,
+    validate_method_manifest,
+)
 from cap40_posthoc_queue import ordered_rows
 
 
@@ -86,3 +93,58 @@ def test_contexts_beyond_four_are_seeded_per_condition_not_a_fixed_prefix():
         selected.append({r["context_id"] for r in actual})
     assert len(set.union(*selected)) > 4
     assert any(x != set(universe[:4]) for x in selected)
+
+
+def medium_parent():
+    p = parent()
+    p["schedule"] = medium_schedule(p, deep_conditions=6, gradient_conditions=3)
+    p.update(analysis_scope="medium_cap40_stratified", conditions=len(p["schedule"]))
+    for name, field in (
+        ("rows", "rows"),
+        ("deep_rows", "deep_rows"),
+        ("gradient_rows", "gradient_rows"),
+    ):
+        p[name] = sum(len(g[field]) for g in p["schedule"])
+    for name, field in (("deep_conditions", "deep_rows"), ("gradient_conditions", "gradient_rows")):
+        p[name] = sum(bool(g[field]) for g in p["schedule"])
+    return p
+
+
+def test_new_arm_reuses_exact_population_and_only_reseals_views():
+    p = medium_parent()
+    before = copy.deepcopy(p)
+    for g in p["schedule"]:
+        g.update(recipe_file="old.json", recipe_sha256="old recipe")
+    reused = reuse_medium_schedule(p)
+    assert population_identity(reused) == population_identity(before["schedule"])
+    assert p["schedule"][0]["recipe_file"] == "old.json"
+    assert all(g["recipe_file"] is None and g["recipe_sha256"] is None for g in reused)
+    reused[0]["rows"][0]["control_row_id"] = "different-control"
+    assert population_identity(reused) != population_identity(before["schedule"])
+    assert p["schedule"][0]["rows"] == before["schedule"][0]["rows"]
+
+
+@pytest.mark.parametrize("change", ["count", "method", "config", "population", "unsealed"])
+def test_new_method_cannot_reuse_stale_view_or_sampling_identity(change):
+    p = medium_parent()
+    p.update(
+        method_sha="b" * 40,
+        view_recipe_config_sha256="cfg",
+        diagnostic_population_sha256=population_identity(p["schedule"]),
+    )
+    validate_method_manifest(p, "b" * 40, "cfg")
+    if change == "count":
+        p["rows"] += 1
+        with pytest.raises(ValueError, match="counts"):
+            reuse_medium_schedule(p)
+        return
+    if change == "method":
+        p["method_sha"] = METHOD_SHA
+    elif change == "config":
+        p["view_recipe_config_sha256"] = "other"
+    elif change == "population":
+        p["schedule"][0]["queries"][0] += 10
+    else:
+        p.pop("view_recipe_config_sha256")
+    with pytest.raises(ValueError):
+        validate_method_manifest(p, "b" * 40, "cfg")

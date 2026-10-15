@@ -11,6 +11,24 @@ from pathlib import Path
 from cap40_posthoc import csv_write, read, sha, write
 from cap40_posthoc_stats import condition_summary
 
+ARM_DESCRIPTIONS = {
+    "DP": "DINO式weight_norm与首轮原型冻结",
+    "FN": "统一角色MLP Pre-LayerNorm",
+    "FG": "统一GELU、主干参数匹配",
+    "FB": "角色FFN Linear去bias",
+    "PO": "Softplus绝对非负输出",
+    "B0": "新锚点：FG GELU＋PO非负预测，SSL1 node关闭",
+    "VH": "两套蒸馏Global80%–100%／Local40%–65%",
+    "S12-L4": "SSL1两GO＋两STRING Local；SSL2四随机Local",
+    "CG1": "control摘要只调节图第四层的来源key门",
+    "U24": "共享GenePT映射＋Softplus之前的基因特异读出修正",
+    "MR1": "隐藏25% control表达后预测扰动表达，辅助权重1",
+    "P1": "同条件群体均值MSE＋MMD，替代随机逐行MSE",
+    "C1": "仅入口注入ep，保留control cross和输出拼接",
+    "O1": "所有KDA固定真实基因ID顺序、最终状态读取",
+    "K2-fixed-prefix": "所有KDA固定真实基因ID顺序并读取对应前缀状态",
+}
+
 
 def flatten(value, prefix=""):
     out = {}
@@ -228,17 +246,17 @@ def render(args):
             [
                 {
                     "arm": summary["arm"],
-                    "method": {
-                        "DP": "DINO式weight_norm与首轮原型冻结",
-                        "FN": "统一角色MLP Pre-LayerNorm",
-                        "FG": "统一GELU、主干参数匹配",
-                        "FB": "角色FFN Linear去bias",
-                        "PO": "Softplus绝对非负输出",
-                    }[summary["arm"]],
+                    "method": ARM_DESCRIPTIONS[summary["arm"]],
                 }
             ]
         ),
         "冻结配置全文见原始resolved_config；补测不改变架构、数值表达剔除、视图比例、权重或教师统计。\n",
+        "图全基因轴："
+        + summary.get("graph_full_axis_semantics", "静态H4图表示")
+        + "。CG1的全图共享H3不能当作其他组的H4；其control条件化H4在深度视图中另列。\n"
+        + "实际SSL权重："
+        + json.dumps(summary.get("loss_weights", {}), ensure_ascii=False)
+        + "。未调用的node头不填造分布或CE。\n",
         "## 4. 共同样本清单与覆盖\n"
         + table([{k: summary[k] for k in ("rows", "conditions", "deep_rows", "scope")}]),
         "同一扰动/不同扰动分开；context=cell_type::batch。只有Jurkat一个cell_line，不能计算跨细胞系效应。原始清单及真实row/control/gene/view/mask对应关系留在服务器，hash绑定所有实验。\n",

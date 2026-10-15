@@ -1,0 +1,307 @@
+"""One completed new-family arm: exact medium rows, parity, diagnostics and report."""
+
+from __future__ import annotations
+
+import argparse
+import math
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+from cap40_posthoc import population_identity, read, sha, write
+from generate_fgpo_family import ARMS, SCHEMA
+
+SERVER_ROOT = Path("/data/yilangliu")
+COUNTS = dict(
+    conditions=1335,
+    rows=5317,
+    deep_conditions=128,
+    deep_rows=506,
+    gradient_conditions=32,
+    gradient_rows=125,
+)
+
+
+def validate_analysis_spec(spec):
+    fields = {
+        "parent_manifest",
+        "parent_manifest_sha256",
+        "performance_receipt",
+        "performance_receipt_sha256",
+    }
+    if not isinstance(spec, dict) or set(spec) != fields:
+        raise ValueError("medium analysis needs exact sampling and performance receipts")
+    for name in ("parent_manifest", "performance_receipt"):
+        path = Path(spec[name]).resolve()
+        if not path.is_relative_to(SERVER_ROOT) or sha(path) != spec[name + "_sha256"]:
+            raise ValueError("medium sampling/performance receipt changed or left server")
+    parent = read(spec["parent_manifest"])
+    if parent.get("analysis_scope") != "medium_cap40_stratified" or any(
+        parent.get(k) != v for k, v in COUNTS.items()
+    ):
+        raise ValueError("only the original comparable medium population is authorized")
+    from cap40_posthoc import reuse_medium_schedule
+
+    reuse_medium_schedule(parent)
+    performance = read(spec["performance_receipt"])
+    parity = performance.get("full_parity", {})
+    fast, reference = (
+        performance.get(k, float("nan")) for k in ("full_fast_seconds", "full_reference_seconds")
+    )
+    if (
+        performance.get("status") != "completed"
+        or performance.get("same_sample_scope") is not True
+        or performance.get("deterministic_algorithms") is not True
+        or performance.get("model_updates") != 0
+        or parity.get("passed") is not True
+        or parity.get("atol") != 1e-8
+        or not 0 <= parity.get("max_abs", float("inf")) <= 1e-8
+        or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in (fast, reference))
+        or not 0 < fast < reference
+    ):
+        raise ValueError("full-medium correctness/stability and end-to-end gain are required")
+    return parent
+
+
+def medium_command(queue, row):
+    return [
+        sys.executable,
+        str(Path(queue["source"]) / "scripts/v2/run_fgpo_medium.py"),
+        "--queue",
+        str(Path(queue["output"]) / "queue.json"),
+        "--arm",
+        row["name"],
+    ]
+
+
+def validate_medium_complete(queue, row):
+    root = Path(queue["output"]) / f"{row['name']}-medium"
+    path = root / "MEDIUM_COMPLETE.json"
+    result = read(path)
+    plan = row["plan"]
+    journal = read(Path(plan["run_root"]) / "fit/epoch_state.json")
+    expected = {
+        "status": "completed",
+        "arm": row["name"],
+        "source_commit": queue["source_commit"],
+        "queue_sha256": sha(Path(queue["output"]) / "queue.json"),
+        "checkpoint_sha256": journal["last"]["sha256"],
+        "updates": 0,
+        **COUNTS,
+    }
+    parent = validate_analysis_spec(queue["medium_analysis"])
+    expected["diagnostic_population_sha256"] = population_identity(parent["schedule"])
+    if any(result.get(k) != v for k, v in expected.items()):
+        raise ValueError("completed medium arm identity, population or counts differ")
+    summary = read(root / "analysis/summary.json")
+    complete = read(root / "analysis/COMPLETE.json")
+    if (
+        complete.get("state_unchanged") is not True
+        or summary.get("updates") != 0
+        or summary.get("state_before") != summary.get("state_after")
+        or summary.get("method_sha") != queue["source_commit"]
+        or summary.get("checkpoint_sha256") != expected["checkpoint_sha256"]
+        or summary.get("config_sha256") != plan["config_sha256"]
+        or summary.get("diagnostic_population_sha256") != expected["diagnostic_population_sha256"]
+        or any(summary.get(k) != v for k, v in COUNTS.items())
+        or result.get("parity", {}).get("passed") is not True
+        or result["parity"].get("atol") != 1e-8
+        or not 0 <= result["parity"].get("max_abs", float("inf")) <= 1e-8
+    ):
+        raise ValueError("medium analysis state, method, population or parity changed")
+    for name, entry in result["outputs"].items():
+        target = (root / name).resolve()
+        if not target.is_relative_to(root.resolve()) or sha(target) != entry["sha256"]:
+            raise ValueError("sealed medium artifact changed")
+    return {"receipt": str(path), "sha256": sha(path), **COUNTS}
+
+
+def execute(queue_path, arm):
+    from profile_medium_observer import compare
+    from run_br400_group import validate_complete, verify
+
+    q = read(queue_path)
+    if q.get("family") != SCHEMA or arm not in ARMS:
+        raise ValueError("medium postfit work is limited to the authorized new family")
+    verify(q)
+    source = Path(q["source"])
+    if source.resolve() != Path(__file__).resolve().parents[2]:
+        raise ValueError("medium worker must use the exact published queue source")
+    parent = validate_analysis_spec(q["medium_analysis"])
+    row = next(r for r in q["rows"] if r["name"] == arm)
+    validate_complete(row["plan"])
+    root = Path(q["output"]) / f"{arm}-medium"
+    if root.exists() or not root.resolve().is_relative_to(SERVER_ROOT):
+        raise ValueError("fresh server-only medium run required")
+    root.mkdir()
+    start = time.perf_counter()
+    plan = row["plan"]
+    env = dict(
+        os.environ,
+        PYTHONPATH=str(source / "src"),
+        OMP_NUM_THREADS="1",
+        OPENBLAS_NUM_THREADS="1",
+        CUBLAS_WORKSPACE_CONFIG=":4096:8",
+        PYTORCH_ALLOC_CONF="expandable_segments:True",
+    )
+    stages = {}
+
+    def call(label, command, gpu):
+        begin = time.perf_counter()
+        with (root / (label + ".log")).open("x") as log:
+            subprocess.run(
+                command,
+                cwd=source,
+                env=dict(env, CUDA_VISIBLE_DEVICES=gpu),
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                check=True,
+            )
+        stages[label] = time.perf_counter() - begin
+
+    base = [sys.executable, str(source / "scripts/v2/cap40_posthoc.py")]
+    common = [
+        "--run-root",
+        plan["run_root"],
+        "--config",
+        plan["config"],
+        "--data-root",
+        plan["data_root"],
+        "--method-sha",
+        q["source_commit"],
+    ]
+    try:
+        call(
+            "saved-training-report",
+            [
+                sys.executable,
+                str(source / "scripts/v2/analyze_completed_ablation.py"),
+                "--run-root",
+                plan["run_root"],
+                "--output",
+                str(root / "saved"),
+                "--name",
+                arm,
+            ],
+            "",
+        )
+        call(
+            "seal",
+            [
+                *base,
+                "seal-medium",
+                *common,
+                "--reuse-medium-schedule",
+                "--parent-manifest",
+                q["medium_analysis"]["parent_manifest"],
+                "--parent-manifest-sha256",
+                q["medium_analysis"]["parent_manifest_sha256"],
+                "--output",
+                str(root / "manifest"),
+            ],
+            "",
+        )
+        manifest = root / "manifest/manifest.json"
+        derived = read(manifest)
+        if population_identity(derived["schedule"]) != population_identity(parent["schedule"]):
+            raise ValueError("resealing changed the common diagnostic population")
+        command = [
+            *base,
+            "run",
+            *common,
+            "--manifest",
+            str(manifest),
+            "--manifest-sha256",
+            sha(manifest),
+            "--resource-queue",
+            str(queue_path),
+            "--arm",
+            arm,
+            "--deterministic",
+            "--checkpoint-conditions",
+            "100",
+        ]
+        for label, backend in (("reference-probe", "reference"), ("fast-probe", "fast")):
+            call(
+                label,
+                [
+                    *command,
+                    "--output",
+                    str(root / label),
+                    "--stats-backend",
+                    backend,
+                    "--limit",
+                    "3",
+                    "--gate-indices",
+                    "0,1,15",
+                ],
+                "0",
+            )
+        parity = compare(root / "reference-probe", root / "fast-probe")
+        call(
+            "medium", [*command, "--output", str(root / "analysis"), "--stats-backend", "fast"], "0"
+        )
+        summary = read(root / "analysis/summary.json")
+        if any(summary.get(k) != v for k, v in COUNTS.items()):
+            raise ValueError("medium output coverage incomplete")
+        call(
+            "report",
+            [
+                sys.executable,
+                str(source / "scripts/v2/cap40_posthoc_report.py"),
+                "--input",
+                str(root / "analysis"),
+                "--original",
+                str(root / "saved"),
+                "--output",
+                str(root / "report"),
+            ],
+            "",
+        )
+        checkpoint = read(Path(plan["run_root"]) / "fit/epoch_state.json")["last"]
+        write(
+            root / "MEDIUM_COMPLETE.json",
+            {
+                "status": "completed",
+                "arm": arm,
+                "source_commit": q["source_commit"],
+                "queue_sha256": sha(queue_path),
+                "checkpoint_sha256": checkpoint["sha256"],
+                "diagnostic_population_sha256": population_identity(parent["schedule"]),
+                "manifest_sha256": sha(manifest),
+                "updates": 0,
+                **COUNTS,
+                "parity": parity,
+                "end_to_end_seconds": time.perf_counter() - start,
+                "stage_seconds": stages,
+                "outputs": {
+                    str(p.relative_to(root)): {"bytes": p.stat().st_size, "sha256": sha(p)}
+                    for p in sorted(root.rglob("*"))
+                    if p.is_file()
+                    and p.suffix in (".json", ".csv", ".png", ".md")
+                    and "recovery" not in p.parts
+                },
+            },
+        )
+        validate_medium_complete(q, row)
+    except BaseException as exc:
+        write(
+            root / "FAILURE.json",
+            {
+                "status": "failed",
+                "error": repr(exc),
+                "queue_sha256": sha(queue_path),
+                "stage_seconds": stages,
+            },
+        )
+        raise
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--queue", type=Path, required=True)
+    parser.add_argument("--arm", choices=tuple(ARMS), required=True)
+    arguments = parser.parse_args()
+    execute(arguments.queue, arguments.arm)

@@ -52,3 +52,23 @@ full_prototypes/full_representations是历史文件名，标题和正文必须�
 同一精确父进程管理每卡一个分析worker，启动和每条件检查均核验父UID/PID/start/cmd；不弱化外部资源规则。
 短门通过＋实际并行进度＋独立main验收后交唯一监督；终态回交main，暂停等待监控和return fallback，读回状态。
 主独立核验终态与逐文件SHA，审核图片／报告，再完成交付；消息通知或进程消失本身不算完成。
+
+## 新FG+PO／node0基线的补充规则（2026-10-15）
+
+后续B0、VH、S12-L4、CG1、U24、MR1、P1、C1、O1、K2-fixed-prefix仍使用上述中等范围。
+从已冻结medium manifest深拷贝实际truth/control/context/query、deep/gradient行与view seed，
+以`diagnostic_population_sha256`绑定这些轴，不重新分层采样。
+每组按实际训练源码和完整配置重新封存view/mask/edge配方；VH/S12的配方差异是已声明的实验变量，
+不能宣称其完整view manifest与B0逐字节相同。原DP等五臂完整清单和报告不覆盖。
+
+新B0的SSL1 node权重为0；不为了填满表而额外调用该头，CE、熵与瓶颈缺失标为未采集，不能填0。
+MR1的masked-response辅助forward单独标记，不算作SSL2 Global或Local，跨view表仅比较实际蒸馏视图。
+CG1只共享前三层图前缀：全图身份轴可报告共享H3；不同control的第四层H4必须在对应主路径／视图分开，
+不能将H3混入其他组的H4比较。相同control的遮蔽表达仍不能从图条件摘要绕过。
+
+每个新臂训练并完成last18正式测试后，自动保存旧小probe报告、重封中等清单、执行本臂reference/fast三条件
+1e-8正确性门，再执行fast中等诊断与共同中文报告。新pipeline验收包含科学输出／状态／checkpoint／源码／
+配置和全部图表hash；启动、seal、probe、诊断和绘图分别计时。父训练控制器释放GPU锁，分析worker仍获取
+正常GPU0锁，避免父子重复持同一锁；分析完成才继续下一组。双卡训练／评估协议不变。
+
+本次实际性能机制的完整中等配对验收是新队列准备的依赖，短探针通过不允许直接启动正式新消融。

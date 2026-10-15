@@ -106,6 +106,66 @@ def test_read_only_collection_and_undefined_metric(run):
     assert before == {str(p): module.digest(p) for p in run.rglob("*") if p.is_file()}
 
 
+def test_disabled_node_head_is_reported_missing_and_all_figures_render(run, tmp_path):
+    data = collect(run)
+    for h in data["history"]:
+        h["training"].update(joint_loss=1.0, prediction_mse=0.1)
+    for point in data["snapshots"]:
+        point["distributions"] = {
+            "teacher." + head: dict(
+                samples=4,
+                mean_sample_entropy=2.0,
+                sample_dependence_js=0.5,
+                effective_marginal_prototypes=8.0,
+                argmax_prototypes_used=3,
+                largest_argmax_fraction=0.5,
+            )
+            for head in module.HEADS
+        }
+        point["distributions"]["teacher.ssl1_node"] = {"samples": 0}
+        point["pairs"].update(
+            {
+                head: dict(cross_entropy=3.0, teacher_entropy=2.0, teacher_to_student_kl=1.0)
+                for head in module.HEADS
+                if head != "ssl1_node"
+            }
+        )
+        point["pairs"].pop("ssl1_node", None)
+        point["features"] = {
+            "student." + feature: dict(
+                samples=4, covariance_effective_rank=2.0, relative_centered_variance=0.2
+            )
+            for feature in module.FEATURES
+            if feature != "ssl1_node.bottleneck"
+        }
+        point["outputs"] = dict(
+            prediction_mse=0.1,
+            control_copy_mse=0.2,
+            mse_gain_over_copy=0.5,
+            paired_effect_rms_ratio=0.8,
+            negative_prediction_fraction=0.0,
+            delta_rms=0.2,
+            top_one_percent_loss_fraction=0.1,
+        )
+        point["graph_gradients"] = dict(
+            groups={
+                "graph": dict(
+                    weighted_gradient_l2=dict(prediction=1.0, ssl1=1.0, ssl2=1.0),
+                    cosine=dict(prediction_ssl1=0.2, prediction_ssl2=0.1),
+                )
+            }
+        )
+    output = tmp_path / "node0-report"
+    module.export(data, output)
+    text = (output / "report.md").read_text()
+    assert "该头未调用" in text and "无有效配对" in text
+    assert len(list(output.glob("*.png"))) == 4
+    assert len(list(output.glob("*.csv"))) == 7
+    assert "ssl1_node" not in {
+        r["name"] for r in __import__("csv").DictReader((output / "pairs.csv").open())
+    }
+
+
 @pytest.mark.parametrize(
     "change,match",
     [

@@ -28,6 +28,8 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     """Only an exact sealed experiment leaf may use the shared-resource exception."""
     from generate_ffn_five import PRIORITY as FFN_PRIORITY
     from generate_ffn_five import SCHEMA as FFN_SCHEMA
+    from generate_fgpo_family import ARMS as FGPO_ARMS
+    from generate_fgpo_family import SCHEMA as FGPO_SCHEMA
     from shared_gpu import DYNAMIC_SCHEMA, validate_policy
 
     from gradpert.hashing import sha256_file
@@ -35,7 +37,8 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     validate_policy(queue["shared_gpu_policy"])
     if (
         queue.get("schema") != "unified-ddp-queue-1"
-        or queue.get("family") not in ("br400-best-last-1", "br400-remaining-last-1", FFN_SCHEMA)
+        or queue.get("family")
+        not in ("br400-best-last-1", "br400-remaining-last-1", FFN_SCHEMA, FGPO_SCHEMA)
         or queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA
         or queue.get("source_commit") != source_commit
         or args.gpu not in ("0", "1")
@@ -55,6 +58,12 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         or queue.get("steps") != 10
     ):
         raise ValueError("FFN evaluation requires the exact last-only five-arm scope")
+    if queue.get("family") == FGPO_SCHEMA and (
+        queue.get("mode") != FGPO_SCHEMA
+        or [row["name"] for row in queue["rows"]] != list(FGPO_ARMS)
+        or queue.get("steps") != 10
+    ):
+        raise ValueError("new B0 evaluation requires the exact ten-arm scope")
     rows = [row for row in queue["rows"] if row["name"] == args.row_name]
     if len(rows) != 1:
         raise ValueError("evaluation probe must select one sealed queue row")

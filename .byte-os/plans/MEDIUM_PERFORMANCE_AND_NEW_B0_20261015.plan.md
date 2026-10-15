@@ -9,3 +9,13 @@ Phase2: new B0 combines FG GELU(corehidden1536), PO softplus absolute expression
 Fourepochs, no validation,last18metrics,frozen300controls, samecap40/225expression exclusions and samplelists. Common global400 candidate(m100*a2*2), allarms10update/restore/inference before mainacceptance; ifcapacity requires fallback rebind wholefamily/anchor. Native/evaluation/analysis source identities distinct and exact. Initialization/epoch lightdiagnostics; everycompleted arm automatic medium analysis and Chinese templatev4 report, no fullanalysis.
 
 Independent measured tests precede immutable publication and serverlaunch. Bounded waits use oneLuna readonly helper; no main duplicatepoll. Longjob existing supervisor exactrun/handoff ACK+20minACTIVE and returnPAUSED. Terminal backtomain actualcontinuation and obsolete monitorspaused. Overall endpoint allauthorized arms trained/tested/mediumanalyzed/reportsdelivered, not oneprobe.
+
+Implementation follow-up: family controller now selects the exact ten-arm schema,
+requires a successful full-medium performance receipt and the original medium manifest,
+and does not reintroduce deferred official dependencies. All ten update/restore and both
+eval-device gates still precede independent MAIN_ACCEPTANCE. After each arm's last test,
+the scoped medium pipeline runs before the next fit; GPU0 child locking remains normal.
+New method SHA and per-arm recipe config are explicit. MR1 auxiliary response and CG1
+per-view conditional graphs receive separate provenance labels. Disabled node heads
+remain uncollected instead of being rendered as zero-entropy results. Local checks passed;
+new Torch observer tests and real server preflights remain prerequisites for use.
