@@ -171,7 +171,7 @@ def execute(args):
                 "full_reference_seconds": old["elapsed_seconds"],
                 "full_fast_seconds": full["elapsed_seconds"],
                 "full_peak_allocated_mib": full["peak_allocated_mib"],
-                "reference_measurement": "previous sealed medium run; short profiles paired currently",
+                "reference_measurement": "sealed full reference; current paired short profiles",
                 "same_sample_scope": True,
                 "model_updates": 0,
             },

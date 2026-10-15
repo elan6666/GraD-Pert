@@ -114,3 +114,45 @@ def test_feature_selection_and_gram_preserve_gene_ids_and_grouping():
                 assert fast[k] == v
     np.testing.assert_array_equal(a.features["genes"].m2, b.features["genes"].m2)
     assert a.same_gene == b.same_gene
+
+
+def test_acceptance_rejects_changed_native_rows_and_model_state(tmp_path):
+    import json
+
+    driver = importlib.import_module("profile_medium_observer")
+    worker = importlib.import_module("cap40_posthoc")
+    left, right = tmp_path / "reference", tmp_path / "candidate"
+    fields = (
+        "manifest_sha256",
+        "checkpoint_sha256",
+        "conditions",
+        "rows",
+        "deep_conditions",
+        "deep_rows",
+        "gradient_conditions",
+        "gradient_rows",
+        "updates",
+        "global_heads",
+        "global_features",
+        "cls_decomposition",
+        "metrics",
+    )
+    for folder in (left, right):
+        folder.mkdir()
+        summary = dict.fromkeys(fields, 0)
+        summary.update(state_before={"model": "original"}, state_after={"model": "original"})
+        (folder / "summary.json").write_text(json.dumps(summary))
+        for name in ("deep.json", "gradients.json"):
+            (folder / name).write_text('[{"condition_id":"a", "value":1.0}]')
+        for name in ("outputs_full.csv", "cls_within_condition.csv"):
+            (folder / name).write_text("row_id,value\na,1.0\n")
+        worker.write(folder / "COMPLETE.json", {"state_unchanged": True, "outputs": {}})
+    assert driver.compare(left, right)["passed"]
+    (right / "outputs_full.csv").write_text("row_id,value\nb,1.0\n")
+    with pytest.raises(ValueError, match="native predictions or basic identities"):
+        driver.compare(left, right)
+    (right / "outputs_full.csv").write_text("row_id,value\na,1.0\n")
+    summary["state_after"]["model"] = "mutated"
+    (right / "summary.json").write_text(json.dumps(summary))
+    with pytest.raises(ValueError, match="state changed"):
+        driver.compare(left, right)
