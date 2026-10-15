@@ -1,3 +1,7 @@
+# Terminal acceptance and delivery (2026-10-15)
+
+Allfive medium analyses complete under common manifest19c814aa...7b1d8; DP/FN/PO source47c0ba1 reused, FG/FB source7991aaa completed onGPU0/GPU1 in parallel.190report outputs and11comparison outputs independently bytes/SHA verified; all49figures visually inspected; raw large matrices remainserver. Both supervisor and mainreturn monitors PAUSED after substantive maincontinuation. No retraining or model updates. Common templatev4 corrects historic full-scope64-gradient/47836cell wording toactual1335conditions/5317rows/128deepconditions506cells/32gradientconditions125cells. Chinese report and completefileindex delivered, not merelyterminal notification. Training/methodSHA420d3a1 preserved.
+
 # Cap40 full posthoc diagnostics
 
 ## Superseding scheduling request: two GPUs (2026-10-15)
