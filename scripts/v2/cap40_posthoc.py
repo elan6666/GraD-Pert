@@ -576,6 +576,13 @@ def output_rows(response, batch, records):
                 "prediction_min": float(a[i].min()),
                 "prediction_max": float(a[i].max()),
                 "prediction_mean": float(a[i].mean()),
+                "truth_min": float(y[i].min()),
+                "truth_max": float(y[i].max()),
+                "truth_negative_fraction": float((y[i] < 0).mean()),
+                "error_top1pct_fraction": float(
+                    np.sort((a[i] - y[i]) ** 2)[-max(1, a.shape[1] // 100) :].sum()
+                    / max(float(((a[i] - y[i]) ** 2).sum()), 1e-30)
+                ),
                 "truth_mean": float(y[i].mean()),
                 "delta_rms": float(np.sqrt((pred**2).mean())),
                 "effect_rms": float(np.sqrt((target**2).mean())),
@@ -718,13 +725,18 @@ def run(args):
             torch.manual_seed(manifest["seed"])
             with torch.no_grad(), torch.autocast("cuda", dtype=torch.bfloat16):
                 cached = static_graph(rt)
-                for key, x in (
-                    ("student.genept.all_graph_genes", obj.student.graph.identities()),
-                    ("student.graph.all_graph_genes", cached),
-                ):
-                    m = Moments(x.shape[-1])
-                    m.add(npval(x))
-                    global_features[key] = m
+                numeric = np.arange(rt.data.manifest.n_expression_genes)
+                groups = {
+                    "all_graph_genes": np.arange(rt.index.n_nodes),
+                    "seen_expression_genes": rt.allowed_expression_ids,
+                    "unseen_expression_genes": np.setdiff1d(numeric, rt.allowed_expression_ids),
+                }
+                for module, x in (("genept", obj.student.graph.identities()), ("graph", cached)):
+                    values = npval(x)
+                    for name, indices in groups.items():
+                        m = Moments(x.shape[-1])
+                        m.add(values[indices])
+                        global_features[f"student.{module}.{name}"] = m
             schedule = manifest["schedule"][: args.limit] if args.limit else manifest["schedule"]
             for number, g in enumerate(schedule):
                 admit(policy, snapshot(os.getpid()))
@@ -899,6 +911,15 @@ def run(args):
                     "prediction_negative_fraction",
                     "effect_scale_slope_no_intercept",
                     "effect_sign_accuracy_nonzero",
+                    "prediction_zero_fraction",
+                    "prediction_mean",
+                    "prediction_min",
+                    "prediction_max",
+                    "truth_mean",
+                    "truth_min",
+                    "truth_max",
+                    "truth_negative_fraction",
+                    "error_top1pct_fraction",
                 )
             },
             "state_before": before,
@@ -909,7 +930,7 @@ def run(args):
             "limits": [
                 "Frozen eval-mode checkpoint probes; not historical training activations.",
                 (
-                    "Numeric train exclusions retained; unseen-expression features not collected; "
+                    "Numeric train exclusions retained; unseen graph features are identity-only; "
                     "original 18 test scores reused separately."
                 ),
                 (
