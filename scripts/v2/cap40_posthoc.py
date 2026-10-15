@@ -887,6 +887,15 @@ def run(args):
             "conditions": len(schedule),
             "rows": len(rows_out),
             "deep_rows": sum(d["independent_truth_rows"] for d in deep_results),
+            "centers": {
+                h: {
+                    "l2": float(getattr(obj, h + "_center").norm()),
+                    "std": float(getattr(obj, h + "_center").std(unbiased=False)),
+                    "min": float(getattr(obj, h + "_center").min()),
+                    "max": float(getattr(obj, h + "_center").max()),
+                }
+                for h in HEADS
+            },
             "global_heads": {k: v.result() for k, v in global_heads.items()},
             "global_features": {k: v.result() for k, v in global_features.items()},
             "cls_decomposition": {

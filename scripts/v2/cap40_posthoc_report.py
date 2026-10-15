@@ -289,12 +289,20 @@ def render(args):
         sections.append(f"\n![{filename}]({filename})\n\n{caption}\n")
     for filename, caption in figures:
         sections.append(f"\n![{filename}]({filename})\n\n{caption}\n")
+    historical = root / "historical"
+    historical.mkdir()
+    for filename, rows in old_csvs:
+        shutil.copyfile(args.original / filename, historical / filename)
+        sections.append("\n### 历史已保存明细：" + filename + "\n" + table(rows))
+    for filename in ("summary.json", "receipt.json"):
+        shutil.copyfile(args.original / filename, historical / filename)
+    shutil.copyfile(args.input / "summary.json", root / "analysis_summary.json")
     # Copy scalar result tables only. Never pull raw tensors or checkpoints.
     for filename in ("outputs_full.csv", "cls_within_condition.csv"):
         shutil.copyfile(args.input / filename, root / filename)
     files = [
-        {"file": p.name, "bytes": p.stat().st_size, "sha256": sha(p)}
-        for p in sorted(root.iterdir())
+        {"file": str(p.relative_to(root)), "bytes": p.stat().st_size, "sha256": sha(p)}
+        for p in sorted(root.rglob("*"))
         if p.is_file()
     ]
     sections.append(
@@ -313,8 +321,8 @@ def render(args):
             "analysis": summary["analysis"],
             "report_script_sha256": sha(__file__),
             "outputs": {
-                p.name: {"bytes": p.stat().st_size, "sha256": sha(p)}
-                for p in sorted(root.iterdir())
+                str(p.relative_to(root)): {"bytes": p.stat().st_size, "sha256": sha(p)}
+                for p in sorted(root.rglob("*"))
                 if p.is_file()
             },
         },

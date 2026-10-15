@@ -37,7 +37,12 @@ def execute(args):
                 if phase == "formal":
                     for peer in q["rows"]:
                         gate = read(Path(peer["gate"]) / "COMPLETE.json")
-                        if gate["scope"] != "gate_subset" or not gate["state_unchanged"]:
+                        if (
+                            gate["scope"] != "gate_subset"
+                            or not gate["state_unchanged"]
+                            or gate["manifest_sha256"] != q["manifest_sha256"]
+                            or gate["checkpoint_sha256"] != peer["checkpoint_sha256"]
+                        ):
                             raise ValueError("all five read-only parity gates must pass")
                 destination = row[phase]
                 write(

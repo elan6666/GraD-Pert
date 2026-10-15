@@ -142,6 +142,7 @@ def test_report_contains_all_figures_tables_and_hashes(tmp_path):
         },
     )
     write(original / "summary.json", {"checkpoint_sha256": "checkpoint"})
+    write(original / "receipt.json", {"status": "synthetic_test"})
     for name in ("training", "heads", "pairs", "features", "outputs", "gradients", "metrics"):
         (original / (name + ".csv")).write_text("name,value\ntest,1\n")
     # Valid tiny PNG bytes; historical image copying must be byte preserving.
@@ -162,4 +163,4 @@ def test_report_contains_all_figures_tables_and_hashes(tmp_path):
         assert sha(out / name) == identity["sha256"]
     assert sha(out / "01_losses.png") == sha(original / "01_losses.png")
     assert "pair_summary.csv" in text and "outputs_full.csv" in text
-    assert text.count("## ") == 13
+    assert sum(line.startswith("## ") for line in text.splitlines()) == 13
