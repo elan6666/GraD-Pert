@@ -69,19 +69,26 @@ Formal order/population/queries/masks/native losses remain unchanged.
 
 The user requested PO evaluation priority. Its original last test is already
 complete; prioritize its new full posthoc analysis, without rerunning that test.
-Use otherwise free GPU1 for PO while existing DP continues onGPU0. Retire only
+First preserve/wait for existing DP onGPU0, then run PO onGPU1. Retire only
 the exact old dispatch parent (not its process group/DP child), receipt both
 identities before and after; a fresh scheduling controller adopts the live DP
 worker and never relaunches it. Frozen worker/report/comparison source remains
 460d5216f33e247e018882a15da18aba5f40e1bb, method420d3a1 and sealed recipes unchanged.
 New controller source and schedule identity are recorded separately.
 
-Run PO report first, then await/verify/report adopted DP, then FN/FG/FB and the
+Await/verify adopted DP, launch PO, generate DP's CPU report during PO, then
+PO report and FN/FG/FB and the
 five-arm comparison. Verify full coverage, checkpoint/manifest/state and output
 hashes before adopting outputs. Stop dispatch on missing worker without COMPLETE,
 PID reuse, invalid hashes or priority failure; preserve any still-running workers.
 No signal to scientific workers, no active source/config/queue edits, no retries
-or reused output IDs. GPU1 startup/state/parity gate must pass before full PO.
+or reused output IDs. PO retains its existing strict native/cache first-condition
+gate and final state-immutability checks onGPU1; five frozen model gates already
+passed, and unchanged worker/statistical code does not require repeating them.
+Parallel DP/PO was rejected before launch: the frozen per-worker admission
+classifies an independent peer as foreign. Do not change active DP or weaken
+the policy to make concurrency pass. The initial4557e10 concurrent scheduler
+was published but never used in an experiment; retain it as superseded design.
 The original failed/retired controller state is historical, not a completion
 receipt. Unique read-only short Luna startup checks, then updated20min supervisor
 with exact combined schedule/DP adopted/PO identities and return conditions.

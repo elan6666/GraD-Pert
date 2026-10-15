@@ -108,8 +108,15 @@ def test_priority_order_adoption_and_failure_no_retries(tmp_path, monkeypatch, f
     launches, reports = [], []
     monkeypatch.setattr(m, "validate_plan", lambda q: None)
     monkeypatch.setattr(m, "validate_complete", lambda row, q: "validated")
-    calls = iter([True, False, False])
-    monkeypatch.setattr(m, "same_process", lambda expected: next(calls))
+    calls = iter([True, True, False])
+    adoption = []
+
+    def alive(expected):
+        result = next(calls)
+        adoption.append(result)
+        return result
+
+    monkeypatch.setattr(m, "same_process", alive)
     monkeypatch.setattr(m, "proc", lambda pid: None)
     monkeypatch.setattr(m.time, "sleep", lambda seconds: None)
 
@@ -127,6 +134,7 @@ def test_priority_order_adoption_and_failure_no_retries(tmp_path, monkeypatch, f
             return 0
 
     def spawn(cmd, **kwargs):
+        assert adoption == [True, True, False]  # Never overlap independent GPU workers.
         launches.append((cmd[cmd.index("--arm") + 1], kwargs["env"]["CUDA_VISIBLE_DEVICES"]))
         assert kwargs["env"]["PYTORCH_ALLOC_CONF"] == "expandable_segments:True"
         assert kwargs["env"]["PYTHONPATH"] == "/method/src"
@@ -142,14 +150,14 @@ def test_priority_order_adoption_and_failure_no_retries(tmp_path, monkeypatch, f
         with pytest.raises(RuntimeError, match="PO worker"):
             m.execute(args)
         assert launches == [("PO", "1")]
-        assert not reports
+        assert reports == ["DP-report"]
         assert m.read(tmp_path / "FAILURE.json")["status"] == "failed"
     else:
         m.execute(args)
         assert launches == [("PO", "1"), ("FN", "0"), ("FG", "0"), ("FB", "0")]
         assert reports == [
-            "PO-report",
             "DP-report",
+            "PO-report",
             "FN-report",
             "FG-report",
             "FB-report",
@@ -157,6 +165,17 @@ def test_priority_order_adoption_and_failure_no_retries(tmp_path, monkeypatch, f
         ]
         assert m.read(tmp_path / "state.json")["status"] == "completed"
     assert "DP" not in [arm for arm, gpu in launches]
+
+
+def test_missing_adopted_worker_never_launches_replacement(tmp_path, monkeypatch):
+    q = {"adopted_worker": {"pid": 42}}
+    path = tmp_path / "queue.json"
+    m.write(path, q)
+    monkeypatch.setattr(m, "validate_plan", lambda q: None)
+    monkeypatch.setattr(m, "same_process", lambda expected: False)
+    with pytest.raises(ValueError, match="absent"):
+        m.execute(SimpleNamespace(queue=path, queue_sha256=m.sha(path)))
+    assert not (tmp_path / "formal-PO.log").exists()
 
 
 def test_queue_hash_mismatch_prevents_any_process(tmp_path):

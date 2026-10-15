@@ -1,4 +1,4 @@
-"""Prioritize PO on GPU1 while adopting an existing immutable DP worker on GPU0.
+"""Prioritize PO after adopting an existing immutable DP worker on GPU0.
 
 Scheduling only. Workers, reports and comparison use the frozen analysis source.
 Never restarts an adopted worker or changes scientific inputs.
@@ -214,24 +214,26 @@ def execute(args):
         return child
 
     try:
+        # The frozen per-worker guard treats independent GPU peers as foreign.
+        # Preserve DP instead of weakening that guard or launching a peer early.
+        state["phase"] = "await_adopted_DP"
+        write(state_path, state)
+        while same_process(q["adopted_worker"]):
+            state["observed_unix"] = time.time()
+            write(state_path, state)
+            time.sleep(10)
+        validate_complete(rows["DP"], q)
         priority = start("PO", 1)
-        adopted_validated = False
+        report("DP")  # CPU-only report; no second GPU model or guard bypass.
+        state["phase"] = "formal_PO"
+        write(state_path, state)
         while priority.poll() is None:
-            # Adopted work is never restarted; death without COMPLETE fails closed.
-            if not adopted_validated and not same_process(q["adopted_worker"]):
-                validate_complete(rows["DP"], q)
-                adopted_validated = True
             state["observed_unix"] = time.time()
             write(state_path, state)
             time.sleep(10)
         if priority.returncode:
             raise RuntimeError(f"PO worker exited {priority.returncode}")
         report("PO")
-        state["phase"] = "await_adopted_DP"
-        write(state_path, state)
-        while same_process(q["adopted_worker"]):
-            time.sleep(10)
-        report("DP")
         for arm in ("FN", "FG", "FB"):
             child = start(arm, 0)
             if child.wait():
