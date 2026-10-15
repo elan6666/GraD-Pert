@@ -76,8 +76,8 @@ def render(args):
     tables["centers"] = [{"head": k, **v} for k, v in summary.get("centers", {}).items()]
     for g in deep:
         p = g["condition_id"]
-        for key in ("pairs", "same_gene", "cross_view", "per_cell"):
-            tables.setdefault(key, []).extend({"condition_id": p, **r} for r in g[key])
+        for key in ("pairs", "same_gene", "cross_view", "per_cell", "mask_eligibility"):
+            tables.setdefault(key, []).extend({"condition_id": p, **r} for r in g.get(key, []))
         for key in ("heads", "features"):
             tables.setdefault("condition_" + key, []).extend(
                 {"condition_id": p, "name": k, **v} for k, v in g[key].items()

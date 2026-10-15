@@ -51,3 +51,16 @@ chunk rejection explicit; every used path must still pass the original 2e-6
 reference/cache comparison. Keep the exact sealed condition groups for all arms.
 Record per-tensor errors, no claims about the cause until independently tested.
 Fresh preflight/analysis IDs; old source/results untouched.
+
+## Analysis observer repair after first full attempt
+
+Failed a3f8b66 full DP at schedule index22 (AFG3L2+ctrl): first Global had
+0 masked tokens, second850. Native iBOT correctly skipped first; analysis
+incorrectly used head-call counter0 as view0. Fix only observer metadata:
+map call index to actual active view indices for both node heads. Preserve
+empty-mask eligibility explicitly; do not create zero-loss rows. Full failed
+root22conditions/848rows is preserved, not resumed or relabeled.
+Expanded fresh gates use indices0/22/58/295, actual mask patterns both active,
+first empty, second empty, both empty (including a singleton condition).
+All five arms must pass state/recipe/strict usedpath parity plus these cases.
+Formal order/population/queries/masks/native losses remain unchanged.

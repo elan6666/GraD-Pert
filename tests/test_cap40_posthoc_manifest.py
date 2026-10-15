@@ -164,3 +164,41 @@ def test_report_contains_all_figures_tables_and_hashes(tmp_path):
     assert sha(out / "01_losses.png") == sha(original / "01_losses.png")
     assert "pair_summary.csv" in text and "outputs_full.csv" in text
     assert sum(line.startswith("## ") for line in text.splitlines()) == 13
+
+
+@pytest.mark.parametrize(
+    "flags,expected",
+    [((True, True), [0, 1]), ((False, True), [1]), ((True, False), [0]), ((False, False), [])],
+)
+def test_node_call_index_preserves_actual_view_when_global_masks_are_empty(flags, expected):
+    from cap40_posthoc import Collector
+
+    views = [N(mask=np.ones((2, 3), dtype=bool) * flag) for flag in flags]
+    b = N(
+        graph=N(ids=np.array([1, 2])),
+        graph_views=[
+            N(ids=np.array([1, 2]), masked_positions=np.array([1])),
+            N(ids=np.array([1, 2]), masked_positions=np.array([])),
+        ],
+        cell_views=views,
+    )
+    c = Collector(b, [], 42)
+    assert [c.head_view_index("ssl2_node", i) for i in range(len(expected))] == expected
+    with pytest.raises(ValueError):
+        c.head_view_index("ssl2_node", len(expected))
+    assert c.head_view_index("ssl1_node", 0) == 0
+    assert c.head_view_index("ssl2_cls", 1) == 1
+    assert c.graph_view_names[id(b.graph.ids)] == "main"
+    assert c.graph_view_names[id(b.graph_views[0].ids)] == "view0"
+    assert c.graph_view_names[id(b.graph_views[1].ids)] == "view1"
+
+
+def test_gate_schedule_uses_all_four_mask_patterns_without_changing_formal_order():
+    from cap40_posthoc import select_schedule
+
+    schedule = list(range(300))
+    assert select_schedule(schedule, 1, "0,22,58,295") == [0, 22, 58, 295]
+    assert select_schedule(schedule) == schedule
+    for indices in ("0,0", "-1", "300"):
+        with pytest.raises(ValueError):
+            select_schedule(schedule, 1, indices)

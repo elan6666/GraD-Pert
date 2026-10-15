@@ -63,6 +63,19 @@ def source_identity(root):
     return {"commit": commit, "dirty": False}
 
 
+def select_schedule(schedule, limit=0, gate_indices=""):
+    if gate_indices:
+        indices = [int(i) for i in gate_indices.split(",")]
+        if (
+            not limit
+            or len(set(indices)) != len(indices)
+            or any(i < 0 or i >= len(schedule) for i in indices)
+        ):
+            raise ValueError("explicit gates need a bounded, unique in-range selection")
+        return [schedule[i] for i in indices]
+    return schedule[:limit] if limit else schedule
+
+
 def server_path(path):
     if not Path(path).resolve().is_relative_to("/data/yilangliu"):
         raise ValueError("scientific materialization is server-only")
@@ -311,14 +324,31 @@ class Collector:
         self.pairs, self.outputs, self.per_cell = [], [], []
         self.logits = {}
         self.seen_pairs = set()
-        self.graph_count = defaultdict(int)
+        self.graph_view_names = {id(batch.graph.ids): "main"}
+        self.graph_view_names.update(
+            {id(v.ids): f"view{i}" for i, v in enumerate(batch.graph_views)}
+        )
         self.current = None
         self.response_count = defaultdict(int)
         self.head_count = defaultdict(int)
+        self.node_view_ids = {
+            "ssl1_node": [
+                i for i, v in enumerate(batch.graph_views[:2]) if len(v.masked_positions)
+            ],
+            "ssl2_node": [i for i, v in enumerate(batch.cell_views[:2]) if bool(v.mask.any())],
+        }
         self.response_cache = {}
         self.handles, self.wrappers = [], []
         self.same_gene = []
         self.cross_view = []
+
+    def head_view_index(self, head_name, call_index):
+        if head_name not in self.node_view_ids:
+            return call_index
+        active = self.node_view_ids[head_name]
+        if not 0 <= call_index < len(active):
+            raise ValueError("unexpected node-head call beyond active masked views")
+        return active[call_index]
 
     def add_features(self, key, value):
         x = npval(feature(value))
@@ -388,13 +418,7 @@ class Collector:
             model = getattr(obj, role)
 
             def graph_hook(mod, inputs, output, role=role):
-                index = self.graph_count[role]
-                self.graph_count[role] += 1
-                label = (
-                    "main"
-                    if role == "student" and index == 0
-                    else f"view{index - 1 if role == 'student' else index}"
-                )
+                label = self.graph_view_names[id(inputs[0])]
                 ids = inputs[0].detach().cpu().numpy()
                 selected = np.argsort([seeded_int(int(g), self.seed) for g in ids])[:512]
                 self.add_features(f"{role}.graph.{label}", output[selected])
@@ -472,7 +496,7 @@ class Collector:
                     k = (role, head_name)
                     index = self.head_count[k]
                     self.head_count[k] += 1
-                    view = f"view{index}"
+                    view = f"view{self.head_view_index(head_name, index)}"
                     key = f"{role}.{head_name}.{view}"
                     self.logits[id(output)] = (key, output)
                     center = getattr(obj, head_name + "_center")
@@ -493,7 +517,8 @@ class Collector:
 
                 def bottleneck_hook(mod, inputs, output, role=role, head_name=head_name):
                     index = self.head_count[(role, head_name)]
-                    self.add_features(f"{role}.{head_name}.view{index}.bottleneck", output)
+                    view = self.head_view_index(head_name, index)
+                    self.add_features(f"{role}.{head_name}.view{view}.bottleneck", output)
 
                 self.handles.append(head.features.register_forward_hook(bottleneck_hook))
 
@@ -578,6 +603,17 @@ class Collector:
             "per_cell": self.per_cell,
             "same_gene": self.same_gene,
             "cross_view": self.cross_view,
+            "mask_eligibility": [
+                {
+                    "head": "ssl2_node",
+                    "view": i,
+                    "cells": len(v.mask),
+                    "valid_cells": int(v.mask.any(-1).sum()),
+                    "masked_tokens": int(v.mask.sum()),
+                    "status": "active" if bool(v.mask.any()) else "skipped_no_valid_mask",
+                }
+                for i, v in enumerate(self.batch.cell_views[:2])
+            ],
         }
 
 
@@ -766,7 +802,7 @@ def run(args):
                         m = Moments(x.shape[-1])
                         m.add(values[indices])
                         global_features[f"student.{module}.{name}"] = m
-            schedule = manifest["schedule"][: args.limit] if args.limit else manifest["schedule"]
+            schedule = select_schedule(manifest["schedule"], args.limit, args.gate_indices)
             for number, g in enumerate(schedule):
                 admit(policy, snapshot(os.getpid()))
                 t = time.perf_counter()
@@ -1019,6 +1055,7 @@ def cli():
     p.add_argument("--arm", default="DP")
     p.add_argument("--seed", type=int, default=20261015)
     p.add_argument("--limit", type=int, default=0)
+    p.add_argument("--gate-indices", default="")
     args = p.parse_args()
     if args.mode == "seal":
         seal(args)

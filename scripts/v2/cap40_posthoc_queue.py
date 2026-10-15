@@ -70,7 +70,12 @@ def execute(args):
                     destination,
                 ]
                 if phase == "gate":
-                    command += ["--limit", "1"]
+                    command += [
+                        "--limit",
+                        "1",
+                        "--gate-indices",
+                        ",".join(map(str, q["gate_indices"])),
+                    ]
                 with (args.queue.parent / f"{phase}-{arm}.log").open("x") as log:
                     subprocess.run(
                         command, env=env, stdout=log, stderr=subprocess.STDOUT, check=True
