@@ -1,3 +1,9 @@
+## 2026-10-15：中等诊断性能优化，新消融尚未启动
+
+原共同中等范围1335条件/5317行、深度128条件/506细胞、梯度32条件/125细胞、每细胞128基因保持。新GPU充分统计、身份选择前移、小Gram有效秩优化已通过确定性短探针：1927浮点数最大差2.55e-11；42.88s→40.85s，深度统计7.11s→4.73s。完整配对 `/data/yilangliu/GraD-Pert/development/medium-observer-fb01436-20261015` 正在运行，分析源码fb01436e544328e5e56effff51dd7c74f1d54dd8、科学源码420d3a1；尚未验收完整收益。旧失败/重复参考证据保留。
+
+后续FG+PO/node0新B0→VH→S12-L4优先，再CG1/U24/MR1/P1/C1/O1/K2-fixed-prefix，4轮/global400候选/无验证/last18。十组模型配置与14项新增、64项相关回归已保存；family调度器/新方法与视图分析绑定、真实双卡10step预检尚待完成。短Luna监督结束，完整测速转唯一监督查询对话20min，终态主继续实施。权威run/owner见v2-gene-exposure-eval工作树coordination/state.json。下列旧全量计划已被中等范围覆盖。
+
 ## 2026-10-15：cap40五臂全量只读补测构建
 
 DP/FN/FG/FB/PO四轮last均已有终态；PO原有CPU分析收据184b7236...已生成。主会话已接权build/in_progress，旧监督与return均PAUSED。用户授权全量cap40分析、不重训：47836truth/1335conditions，共同context-matched control/query/view/mask清单；全部行输出/CLS、全条件最多8cells深度诊断、64conditions×最多4梯度。原方法420d3a1不变，分析独立发布；12个身份/分组/流式统计测试通过，Ruff通过。当前尚未跑新GPU补测，先seal和五臂只读parity/state门，成功才正式分析。共同模板docs/experiments/CAP40_POSTHOC_COMMON_TEMPLATE_CN.md与计划CAP40_FULL_POSTHOC_20261015.plan.md。scDFM仍延期、不重训BR/其他模型。

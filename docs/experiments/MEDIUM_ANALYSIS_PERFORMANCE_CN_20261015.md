@@ -34,6 +34,12 @@
 
 实现依据是成熟的充分统计、相同非零Gram谱及减少同步策略，不宣称算法原创。Profiler和同步诊断参考[PyTorch profiler文档](https://docs.pytorch.org/tutorials/recipes/recipes/profiler_recipe.html)与[性能调优指南](https://docs.pytorch.org/tutorials/recipes/recipes/tuning_guide.html)。
 
+## 确定性短探针通过，完整配对进行中
+
+分析源码fb01436e544328e5e56effff51dd7c74f1d54dd8；运行 `/data/yilangliu/GraD-Pert/development/medium-observer-fb01436-20261015`；PROBE_COMPLETE SHA256 `43125ce2db2e846939a932ec28bacd75ee255bab1565466af7e2f28ec818248e`。1927个浮点统计最大差异2.5466e-11（门限1e-8），预测CSV逐行一致，状态无更新。三条件总耗时42.8765s→40.8497s（下降4.73%），深度前向含统计7.1058s→4.7272s（下降33.47%）；梯度20.2074s→19.9221s。当前reference-medium→fast-medium完整配对仍在运行，尚无完整收益结论。
+
+新模型十组配置已保存；14项新增完整更新/恢复检查及64项相关回归通过。仍须接入family控制器、新方法SHA与视图清单绑定（尤其CG1条件图输出），再做双卡真实10step/恢复/推理预检；没有正式消融启动。
+
 ## 后续顺序
 
 性能验收后先B0→VH→S12-L4；再按已授权顺序CG1、U24、MR1、P1、C1、O1、K2-fixed-prefix。新的FG+PO/node0基线及所有模型机制仍需双卡10步/恢复/推理预检，不使用synthetic通过替代真实容量门。每组完成只做上述中等诊断及共同中文报告。

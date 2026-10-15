@@ -363,3 +363,7 @@ GEARS CPU integration was incorrectly launched with scDFM Python, and correctly 
 Excluding a gene from numeric supervision does not freeze its parameters: dense zero-gradient rows still receive coupled Adam L2 updates. For gene-specific readouts, audit parameter scale and actual per-cell/mean delta, rather than interpreting null Pearson as0 or blaming the evaluator. Keep this protocol effect distinct from ordinary unseen-perturbation generalization.
 
 Evaluation-state condition IDs may cover more populations or use a different order than test draws. Reuse the public evaluator's condition-ID lookup; do not index reference means by test loop position or assume ordered-list equality. The CPU diagnostic assertion caught this wrong assumption before results were saved; production evaluator already used the correct lookup.
+
+## 2026-10-15：参考可重复性与profiler成本
+
+相同CUDA参考也可出现iBOT单ulp和梯度归约波动；保留重复证据，严格对照两臂使用同一确定性算子与cuBLAS工作区，不放宽误差门限。百万级事件的完整trace达数GiB并污染walltime；正式测速用小聚合计时，重型profile独立记录且不下载。
