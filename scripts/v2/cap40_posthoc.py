@@ -983,7 +983,10 @@ def run(args):
                 ),
                 "SSL1 condition/node units are conditions/graph nodes, not cell replicates.",
                 "Single Jurkat cell line cannot estimate cross-cell-line differences.",
-                "BF16 cell-chunk transformation failed parity and is NOT used; sealed grouping stays fixed.",
+                (
+                    "BF16 cell-chunk transformation failed parity and is NOT used; "
+                    "sealed grouping stays fixed."
+                ),
             ],
         }
         write(args.output / "summary.json", summary)
