@@ -64,3 +64,24 @@ Expanded fresh gates use indices0/22/58/295, actual mask patterns both active,
 first empty, second empty, both empty (including a singleton condition).
 All five arms must pass state/recipe/strict usedpath parity plus these cases.
 Formal order/population/queries/masks/native losses remain unchanged.
+
+## User priority update: PO first delivery, preserve active DP
+
+The user requested PO evaluation priority. Its original last test is already
+complete; prioritize its new full posthoc analysis, without rerunning that test.
+Use otherwise free GPU1 for PO while existing DP continues onGPU0. Retire only
+the exact old dispatch parent (not its process group/DP child), receipt both
+identities before and after; a fresh scheduling controller adopts the live DP
+worker and never relaunches it. Frozen worker/report/comparison source remains
+460d5216f33e247e018882a15da18aba5f40e1bb, method420d3a1 and sealed recipes unchanged.
+New controller source and schedule identity are recorded separately.
+
+Run PO report first, then await/verify/report adopted DP, then FN/FG/FB and the
+five-arm comparison. Verify full coverage, checkpoint/manifest/state and output
+hashes before adopting outputs. Stop dispatch on missing worker without COMPLETE,
+PID reuse, invalid hashes or priority failure; preserve any still-running workers.
+No signal to scientific workers, no active source/config/queue edits, no retries
+or reused output IDs. GPU1 startup/state/parity gate must pass before full PO.
+The original failed/retired controller state is historical, not a completion
+receipt. Unique read-only short Luna startup checks, then updated20min supervisor
+with exact combined schedule/DP adopted/PO identities and return conditions.
