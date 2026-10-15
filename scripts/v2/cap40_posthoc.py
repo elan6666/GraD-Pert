@@ -430,6 +430,16 @@ class Collector:
                 return output
 
             model.encode_response = wrapped
+
+            def cell_hook(mod, inputs, output, role=role):
+                if self.current is not None:
+                    ids = self.current[2]
+                    val = feature(output)
+                    self.add_features(
+                        f"{role}.{self.current[1]}.control_tokens", val[:, : len(ids)]
+                    )
+
+            self.handles.append(model.cell.register_forward_hook(cell_hook))
             for path in ("cell", "response"):
                 encoder = getattr(model, path, None)
                 if encoder is None:
