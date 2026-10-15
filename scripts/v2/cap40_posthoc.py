@@ -895,7 +895,24 @@ def run(args):
     args.output.mkdir(parents=True)
     analysis = source_identity(Path(__file__).resolve().parents[2])
     policy = read(args.resource_queue)["shared_gpu_policy"]
-    admit(policy, snapshot(os.getpid()))
+    peer = None
+    if getattr(args, "peer_receipt", None) is not None:
+        if sha(args.peer_receipt) != args.peer_receipt_sha256:
+            raise ValueError("analysis peer receipt hash differs")
+        peer = read(args.peer_receipt)
+        if peer["manifest_sha256"] != args.manifest_sha256:
+            raise ValueError("analysis peer manifest differs")
+    observed = snapshot(os.getpid())
+    if peer is None:
+        admit(policy, observed)
+    else:
+        from cap40_analysis_admission import admit_analysis
+
+        admit_analysis(policy, observed, int(os.environ["CUDA_VISIBLE_DEVICES"]), peer)
+    write(
+        args.output / "ADMISSION.json",
+        {"passed": True, "peer": peer, "policy": policy, "observed": observed},
+    )
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         raise ValueError("allocator contract missing")
     torch.cuda.set_per_process_memory_fraction(policy["max_own_memory_fraction"], 0)
@@ -1202,6 +1219,8 @@ def cli():
             "--" + name, type=Path, required=name in ("run-root", "config", "data-root", "output")
         )
     p.add_argument("--manifest-sha256")
+    p.add_argument("--peer-receipt", type=Path)
+    p.add_argument("--peer-receipt-sha256")
     p.add_argument("--parent-manifest", type=Path)
     p.add_argument("--parent-manifest-sha256")
     p.add_argument("--arm", default="DP")

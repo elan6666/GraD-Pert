@@ -1,5 +1,34 @@
 # Cap40 full posthoc diagnostics
 
+## Superseding scheduling request: two GPUs (2026-10-15)
+
+User authorizes independent medium analyses on both existing RTX5090 GPUs,
+one worker per device, not training/DDP or any new ablation. Pre-change baseline
+47c0ba129b160ec07de5473554936ce06b009f48 verified published on GitHub main.
+The frozen single-worker admission classified another same-project worker as
+foreign. Recognize only an exact same-UID peer on the other physical GPU using
+PID/start-ticks/NUL-command SHA and the common manifest; retain the original
+foreign UID/program whitelist, 2GiB physical reserve and 90% own-device budget.
+No native method, numerical path, seed, mask, row grouping or checkpoint changes.
+
+Retire only the identity-checked old dispatcher (never its process group),
+preserve/adopt its current scientific worker and all completed reports. New
+immutable queue/source records per-arm analysis source, including original47
+adopted/completed outputs. Pending arms receive fresh output IDs. Reuse five
+frozen mathematical gates; test pending workers on the other GPU at indices
+0/1/15 with strict native-path2e-6 and state immutability before main acceptance.
+New dispatcher fills free slots only, reports each arm once, then runs the same
+five-arm comparison. Unknown/recycled peer, missing COMPLETE, output collision,
+resource or worker failure stops dispatch without signaling remaining workers.
+The old controller state is historical, not completion evidence.
+
+Acceptance: CPU identity/resource/adoption/slot tests; clean matching publication;
+GPU gates; actual simultaneous progress on two GPU identities; immutable source,
+common manifest and unchanged budgets. One short Luna observer owns test waits;
+then the unique20min supervisor is retargeted to the real combined run and ACKed.
+Report observed overlap/end-to-end makespan, not a claimed 2x speedup from GPU
+utilization. Final Chinese reports/figures/tables remain the overall endpoint.
+
 ## Superseding user scope: medium analysis (2026-10-15)
 
 User rejected the20h full run. Main verified exact identities, stopped only the
