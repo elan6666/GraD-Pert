@@ -181,3 +181,16 @@ def query_panels(allowed: Iterable[int], count: int, seed: int) -> list[list[int
     if set().union(*(set(p) for p in result)) != set(pool):
         raise AssertionError("query coverage incomplete")
     return result
+
+
+def cell_balanced_terms(values: np.ndarray, row_ids: np.ndarray, cells: int) -> np.ndarray:
+    """Mean tokens inside each valid cell; omit cells with no masked tokens."""
+    values = np.asarray(values, dtype=np.float64)
+    ids = np.asarray(row_ids, dtype=np.int64)
+    if len(values) != len(ids) or (ids < 0).any() or (ids >= cells).any():
+        raise ValueError("invalid token-to-cell alignment")
+    sums = np.zeros((cells, values.shape[1]), dtype=np.float64)
+    np.add.at(sums, ids, values)
+    counts = np.bincount(ids, minlength=cells)
+    valid = counts > 0
+    return sums[valid] / counts[valid, None]

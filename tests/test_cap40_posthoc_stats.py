@@ -76,3 +76,13 @@ def test_nonfinite_is_rejected():
         m.Moments(2).add(np.array([[1, np.nan]]))
     with pytest.raises(ValueError):
         m.Distribution(2).add(np.array([[1, np.inf]]))
+
+
+def test_ibot_cell_means_differ_from_token_mean_and_omit_empty_cells():
+    values = np.array([[1.0], [1.0], [1.0], [9.0]])
+    out = m.cell_balanced_terms(values, np.array([0, 0, 0, 1]), 3)
+    assert len(out) == 2  # third cell has no mask, never a zero denominator item
+    assert out.mean() == 5
+    assert values.mean() == 3
+    with pytest.raises(ValueError):
+        m.cell_balanced_terms(values, np.array([0, 0, 1, 3]), 3)

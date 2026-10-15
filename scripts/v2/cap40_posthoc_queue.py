@@ -93,6 +93,22 @@ def execute(args):
                             stderr=subprocess.STDOUT,
                             check=True,
                         )
+        if not args.gate_only:
+            with (args.queue.parent / "comparison.log").open("x") as log:
+                subprocess.run(
+                    [
+                        sys.executable,
+                        str(root / "scripts/v2/cap40_posthoc_compare.py"),
+                        "--queue",
+                        str(args.queue),
+                        "--output",
+                        q["comparison"],
+                    ],
+                    env=env,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    check=True,
+                )
         write(
             state, {"status": "completed", "phase": phases[-1], "queue_sha256": args.queue_sha256}
         )

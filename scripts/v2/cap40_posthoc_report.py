@@ -73,6 +73,7 @@ def render(args):
         ("cls_decomposition", summary["cls_decomposition"]),
     ):
         tables[key] = [{"name": k, **flatten(v)} for k, v in source.items()]
+    tables["centers"] = [{"head": k, **v} for k, v in summary.get("centers", {}).items()]
     for g in deep:
         p = g["condition_id"]
         for key in ("pairs", "same_gene", "cross_view", "per_cell"):
@@ -258,8 +259,9 @@ def render(args):
             "## 7. 四头原型、CE/H/KL与center\n"
             + table(tables["heads"])
             + "\n"
-            + table(tables["pair_summary"]),
-            "CE与Teacher熵使用同一真实Student–Teacher配对；KL=CE−H。iBOT内部同一次forward的重复CE求值不重复计数。下表为条件等权汇总，原型全局表则按该头有效行累计，聚合轴不同。center原值/历史轨迹只引用原有记录，不制造新更新。\n",
+            + table(tables["pair_summary"])
+            + table(tables["centers"]),
+            "CE与Teacher熵使用同一真实Student–Teacher配对；iBOT先token后有效cell平均，raw_token列另保留token均值；KL=CE−H。iBOT内部同一次forward的重复CE求值不重复计数。下表为条件等权汇总，原型全局表则按该头有效行累计，聚合轴不同。center原值/历史轨迹只引用原有记录，不制造新更新。\n",
             "## 8. 分组表征与跨视图\n"
             + table(tables["features"])
             + table(tables["per_cell_summary"])

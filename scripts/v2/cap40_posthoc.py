@@ -21,6 +21,7 @@ import numpy as np
 from cap40_posthoc_stats import (
     Distribution,
     Moments,
+    cell_balanced_terms,
     condition_summary,
     digest_json,
     query_panels,
@@ -507,14 +508,26 @@ class Collector:
                 ce = -(p * (s / 0.1).log_softmax(-1)).sum(-1)
                 values.append(torch.stack((ce, h, ce - h), -1).cpu())
             a = torch.cat(values).numpy()
+            averaged = a
+            aggregation = "head_rows"
+            if ".ssl2_node." in sx[0]:
+                index = int(sx[0].rsplit("view", 1)[1])
+                mask = self.batch.cell_views[index].mask.cpu().numpy()
+                averaged = cell_balanced_terms(a, np.nonzero(mask)[0], len(mask))
+                aggregation = "masked_token_mean_then_valid_cell_mean"
             self.pairs.append(
                 {
                     "student": sx[0],
                     "teacher": tx[0],
                     "pairs": len(a),
-                    "CE": float(a[:, 0].mean()),
-                    "H_pair": float(a[:, 1].mean()),
-                    "KL": float(a[:, 2].mean()),
+                    "CE": float(averaged[:, 0].mean()),
+                    "H_pair": float(averaged[:, 1].mean()),
+                    "KL": float(averaged[:, 2].mean()),
+                    "raw_token_CE": float(a[:, 0].mean()),
+                    "raw_token_H": float(a[:, 1].mean()),
+                    "raw_token_KL": float(a[:, 2].mean()),
+                    "aggregation": aggregation,
+                    "effective_loss_rows": len(averaged),
                 }
             )
             return value
