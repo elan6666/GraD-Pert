@@ -902,16 +902,28 @@ def run(args):
         peer = read(args.peer_receipt)
         if peer["manifest_sha256"] != args.manifest_sha256:
             raise ValueError("analysis peer manifest differs")
-    observed = snapshot(os.getpid())
-    if peer is None:
-        admit(policy, observed)
-    else:
-        from cap40_analysis_admission import admit_analysis
+    owner = None
+    if getattr(args, "owner_receipt", None) is not None:
+        if peer is not None or sha(args.owner_receipt) != args.owner_receipt_sha256:
+            raise ValueError("analysis owner receipt hash differs or peer mode mixed")
+        owner = read(args.owner_receipt)
+        if owner["manifest_sha256"] != args.manifest_sha256:
+            raise ValueError("analysis owner manifest differs")
 
-        admit_analysis(policy, observed, int(os.environ["CUDA_VISIBLE_DEVICES"]), peer)
+    def check_resources():
+        from cap40_analysis_admission import admit_analysis, dispatcher_owner
+
+        observed = snapshot(dispatcher_owner(owner) if owner is not None else os.getpid())
+        if peer is None:
+            admit(policy, observed)
+        else:
+            admit_analysis(policy, observed, int(os.environ["CUDA_VISIBLE_DEVICES"]), peer)
+        return observed
+
+    observed = check_resources()
     write(
         args.output / "ADMISSION.json",
-        {"passed": True, "peer": peer, "policy": policy, "observed": observed},
+        {"passed": True, "peer": peer, "owner": owner, "policy": policy, "observed": observed},
     )
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         raise ValueError("allocator contract missing")
@@ -958,7 +970,7 @@ def run(args):
                         global_features[f"student.{module}.{name}"] = m
             schedule = select_schedule(manifest["schedule"], args.limit, args.gate_indices)
             for number, g in enumerate(schedule):
-                admit(policy, snapshot(os.getpid()))
+                check_resources()
                 t = time.perf_counter()
                 raw_batch = assemble(rt, g["rows"], g["queries"], g["view_seed"], deep=False)
                 batch = _move_batch_tree(raw_batch, rt.device)
@@ -1221,6 +1233,8 @@ def cli():
     p.add_argument("--manifest-sha256")
     p.add_argument("--peer-receipt", type=Path)
     p.add_argument("--peer-receipt-sha256")
+    p.add_argument("--owner-receipt", type=Path)
+    p.add_argument("--owner-receipt-sha256")
     p.add_argument("--parent-manifest", type=Path)
     p.add_argument("--parent-manifest-sha256")
     p.add_argument("--arm", default="DP")

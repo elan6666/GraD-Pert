@@ -76,6 +76,8 @@ def validate(q):
     }:
         raise ValueError("every arm needs exactly one execution owner")
     free_slots(q.get("adopted", {}))
+    if q.get("adopted"):
+        raise ValueError("old per-worker observers cannot share the new dispatcher owner")
     for r in q["rows"]:
         g = read(Path(r["gate"]) / "COMPLETE.json")
         if (
@@ -104,6 +106,17 @@ def execute(args):
     if state_path.exists():
         raise ValueError("fresh dispatcher state required")
     rows = {r["arm"]: r for r in q["rows"]}
+    owner_path = root / ("gate-owner.json" if args.gate_only else "formal-owner.json")
+    write(
+        owner_path,
+        {
+            "schema": "cap40-analysis-owner-1",
+            "uid": os.getuid(),
+            "process": proc(os.getpid()),
+            "manifest_sha256": q["manifest_sha256"],
+            "queue_sha256": args.queue_sha256,
+        },
+    )
     active = {a: {**v, "child": None} for a, v in q.get("adopted", {}).items()}
     state = {
         "status": "running",
@@ -170,20 +183,11 @@ def execute(args):
             q["resource_queue"],
             "--output",
             destination,
+            "--owner-receipt",
+            str(owner_path),
+            "--owner-receipt-sha256",
+            sha(owner_path),
         ]
-        for peer_arm, v in active.items():
-            if v["gpu"] != gpu and same_process(v["process"]):
-                peer = {
-                    "schema": "cap40-exact-analysis-peer-1",
-                    "arm": peer_arm,
-                    "gpu": v["gpu"],
-                    "uid": os.getuid(),
-                    "process": v["process"],
-                    "manifest_sha256": q["manifest_sha256"],
-                }
-                path = root / f"{a}-{'gate' if gate else 'formal'}-peer.json"
-                write(path, peer)
-                cmd += ["--peer-receipt", str(path), "--peer-receipt-sha256", sha(path)]
         if gate:
             cmd += ["--limit", "1", "--gate-indices", "0,1,15"]
         env = dict(

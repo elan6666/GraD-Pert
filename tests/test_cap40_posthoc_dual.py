@@ -3,12 +3,13 @@
 import copy
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts/v2"))
 import cap40_posthoc_dual as dual
-from cap40_analysis_admission import admit_analysis
+from cap40_analysis_admission import admit_analysis, dispatcher_owner
 from shared_gpu import TOTALVI_FORMAL_AUTHORIZATION
 
 
@@ -130,3 +131,106 @@ def test_adopted_slot_is_not_relaunched_and_only_other_device_is_available():
     assert dual.free_slots({"FN": {"gpu": 0}, "FG": {"gpu": 1}}) == []
     with pytest.raises(ValueError, match="one analysis"):
         dual.free_slots({"FN": {"gpu": 0}, "FG": {"gpu": 0}})
+
+
+def test_shared_dispatcher_owner_is_validated_on_every_snapshot():
+    expected = dict(pid=12, start_ticks="45", command_sha256="hash")
+    receipt = dict(schema="cap40-analysis-owner-1", uid=1002, process=expected)
+    actual = dict(**expected, uid=1002, script_basename="cap40_posthoc_dual.py")
+    assert dispatcher_owner(receipt, lookup=lambda _: actual, parent=12, uid=1002) == 12
+    with pytest.raises(ValueError, match="parent identity"):
+        dispatcher_owner(receipt, lookup=lambda _: None, parent=12, uid=1002)
+    with pytest.raises(ValueError, match="parent identity"):
+        dispatcher_owner(receipt, lookup=lambda _: actual, parent=13, uid=1002)
+    with pytest.raises(ValueError, match="parent identity"):
+        dispatcher_owner(
+            receipt, lookup=lambda _: {**actual, "start_ticks": "46"}, parent=12, uid=1002
+        )
+
+
+def test_periodic_and_initial_checks_use_the_same_owner_path():
+    # Regression: the first parallel attempt changed startup only. The next
+    # per-condition native guard then rejected the other GPU analysis.
+    text = (Path(__file__).parents[1] / "scripts/v2/cap40_posthoc.py").read_text()
+    assert "for number, g in enumerate(schedule):\n                check_resources()" in text
+    assert "snapshot(dispatcher_owner(owner)" in text
+
+
+def test_two_new_slots_share_live_owner_and_finish_each_arm_once(tmp_path, monkeypatch):
+    rows = [
+        dict(
+            arm=a,
+            formal=str(tmp_path / "analysis" / a),
+            report=str(tmp_path / "reports" / a),
+            dual_gate="unused",
+            run_root="/run/" + a,
+            config="/config/" + a,
+            checkpoint_sha256=a,
+        )
+        for a in ["DP", "FN", "FG", "FB", "PO"]
+    ]
+    q = dict(
+        rows=rows,
+        completed=["DP", "FN", "PO"],
+        pending=["FG", "FB"],
+        adopted={},
+        worker_source="/worker",
+        method_source="/method",
+        data_root="/data",
+        manifest="/manifest",
+        manifest_sha256="manifest",
+        resource_queue="/resource",
+        original_analysis="/original",
+        comparison=str(tmp_path / "comparison"),
+    )
+    queue = tmp_path / "queue.json"
+    dual.write(queue, q)
+    digest = dual.sha(queue)
+    dual.write(tmp_path / "MAIN_ACCEPTANCE.json", dict(accepted=True, queue_sha256=digest))
+    monkeypatch.setattr(dual, "validate", lambda _: None)
+    monkeypatch.setattr(dual, "complete", lambda *_: "complete")
+    monkeypatch.setattr(
+        dual, "proc", lambda pid: dict(pid=pid, start_ticks="1", command_sha256="h")
+    )
+    launches = []
+
+    def report_receipt(destination):
+        a = Path(destination).name
+        Path(destination).mkdir(parents=True, exist_ok=True)
+        dual.write(
+            Path(destination) / "receipt.json",
+            dict(manifest_sha256="manifest", checkpoint_sha256=a, outputs={}),
+        )
+
+    for r in rows:
+        if r["arm"] in q["completed"]:
+            report_receipt(r["report"])
+
+    class Child:
+        returncode = 0
+
+        def __init__(self, cmd, **kw):
+            self.pid = 100 + len(launches)
+            self.calls = 0
+            assert "--owner-receipt" in cmd and "--peer-receipt" not in cmd
+            owner = dual.read(cmd[cmd.index("--owner-receipt") + 1])
+            assert owner["queue_sha256"] == digest
+            launches.append((cmd[cmd.index("--arm") + 1], kw["env"]["CUDA_VISIBLE_DEVICES"]))
+            Path(cmd[cmd.index("--output") + 1]).mkdir(parents=True)
+            dual.write(Path(cmd[cmd.index("--output") + 1]) / "ADMISSION.json", {"passed": True})
+
+        def poll(self):
+            self.calls += 1
+            return None if self.calls == 1 else 0
+
+    def run(cmd, **kw):
+        if "--input" in cmd:
+            report_receipt(cmd[cmd.index("--output") + 1])
+
+    monkeypatch.setattr(dual.subprocess, "Popen", Child)
+    monkeypatch.setattr(dual.subprocess, "run", run)
+    monkeypatch.setattr(dual.time, "sleep", lambda _: None)
+    dual.execute(SimpleNamespace(queue=queue, queue_sha256=digest, gate_only=False))
+    assert launches == [("FG", "0"), ("FB", "1")]
+    state = dual.read(tmp_path / "state.json")
+    assert state["status"] == "completed" and len(state["completed"]) == 5

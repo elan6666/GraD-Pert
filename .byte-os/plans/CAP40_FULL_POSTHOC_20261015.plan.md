@@ -2,6 +2,21 @@
 
 ## Superseding scheduling request: two GPUs (2026-10-15)
 
+Correction after real coexistence probe: startup-only peer admission was
+insufficient. Old FG's per-condition guard rejected the GPU1 FB probe and
+stopped itself at435conditions/1731rows (no COMPLETE). No worker signal was
+sent, but the migration caused this interruption; preserve that evidence and
+never relabel it success. The36da82e gate is historical, no formal dual job
+was launched with it. Fresh source/run uses one exact live dispatcher as the
+ownership root at BOTH startup and every condition. All two-slot workers are
+its actual descendants, so the original shared-GPU guard counts both as owned
+without changing any policy. Validate parent UID/PID/start/cmd every check.
+Old per-worker observers cannot be live-adopted into this mode; retain all
+completed DP/FN/PO and rerun only incomplete FG analysis with FB under fresh
+IDs. Frozen weights/method/manifest remain unchanged; this is not retraining.
+Run both new gates, then require actual simultaneous multi-condition progress
+before handoff. Unknown siblings remain foreign, parent death fails closed.
+
 User authorizes independent medium analyses on both existing RTX5090 GPUs,
 one worker per device, not training/DDP or any new ablation. Pre-change baseline
 47c0ba129b160ec07de5473554936ce06b009f48 verified published on GitHub main.

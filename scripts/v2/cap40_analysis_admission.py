@@ -8,6 +8,25 @@ import os
 from shared_gpu import admit, process_info
 
 
+def dispatcher_owner(receipt, *, lookup=process_info, parent=None, uid=None):
+    """Both slots share their exact live parent for every resource snapshot."""
+    uid = os.getuid() if uid is None else uid
+    parent = os.getppid() if parent is None else parent
+    expected = receipt["process"]
+    actual = lookup(expected["pid"])
+    if (
+        receipt.get("schema") != "cap40-analysis-owner-1"
+        or receipt.get("uid") != uid
+        or expected["pid"] != parent
+        or actual is None
+        or actual.get("uid") != uid
+        or actual.get("script_basename") != "cap40_posthoc_dual.py"
+        or any(actual[k] != expected[k] for k in ("pid", "start_ticks", "command_sha256"))
+    ):
+        raise ValueError("analysis dispatcher parent identity changed")
+    return parent
+
+
 def admit_analysis(policy, observed, own_gpu, peer=None, *, lookup=process_info, uid=None):
     uid = os.getuid() if uid is None else uid
     if own_gpu not in (0, 1):
