@@ -1,3 +1,7 @@
+## 2026-10-15：cap40五臂全量只读补测构建
+
+DP/FN/FG/FB/PO四轮last均已有终态；PO原有CPU分析收据184b7236...已生成。主会话已接权build/in_progress，旧监督与return均PAUSED。用户授权全量cap40分析、不重训：47836truth/1335conditions，共同context-matched control/query/view/mask清单；全部行输出/CLS、全条件最多8cells深度诊断、64conditions×最多4梯度。原方法420d3a1不变，分析独立发布；12个身份/分组/流式统计测试通过，Ruff通过。当前尚未跑新GPU补测，先seal和五臂只读parity/state门，成功才正式分析。共同模板docs/experiments/CAP40_POSTHOC_COMMON_TEMPLATE_CN.md与计划CAP40_FULL_POSTHOC_20261015.plan.md。scDFM仍延期、不重训BR/其他模型。
+
 ## 2026-10-14: DP representation/prototype/output report accepted
 
 Analysis source ae92f9db7f4f511b0f9d88238d707129bdda20d8 clean/published; 7 local and 7 server contract checks passed. Training/evaluation source420d3a1 unchanged. Actual CPU report receipt643e4944..., model_loads0/updates0/GPUfalse; 4PNG/7CSV/summary/report hashes verified; dry-run-reviewed transfer795811 bytes. Graph token rank7.97->48.28, Cellgene4.85->44.14, Responsegene final2.23; TeacherSSL1condition JS3.7586, SSL2node prefix concentrated argmax/JS0.00972, with small-probe caveats. Interpretation docs/experiments/DP_TRAINING_PROCESS_ANALYSIS_20261014.md. AGENTS adds per-arm completion report rule. Next: new formal+analysis handoff and unique20min supervisor ACK/ACTIVE; process FN/FG/FB/PO saved aggregates on CPU without changing controller or adding GPU work. scDFM checkpoint preserved/evaluation deferred.
