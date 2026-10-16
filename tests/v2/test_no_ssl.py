@@ -188,3 +188,30 @@ def test_disabled_heads_report_absent_not_collapsed():
     assert all(v["samples"] == 0 for v in result["distributions"].values())
     for n, v in before.items():
         torch.testing.assert_close(v, objective.state_dict()[n], rtol=0, atol=0)
+
+
+@pytest.mark.parametrize("failure", [None, "dirty", "numeric", "arm", "old_output"])
+def test_analysis_repair_freezes_numeric_source_and_protects_old_outputs(
+    tmp_path, monkeypatch, failure
+):
+    monkeypatch.setattr(medium, "SERVER_ROOT", tmp_path)
+    q = {
+        "family": family.SCHEMA,
+        "source_commit": "a" * 40,
+        "output": str(tmp_path / "old-queue"),
+        "rows": [{"plan": {"run_root": str(tmp_path / "old-run")}}],
+    }
+
+    def git(command, **kwargs):
+        if "status" in command:
+            return " M x" if failure == "dirty" else ""
+        return "src/model.py" if failure == "numeric" else ""
+
+    monkeypatch.setattr(medium.subprocess, "check_output", git)
+    output = tmp_path / ("old-queue/child" if failure == "old_output" else "fresh")
+    arm = "B0" if failure == "arm" else "D0"
+    if failure is None:
+        assert medium.validate_report_repair(q, arm, output, tmp_path / "source") == output
+    else:
+        with pytest.raises(ValueError):
+            medium.validate_report_repair(q, arm, output, tmp_path / "source")

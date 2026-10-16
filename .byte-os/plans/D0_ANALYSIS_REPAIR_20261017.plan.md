@@ -1,0 +1,5 @@
+# D0 analysis-only repair
+
+Original 110a932 training completed4epochs/600updates and last18; retain run ID/checkpoint/metrics. Saved aggregate formatter failed on disabled SSL gradient cosine=None before medium numerical work. Preserve original failed queue/output; no training rerun.
+
+Fix nullable formatting without filling0 or changing statistics. Add full disabled-SSL render regression. New published source/controller may only change report/orchestration; compare src and numerical observer/guard/runner Git blobs to original SHA. Use exact parent queue, original immutable model/numerical source, same1335/5317 medium schedule, explicit new independent output; track controller SHA separately. Three-condition fast/reference gates<=1e-8 then medium and reports,0updates/state unchanged. New tests reject old output/non-D0/dirty/numerical drift. Short wait uses same-task Luna only; main no duplicate polling. At completion verify source/config/checkpoint/data/hashes/counts,18metrics and same-group B0 comparison with all figures/data in ignored archive; stop obsolete monitors.

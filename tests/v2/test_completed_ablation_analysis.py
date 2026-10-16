@@ -106,7 +106,10 @@ def test_read_only_collection_and_undefined_metric(run):
     assert before == {str(p): module.digest(p) for p in run.rglob("*") if p.is_file()}
 
 
-def test_disabled_node_head_is_reported_missing_and_all_figures_render(run, tmp_path):
+@pytest.mark.parametrize("all_ssl_disabled", [False, True])
+def test_disabled_node_head_is_reported_missing_and_all_figures_render(
+    run, tmp_path, all_ssl_disabled
+):
     data = collect(run)
     for h in data["history"]:
         h["training"].update(joint_loss=1.0, prediction_mse=0.1)
@@ -155,6 +158,16 @@ def test_disabled_node_head_is_reported_missing_and_all_figures_render(run, tmp_
                 )
             }
         )
+    if all_ssl_disabled:
+        for point in data["snapshots"]:
+            point["distributions"] = {"teacher." + head: {"samples": 0} for head in module.HEADS}
+            point["pairs"] = {}
+            for feature in list(point["features"]):
+                if "bottleneck" in feature:
+                    del point["features"][feature]
+            for group in point["graph_gradients"]["groups"].values():
+                group["weighted_gradient_l2"].update(ssl1=0.0, ssl2=0.0)
+                group["cosine"] = {"prediction_ssl1": None, "prediction_ssl2": None}
     output = tmp_path / "node0-report"
     module.export(data, output)
     text = (output / "report.md").read_text()
@@ -164,6 +177,15 @@ def test_disabled_node_head_is_reported_missing_and_all_figures_render(run, tmp_
     assert "ssl1_node" not in {
         r["name"] for r in __import__("csv").DictReader((output / "pairs.csv").open())
     }
+    if all_ssl_disabled:
+        assert "无有效梯度" in text
+        saved = json.loads((output / "summary.json").read_text())
+        assert (
+            saved["snapshots"][-1]["graph_gradients"]["groups"]["graph"]["cosine"][
+                "prediction_ssl1"
+            ]
+            is None
+        )
 
 
 @pytest.mark.parametrize(

@@ -341,12 +341,17 @@ def report(data: dict) -> str:
     ]
     for name, g in last["graph_gradients"]["groups"].items():
         n, c = g["weighted_gradient_l2"], g["cosine"]
+        # A disabled/zero-gradient objective has no cosine, not a zero cosine.
+        cosines = {
+            key: "不适用（无有效梯度）" if value is None else f"{value:.4f}"
+            for key, value in c.items()
+        }
         lines.append(
             f"| {name} | {n['prediction']:.4g}"
             f" | {n['ssl1']:.4g} | {n['ssl2']:.4g}"
             f" "
-            f"| {c['prediction_ssl1']:.4f}"
-            f" | {c['prediction_ssl2']:.4f}"
+            f"| {cosines['prediction_ssl1']}"
+            f" | {cosines['prediction_ssl2']}"
             f" "
             f"|"
         )

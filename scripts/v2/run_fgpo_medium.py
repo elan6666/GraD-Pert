@@ -83,8 +83,8 @@ def medium_command(queue, row):
     ]
 
 
-def validate_medium_complete(queue, row):
-    root = Path(queue["output"]) / f"{row['name']}-medium"
+def validate_medium_complete(queue, row, *, root=None):
+    root = Path(root) if root is not None else Path(queue["output"]) / f"{row['name']}-medium"
     path = root / "MEDIUM_COMPLETE.json"
     result = read(path)
     plan = row["plan"]
@@ -125,7 +125,50 @@ def validate_medium_complete(queue, row):
     return {"receipt": str(path), "sha256": sha(path), **COUNTS}
 
 
-def execute(queue_path, arm):
+def validate_report_repair(q, arm, output, report_source):
+    """Only postfit D0 repair: freeze all numerical code and the parent queue."""
+    if arm != "D0" or q.get("family") != NO_SSL_SCHEMA:
+        raise ValueError("analysis-only report repair is scoped to D0")
+    output = Path(output).resolve()
+    protected = [Path(q["output"]).resolve()] + [
+        Path(row["plan"]["run_root"]).resolve() for row in q["rows"]
+    ]
+    if not output.is_relative_to(SERVER_ROOT) or any(
+        output.is_relative_to(root) for root in protected
+    ):
+        raise ValueError("repair output must be a new independent server root")
+    paths = [
+        "src",
+        "scripts/v2/cap40_posthoc*.py",
+        "scripts/v2/profile_medium_observer.py",
+        "scripts/v2/shared_gpu.py",
+        "scripts/v2/run_br400_group.py",
+        "scripts/v2/generate_no_ssl.py",
+    ]
+    if (
+        subprocess.check_output(
+            ["git", "-C", str(report_source), "status", "--porcelain"], text=True
+        ).strip()
+        or subprocess.check_output(
+            [
+                "git",
+                "-C",
+                str(report_source),
+                "diff",
+                "--name-only",
+                q["source_commit"],
+                "HEAD",
+                "--",
+                *paths,
+            ],
+            text=True,
+        ).strip()
+    ):
+        raise ValueError("repair source is dirty or numerical method/analysis code changed")
+    return output
+
+
+def execute(queue_path, arm, *, repair_output=None):
     from profile_medium_observer import compare
     from run_br400_group import validate_complete, verify
 
@@ -134,12 +177,17 @@ def execute(queue_path, arm):
         raise ValueError("medium postfit work is limited to the authorized new family")
     verify(q)
     source = Path(q["source"])
-    if source.resolve() != Path(__file__).resolve().parents[2]:
+    report_source = Path(__file__).resolve().parents[2]
+    if repair_output is None and source.resolve() != report_source:
         raise ValueError("medium worker must use the exact published queue source")
     parent = validate_analysis_spec(q["medium_analysis"])
     row = next(r for r in q["rows"] if r["name"] == arm)
     validate_complete(row["plan"])
-    root = Path(q["output"]) / f"{arm}-medium"
+    root = (
+        validate_report_repair(q, arm, repair_output, report_source)
+        if repair_output is not None
+        else Path(q["output"]) / f"{arm}-medium"
+    )
     if root.exists() or not root.resolve().is_relative_to(SERVER_ROOT):
         raise ValueError("fresh server-only medium run required")
     root.mkdir()
@@ -184,7 +232,7 @@ def execute(queue_path, arm):
             "saved-training-report",
             [
                 sys.executable,
-                str(source / "scripts/v2/analyze_completed_ablation.py"),
+                str(report_source / "scripts/v2/analyze_completed_ablation.py"),
                 "--run-root",
                 plan["run_root"],
                 "--output",
@@ -274,6 +322,10 @@ def execute(queue_path, arm):
                 "status": "completed",
                 "arm": arm,
                 "source_commit": q["source_commit"],
+                "report_controller_commit": subprocess.check_output(
+                    ["git", "-C", str(report_source), "rev-parse", "HEAD"], text=True
+                ).strip(),
+                "parent_failed_output_preserved": repair_output is not None,
                 "queue_sha256": sha(queue_path),
                 "checkpoint_sha256": checkpoint["sha256"],
                 "diagnostic_population_sha256": population_identity(parent["schedule"]),
@@ -292,7 +344,7 @@ def execute(queue_path, arm):
                 },
             },
         )
-        validate_medium_complete(q, row)
+        validate_medium_complete(q, row, root=root)
     except BaseException as exc:
         write(
             root / "FAILURE.json",
@@ -310,5 +362,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--queue", type=Path, required=True)
     parser.add_argument("--arm", choices=AUTHORIZED_ARMS, required=True)
+    parser.add_argument("--repair-output", type=Path)
     arguments = parser.parse_args()
-    execute(arguments.queue, arguments.arm)
+    execute(arguments.queue, arguments.arm, repair_output=arguments.repair_output)
