@@ -12,7 +12,9 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-URL = "https://s3.amazonaws.com/fast-ai-imageclas/imagenette2-320.tgz"
+ORIGIN_URL = "https://s3.amazonaws.com/fast-ai-imageclas/imagenette2-320.tgz"
+# Same public S3 bucket/object and pinned ETag, with a faster verified host route.
+URL = "https://fast-ai-imageclas.s3.amazonaws.com/imagenette2-320.tgz"
 SIZE = 341663724
 ETAG = '"894c3361e6e919faf86e611f55c90813-41"'
 
@@ -70,6 +72,7 @@ def run(output):
         raise RuntimeError("incomplete validation set")
     receipt = {
         "url": URL,
+        "official_origin_url": ORIGIN_URL,
         "etag": ETAG,
         "bytes": SIZE,
         "sha256": h.hexdigest(),
