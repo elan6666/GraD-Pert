@@ -55,6 +55,8 @@ class V2Architecture:
     ffn_linear_bias: str = "historical"
     prototype_weight_norm: bool = False
     prototype_freeze_epochs: int = 0
+    prototype_fixed_scale: bool = False
+    prototype_freeze_gradients: bool = False
     prediction_parameterization: str = "residual"
     genept_hidden_width: int = 0
     genept_middle_width: int = 0
@@ -123,6 +125,8 @@ class V2Architecture:
         if (
             self.ffn_linear_bias not in ("historical", "none")
             or type(self.prototype_weight_norm) is not bool
+            or type(self.prototype_fixed_scale) is not bool
+            or type(self.prototype_freeze_gradients) is not bool
             or type(self.prototype_freeze_epochs) is not int
             or self.prototype_freeze_epochs < 0
             or self.prediction_parameterization not in ("residual", "softplus")
@@ -130,6 +134,10 @@ class V2Architecture:
             raise ValueError("invalid five-arm FFN controls")
         if self.prototype_freeze_epochs and not self.prototype_weight_norm:
             raise ValueError("prototype freeze requires the explicit weight-normalized arm")
+        if self.prototype_fixed_scale and not self.prototype_weight_norm:
+            raise ValueError("fixed prototype scale requires weight normalization")
+        if self.prototype_freeze_gradients and not self.prototype_freeze_epochs:
+            raise ValueError("gradient freeze requires a positive prototype freeze budget")
         if (
             self.ffn_linear_bias != "historical"
             or self.prototype_weight_norm
@@ -345,6 +353,8 @@ class V2Architecture:
             ("ffn_linear_bias", "historical"),
             ("prototype_weight_norm", False),
             ("prototype_freeze_epochs", 0),
+            ("prototype_fixed_scale", False),
+            ("prototype_freeze_gradients", False),
             ("prediction_parameterization", "residual"),
             ("genept_hidden_width", 0),
             ("genept_middle_width", 0),
@@ -425,6 +435,9 @@ class V2Options:
     population_response: bool = False
     lambda_mmd: float = 1.0
     process_diagnostics: bool = False
+    teacher_temperature_start: float = 0.04
+    teacher_temperature_end: float = 0.04
+    teacher_temperature_warmup_epochs: int = 0
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -480,6 +493,8 @@ class V2Options:
             "ffn_linear_bias",
             "prototype_weight_norm",
             "prototype_freeze_epochs",
+            "prototype_fixed_scale",
+            "prototype_freeze_gradients",
             "prediction_parameterization",
             "genept_hidden_width",
             "genept_middle_width",
@@ -495,6 +510,9 @@ class V2Options:
             "population_response",
             "lambda_mmd",
             "process_diagnostics",
+            "teacher_temperature_start",
+            "teacher_temperature_end",
+            "teacher_temperature_warmup_epochs",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -514,6 +532,20 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
+        for value in (self.teacher_temperature_start, self.teacher_temperature_end):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not (math.isfinite(value) and value > 0)
+            ):
+                raise ValueError("teacher temperatures must be finite and positive")
+        if (
+            type(self.teacher_temperature_warmup_epochs) is not int
+            or self.teacher_temperature_warmup_epochs < 0
+            or bool(self.teacher_temperature_warmup_epochs)
+            != (self.teacher_temperature_start != self.teacher_temperature_end)
+        ):
+            raise ValueError("temperature transition needs a positive epoch budget")
         if type(self.process_diagnostics) is not bool:
             raise ValueError("process diagnostics must be boolean")
         if self.ssl1_local_layout not in ("go_string", "go_string_random", "go_go_string_string"):

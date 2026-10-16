@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import math
 from dataclasses import dataclass
 from typing import cast
 
@@ -55,8 +56,10 @@ def cross_entropy(
     return terms.mean() if weights is None else (terms * weights).sum() / weights.sum()
 
 
-def cross_entropy_terms(student: Tensor, teacher: Tensor, center: Tensor) -> Tensor:
-    probabilities = ((teacher.detach().float() - center) / 0.04).softmax(-1)
+def cross_entropy_terms(
+    student: Tensor, teacher: Tensor, center: Tensor, *, teacher_temperature: float = 0.04
+) -> Tensor:
+    probabilities = ((teacher.detach().float() - center) / teacher_temperature).softmax(-1)
     return -(probabilities * (student.float() / 0.1).log_softmax(-1)).sum(-1)
 
 
@@ -84,6 +87,7 @@ class JointObjective(nn.Module):
     ssl1_node_center: Tensor
     ssl2_cls_center: Tensor
     ssl2_node_center: Tensor
+    temperature_update_index: Tensor
 
     def __init__(
         self,
@@ -106,6 +110,9 @@ class JointObjective(nn.Module):
         lambda_masked_response: float = 0.0,
         population_response: bool = False,
         lambda_mmd: float = 1.0,
+        teacher_temperature_start: float = 0.04,
+        teacher_temperature_end: float = 0.04,
+        teacher_temperature_warmup_steps: int = 0,
     ) -> None:
         super().__init__()
         if min(lambda1, lambda2, *ssl1_weights, *ssl2_weights) < 0:
@@ -164,6 +171,56 @@ class JointObjective(nn.Module):
         for name in ("ssl1_cls", "ssl1_node", "ssl2_cls", "ssl2_node"):
             self.register_buffer(name + "_center", torch.zeros(student.options.prototypes))
         self.pending: dict[str, list[Tensor]] = {}
+        if (
+            any(
+                isinstance(v, bool)
+                or not isinstance(v, (int, float))
+                or not math.isfinite(v)
+                or v <= 0
+                for v in (teacher_temperature_start, teacher_temperature_end)
+            )
+            or type(teacher_temperature_warmup_steps) is not int
+            or teacher_temperature_warmup_steps < 0
+            or bool(teacher_temperature_warmup_steps)
+            != (teacher_temperature_start != teacher_temperature_end)
+        ):
+            raise ValueError("invalid Teacher temperature schedule")
+        self.teacher_temperature_start = teacher_temperature_start
+        self.teacher_temperature_end = teacher_temperature_end
+        self.teacher_temperature_warmup_steps = teacher_temperature_warmup_steps
+        self._temperature_updates = 0
+        # Historical objectives keep their exact checkpoint key set. A changing
+        # schedule stores its successful-update index for exact full-state resume.
+        if teacher_temperature_warmup_steps:
+            self.register_buffer("temperature_update_index", torch.zeros((), dtype=torch.long))
+            self.register_load_state_dict_post_hook(self._restore_temperature_index)
+
+    def _restore_temperature_index(self, module: nn.Module, incompatible_keys: object) -> None:
+        self._temperature_updates = int(self.temperature_update_index.item())
+
+    @property
+    def teacher_temperature(self) -> float:
+        if not self.teacher_temperature_warmup_steps:
+            return self.teacher_temperature_end
+        progress = min(
+            1.0, self._temperature_updates / max(1, self.teacher_temperature_warmup_steps - 1)
+        )
+        return self.teacher_temperature_start + progress * (
+            self.teacher_temperature_end - self.teacher_temperature_start
+        )
+
+    def _cross_entropy_terms(self, student: Tensor, teacher: Tensor, center: Tensor) -> Tensor:
+        if self.teacher_temperature == 0.04:
+            return cross_entropy_terms(student, teacher, center)
+        return cross_entropy_terms(
+            student, teacher, center, teacher_temperature=self.teacher_temperature
+        )
+
+    def _cross_entropy(
+        self, student: Tensor, teacher: Tensor, center: Tensor, weights: Tensor | None = None
+    ) -> Tensor:
+        terms = self._cross_entropy_terms(student, teacher, center)
+        return terms.mean() if weights is None else (terms * weights).sum() / weights.sum()
 
     def train(self, mode: bool = True) -> JointObjective:
         super().train(mode)
@@ -424,7 +481,7 @@ class JointObjective(nn.Module):
             self._targets("ssl1_cls", target)
             for i, source in enumerate(student_logits):
                 if i != j:
-                    terms.append(cross_entropy(source, target, self.ssl1_cls_center, counts))
+                    terms.append(self._cross_entropy(source, target, self.ssl1_cls_center, counts))
         node_terms = []
         for i, view in enumerate(views[:2]):
             selected = view.masked_positions
@@ -453,7 +510,7 @@ class JointObjective(nn.Module):
                         def node_ce(student_node: Tensor, teacher_node: Tensor) -> Tensor:
                             with torch.no_grad():
                                 target_node = self.teacher.ssl1_node(teacher_node)
-                            return cross_entropy(
+                            return self._cross_entropy(
                                 self.student.ssl1_node(student_node),
                                 target_node,
                                 self.ssl1_node_center,
@@ -477,7 +534,7 @@ class JointObjective(nn.Module):
                         )
                     )
                 self._targets("ssl1_node", target)
-                node_terms.append(cross_entropy(source, target, self.ssl1_node_center))
+                node_terms.append(self._cross_entropy(source, target, self.ssl1_node_center))
         zero = student_states[0][0].sum() * 0
         return {
             "condition": torch.stack(terms).mean() if terms else zero,
@@ -642,10 +699,10 @@ class JointObjective(nn.Module):
             for i, source in enumerate(source_logits):
                 if i != j:
                     terms.append(
-                        cross_entropy(source, target, self.ssl2_cls_center)
+                        self._cross_entropy(source, target, self.ssl2_cls_center)
                         if reduction_weights is None
                         else (
-                            cross_entropy_terms(source, target, self.ssl2_cls_center)
+                            self._cross_entropy_terms(source, target, self.ssl2_cls_center)
                             * reduction_weights[0]
                         ).sum()
                     )
@@ -658,9 +715,11 @@ class JointObjective(nn.Module):
                         teacher_outputs[j]["response_tokens"][mask]
                     )
                 self._targets("ssl2_node", target_node)
-                node_loss = cross_entropy(source, target_node, self.ssl2_node_center)
+                node_loss = self._cross_entropy(source, target_node, self.ssl2_node_center)
                 if reduction_weights is not None:
-                    token_terms = cross_entropy_terms(source, target_node, self.ssl2_node_center)
+                    token_terms = self._cross_entropy_terms(
+                        source, target_node, self.ssl2_node_center
+                    )
                     rows = mask.nonzero(as_tuple=True)[0]
                     per_row = token_terms.new_zeros(len(mask)).scatter_add(0, rows, token_terms)
                     per_row = per_row / mask.sum(-1).clamp_min(1)
@@ -755,3 +814,6 @@ class JointObjective(nn.Module):
             if sums[1, 0] > 0:
                 center.lerp_(sums[0] / sums[1], 0.1)
         self.pending.clear()
+        if self.teacher_temperature_warmup_steps:
+            self._temperature_updates += 1
+            self.temperature_update_index.add_(1)

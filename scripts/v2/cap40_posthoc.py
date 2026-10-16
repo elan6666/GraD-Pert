@@ -757,7 +757,7 @@ class Collector:
                     scaled = (
                         output.float() / 0.1
                         if role == "student"
-                        else (output.float() - center) / 0.04
+                        else (output.float() - center) / obj.teacher_temperature
                     )
                     with self.timings.region("prototype_statistics"):
                         if self.stats_backend == "fast":
@@ -780,8 +780,10 @@ class Collector:
 
                 self.handles.append(head.features.register_forward_hook(bottleneck_hook))
 
-        def observed_ce(student, teacher, center):
-            value = self.original_ce(student, teacher, center)
+        def observed_ce(student, teacher, center, *, teacher_temperature=0.04):
+            value = self.original_ce(
+                student, teacher, center, teacher_temperature=teacher_temperature
+            )
             sx = self.logits.get(id(student))
             tx = self.logits.get(id(teacher))
             if sx is None or tx is None:
@@ -796,7 +798,7 @@ class Collector:
                 teacher.detach().float().split(128),
                 strict=True,
             ):
-                p = ((t - center) / 0.04).softmax(-1)
+                p = ((t - center) / teacher_temperature).softmax(-1)
                 h = -(p * p.clamp_min(1e-30).log()).sum(-1)
                 ce = -(p * (s / 0.1).log_softmax(-1)).sum(-1)
                 values.append(torch.stack((ce, h, ce - h), -1).cpu())

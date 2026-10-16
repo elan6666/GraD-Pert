@@ -146,6 +146,10 @@ def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architectur
                     dict(head.prototypes.named_parameters())[
                         "parametrizations.weight.original0"
                     ].fill_(1)
+                if options.prototype_fixed_scale:
+                    dict(head.prototypes.named_parameters())[
+                        "parametrizations.weight.original0"
+                    ].requires_grad_(False)
     # Optional mechanisms have their own RNG streams; common B0 initialization
     # and dropout streams are identical when an adapter starts at zero.
     if options.gene_conditioned_readout:

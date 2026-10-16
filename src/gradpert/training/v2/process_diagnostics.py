@@ -275,11 +275,13 @@ def evaluate_process_diagnostics(
 
         return observe
 
-    def observed_ce(student: Tensor, teacher: Tensor, center: Tensor) -> Tensor:
-        value = original_ce(student, teacher, center)
+    def observed_ce(
+        student: Tensor, teacher: Tensor, center: Tensor, *, teacher_temperature: float = 0.04
+    ) -> Tensor:
+        value = original_ce(student, teacher, center, teacher_temperature=teacher_temperature)
         key = center_names.get(id(center), logits_names.get(id(student), "unattributed"))
         n = min(max_samples, len(student))
-        p = ((teacher[:n].detach().double() - center.double()) / 0.04).softmax(-1)
+        p = ((teacher[:n].detach().double() - center.double()) / teacher_temperature).softmax(-1)
         h = _entropy(p)
         ce = -(p * (student[:n].detach().double() / 0.1).log_softmax(-1)).sum(-1)
         tally = pairs.setdefault(key, [0.0, 0.0, 0.0, 0.0])
@@ -311,7 +313,9 @@ def evaluate_process_diagnostics(
                         # Bound rows before temporary float64/softmax conversion.
                         x = output[:max_samples].detach()
                         scaled = (
-                            x.float() / 0.1 if role == "student" else (x.float() - center) / 0.04
+                            x.float() / 0.1
+                            if role == "student"
+                            else (x.float() - center) / objective.teacher_temperature
                         )
                         distributions[key].add(scaled)
                         distributions[key].observed += len(output) - len(x)

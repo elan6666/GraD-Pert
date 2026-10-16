@@ -325,6 +325,21 @@ def prepare_runtime(
             lambda_masked_response=options.lambda_masked_response,
             population_response=options.population_response,
             lambda_mmd=options.lambda_mmd,
+            teacher_temperature_start=options.teacher_temperature_start,
+            teacher_temperature_end=options.teacher_temperature_end,
+            teacher_temperature_warmup_steps=(
+                options.teacher_temperature_warmup_epochs
+                * data.steps_per_epoch(
+                    batch_size=int(config.training.train_batch_size.value),
+                    max_unique_conditions=(
+                        0
+                        if options.max_conditions == 0
+                        else min(
+                            options.max_conditions, int(config.training.train_batch_size.value)
+                        )
+                    ),
+                )
+            ),
         ).to(device)
         optimizer = V2Optimizer(
             student,

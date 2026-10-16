@@ -93,6 +93,9 @@ class V2Optimizer:
         ):
             raise ValueError("prototype freeze epochs require a resolved positive step budget")
         self.prototype_freeze_steps = prototype_freeze_steps
+        self.prototype_freeze_gradients = bool(
+            getattr(getattr(model, "options", None), "prototype_freeze_gradients", False)
+        )
         self.routes = routes(model)
         parameters = dict(model.named_parameters())
         self.views: list[tuple[nn.Parameter, list[nn.Parameter]]] = []
@@ -155,6 +158,15 @@ class V2Optimizer:
             if opt is None:
                 continue
             for group in opt.param_groups:
+                if (
+                    self.prototype_freeze_gradients
+                    and group.get("prototype_group", False)
+                    and self.steps < self.prototype_freeze_steps
+                ):
+                    # No gradient, decay, or Adam moment update during this
+                    # optional freeze. Historical DP retains its zero-LR rule.
+                    for parameter in group["params"]:
+                        parameter.grad = None
                 group["lr"] = (
                     0.0
                     if group.get("prototype_group", False)
@@ -173,6 +185,8 @@ class V2Optimizer:
         }
         if self.prototype_freeze_steps:
             state["prototype_freeze_steps"] = self.prototype_freeze_steps
+        if self.prototype_freeze_gradients:
+            state["prototype_freeze_gradients"] = True
         return state
 
     def load_state_dict(self, state: dict[str, Any]) -> None:
@@ -180,6 +194,8 @@ class V2Optimizer:
             raise ValueError("checkpoint optimizer routes differ")
         if state.get("prototype_freeze_steps", 0) != self.prototype_freeze_steps:
             raise ValueError("checkpoint prototype freeze budget differs")
+        if state.get("prototype_freeze_gradients", False) != self.prototype_freeze_gradients:
+            raise ValueError("checkpoint prototype freeze semantics differ")
         for key, opt in (("muon", self.muon), ("adamw", self.adamw)):
             if opt is None:
                 if state[key] is not None:

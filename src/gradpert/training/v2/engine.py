@@ -366,6 +366,7 @@ def optimizer_step(
             objective.student.parameters(), 1.0, error_if_nonfinite=True
         )
         optimizer.step(lr)
+        teacher_temperature = objective.teacher_temperature
         objective.commit_statistics(momentum)
         metrics["joint_loss"] = metrics["prediction"] + sum(
             scale
@@ -388,6 +389,8 @@ def optimizer_step(
         metrics["gradient_clipped"] = float(norm > 1.0)
         metrics["learning_rate"] = lr
         metrics["teacher_momentum"] = momentum
+        if objective.teacher_temperature_warmup_steps:
+            metrics["teacher_temperature"] = teacher_temperature
         return metrics
     except Exception:
         objective.pending.clear()

@@ -24,6 +24,8 @@ from generate_br400_group import (
 from generate_br400_group import (
     verify_manifest as verify_br_manifest,
 )
+from generate_dino_pair import SCHEMA as DINO_SCHEMA
+from generate_dino_pair import verify_manifest as verify_dino_manifest
 from generate_ffn_five import SCHEMA as FFN_SCHEMA
 from generate_ffn_five import verify_manifest as verify_ffn_manifest
 from generate_fgpo_family import SCHEMA as FGPO_SCHEMA
@@ -52,7 +54,8 @@ from gradpert.hashing import sha256_file, sha256_json
 
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
-LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA, FGPO_SCHEMA)
+FGPO_FAMILIES = (FGPO_SCHEMA, DINO_SCHEMA)
+LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA, *FGPO_FAMILIES)
 DEFERRED_SCDFM_POLICY = "scdfm_fit_gears_terminal_evaluation_deferred_v1"
 
 
@@ -123,6 +126,8 @@ def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
 
 
 def verify_manifest(source: Path, manifest: Path) -> dict:
+    if read_json(manifest).get("schema") == DINO_SCHEMA:
+        return verify_dino_manifest(source, manifest)
     if read_json(manifest).get("schema") == FGPO_SCHEMA:
         return verify_fgpo_manifest(source, manifest)
     if read_json(manifest).get("schema") == FFN_SCHEMA:
@@ -218,7 +223,7 @@ def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: d
     }
     if matrix["schema"] == FFN_SCHEMA:
         queue["official_dependency"] = read_json(runtime)["official_dependency"]
-    elif matrix["schema"] == FGPO_SCHEMA:
+    elif matrix["schema"] in FGPO_FAMILIES:
         queue["medium_analysis"] = read_json(runtime)["medium_analysis"]
     for row in rows:
         for gpu in ("0", "1"):
@@ -269,7 +274,7 @@ def verify(queue: dict) -> None:
     ):
         raise ValueError("remaining last-only requires the exact approved memory90 policy")
     runtime = read_json(Path(queue["runtime"]))
-    if matrix["schema"] == FGPO_SCHEMA:
+    if matrix["schema"] in FGPO_FAMILIES:
         from run_fgpo_medium import validate_analysis_spec
 
         if queue.get("medium_analysis") != runtime.get("medium_analysis"):
@@ -399,7 +404,7 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
             or "joint_validation_progress" in receipt
         ):
             raise ValueError("last-only gate must not perform joint validation")
-        if queue["family"] in (FFN_SCHEMA, FGPO_SCHEMA):
+        if queue["family"] in (FFN_SCHEMA, *FGPO_FAMILIES):
             for key in ("initial_loss_diagnostic", "updated_loss_diagnostic"):
                 observed = receipt.get(key, {}).get("process", {})
                 if (
@@ -863,7 +868,7 @@ def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -
                 run_stage(queue, row, eval_stage, evaluation_command(path), "0,1", state, guard)
                 state["completed"][row["name"]] = validate_complete(row["plan"])
                 atomic_json(directory / "state.json", state)
-                if queue["family"] == FGPO_SCHEMA:
+                if queue["family"] in FGPO_FAMILIES:
                     from run_fgpo_medium import medium_command, validate_medium_complete
 
                     # The child acquires the normal GPU0 lease itself. Do not

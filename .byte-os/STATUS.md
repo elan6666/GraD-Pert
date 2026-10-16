@@ -1138,3 +1138,8 @@ Latest user asks less strict memory guard: own90% with physicalfree2GiB, UID1003
 ## BR fourth-epoch validation completed before safe user cancellation
 
 Epoch4last SHA85ca4a88f392dc29cca651eab5801e252d96d823bbe3209b15498842c6671975 saved+validated; oldcontroller2524465 ownedtree stopped, allowned exited, allpendingarms unstarted. Oldroot userstop preserved. Publish independent guardedlast-onlyeval withscienceSHA6a8c612, GPU0,1 eachbatch300/owned90/free2GiB. Evaluatefirst, then newnone-validation/last-onlyremainingF1/N1/GM1. No current CUDAjob/noactiveoldsupervisormonitor; mainownsbuild.
+
+
+## 2026-10-16 next priority: B0-DP → DP2
+
+User requests both arms immediately after preserved active VH fit/last/medium. Old S12-L4 and later arms deferred; frozen old source/queue/run IDs untouched. New parent is FG+PO/node0 B0, global320, four epochs, last18 and same-medium diagnostics. B0-DP retains historical DP freeze semantics; DP2 adds temperature0.04→0.03 in epoch1, EMA0.996→1, fixed prototype gain and first-epoch no-gradient freeze. Plan: plans/DINO_PAIR_20261016.plan.md. Current stage implementation/static checks; no new formal GPU run yet. Mutable owner/controller/boundary-waiter/monitor identities remain in authoritative coordination state, not this note.

@@ -11,7 +11,11 @@ import time
 from pathlib import Path
 
 from cap40_posthoc import population_identity, read, sha, write
+from generate_dino_pair import ARMS as DINO_ARMS
+from generate_dino_pair import SCHEMA as DINO_SCHEMA
 from generate_fgpo_family import ARMS, SCHEMA
+
+FAMILY_ARMS = {SCHEMA: ARMS, DINO_SCHEMA: DINO_ARMS}
 
 SERVER_ROOT = Path("/data/yilangliu")
 COUNTS = dict(
@@ -123,7 +127,7 @@ def execute(queue_path, arm):
     from run_br400_group import validate_complete, verify
 
     q = read(queue_path)
-    if q.get("family") != SCHEMA or arm not in ARMS:
+    if arm not in FAMILY_ARMS.get(q.get("family"), {}):
         raise ValueError("medium postfit work is limited to the authorized new family")
     verify(q)
     source = Path(q["source"])
@@ -302,6 +306,6 @@ def execute(queue_path, arm):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--queue", type=Path, required=True)
-    parser.add_argument("--arm", choices=tuple(ARMS), required=True)
+    parser.add_argument("--arm", choices=tuple(dict.fromkeys((*ARMS, *DINO_ARMS))), required=True)
     arguments = parser.parse_args()
     execute(arguments.queue, arguments.arm)
