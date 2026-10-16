@@ -1,3 +1,11 @@
+## 2026-10-17：D0完整交付；官方DINOv2参考亦已完成
+
+D0四轮600更新、epoch4 last18及同中等清单完整；此次仅补分析，无重训。原110a932 failed queue、nullable报告失败和r1导入失败均保留，r2独立目录成功。26项server CPU回归通过；主独立调用完成验证器、重算全部完成输出字节/哈希、确认数值源110a932与report/controller源7ae9a7e938d58e24993d3acf79cb09daa02652df分开。MEDIUM_COMPLETE SHAad2302e6576e792ef0140e33497cf8d1bd16cc95519d8663a8c09a37f2c61a53；1335条件5317行、deep128条件506行、gradient32条件125行；0更新/state unchanged，821个浮点统计maxabs7.958078640513122e-13<=1e-8。
+
+完成前dry-run审查并仅拉45个小图/汇总（5925920 bytes）及验收元数据，逐本地哈希核对；9张模板图与2张比较图已逐张检查。永久中文报告experiment-analysis/no-ssl-d0-20261016/D0_MEDIUM_REVIEW_CN.md，18项测试/有效N/训练曲线与时间见同目录B0_D0_TEST18_CN.md。数据/split/剔除ID/300controls/reference/query/groups精确相同，resolved config仅lambda1/lambda2及来源注释不同。单seed D0 18项Pearson均低于B0；Response CLS秩13.824→4.269，Response混合token秩6.376→3.323，不能仅凭秩宣称质量或因果。D0关闭SSL，因此H/JS/零范数余弦不适用，空图不填0。
+
+官方DINOv2参考分析已交主完成，报告experiment-analysis/dinov2-reference/REPORT_REVIEW_CN.md；公开backbone不含原SSL头/center，不能给原型熵/JS。两个任务无活动后台进程，Luna短监督已终态；旧监督及return fallback保持PAUSED。主已完成当前回交，不启动DP2或其他臂。本条覆盖下面旧“当前运行”叙述，原历史完整保留。
+
 ## 2026-10-16：主会话完成官方DINOv2中等参考分析；D0独立监督继续
 
 官方DINOv2任务按用户新指令由主会话执行，独立于D0 relay。分析源码bcb78ddcbe5e581966c35736ab7d2275ef902073，官方7764ea0f912e53c92e82eb78a2a1631e92725fc8，ViT-S/14原权重strict load。服务器15项回归、真实输入probe及正式1335图/10类、deep506×128patch均通过，CPU4线程105.657秒，0optimizer更新/0梯度/state unchanged；COMPLETE SHAeec44aac3195314dea19e76b5cb0831c6b675eeac62ff02eb0d271f112bed522。主独立核验15服务器输出，dry-run后拉取14小图/表/报告+完成收据，3图已读；原图、权重、特征矩阵均留服务器。
