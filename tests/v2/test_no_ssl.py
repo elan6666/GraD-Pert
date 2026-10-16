@@ -75,6 +75,7 @@ def test_d0_keeps_last_medium_and_exact_evaluation_bindings(new_queue):
     runner.verify(q)
     assert q["family"] in runner.LAST_ONLY_FAMILIES
     assert list(medium.FAMILY_ARMS[q["family"]]) == ["D0"]
+    assert "D0" in medium.AUTHORIZED_ARMS
     assert q["medium_analysis"] == old["medium_analysis"]
     assert len(q["eval_bindings"]) == 2 and "official_dependency" not in q
     row = q["rows"][0]

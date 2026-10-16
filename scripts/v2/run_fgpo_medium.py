@@ -18,6 +18,7 @@ from generate_no_ssl import ARMS as NO_SSL_ARMS
 from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
 
 FAMILY_ARMS = {SCHEMA: ARMS, DINO_SCHEMA: DINO_ARMS, NO_SSL_SCHEMA: NO_SSL_ARMS}
+AUTHORIZED_ARMS = tuple(dict.fromkeys(name for arms in FAMILY_ARMS.values() for name in arms))
 
 SERVER_ROOT = Path("/data/yilangliu")
 COUNTS = dict(
@@ -308,6 +309,6 @@ def execute(queue_path, arm):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--queue", type=Path, required=True)
-    parser.add_argument("--arm", choices=tuple(dict.fromkeys((*ARMS, *DINO_ARMS))), required=True)
+    parser.add_argument("--arm", choices=AUTHORIZED_ARMS, required=True)
     arguments = parser.parse_args()
     execute(arguments.queue, arguments.arm)
