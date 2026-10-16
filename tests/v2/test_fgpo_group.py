@@ -286,3 +286,27 @@ def test_prioritized_dino_pair_reuses_last_and_medium_gates(new_queue):
     assert len(q["eval_bindings"]) == 4
     assert q["medium_analysis"] == old["medium_analysis"]
     assert "official_dependency" not in q
+    for binding in q["eval_bindings"]:
+        row = next(r for r in q["rows"] if r["name"] == binding["row_name"])
+        args = SimpleNamespace(
+            gpu=binding["gpu"],
+            cell_batch=binding["cell_batch"],
+            reference_batch=128,
+            config=Path(row["plan"]["config"]),
+            publication=Path(row["plan"]["publication"]),
+            publication_sha256=row["plan"]["publication_sha256"],
+            data_root=Path(row["plan"]["data_root"]),
+            output=Path(binding["output"]),
+            shared_queue=Path(q["output"]) / "queue.json",
+            row_name=binding["row_name"],
+        )
+        assert validate_eval_binding(q, args, q["source_commit"]) == row
+    for change in (
+        {"mode": "unapproved"},
+        {"steps": 128},
+        {"rows": list(reversed(q["rows"]))},
+        {"rows": q["rows"][:1]},
+    ):
+        malformed = {**q, **change}
+        with pytest.raises(ValueError, match="two-arm"):
+            validate_eval_binding(malformed, args, q["source_commit"])
