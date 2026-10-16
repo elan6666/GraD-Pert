@@ -1,3 +1,13 @@
+## 2026-10-16：主会话完成官方DINOv2中等参考分析；D0独立监督继续
+
+官方DINOv2任务按用户新指令由主会话执行，独立于D0 relay。分析源码bcb78ddcbe5e581966c35736ab7d2275ef902073，官方7764ea0f912e53c92e82eb78a2a1631e92725fc8，ViT-S/14原权重strict load。服务器15项回归、真实输入probe及正式1335图/10类、deep506×128patch均通过，CPU4线程105.657秒，0optimizer更新/0梯度/state unchanged；COMPLETE SHAeec44aac3195314dea19e76b5cb0831c6b675eeac62ff02eb0d271f112bed522。主独立核验15服务器输出，dry-run后拉取14小图/表/报告+完成收据，3图已读；原图、权重、特征矩阵均留服务器。
+
+完整验证集3925图逐文件ID/bytes/SHA与独立inventory一致；同一S3对象首两个已完成块已含全部validation，不等未使用train尾部，不宣称完整归档CRC。旧partial和慢下载收据保留。最终CLS rank113.071、混合patch rank189.452是视觉参考，不能作为GraD-Pert合格阈值；原型熵/JS因公开权重无原SSL头而不可用。
+
+交付 /Users/elan/code/grad-pert/experiment-analysis/dinov2-reference/REPORT_REVIEW_CN.md，全部图数据及per-run SHA在同目录；MAIN_ACCEPTANCE.json和TASK_STATE.json已完成。此文档提交与分析bcb78dd分别记录。
+
+D0源码110a93212acf71a67383d7334ee39f62edb91b08不受本分析影响，监督查询对话唯一20min ACTIVE已主读回。supervisor ACK a455cf51df488442c506501e98d978223ef3c22b92ac2e131b643b098ba2217e，main return PAUSED；最后208/600为监督15:38 UTC的快照，不是本段重新查询。D0四轮/last18/同中等仍未完成；DP2尚未启动并延后。精确当前训练状态以权威 /Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/state.json 为准。主不重复轮询，不启动其他组。本条覆盖下列旧当前状态文字。
+
 ## 2026-10-16：DINO两组正式启动，旧VH终态保留
 
 VH已独立验收4轮last及同中等分析；其旧controller因用户改优先级后的租约边界受控退出，不是科学失败，S12未启动。新DINO两组最初439efcb预检因eval leaf缺少精确family白名单在推理前失败；原根/ID/日志/收据保留，模型与配置未改。

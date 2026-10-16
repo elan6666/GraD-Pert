@@ -25,3 +25,7 @@ overwritten. Runtime state and all local deliverables live in the ignored
 - Chinese report lists every plot/table and how to read them. Do not treat
   image-class values as biological quality thresholds or independent patches
   as independent images. Only aggregate outputs transfer after dry review.
+
+## Accepted result
+
+Completed main-owned medium on bcb78ddcbe5e581966c35736ab7d2275ef902073:1335 images/10classes/deep506×128 patches;15 server tests, official accessor maxabs0, strict weights, CPU4 threads/105.657s,0updates/state unchanged. All15 server output hashes verified;14 small outputs plus receipt transferred and3figures opened. COMPLETE SHA eec44aac3195314dea19e76b5cb0831c6b675eeac62ff02eb0d271f112bed522. Full CN review and all figures/CSV/JSON are in ignored permanent archive dinov2-reference/REPORT_REVIEW_CN.md. Original SSL prototype targets unavailable and labelled accordingly. D0 background monitoring remains independent and active; no new monitor or formal ablation dispatched.
