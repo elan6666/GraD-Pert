@@ -14,8 +14,10 @@ from cap40_posthoc import population_identity, read, sha, write
 from generate_dino_pair import ARMS as DINO_ARMS
 from generate_dino_pair import SCHEMA as DINO_SCHEMA
 from generate_fgpo_family import ARMS, SCHEMA
+from generate_no_ssl import ARMS as NO_SSL_ARMS
+from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
 
-FAMILY_ARMS = {SCHEMA: ARMS, DINO_SCHEMA: DINO_ARMS}
+FAMILY_ARMS = {SCHEMA: ARMS, DINO_SCHEMA: DINO_ARMS, NO_SSL_SCHEMA: NO_SSL_ARMS}
 
 SERVER_ROOT = Path("/data/yilangliu")
 COUNTS = dict(

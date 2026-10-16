@@ -32,6 +32,8 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     from generate_ffn_five import SCHEMA as FFN_SCHEMA
     from generate_fgpo_family import ARMS as FGPO_ARMS
     from generate_fgpo_family import SCHEMA as FGPO_SCHEMA
+    from generate_no_ssl import ARMS as NO_SSL_ARMS
+    from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
     from shared_gpu import DYNAMIC_SCHEMA, validate_policy
 
     from gradpert.hashing import sha256_file
@@ -40,7 +42,14 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     if (
         queue.get("schema") != "unified-ddp-queue-1"
         or queue.get("family")
-        not in ("br400-best-last-1", "br400-remaining-last-1", FFN_SCHEMA, FGPO_SCHEMA, DINO_SCHEMA)
+        not in (
+            "br400-best-last-1",
+            "br400-remaining-last-1",
+            FFN_SCHEMA,
+            FGPO_SCHEMA,
+            DINO_SCHEMA,
+            NO_SSL_SCHEMA,
+        )
         or queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA
         or queue.get("source_commit") != source_commit
         or args.gpu not in ("0", "1")
@@ -73,6 +82,12 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     ):
         raise ValueError("DINO evaluation requires the exact prioritized two-arm scope")
     rows = [row for row in queue["rows"] if row["name"] == args.row_name]
+    if queue.get("family") == NO_SSL_SCHEMA and (
+        queue.get("mode") != NO_SSL_SCHEMA
+        or [row["name"] for row in queue["rows"]] != list(NO_SSL_ARMS)
+        or queue.get("steps") != 10
+    ):
+        raise ValueError("D0 evaluation requires the exact single prediction-only arm")
     if len(rows) != 1:
         raise ValueError("evaluation probe must select one sealed queue row")
     row, plan = rows[0], rows[0]["plan"]

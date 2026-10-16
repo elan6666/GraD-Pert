@@ -30,6 +30,8 @@ from generate_ffn_five import SCHEMA as FFN_SCHEMA
 from generate_ffn_five import verify_manifest as verify_ffn_manifest
 from generate_fgpo_family import SCHEMA as FGPO_SCHEMA
 from generate_fgpo_family import verify_manifest as verify_fgpo_manifest
+from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
+from generate_no_ssl import verify_manifest as verify_no_ssl_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -54,7 +56,7 @@ from gradpert.hashing import sha256_file, sha256_json
 
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
-FGPO_FAMILIES = (FGPO_SCHEMA, DINO_SCHEMA)
+FGPO_FAMILIES = (FGPO_SCHEMA, DINO_SCHEMA, NO_SSL_SCHEMA)
 LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA, *FGPO_FAMILIES)
 DEFERRED_SCDFM_POLICY = "scdfm_fit_gears_terminal_evaluation_deferred_v1"
 
@@ -126,6 +128,8 @@ def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
 
 
 def verify_manifest(source: Path, manifest: Path) -> dict:
+    if read_json(manifest).get("schema") == NO_SSL_SCHEMA:
+        return verify_no_ssl_manifest(source, manifest)
     if read_json(manifest).get("schema") == DINO_SCHEMA:
         return verify_dino_manifest(source, manifest)
     if read_json(manifest).get("schema") == FGPO_SCHEMA:

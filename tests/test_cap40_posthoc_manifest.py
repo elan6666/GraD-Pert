@@ -70,8 +70,17 @@ def test_recipe_binds_actual_mask_edges_gene_and_view_identity():
     assert a["queries"] == [1, 2]
 
 
-@pytest.mark.parametrize("scope", ["full_cap40_train", "medium_cap40_stratified"])
-def test_report_contains_all_figures_tables_and_hashes(tmp_path, scope):
+@pytest.mark.parametrize(
+    "scope,arm",
+    [
+        ("full_cap40_train", "DP"),
+        ("medium_cap40_stratified", "DP"),
+        ("medium_cap40_stratified", "B0-DP"),
+        ("medium_cap40_stratified", "DP2"),
+        ("medium_cap40_stratified", "D0"),
+    ],
+)
+def test_report_contains_all_figures_tables_and_hashes(tmp_path, scope, arm):
     from cap40_posthoc import sha, write
     from cap40_posthoc_report import render
 
@@ -82,7 +91,7 @@ def test_report_contains_all_figures_tables_and_hashes(tmp_path, scope):
     original.mkdir()
     moments = {"rows": 2, "effective_rank": 1.0, "relative_variance": 0.2}
     summary = {
-        "arm": "DP",
+        "arm": arm,
         "analysis": {"commit": "analysis"},
         "method_sha": "training",
         "checkpoint_epoch": 4,
