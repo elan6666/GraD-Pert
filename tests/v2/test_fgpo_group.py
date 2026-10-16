@@ -265,3 +265,24 @@ def test_all_gates_before_fit_and_last_then_medium_before_next_arm(new_queue, mo
         assert set(complete["medium_analysis"]) == set(family.ARMS)
         assert read_json(output / "PREFLIGHT_COMPLETE.json")["formal_order"] == list(family.ARMS)
     assert not locks
+
+
+def test_prioritized_dino_pair_reuses_last_and_medium_gates(new_queue):
+    from generate_dino_pair import SCHEMA as DINO_SCHEMA
+
+    old, oldout = new_queue
+    q = runner.prepare(
+        ROOT,
+        ROOT / "configs/v2/dino_pair_20261016/manifest.json",
+        Path(old["runtime"]),
+        oldout.parent / "dino-pair",
+        copy.deepcopy(old["shared_gpu_policy"]),
+    )
+    runner.verify(q)
+    assert q["family"] == DINO_SCHEMA
+    assert [r["name"] for r in q["rows"]] == ["B0-DP", "DP2"]
+    assert DINO_SCHEMA in runner.LAST_ONLY_FAMILIES
+    assert medium.FAMILY_ARMS[DINO_SCHEMA].keys() == {"B0-DP", "DP2"}
+    assert len(q["eval_bindings"]) == 4
+    assert q["medium_analysis"] == old["medium_analysis"]
+    assert "official_dependency" not in q

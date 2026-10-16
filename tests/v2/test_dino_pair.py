@@ -139,3 +139,54 @@ def test_forward_diagnostics_do_not_advance_temperature():
     assert obj.teacher_temperature == pytest.approx(0.035)
     for n, v in before.items():
         torch.testing.assert_close(v, obj.state_dict()[n], atol=0, rtol=0)
+
+
+def test_medium_observer_uses_actual_temperature_and_keeps_state():
+    from cap40_posthoc import Collector
+    from test_fgpo_observer import records
+
+    obj, batch = pair("DP2")
+    obj.commit_statistics(0.996)
+    obj.eval()
+    initial = copy.deepcopy(obj.state_dict())
+    with torch.no_grad(), torch.random.fork_rng():
+        torch.manual_seed(33)
+        expected, _ = obj(batch)
+    collector = Collector(batch, records(batch), 42, stats_backend="fast")
+    with torch.no_grad(), torch.random.fork_rng():
+        torch.manual_seed(33)
+        collector.install(obj)
+        try:
+            actual, _ = obj(batch)
+        finally:
+            collector.close()
+    torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+    for n, v in initial.items():
+        torch.testing.assert_close(v, obj.state_dict()[n], atol=0, rtol=0)
+    result = collector.result()
+    matched = next(p for p in result["pairs"] if ".ssl1_cls." in p["teacher"])
+    logits = next(v[1] for v in collector.logits.values() if v[0] == matched["teacher"])
+    p = ((logits.detach().float() - obj.ssl1_cls_center) / 0.035).softmax(-1)
+    h = -(p * p.clamp_min(1e-30).log()).sum(-1).mean().item()
+    assert matched["H_pair"] == pytest.approx(h, abs=1e-6)
+    assert matched["CE"] == pytest.approx(matched["H_pair"] + matched["KL"], abs=1e-6)
+
+
+@pytest.mark.parametrize("value", [-0.1, 0.0, float("nan"), float("inf"), True])
+def test_invalid_teacher_temperature_is_rejected(value):
+    obj, _ = pair("B0-DP")
+    with pytest.raises(ValueError, match="temperature"):
+        JointObjective(obj.student, teacher_temperature_start=value)
+
+
+def test_invalid_fixed_gain_or_gradient_freeze_controls_are_rejected():
+    obj, _ = pair("B0-DP")
+    with pytest.raises(ValueError, match="weight normalization"):
+        replace(
+            obj.student.options,
+            prototype_weight_norm=False,
+            prototype_freeze_epochs=0,
+            prototype_fixed_scale=True,
+        )
+    with pytest.raises(ValueError, match="positive prototype freeze"):
+        replace(obj.student.options, prototype_freeze_epochs=0, prototype_freeze_gradients=True)
