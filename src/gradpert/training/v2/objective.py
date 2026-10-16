@@ -631,7 +631,11 @@ class JointObjective(nn.Module):
         row = population_weights(ids, torch.ones_like(ids, dtype=torch.bool), strategy)
         valid = [v.mask.any(-1) for v in batch.cell_views[:2]]
         active = max(1, sum(bool(v.any()) for v in valid))
-        nodes = torch.stack([population_weights(ids, v, strategy) / active for v in valid])
+        nodes = (
+            torch.stack([population_weights(ids, v, strategy) / active for v in valid])
+            if valid
+            else row.new_zeros((0, len(ids)))
+        )
         return row, nodes
 
     def cell_loss(

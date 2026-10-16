@@ -100,11 +100,14 @@ def test_d0_keeps_last_medium_and_exact_evaluation_bindings(new_queue):
 
 def no_ssl_fixture():
     pytest.importorskip("torch")
+    from dataclasses import replace
+
     from test_fgpo_family import new_fixture
 
     objective, batch = new_fixture("B0")
     objective.lambda1 = objective.lambda2 = 0.0
-    return objective, batch
+    # assemble_batch omits both view collections when their coefficients are zero.
+    return objective, replace(batch, graph_views=(), cell_views=())
 
 
 def test_prediction_only_forwards_and_full_state_updates_restore(tmp_path, monkeypatch):
@@ -170,9 +173,15 @@ def test_disabled_heads_report_absent_not_collapsed():
     objective, batch = no_ssl_fixture()
     import torch
 
+    from gradpert.training.v2.loss_diagnostics import evaluate_loss_diagnostics
     from gradpert.training.v2.process_diagnostics import evaluate_process_diagnostics
 
     before = copy.deepcopy(objective.state_dict())
+    weights = objective.local_reduction_weights(batch)
+    assert weights[1].shape == (0, len(batch.control))
+    basal = evaluate_loss_diagnostics(objective, batch, bf16=False)
+    assert basal["shared_basal_weighted_gradient_l2"]["ssl"] == 0
+    assert basal["prediction_ssl_gradient_cosine"] is None
     result = evaluate_process_diagnostics(objective, batch, bf16=False, seed=31)
     assert result["outputs"]["prediction_mse"] >= 0
     assert result["features"]["student.graph.output"]["samples"] > 0
