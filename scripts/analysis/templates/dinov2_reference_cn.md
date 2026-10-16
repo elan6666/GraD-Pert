@@ -30,4 +30,6 @@ $table
 官方实现：[DINOv2固定源码](https://github.com/facebookresearch/dinov2/tree/$upstream)；[公开模型明确为backbone only](https://github.com/facebookresearch/dinov2/blob/$upstream/README.md#pretrained-models)。图像：[fastai Imagenette](https://github.com/fastai/imagenette)，固定validation中按类别均衡hash采样，不依赖模型输出；仅10类是数据域限制。
 分析源码：$native；官方源码：$upstream；权重SHA256：$weights；manifest SHA256：$manifest。官方模型strict load；官方中间层/forward_features核对最大绝对差$parity。
 
+数据接收收据SHA256：$dataset_receipt。正式分析输入为完整validation：按官方CSV核对全部3925张图的身份，逐JPEG校验并哈希，不提取train。数据从同一归档已完成的HTTP前缀分块提取；**没有宣称验证整个训练数据尾部的归档CRC或全档SHA256**，确切分块/CSV/清单身份见[dataset_receipt.json](dataset_receipt.json)。
+
 图与数据全表：[layer_statistics.csv](layer_statistics.csv)、[class_statistics.csv](class_statistics.csv)、[within_image_patch_statistics.csv](within_image_patch_statistics.csv)、[cosine_groups.csv](cosine_groups.csv)、[same_image_views.csv](same_image_views.csv)、[summary.json](summary.json)、[manifest.json](manifest.json)、[crop_manifest.json](crop_manifest.json)、[COMPLETE.json](COMPLETE.json)。原图、权重和server_only_features.npz只留服务器。

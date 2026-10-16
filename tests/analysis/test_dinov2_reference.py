@@ -1,7 +1,9 @@
 """Meaningful sampling/statistic invariants without local scientific execution."""
 
 import importlib.util
+import io
 import itertools
+import tarfile
 from pathlib import Path
 
 import numpy as np
@@ -81,3 +83,41 @@ def test_cpu_guard_rejects_ambient_cuda_visibility(monkeypatch):
     monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0")
     with pytest.raises(RuntimeError, match="protect active jobs"):
         MODULE.run(None)
+
+
+def test_prefix_staging_stops_after_complete_validation_and_preserves_bytes(tmp_path):
+    spec = importlib.util.spec_from_file_location(
+        "stage_imagenette_validation", PATH.with_name("stage_imagenette_validation.py")
+    )
+    module = importlib.util.module_from_spec(spec)
+    import sys
+
+    sys.modules["dinov2_reference"] = MODULE
+    spec.loader.exec_module(module)
+    raw = io.BytesIO()
+    image = io.BytesIO()
+    Image.new("RGB", (32, 32), color="red").save(image, format="JPEG")
+    payload = image.getvalue()
+    with tarfile.open(fileobj=raw, mode="w:gz") as tar:
+        values = [
+            (
+                "imagenette2-320/noisy_imagenette.csv",
+                b"path,is_valid\nval/a/a.jpg,True\nval/b/b.jpg,True\ntrain/c/c.jpg,False\n",
+            ),
+            ("imagenette2-320/val/a/a.jpg", payload),
+            ("imagenette2-320/val/b/b.jpg", payload),
+            ("imagenette2-320/train/c/c.jpg", b"not-needed"),
+        ]
+        for name, data in values:
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    data = raw.getvalue()
+    parts = [tmp_path / "part0", tmp_path / "part1"]
+    parts[0].write_bytes(data[: len(data) // 2])
+    parts[1].write_bytes(data[len(data) // 2 :])
+    receipt = module.stage(parts, tmp_path / "output", expected_count=2, expected_classes=2)
+    assert receipt["validation_images"] == 2 and receipt["training_images_extracted"] == 0
+    assert not receipt["whole_archive_crc_verified"]
+    assert not (tmp_path / "output/train").exists()
+    assert (tmp_path / "output/val/a/a.jpg").read_bytes() == payload

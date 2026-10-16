@@ -206,6 +206,10 @@ def run(args):
         "view_limit": "area fractions of pixels are not gene fractions; geometry-only analysis",
     }
     write_json(out / "manifest.json", manifest)
+    if (args.dataset / "COMPLETE.json").exists():
+        write_json(
+            out / "dataset_receipt.json", json.loads((args.dataset / "COMPLETE.json").read_text())
+        )
     sys.path.insert(0, str(args.official))
     from dinov2.hub.backbones import dinov2_vits14
 
@@ -363,6 +367,9 @@ def run(args):
         "official_source": official,
         "weights_sha256": WEIGHTS,
         "manifest_sha256": sha256(out / "manifest.json"),
+        "dataset_receipt_sha256": sha256(args.dataset / "COMPLETE.json")
+        if (args.dataset / "COMPLETE.json").exists()
+        else None,
         "images": len(chosen),
         "classes": len(set(class_ids)),
         "deep_images": len(deep),
@@ -486,6 +493,7 @@ def render(out, summary, image_stats):
         native=summary["native_source"]["commit"],
         weights=WEIGHTS,
         manifest=summary["manifest_sha256"],
+        dataset_receipt=summary["dataset_receipt_sha256"],
         parity=summary["accessor_parity_max_abs"],
     )
     (out / "REPORT_CN.md").write_text(report)
