@@ -1,3 +1,13 @@
+## 2026-10-16：DINO两组正式启动，旧VH终态保留
+
+VH已独立验收4轮last及同中等分析；其旧controller因用户改优先级后的租约边界受控退出，不是科学失败，S12未启动。新DINO两组最初439efcb预检因eval leaf缺少精确family白名单在推理前失败；原根/ID/日志/收据保留，模型与配置未改。
+
+修复版本cfe641bc89bcd879cbac5540c74f052bf97d2a4c已push并与独立server checkout一致；仅补精确两组mode/order/10update入口及回归。测试先复现失败、修后本地33通过、服务器CPU116通过；两个10update/restore和四份双GPUeval128/reference128全部通过。主重新运行原生共同数据/controls/source/config门，MAIN_ACCEPTANCE SHA28b2d74f55b1fd038cee73dc2852ab7ac3a3553682e1a183edcce86b98f849a3；PREFLIGHT_COMPLETE SHA461eeb947437bce38471a01adbead7862c8025ef57e5dfb5f978f045b6956e5f。
+
+当前queue /data/yilangliu/GraD-Pert/development/dino-pair-cfe641b-b320-20261016/queue.json SHA75e0fbc72589a7db5af1ef505b4cba8c879219c0f5f63249887a8bd1007ca65e；训练源/data/yilangliu/GraD-Pert/development/source-dino-pair-cfe641b保持不可变。B0-DP→DP2各4轮/global320=m80×2GPU×accum2/seed1/no-validation/last18/同中等，不启动其他臂。B0-DP实际manifest与源码/config匹配，双rank/allocator合规，主核对6/600优化步；这是启动，不是科学完成。原型参数与温度差异见DINO_PAIR_20261016计划，DP2不是官方DINOv2复现。
+
+Luna短监督已结束，主不并行轮询；实际fit交唯一“监督查询对话”每20min。当前handoff /Users/elan/.codex/worktrees/v2-gene-exposure-eval/grad-pert/.byte-os/coordination/handoffs/2026-10-16-dino-pair-cfe641b-formal-supervise.md SHAbca1cb1c15ee130dea65a69d13c1053f18a50e29ad2bd9be52071350eac034cf；ACK/ACTIVE及owner只以权威coordination state为准。故障保存证据回主，B0-DP完成后controller自动推进DP2，两组完成再回主比较结果与表征。本文档提交与训练cfe641b分开记录；不更新活动服务器checkout。后续旧状态均为历史。
+
 ## 2026-10-16：CG1首个更新触发显存保护，共同batch回退320
 
 3397408十臂queue在CG1完成0/10更新时终态failed，FAILURE SHA4cd70fdd702baae3704acf01dd28a9b898ec363fde4f44d7d215a8b02ae37178。rank0/1实际CUDA进程显存29590/29508MiB，超过32607MiB×90%=29346.3MiB上限；余量2512/2594MiB且无foreign，首因是own allowance，并非foreign或后续SIGTERM。初始固定训练诊断已完成，正式训练未启动。失败源码/queue/日志/收据不覆盖，两个monitor保持PAUSED。

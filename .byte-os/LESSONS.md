@@ -1,3 +1,7 @@
+## 2026-10-16：新实验家族必须穿过真实评估leaf入口
+
+439efcb已支持DINO两臂的prepare/runner/medium，却漏接eval_batch_capacity.validate_eval_binding白名单，导致10-update通过后在评估推理前失败。cfe641b修复并增加四个真实leaf参数调用，以及mode、步数、顺序和缺行的拒绝测试。预防：新family既测试生成/prepare，也逐一调用全部训练、评估、collector和分析子入口；不能把runner.verify通过当成完整链路通过。失败queue不原地重试，发布新版本和ID重验。跨agent收据SHA必须程序计算传递，主独立校验原文件，不手工补写或信任转写字符串。
+
 ## 2026-10-13：设备别名不等于设备不一致
 
 已确认Accelerate1.9单进程device可为cuda（index=None），与显式cuda:0直接torch.device比较为False。CPU集成没有覆盖此GPU guard。预防：将未编号CUDA绑定到真实current_device再比较；测试当前index非0、显式错卡、CPU/CUDA类型错配和多进程拒绝。不得用无条件接受cuda或删除隔离检查来修复。正式门仍必须使用真实GPU。
