@@ -29,6 +29,7 @@ class NeighborhoodIndex:
         expander_type: str = "permutation",
         propagated: bool = False,
         relay: bool = False,
+        cache_full_context: bool = True,
     ) -> None:
         if degree < 0:
             raise ValueError("expander degree cannot be negative")
@@ -61,6 +62,10 @@ class NeighborhoodIndex:
         self.gene_ids = topology.gene_ids
         self.propagated = propagated
         self.relay = relay
+        self.cache_full_context = cache_full_context
+        self._full_context_cache: tuple[np.ndarray[Any, Any], ...] | None = None
+        self._full_context_draws = 0
+        self.context_cache_builds = self.context_cache_hits = 0
 
     def view(
         self,
@@ -105,13 +110,35 @@ class NeighborhoodIndex:
         context_data = None
         if self.relay:
             context_ids = ids if induced else np.arange(self.n_nodes, dtype=np.int64)
-            context_edges = edges if induced else sampled_edges(context_ids)
-            context_neighbors, context_valid, context_sources = pack_edges(context_edges)
-            context_neighbors = np.where(
-                context_valid,
-                np.searchsorted(context_ids, context_neighbors),
-                0,
-            )
+            reusable = self.cache_full_context and not induced and edge_dropout == 0
+            if reusable and self._full_context_cache is not None:
+                # The original zero-dropout path still draws once per nonself
+                # edge. Consume the identical float64 sequence, preserving later
+                # view/mask RNG exactly while skipping Python edge repacking.
+                rng.random(self._full_context_draws)
+                context_ids, context_neighbors, context_valid, context_sources = (
+                    self._full_context_cache
+                )
+                self.context_cache_hits += 1
+            else:
+                context_edges = edges if induced else sampled_edges(context_ids)
+                context_neighbors, context_valid, context_sources = pack_edges(context_edges)
+                context_neighbors = np.where(
+                    context_valid,
+                    np.searchsorted(context_ids, context_neighbors),
+                    0,
+                )
+                if reusable:
+                    self._full_context_cache = (
+                        context_ids,
+                        context_neighbors,
+                        context_valid,
+                        context_sources,
+                    )
+                    self._full_context_draws = int(
+                        (context_valid & (context_neighbors != context_ids[:, None])).sum()
+                    )
+                    self.context_cache_builds += 1
             context_data = (
                 context_ids,
                 context_neighbors,
@@ -163,10 +190,12 @@ class NeighborhoodIndex:
         )
         if context_data is not None:
             view.context = GraphContext(
-                tensor(context_data[0]),
-                tensor(context_data[1]),
-                tensor(context_data[2]),
-                tensor(context_data[3]),
+                # CPU tensors must not expose the cached topology's writable
+                # backing arrays. CUDA transfers already own independent memory.
+                tensor(context_data[0].copy() if device.type == "cpu" else context_data[0]),
+                tensor(context_data[1].copy() if device.type == "cpu" else context_data[1]),
+                tensor(context_data[2].copy() if device.type == "cpu" else context_data[2]),
+                tensor(context_data[3].copy() if device.type == "cpu" else context_data[3]),
                 tensor(context_data[4]),
                 tensor(context_data[5]),
             )

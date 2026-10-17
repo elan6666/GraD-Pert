@@ -391,6 +391,7 @@ def main() -> None:
 
         from gradpert.evaluation.data import CanonicalEvaluationData
         from gradpert.training.v2.evaluation import predict_controls
+        from gradpert.training.v2.evaluation_graph import prepare_evaluation_graph
         from gradpert.training.v2.runtime import prepare_runtime
 
         torch.cuda.set_per_process_memory_fraction(policy["max_own_memory_fraction"], 0)
@@ -464,6 +465,11 @@ def main() -> None:
                 torch.cuda.reset_peak_memory_stats()
                 torch.cuda.synchronize()
                 started = time.perf_counter()
+                graph_memory = (
+                    prepare_evaluation_graph(model, runtime.index, device=torch.device("cuda:0"))
+                    if name == "inference"
+                    else None
+                )
                 prediction = predict_controls(
                     model,
                     runtime.index,
@@ -472,9 +478,13 @@ def main() -> None:
                     device=torch.device("cuda:0"),
                     cell_batch=cell_batch,
                     query_count=runtime.options.eval_query_count,
+                    graph_memory=graph_memory,
                 )
                 torch.cuda.synchronize()
                 receipt[name + "_seconds"] = time.perf_counter() - started
+                if name == "inference":
+                    receipt["static_graph_reuse"] = graph_memory is not None
+                    receipt["static_graph_build_included_in_timing"] = True
                 receipt[name + "_peak_allocated_bytes"] = torch.cuda.max_memory_allocated()
                 receipt[name + "_peak_reserved_bytes"] = torch.cuda.max_memory_reserved()
                 outputs.append(prediction)

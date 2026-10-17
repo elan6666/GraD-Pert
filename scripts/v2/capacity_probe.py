@@ -379,6 +379,8 @@ def main() -> None:
                 if not staged_gate or args.shared_queue:
                     raise ValueError("unused-decoder reference is idle-GPU PT1 engineering only")
                 runtime.objective.decode_ssl_views = True
+                runtime.index.cache_full_context = False
+                receipt["context_topology_cache_reference_disabled"] = True
             staged_states = []
             receipt["unused_ssl_decoder_reference"] = args.reference_unused_ssl_decoder
             staged_phases = []

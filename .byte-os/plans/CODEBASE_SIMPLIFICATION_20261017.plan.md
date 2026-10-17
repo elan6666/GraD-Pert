@@ -27,3 +27,11 @@ Do not infer a speedup from lint, fewer lines, or an isolated matrix operation.
 Maintain one compact performance report and module map; make safe cleanup separately
 traceable from PT1 semantics and measure before/after. Keep code-generation manifests
 strict: reducing duplication must not relax exact family/order/source/resource guards.
+
+Implemented separately from f73347ff989eabbdb9eb96741e926b60b5dc8481: evaluation-
+scoped relay graph memory with model/index/version/dtype/device invalidation;
+full-context zero-dropout topology packing reuse with exact RNG consumption and
+no returned CPU alias. A scoped helper replaces repeated full graph forwards.
+Directed85 checks passed. CPU3 bitgenerators plus varying views/dropout/targets/
+query blocks/RNG/cache invalidation are covered. GPU/end-to-end claims await fresh
+source-matched receipts. PT1 remains next formal job, DP2 queued after it.

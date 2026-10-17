@@ -23,6 +23,7 @@ from gradpert.hashing import sha256_json
 from gradpert.modeling.v2 import GraDPertV2
 from gradpert.training.validation import mean_expression_mse
 
+from .evaluation_graph import EvaluationGraphMemory, prepare_evaluation_graph
 from .views import NeighborhoodIndex
 
 
@@ -55,6 +56,7 @@ def predict_query_set(
     device: torch.device,
     cell_batch: int,
     block_response_cls_to_gene: bool = False,
+    graph_memory: EvaluationGraphMemory | None = None,
 ) -> np.ndarray[Any, Any]:
     """Predict explicitly ordered expression columns in one shared context.
 
@@ -88,13 +90,21 @@ def predict_query_set(
     ids = np.union1d(queries, targets)
     view = index.view(ids, [targets], rng=np.random.default_rng(0), device=device, induced=False)
     conditional = model.options.control_conditioned_graph
+    if graph_memory is not None and conditional:
+        raise ValueError("control-conditioned graph cannot reuse final graph representations")
     prefix = (
         model.graph.relay_prefix(view.context) if conditional and view.context is not None else None
     )
     gene = (
-        None
-        if conditional
-        else model.graph(view.ids, view.neighbors, view.valid, view.sources, context=view.context)
+        graph_memory.select(model, index, view.ids)
+        if graph_memory is not None
+        else (
+            None
+            if conditional
+            else model.graph(
+                view.ids, view.neighbors, view.valid, view.sources, context=view.context
+            )
+        )
     )
     condition = (
         None
@@ -153,6 +163,7 @@ def predict_controls(
     cell_batch: int,
     query_count: int,
     block_response_cls_to_gene: bool = False,
+    graph_memory: EvaluationGraphMemory | None = None,
 ) -> np.ndarray[Any, Any]:
     """Partition the complete expression axis into fixed ordered query blocks.
 
@@ -182,6 +193,7 @@ def predict_controls(
             device=device,
             cell_batch=cell_batch,
             block_response_cls_to_gene=block_response_cls_to_gene,
+            graph_memory=graph_memory,
         )
     if not np.isfinite(prediction).all():
         raise FloatingPointError("nonfinite v2 prediction")
@@ -253,6 +265,7 @@ def evaluate(
     losses, metrics, rows = [], [], []
     group_metrics: dict[str, list[Any]] = {key: [] for key in groups}
     total_conditions = len(selected)
+    graph_memory = prepare_evaluation_graph(model, index, device=device)
     for draw in data.control_manifest.draws:
         condition = draw.condition_id
         if condition not in selected:
@@ -273,6 +286,7 @@ def evaluate(
             cell_batch=cell_batch,
             query_count=query_count,
             block_response_cls_to_gene=block_response_cls_to_gene,
+            graph_memory=graph_memory,
         )
         truth = data.load_truth_rows(condition)
         v2_metrics = getattr(reference.manifest, "schema_version", None) == "evaluation-state-v2"
