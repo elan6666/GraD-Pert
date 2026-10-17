@@ -79,6 +79,47 @@ def write_csv(path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
+def probe_groups(config: dict, snapshots: list[dict]) -> list[dict]:
+    """One immutable probe per declared phase, never pretend two recipes match."""
+    parameters = config.get("model", {}).get("parameters", {})
+    staged = parameters.get("training_mode", {}).get("value") == "ssl_then_mse"
+    if not staged:
+        if len({p["input_sha256"] for p in snapshots}) != 1:
+            raise ValueError("fixed probe input/view identity changed across epochs")
+        return []
+    boundary = parameters["ssl_pretrain_epochs"]["value"]
+    if not isinstance(boundary, int) or not 0 < boundary < snapshots[-1]["epoch"]:
+        raise ValueError("invalid sealed pretraining boundary")
+    groups = {}
+    signature = ("cells", "query_genes", "seed", "budget")
+    expected_signature = {k: snapshots[0][k] for k in signature}
+    for p in snapshots:
+        stage = "ssl_pretrain" if p["epoch"] <= boundary else "mse_finetune"
+        if p.get("training_stage") != stage:
+            raise ValueError("probe training stage differs from sealed epoch boundary")
+        if {k: p[k] for k in signature} != expected_signature:
+            raise ValueError("fixed probe size/seed/budget changed across stages")
+        group = groups.setdefault(
+            stage, dict(stage=stage, epochs=[], input_sha256=p["input_sha256"])
+        )
+        if group["input_sha256"] != p["input_sha256"]:
+            raise ValueError("fixed probe input/view identity changed within training stage")
+        group["epochs"].append(p["epoch"])
+    return list(groups.values())
+
+
+def trajectory(points: list[dict], values: list) -> tuple[list, list]:
+    """Break curves at a declared phase boundary, without inventing samples."""
+    x, y = [], []
+    for i, (point, value) in enumerate(zip(points, values, strict=True)):
+        if i and point.get("training_stage") != points[i - 1].get("training_stage"):
+            x.append(float("nan"))
+            y.append(None)
+        x.append(point["epoch"])
+        y.append(value)
+    return x, y
+
+
 def collect(root: Path, *, name: str, analysis_identity: dict) -> dict:
     """Reject partial runs and "
     "drift; expose scalar aggregates, "
@@ -144,8 +185,7 @@ def collect(root: Path, *, name: str, analysis_identity: dict) -> dict:
             }
         )
         paths.append(path)
-    if len({p["input_sha256"] for p in snapshots}) != 1:
-        raise ValueError("fixed probe input/view identity changed across epochs")
+    groups = probe_groups(config, snapshots)
     metrics = []
     result = test["result"]
     for group, values in {
@@ -179,7 +219,11 @@ def collect(root: Path, *, name: str, analysis_identity: dict) -> dict:
         "config_sha256": manifest["config_sha256"],
         "resolved_config_sha256": digest(root / "resolved_config.json"),
         "inputs": {str(p.relative_to(root)): digest(p) for p in paths},
-        "fixed_input_sha256": snapshots[0]["input_sha256"],
+        "fixed_input_sha256": snapshots[0]["input_sha256"] if not groups else None,
+        "fixed_inputs_by_training_stage": groups,
+        "cross_stage_probe_comparison": "different input/view recipes; compare within each phase"
+        if groups
+        else "one fixed recipe",
         "epochs": epochs,
         "history": [
             {
@@ -191,7 +235,9 @@ def collect(root: Path, *, name: str, analysis_identity: dict) -> dict:
                     "training_seconds",
                     "diagnostic_seconds",
                     "rank0_peak_allocated_bytes",
+                    "training_stage",
                 )
+                if k in h
             }
             for h in history
         ],
@@ -205,6 +251,23 @@ def collect(root: Path, *, name: str, analysis_identity: dict) -> dict:
 
 def report(data: dict) -> str:
     first, last = data["snapshots"][0], data["snapshots"][-1]
+    groups = data.get("fixed_inputs_by_training_stage", [])
+    if groups:
+        same_phase = [p for p in data["snapshots"] if p["training_stage"] == last["training_stage"]]
+        first = same_phase[0]
+    active = [p for p in data["snapshots"] if p["pairs"]]
+    head_first, head_last = (active[0], active[-1]) if groups and active else (first, last)
+    phase_notes = (
+        [
+            "阶段探针分别固定：SSL预训练不读扰动真值并含SSL视图；MSE微调读真值且不构造SSL视图。",
+            "跨阶段不是同一输入/视图，图中断开连线；表征端点只比较最后MSE阶段，蒸馏表只比较有效SSL阶段。",
+            "分阶段输入hash及epoch清单见summary.json；禁止把阶段切换当作同探针的表征突变。",
+            "预训练Joint仅含SSL，微调Joint仅含MSE；两阶段数值不直接比较。",
+            "",
+        ]
+        if groups
+        else []
+    )
     lines = [
         f"# {data['name']}：训练过程与最终评估分析",
         "",
@@ -217,14 +280,20 @@ def report(data: dict) -> str:
         f"`。完整身份及每个输入hash见 "
         f"[summary.json](summary.json)。",
         "",
+        *phase_notes,
         "## 训练损失和耗时",
         "",
         "| Epoch | 预测MSE | Joint | 训练分钟 | 诊断秒 |",
         "|---|---:|---:|---:|---:|",
     ]
     for h in data["history"]:
+        mse = (
+            "不适用"
+            if h.get("training_stage") == "ssl_pretrain"
+            else f"{h['training']['prediction_mse']:.6f}"
+        )
         lines.append(
-            f"| {h['epoch']} | {h['training']['prediction_mse']:.6f}"
+            f"| {h['epoch']} | {mse}"
             f" |"
             f" {h['training']['joint_loss']:.4f}"
             f" | {h['training_seconds'] / 60:.2f}"
@@ -239,13 +308,16 @@ def report(data: dict) -> str:
         "",
         "## 四个蒸馏头",
         "",
-        "以下是最终Teacher分布前缀统计：JS=边际熵−样本平均熵，越大表示此探针中样本目标越不同。",
+        "以下是最后有效蒸馏阶段的Teacher分布前缀统计：JS=边际熵−样本平均熵。MSE阶段未调用Teacher不是熵为零。",
         "",
         "| 头 | 样本熵 | JS：初始化→最终 | 有效边际原型 | argmax使用数/样本数 | 最大argmax占比 |",
         "|---|---:|---:|---:|---:|---:|",
     ]
     for head in HEADS:
-        a, b = first["distributions"]["teacher." + head], last["distributions"]["teacher." + head]
+        a, b = (
+            head_first["distributions"]["teacher." + head],
+            head_last["distributions"]["teacher." + head],
+        )
         if not a.get("samples") or not b.get("samples"):
             lines.append(f"| {head} | 未采集：该头未调用 | — | — | — | — |")
             continue
@@ -267,7 +339,7 @@ def report(data: dict) -> str:
         "|---|---:|---:|---:|",
     ]
     for head in HEADS:
-        a, b = first["pairs"].get(head), last["pairs"].get(head)
+        a, b = head_first["pairs"].get(head), head_last["pairs"].get(head)
         if a is None or b is None:
             lines.append(f"| {head} | 未采集：无有效配对 | — | — |")
             continue
@@ -290,6 +362,7 @@ def report(data: dict) -> str:
         "",
         "有效秩为 exp(协方差特征值归一化后的熵)；相对方差为中心化方差/未中心化二阶矩。"
         "高秩不直接等于生物学有效。",
+        f"本表端点为epoch {first['epoch']}→{last['epoch']}；全部阶段统计均保留在CSV与分段曲线。",
         "",
         "| Student位置 | 有效秩：初始化→最终 | 相对方差：初始化→最终 | 最终采样行数 |",
         "|---|---:|---:|---:|",
@@ -429,7 +502,6 @@ def plots(data: dict, output: Path) -> None:
 
     plt.rcParams.update({"font.size": 9, "figure.dpi": 140})
     points = data["snapshots"]
-    x = [p["epoch"] for p in points]
 
     def save(fig, name):
         fig.tight_layout()
@@ -438,8 +510,7 @@ def plots(data: dict, output: Path) -> None:
 
     fig, ax = plt.subplots(1, 2, figsize=(11, 3.6))
     ax[0].plot(
-        [h["epoch"] for h in data["history"]],
-        [h["training"]["joint_loss"] for h in data["history"]],
+        *trajectory(data["history"], [h["training"]["joint_loss"] for h in data["history"]]),
         "o-",
         label="Train joint",
     )
@@ -447,7 +518,10 @@ def plots(data: dict, output: Path) -> None:
     a = ax[0].twinx()
     a.plot(
         [h["epoch"] for h in data["history"]],
-        [h["training"]["prediction_mse"] for h in data["history"]],
+        [
+            None if h.get("training_stage") == "ssl_pretrain" else h["training"]["prediction_mse"]
+            for h in data["history"]
+        ],
         "s--",
         color="orange",
         label="Train MSE",
@@ -459,8 +533,9 @@ def plots(data: dict, output: Path) -> None:
     for head in HEADS:
         if any(head in p["pairs"] for p in points):
             ax[1].plot(
-                x,
-                [p["pairs"].get(head, {}).get("cross_entropy") for p in points],
+                *trajectory(
+                    points, [p["pairs"].get(head, {}).get("cross_entropy") for p in points]
+                ),
                 "o-",
                 label=head,
             )
@@ -475,7 +550,7 @@ def plots(data: dict, output: Path) -> None:
         for a, key in zip(ax, ("mean_sample_entropy", "sample_dependence_js"), strict=True):
             values = [p["distributions"]["teacher." + head].get(key) for p in points]
             if any(v is not None for v in values):
-                a.plot(x, values, "o-", label=head)
+                a.plot(*trajectory(points, values), "o-", label=head)
     ax[0].set_title("Teacher entropy (head-prefix rows)")
     ax[1].set_title("Teacher sample dependence JS")
     for a in ax:
@@ -489,8 +564,9 @@ def plots(data: dict, output: Path) -> None:
             ax, ("covariance_effective_rank", "relative_centered_variance"), strict=True
         ):
             a.plot(
-                x,
-                [p["features"].get("student." + feature, {}).get(key) for p in points],
+                *trajectory(
+                    points, [p["features"].get("student." + feature, {}).get(key) for p in points]
+                ),
                 "o-",
                 label=feature,
             )
@@ -504,20 +580,26 @@ def plots(data: dict, output: Path) -> None:
     save(fig, "03_representations.png")
     fig, ax = plt.subplots(2, 2, figsize=(11, 7))
     for key in ("prediction_mse", "control_copy_mse"):
-        ax[0, 0].plot(x, [p["outputs"][key] for p in points], "o-", label=key)
+        ax[0, 0].plot(*trajectory(points, [p["outputs"].get(key) for p in points]), "o-", label=key)
     for key in ("mse_gain_over_copy", "paired_effect_rms_ratio", "negative_prediction_fraction"):
-        ax[0, 1].plot(x, [p["outputs"][key] for p in points], "o-", label=key)
+        ax[0, 1].plot(*trajectory(points, [p["outputs"].get(key) for p in points]), "o-", label=key)
     for loss in ("prediction", "ssl1", "ssl2"):
         ax[1, 0].plot(
-            x,
-            [p["graph_gradients"]["groups"]["graph"]["weighted_gradient_l2"][loss] for p in points],
+            *trajectory(
+                points,
+                [
+                    p["graph_gradients"]["groups"]["graph"]["weighted_gradient_l2"][loss]
+                    for p in points
+                ],
+            ),
             "o-",
             label=loss,
         )
     for key in ("prediction_ssl1", "prediction_ssl2"):
         ax[1, 1].plot(
-            x,
-            [p["graph_gradients"]["groups"]["graph"]["cosine"][key] for p in points],
+            *trajectory(
+                points, [p["graph_gradients"]["groups"]["graph"]["cosine"][key] for p in points]
+            ),
             "o-",
             label=key,
         )
@@ -549,15 +631,33 @@ def export(data: dict, output: Path) -> None:
     ):
         write_csv(
             output / filename,
-            [row for p in data["snapshots"] for row in scalar_rows(p["epoch"], p[key])],
+            [
+                {"training_stage": p.get("training_stage", "joint"), **row}
+                for p in data["snapshots"]
+                for row in scalar_rows(p["epoch"], p[key])
+            ],
         )
     write_csv(
-        output / "outputs.csv", [{"epoch": p["epoch"], **p["outputs"]} for p in data["snapshots"]]
+        output / "outputs.csv",
+        [
+            {
+                "epoch": p["epoch"],
+                "training_stage": p.get("training_stage", "joint"),
+                **p["outputs"],
+            }
+            for p in data["snapshots"]
+        ],
     )
     write_csv(
         output / "gradients.csv",
         [
-            {"epoch": p["epoch"], "group": g, **v["weighted_gradient_l2"], **v["cosine"]}
+            {
+                "epoch": p["epoch"],
+                "training_stage": p.get("training_stage", "joint"),
+                "group": g,
+                **v["weighted_gradient_l2"],
+                **v["cosine"],
+            }
             for p in data["snapshots"]
             for g, v in p["graph_gradients"]["groups"].items()
         ],

@@ -226,3 +226,122 @@ def test_bad_evidence_rejected(run, change, match):
         put(path, value)
     with pytest.raises(ValueError, match=match):
         collect(run)
+
+
+@pytest.fixture
+def staged_run(run):
+    import copy
+
+    put(
+        run / "resolved_config.json",
+        {
+            "training": {"max_epochs": {"value": 4}},
+            "model": {
+                "parameters": {
+                    "training_mode": {"value": "ssl_then_mse"},
+                    "ssl_pretrain_epochs": {"value": 2},
+                }
+            },
+        },
+    )
+    complete = module.read(run / "COMPLETE.json")
+    complete["epoch"] = 4
+    put(run / "COMPLETE.json", complete)
+    template = module.read(run / "fit/loss-diagnostic-epoch-0000.json")
+    history = []
+    for epoch in range(5):
+        d = copy.deepcopy(template)
+        p = d["process"]
+        stage = "ssl_pretrain" if epoch <= 2 else "mse_finetune"
+        p.update(
+            training_stage=stage,
+            input_sha256=("c" if epoch <= 2 else "e") * 64,
+            cells=4,
+            query_genes=1000,
+            seed=9,
+            budget={"feature_samples": 128},
+        )
+        p["distributions"] = {"teacher." + h: dict(samples=0) for h in module.HEADS}
+        p["features"] = {
+            "student." + f: dict(
+                samples=4, covariance_effective_rank=2.0, relative_centered_variance=0.2
+            )
+            for f in module.FEATURES
+        }
+        p["graph_gradients"] = dict(
+            groups={
+                "graph": dict(
+                    weighted_gradient_l2=dict(prediction=0 if epoch <= 2 else 1, ssl1=1, ssl2=1),
+                    cosine=dict(prediction_ssl1=None, prediction_ssl2=None),
+                )
+            }
+        )
+        p["outputs"] = dict(status="not_applicable:ssl_pretrain_no_prediction_labels")
+        if epoch >= 3:
+            p["pairs"] = {}
+            p["outputs"] = dict(
+                prediction_mse=0.1,
+                control_copy_mse=0.2,
+                mse_gain_over_copy=0.5,
+                paired_effect_rms_ratio=0.8,
+                negative_prediction_fraction=0.0,
+                delta_rms=0.2,
+                top_one_percent_loss_fraction=0.1,
+            )
+        put(run / f"fit/loss-diagnostic-epoch-{epoch:04d}.json", d)
+        if epoch:
+            history.append(
+                dict(
+                    epoch=epoch,
+                    optimizer_steps=epoch * 2,
+                    training_stage=stage,
+                    training=dict(joint_loss=3, prediction_mse=0 if epoch <= 2 else 0.1),
+                    training_seconds=2,
+                    diagnostic_seconds=0.1,
+                    rank0_peak_allocated_bytes=0,
+                    training_diagnostic=d,
+                )
+            )
+    put(run / "fit/history.json", history)
+    return run
+
+
+def test_staged_probes_keep_separate_identities_and_render_missing_prediction(staged_run, tmp_path):
+    data = collect(staged_run)
+    assert data["fixed_input_sha256"] is None
+    groups = data["fixed_inputs_by_training_stage"]
+    assert [g["epochs"] for g in groups] == [[0, 1, 2], [3, 4]]
+    assert [g["input_sha256"] for g in groups] == ["c" * 64, "e" * 64]
+    x, y = module.trajectory(data["snapshots"], [1, 2, 3, 4, 5])
+    assert len(x) == len(y) == 6 and y[3] is None
+    output = tmp_path / "staged-report"
+    module.export(data, output)
+    text = (output / "report.md").read_text()
+    assert "跨阶段不是同一输入" in text and "| 1 | 不适用" in text
+    assert "epoch 3→4" in text
+    assert len(list(output.glob("*.png"))) == 4
+
+
+@pytest.mark.parametrize(
+    "change,match",
+    [
+        ("hash", "within training stage"),
+        ("stage", "sealed epoch boundary"),
+        ("budget", "size/seed/budget"),
+    ],
+)
+def test_stage_support_does_not_hide_identity_drift(staged_run, change, match):
+    path = staged_run / "fit/loss-diagnostic-epoch-0004.json"
+    d = module.read(path)
+    if change == "hash":
+        d["process"]["input_sha256"] = "f" * 64
+    elif change == "stage":
+        d["process"]["training_stage"] = "ssl_pretrain"
+    else:
+        d["process"]["budget"] = {"feature_samples": 1}
+    put(path, d)
+    history = module.read(staged_run / "fit/history.json")
+    history[-1]["training_diagnostic"] = d
+    put(staged_run / "fit/history.json", history)
+    with pytest.raises(ValueError, match=match):
+        collect(staged_run)

@@ -135,9 +135,9 @@ def validate_medium_complete(queue, row, *, root=None):
 
 
 def validate_report_repair(q, arm, output, report_source):
-    """Only postfit D0 repair: freeze all numerical code and the parent queue."""
-    if arm != "D0" or q.get("family") != NO_SSL_SCHEMA:
-        raise ValueError("analysis-only report repair is scoped to D0")
+    """Postfit D0/PT1 report repair; freeze numerical code and the parent queue."""
+    if (arm, q.get("family")) not in (("D0", NO_SSL_SCHEMA), ("PT1", PT1_SCHEMA)):
+        raise ValueError("analysis-only report repair is scoped to D0 or PT1")
     output = Path(output).resolve()
     protected = [Path(q["output"]).resolve()] + [
         Path(row["plan"]["run_root"]).resolve() for row in q["rows"]
@@ -153,6 +153,7 @@ def validate_report_repair(q, arm, output, report_source):
         "scripts/v2/shared_gpu.py",
         "scripts/v2/run_br400_group.py",
         "scripts/v2/generate_no_ssl.py",
+        "scripts/v2/generate_pt1.py",
     ]
     if (
         subprocess.check_output(

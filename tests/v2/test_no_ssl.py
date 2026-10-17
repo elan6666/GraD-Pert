@@ -191,12 +191,13 @@ def test_disabled_heads_report_absent_not_collapsed():
 
 
 @pytest.mark.parametrize("failure", [None, "dirty", "numeric", "arm", "old_output"])
+@pytest.mark.parametrize("repair_arm", ["D0", "PT1"])
 def test_analysis_repair_freezes_numeric_source_and_protects_old_outputs(
-    tmp_path, monkeypatch, failure
+    tmp_path, monkeypatch, failure, repair_arm
 ):
     monkeypatch.setattr(medium, "SERVER_ROOT", tmp_path)
     q = {
-        "family": family.SCHEMA,
+        "family": family.SCHEMA if repair_arm == "D0" else medium.PT1_SCHEMA,
         "source_commit": "a" * 40,
         "output": str(tmp_path / "old-queue"),
         "rows": [{"plan": {"run_root": str(tmp_path / "old-run")}}],
@@ -209,7 +210,7 @@ def test_analysis_repair_freezes_numeric_source_and_protects_old_outputs(
 
     monkeypatch.setattr(medium.subprocess, "check_output", git)
     output = tmp_path / ("old-queue/child" if failure == "old_output" else "fresh")
-    arm = "B0" if failure == "arm" else "D0"
+    arm = "B0" if failure == "arm" else repair_arm
     if failure is None:
         assert medium.validate_report_repair(q, arm, output, tmp_path / "source") == output
     else:

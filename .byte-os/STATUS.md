@@ -1,3 +1,11 @@
+## 2026-10-17：PT1四轮及last18已核验，中等报告适配修复
+
+主已接回exact main/build并ACK，旧监督与return均PAUSED。PT1 fit四轮600更新及last18已独立核验，last checkpoint SHA520b71f4b5f49139724e7d0639df8676f74a3379727f7d523b88a7e63e668b0f；无PKL。原队列因CPU saved-report的跨阶段input hash校验失败而终态failed，失败root不改、不重训。
+
+原探针epochs0/1/2固定SSL输入、不加载真值；epochs3/4固定MSE输入、读真值且无SSL视图，因此两个阶段不是相同view recipe。新CPU报告器按sealed配置核对阶段顺序、阶段内hash以及cells/query/seed/budget，禁止跨阶段同探针对比；曲线断开、无效MSE/Teacher项N/A。40项本地回归通过，原numerical method/medium脚本与配置不变。新独立修复源发布后执行real CPU报告及原reference/fast门、相同中等清单。训练源仍ec32671，不能将新报告源重标成训练源。
+
+计划PT1_ANALYSIS_REPAIR_20261017.plan.md；完整中等验收后继续已准备profile，再推进DP2→S12-L4及其余已授权消融。下方旧“PT1运行中”均为历史。
+
 ## 2026-10-17：完整训练 profile 构建与消融并行推进
 
 用户新增授权为当前完整更新做 CPU/CUDA 归因后再优化，且保持消融推进。主在独立工作树基于已发布 a0acaee6b05959093de2ae645fa54fa6ef3f35f3 仅构建诊断工具；监督会话仍持有 PT1/supervise，20min 监控不改，活动源 ec32671f4c37bc3d1d0f935ddca87fb89a55fa3e 与配置不动。监督已确认记录该独立 build 范围；此条不接管它的训练租约。
