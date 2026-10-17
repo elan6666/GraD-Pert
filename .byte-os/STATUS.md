@@ -1,3 +1,9 @@
+## 2026-10-17：新增性能优化后的PT2（蒸馏2＋微调4）
+
+用户新增授权：性能优化结束后下一新增PT2，从头SSL两轮＋MSE全量微调四轮，共6轮；不只启用蒸馏②，前两轮仍SSL1 condition＋SSL2 DINO/iBOT。沿PT1/B0、global320/seed1/表达剔除与冻结300control评估。预测监督4轮/600步与B0相同，额外2轮SSL不视作等总算力。中间epoch2/pretrain和末端epoch6/last都保留，**两个端点都做同清单中等训练分析**，包括同/异条件GG/GL/LL、秩/方差/原型/梯度和全部图数据；微调后Teacher/CE不冒充活动SSL目标。
+
+自包含配置 configs/v2/pt2_staged_2plus4_20261017/PT2/gradpert_v2/nadig_jurkat.yaml 与准备manifest已生成，状态prepared_not_dispatched；native已支持6轮staged预算，现有last-only中等编排仍需补显式epoch2/epoch6角色/哈希绑定，**不能声称完整队列已可直接启动**。计划PT2_STAGED_2PLUS4_20261017.plan.md。当前DP2/监督/活动源不改；性能验证优先，之后PT2，再接原S12-L4等授权序列；PT1中等待补测仍保留。此条覆盖下方旧“性能后直接S12”的剩余顺序。
+
 ## 2026-10-17：用户接受浮点差异，优先KDA前后向IO机制
 
 最新CPU验收：候选源75009a5f73d6b95814d680ad447f04ce391f4af3，独立Linux root development/gram-io-75009a5-cpu-20261017-r1，64检查通过（含12真实Triton解释器形状），sm120离线编译通过，未初始化CUDA。主逐项复核RESULT SHA a8b76f597a036c45372d7255bd3cee951839fd60f4a97c18f02f271a6c505cff、输出bytes/SHA与clean source；CPU接线drift2239项中4项超原element门，最大relativeL2约0.00143，明确不是新CUDA全更新数值验收。此前失败与新日志均归档，主无DP2重复轮询或GPU探针。下一在终态回主后先核对正式publication，再双卡全更新与独立10步ABBA；仅有限精度差异不阻断纯性能诊断，结果不冒充已采用/长期质量通过。

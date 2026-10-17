@@ -1,5 +1,11 @@
 # Current-update profiling and semantic-preserving optimization
 
+Latest user addition (2026-10-17): after this performance stage, prioritize new
+PT2=2SSL+4MSE with both epoch2 and epoch6 medium diagnostics, then continue S12-L4
+and remaining authorized arms. Preparation and unimplemented endpoint orchestration
+are tracked in PT2_STAGED_2PLUS4_20261017.plan.md; do not launch it before performance
+acceptance or edit current DP2. This supersedes older remaining-order lines below.
+
 User authorization: full CPU/CUDA training profile and measured end-to-end
 optimization; keep authorized ablations advancing. Main owns this independent
 build scope. Supervisor retains the live PT1 lease and unchanged 20-minute check.

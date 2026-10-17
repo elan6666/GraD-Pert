@@ -1,3 +1,7 @@
+## 2026-10-17：性能后新增PT2，两个阶段端点中等分析
+
+已授权下一新增实验PT2：SSL2轮(两套蒸馏)→MSE全Student微调4轮，总6轮/global320/seed1；保存epoch2/pretrain和epoch6/last，并按同一中等row/control/gene/view清单分析两个端点。配置/准备manifest已生成，prepared_not_dispatched；现有native budget可支持，但中间checkpoint分析编排须先补显式角色/哈希与验收，不能重标last-only收据。性能GPU整步验证优先，后PT2→S12-L4等；不抢当前DP2 GPU、不改其唯一监督租约。原PT1中等回填不取消。详情plans/PT2_STAGED_2PLUS4_20261017.plan.md；下方旧剩余次序由此覆盖。
+
 ## 2026-10-17：当前CPU构建：KDA前后向IO候选
 
 当前下一动作：DP2终态交回后，先验收其科学收据；核对新候选正式publication后安排短双卡实际kernel/全更新和无profile10步ABBA，再继续S12-L4，不更改活动科学版本。75009a5 LinuxCPU64通过/12解释器形状/离线sm120通过且CUDA未初始化；CPU wiring drift2239项4项超原门，全部保留，不作为CUDA数值通过或提速。CPU root development/gram-io-75009a5-cpu-20261017-r1，RESULT SHA a8b76f597a036c45372d7255bd3cee951839fd60f4a97c18f02f271a6c505cff。Luna已终态，无短等待遗留；当前仍仅DP2监督20min，主不重复查询。

@@ -1,0 +1,45 @@
+{
+  "schema": "pt2-staged-2plus4-preparation-1",
+  "status": "prepared_not_dispatched",
+  "arm": "PT2",
+  "description": "2 epochs SSL1+SSL2 then 4 epochs prediction-only full Student finetuning",
+  "after": "measured training performance optimization accepted; no new GPU job before that dependency",
+  "parent_config": "configs/v2/pt1_staged_20261017/PT1/gradpert_v2/nadig_jurkat.yaml",
+  "parent_config_sha256": "7202d4f16e7dd83547294e21144500be3a971b9ffe934b3106b2f44bc9d52ac5",
+  "config": "configs/v2/pt2_staged_2plus4_20261017/PT2/gradpert_v2/nadig_jurkat.yaml",
+  "config_sha256": "32943f1a442bc919eaea1c371c9652b357771a972a3a5ee70eef2bc2e8a48c14",
+  "epochs": 6,
+  "ssl_epochs": 2,
+  "prediction_epochs": 4,
+  "global_batch": 320,
+  "microbatch_per_gpu": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "seed": 1,
+  "validation": "disabled",
+  "test_roles": [
+    "epoch6_last"
+  ],
+  "analysis": {
+    "scope": "same medium_cap40_stratified population at both endpoints",
+    "checkpoint_epochs": [
+      2,
+      6
+    ],
+    "labels": [
+      "after_ssl2",
+      "after_finetune4"
+    ],
+    "conditions": 1335,
+    "rows": 5317,
+    "deep_conditions": 128,
+    "deep_rows": 506,
+    "gradient_conditions": 32,
+    "gradient_rows": 125,
+    "fixed_row_gene_view_schedule": true,
+    "model_updates": 0,
+    "cross_stage_teacher_ce": "N/A after MSE finetuning; frozen Teacher is not a newly trained target",
+    "requires_endpoint_checkpoint_binding": true
+  },
+  "scheduling_note": "Preparation catalog only; existing four-epoch PT1 queue runner is not authorized to reinterpret this as an executable queue."
+}
