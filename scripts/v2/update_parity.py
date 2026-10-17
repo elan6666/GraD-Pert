@@ -406,6 +406,8 @@ def main() -> None:
         publication_receipt=args.publication,
         expected_publication_receipt_sha256=args.publication_sha256,
     )
+    if args.pt1_execution:
+        torch.cuda.set_per_process_memory_fraction(0.90)
     free, total = torch.cuda.mem_get_info()
     if total - free > 512 * 1024**2:
         raise RuntimeError("parity diagnostic requires idle GPUs")
