@@ -70,3 +70,11 @@ Real CUDA captures await full PT1 terminal/main acceptance; no new gain claimed.
 ## 2026-10-17 scheduling correction
 
 PT1 fit4/last18 independently passed, repaired real saved CPU report passed. Comparable medium sealing exposed a parent protocol metadata mismatch (staged_training only). This CPU-only repair is not a numerical prerequisite for independent profile_only captures. Main revised the self-imposed wait, retaining all actual source/config/data/resource checks. Fresh diagnostic root train-update-profile-17f2194-20261017-r2, plan SHA189c921536bd1cddffa2c1ae89d3f534d0047963c9731be6b8b89284e65c0c09, parent prepared-plan SHAfc388457fb91fca9d3d9d8fc4a5fb00e17b061819a3e5d1113816e75e4e0dfad. Short Luna supervision only; no concurrent medium GPU job. All scientific analysis and formal preflight gates remain required.
+
+Priority correction: after short captures, immediately DP2 formal10/restore+eval128 gates and exact main acceptance, then fit. PT1 same-medium backfill moves to next idle GPU window; its already accepted fit/last18/CPU report and exact data metadata proof do not require delaying the next fit. Full scientific acceptance still requires the missing medium; no result is relabeled complete. Cost attribution runs on CPU in parallel with later fit.
+
+## Current measured stage and next mechanism gate
+
+Three workloads and both ranks completed; current ignored report links all806 cost rows. Scan/project/read dominate (~69% joint rank0 kernel time); prototype+CE <1%. Current profiled windows include substantial recording overhead; no native speedup inferred. Next CPU-only analysis keeps original per-module labels and allocator traffic/peak separately, without new GPU capture or raw transfers. Do not equate allocation churn with simultaneously saved activation bytes.
+
+DP2 formal8882 started, all acceptance gates passed and supervisor ACK/20minACTIVE verified. Main disjoint CPU work continues; no GPU probes during formal fit. PT1 medium pending at idle window, no re-training. Pending candidate acceptance remains full update/RNG plus independent unprofiled dualGPU ABBA/10step; no optimization has been adopted from this profile yet.

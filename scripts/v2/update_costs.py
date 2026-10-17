@@ -100,7 +100,15 @@ def union_us(ranges):
     return total
 
 
-def attribute_update(factory):
+def attribute_update(factory, *, group_by="component"):
+    if group_by not in ("component", "module"):
+        raise ValueError("group_by must be component or module")
+
+    def cost_owner(name):
+        if group_by == "component" or category(name) == "unknown":
+            return category(name)
+        return name.removeprefix("backward:").removeprefix("gradpert/")
+
     scopes, pids, windows = [], set(), []
     flow_starts, flow_ends = {}, {}
     for e in factory():
@@ -167,7 +175,7 @@ def attribute_update(factory):
         for left, right, phase, owner in segments:
             duration = min(stop, right) - max(start, left)
             if duration > 0:
-                cpu_costs[tid, phase, category(owner)] += duration
+                cpu_costs[tid, phase, cost_owner(owner)] += duration
     correlations, launch = {}, defaultdict(lambda: [0, 0.0])
     launch_ends = {}
     synchronization = defaultdict(lambda: [0, 0.0])
@@ -190,7 +198,7 @@ def attribute_update(factory):
                 phase, owner = "backward", parent
             elif owner == "gradpert/backward":
                 phase = "backward"
-        key = phase, category(owner)
+        key = phase, cost_owner(owner)
         if "LaunchKernel" in name:
             launch[key][0] += 1
             launch[key][1] += e["dur"]
@@ -200,8 +208,32 @@ def attribute_update(factory):
         launch_ends[corr] = e["ts"] + e["dur"]
     costs = defaultdict(lambda: {"count": 0, "duration_sum_us": 0.0, "ranges": []})
     all_ranges = []
+    memory = defaultdict(lambda: dict(allocated_bytes=0, freed_bytes=0, events=0))
+    memory_peak = None
     queue_delay_count, queue_delay_sum, queue_delay_max = 0, 0.0, 0.0
     for e in factory():
+        if (
+            e.get("name") == "[memory]"
+            and e.get("args", {}).get("Device Type") == 1
+            and start <= e.get("ts", -1) < stop
+        ):
+            # Allocation events have no CUDA correlation. Attribute the host
+            # allocator call; frees can release an allocation from an older scope.
+            phase, owner = regions.at(e["tid"], e["ts"])
+            if phase != "recompute":
+                _, parent = backwards.at(e["tid"], e["ts"])
+                if parent != "unknown":
+                    phase, owner = "backward", parent
+                elif owner == "gradpert/backward":
+                    phase = "backward"
+            row = memory[phase, cost_owner(owner)]
+            size = e["args"].get("Bytes", 0)
+            row["allocated_bytes"] += max(size, 0)
+            row["freed_bytes"] += max(-size, 0)
+            row["events"] += 1
+            allocated = e["args"].get("Total Allocated")
+            if allocated is not None and (memory_peak is None or allocated > memory_peak):
+                memory_peak = allocated
         if e.get("cat") not in ("kernel", "gpu_memcpy", "gpu_memset") or e.get("ph") != "X":
             continue
         left, right = max(start, e["ts"]), min(stop, e["ts"] + e["dur"])
@@ -239,6 +271,7 @@ def attribute_update(factory):
     busy = union_us(all_ranges)
     return {
         "schema": "gradpert-update-costs-1",
+        "group_by": group_by,
         "window_us": stop - start,
         "cuda_activity_present": bool(all_ranges),
         "gpu_activity_union_us": busy if all_ranges else None,
@@ -262,6 +295,17 @@ def attribute_update(factory):
             n: dict(calls=v[0], cpu_api_duration_sum_us=v[1])
             for n, v in sorted(synchronization.items())
         },
+        "cuda_allocator_events": {
+            "observed_peak_allocated_bytes": memory_peak,
+            "by_host_scope": [
+                dict(phase=phase, component=component, **values)
+                for (phase, component), values in sorted(memory.items())
+            ],
+            "limits": "Allocation/free byte traffic, not live saved-tensor size. "
+            "A free is attributed to its release scope, not its allocation owner. "
+            "Window can start/end with live allocations; per-scope net is not a memory budget. "
+            "No allocation events means peak is unknown, not zero.",
+        },
         "limits": "Each GPU event has one owner; "
         "per-category GPU unions can overlap across streams. "
         "CPU launch and synchronization times are CPU occupancy, not additive GPU costs. "
@@ -274,6 +318,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("trace", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--group-by", choices=("component", "module"), default="component")
     args = parser.parse_args()
     before = args.trace.stat()
 
@@ -281,7 +326,7 @@ def main():
         with args.trace.open() as handle:
             yield from events(handle)
 
-    result = attribute_update(factory)
+    result = attribute_update(factory, group_by=args.group_by)
     digest = hashlib.sha256()
     with args.trace.open("rb") as handle:
         for block in iter(lambda: handle.read(4 * 1024**2), b""):

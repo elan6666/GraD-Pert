@@ -1,3 +1,17 @@
+## 2026-10-17：三负载profile归因完成，DP2正式训练已接续
+
+完整双卡SSL/MSE/joint采集与6份rank归因已完成；source17f2194bd03f0c1f4a9cae6ac031c756104c5618，r2 COMPLETE SHAe995dd160e330ba8f6a6f59bac373790dcdf875f7bed5577cd82be06e4043f82。rank0 KDA扫描占各负载累计kernel时间59.6%/62.2%/57.9%；原型头+CE不足SSL/joint1%。重算SSL/joint约18.3%/18.4%；profiler开销与rank1 NCCL到达等待分开记录，不能当作原生整步比例。原始trace留server，小JSON/806行CSV及中文报告在永久archive/train-update-profile-20261017/CURRENT_PROFILE_REVIEW_CN.md。下一用同trace按模块和分配流量细分，再实现保持块解/完整更新语义的KDA机制；无新采用或整步提速证明。
+
+DP2已过真实10更新/restore/300controls及两卡eval128/reference128门，主exact acceptance SHA0fe6576abb37d551ce4babe457e9894c8cc48a335dade8662e05aee7d931ce20；正式run nadig_jurkat-seed1-20261017T083724Z-d7296b07f55047b19c52711146bc8955，训练源8882d615b907bdb9814f46f17d230e12aa97e7c7、config SHAe79224152e1d879fb3718694dc2b026e03b85404b6ccec419e3132624e68f374。四轮global320=80×双卡×累积2、无验证/best，last18+同中等。主已实见5/600；监督首次22/600且精确PID/tick/cmd、source/allocator通过，ACK SHA9832302754bbd220d5179b5e7ceb53efb6bdd61cc27ec0209031677aec9fde79。唯一supervisor20min ACTIVE、return PAUSED；主保留独立CPU分析/实现，不重复训练轮询或GPU探针。
+
+已授权顺序DP2→S12-L4→CG1→U24→MR1→P1→C1→O1→K2-fixed-prefix。PT1四轮/last及真实saved小报告通过，仍欠同中等回填，排合适GPU空闲窗口，不能标完成。8882修复仅PT1父清单data.loss_protocol.staged_training身份补齐，其他data与数值方法仍严格相同；CPU seal的180秒工程超时已保存，不改门、不重用输出。下文“准备/运行中”均为历史。
+
+## 2026-10-17：短profile后先推进DP2，中等补测排空闲窗口
+
+用户要求保持消融推进。PT1已验收fit4/last18和真实CPU报告；剩余中等清单仅阶段元数据适配，53本地/53服务器回归通过，原native严格identity检查已在真实CPU seal中通过，180秒工程期限在1201条件时截断，完整manifest未封存，partial不复用、不记科学成功。新source8882d615b907bdb9814f46f17d230e12aa97e7c7仅controller元数据适配，数值src/cap40脚本仍与ec32671相同。
+
+独立profile17f2194/r2的PT1阶段Luna已报10/10 profile_only exit0，joint采集仍在处理trace（待主终态验收）。下一步先DP2原10update/restore＋两卡eval128/reference128，精确MAIN_ACCEPTANCE后4轮fit/last18/medium，CPU归因与训练并行。PT1中等修复移到下一GPU空闲窗口，不再阻挡DP2启动；此条覆盖旧“中等完成再DP2”的自设排程，不放宽数学/数据/资源/正式门。DP2仅prepared_not_started，queueSHA64beea163bd2b0678b0f7f2a8ce01ce6c53581e7c66422ae1e7d048385257be9。所有原失败证据保留。
+
 ## 2026-10-17：PT1报告完成，清单元数据修复与短profile并行
 
 57dd5dc真实CPU报告已完成，13个产物逐项bytes/SHA通过；receipt7899d689b145bc720c3728631722f8c951233717fcd70500afa0a778713e96c3。随后原seal-medium因父data身份没有PT1新增loss_protocol.staged_training而拒绝；其余data字段完全相同。r2失败收据13efa65718ca90315aa060c2a7495b070752a461aec38974c26815df4aaea144保留，无GPU阶段。controller只给PT1生成派生父清单：完整采样不变、只补已封存训练身份中的该字段，原native seal仍检查runtime==checkpoint==派生manifest全部data。非阶段字段变化仍拒绝，不改任何数值分析或src。

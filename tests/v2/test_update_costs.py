@@ -81,6 +81,84 @@ def test_cpu_mirrors_do_not_change_capture_and_multiple_processes_fail(module):
         module["attribute_update"](lambda: iter(rows))
 
 
+def test_module_groups_keep_graph_sequence_and_recompute_disjoint(module):
+    rows = [
+        event("user_annotation", "gradpert/capture_window", 0, 100),
+        event("user_annotation", "gradpert/component/student/graph.layers.0/kda_scan", 5, 20),
+        event("cuda_runtime", "cudaLaunchKernel", 10, 1, correlation=1),
+        event("kernel", "graph", 12, 4, correlation=1),
+        event("user_annotation", "gradpert/checkpoint/recompute", 30, 20),
+        event("user_annotation", "gradpert/component/student/cell.layers.0/kda_scan", 32, 15),
+        event("cuda_runtime", "cudaLaunchKernel", 35, 1, correlation=2),
+        event("kernel", "cell", 37, 6, correlation=2),
+        event("kernel", "unlinked", 60, 2, correlation=99),
+    ]
+    by_component = module["attribute_update"](lambda: iter(rows))
+    by_module = module["attribute_update"](lambda: iter(rows), group_by="module")
+    costs = {(r["phase"], r["component"]): r for r in by_module["costs"]}
+    assert costs["forward", "component/student/graph.layers.0/kda_scan"]["gpu_duration_sum_us"] == 4
+    assert (
+        costs["recompute", "component/student/cell.layers.0/kda_scan"]["gpu_duration_sum_us"] == 6
+    )
+    assert costs["unknown", "unknown"]["gpu_duration_sum_us"] == 2
+    assert by_component["gpu_activity_union_us"] == by_module["gpu_activity_union_us"] == 12
+    assert sum(r["count"] for r in by_module["costs"]) == 3
+    assert sum(r["cpu_kernel_launch_count"] for r in by_module["costs"]) == 2
+    with pytest.raises(ValueError, match="group_by"):
+        module["attribute_update"](lambda: iter(rows), group_by="guessed")
+
+
+def test_allocator_traffic_is_not_live_saved_memory(module):
+    def memory(ts, size, total, device=1):
+        return dict(
+            name="[memory]",
+            ts=ts,
+            tid=2,
+            pid=1,
+            ph="i",
+            args={"Device Type": device, "Bytes": size, "Total Allocated": total},
+        )
+
+    rows = [
+        event("user_annotation", "gradpert/capture_window", 0, 100),
+        event("user_annotation", "gradpert/component/student/graph/kda_scan", 10, 20),
+        event("user_annotation", "gradpert/checkpoint/recompute", 40, 20),
+        event("user_annotation", "gradpert/component/student/cell/kda_scan", 42, 15),
+        memory(-1, 128, 1024),  # allocated before the captured window
+        memory(12, 64, 1088),
+        memory(15, 10000, 11088, device=0),  # host memory is not CUDA
+        memory(45, -128, 960),  # released here, not allocated by this scope
+        memory(50, 16, 976),
+        memory(100, 1000, 1976),  # outside half-open capture
+    ]
+    random.Random(21).shuffle(rows)
+    result = module["attribute_update"](lambda: iter(rows), group_by="module")
+    stats = result["cuda_allocator_events"]
+    assert stats["observed_peak_allocated_bytes"] == 1088
+    assert stats["by_host_scope"] == [
+        dict(
+            phase="forward",
+            component="component/student/graph/kda_scan",
+            allocated_bytes=64,
+            freed_bytes=0,
+            events=1,
+        ),
+        dict(
+            phase="recompute",
+            component="component/student/cell/kda_scan",
+            allocated_bytes=16,
+            freed_bytes=128,
+            events=2,
+        ),
+    ]
+    assert not result["cuda_activity_present"]
+    assert result["gpu_activity_union_us"] is None
+    empty = module["attribute_update"](
+        lambda: iter([event("user_annotation", "gradpert/capture_window", 0, 100)])
+    )
+    assert empty["cuda_allocator_events"]["observed_peak_allocated_bytes"] is None
+
+
 def test_real_pytorch_flow_maps_os_and_autograd_threads(module, tmp_path):
     import json
 
