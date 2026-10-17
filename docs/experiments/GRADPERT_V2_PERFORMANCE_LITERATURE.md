@@ -94,3 +94,12 @@ Teacher处于no_grad，反向不会消费这些值。候选在无梯度调用中
 改变最终输出仍须实测。收益取决于Teacher调用占比、tokens、内核是否带宽受限，不能按字节比外推速度。
 验证：多形状输出exact→完整两卡多步更新/EMA/center→相同配置ABBA→峰值显存与启动成本。
 此为尚未实现的独立候选。先完成当前显式auto配置的完整校验；不混合Gram候选。
+
+
+## 2026-10-17 current profile update (supersedes old five-epoch plans)
+
+Current complete SSL/MSE/joint dual5090 profiles show KDA scan/project/read ~71%/74%/69% of rank0 cumulative GPU kernel time, ~1.37M/0.51M/1.38M kernel calls; prototype features+logits+CE <1% of SSL/joint GPU time. Recompute SSL/joint ~18.3%/18.4%. These are profiler-relative, not end-to-end wall fractions. Rank1 contains extra collective waiting; do not infer bandwidth saturation or CPU starvation solely from gaps. Full small evidence and all806 rows: ignored experiment-analysis/train-update-profile-20261017/CURRENT_PROFILE_REVIEW_CN.md.
+
+Additional original mechanism references inspected: [PyTorch ATen architecture](https://github.com/pytorch/pytorch/blob/v2.13.0/aten/src/ATen/native/README.md), [official C++ custom operators](https://docs.pytorch.org/tutorials/advanced/cpp_custom_ops.html), [dispatcher](https://docs.pytorch.org/tutorials/advanced/dispatcher.html), [selective checkpointing](https://pytorch.org/blog/activation-checkpointing-techniques/). First new hypothesis is diagnostic C++ orchestration of the unchanged eager KDA ATen DAG, isolating host binding overhead without changing arithmetic or hand-written backward. This is engineering adaptation, not direct reproduction of a paper or an original attention mechanism. Compiler dependency/cold latency, autocast/gradient semantics and whole-step gain must pass before adoption. A checkpoint candidate must use measured per-module recompute/lifetime, not blindly cache every output or treat byte churn as saved-live memory.
+
+Authorized scientific sequence now DP2→S12-L4→CG1→U24→MR1→P1→C1→O1→K2-fixed-prefix, four epochs/last18/same medium, not historical B0 five epochs/best/last. DP2 source8882 remains immutable while auxiliary CPU analysis/build progresses. Failed Gram/recurrent/CUDA Graph/prefetch evidence remains valid and retained; thresholds never loosened.

@@ -12,6 +12,8 @@ import itertools
 import json
 import math
 import os
+import time
+from contextlib import ExitStack
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -282,9 +284,25 @@ def main() -> None:
     parser.add_argument("--candidate-fused-sinkhorn", action="store_true")
     parser.add_argument("--candidate-no-grad-elision", action="store_true")
     parser.add_argument("--candidate-fused-gram", action="store_true")
+    parser.add_argument("--candidate-aten-kda", action="store_true")
     parser.add_argument("--candidate-gram-forward-audit", action="store_true")
     parser.add_argument("--candidate-gram-backward-audit", action="store_true")
     args = parser.parse_args()
+    if args.candidate_aten_kda and any(
+        (
+            args.reference_repeat,
+            args.pt1_execution,
+            args.no_sequence_checkpoint,
+            args.candidate_no_sequence_checkpoint,
+            args.candidate_cpu_prefetch,
+            args.candidate_fused_sinkhorn,
+            args.candidate_no_grad_elision,
+            args.candidate_fused_gram,
+            args.candidate_gram_forward_audit,
+            args.candidate_gram_backward_audit,
+        )
+    ):
+        parser.error("ATen KDA parity must isolate one execution factor")
     if args.pt1_execution and any(
         (
             args.no_sequence_checkpoint,
@@ -388,6 +406,7 @@ def main() -> None:
         or args.candidate_fused_sinkhorn
         or args.candidate_no_grad_elision
         or args.candidate_fused_gram
+        or args.candidate_aten_kda
         or args.pt1_execution,
     )
     assert candidate_options == options
@@ -432,6 +451,7 @@ def main() -> None:
         "candidate_fused_sinkhorn_diagnostic_only": args.candidate_fused_sinkhorn,
         "candidate_no_grad_elision_diagnostic_only": args.candidate_no_grad_elision,
         "candidate_fused_gram_diagnostic_only": args.candidate_fused_gram,
+        "candidate_aten_kda_diagnostic_only": args.candidate_aten_kda,
         "candidate_gram_forward_audit": args.candidate_gram_forward_audit,
         "candidate_gram_backward_audit": args.candidate_gram_backward_audit,
         "candidate_sequence_checkpoint_disabled_diagnostic_only": (
@@ -444,6 +464,15 @@ def main() -> None:
     receipt_path = args.output / f"rank-{rank}-receipt.json"
     atomic_json(receipt_path, receipt)
     try:
+        if args.candidate_aten_kda:
+            from kda_aten_candidate import load_candidate
+
+            started = time.perf_counter()
+            load_candidate()  # compile before saving the reference checkpoint/RNG
+            receipt["aten_kda_load_seconds"] = time.perf_counter() - started
+            receipt["aten_kda_cpp_sha256"] = sha256_file(
+                Path(__file__).resolve().parents[1] / "performance/kda_aten.cpp"
+            )
         with prepare_runtime(
             config, data_root=args.data_root, run_seed=1, device=torch.device("cuda:0")
         ) as runtime:
@@ -484,9 +513,14 @@ def main() -> None:
                 original_step(lr)
 
             runtime.optimizer.step = capture_step  # type: ignore[method-assign]
+            candidate_contexts = ExitStack()
             try:
                 for kernel in ("reference", "candidate"):
                     if kernel == "candidate":
+                        if args.candidate_aten_kda:
+                            from kda_aten_candidate import candidate_scope
+
+                            candidate_contexts.enter_context(candidate_scope())
                         load_checkpoint(
                             initial,
                             runtime.objective,
@@ -631,6 +665,7 @@ def main() -> None:
                         generator=runtime.generator,
                     )
             finally:
+                candidate_contexts.close()
                 runtime.optimizer.step = original_step  # type: ignore[method-assign]
         if candidate_architecture.relay_kernel == "cudagraphs":
             from torch._dynamo.utils import counters

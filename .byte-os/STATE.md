@@ -1,3 +1,11 @@
+## 2026-10-17：模块/内存归因与KDA主机执行候选
+
+已有trace的CPU模块归因完成（ba7620583f4405a60dc5dd06e1b8390dae4dedf0）；SSL/joint rank0图KDA扫描累计3.2248/2.8690s，Cell/Response扫描1.3645/2.0199s。原profile allocator peak17,185,907,200/19,351,012,864bytes精确复核；分配/释放流量不当成live保存内存或HBM带宽。小原始JSON、模块成本及分配CSV和中文解释已归档，原trace留server，未新采集GPU。CPU分析源本机GitHub ref和服务器clean HEAD一致；server直连GitHub超时，未伪造formal CUDA publication receipt、未改代理/路由。
+
+候选H仅在诊断入口将同一KDA chunk ATen DAG放C++执行：减少Python绑定/循环边界，保留原运算、autograd、合法邻域、随机顺序/最终S、checkpoint、EMA/center/优化器时点。普通native训练默认不变，DP2活动源8882完全未修改。CPU候选输出/全部输入state梯度/RNG、checkpoint下3步非零LR完整loss/梯度/objective/optimizer精确通过；相关56项通过；实际4头×64维、C16/C32及BF16输入梯度25项再通过。仅显式benchmark-only与配对更新flag启用，禁止混候选/profile/活跃GPU共享。尚未双卡验证或采用、无新整步提速结论。
+
+下一合适GPU窗口须published新源、same-checkpoint/RNG两卡完整更新原容差门，再无profile10步ABBA/启动编译/显存稳定性。无收益就淘汰。DP2唯一监督20minACTIVE，主不重复轮询；其正式训练/last18/同中等及后续已授权消融继续，PT1中等回填仍明确pending。细节见plans/TRAIN_UPDATE_PROFILE_20261017.plan.md与永久CURRENT_PROFILE_REVIEW_CN.md。下方均为历史。
+
 ## 2026-10-17：三负载profile归因完成，DP2正式训练已接续
 
 完整双卡SSL/MSE/joint采集与6份rank归因已完成；source17f2194bd03f0c1f4a9cae6ac031c756104c5618，r2 COMPLETE SHAe995dd160e330ba8f6a6f59bac373790dcdf875f7bed5577cd82be06e4043f82。rank0 KDA扫描占各负载累计kernel时间59.6%/62.2%/57.9%；原型头+CE不足SSL/joint1%。重算SSL/joint约18.3%/18.4%；profiler开销与rank1 NCCL到达等待分开记录，不能当作原生整步比例。原始trace留server，小JSON/806行CSV及中文报告在永久archive/train-update-profile-20261017/CURRENT_PROFILE_REVIEW_CN.md。下一用同trace按模块和分配流量细分，再实现保持块解/完整更新语义的KDA机制；无新采用或整步提速证明。

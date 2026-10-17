@@ -9,6 +9,7 @@ import json
 import math
 import os
 import time
+from contextlib import ExitStack
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -192,11 +193,28 @@ def main() -> None:
     parser.add_argument("--fused-sinkhorn", action="store_true")
     parser.add_argument("--save-no-grad-sinkhorn", action="store_true")
     parser.add_argument("--fused-gram", action="store_true")
+    parser.add_argument("--aten-kda", action="store_true")
     parser.add_argument("--shared-queue", type=Path)
     parser.add_argument("--resource-owner-pid", type=int)
     parser.add_argument("--joint-validation-check", action="store_true")
     parser.add_argument("--reference-unused-ssl-decoder", action="store_true")
     args = parser.parse_args()
+    if args.aten_kda and (
+        not args.benchmark_only
+        or args.integration_only
+        or args.shared_queue
+        or args.fused_gram
+        or args.fused_sinkhorn
+        or args.save_no_grad_sinkhorn
+        or args.cpu_prefetch
+        or args.no_sequence_checkpoint
+        or args.profile_last_update
+        or args.profile_pt1_stages
+        or args.sync_phase_timing
+        or args.reference_unused_ssl_decoder
+        or args.joint_validation_check
+    ):
+        parser.error("ATen KDA requires an isolated unprofiled benchmark-only diagnostic")
     if bool(args.shared_queue) != bool(args.resource_owner_pid):
         parser.error("shared preflight requires both the sealed queue and controller PID")
     if args.fused_gram and (
@@ -354,6 +372,7 @@ def main() -> None:
         "fused_sinkhorn_diagnostic_only": args.fused_sinkhorn,
         "save_no_grad_sinkhorn_diagnostic_only": args.save_no_grad_sinkhorn,
         "fused_gram_diagnostic_only": args.fused_gram,
+        "aten_kda_diagnostic_only": args.aten_kda,
         "sequence_checkpoint_disabled_diagnostic_only": args.no_sequence_checkpoint,
         "joint_validation_check_requested": args.joint_validation_check,
         "hardware": environment_snapshot(torch),
@@ -364,7 +383,17 @@ def main() -> None:
         receipt["shared_queue_sha256"] = sha256_file(args.shared_queue)
     primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
     capture = None
+    candidate_contexts = ExitStack()
     try:
+        if args.aten_kda:
+            from kda_aten_candidate import candidate_scope
+
+            load_started = time.perf_counter()
+            candidate_contexts.enter_context(candidate_scope())
+            receipt["aten_kda_load_seconds"] = time.perf_counter() - load_started
+            receipt["aten_kda_cpp_sha256"] = sha256_file(
+                Path(__file__).resolve().parents[1] / "performance/kda_aten.cpp"
+            )
         schedule = load_training_schedule(config.training.scheduler.value)
         if not isinstance(schedule, (StepWarmupCosine, LRWarmupCosine)):
             raise ValueError("probe requires a sealed step-based training schedule")
@@ -927,6 +956,8 @@ def main() -> None:
         if rank == 0:
             atomic_json(args.output / "receipt.json", receipt)
         raise
+    finally:
+        candidate_contexts.close()
     primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
     if rank == 0:
         print(json.dumps(receipt, indent=2))
