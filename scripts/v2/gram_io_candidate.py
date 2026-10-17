@@ -32,7 +32,7 @@ class _GramIO(torch.autograd.Function):
         from gradpert.modeling.v2._weighted_gram_cuda import forward
 
         # Reuse the original forward candidate; the new hypothesis is backward IO.
-        keys, gates = keys.contiguous(), gates.contiguous()
+        # Save original views: the backward reads strides without new copies.
         ctx.save_for_backward(keys, gates)
         return forward(keys, gates)
 

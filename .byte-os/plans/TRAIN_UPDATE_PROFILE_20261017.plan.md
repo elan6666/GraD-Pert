@@ -160,3 +160,33 @@ remain unchanged. Main does not poll DP2 or occupy its GPUs. At terminal handbac
 independently accept DP2, run a bounded useful optimization test window if ready,
 and immediately continue S12-L4 and remaining authorized arms. PT1 medium backfill
 remains pending at an idle window; no re-training or new scientific groups.
+
+Linux CPU candidate88420ca/r1 is preserved as failed:51passed/7failed, no CUDA
+context. Six actual-kernel interpreter checks failed because CUDA libdevice.exp
+is not patched by this Triton interpreter; explicit sm120 offline compilation
+itself passed (PTX SHA dfa697db...b8927799). The remaining full-update CPU tiled
+oracle test exceeded the existing elementwise gate by one weight element
+(5.193e-5); with an explicit fixture seed, a third-update control_cls gradient
+also differed. This is a real finite-precision counterexample, not resolved by
+the exact float64 derivative test, and is not relabeled passed.
+
+Repair the interpreter with tl.exp (documented approximate rounding), not a
+CUDA-side test bypass. Backward now reads original key/gate/upstream strides;
+do not save unnecessary contiguous copies. The CPU full-update wiring oracle
+uses the original eager derivative ordering to validate hooks/update timing;
+the new reduction has separate float64 formula and real interpreter/CUDA tests.
+CPU wiring success cannot establish new-kernel multi-update numerical acceptance.
+The real dualGPU full-update gate remains mandatory for adoption; a failed
+elementwise comparison does not erase performance measurements or its error
+statistics. Evaluate numerical stability and actual throughput separately as
+requested, without pretending old tolerance passed.
+
+CPU full-update mock comparison is now explicitly a wiring/finite/RNG diagnostic,
+not a numerical acceptance gate: its JUnit records per-tensor maxabs/relative L2
+and pass/fail at the unchanged original elementwise gate. It must not be reported
+as a new-kernel numerical pass. Keeping an early assertion there concealed the
+remaining error distribution and spent time chasing CPU autograd accumulation
+rather than measuring the target CUDA mechanism. Float64 mathematical derivative
+checks and opt-in actual-kernel comparisons remain numerical gates. Real dualGPU
+full optimizer/EMA/center comparisons retain their independent original checks.
+This change does not relabel the r1 or seeded r4/r5 failures or authorize adoption.

@@ -2,7 +2,7 @@
 
 用户明确接受普通数值差异、性能优先。仅CPU浮点诊断从自设0/0改用已有全更新atol3e-5/rtol3e-4；RNG/整数/身份仍精确，评估门不动，旧失败不改。H的Linux927aa3a/r2旧零门失败maxabs9.54e-7保留，不继续追逐位DAG一致；Ninja仅在独立tooling安装，活动训练环境未改。
 
-主优先实现诊断候选I：Gram前向沿旧融合实现，新反向按token/head归约两向边贡献，避免[B,H,C,C,D]全局临时张量。保持块长、三角解、状态/衰减/图邻域/顺序和所有训练更新语义；不是新数学模型、也无原创算法声明。CPU float64导数、三步非零LR完整更新及恢复scope和原H相关检查52passed/6实际kernel显式skip；尚未CUDA验证/采用，没有新整步吞吐结论。下一发布新隔离源做Linux CPU解释器/离线sm120编译；GPU测试仅在DP2终态回主后合适空闲窗口，以完整更新与10步ABBA决定，不打断消融。
+主实现诊断候选I：新反向按token/head归约两向边贡献，避免[B,H,C,C,D]全局临时张量。保持块长、三角解、状态/衰减/图邻域/顺序与训练语义，无新模型/原创声明。原Mac52pass/6kernel skip属历史；Linux88420ca/r1离线sm120编译通过、CUDA未初始化，但51pass/7fail：6解释器libdevice调用不兼容、1个tiled导数三步更新超原element gate（5.19e-5单weight）。失败保留，不扩大阈值冒充通过。修复为tl.exp并原始strides读取；CPU更新接线oracle用原eager导数，真实新kernel须另经解释器/双卡全更新验证。无新整步提速或采用结论。下一新源CPU检查；DP2终态空闲窗口再做GPU全更新及10步ABBA，不打断消融。
 
 DP2唯一20min监督继续；主不重复轮询。科学队列DP2→S12-L4→CG1→U24→MR1→P1→C1→O1→K2-fixed-prefix和PT1中等待回填不变。详细公式/来源/收益限制与下一实验见plans/TRAIN_UPDATE_PROFILE_20261017.plan.md及永久性能报告。下文为历史。
 
