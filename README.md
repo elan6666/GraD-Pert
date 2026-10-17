@@ -45,6 +45,12 @@ trains and records curves; validation and best/last versus last-only testing
 follow the sealed configuration. To resume an interrupted run with **the same** source, config and
 budget, use `python -m gradpert resume-v2 --launch RUN/launch.json`.
 
+When reusing an environment installed from another checkout, pin imports to the
+published checkout before starting a controller: from its repository root, set
+`PYTHONPATH="$PWD/src:$PWD"`. Verify `gradpert.__file__` points there. This avoids
+silently importing an older editable installation; keep the active server
+checkout immutable.
+
 For the completed Jurkat three-epoch checkpoint, two explicit example configs
 are provided: `configs/v2/no_mhc_joint_eval_jurkat/continue_full_m74_a2/`
 restores Student, Teacher, centers, optimizer and RNG for epochs 4–5; and

@@ -1,0 +1,51 @@
+{
+  "schema": "pt1-engineering-acceptance-1",
+  "training_source_commit": "ec32671f4c37bc3d1d0f935ddca87fb89a55fa3e",
+  "source_clean_at_launch": true,
+  "config_file_sha256": "7202d4f16e7dd83547294e21144500be3a971b9ffe934b3106b2f44bc9d52ac5",
+  "publication_sha256": "4a8f24dbee286738c3411779e6a9d10bce7a7d01b3ebc14c4a562fc84af400d0",
+  "runtime_sha256": "a8118f0e83317dc3f7c2e7fe08a7fcdfb5c120b359ea9ae0889cdab5ede8f8fa",
+  "queue_sha256": "dfcd15369c5c91aa4598d5720ed5d11f90e542f3ef6e2dcaf3259681886f3bd0",
+  "main_acceptance_sha256": "96cdf8d1b1704c4c4f3715f76cb269812ef9276b89bf7bcc449c749210e96a65",
+  "preflight_complete_sha256": "6e5ac93ab840814ac90f4f398f8ab7af20bf747f52653da2b97ab2dad26f3661",
+  "paired_terminal_sha256": "6cf2702ed09435696592b5699078c7b2018f669bf171e8dbbdbc2a981137a08f",
+  "paired_updates": {
+    "per_path": 4,
+    "phases": [
+      2,
+      2
+    ],
+    "ranks": 2,
+    "max_absolute_all_categories": 0.0,
+    "deterministic_diagnostic_only": true,
+    "nonzero_lr_ssl_and_mse": true
+  },
+  "eval_gate": {
+    "physical_gpus": [
+      0,
+      1
+    ],
+    "cell_batch": 128,
+    "n_controls": 300,
+    "shape": [
+      300,
+      5000
+    ],
+    "atol": 2e-06,
+    "rtol": 2e-06,
+    "max_abs_error": 0.0
+  },
+  "native_tree_identical_to_performance_commit": "9dc871f5562825bad342f9f90a44c3b8bd76e217",
+  "cpu_components": {
+    "topology_real_graph_abba_speedup": 12.4936,
+    "grouped_statistics_synthetic_abba_speedup": 1.64988
+  },
+  "training_speed_conclusion": "no stable end-to-end acceleration proven; retain measured samples and independent-state divergence",
+  "evaluation_speedup_scope": "single validation condition, fresh model, includes cache build; approximately1.59x on each GPU",
+  "run_id": "nadig_jurkat-seed1-20261017T052036Z-051a3d13c19044a4bbb53d6b3ef02678",
+  "run_root": "/data/yilangliu/GraD-Pert/runs-pt1-ec32671-20261017-r1/nadig_jurkat-seed1-20261017T052036Z-051a3d13c19044a4bbb53d6b3ef02678",
+  "startup_receipt_sha256": "a6327a963edecf3945002e36d6cd87dd7d488f14265d211dbd9b0dc6ec57e40b",
+  "observed_formal_steps": 2,
+  "scientific_complete": false,
+  "archive": "experiment-analysis/pt1-staged-20261017/performance-9dc871f/REPORT_CN.md"
+}

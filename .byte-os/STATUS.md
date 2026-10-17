@@ -1,3 +1,9 @@
+## 2026-10-17：PT1与代码优化通过工程验收，正式训练已启动
+
+训练源ec32671f4c37bc3d1d0f935ddca87fb89a55fa3e，clean/pushed/immutable；配置SHA7202d4f16e7dd83547294e21144500be3a971b9ffe934b3106b2f44bc9d52ac5。新增PT1两轮SSL后两轮MSE、阶段恢复和同/异条件Global/Local中等诊断；拓扑打包与评估静态图复用、无用SSL decoder/I/O移除。CPU组件12.49倍/1.65倍；双卡单条件eval约1.59倍、输出误差0；整步训练未证明稳定加速。独立GPU state差异原样保留，受控同checkpoint/RNG两rank×2SSL+2MSE的loss/梯度/完整objective/optimizer逐值相同；10步/恢复及两卡eval128原2e-6门再次通过。
+
+正式run nadig_jurkat-seed1-20261017T052036Z-051a3d13c19044a4bbb53d6b3ef02678，主核验epoch1 step2/150、累计2/600、SSL非零LR更新。global320=80×双卡×累积2，4轮、无验证、last18+同中等清单；300步切换、单次动量重置、Teacher/center冻结。工程验收evidence/pt1-20261017/ENGINEERING_ACCEPTANCE.json，永久性能报告experiment-analysis/pt1-staged-20261017/performance-9dc871f/REPORT_CN.md。科学结果未完成。唯一长监督交接与20min激活由权威coordination/state.json维护；下方均为历史，不恢复旧队列。
+
 ## 2026-10-17：D0完整交付；官方DINOv2参考亦已完成
 
 D0四轮600更新、epoch4 last18及同中等清单完整；此次仅补分析，无重训。原110a932 failed queue、nullable报告失败和r1导入失败均保留，r2独立目录成功。26项server CPU回归通过；主独立调用完成验证器、重算全部完成输出字节/哈希、确认数值源110a932与report/controller源7ae9a7e938d58e24993d3acf79cb09daa02652df分开。MEDIUM_COMPLETE SHAad2302e6576e792ef0140e33497cf8d1bd16cc95519d8663a8c09a37f2c61a53；1335条件5317行、deep128条件506行、gradient32条件125行；0更新/state unchanged，821个浮点统计maxabs7.958078640513122e-13<=1e-8。
