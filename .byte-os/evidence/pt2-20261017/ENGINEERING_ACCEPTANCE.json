@@ -1,0 +1,34 @@
+{
+  "schema": "main-pt2-launch-acceptance-1",
+  "verified_at_utc": "2026-10-17T15:15:17.556642+00:00",
+  "run_id": "nadig_jurkat-seed1-20261017T145243Z-d84c7470867a4c5cbd658beb3e29a96a",
+  "attempt": 1,
+  "source_commit": "f1799a089365f1722e73b676b3a338237c370c86",
+  "config_sha256": "69df2b9431eba0e00ce94c26c48c3dbe96fd4f732cc7843d09dcb41ada65a751",
+  "queue": "/data/yilangliu/GraD-Pert/development/pt2-f1799a0-b320-20261017-r1/queue/queue.json",
+  "queue_sha256": "94425064ba4bd3b005ab38fe1395fa53acf4f3411f0ab0d033f80387e7e7e57e",
+  "preflight_complete_sha256": "fd81a3e957a2b639bcb5a1858d7757481822e4d87b34789c97ae522aff5b43da",
+  "main_acceptance_sha256": "d2e219477ce09e29a2902c2a57cbd6c8c952bbaad41cc60afc5a6e84264ff90d",
+  "server_startup": "/data/yilangliu/GraD-Pert/development/pt2-f1799a0-b320-20261017-r1/FORMAL_STARTUP.json",
+  "server_startup_sha256": "30e3c8a526b96d6e140e2392804c47e821c3fba59a0c38e26e0ca83fb663822a",
+  "verified_live_progress": {
+    "epoch": 1,
+    "epoch_step": 7,
+    "epoch_steps_total": 150,
+    "total_updates": 900,
+    "training_stage": "ssl_pretrain",
+    "learning_rate": 0.000125,
+    "active_losses": [
+      "ssl1_condition",
+      "ssl2_dino",
+      "ssl2_ibot"
+    ]
+  },
+  "cpu_tests_local": 118,
+  "cpu_tests_server": 118,
+  "diagnostic_only_numeric_drift_disclosed": true,
+  "native_speed_gain_percent": 1.7454800017027372,
+  "scientific_complete": false,
+  "owner": "main",
+  "short_supervision": "Luna ended; main independently verified live run/source/config/processes"
+}

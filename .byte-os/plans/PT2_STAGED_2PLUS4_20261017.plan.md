@@ -69,3 +69,7 @@ journal/收据重标成epoch2。两端点复用同一封存分析清单，允许
 ## 编排实施进展（2026-10-17，未启动）
 
 新增generate_pt2.py与pt2_native_io_20261017独立执行schema，保留原preparation目录。run_br400_group对六轮配置严格匹配PT2生成值，旧family仍四轮；PT2预检必须有staged_training_gate。run_pt2_medium按pretrain/last选真实epoch2/6文件，stage与SHA核验，共用一个封存视图manifest，每端点有原1e-8 observer parity及0更新/state proof。总COMPLETE仅在两端均成功后生成。CPU saved报告先验证完整终态/history，再裁取epoch2，故不会隐藏后半段身份漂移；不借用epoch6 test18。中间预测头尚未训练，表征探针若调用数值读出是diagnostic-only；不变成额外训练监督。当前本地回归中，正式native IO采用还需原生ABBA，正式PT2启动还需同新发布源的阶段10步/恢复和两GPU eval128原2e-6门。
+
+## 已通过工程门并启动正式训练
+
+f1799a089365f1722e73b676b3a338237c370c86，原生ABBA实际+1.745%/allocated−15.85%，有限漂移已披露；CPU118/实际阶段10/双GPU eval128门通过。run nadig_jurkat-seed1-20261017T145243Z-d84c7470867a4c5cbd658beb3e29a96a 已真实epoch1 step7/150/累计7/900，2+4与双端点中等分析按上述配置执行。长期监督只交指定监督查询对话；全交付未完成、无测试指标。不再将其标为仅prepared，不将文档提交当作训练源码。

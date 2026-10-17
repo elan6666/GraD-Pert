@@ -1,3 +1,13 @@
+## 2026-10-17：性能原生复测与PT2预检通过，2+4正式训练已启动
+
+训练/评估/分析源 **f1799a089365f1722e73b676b3a338237c370c86** clean/pushed/immutable；config SHA69df2b9431eba0e00ce94c26c48c3dbe96fd4f732cc7843d09dcb41ada65a751。原生Gram IO同源四臂短ABBA按慢rank合并14.24715→14.49583cells/s，**+1.745%**，峰值allocated−15.85%；原先诊断入口+8.64%与本结果分开，收益有限且受运行波动影响。原3e-5/3e-4数值门FAILED保留；finite/input/RNG/structure通过、同初始权重raw输出maxabs0，不宣称长期效果等同。用户已接受有限精度差异；只在本新配置显式采用，不改历史默认/记录。
+
+本地118＋server118项回归通过；同f179实际staged10门通过（5SSL＋5MSE、两phase exact restore、moment仅一次重置、预测头只在微调学习、MSE中Teacher/center冻结）；双GPU eval128/reference128原2e-6门误差0。主独立调用验证器并复核各hash/实进程后放行。PREFLIGHT SHAfd81a3e957a2b639bcb5a1858d7757481822e4d87b34789c97ae522aff5b43da；MAIN_ACCEPTANCE SHAd2e219477ce09e29a2902c2a57cbd6c8c952bbaad41cc60afc5a6e84264ff90d。
+
+run **nadig_jurkat-seed1-20261017T145243Z-d84c7470867a4c5cbd658beb3e29a96a**，queue `/data/yilangliu/GraD-Pert/development/pt2-f1799a0-b320-20261017-r1/queue` SHA94425064ba4bd3b005ab38fe1395fa53acf4f3411f0ab0d033f80387e7e7e57e。主已实核epoch1 step7/150、累计7/900、SSL、非零LR.000125，双rank存活；不是仅预检/批准文件。6轮=2SSL＋4MSE，global320=80×双卡×累积2，无验证/best，epoch6 last18；epoch2/pretrain与epoch6/last同一物理manifest各做中等分析（1335/5317、deep128/506、grad32/125），两者均成功才完成。当前无正式测试/中等结果。
+
+启动收据server FORMAL_STARTUP SHA30e3c8a526b96d6e140e2392804c47e821c3fba59a0c38e26e0ca83fb663822a；主本地launch收据SHA53def8124e29dbae5113df4cfcffcec19311c2cb07e1430417c7188fdcffa438。长监督交接与20min ACTIVE/ACK由权威v2-gene-exposure-eval/.byte-os/coordination/state.json维护；Luna短监督已结束，主不再并行查询。下一依赖PT2全验收后S12-L4，PT1可比中等补测仍待空闲窗口；不重跑BR/官方/旧实验。永久性能报告和PT2设计归档在 `/Users/elan/code/grad-pert/experiment-analysis/`。下方旧“未启动/待编排”等为历史，以本条和权威实时收据为准。
+
 ## 2026-10-17：PT2双端点编排完成，118项本地回归通过
 
 原生772075c工程链已由主独立核验：CUDA导数12项、10步/恢复/300-control推理通过；正LR3步输入/RNG/结构finite通过，但原数值门仍FAILED，初始同权重raw输出maxabs0，后续轨迹漂移如实保留。原生配置入口ABBA在native-gram-772075c-abba-20261017-r1运行，PLAN SHA c731aa253b103b793ccf8cec30623d7624ce5ada125dfa6e6cbd8f236dfbbec4，Luna短监督，主不重复查。旧诊断ABBA +8.64%/allocated−15.85%不能冒充此新入口已终态。完整小收据/漂移说明见永久archive train-update-profile-20261017/NATIVE_GRAM_IO_ENGINEERING_CN.md。
