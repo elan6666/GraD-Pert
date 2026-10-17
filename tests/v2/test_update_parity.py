@@ -74,6 +74,31 @@ def test_reference_repeat_cannot_hide_an_architecture_change():
         MODULE.execution_changes(original, replace(changed, relay_kernel="inductor"), False)
 
 
+def test_staged_parity_reopens_and_closes_data_at_the_phase_boundary():
+    from types import SimpleNamespace
+
+    steps, opened, closed = [], [], []
+    runtime = SimpleNamespace(step=0)
+
+    def batches(epoch, *, cpu_prefetch):
+        assert not cpu_prefetch
+        phase = "ssl" if runtime.step < 2 else "mse"
+        opened.append((epoch, phase))
+        try:
+            for _ in range(20):
+                yield phase
+        finally:
+            closed.append(epoch)
+
+    runtime.batches = batches
+    for phase in MODULE.comparison_batches(runtime, staged=True, cpu_prefetch=False):
+        steps.append(phase)
+        runtime.step += 1
+    assert steps == ["ssl", "ssl", "mse", "mse"]
+    assert opened == [(0, "ssl"), (1, "mse")]
+    assert closed == [0, 1]
+
+
 def test_sequence_checkpoint_diagnostic_changes_both_sides_only():
     from types import SimpleNamespace
 

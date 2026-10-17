@@ -68,6 +68,16 @@ def cpu_copy(value: Any) -> Any:
     return value
 
 
+def comparison_batches(runtime: Any, *, staged: bool, cpu_prefetch: bool):
+    """Reopen data at the PT1 boundary so finetuning can read its targets."""
+    for epoch in range(2 if staged else 1):
+        stream = runtime.batches(epoch, cpu_prefetch=cpu_prefetch)
+        try:
+            yield from itertools.islice(stream, 2)
+        finally:
+            stream.close()
+
+
 def compare_trees(
     reference: Any, actual: Any, *, atol: float = 3e-5, rtol: float = 3e-4
 ) -> dict[str, Any]:
@@ -264,6 +274,7 @@ def main() -> None:
     parser.add_argument("--publication", type=Path, required=True)
     parser.add_argument("--publication-sha256", required=True)
     parser.add_argument("--reference-repeat", action="store_true")
+    parser.add_argument("--pt1-execution", action="store_true")
     parser.add_argument("--deterministic", action="store_true")
     parser.add_argument("--no-sequence-checkpoint", action="store_true")
     parser.add_argument("--candidate-no-sequence-checkpoint", action="store_true")
@@ -274,6 +285,17 @@ def main() -> None:
     parser.add_argument("--candidate-gram-forward-audit", action="store_true")
     parser.add_argument("--candidate-gram-backward-audit", action="store_true")
     args = parser.parse_args()
+    if args.pt1_execution and any(
+        (
+            args.no_sequence_checkpoint,
+            args.candidate_no_sequence_checkpoint,
+            args.candidate_cpu_prefetch,
+            args.candidate_fused_sinkhorn,
+            args.candidate_no_grad_elision,
+            args.candidate_fused_gram,
+        )
+    ):
+        parser.error("PT1 execution diagnostic must isolate decoder/topology reuse")
     if args.candidate_gram_backward_audit and not args.candidate_gram_forward_audit:
         parser.error("backward audit requires forward audit")
     if args.candidate_gram_forward_audit and not args.candidate_fused_gram:
@@ -365,9 +387,12 @@ def main() -> None:
         or args.candidate_cpu_prefetch
         or args.candidate_fused_sinkhorn
         or args.candidate_no_grad_elision
-        or args.candidate_fused_gram,
+        or args.candidate_fused_gram
+        or args.pt1_execution,
     )
     assert candidate_options == options
+    if args.pt1_execution and options.training_mode != "ssl_then_mse":
+        parser.error("PT1 execution diagnostic requires ssl_then_mse")
     left, right = config.model_dump(mode="json"), candidate.model_dump(mode="json")
     for field in changed:
         left["model"]["parameters"].pop(field, None)
@@ -388,7 +413,7 @@ def main() -> None:
     primary_call(lambda: args.output.mkdir(parents=True, exist_ok=False))
     receipt: dict[str, Any] = {
         "status": "running",
-        "kind": "two_update_parity",
+        "kind": "pt1_four_update_parity" if args.pt1_execution else "two_update_parity",
         "rank": rank,
         "source": source.payload(),
         "config_sha256": sha256_file(args.config),
@@ -399,6 +424,8 @@ def main() -> None:
         "steps": [],
         "execution_change": {name: getattr(candidate_architecture, name) for name in changed},
         "reference_repeat": args.reference_repeat,
+        "pt1_execution": args.pt1_execution,
+        "engineering_pretrain_steps": 2 if args.pt1_execution else None,
         "candidate_cpu_prefetch_diagnostic_only": args.candidate_cpu_prefetch,
         "candidate_fused_sinkhorn_diagnostic_only": args.candidate_fused_sinkhorn,
         "candidate_no_grad_elision_diagnostic_only": args.candidate_no_grad_elision,
@@ -418,6 +445,10 @@ def main() -> None:
         with prepare_runtime(
             config, data_root=args.data_root, run_seed=1, device=torch.device("cuda:0")
         ) as runtime:
+            if args.pt1_execution:
+                runtime.objective.pretrain_steps = 2
+                runtime.objective.decode_ssl_views = True
+                runtime.index.cache_full_context = False
             if args.no_sequence_checkpoint:
                 disable_sequence_checkpoint(runtime.objective)
             if args.candidate_no_grad_elision:
@@ -461,6 +492,9 @@ def main() -> None:
                             identity=runtime.identity,
                             generator=runtime.generator,
                         )
+                        if args.pt1_execution and not args.reference_repeat:
+                            runtime.objective.decode_ssl_views = False
+                            runtime.index.cache_full_context = True
                         if args.candidate_no_sequence_checkpoint:
                             disable_sequence_checkpoint(runtime.objective)
                         if args.candidate_gram_forward_audit:
@@ -514,12 +548,10 @@ def main() -> None:
                                         candidate_architecture.relay_validate_once
                                     )
                     for step, batch in enumerate(
-                        itertools.islice(
-                            runtime.batches(
-                                0,
-                                cpu_prefetch=args.candidate_cpu_prefetch and kernel == "candidate",
-                            ),
-                            2,
+                        comparison_batches(
+                            runtime,
+                            staged=args.pt1_execution,
+                            cpu_prefetch=args.candidate_cpu_prefetch and kernel == "candidate",
                         )
                     ):
                         input_digest = tree_digest(batch)
@@ -528,12 +560,17 @@ def main() -> None:
                         local = slice_cells(
                             batch, count * rank // world, count * (rank + 1) // world
                         )
+                        learning_rate = (
+                            options.finetune_learning_rate
+                            if args.pt1_execution and step >= 2
+                            else schedule.at_step(step, total_steps)["learning_rate"]
+                        )
                         metrics = optimizer_step(
                             runtime.objective,
                             runtime.optimizer,
                             local,
                             microbatch=options.microbatch,
-                            lr=schedule.at_step(step, total_steps)["learning_rate"],
+                            lr=learning_rate,
                             momentum=options.teacher_end
                             - (options.teacher_end - options.teacher_start)
                             * (1 + math.cos(math.pi * step / (total_steps - 1)))
@@ -548,7 +585,7 @@ def main() -> None:
                             "optimizer": cpu_copy(runtime.optimizer.state_dict()),
                         }
                         record = {
-                            "learning_rate": schedule.at_step(step, total_steps)["learning_rate"],
+                            "learning_rate": learning_rate,
                             "input_sha256": input_digest,
                             "rng_before_sha256": rng_before,
                             "rng_after_sha256": tree_digest(_rng_state()),
@@ -588,7 +625,7 @@ def main() -> None:
                         runtime.objective,
                         runtime.optimizer,
                         identity={"data": runtime.identity, "kernel": kernel},
-                        progress={"step": 2},
+                        progress={"step": 4 if args.pt1_execution else 2},
                         generator=runtime.generator,
                     )
             finally:
