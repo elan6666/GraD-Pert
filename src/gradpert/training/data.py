@@ -596,7 +596,18 @@ class CanonicalTrainingData:
 
     def _materialize_cpu_batch(self, spec: _TrainingBatchSpec) -> _CpuTrainingBatch:
         started = time.perf_counter()
-        if self._control_expression_cache is not None and all(
+        if getattr(self, "control_only_training", False):
+            if self._control_expression_cache is not None and all(
+                index in self._control_cache_position for index in spec.control_indices
+            ):
+                positions = [self._control_cache_position[index] for index in spec.control_indices]
+                control = np.ascontiguousarray(self._control_expression_cache[positions])
+            else:
+                control = self._read_expression_indices(spec.control_indices)
+            # A sentinel, never a target or reconstruction objective. Metadata
+            # still defines the same condition frequency and epoch row budget.
+            target = np.full_like(control, np.nan)
+        elif self._control_expression_cache is not None and all(
             index in self._control_cache_position for index in spec.control_indices
         ):
             positions = [self._control_cache_position[index] for index in spec.control_indices]

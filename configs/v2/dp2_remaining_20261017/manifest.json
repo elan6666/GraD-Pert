@@ -1,0 +1,43 @@
+{
+  "schema": "fgpo-dino-dp2-medium-1",
+  "family": "dino_pair_20261016",
+  "priority": [
+    "DP2"
+  ],
+  "preflight_priority": [
+    "DP2"
+  ],
+  "common_microbatch": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 320,
+  "epochs": 4,
+  "seed": 1,
+  "eval_batch": 128,
+  "validation": "disabled",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "analysis": "same medium basic/deep/gradient lists; actual Teacher temperature",
+  "rerun_old_BR_or_officials": false,
+  "rows": [
+    {
+      "name": "DP2",
+      "config": "configs/v2/dp2_remaining_20261017/DP2/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "e79224152e1d879fb3718694dc2b026e03b85404b6ccec419e3132624e68f374",
+      "changes": {
+        "prototype_weight_norm": true,
+        "prototype_freeze_epochs": 1,
+        "prototype_fixed_scale": true,
+        "prototype_freeze_gradients": true,
+        "teacher_start": 0.996,
+        "teacher_temperature_start": 0.04,
+        "teacher_temperature_end": 0.03,
+        "teacher_temperature_warmup_epochs": 1
+      }
+    }
+  ]
+}

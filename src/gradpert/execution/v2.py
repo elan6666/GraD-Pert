@@ -76,7 +76,12 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     from gradpert.training.v2.evaluation import evaluate
     from gradpert.training.v2.exposure import checkpoint_expression_groups
     from gradpert.training.v2.joint_validation import evaluate_epoch_validation
-    from gradpert.training.v2.lifecycle import ConstantStageLR, fit, test_selected
+    from gradpert.training.v2.lifecycle import (
+        ConstantStageLR,
+        PretrainThenMSELR,
+        fit,
+        test_selected,
+    )
     from gradpert.training.v2.reporting import export_curves
     from gradpert.training.v2.runtime import prepare_runtime
 
@@ -239,6 +244,12 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             schedule=(
                 ConstantStageLR(config.continuation.learning_rate)
                 if config.continuation is not None
+                else PretrainThenMSELR(
+                    schedule,
+                    runtime.objective.pretrain_steps,
+                    runtime.options.finetune_learning_rate,
+                )
+                if runtime.options.training_mode == "ssl_then_mse"
                 else schedule
             ),
             teacher_start=(

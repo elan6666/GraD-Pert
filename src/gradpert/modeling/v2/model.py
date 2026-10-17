@@ -871,6 +871,7 @@ class GraDPertV2(nn.Module):
         block_response_cls_to_gene: bool = False,
         query_gene_ids: Tensor | None = None,
         target_mask: Tensor | None = None,
+        decode: bool = True,
     ) -> dict[str, Tensor]:
         basal, control_cls, order = self.encode_control(
             gene, control, expression_mask, query_gene_ids=query_gene_ids
@@ -888,16 +889,21 @@ class GraDPertV2(nn.Module):
                 order,
                 block_cls_to_gene=block_response_cls_to_gene,
             )
-            joint = torch.cat((response[:, :-1], condition[:, None, :].expand_as(basal)), dim=-1)
-            score = self.decode_score(joint, query_gene_ids=query_gene_ids, target_mask=target_mask)
-            prediction, delta = self.prediction_outputs(score, control)
-            return {
-                "prediction": prediction,
-                "delta": delta,
+            output = {
                 "control_cls": control_cls,
                 "response_cls": response[:, -1],
                 "response_tokens": response[:, :-1],
             }
+            if decode:
+                joint = torch.cat(
+                    (response[:, :-1], condition[:, None, :].expand_as(basal)), dim=-1
+                )
+                score = self.decode_score(
+                    joint, query_gene_ids=query_gene_ids, target_mask=target_mask
+                )
+                prediction, delta = self.prediction_outputs(score, control)
+                output.update(prediction=prediction, delta=delta)
+            return output
         joint = torch.cat((basal, condition[:, None, :].expand_as(basal)), dim=-1)
         response = self.response(
             torch.cat(
@@ -906,15 +912,16 @@ class GraDPertV2(nn.Module):
             ),
             block_cls_to_gene=block_response_cls_to_gene,
         )
-        score = self.prediction(response[:, :-1]).squeeze(-1)
-        prediction, delta = self.prediction_outputs(score, control)
-        return {
-            "prediction": prediction,
-            "delta": delta,
+        output = {
             "control_cls": control_cls,
             "response_cls": response[:, -1],
             "response_tokens": response[:, :-1],
         }
+        if decode:
+            score = self.prediction(response[:, :-1]).squeeze(-1)
+            prediction, delta = self.prediction_outputs(score, control)
+            output.update(prediction=prediction, delta=delta)
+        return output
 
     def prediction_outputs(self, score: Tensor, control: Tensor) -> tuple[Tensor, Tensor]:
         if self.options.prediction_parameterization == "softplus":

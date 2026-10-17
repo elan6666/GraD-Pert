@@ -384,49 +384,60 @@ def evaluate_process_diagnostics(
                     **objective.response_metadata(selected),
                 )
 
-            output = predict(batch)
-            interventions = {}
-            if intervention_budget:
-                changed = predict(replace(batch, control=batch.control.roll(1, 0)))
-                interventions["rolled_control"] = _output_change(output, changed)
-                interventions["rolled_control"]["context_matched"] = False
-                interventions["rolled_control"]["changed_rows"] = int(
-                    (batch.control != batch.control.roll(1, 0)).any(-1).sum()
-                )
-            if intervention_budget >= 2:
-                changed = predict(replace(batch, condition_index=batch.condition_index.roll(1, 0)))
-                interventions["rolled_condition"] = _output_change(output, changed)
-                interventions["rolled_condition"]["changed_rows"] = int(
-                    (batch.condition_index != batch.condition_index.roll(1, 0)).sum()
-                )
-            if intervention_budget >= 3:
-                model = objective.student
-                original_options = model.options
-                previous_seeds = [
-                    (m, m.eval_seed) for m in model.modules() if isinstance(m, RelayDeltaAttention)
-                ]
-                try:
-                    model.options = replace(original_options, relay_eval_seed=seed + 1)
-                    for module, _ in previous_seeds:
-                        module.eval_seed = seed + 1
-                    changed = predict(batch)
-                    interventions["changed_order_seed"] = _output_change(output, changed)
-                    interventions["changed_order_seed"]["applies_to"] = "relay_graph_cell_response"
-                    interventions["changed_order_seed"]["applicable"] = (
-                        model.options.attention == "relay_full"
+            if objective.prediction_enabled:
+                output = predict(batch)
+                interventions = {}
+                if intervention_budget:
+                    changed = predict(replace(batch, control=batch.control.roll(1, 0)))
+                    interventions["rolled_control"] = _output_change(output, changed)
+                    interventions["rolled_control"]["context_matched"] = False
+                    interventions["rolled_control"]["changed_rows"] = int(
+                        (batch.control != batch.control.roll(1, 0)).any(-1).sum()
                     )
-                finally:
-                    model.options = original_options
-                    for module, value in previous_seeds:
-                        module.eval_seed = value
-            outputs = prediction_summary(
-                output["prediction"],
-                batch.control,
-                batch.truth,
-                batch.condition_index,
-                strategy=objective.prediction_strategy,
-                error_power=objective.prediction_error_power,
-            )
+                if intervention_budget >= 2:
+                    changed = predict(
+                        replace(batch, condition_index=batch.condition_index.roll(1, 0))
+                    )
+                    interventions["rolled_condition"] = _output_change(output, changed)
+                    interventions["rolled_condition"]["changed_rows"] = int(
+                        (batch.condition_index != batch.condition_index.roll(1, 0)).sum()
+                    )
+                if intervention_budget >= 3:
+                    model = objective.student
+                    original_options = model.options
+                    previous_seeds = [
+                        (m, m.eval_seed)
+                        for m in model.modules()
+                        if isinstance(m, RelayDeltaAttention)
+                    ]
+                    try:
+                        model.options = replace(original_options, relay_eval_seed=seed + 1)
+                        for module, _ in previous_seeds:
+                            module.eval_seed = seed + 1
+                        changed = predict(batch)
+                        interventions["changed_order_seed"] = _output_change(output, changed)
+                        interventions["changed_order_seed"]["applies_to"] = (
+                            "relay_graph_cell_response"
+                        )
+                        interventions["changed_order_seed"]["applicable"] = (
+                            model.options.attention == "relay_full"
+                        )
+                    finally:
+                        model.options = original_options
+                        for module, value in previous_seeds:
+                            module.eval_seed = value
+                outputs = prediction_summary(
+                    output["prediction"],
+                    batch.control,
+                    batch.truth,
+                    batch.condition_index,
+                    strategy=objective.prediction_strategy,
+                    error_power=objective.prediction_error_power,
+                )
+            else:
+                outputs = {"status": "not_applicable:ssl_pretrain_no_prediction_labels"}
+                interventions = {}
+
     return {
         "schema": "training-process-diagnostics-1",
         "split": "train",
@@ -438,7 +449,9 @@ def evaluate_process_diagnostics(
                 "gene_ids": batch.graph.ids[batch.query_positions].cpu().tolist(),
                 "conditions": batch.condition_index.cpu().tolist(),
                 "control": batch.control.float().cpu().tolist(),
-                "truth": batch.truth.float().cpu().tolist(),
+                "truth": batch.truth.float().cpu().tolist()
+                if objective.prediction_enabled
+                else "not_loaded:ssl_pretrain",
                 "graph_views": [v.ids.cpu().tolist() for v in batch.graph_views],
                 "cell_views": [
                     {"positions": v.positions.cpu().tolist(), "mask": v.mask.cpu().tolist()}
@@ -456,6 +469,11 @@ def evaluate_process_diagnostics(
         },
         "joint_loss": float(joint),
         "components": {k: float(v) for k, v in terms.items()},
+        **(
+            {"training_stage": objective.training_stage}
+            if hasattr(objective, "training_stage")
+            else {}
+        ),
         "distributions": {k: v.result() for k, v in distributions.items()},
         "centers": {
             name: {
@@ -519,8 +537,8 @@ def evaluate_graph_gradient_diagnostics(
     with _read_only(objective, batch, 0x71A1):
         with torch.autocast(batch.control.device.type, dtype=torch.bfloat16, enabled=bf16):
             _, terms = objective(batch)
-            zero = terms["prediction"] * 0
-            losses = {"prediction": terms["prediction"]}
+            zero = next(iter(terms.values())) * 0
+            losses = {"prediction": terms["prediction"]} if objective.prediction_enabled else {}
             for index, (prefix, names) in enumerate(
                 (
                     ("ssl1", ("condition", "node", "spread")),
@@ -534,7 +552,10 @@ def evaluate_graph_gradient_diagnostics(
                 )
         gradients = {
             name: torch.autograd.grad(
-                value, [p for _, p in parameters], retain_graph=i < 2, allow_unused=True
+                value,
+                [p for _, p in parameters],
+                retain_graph=i + 1 < len(losses),
+                allow_unused=True,
             )
             for i, (name, value) in enumerate(losses.items())
         }
@@ -550,7 +571,7 @@ def evaluate_graph_gradient_diagnostics(
                 for name, g in gradients.items()
             }
             cosines = {}
-            for other in ("ssl1", "ssl2"):
+            for other in ("ssl1", "ssl2") if "prediction" in gradients else ():
                 dot = sum(
                     float(
                         (

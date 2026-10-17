@@ -371,3 +371,12 @@ Evaluation-state condition IDs may cover more populations or use a different ord
 ## 2026-10-15：参考可重复性与profiler成本
 
 相同CUDA参考也可出现iBOT单ulp和梯度归约波动；保留重复证据，严格对照两臂使用同一确定性算子与cuBLAS工作区，不放宽误差门限。百万级事件的完整trace达数GiB并污染walltime；正式测速用小聚合计时，重型profile独立记录且不下载。
+# Continue authorized dependencies after repair
+
+- Mistake: after a postfit report failure was repaired, the next already approved
+  ablation was left idle and described as needing a new authorized stage.
+- Correction: preserving failed queues requires a fresh continuation identity,
+  not fresh user permission for the unchanged authorized next arm.
+- Prevention: completion/repair acceptance must name the next approved dependency
+  and either launch it with its existing gates or record a concrete external blocker.
+  Status questions do not cancel the standing execution request.

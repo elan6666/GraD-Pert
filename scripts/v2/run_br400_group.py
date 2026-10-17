@@ -24,6 +24,7 @@ from generate_br400_group import (
 from generate_br400_group import (
     verify_manifest as verify_br_manifest,
 )
+from generate_dino_pair import REMAINING_SCHEMA as DP2_SCHEMA
 from generate_dino_pair import SCHEMA as DINO_SCHEMA
 from generate_dino_pair import verify_manifest as verify_dino_manifest
 from generate_ffn_five import SCHEMA as FFN_SCHEMA
@@ -32,6 +33,8 @@ from generate_fgpo_family import SCHEMA as FGPO_SCHEMA
 from generate_fgpo_family import verify_manifest as verify_fgpo_manifest
 from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
 from generate_no_ssl import verify_manifest as verify_no_ssl_manifest
+from generate_pt1 import SCHEMA as PT1_SCHEMA
+from generate_pt1 import verify_manifest as verify_pt1_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -56,7 +59,7 @@ from gradpert.hashing import sha256_file, sha256_json
 
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
-FGPO_FAMILIES = (FGPO_SCHEMA, DINO_SCHEMA, NO_SSL_SCHEMA)
+FGPO_FAMILIES = (FGPO_SCHEMA, DINO_SCHEMA, DP2_SCHEMA, NO_SSL_SCHEMA, PT1_SCHEMA)
 LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA, *FGPO_FAMILIES)
 DEFERRED_SCDFM_POLICY = "scdfm_fit_gears_terminal_evaluation_deferred_v1"
 
@@ -128,9 +131,11 @@ def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
 
 
 def verify_manifest(source: Path, manifest: Path) -> dict:
+    if read_json(manifest).get("schema") == PT1_SCHEMA:
+        return verify_pt1_manifest(source, manifest)
     if read_json(manifest).get("schema") == NO_SSL_SCHEMA:
         return verify_no_ssl_manifest(source, manifest)
-    if read_json(manifest).get("schema") == DINO_SCHEMA:
+    if read_json(manifest).get("schema") in (DINO_SCHEMA, DP2_SCHEMA):
         return verify_dino_manifest(source, manifest)
     if read_json(manifest).get("schema") == FGPO_SCHEMA:
         return verify_fgpo_manifest(source, manifest)
@@ -401,6 +406,11 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
         raise ValueError("exact10 restore/inference/read-only joint-validation gate missing")
     if queue["family"] in LAST_ONLY_FAMILIES:
         if (
+            queue["family"] == PT1_SCHEMA
+            and receipt.get("staged_training_gate", {}).get("passed") is not True
+        ):
+            raise ValueError("PT1 requires actual SSL/MSE transition and restore evidence")
+        if (
             row["plan"]["resolved_config"]["model"]["parameters"]["validation_mode"]["value"]
             != "disabled"
             or receipt.get("joint_validation_check_requested") is not False
@@ -415,7 +425,15 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
                     observed.get("split") != "train"
                     or observed.get("selection_use") != "none"
                     or observed.get("schema") != "training-process-diagnostics-1"
-                    or not observed.get("distributions")
+                    or (
+                        not observed.get("distributions")
+                        and not (
+                            queue["family"] == PT1_SCHEMA
+                            and key == "updated_loss_diagnostic"
+                            and observed.get("training_stage") == "mse_finetune"
+                            and not any(k.startswith("ssl") for k in observed.get("components", {}))
+                        )
+                    )
                     or not observed.get("features")
                     or not observed.get("outputs")
                 ):

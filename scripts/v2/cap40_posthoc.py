@@ -177,7 +177,9 @@ def assemble(runtime, records, queries, seed, *, deep, dummy=False):
     from gradpert.training.v2.views import assemble_batch
 
     options = (
-        runtime.options if deep else dataclasses.replace(runtime.options, lambda1=0.0, lambda2=0.0)
+        dataclasses.replace(runtime.options, lambda1=1.0, lambda2=1.0)
+        if deep
+        else dataclasses.replace(runtime.options, lambda1=0.0, lambda2=0.0)
     )
     return assemble_batch(
         make_raw(runtime, records, dummy=dummy),
@@ -539,6 +541,8 @@ class Collector:
         self.handles, self.wrappers = [], []
         self.same_gene = []
         self.cross_view = []
+        self.condition_cache = {}
+        self.extra_diagnostic = False
 
     def head_view_index(self, head_name, call_index):
         if head_name not in self.node_view_ids:
@@ -630,6 +634,7 @@ class Collector:
         from gradpert.training.v2 import objective as module
 
         self.original_ce = module.cross_entropy_terms
+        self.objective = obj
         self.module = module
         for role in ("student", "teacher"):
             model = getattr(obj, role)
@@ -661,6 +666,8 @@ class Collector:
                 _layout=graph_main_layout,
                 _conditional=model.options.control_conditioned_graph,
             ):
+                if self.extra_diagnostic:
+                    return
                 label = self.graph_view_names[id(inputs[0])]
                 if label == "main" and _conditional:
                     index = self.graph_main_count[role]
@@ -700,6 +707,8 @@ class Collector:
                     .numpy()
                 )
                 self.current = (_role, view, ids)
+                if _role == "student" and view == "main":
+                    self.main_response_inputs = (values[0], values[2])
                 output = _original(*values, **kw)
                 for name in ("control_cls", "response_cls", "response_tokens"):
                     self.add_features(f"{_role}.{view}.{name}", output[name])
@@ -752,6 +761,8 @@ class Collector:
                     self.head_count[k] += 1
                     view = f"view{self.head_view_index(head_name, index)}"
                     key = f"{role}.{head_name}.{view}"
+                    if head_name == "ssl1_cls":
+                        self.condition_cache[(role, view)] = inputs[0].detach().float().cpu()
                     self.logits[id(output)] = (key, output)
                     center = getattr(obj, head_name + "_center")
                     scaled = (
@@ -839,6 +850,8 @@ class Collector:
     def result(self):
         import torch
 
+        self.complete_feature_views()
+
         for role in ("student", "teacher"):
             available = [
                 (v, x)
@@ -878,6 +891,112 @@ class Collector:
                 for i, v in enumerate(self.batch.cell_views[:2])
             ],
         }
+
+    def complete_feature_views(self):
+        """Disabled losses still get explicitly read-only Student feature probes.
+
+        Reuse already observed SSL forwards. No prototype head or Teacher is
+        invoked to invent a loss for the MSE-only stage.
+        """
+        import torch
+
+        obj, batch = self.objective, self.batch
+        model = obj.student
+        device = batch.control.device
+        devices = [device.index or 0] if device.type == "cuda" else []
+        original = next(fn for owner, fn in self.wrappers if owner is model)
+        self.extra_diagnostic = True
+        try:
+            with (
+                torch.random.fork_rng(devices=devices),
+                torch.no_grad(),
+                torch.autocast(device.type, dtype=torch.bfloat16, enabled=device.type == "cuda"),
+            ):
+                missing = [
+                    i
+                    for i in range(len(batch.cell_views))
+                    if ("student", f"view{i}") not in self.response_cache
+                ]
+                if missing:
+                    shared_main = getattr(self, "main_response_inputs", None)
+                    if not model.options.control_conditioned_graph and shared_main is not None:
+                        selected_graph, condition = shared_main
+                    else:
+                        graph, condition = obj._batch_graph(model, batch)
+                        selected_graph = obj._select_graph(graph, batch.query_positions)
+                    for i in missing:
+                        view = batch.cell_views[i]
+                        p = view.positions
+                        sg, sc = (
+                            obj._batch_graph(model, batch, view.mask, p)
+                            if (model.options.control_conditioned_graph)
+                            else (None, condition)
+                        )
+                        result = original(
+                            obj._select_graph(sg, batch.query_positions[p])
+                            if sg is not None
+                            else selected_graph[:, p]
+                            if selected_graph.ndim == 3
+                            else selected_graph[p],
+                            batch.control[:, p],
+                            sc,
+                            view.mask,
+                            **obj.response_metadata(batch, p),
+                            decode=False,
+                        )
+                        self.response_cache[("student", f"view{i}")] = (
+                            result["response_cls"].detach().float().cpu()
+                        )
+                for i, view in enumerate(batch.graph_views):
+                    if ("student", f"view{i}") not in self.condition_cache:
+                        _, condition = obj._graph(
+                            model,
+                            view,
+                            True,
+                            batch.control,
+                            batch.graph.ids[batch.query_positions],
+                            batch.condition_index,
+                        )
+                        self.condition_cache[("student", f"view{i}")] = (
+                            condition.detach().float().cpu()
+                        )
+        finally:
+            self.extra_diagnostic = False
+
+    def add_to_view_bank(self, bank):
+        for (role, view), values in self.response_cache.items():
+            if not view.startswith("view"):
+                continue
+            i = int(view[4:])
+            label = f"global{i}" if i < 2 else f"local{i - 2}"
+            bank.add("ssl2_response_cls", role, label, self.records, npval(values))
+        for (role, view), values in self.condition_cache.items():
+            i = int(view[4:])
+            label = f"global{i}" if i < 2 else f"local{i - 2}"
+            if (
+                len(values) == len(self.records)
+                and self.objective.student.options.control_conditioned_graph
+            ):
+                records, unit = self.records, "control_condition"
+            else:
+                # One static graph condition vector is not four independent cells.
+                records = [
+                    {
+                        **self.records[
+                            next(
+                                j
+                                for j, c in enumerate(self.batch.condition_index.tolist())
+                                if c == condition_index
+                            )
+                        ],
+                        "cell_type": "gene_identity_graph",
+                        "context_id": "static_graph",
+                        "control_row_id": "",
+                    }
+                    for condition_index in range(len(values))
+                ]
+                unit = "perturbation_condition"
+            bank.add("ssl1_condition", role, label, records, npval(values), unit=unit)
 
 
 def output_rows(response, batch, records):
@@ -1097,6 +1216,9 @@ def run(args):
         rows_out, basic_features, deep_results = [], [], []
         global_heads = {}
         global_features = {}
+        from grouped_view_diagnostics import GroupedViewBank
+
+        grouped_views = GroupedViewBank()
         basic_global = {}
         basic_between = {}
         basic_within_trace = defaultdict(float)
@@ -1166,6 +1288,7 @@ def run(args):
                 rows_out, basic_features = saved["rows_out"], saved["basic_features"]
                 deep_results, gradients = saved["deep_results"], saved["gradients"]
                 global_heads, global_features = saved["global_heads"], saved["global_features"]
+                grouped_views.entries = saved.get("grouped_view_entries", [])
                 basic_global, basic_between = saved["basic_global"], saved["basic_between"]
                 basic_within_trace = defaultdict(float, saved["basic_within_trace"])
                 basic_within_count = defaultdict(int, saved["basic_within_count"])
@@ -1253,6 +1376,7 @@ def run(args):
                             loss, terms = obj(deep_batch)
                         with stages.region("deep_finalize_statistics"):
                             deep = collector.result()
+                            collector.add_to_view_bank(grouped_views)
                         for key, dist in collector.distribution_objects.items():
                             total = global_heads.setdefault(key, Distribution(len(dist.sum)))
                             total.n += dist.n
@@ -1335,6 +1459,7 @@ def run(args):
                         "gradients": gradients,
                         "global_heads": global_heads,
                         "global_features": global_features,
+                        "grouped_view_entries": grouped_views.entries,
                         "basic_global": basic_global,
                         "basic_between": basic_between,
                         "basic_within_trace": dict(basic_within_trace),
@@ -1374,6 +1499,10 @@ def run(args):
         csv_write(args.output / "outputs_full.csv", rows_out)
         csv_write(args.output / "cls_within_condition.csv", basic_features)
         write(args.output / "deep.json", deep_results)
+        view_results = grouped_views.result()
+        write(args.output / "grouped_views.json", view_results)
+        csv_write(args.output / "grouped_view_pairs.csv", view_results["pairs"])
+        csv_write(args.output / "grouped_view_features.csv", view_results["features"])
         write(args.output / "gradients.json", gradients)
         summary = {
             "schema": "cap40-posthoc-1",
@@ -1416,6 +1545,7 @@ def run(args):
             },
             "global_heads": {k: v.result() for k, v in global_heads.items()},
             "global_features": {k: v.result() for k, v in global_features.items()},
+            "grouped_view_protocol": view_results["schema"],
             "cls_decomposition": {
                 k: {
                     "total": v.result(),

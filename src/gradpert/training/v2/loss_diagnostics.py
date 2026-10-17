@@ -15,6 +15,8 @@ from .reductions import population_weights
 def evaluate_loss_diagnostics(
     objective: JointObjective, batch: TrainingBatch, *, bf16: bool
 ) -> dict[str, Any]:
+    if not objective.prediction_enabled:
+        return evaluate_ssl_diagnostics(objective, batch, bf16=bf16)
     if objective.pending:
         raise ValueError("training diagnostics require a committed update boundary")
     was_training = objective.training
@@ -166,3 +168,45 @@ def evaluate_loss_diagnostics(
         if counter is not None:
             objective.auxiliary_rng_counter.copy_(counter)
         objective.train(was_training)
+
+
+def evaluate_ssl_diagnostics(
+    objective: JointObjective, batch: TrainingBatch, *, bf16: bool
+) -> dict[str, Any]:
+    """Pure pretraining probe: no numerical truth, decoder, or prediction metrics."""
+    from .process_diagnostics import _read_only
+
+    parameters = [
+        p
+        for name, p in objective.student.named_parameters()
+        if p.requires_grad and name.startswith(("cell.", "expression."))
+    ]
+    with _read_only(objective, batch, 0x71A1):
+        with (
+            torch.no_grad(),
+            torch.autocast(
+                device_type=batch.control.device.type, dtype=torch.bfloat16, enabled=bf16
+            ),
+        ):
+            graph = objective.graph_loss(batch.graph_views, batch.condition_index)
+            components = {f"ssl1_{k}": float(v) for k, v in graph.items()}
+        objective.pending.clear()
+        with torch.autocast(
+            device_type=batch.control.device.type, dtype=torch.bfloat16, enabled=bf16
+        ):
+            loss, terms = objective(batch, include_ssl1=False)
+        gradients = torch.autograd.grad(loss, parameters, allow_unused=True)
+        norm = sum(float(g.detach().float().square().sum()) for g in gradients if g is not None)
+        components.update({k: float(v.detach()) for k, v in terms.items()})
+    return {
+        "split": "train",
+        "mode": "fixed_training_batch_eval",
+        "training_stage": "ssl_pretrain",
+        "prediction_status": "not_applicable:no_labels",
+        "cells": len(batch.control),
+        "query_genes": batch.control.shape[1],
+        "components": components,
+        "shared_basal_weighted_gradient_l2": {"ssl": norm**0.5},
+        "prediction_ssl_gradient_cosine": None,
+        "selection_use": "none",
+    }

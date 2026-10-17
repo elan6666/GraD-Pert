@@ -204,8 +204,22 @@ def test_new_arm_actual_binding_and_required_process_probe(new_queue):
 
 
 @pytest.mark.parametrize("fail", [None, "last", "medium-analysis"])
-def test_all_gates_before_fit_and_last_then_medium_before_next_arm(new_queue, monkeypatch, fail):
+@pytest.mark.parametrize("remaining_only", [False, True])
+def test_all_gates_before_fit_and_last_then_medium_before_next_arm(
+    new_queue, monkeypatch, fail, remaining_only
+):
     q, output = new_queue
+    if remaining_only:
+        q = runner.prepare(
+            ROOT,
+            ROOT / "configs/v2/dp2_remaining_20261017/manifest.json",
+            Path(q["runtime"]),
+            output.parent / "dp2-only",
+            copy.deepcopy(q["shared_gpu_policy"]),
+        )
+        output = Path(q["output"])
+        runner.verify(q)
+    arms = [row["name"] for row in q["rows"]]
     monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "")
     monkeypatch.setenv("PYTORCH_ALLOC_CONF", runner.ALLOCATOR)
     monkeypatch.setattr(runner, "snapshot", lambda pid: dict(processes=[], gpus={}))
@@ -229,7 +243,7 @@ def test_all_gates_before_fit_and_last_then_medium_before_next_arm(new_queue, mo
         calls.append((row["name"], name))
         held = {s for s in locks if s.startswith("v2-gpu-")}
         assert len(held) == (0 if name == "medium-analysis" else 2)
-        if row["name"] == "B0" and name == fail:
+        if row["name"] == arms[0] and name == fail:
             raise RuntimeError("retained failure")
         if name == "preflight":
             assert "--joint-validation-check" not in command
@@ -254,16 +268,18 @@ def test_all_gates_before_fit_and_last_then_medium_before_next_arm(new_queue, mo
     if fail:
         with pytest.raises(RuntimeError, match="retained failure"):
             runner.execute(q, output)
-        assert ("VH", "fit") not in calls
+        assert all((name, "fit") not in calls for name in arms[1:])
         assert (output / "FAILURE.json").exists()
     else:
         runner.execute(q, output)
-        assert calls[30:] == [
-            (arm, phase) for arm in family.ARMS for phase in ("fit", "last", "medium-analysis")
+        assert calls[len(arms) * 3 :] == [
+            (arm, phase) for arm in arms for phase in ("fit", "last", "medium-analysis")
         ]
         complete = read_json(output / "COMPLETE.json")
-        assert set(complete["medium_analysis"]) == set(family.ARMS)
-        assert read_json(output / "PREFLIGHT_COMPLETE.json")["formal_order"] == list(family.ARMS)
+        assert set(complete["medium_analysis"]) == set(arms)
+        assert read_json(output / "PREFLIGHT_COMPLETE.json")["formal_order"] == arms
+    if remaining_only:
+        assert {arm for arm, _ in calls} == {"DP2"}
     assert not locks
 
 
@@ -310,3 +326,87 @@ def test_prioritized_dino_pair_reuses_last_and_medium_gates(new_queue):
         malformed = {**q, **change}
         with pytest.raises(ValueError, match="two-arm"):
             validate_eval_binding(malformed, args, q["source_commit"])
+
+
+def test_dp2_continuation_exact_eval_and_medium_scope(new_queue):
+    from generate_dino_pair import REMAINING_SCHEMA
+
+    old, oldout = new_queue
+    q = runner.prepare(
+        ROOT,
+        ROOT / "configs/v2/dp2_remaining_20261017/manifest.json",
+        Path(old["runtime"]),
+        oldout.parent / "dp2-eval-scope",
+        copy.deepcopy(old["shared_gpu_policy"]),
+    )
+    assert medium.FAMILY_ARMS[REMAINING_SCHEMA].keys() == {"DP2"}
+    assert len(q["eval_bindings"]) == 2
+    for binding in q["eval_bindings"]:
+        plan = q["rows"][0]["plan"]
+        args = SimpleNamespace(
+            gpu=binding["gpu"],
+            cell_batch=128,
+            reference_batch=128,
+            config=Path(plan["config"]),
+            publication=Path(plan["publication"]),
+            publication_sha256=plan["publication_sha256"],
+            data_root=Path(plan["data_root"]),
+            output=Path(binding["output"]),
+            shared_queue=Path(q["output"]) / "queue.json",
+            row_name="DP2",
+        )
+        assert validate_eval_binding(q, args, q["source_commit"]) == q["rows"][0]
+        for change in ({"steps": 128}, {"mode": "other"}, {"rows": q["rows"] * 2}):
+            with pytest.raises(ValueError, match="singleton"):
+                validate_eval_binding({**q, **change}, args, q["source_commit"])
+
+
+def test_pt1_singleton_scope_and_phase_specific_read_only_gates(new_queue):
+    from generate_pt1 import SCHEMA
+
+    old, oldout = new_queue
+    q = runner.prepare(
+        ROOT,
+        ROOT / "configs/v2/pt1_staged_20261017/manifest.json",
+        Path(old["runtime"]),
+        oldout.parent / "pt1-scope",
+        copy.deepcopy(old["shared_gpu_policy"]),
+    )
+    runner.verify(q)
+    assert [r["name"] for r in q["rows"]] == ["PT1"]
+    assert SCHEMA in runner.LAST_ONLY_FAMILIES and list(medium.FAMILY_ARMS[SCHEMA]) == ["PT1"]
+    row = q["rows"][0]
+    receipt = training_receipt(q, row)
+    receipt.pop("joint_validation_check")
+    receipt.update(
+        joint_validation_check_requested=False,
+        staged_training_gate={"passed": True},
+        evaluation_cell_batch=128,
+    )
+    for key, phase in (
+        ("initial_loss_diagnostic", "ssl_pretrain"),
+        ("updated_loss_diagnostic", "mse_finetune"),
+    ):
+        receipt[key] = {
+            "process": {
+                "split": "train",
+                "selection_use": "none",
+                "schema": "training-process-diagnostics-1",
+                "training_stage": phase,
+                "distributions": {"head": {}} if phase == "ssl_pretrain" else {},
+                "features": {"f": {}},
+                "outputs": {"status": "no_labels"}
+                if phase == "ssl_pretrain"
+                else {"prediction": {}},
+                "components": {"ssl2_dino": 1} if phase == "ssl_pretrain" else {"prediction": 1},
+            }
+        }
+    path = Path(q["output"]) / "PT1-preflight/receipt.json"
+    atomic_json(path, receipt)
+    entry = runner.gate_entry(path)
+    runner.validate_training_gate(q, row, entry)
+    receipt["staged_training_gate"]["passed"] = False
+    atomic_json(path, receipt)
+    entry["sha256"] = sha256_file(path)
+    with pytest.raises(ValueError, match="actual SSL/MSE"):
+        runner.validate_training_gate(q, row, entry)

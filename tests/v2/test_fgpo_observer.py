@@ -18,6 +18,8 @@ def records(batch):
     return [
         dict(
             truth_row_id=f"t{i}",
+            condition_id=f"p{int(batch.condition_index[i])}",
+            cell_line="Jurkat",
             control_row_id=f"c{i}",
             context_id="T::batch",
             cell_type="T",
@@ -81,3 +83,38 @@ def test_conditional_graph_reuses_only_shared_prefix_and_keeps_each_control_outp
         cached = main_response(SimpleNamespace(objective=obj), batch, {"prefix": prefix})
     for key in expected:
         torch.testing.assert_close(cached[key], expected[key], rtol=0, atol=0)
+
+
+def test_disabled_ssl_feature_probes_reuse_main_graph_without_teacher_or_heads():
+    from grouped_view_diagnostics import GroupedViewBank
+
+    obj, batch = new_fixture("B0")
+    obj.lambda1 = obj.lambda2 = 0
+    obj.eval()
+    hits = []
+    handles = [obj.student.graph.register_forward_hook(lambda *args: hits.append("graph"))]
+
+    def forbidden(*args):
+        raise AssertionError("diagnostic-only view invoked teacher or prototype")
+
+    handles += [obj.teacher.register_forward_pre_hook(forbidden)]
+    for model in (obj.student, obj.teacher):
+        for name in ("ssl1_cls", "ssl1_node", "ssl2_cls", "ssl2_node"):
+            handles.append(getattr(model, name).register_forward_pre_hook(forbidden))
+    collector = Collector(batch, records(batch), 42, stats_backend="fast")
+    collector.install(obj)
+    with torch.no_grad():
+        obj(batch)
+    collector.close()
+    assert len(hits) == 1
+    rng = torch.get_rng_state().clone()
+    result = collector.result()
+    assert torch.equal(rng, torch.get_rng_state())
+    assert len(hits) == 1 + len(batch.graph_views)
+    bank = GroupedViewBank()
+    collector.add_to_view_bank(bank)
+    grouped = bank.result()
+    assert grouped["pairs"] and result["pairs"] == []
+    assert all(r["role"] == "student" for r in grouped["pairs"])
+    for h in handles:
+        h.remove()

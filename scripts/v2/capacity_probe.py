@@ -194,6 +194,7 @@ def main() -> None:
     parser.add_argument("--shared-queue", type=Path)
     parser.add_argument("--resource-owner-pid", type=int)
     parser.add_argument("--joint-validation-check", action="store_true")
+    parser.add_argument("--reference-unused-ssl-decoder", action="store_true")
     args = parser.parse_args()
     if bool(args.shared_queue) != bool(args.resource_owner_pid):
         parser.error("shared preflight requires both the sealed queue and controller PID")
@@ -256,6 +257,7 @@ def main() -> None:
     os.environ["CUDA_VISIBLE_DEVICES"] = devices[rank]
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         parser.error("launch requires PYTORCH_ALLOC_CONF=expandable_segments:True")
+    import numpy as np
     import torch
     from profile_capture import ProfileCapture, environment_snapshot, host_snapshot
 
@@ -372,6 +374,28 @@ def main() -> None:
             if args.profile_last_update:
                 capture = ProfileCapture(runtime, args.output, rank)
             total_steps = int(config.training.max_epochs.value) * runtime.steps_per_epoch
+            staged_gate = runtime.options.training_mode == "ssl_then_mse"
+            if args.reference_unused_ssl_decoder:
+                if not staged_gate or args.shared_queue:
+                    raise ValueError("unused-decoder reference is idle-GPU PT1 engineering only")
+                runtime.objective.decode_ssl_views = True
+            staged_states = []
+            receipt["unused_ssl_decoder_reference"] = args.reference_unused_ssl_decoder
+            staged_phases = []
+            staged_resumes = []
+            frozen_teacher = None
+            initial_head = None
+            if staged_gate:
+                if kind != "preflight_only" or args.steps != 10 or args.cpu_prefetch:
+                    raise ValueError("PT1 engineering gate requires10 updates without CPU prefetch")
+                receipt["staged_training_gate"] = {
+                    "formal_pretrain_steps": runtime.objective.pretrain_steps,
+                    "engineering_pretrain_steps": 5,
+                    "engineering_mse_steps": 5,
+                    "passed": False,
+                }
+                runtime.objective.pretrain_steps = 5
+                initial_head = state_fingerprint(runtime.objective.student.prediction.state_dict())
             receipt["data"] = runtime.identity
             receipt["optimizer_routes"] = runtime.optimizer.routes
             loss_diagnostics_enabled = (
@@ -400,7 +424,7 @@ def main() -> None:
                     epoch=epoch_number,
                     batch_size=runtime.batch_size,
                     max_unique_conditions=runtime.options.max_conditions,
-                )[:remaining]
+                )[: min(remaining, 5) if staged_gate else remaining]
                 schedule_hashes.extend(
                     sha256_json(
                         {
@@ -431,7 +455,8 @@ def main() -> None:
             receipt["startup_seconds_until_training"] = training_started - process_started
             next_batch_ready = training_started
             for epoch in itertools.count():
-                for batch in runtime.batches(epoch, cpu_prefetch=args.cpu_prefetch):
+                batch_stream = runtime.batches(epoch, cpu_prefetch=args.cpu_prefetch)
+                for batch in batch_stream:
                     # This gap includes CPU materialization, view assembly and
                     # host-to-device transfer after the preceding synchronized
                     # update. A prefetch optimization should reduce this gap.
@@ -451,7 +476,9 @@ def main() -> None:
                         runtime.optimizer,
                         batch,
                         microbatch=runtime.options.microbatch,
-                        lr=schedule.at_step(step, total_steps)["learning_rate"],
+                        lr=runtime.options.finetune_learning_rate
+                        if staged_gate and step >= 5
+                        else schedule.at_step(step, total_steps)["learning_rate"],
                         momentum=runtime.options.teacher_end
                         - (runtime.options.teacher_end - runtime.options.teacher_start)
                         * (1 + math.cos(math.pi * step / (total_steps - 1)))
@@ -476,10 +503,47 @@ def main() -> None:
                             timings["gradient_reduction_seconds"] if world > 1 else 0.0
                         )
                     step += 1
+                    if staged_gate:
+                        phase = runtime.objective.training_stage
+                        expected_no_labels = phase == "ssl_pretrain"
+                        if bool(batch.truth.isnan().all()) != expected_no_labels:
+                            raise ValueError("PT1 pretraining numerical-label boundary changed")
+                        staged_phases.append(phase)
+                        if step in (5, 10):
+                            staged_states.append(dict(step=step, state=validation_state(runtime)))
+                        if step == 5:
+                            if (
+                                state_fingerprint(runtime.objective.student.prediction.state_dict())
+                                != initial_head
+                            ):
+                                raise ValueError("pretraining updated the prediction head")
+                            frozen_teacher = state_fingerprint(
+                                {
+                                    "teacher": runtime.objective.teacher.state_dict(),
+                                    "centers": {
+                                        n: b
+                                        for n, b in runtime.objective.named_buffers()
+                                        if n.endswith("_center")
+                                    },
+                                }
+                            )
                     receipt["steps_completed"] = step
                     receipt["last_terms"] = terms
-                    if kind != "benchmark_only" and step == max(1, args.steps // 2):
+                    if kind != "benchmark_only" and (
+                        step == max(1, args.steps // 2) or (staged_gate and step == 8)
+                    ):
                         path = args.output / "resume.pt"
+                        before_restore = (
+                            state_fingerprint(
+                                (
+                                    runtime.objective.state_dict(),
+                                    runtime.optimizer.state_dict(),
+                                    runtime.generator.bit_generator.state,
+                                )
+                            )
+                            if staged_gate
+                            else None
+                        )
                         save_checkpoint(
                             path,
                             runtime.objective,
@@ -498,16 +562,57 @@ def main() -> None:
                         if progress["step"] != step or runtime.optimizer.steps != step:
                             raise ValueError("capacity checkpoint resume progress mismatch")
                         receipt["resume_checkpoint_sha256"] = sha256_file(path)
+                        if staged_gate:
+                            same = before_restore == state_fingerprint(
+                                (
+                                    runtime.objective.state_dict(),
+                                    runtime.optimizer.state_dict(),
+                                    runtime.generator.bit_generator.state,
+                                )
+                            )
+                            staged_resumes.append(same)
+                            if not same:
+                                raise ValueError("PT1 stage checkpoint restore changed state")
                     if step % 8 == 0:
                         primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
                     if capture is not None and step == args.steps - 1:
                         capture.start(memory=args.profile_memory)
                     next_batch_ready = time.perf_counter()
                     if step >= args.steps:
+                        batch_stream.close()
+                        break
+                    if staged_gate and step == 5:
+                        batch_stream.close()
                         break
                 if step >= args.steps:
                     break
             receipt["training_wall_seconds"] = time.perf_counter() - training_started
+            if staged_gate:
+                final_teacher = state_fingerprint(
+                    {
+                        "teacher": runtime.objective.teacher.state_dict(),
+                        "centers": {
+                            n: b
+                            for n, b in runtime.objective.named_buffers()
+                            if n.endswith("_center")
+                        },
+                    }
+                )
+                checks = {
+                    "phase_order": staged_phases == ["ssl_pretrain"] * 5 + ["mse_finetune"] * 5,
+                    "teacher_centers_frozen_during_finetune": frozen_teacher == final_teacher,
+                    "optimizer_reset_once": runtime.optimizer.stage_reset_count == 1,
+                    "prediction_head_learned_only_in_finetune": initial_head
+                    != state_fingerprint(runtime.objective.student.prediction.state_dict()),
+                    "both_phase_resumes_exact": staged_resumes == [True, True],
+                }
+                receipt["staged_training_gate"].update(
+                    checks=checks,
+                    passed=all(checks.values()),
+                    full_state_fingerprints=staged_states,
+                )
+                if not all(checks.values()):
+                    raise ValueError("PT1 full-update stage transition failed")
             if loss_diagnostics_enabled and kind in (
                 "preflight_only",
                 "capacity_only",
@@ -622,6 +727,37 @@ def main() -> None:
             if world > 1:
                 measurements = [None] * world
                 torch.distributed.all_gather_object(measurements, local_measurement)
+            if staged_gate:
+                all_updates = [
+                    max(values)
+                    for values in zip(
+                        *(m["warmup_update_seconds"] + m["update_seconds"] for m in measurements),
+                        strict=True,
+                    )
+                ]
+                all_waits = [
+                    max(values)
+                    for values in zip(
+                        *(
+                            m["warmup_data_wait_seconds"] + m["data_wait_seconds"]
+                            for m in measurements
+                        ),
+                        strict=True,
+                    )
+                ]
+                receipt["staged_training_gate"]["phase_performance"] = {
+                    name: {
+                        "update_seconds": all_updates[start:end],
+                        "data_wait_seconds": all_waits[start:end],
+                        "steady_warmup_excluded_updates": 1,
+                        "steady_median_update_seconds": float(
+                            np.median(all_updates[start + 1 : end])
+                        ),
+                        "steady_cells_per_second_including_data_wait": sum(cells[start + 1 : end])
+                        / sum(all_updates[i] + all_waits[i] for i in range(start + 1, end)),
+                    }
+                    for name, start, end in (("ssl_pretrain", 0, 5), ("mse_finetune", 5, 10))
+                }
             durations_measured = [
                 max(times)
                 for times in zip(*(m["update_seconds"] for m in measurements), strict=True)
@@ -663,7 +799,6 @@ def main() -> None:
             receipt["end_to_end_training_cells_per_second"] = sum(cells) / max(
                 m["training_wall_seconds"] for m in measurements
             )
-            import numpy as np
 
             receipt["measured_update_median_seconds"] = float(np.median(durations_measured))
             receipt["measured_update_p95_seconds"] = float(np.quantile(durations_measured, 0.95))

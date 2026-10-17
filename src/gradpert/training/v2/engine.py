@@ -48,6 +48,8 @@ def optimizer_step(
     Distributed callers provide the unsharded condition index; graph terms
     remain once per global update, cell means are weighted by actual rank rows.
     """
+    if hasattr(objective, "prepare_update"):
+        objective.prepare_update(optimizer)
     unified = objective.loss_reduction is not None
     distributed = torch.distributed.is_initialized()
     population_factor = 1.0
@@ -368,7 +370,7 @@ def optimizer_step(
         optimizer.step(lr)
         teacher_temperature = objective.teacher_temperature
         objective.commit_statistics(momentum)
-        metrics["joint_loss"] = metrics["prediction"] + sum(
+        metrics["joint_loss"] = metrics.get("prediction", 0.0) + sum(
             scale
             * sum(
                 weight * metrics.get(f"ssl{stage}_{name}", 0.0)

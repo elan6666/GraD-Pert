@@ -27,14 +27,15 @@ def _export_train_only(
     if any(r["validation"] != {"validation_mode": "disabled", "performed": False} for r in history):
         raise ValueError("train-only history contains validation results")
     identity = journal["identity"]
-    keys = sorted(history[0]["training"])
+    keys = sorted({k for r in history for k in r["training"]})
     rows = [
         {
             "epoch": r["epoch"],
             "optimizer_steps": r["optimizer_steps"],
             "source_commit": identity["source"]["commit"],
             "run_id": identity["run_id"],
-            **{f"train_{k}_step_mean": r["training"][k] for k in keys},
+            **{f"train_{k}_step_mean": r["training"].get(k) for k in keys},
+            **({"training_stage": r["training_stage"]} if "training_stage" in r else {}),
         }
         for r in history
     ]
@@ -45,7 +46,10 @@ def _export_train_only(
         writer.writerows(rows)
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     for ax, key in zip(axes, ("prediction", "joint_loss"), strict=True):
-        ax.plot([r["epoch"] for r in history], [r["training"][key] for r in history])
+        ax.plot(
+            [r["epoch"] for r in history],
+            [r["training"].get(key, float("nan")) for r in history],
+        )
         ax.set(xlabel="Epoch", ylabel=key, title=f"Training {key} (update mean)")
     fig.tight_layout()
     outputs = [output]

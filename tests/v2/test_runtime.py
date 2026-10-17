@@ -88,3 +88,39 @@ def test_validation_views_are_fixed_and_do_not_consume_training_rng(monkeypatch)
         runtime.validation_batches(batch_size=2)
     )
     assert training_rng.random() == np.random.default_rng(7).random()
+
+
+def test_pretrain_boundary_diagnostic_keeps_completed_phase_not_next_update(monkeypatch):
+    from dataclasses import dataclass
+
+    from gradpert.training.v2 import runtime as module
+
+    @dataclass
+    class Options:
+        training_mode: str = "ssl_then_mse"
+        lambda1: float = 1
+        lambda2: float = 1
+        max_conditions: int = 0
+
+    observed = []
+    data = SimpleNamespace(iter_train_epoch=lambda **kw: iter(["raw"]))
+
+    def assemble(raw, index, options, generator, **kw):
+        observed.append((data.control_only_training, options.lambda1, options.lambda2))
+        return "batch"
+
+    monkeypatch.setattr(module, "assemble_batch", assemble)
+    r = Runtime(
+        data,
+        Options(),
+        None,
+        SimpleNamespace(pretrain_steps=300, prediction_enabled=False),
+        SimpleNamespace(steps=300),
+        np.random.default_rng(1),
+        torch.device("cpu"),
+        2,
+        {},
+    )
+    assert list(r._batches(0, r.device, r.generator, diagnostic=True)) == ["batch"]
+    assert list(r._batches(2, r.device, r.generator)) == ["batch"]
+    assert observed == [(True, 1, 1), (False, 0, 0)]

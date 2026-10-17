@@ -1,0 +1,38 @@
+{
+  "schema": "fgpo-pt1-staged-medium-1",
+  "family": "pt1_staged_20261017",
+  "priority": [
+    "PT1"
+  ],
+  "preflight_priority": [
+    "PT1"
+  ],
+  "common_microbatch": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 320,
+  "epochs": 4,
+  "seed": 1,
+  "eval_batch": 128,
+  "validation": "disabled",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "analysis": "same medium population plus condition-stratified Global/Local diagnostics",
+  "rerun_old_BR_or_officials": false,
+  "rows": [
+    {
+      "name": "PT1",
+      "config": "configs/v2/pt1_staged_20261017/PT1/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "7202d4f16e7dd83547294e21144500be3a971b9ffe934b3106b2f44bc9d52ac5",
+      "changes": {
+        "training_mode": "ssl_then_mse",
+        "ssl_pretrain_epochs": 2,
+        "finetune_learning_rate": 0.0002
+      }
+    }
+  ]
+}

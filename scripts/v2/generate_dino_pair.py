@@ -14,6 +14,7 @@ from gradpert.config import load_experiment_config
 from gradpert.hashing import sha256_file
 
 SCHEMA = "fgpo-dino-pair-medium-1"
+REMAINING_SCHEMA = "fgpo-dino-dp2-medium-1"
 REFERENCE = ".byte-os/plans/DINO_PAIR_20261016.plan.md"
 ARMS = {
     "B0-DP": {"prototype_weight_norm": True, "prototype_freeze_epochs": 1},
@@ -53,12 +54,13 @@ def configs(source: Path) -> dict:
     return result
 
 
-def metadata() -> dict:
+def metadata(*, remaining_only: bool = False) -> dict:
+    priority = ["DP2"] if remaining_only else list(ARMS)
     return {
-        "schema": SCHEMA,
+        "schema": REMAINING_SCHEMA if remaining_only else SCHEMA,
         "family": "dino_pair_20261016",
-        "priority": list(ARMS),
-        "preflight_priority": list(ARMS),
+        "priority": priority,
+        "preflight_priority": priority,
         "common_microbatch": 80,
         "world_size": 2,
         "accumulation": 2,
@@ -81,9 +83,10 @@ def verify_manifest(source: Path, path: Path) -> dict:
     if not path.is_relative_to(source):
         raise ValueError("manifest must remain source contained")
     value = json.loads(path.read_text())
-    if {k: v for k, v in value.items() if k != "rows"} != metadata():
+    expected_metadata = metadata(remaining_only=value.get("schema") == REMAINING_SCHEMA)
+    if {k: v for k, v in value.items() if k != "rows"} != expected_metadata:
         raise ValueError("two-arm distillation protocol changed")
-    if [r["name"] for r in value["rows"]] != list(ARMS):
+    if [r["name"] for r in value["rows"]] != expected_metadata["priority"]:
         raise ValueError("authorized two-arm order changed")
     expected = configs(source)
     for row in value["rows"]:
@@ -103,12 +106,15 @@ def verify_manifest(source: Path, path: Path) -> dict:
     return value
 
 
-def generate(source: Path, output: Path) -> dict:
+def generate(source: Path, output: Path, *, remaining_only: bool = False) -> dict:
     source, output = source.resolve(), output.resolve()
     if output.exists() or not output.is_relative_to(source):
         raise ValueError("fresh source-contained family required")
     rows = []
-    for name, value in configs(source).items():
+    expected_metadata = metadata(remaining_only=remaining_only)
+    values = configs(source)
+    for name in expected_metadata["priority"]:
+        value = values[name]
         path = output / name / "gradpert_v2/nadig_jurkat.yaml"
         path.parent.mkdir(parents=True)
         path.write_text(yaml.safe_dump(value, sort_keys=False, allow_unicode=True))
@@ -121,13 +127,16 @@ def generate(source: Path, output: Path) -> dict:
             }
         )
     manifest = output / "manifest.json"
-    manifest.write_text(json.dumps({**metadata(), "rows": rows}, indent=2) + "\n")
+    manifest.write_text(json.dumps({**expected_metadata, "rows": rows}, indent=2) + "\n")
     return verify_manifest(source, manifest)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path("configs/v2/dino_pair_20261016"))
+    parser.add_argument("--remaining-only", action="store_true")
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
-    print(json.dumps(generate(root, root / args.output), indent=2))
+    print(
+        json.dumps(generate(root, root / args.output, remaining_only=args.remaining_only), indent=2)
+    )

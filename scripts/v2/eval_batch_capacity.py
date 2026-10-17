@@ -27,6 +27,7 @@ DATA_HASH_FIELDS = (
 def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     """Only an exact sealed experiment leaf may use the shared-resource exception."""
     from generate_dino_pair import ARMS as DINO_ARMS
+    from generate_dino_pair import REMAINING_SCHEMA as DP2_SCHEMA
     from generate_dino_pair import SCHEMA as DINO_SCHEMA
     from generate_ffn_five import PRIORITY as FFN_PRIORITY
     from generate_ffn_five import SCHEMA as FFN_SCHEMA
@@ -34,6 +35,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     from generate_fgpo_family import SCHEMA as FGPO_SCHEMA
     from generate_no_ssl import ARMS as NO_SSL_ARMS
     from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
+    from generate_pt1 import SCHEMA as PT1_SCHEMA
     from shared_gpu import DYNAMIC_SCHEMA, validate_policy
 
     from gradpert.hashing import sha256_file
@@ -48,7 +50,9 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             FFN_SCHEMA,
             FGPO_SCHEMA,
             DINO_SCHEMA,
+            DP2_SCHEMA,
             NO_SSL_SCHEMA,
+            PT1_SCHEMA,
         )
         or queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA
         or queue.get("source_commit") != source_commit
@@ -81,7 +85,19 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         or queue.get("steps") != 10
     ):
         raise ValueError("DINO evaluation requires the exact prioritized two-arm scope")
+    if queue.get("family") == DP2_SCHEMA and (
+        queue.get("mode") != DP2_SCHEMA
+        or [row["name"] for row in queue["rows"]] != ["DP2"]
+        or queue.get("steps") != 10
+    ):
+        raise ValueError("DP2 evaluation requires the exact singleton continuation scope")
     rows = [row for row in queue["rows"] if row["name"] == args.row_name]
+    if queue.get("family") == PT1_SCHEMA and (
+        queue.get("mode") != PT1_SCHEMA
+        or [row["name"] for row in queue["rows"]] != ["PT1"]
+        or queue.get("steps") != 10
+    ):
+        raise ValueError("PT1 evaluation requires its exact singleton staged scope")
     if queue.get("family") == NO_SSL_SCHEMA and (
         queue.get("mode") != NO_SSL_SCHEMA
         or [row["name"] for row in queue["rows"]] != list(NO_SSL_ARMS)

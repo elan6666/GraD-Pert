@@ -12,12 +12,21 @@ from pathlib import Path
 
 from cap40_posthoc import population_identity, read, sha, write
 from generate_dino_pair import ARMS as DINO_ARMS
+from generate_dino_pair import REMAINING_SCHEMA as DP2_SCHEMA
 from generate_dino_pair import SCHEMA as DINO_SCHEMA
 from generate_fgpo_family import ARMS, SCHEMA
 from generate_no_ssl import ARMS as NO_SSL_ARMS
 from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
+from generate_pt1 import ARMS as PT1_ARMS
+from generate_pt1 import SCHEMA as PT1_SCHEMA
 
-FAMILY_ARMS = {SCHEMA: ARMS, DINO_SCHEMA: DINO_ARMS, NO_SSL_SCHEMA: NO_SSL_ARMS}
+FAMILY_ARMS = {
+    SCHEMA: ARMS,
+    DINO_SCHEMA: DINO_ARMS,
+    DP2_SCHEMA: {"DP2": DINO_ARMS["DP2"]},
+    NO_SSL_SCHEMA: NO_SSL_ARMS,
+    PT1_SCHEMA: PT1_ARMS,
+}
 AUTHORIZED_ARMS = tuple(dict.fromkeys(name for arms in FAMILY_ARMS.values() for name in arms))
 
 SERVER_ROOT = Path("/data/yilangliu")

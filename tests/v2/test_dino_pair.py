@@ -20,7 +20,7 @@ from gradpert.training.v2.optimizer import V2Optimizer, routes
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/v2"))
-from generate_dino_pair import ARMS, verify_manifest  # noqa: E402
+from generate_dino_pair import ARMS, REMAINING_SCHEMA, verify_manifest  # noqa: E402
 
 
 def pair(name):
@@ -60,6 +60,24 @@ def test_manifest_two_exact_arms_and_parent_protocol():
         assert o.ssl1_node == o.ssl1_spread == o.ssl2_koleo == 0
         assert o.teacher_temperature_end == (0.03 if row["name"] == "DP2" else 0.04)
         assert row["changes"] == ARMS[row["name"]]
+
+
+def test_dp2_continuation_preserves_original_config_and_rejects_replaying_completed_arm(tmp_path):
+    import json
+
+    manifest = ROOT / "configs/v2/dp2_remaining_20261017/manifest.json"
+    result = verify_manifest(ROOT, manifest)
+    assert result["schema"] == REMAINING_SCHEMA
+    assert result["priority"] == result["preflight_priority"] == ["DP2"]
+    row = result["rows"][0]
+    original = ROOT / "configs/v2/dino_pair_20261016/DP2/gradpert_v2/nadig_jurkat.yaml"
+    assert (ROOT / row["config"]).read_bytes() == original.read_bytes()
+    malformed = copy.deepcopy(result)
+    malformed["rows"].append({**row, "name": "B0-DP"})
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps(malformed))
+    with pytest.raises(ValueError, match="order"):
+        verify_manifest(tmp_path, path)
 
 
 def test_temperature_logits_gradient_and_sharpening():

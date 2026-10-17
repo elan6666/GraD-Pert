@@ -72,3 +72,26 @@ CG1只共享前三层图前缀：全图身份轴可报告共享H3；不同contro
 正常GPU0锁，避免父子重复持同一锁；分析完成才继续下一组。双卡训练／评估协议不变。
 
 本次实际性能机制的完整中等配对验收是新队列准备的依赖，短探针通过不允许直接启动正式新消融。
+# Mandatory Global/Local condition comparisons (2026-10-17)
+
+All future medium ablation reports include the same additional paired-view module,
+without changing the frozen basic/deep/gradient population. Record the protocol
+`condition-stratified-global-local-1`, model/config/checkpoint/source identities,
+all scalar CSV/JSON tables and the paired-view figure with reading guidance.
+
+- SSL1 unit: graph perturbation-condition vector before projection, one row per
+  condition for a static graph; control-conditioned graphs retain control IDs.
+- SSL2 unit: response CLS before projection, deduplicated by control+condition
+  within cell line/type/context. Views never count as independent cells.
+- Compare GG/GL/LL for same sample, same condition/different control, different
+  condition/different control, and different condition/same control when available.
+  Match cell line/type/context; separate batch/cell-line effects, and explicitly
+  mark unavailable groups (currently only Jurkat) rather than fabricating values.
+- Report raw cosine, cosine centered using a common Global centroid, MSE between
+  features, pair means versus condition/condition-pair equal means, valid counts,
+  independent rows/controls/conditions, per-view centered rank/relative variance,
+  within-condition and between-condition-mean ranks. No independent-pair CI claim.
+- For disabled SSL objectives, Student view probes are diagnostic-only; no Teacher
+  target/center update or artificial SSL CE. Per-cell matrices remain server-only.
+- PT1 additionally records phase/optimizer reset/LR, preserves its pretrain
+  checkpoint and marks prediction quantities unavailable before finetuning.

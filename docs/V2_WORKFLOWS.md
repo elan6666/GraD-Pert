@@ -119,3 +119,25 @@ No new checkpoint, fine-tune run, or independent evaluation is launched by
 adding these commands or example configs. Local CPU tests establish interface
 and state-machine behavior; a formal server result still requires the usual
 published-source and same-config GPU integration checks.
+
+
+## SSL pretraining followed by full MSE finetuning (PT1)
+
+Use the self-contained config at
+`configs/v2/pt1_staged_20261017/PT1/gradpert_v2/nadig_jurkat.yaml`. It selects
+`training_mode=ssl_then_mse` and `ssl_pretrain_epochs=2` within four total epochs.
+The normal train CLI and its publication/resource/data gates remain the entry point.
+This is a fresh experiment, not a continuation of an existing B0 checkpoint.
+
+The first300 successful updates read only control expression and use SSL1/SSL2;
+the prediction decoder is unused. The next300 updates inherit Student parameters,
+clear optimizer moments once and use only MSE at constant2e-4. Teacher/centers
+remain frozen. Save `pretrain.pt` plus final `last.pt`, with checkpointed phase,
+optimizer, RNG and global update count. Resume an interruption using the same
+`resume-v2 --launch RUN/launch.json` command, not a new initialization stage.
+
+No per-epoch validation or best selection; only final last18 plus the fixed medium
+analysis. SSL-only prediction diagnostics are unavailable rather than zero. The
+common analysis includes condition/context-stratified Global/Local representations
+and records independent cells, controls, conditions and pair counts separately.
+PT1 has half the MSE-update budget of four-epoch joint B0/D0.

@@ -45,6 +45,22 @@ class ConstantStageLR:
         return {"learning_rate": self.learning_rate}
 
 
+@dataclass(frozen=True)
+class PretrainThenMSELR:
+    """Pretrain cosine has its own budget; finetuning starts a declared new LR."""
+
+    pretrain: EndpointLRWarmupCosine
+    pretrain_steps: int
+    finetune_learning_rate: float
+
+    def at_step(self, step: int, total_steps: int) -> dict[str, float]:
+        if not 0 < self.pretrain_steps < total_steps or step < 0:
+            raise ValueError("both stages require a positive update budget")
+        if step < self.pretrain_steps:
+            return self.pretrain.at_step(step, self.pretrain_steps)
+        return {"learning_rate": self.finetune_learning_rate}
+
+
 def _role_links(root: Path, journal: dict[str, Any]) -> None:
     for role in ("best", "last"):
         if journal[role] is None:
@@ -69,7 +85,7 @@ def fit(
     steps_per_epoch: int,
     batches: Callable[[int], Iterable[TrainingBatch]],
     validate: Callable[[], dict[str, Any]] | None,
-    schedule: EndpointLRWarmupCosine | ConstantStageLR,
+    schedule: EndpointLRWarmupCosine | ConstantStageLR | PretrainThenMSELR,
     teacher_start: float,
     teacher_end: float,
     microbatch: int,
@@ -200,6 +216,8 @@ def fit(
             "latest_training_terms": terms,
             "throughput": throughput,
         }
+        if hasattr(objective, "training_stage"):
+            payload["training_stage"] = objective.training_stage
         try:
             atomic_json(root / "live_progress.json", payload)
         except OSError as error:
@@ -245,7 +263,14 @@ def fit(
             momentum = (
                 teacher_end
                 - (teacher_end - teacher_start)
-                * (1 + math.cos(math.pi * step / max(1, total - 1)))
+                * (
+                    1
+                    + math.cos(
+                        math.pi
+                        * min(step, getattr(objective, "pretrain_steps", total) - 1)
+                        / max(1, getattr(objective, "pretrain_steps", total) - 1)
+                    )
+                )
                 / 2
             )
             global_conditions = batch.condition_index if distributed else None
@@ -348,6 +373,11 @@ def fit(
                     else {}
                 ),
                 "seen_expression_gene_indices": sorted(seen_expression_ids),
+                **(
+                    {"training_stage": objective.training_stage}
+                    if hasattr(objective, "training_stage")
+                    else {}
+                ),
             }
         )
         checkpoint = root / f"epoch-{epoch + 1:04d}.pt"
@@ -388,12 +418,26 @@ def fit(
             "best": best,
             "last": selected,
         }
+        if hasattr(objective, "pretrain_steps"):
+            pretrain_epoch = objective.pretrain_steps // steps_per_epoch
+            if epoch + 1 == pretrain_epoch:
+                journal["pretrain"] = selected
+                primary_call(partial(shutil.copyfile, checkpoint, root / "pretrain.pt"))
+                primary_call(
+                    partial(
+                        atomic_json,
+                        root / "pretrain-checkpoint.json",
+                        {"identity": identity, "checkpoint": selected},
+                    )
+                )
         # This rename is the commit point. A crash before it leaves an orphan,
         # which is ignored on resume; after it role links are safely recoverable.
         primary_call(partial(atomic_json, journal_path, journal))
         primary_call(partial(_role_links, root, journal))
         primary_call(lambda: atomic_json(root / "history.json", history))
         retained = {str(selected["file"])} | ({str(best["file"])} if best else set())
+        if hasattr(objective, "pretrain_steps"):
+            retained.add(f"epoch-{objective.pretrain_steps // steps_per_epoch:04d}.pt")
 
         def prune(retained_files: set[str] = retained) -> None:
             for old in root.glob("epoch-*.pt"):

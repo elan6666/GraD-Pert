@@ -176,3 +176,21 @@ def test_validation_cache_restores_duplicates_and_fails_closed_on_miss() -> None
     assert data.cache_stats.cache_hits == 1
     with pytest.raises(RuntimeError, match="lacks required canonical row 8"):
         data._read_expression_indices((8,))
+
+
+def test_pretraining_never_reads_perturbed_expression():
+    matrix = np.arange(18, dtype=np.float32).reshape(6, 3)
+    data = _fake_data(matrix)
+    data.control_only_training = True
+    reads = []
+
+    def read(indices):
+        reads.extend(indices)
+        assert not set(indices) & {1, 2, 3}
+        return np.ascontiguousarray(matrix[list(indices)])
+
+    data._read_expression_indices = read
+    batch = data._materialize_cpu_batch(_spec())
+    assert np.isnan(batch.target_expression).all()
+    assert np.array_equal(batch.control_expression, matrix[[4, 0, 4]])
+    assert set(reads) == {0, 4}

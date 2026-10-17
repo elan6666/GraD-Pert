@@ -142,6 +142,8 @@ class V2Optimizer:
             raise ValueError("optimizer requires trainable parameters")
         self.model = model
         self.steps = 0
+        self.training_stage: str | None = None
+        self.stage_reset_count = 0
 
     def zero_grad(self) -> None:
         self.model.zero_grad(set_to_none=True)
@@ -187,6 +189,9 @@ class V2Optimizer:
             state["prototype_freeze_steps"] = self.prototype_freeze_steps
         if self.prototype_freeze_gradients:
             state["prototype_freeze_gradients"] = True
+        if self.training_stage is not None:
+            state["training_stage"] = self.training_stage
+            state["stage_reset_count"] = self.stage_reset_count
         return state
 
     def load_state_dict(self, state: dict[str, Any]) -> None:
@@ -205,3 +210,5 @@ class V2Optimizer:
                     raise ValueError(f"checkpoint lacks {key} state")
                 opt.load_state_dict(state[key])
         self.steps = state["steps"]
+        self.training_stage = state.get("training_stage")
+        self.stage_reset_count = state.get("stage_reset_count", 0)

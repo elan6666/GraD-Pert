@@ -70,10 +70,27 @@ class Runtime:
             stream.close()
 
     def _batches(
-        self, epoch: int, device: torch.device, generator: np.random.Generator
+        self,
+        epoch: int,
+        device: torch.device,
+        generator: np.random.Generator,
+        *,
+        diagnostic: bool = False,
     ) -> Generator[TrainingBatch, None, None]:
         if self.purpose != "training":
             raise RuntimeError("evaluation runtime cannot enter training")
+        staged = self.options.training_mode == "ssl_then_mse"
+        pretraining = staged and (
+            not self.objective.prediction_enabled
+            if diagnostic
+            else self.optimizer.steps < self.objective.pretrain_steps
+        )
+        self.data.control_only_training = pretraining
+        options = (
+            replace(self.options, lambda1=0.0, lambda2=0.0)
+            if staged and not pretraining
+            else self.options
+        )
         for raw in self.data.iter_train_epoch(
             epoch=epoch,
             device=device,
@@ -87,7 +104,7 @@ class Runtime:
             yield assemble_batch(
                 raw,
                 self.index,
-                self.options,
+                options,
                 generator,
                 allowed_expression_ids=self.allowed_expression_ids,
             )
@@ -98,7 +115,7 @@ class Runtime:
         from .loss_diagnostics import evaluate_loss_diagnostics
 
         generator = np.random.default_rng(int(self.identity["run_seed"]) + 0x71A1)
-        stream = self._batches(0, self.device, generator)
+        stream = self._batches(0, self.device, generator, diagnostic=True)
         try:
             batch = next(stream)
         finally:
@@ -305,7 +322,16 @@ def prepare_runtime(
                 rank=config.continuation.lora_rank,
                 alpha=config.continuation.lora_alpha,
             )
-        objective = JointObjective(
+        from .staged import StagedObjective
+
+        staged = options.training_mode == "ssl_then_mse"
+        if staged and (
+            config.continuation is not None
+            or options.validation_mode != "disabled"
+            or not 0 < options.ssl_pretrain_epochs < int(config.training.max_epochs.value)
+        ):
+            raise ValueError("staged training needs a fresh train-only budget with both stages")
+        objective = (StagedObjective if staged else JointObjective)(
             student,
             lambda1=options.lambda1,
             lambda2=options.lambda2,
@@ -339,6 +365,17 @@ def prepare_runtime(
                         )
                     ),
                 )
+            ),
+            **(
+                {
+                    "pretrain_steps": options.ssl_pretrain_epochs
+                    * data.steps_per_epoch(
+                        batch_size=int(config.training.train_batch_size.value),
+                        max_unique_conditions=options.max_conditions,
+                    )
+                }
+                if staged
+                else {}
             ),
         ).to(device)
         optimizer = V2Optimizer(
@@ -396,6 +433,18 @@ def prepare_runtime(
             "ibot": "masked_tokens_per_cell_then_valid_cell_population",
             "exceptions": ["ssl1_node", "ssl1_spread", "teacher_centers"],
         }
+        if staged:
+            identity["loss_protocol"]["staged_training"] = {
+                "mode": options.training_mode,
+                "pretrain_epochs": options.ssl_pretrain_epochs,
+                "pretrain_steps": objective.pretrain_steps,
+                "finetune_epochs": int(config.training.max_epochs.value)
+                - options.ssl_pretrain_epochs,
+                "finetune_learning_rate": options.finetune_learning_rate,
+                "pretrain_truth": "not_loaded_nan_sentinel",
+                "transition": "student_retained_optimizer_moments_reset",
+                "finetune_teacher_centers": "frozen_unused",
+            }
         if (
             options.prediction_error_power != 2
             or options.prediction_reduction_override != "inherit"

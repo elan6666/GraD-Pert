@@ -119,6 +119,9 @@ class JointObjective(nn.Module):
             raise ValueError("loss weights must be nonnegative")
         self.student = student
         self.teacher = copy.deepcopy(student).requires_grad_(False).eval()
+        self.prediction_enabled = True
+        self.decode_ssl_views = True
+        self.teacher_updates_enabled = True
         if prediction_error_power not in (2, 4):
             raise ValueError("prediction error power must be 2 or 4")
         if prediction_reduction_override not in ("inherit", "row_mean", "condition_mean"):
@@ -339,73 +342,80 @@ class JointObjective(nn.Module):
             else None
         )
         graph, condition = self._batch_graph(model, batch, prefix=student_prefix)
-        response = model.encode_response(
-            self._select_graph(graph, batch.query_positions),
-            batch.control,
-            condition,
-            **self.response_metadata(batch),
-        )
-        squared = (response["prediction"].float() - batch.truth.float()).square()
-        mse_rows = squared.mean(-1)
-        errors = mse_rows if self.prediction_error_power == 2 else squared.square().mean(-1)
-        if prediction_weights is not None:
-            loss = (errors * prediction_weights).sum()
-        elif self.prediction_reduction_override != "inherit":
-            weights = population_weights(
-                batch.condition_index,
-                torch.ones_like(batch.condition_index, dtype=torch.bool),
-                self.prediction_reduction_override,
+        if self.prediction_enabled:
+            response = model.encode_response(
+                self._select_graph(graph, batch.query_positions),
+                batch.control,
+                condition,
+                **self.response_metadata(batch),
             )
-            loss = (errors * weights).sum()
-        elif self.loss_reduction is not None:
-            if reduction_weights is None:
-                reduction_weights = self.local_reduction_weights(batch)
-            loss = (errors * reduction_weights[0]).sum()
-        elif self.prediction_reduction == "condition_mean":
-            unique_conditions = torch.unique(batch.condition_index)
-            loss = torch.stack(
-                [errors[batch.condition_index == c].mean() for c in unique_conditions]
-            ).mean()
-        else:
-            loss = errors.mean()
-        population_metrics = {}
-        if self.population_response:
-            from .population import population_response_loss
-
-            if torch.unique(batch.condition_index).numel() != 1:
-                raise ValueError("population response requires one perturbation per batch")
-            if deferred_population is not None:
-                deferred_population.append((response["prediction"].float(), batch.truth.float()))
-                loss = response["prediction"].sum() * 0
-            else:
-                population = population_response_loss(
-                    response["prediction"].float(), batch.truth.float()
+            squared = (response["prediction"].float() - batch.truth.float()).square()
+            mse_rows = squared.mean(-1)
+            errors = mse_rows if self.prediction_error_power == 2 else squared.square().mean(-1)
+            if prediction_weights is not None:
+                loss = (errors * prediction_weights).sum()
+            elif self.prediction_reduction_override != "inherit":
+                weights = population_weights(
+                    batch.condition_index,
+                    torch.ones_like(batch.condition_index, dtype=torch.bool),
+                    self.prediction_reduction_override,
                 )
-                loss = population.mean_mse + self.lambda_mmd * population.mmd_unbiased
-                population_metrics = {
-                    "population_mean_mse": population.mean_mse,
-                    "population_mmd": population.mmd_unbiased,
-                    "population_mmd_valid": loss.new_tensor(float(population.mmd_valid)),
-                }
-        metrics = {"prediction": loss}
-        metrics.update(population_metrics)
-        if row_weights is None:
-            row_weights = torch.full_like(mse_rows, 1.0 / len(mse_rows))
-        metrics["prediction_mse"] = (mse_rows * row_weights).sum()
-        metrics["control_copy_mse"] = (
-            (batch.control.float() - batch.truth.float()).square().mean(-1) * row_weights
-        ).sum()
-        if self.masked_response_ratio:
-            masked_response = self.masked_response_loss(batch, graph, condition, row_weights)
-            metrics["masked_response"] = masked_response
-            loss = loss + self.lambda_masked_response * masked_response
-        if self.auxiliary_mask_ratio:
-            auxiliary = self.control_reconstruction_loss(batch, graph, row_weights)
-            metrics.update(auxiliary)
-            if self.lambda_gene_mask:
-                loss = loss + self.lambda_gene_mask * auxiliary["gene_mask"]
-            if self.lambda_cls_mask:
-                loss = loss + self.lambda_cls_mask * auxiliary["cls_mask"]
+                loss = (errors * weights).sum()
+            elif self.loss_reduction is not None:
+                if reduction_weights is None:
+                    reduction_weights = self.local_reduction_weights(batch)
+                loss = (errors * reduction_weights[0]).sum()
+            elif self.prediction_reduction == "condition_mean":
+                unique_conditions = torch.unique(batch.condition_index)
+                loss = torch.stack(
+                    [errors[batch.condition_index == c].mean() for c in unique_conditions]
+                ).mean()
+            else:
+                loss = errors.mean()
+            population_metrics = {}
+            if self.population_response:
+                from .population import population_response_loss
+
+                if torch.unique(batch.condition_index).numel() != 1:
+                    raise ValueError("population response requires one perturbation per batch")
+                if deferred_population is not None:
+                    deferred_population.append(
+                        (response["prediction"].float(), batch.truth.float())
+                    )
+                    loss = response["prediction"].sum() * 0
+                else:
+                    population = population_response_loss(
+                        response["prediction"].float(), batch.truth.float()
+                    )
+                    loss = population.mean_mse + self.lambda_mmd * population.mmd_unbiased
+                    population_metrics = {
+                        "population_mean_mse": population.mean_mse,
+                        "population_mmd": population.mmd_unbiased,
+                        "population_mmd_valid": loss.new_tensor(float(population.mmd_valid)),
+                    }
+            metrics = {"prediction": loss}
+            metrics.update(population_metrics)
+            if row_weights is None:
+                row_weights = torch.full_like(mse_rows, 1.0 / len(mse_rows))
+            metrics["prediction_mse"] = (mse_rows * row_weights).sum()
+            metrics["control_copy_mse"] = (
+                (batch.control.float() - batch.truth.float()).square().mean(-1) * row_weights
+            ).sum()
+            if self.masked_response_ratio:
+                masked_response = self.masked_response_loss(batch, graph, condition, row_weights)
+                metrics["masked_response"] = masked_response
+                loss = loss + self.lambda_masked_response * masked_response
+            if self.auxiliary_mask_ratio:
+                auxiliary = self.control_reconstruction_loss(batch, graph, row_weights)
+                metrics.update(auxiliary)
+                if self.lambda_gene_mask:
+                    loss = loss + self.lambda_gene_mask * auxiliary["gene_mask"]
+                if self.lambda_cls_mask:
+                    loss = loss + self.lambda_cls_mask * auxiliary["cls_mask"]
+        else:
+            # No numerical label access and no decoder forward in pure SSL.
+            loss = graph.sum() * 0
+            metrics = {}
         if self.lambda1 and include_ssl1:
             ssl1 = self.graph_loss(
                 batch.graph_views,
@@ -670,7 +680,9 @@ class JointObjective(nn.Module):
                 view.mask,
             )
             metadata = self.response_metadata(batch, p)
-            student_outputs.append(self.student.encode_response(*args, **metadata))
+            student_outputs.append(
+                self.student.encode_response(*args, **metadata, decode=self.decode_ssl_views)
+            )
             if i < 2:
                 with torch.no_grad():
                     tg, tc = (
@@ -684,6 +696,7 @@ class JointObjective(nn.Module):
                             batch.control[:, p],
                             tc,
                             **metadata,
+                            decode=self.decode_ssl_views,
                         )
                     )
         source_logits = (
@@ -798,6 +811,10 @@ class JointObjective(nn.Module):
 
     @torch.no_grad()
     def commit_statistics(self, momentum: float) -> None:
+        if not self.teacher_updates_enabled:
+            if self.pending:
+                raise ValueError("MSE-only finetuning must not collect Teacher statistics")
+            return
         if not 0 <= momentum <= 1:
             raise ValueError("invalid teacher EMA momentum")
         parameters = dict(self.student.named_parameters())

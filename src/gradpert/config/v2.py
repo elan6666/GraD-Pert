@@ -438,6 +438,9 @@ class V2Options:
     teacher_temperature_start: float = 0.04
     teacher_temperature_end: float = 0.04
     teacher_temperature_warmup_epochs: int = 0
+    training_mode: str = "joint"
+    ssl_pretrain_epochs: int = 0
+    finetune_learning_rate: float = 2e-4
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -513,6 +516,9 @@ class V2Options:
             "teacher_temperature_start",
             "teacher_temperature_end",
             "teacher_temperature_warmup_epochs",
+            "training_mode",
+            "ssl_pretrain_epochs",
+            "finetune_learning_rate",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -532,6 +538,19 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
+        if self.training_mode not in ("joint", "ssl_then_mse"):
+            raise ValueError("unknown v2 training mode")
+        if type(self.ssl_pretrain_epochs) is not int or (
+            self.ssl_pretrain_epochs < 0
+            or (self.training_mode == "ssl_then_mse") != bool(self.ssl_pretrain_epochs)
+        ):
+            raise ValueError("two-stage training needs an explicit pretraining epoch budget")
+        if (
+            isinstance(self.finetune_learning_rate, bool)
+            or not math.isfinite(self.finetune_learning_rate)
+            or self.finetune_learning_rate <= 0
+        ):
+            raise ValueError("finetuning learning rate must be positive and finite")
         for value in (self.teacher_temperature_start, self.teacher_temperature_end):
             if (
                 isinstance(value, bool)

@@ -47,6 +47,12 @@ def compare(reference, candidate, *, tolerance=1e-8):
 
     for name in ("deep.json", "gradients.json"):
         visit(read(reference / name), read(candidate / name), name)
+    if (reference / "grouped_views.json").exists() or (candidate / "grouped_views.json").exists():
+        visit(
+            read(reference / "grouped_views.json"),
+            read(candidate / "grouped_views.json"),
+            "grouped_views",
+        )
     a, b = read(reference / "summary.json"), read(candidate / "summary.json")
     for key in (
         "manifest_sha256",

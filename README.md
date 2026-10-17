@@ -22,20 +22,27 @@ The repository is under active implementation. Current authoritative material:
 
 ## GraD-Pert v2 checkpoint workflows
 
-The current fresh Jurkat B0 config is
+A historical three-epoch Jurkat B0 config is
 `configs/v2/mhc_joint_only_jurkat/three_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml`:
 four mHC streams, full prediction + SSL1 + SSL2, three epochs, dual-GPU global
 batch272. Per-epoch validation computes joint loss and its components only;
 best/last still receive the frozen 300-control test and all/DEG Pearson outputs.
-See [current B0 protocol](docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md).
+See its [frozen B0 protocol](docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md).
+
+The current cap40 family is anchored by `configs/v2/fgpo_node0_20261016_b320/`:
+GELU FFN, nonnegative Softplus output, SSL1 node disabled, four epochs, global320
+(80 per GPU × two GPUs × accumulation2), no epoch validation, final last-only
+testing. `configs/v2/pt1_staged_20261017/` adds the prioritized PT1 mode:
+two SSL-only epochs followed by two MSE-only epochs. See
+[stage semantics and performance evidence](docs/experiments/PT1_STAGED_PERFORMANCE_20261017.md).
 
 On the `/data/yilangliu` training server, `python -m gradpert train --config
 CONFIG --gpu 0` runs a v2 config whose `model.parameters.world_size` is 1;
 `--gpu 0,1` requires world size 2. The self-contained config also fixes each
 GPU's microbatch, gradient accumulation and global train batch. Start with
 `--dry-run` to inspect the sealed run identity before training. The command
-trains, records per-epoch validation and curves, and tests both `best.pt` and
-`last.pt`. To resume an interrupted run with **the same** source, config and
+trains and records curves; validation and best/last versus last-only testing
+follow the sealed configuration. To resume an interrupted run with **the same** source, config and
 budget, use `python -m gradpert resume-v2 --launch RUN/launch.json`.
 
 For the completed Jurkat three-epoch checkpoint, two explicit example configs

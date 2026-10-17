@@ -12,6 +12,7 @@ from cap40_posthoc import csv_write, read, sha, write
 from cap40_posthoc_stats import condition_summary
 
 ARM_DESCRIPTIONS = {
+    "PT1": "前2轮仅SSL1/SSL2预训练，后2轮仅MSE全量微调；边界重建优化器",
     "DP": "DINO式weight_norm与首轮原型冻结",
     "FN": "统一角色MLP Pre-LayerNorm",
     "FG": "统一GELU、主干参数匹配",
@@ -139,6 +140,11 @@ def render(args):
             }
         )
     tables["per_cell_summary"] = per_cell
+    grouped_path = args.input / "grouped_views.json"
+    grouped = read(grouped_path) if grouped_path.exists() else None
+    if grouped is not None:
+        tables["grouped_view_pairs"] = grouped["pairs"]
+        tables["grouped_view_features"] = grouped["features"]
     for key, rows in tables.items():
         csv_write(root / f"{key}.csv", rows)
     figures = []
@@ -148,6 +154,37 @@ def render(args):
         fig.savefig(root / name, dpi=150)
         plt.close(fig)
         figures.append((name, caption))
+
+    if grouped is not None:
+        fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+        for ax, field in zip(axes, ("cosine", "centered_cosine"), strict=True):
+            rows = [
+                r
+                for r in grouped["pairs"]
+                if r["role"] == "student" and r["branch"] == "ssl2_response_cls" and r["pair_count"]
+            ]
+            labels = sorted({r["stratum"] + ":" + r["view_family"] for r in rows})
+            values = [
+                [
+                    r[field + "_condition_balanced_mean"]
+                    for r in rows
+                    if r["stratum"] + ":" + r["view_family"] == label
+                    and r[field + "_condition_balanced_mean"] is not None
+                ]
+                for label in labels
+            ]
+            keep = [(label, v) for label, v in zip(labels, values, strict=True) if v]
+            if keep:
+                ax.boxplot([v for _, v in keep], tick_labels=[k for k, _ in keep])
+                ax.tick_params(axis="x", rotation=90, labelsize=7)
+            ax.set(title=field, ylabel="Cosine similarity (unitless)")
+        save(
+            "14_condition_global_local.png",
+            fig,
+            "同一样本、同条件不同control、异条件不同control、异条件同control分别比较GG/GL/LL。"
+            "每个箱内值为一个context×视图对的条件等权均值，仅作描述；真实样本/条件/配对数见CSV。"
+            "右图减去同分支同角色同context的Global共同中心，帮助识别共同偏移造成的高余弦；不是质量评分。",
+        )
 
     fig, ax = plt.subplots(figsize=(8, 3))
     ax.bar(
@@ -306,6 +343,21 @@ def render(args):
             "## 13. 全部图与分析数据\n",
         ]
     )
+    if grouped is not None:
+        sections.insert(
+            -1,
+            "## 12a. 同/异扰动条件的Global与Local共同分析\n"
+            "SSL1分析扰动条件向量ep，静态图每条件只计一个样本；SSL2分析response CLS，"
+            "同一condition内重复control只保留冻结清单第一行。先固定细胞系、细胞类型和context=batch，"
+            "再分同一样本/同条件不同control/异条件不同control/异条件同control。"
+            "各类均列GG、GL、LL和每个实际view ID；空组或零范数不可定义，不补零。"
+            "表中pair_mean是配对均值，condition_balanced_mean先在条件或条件对内平均再等权。"
+            "配对共享细胞，不能用配对数充当独立N或进行独立样本显著性检验。"
+            "MSE-only阶段的Student跨视图仅为只读表征探针，不伪造Teacher目标、熵或蒸馏CE。\n"
+            + table(grouped["features"])
+            + "\n完整分组配对数据：[grouped_view_pairs.csv](grouped_view_pairs.csv)；"
+            "按视图的有效秩/相对方差：[grouped_view_features.csv](grouped_view_features.csv)。\n",
+        )
     # Existing four plots retain bytes and remain explicitly historical.
     import shutil
 
