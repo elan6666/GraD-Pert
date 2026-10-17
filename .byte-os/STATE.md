@@ -1,5 +1,7 @@
 ## 2026-10-17：当前CPU构建：KDA前后向IO候选
 
+当前下一动作：DP2终态交回后，先验收其科学收据；核对新候选正式publication后安排短双卡实际kernel/全更新和无profile10步ABBA，再继续S12-L4，不更改活动科学版本。75009a5 LinuxCPU64通过/12解释器形状/离线sm120通过且CUDA未初始化；CPU wiring drift2239项4项超原门，全部保留，不作为CUDA数值通过或提速。CPU root development/gram-io-75009a5-cpu-20261017-r1，RESULT SHA a8b76f597a036c45372d7255bd3cee951839fd60f4a97c18f02f271a6c505cff。Luna已终态，无短等待遗留；当前仍仅DP2监督20min，主不重复查询。
+
 用户允许普通有限精度差异，性能优先；RNG/整数与训练语义仍精确，评估门不改。LinuxH旧零门9.54e-7梯度失败保留；Gram候选88420ca LinuxCPU r1离线sm120编译通过/CUDA未初始化，51pass/7fail保留。新候选使用tl.exp及原始strides；CPU更新接线测试只验证finite/结构/RNG并记录原3e-5/3e-4门下全部误差，不充当CUDA数值验收。float64导数和真实kernel仍独立数值检查，正式GPU全更新门未修改。待新源CPU解释器和空闲GPU完整更新/ABBA，未采用、无新整步提速结论。详见当前profile plan。
 
 不触碰DP2活动8882源/配置/进程/训练venv或监督租约；监督会话20min独占查询，主只CPU工作。DP2终态回交须主验收后继续S12-L4等已授权队列；短性能窗口和PT1中等回填按空闲安排。详见STATUS与当前profile plan；下文为历史。

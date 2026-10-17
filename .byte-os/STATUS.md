@@ -1,5 +1,7 @@
 ## 2026-10-17：用户接受浮点差异，优先KDA前后向IO机制
 
+最新CPU验收：候选源75009a5f73d6b95814d680ad447f04ce391f4af3，独立Linux root development/gram-io-75009a5-cpu-20261017-r1，64检查通过（含12真实Triton解释器形状），sm120离线编译通过，未初始化CUDA。主逐项复核RESULT SHA a8b76f597a036c45372d7255bd3cee951839fd60f4a97c18f02f271a6c505cff、输出bytes/SHA与clean source；CPU接线drift2239项中4项超原element门，最大relativeL2约0.00143，明确不是新CUDA全更新数值验收。此前失败与新日志均归档，主无DP2重复轮询或GPU探针。下一在终态回主后先核对正式publication，再双卡全更新与独立10步ABBA；仅有限精度差异不阻断纯性能诊断，结果不冒充已采用/长期质量通过。
+
 用户明确接受普通数值差异、性能优先。仅CPU浮点诊断从自设0/0改用已有全更新atol3e-5/rtol3e-4；RNG/整数/身份仍精确，评估门不动，旧失败不改。H的Linux927aa3a/r2旧零门失败maxabs9.54e-7保留，不继续追逐位DAG一致；Ninja仅在独立tooling安装，活动训练环境未改。
 
 主实现诊断候选I：新反向按token/head归约两向边贡献，避免[B,H,C,C,D]全局临时张量。保持块长、三角解、状态/衰减/图邻域/顺序与训练语义，无新模型/原创声明。原Mac52pass/6kernel skip属历史；Linux88420ca/r1离线sm120编译通过、CUDA未初始化，但51pass/7fail：6解释器libdevice调用不兼容、1个tiled导数三步更新超原element gate（5.19e-5单weight）。失败保留，不扩大阈值冒充通过。修复为tl.exp并原始strides读取；CPU更新接线oracle用原eager导数，真实新kernel须另经解释器/双卡全更新验证。无新整步提速或采用结论。下一新源CPU检查；DP2终态空闲窗口再做GPU全更新及10步ABBA，不打断消融。

@@ -190,3 +190,24 @@ rather than measuring the target CUDA mechanism. Float64 mathematical derivative
 checks and opt-in actual-kernel comparisons remain numerical gates. Real dualGPU
 full optimizer/EMA/center comparisons retain their independent original checks.
 This change does not relabel the r1 or seeded r4/r5 failures or authorize adoption.
+
+Linux75009a5 CPU r1 completed64checks including12actual Triton interpreter
+shapes (tails, strong decay, contiguous/noncontiguous inputs and upstream).
+Explicit-target offline sm120 compilation passed without CUDA initialization;
+no GPU execution. Main verified every listed output hash/bytes and clean source.
+RESULT SHA a8b76f597a036c45372d7255bd3cee951839fd60f4a97c18f02f271a6c505cff;
+PLAN SHA1b4816809881928226adc3a8aebab07b60f49dbdb1620e72e1344a7d151ff5d7.
+The recorded CPU mock has2239float comparisons,4outside the original element
+gate, maxrelativeL2~0.001433; these are NOT a CUDA numerical pass. Permanent
+archive includes old88420ca failure and new75009a5 evidence separately.
+
+At next idle window verify formal publication separately (current CPU-only
+source proof is not its replacement), measure real local-kernel and full-update
+numeric drift and unprofiled10step ABBA. Under the user's latest instruction,
+finite-only floating differences may be recorded while proceeding to a separately
+labeled performance diagnostic; do not block all timing work on bitwise identity.
+Nonfinite/RNG/ID/update-order errors still require repair. Any failed existing
+acceptance gate remains failed; no adoption or model-quality claim follows from
+CPU interpreter, offline compilation or a fast isolated kernel. Main already
+notified the designated supervisor of this pending bounded window; no new monitor
+or GPU job was created and the scientific queue was not modified.
