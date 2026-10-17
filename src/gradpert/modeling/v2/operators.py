@@ -109,12 +109,17 @@ def chunk_delta_final_state(
     compiled: bool = False,
     fused_gram: bool = False,
     cache_constants: bool = False,
+    gram_backend: str = "eager",
 ) -> Tensor:
     """Exact block solve for the final state only; avoids per-token query reads."""
     if state is None:
         state = k.new_zeros(k.shape[0], k.shape[2], k.shape[3], v.shape[-1], dtype=torch.float32)
     if compiled and fused_gram:
         raise ValueError("isolate Gram fusion from regional compilation")
+    if gram_backend not in ("eager", "triton_io") or (
+        gram_backend != "eager" and (compiled or fused_gram)
+    ):
+        raise ValueError("isolate the native Gram IO backend from other execution candidates")
     block = compiled_delta_block() if compiled else delta_final_block
     if fused_gram:
         block = partial(delta_final_block, fused_gram=True)
@@ -122,6 +127,10 @@ def chunk_delta_final_state(
         if compiled:
             raise ValueError("constant cache is scoped to eager KDA")
         block = partial(delta_final_block, fused_gram=fused_gram, cache_constants=True)
+    if gram_backend != "eager":
+        block = partial(
+            delta_final_block, gram_backend=gram_backend, cache_constants=cache_constants
+        )
     for start in range(0, k.shape[1], chunk_size):
         end = min(start + chunk_size, k.shape[1])
         state = block(
@@ -139,6 +148,7 @@ def delta_final_block(
     *,
     fused_gram: bool = False,
     cache_constants: bool = False,
+    gram_backend: str = "eager",
 ) -> Tensor:
     """One unchanged delta block; regional compilation can fuse elementwise work.
 
@@ -149,7 +159,11 @@ def delta_final_block(
     gates = log_decay.float().transpose(1, 2).cumsum(-2)
     write_rate = beta.float().transpose(1, 2).unsqueeze(-1)
     length = k.shape[1]
-    if fused_gram:
+    if gram_backend == "triton_io":
+        from .weighted_gram import io_weighted_gram
+
+        past_keys = io_weighted_gram(key, gates)
+    elif fused_gram:
         from .weighted_gram import fused_weighted_gram
 
         past_keys = fused_weighted_gram(key, gates)
@@ -312,6 +326,7 @@ class RelayDeltaAttention(DeltaAttention):
         self.write_passes = 2
         self.replay_sequences = False
         self.fused_gram_diagnostic = False
+        self.weighted_gram_backend = "eager"
         self.short_graph_kernel = False
         self.cache_kda_constants = False
         self.scan_chunk_size = 32
@@ -374,6 +389,7 @@ class RelayDeltaAttention(DeltaAttention):
                 compiled=self.compiled_chunks,
                 fused_gram=self.fused_gram_diagnostic,
                 cache_constants=self.cache_kda_constants,
+                gram_backend=self.weighted_gram_backend,
             )
         # A single scan preserves the exact forward final state as the reverse
         # initial state; reverse writes use the very same projected tokens.
@@ -386,6 +402,7 @@ class RelayDeltaAttention(DeltaAttention):
             compiled=self.compiled_chunks,
             fused_gram=self.fused_gram_diagnostic,
             cache_constants=self.cache_kda_constants,
+            gram_backend=self.weighted_gram_backend,
         )
 
     def forward(
@@ -444,6 +461,7 @@ class RelayDeltaAttention(DeltaAttention):
                     compiled=self.compiled_chunks,
                     fused_gram=self.fused_gram_diagnostic,
                     cache_constants=self.cache_kda_constants,
+                    gram_backend=self.weighted_gram_backend,
                 )
         if position_output is not None:
             return (

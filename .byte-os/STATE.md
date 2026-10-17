@@ -1,3 +1,7 @@
+## 2026-10-17：整步IO收益已证实，原生集成待GPU门
+
+双卡38f0987 ABBA终态：慢rank训练wall合并13.8066→14.9990cells/s(+8.64%)，含启动+8.03%，峰值allocated下降15.85%。57295c3三次LR=.001更新exact input/RNG/结构、全finite；原数值门仍FAILED，Student整体state相对L2 .001144、maxabs .003448。依据用户接受浮点差异/性能优先，仅准备显式原生triton_io后端；default eager/旧身份不变，9个KDA覆盖，不更改数学/数据/时点。130CPU相关验证通过，未发科学训练。下一发布后真实原生输出/完整更新，再PT2双端点编排与10步恢复/评估门；PT1中等pending。当前短监督已结束，长监控均暂停。
+
 ## 2026-10-17：DP2终态/性能GPU验证为当前动作
 
 主独立验收DP2四轮/last18/同中等全部1566文件hash并接回main/build，terminal receipt fd0f0edda1f64b15a14f6c0175ed38ba1d5078383d5d9b16e4ed4f1ceb52cacc；两条跨chat监控PAUSED。中文报告、10图与B0完整对比在experiment-analysis/dino-pair-20261016/DP2/DP2_REVIEW_CN.md。

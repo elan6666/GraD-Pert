@@ -1,3 +1,9 @@
+## 2026-10-17：Gram IO整步收益已测，原生可选后端待验收
+
+38f0987双卡ABBA各10步/warmup2完成：按慢rank训练wall合并，eager13.8066→IO14.9990cells/s，+8.64%；含启动全process wall +8.03%；峰值allocated22.041GB→18.548GB，-15.85%。数据/批次/视图RNG一致，缓存已暖不冒称冷编译。57295c3显式LR=.001三步完成且finite/结构/RNG通过，但原逐元素门仍FAILED，Student最终state relativeL2 .001144、maxabs .003448，Teacher1.824e-5；不声称训练轨迹/长期效果等同。原失败全部保留。
+
+按用户接受有限精度差异/性能优先授权，正在做显式weighted_gram_backend=triton_io原生集成；默认eager/旧checkpoint身份不变，无新增参数，9个图/Cell/Response self/cross KDA一起接入，kernel与探针共用单定义。130相关CPU测试及lint通过，需发布新源后真实CUDA输出/三步完整更新、PT2阶段切换恢复/原评估门；未采用到任何科学训练。PT2中间/最后中等编排仍待补，不能冒充已运行。两条长监控暂停，短监督Luna已终态。
+
 ## 2026-10-17：DP2终态接回，真实CUDA与整步优化验证
 
 DP2四轮/600更新、epoch4 last18和同中等已独立核验：训练/评估源8882d615b907bdb9814f46f17d230e12aa97e7c7、last SHA46cbba75b80908bab0ac01e8713df0ee4e614abdbf06d9d895f11ee5cae6683b；全部1566个中等产物bytes/SHA通过，1335条件/5317行、深度128/506、梯度32/125，parity1.364e-11、updates0、run根zeroPKL。中文解读、10图/聚合数据已导入永久archive/dino-pair-20261016/DP2/DP2_REVIEW_CN.md。主exact main/build已ACK实质续接，两条跨会话monitor均PAUSED。

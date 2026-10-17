@@ -1,4 +1,4 @@
-"""Isolated KDA weighted-Gram candidate; not connected to any model default.
+"""KDA weighted-Gram implementations with an explicit optional IO backend.
 
 Only the strict lower triangle affects the delta block solve. The CUDA candidate
 will fuse pairwise channel products into that triangle. Its initial backward
@@ -72,4 +72,34 @@ def fused_weighted_gram(keys: Tensor, gates: Tensor) -> Tensor:
     ):
         raise ValueError("weighted-Gram candidate requires matching CUDA FP32 [B,H,1..32,64]")
     apply = cast(Callable[..., Tensor], _WeightedGram.apply)
+    return apply(keys, gates)
+
+
+class _IOWeightedGram(_WeightedGram):
+    @staticmethod
+    @torch.autograd.function.once_differentiable
+    def backward(ctx: Any, upstream: Tensor) -> tuple[Tensor, Tensor]:
+        from ._weighted_gram_io_cuda import backward
+
+        return cast(tuple[Tensor, Tensor], backward(*ctx.saved_tensors, upstream))
+
+
+def io_weighted_gram(keys: Tensor, gates: Tensor) -> Tensor:
+    """Same strict lower triangle; fused CUDA forward and incident-edge backward.
+
+    Float reduction order differs from eager. No RNG or mutable model state.
+    Require supported shapes explicitly instead of silently changing backends.
+    """
+    if (
+        keys.ndim != 4
+        or keys.shape != gates.shape
+        or keys.device != gates.device
+        or not keys.is_cuda
+        or keys.dtype != torch.float32
+        or gates.dtype != torch.float32
+        or keys.shape[-1] != 64
+        or not 1 <= keys.shape[-2] <= 32
+    ):
+        raise ValueError("Gram IO requires matching CUDA FP32 [B,H,1..32,64]")
+    apply = cast(Callable[..., Tensor], _IOWeightedGram.apply)
     return apply(keys, gates)

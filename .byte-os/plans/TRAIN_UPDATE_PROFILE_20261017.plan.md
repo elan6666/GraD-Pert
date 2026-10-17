@@ -1,5 +1,39 @@
 # Current-update profiling and semantic-preserving optimization
 
+## Native opt-in integration (not yet cleared for a scientific run)
+
+Completed diagnostic ABBA38f0987: A pooled13.806636 vs B14.998951 cells/s
+using the slower rank wall, +8.6358%; full process wall including startup
++8.0341%. Peak allocated22,041,441,280 ->18,547,902,976 bytes (-15.85%).
+All four10-update arms passed, same ordered batches/view RNG/config/data.
+Triton cache was warmed by separately recorded derivative/parity work; do not
+claim cold-compile timing. Old script/runs remain immutable.
+
+Positive-LR57295c3:3 updates/side at.001 completed, exact input/RNG/structure,
+all finite. Original3e-5/3e-4 gate FAILED and remains failed: Student final
+state relativeL2 .0011444, maxabs .0034479; Teacher .000018237; centers at most
+.00046072 relativeL2. Max relativeL2 across tiny individual tensors is larger,
+not the whole model ratio. This is not proof of identical training trajectories
+or long-term predictive quality. The user's explicit acceptance of finite
+floating differences allows a disclosed opt-in performance integration, not
+rewriting these original failures as passes or changing evaluation thresholds.
+
+Native candidate weighted_gram_backend=triton_io shares one canonical Triton
+backward with probes; fused forward/triangular solve/state math are unchanged.
+Default=eager is omitted from historical architecture payloads; no parameters
+or initialization/RNG added. Explicitly require W64,C<=32,eager final-state KDA;
+reject mixed/unsupported modes rather than silently fallback. All9 graph/Cell/
+Response self/cross KDA operators receive it. No scripts/upstream runtime import.
+Self-contained B0 IO engineering config is separate from historical B0/PT2.
+
+Before new PT2: published clean native source, actual CUDA forward/backward and
+three positive-LR full updates with raw Student/Teacher response CLS and decoded
+prediction outputs in addition to gradients/optimizer/objective/EMA/centers/RNG.
+The original numeric result remains separately reported; nonfinite, identity,
+integer, missing-gradient or structure changes fail closed. Then actual PT2
+10-update switch/restore plus original eval128/300control gates. Native local
+130 relevant tests passed, lint/format/diff clean. No formal PT2 dispatch yet.
+
 ## Real CUDA follow-through after DP2 handback
 
 DP2 accepted:4/4,600 updates,last18,same-medium1335/5317,deep128/506,

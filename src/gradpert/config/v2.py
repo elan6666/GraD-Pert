@@ -30,6 +30,7 @@ class V2Architecture:
     relay_eval_seed: int | None = None
     relay_passes: int = 2
     relay_kernel: str = "eager"
+    weighted_gram_backend: str = "eager"
     relay_validate_once: bool = False
     short_graph_kernel: bool = False
     cache_kda_constants: bool = False
@@ -233,6 +234,20 @@ class V2Architecture:
             raise ValueError("single-pass final-state KDA requires the relay profile")
         if self.relay_kernel not in ("eager", "inductor", "cudagraphs"):
             raise ValueError("unknown relay kernel")
+        if self.weighted_gram_backend not in ("eager", "triton_io"):
+            raise ValueError("unknown weighted Gram backend")
+        if self.weighted_gram_backend != "eager" and (
+            self.attention != "relay_full"
+            or self.relay_kernel != "eager"
+            or self.attention_replacement != "none"
+            or self.self_readout != "final"
+            or self.all_kda_prefix
+            or self.short_graph_kernel
+            or self.width // self.heads != 64
+            or self.relay_scan_chunk_size > 32
+            or (self.relay_sequence_chunk_size or self.relay_scan_chunk_size) > 32
+        ):
+            raise ValueError("Gram IO requires final-state eager relay W64 and chunks at most32")
         if self.relay_kernel != "eager" and self.attention != "relay_full":
             raise ValueError("compiled relay kernel requires the relay profile")
         if type(self.relay_validate_once) is not bool:
@@ -317,6 +332,8 @@ class V2Architecture:
             values.pop("relay_passes")
         if self.relay_kernel == "eager":
             values.pop("relay_kernel")
+        if self.weighted_gram_backend == "eager":
+            values.pop("weighted_gram_backend")
         if not self.relay_validate_once:
             values.pop("relay_validate_once")
         if not self.short_graph_kernel:
@@ -461,6 +478,7 @@ class V2Options:
             "relay_eval_seed",
             "relay_passes",
             "relay_kernel",
+            "weighted_gram_backend",
             "relay_validate_once",
             "short_graph_kernel",
             "cache_kda_constants",

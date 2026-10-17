@@ -581,6 +581,7 @@ class GraDPertV2(nn.Module):
                 module.replay_sequences = options.relay_kernel == "cudagraphs"
                 module.short_graph_kernel = options.short_graph_kernel
                 module.cache_kda_constants = options.cache_kda_constants
+                module.weighted_gram_backend = options.weighted_gram_backend
                 module.all_kda_prefix = options.all_kda_prefix
                 module.fixed_gene_order = options.fixed_gene_order
                 if options.all_kda_prefix:

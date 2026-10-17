@@ -32,6 +32,30 @@ def test_input_digest_preserves_gene_order_dtype_and_rng_bits():
     assert original != MODULE.tree_digest(batch)
 
 
+def test_output_capture_keeps_autograd_rng_and_restores_methods_on_exception():
+    from types import SimpleNamespace
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.weight = torch.nn.Parameter(torch.tensor(2.0))
+
+        def encode_response(self, x):
+            return {"prediction": self.weight * x, "response_cls": x}
+
+    objective = SimpleNamespace(student=Model(), teacher=Model())
+    before = torch.get_rng_state().clone()
+    with pytest.raises(RuntimeError), MODULE.capture_response_outputs(objective) as captured:
+        result = objective.student.encode_response(torch.tensor(3.0))
+        result["prediction"].backward()
+        assert captured["student"][0]["prediction"].item() == 6
+        assert not captured["student"][0]["prediction"].requires_grad
+        assert objective.student.weight.grad.item() == 3
+        raise RuntimeError("injected")
+    assert torch.equal(before, torch.get_rng_state())
+    assert all("encode_response" not in m.__dict__ for m in [objective.student, objective.teacher])
+
+
 def test_parity_checks_small_gradients_and_optimizer_structure():
     reference = {"gradient": torch.zeros(4), "optimizer": {"step": 2, "state": torch.ones(2)}}
     candidate = MODULE.cpu_copy(reference)

@@ -13,7 +13,7 @@ import json
 import math
 import os
 import time
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -68,6 +68,36 @@ def cpu_copy(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return type(value)(cpu_copy(child) for child in value)
     return value
+
+
+@contextmanager
+def capture_response_outputs(objective: Any):
+    """Read-only output evidence; CPU copies are outside throughput measurements."""
+    captured: dict[str, list[Any]] = {"student": [], "teacher": []}
+    restore = []
+    for role in captured:
+        model = getattr(objective, role)
+        had_override = "encode_response" in model.__dict__
+        previous = model.__dict__.get("encode_response")
+        original = model.encode_response
+
+        def wrapped(*args, _original=original, _role=role, **kwargs):
+            output = _original(*args, **kwargs)
+            captured[_role].append(
+                cpu_copy({k: output[k] for k in ("prediction", "response_cls") if k in output})
+            )
+            return output
+
+        model.encode_response = wrapped
+        restore.append((model, had_override, previous))
+    try:
+        yield captured
+    finally:
+        for model, had_override, previous in restore:
+            if had_override:
+                model.encode_response = previous
+            else:
+                del model.encode_response
 
 
 def comparison_batches(runtime: Any, *, staged: bool, cpu_prefetch: bool, updates: int = 2):
@@ -185,6 +215,7 @@ def execution_changes(reference: Any, candidate: Any, repeat: bool) -> list[str]
             ["relay_scan_chunk_size"],
             ["relay_graph_chunk_rows"],
             ["relay_sequence_chunk_size"],
+            ["weighted_gram_backend"],
         ), "one execution factor at a time"
     return changed
 
@@ -338,8 +369,6 @@ def main() -> None:
         not math.isfinite(args.diagnostic_learning_rate) or args.diagnostic_learning_rate <= 0
     ):
         parser.error("diagnostic learning rate must be positive and finite")
-    if args.record_finite_drift and not (args.candidate_gram_io or args.candidate_aten_kda):
-        parser.error("finite drift recording is only an isolated KDA candidate diagnostic")
     if args.candidate_gram_io:
         if (
             args.candidate_fused_gram
@@ -469,6 +498,15 @@ def main() -> None:
         or args.candidate_aten_kda
         or args.pt1_execution,
     )
+    if args.record_finite_drift and not (
+        args.candidate_gram_io
+        or args.candidate_aten_kda
+        or (
+            changed == ["weighted_gram_backend"]
+            and candidate_architecture.weighted_gram_backend == "triton_io"
+        )
+    ):
+        parser.error("finite drift recording is only an isolated KDA candidate diagnostic")
     assert candidate_options == options
     if args.pt1_execution and options.training_mode != "ssl_then_mse":
         parser.error("PT1 execution diagnostic requires ssl_then_mse")
@@ -511,6 +549,7 @@ def main() -> None:
         "diagnostic_learning_rate": args.diagnostic_learning_rate,
         "record_finite_drift": args.record_finite_drift,
         "numeric_all_passed": True,
+        "captured_outputs": "Student/Teacher prediction (when decoded) and response CLS",
         "execution_change": {name: getattr(candidate_architecture, name) for name in changed},
         "reference_repeat": args.reference_repeat,
         "pt1_execution": args.pt1_execution,
@@ -584,6 +623,9 @@ def main() -> None:
             runtime.optimizer.step = capture_step  # type: ignore[method-assign]
             candidate_contexts = ExitStack()
             try:
+                outputs = candidate_contexts.enter_context(
+                    capture_response_outputs(runtime.objective)
+                )
                 for kernel in ("reference", "candidate"):
                     if kernel == "candidate":
                         if args.candidate_gram_io:
@@ -634,6 +676,9 @@ def main() -> None:
                                         candidate_architecture.sinkhorn_backend
                                     )
                                 if isinstance(module, RelayDeltaAttention):
+                                    module.weighted_gram_backend = (
+                                        candidate_architecture.weighted_gram_backend
+                                    )
                                     module.scan_chunk_size = (
                                         candidate_architecture.relay_scan_chunk_size
                                     )
@@ -667,6 +712,8 @@ def main() -> None:
                             updates=args.updates,
                         )
                     ):
+                        for values in outputs.values():
+                            values.clear()
                         input_digest = tree_digest(batch)
                         rng_before = tree_digest(_rng_state())
                         count, conditions = len(batch.control), batch.condition_index
@@ -694,6 +741,7 @@ def main() -> None:
                             global_condition_index=conditions,
                         )
                         snapshot = {
+                            "outputs": cpu_copy(outputs),
                             "losses": metrics,
                             "gradients": cpu_copy(gradients),
                             "objective": cpu_copy(runtime.objective.state_dict()),
