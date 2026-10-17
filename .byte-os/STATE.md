@@ -1,3 +1,9 @@
+## 2026-10-17：PT1报告完成，清单元数据修复与短profile并行
+
+57dd5dc真实CPU报告已完成，13个产物逐项bytes/SHA通过；receipt7899d689b145bc720c3728631722f8c951233717fcd70500afa0a778713e96c3。随后原seal-medium因父data身份没有PT1新增loss_protocol.staged_training而拒绝；其余data字段完全相同。r2失败收据13efa65718ca90315aa060c2a7495b070752a461aec38974c26815df4aaea144保留，无GPU阶段。controller只给PT1生成派生父清单：完整采样不变、只补已封存训练身份中的该字段，原native seal仍检查runtime==checkpoint==派生manifest全部data。非阶段字段变化仍拒绝，不改任何数值分析或src。
+
+主调整自设等待顺序：PT1 fit4/last18及真实saved报告已验收，独立profile_only无需等待CPU清单适配。双卡短profile17f2194已启动，root /data/yilangliu/GraD-Pert/development/train-update-profile-17f2194-20261017-r2，PLAN SHA189c921536bd1cddffa2c1ae89d3f534d0047963c9731be6b8b89284e65c0c09，Luna唯一短监督。不是正式容量/提速证据；不与中等分析或训练重叠。清单修复后、profile结束再补同中等，接DP2及原队列。旧定时PAUSED。主不重复轮询。
+
 ## 2026-10-17：PT1真实CPU报告补齐阶段缺失梯度
 
 0be7a1c报告修复r1仅运行CPU即退出1：SSL阶段没有prediction梯度和prediction/SSL余弦，绘图仍以必有键读取。FAILURE SHA c855ebe1d95ba96493012100ba6b9f6589d75a06d3e6989973b7df94309c21b3、日志SHA389e1facf126ee73ba5cc190b97f46d17b471c19821c539c7ace9ee6be7fac09均保留；未启动GPU seal/probe/medium。改为缺失值断线，不填零；用真实缺失字段结构补回归，training.csv也明确阶段。下一新报告源/独立输出先验收真实CPU整份报告，再继续原中等流程。训练/测试/数值方法源ec32671不变。主owner，短监督Luna已终态，旧定时仍PAUSED。

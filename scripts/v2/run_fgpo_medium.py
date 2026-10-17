@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import math
 import os
 import subprocess
@@ -178,6 +179,38 @@ def validate_report_repair(q, arm, output, report_source):
     return output
 
 
+def pt1_parent_binding(parent, training_identity, *, parent_path, parent_sha256):
+    """Adapt only PT1's declared phase metadata, retaining every sampling field.
+
+    Native sealing still compares the complete live runtime identity with the
+    checkpoint identity. This does not relax that check or change numerical code.
+    """
+    trained = training_identity["data"]
+    comparable = copy.deepcopy(trained)
+    protocol = comparable["loss_protocol"]
+    staged = protocol.pop("staged_training", None)
+    if (
+        not isinstance(staged, dict)
+        or staged.get("mode") != "ssl_then_mse"
+        or comparable != parent["data"]
+    ):
+        raise ValueError("PT1 medium parent may differ only by declared staged_training metadata")
+    return {
+        **copy.deepcopy(parent),
+        "data": copy.deepcopy(trained),
+        "training_protocol_binding": {
+            "original_parent_manifest": str(parent_path),
+            "original_parent_sha256": parent_sha256,
+            "changed_field": "data.loss_protocol.staged_training",
+            "previous_value": None,
+            "training_value": copy.deepcopy(staged),
+            "training_run_id": training_identity["run_id"],
+            "diagnostic_population_sha256": population_identity(parent["schedule"]),
+            "sampling_changed": False,
+        },
+    }
+
+
 def execute(queue_path, arm, *, repair_output=None):
     from profile_medium_observer import compare
     from run_br400_group import validate_complete, verify
@@ -252,6 +285,18 @@ def execute(queue_path, arm, *, repair_output=None):
             ],
             "",
         )
+        parent_path = q["medium_analysis"]["parent_manifest"]
+        parent_sha256 = q["medium_analysis"]["parent_manifest_sha256"]
+        if arm == "PT1":
+            bound_parent = pt1_parent_binding(
+                parent,
+                read(Path(plan["run_root"]) / "run_manifest.json"),
+                parent_path=parent_path,
+                parent_sha256=parent_sha256,
+            )
+            parent_path = root / "pt1-medium-parent.json"
+            write(parent_path, bound_parent)
+            parent_sha256 = sha(parent_path)
         call(
             "seal",
             [
@@ -260,9 +305,9 @@ def execute(queue_path, arm, *, repair_output=None):
                 *common,
                 "--reuse-medium-schedule",
                 "--parent-manifest",
-                q["medium_analysis"]["parent_manifest"],
+                str(parent_path),
                 "--parent-manifest-sha256",
-                q["medium_analysis"]["parent_manifest_sha256"],
+                parent_sha256,
                 "--output",
                 str(root / "manifest"),
             ],

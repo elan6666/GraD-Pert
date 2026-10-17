@@ -66,3 +66,7 @@ relative to live ec32671. Server CPU50passed (CUDA hidden); clean release17f2194
 BUILD_READY SHAed63bb362099a2e106c409da126ec4c8ae96caec28f2a5b32e9d924766173867.
 PREPARED_GPU_PROBES SHAfc388457fb91fca9d3d9d8fc4a5fb00e17b061819a3e5d1113816e75e4e0dfad.
 Real CUDA captures await full PT1 terminal/main acceptance; no new gain claimed.
+
+## 2026-10-17 scheduling correction
+
+PT1 fit4/last18 independently passed, repaired real saved CPU report passed. Comparable medium sealing exposed a parent protocol metadata mismatch (staged_training only). This CPU-only repair is not a numerical prerequisite for independent profile_only captures. Main revised the self-imposed wait, retaining all actual source/config/data/resource checks. Fresh diagnostic root train-update-profile-17f2194-20261017-r2, plan SHA189c921536bd1cddffa2c1ae89d3f534d0047963c9731be6b8b89284e65c0c09, parent prepared-plan SHAfc388457fb91fca9d3d9d8fc4a5fb00e17b061819a3e5d1113816e75e4e0dfad. Short Luna supervision only; no concurrent medium GPU job. All scientific analysis and formal preflight gates remain required.

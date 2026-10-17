@@ -216,3 +216,51 @@ def test_analysis_repair_freezes_numeric_source_and_protects_old_outputs(
     else:
         with pytest.raises(ValueError):
             medium.validate_report_repair(q, arm, output, tmp_path / "source")
+
+
+@pytest.mark.parametrize("drift", [None, "canonical", "base_protocol", "extra", "mode"])
+def test_pt1_medium_parent_retains_exact_data_and_population(drift):
+    parent = {
+        "data": {"canonical_sha256": "a" * 64, "loss_protocol": {"reduction": "row_mean"}},
+        "schedule": [
+            dict(
+                index=0,
+                condition_id="a+ctrl",
+                rows=[{"truth_row_id": "r1", "control_row_id": "c1"}],
+                deep_rows=[],
+                gradient_rows=[],
+                queries=[2, 3],
+                view_seed=5,
+            )
+        ],
+    }
+    initial = copy.deepcopy(parent)
+    identity = dict(run_id="pt1", data=copy.deepcopy(parent["data"]))
+    identity["data"]["loss_protocol"]["staged_training"] = dict(
+        mode="ssl_then_mse", pretrain_epochs=2, finetune_epochs=2
+    )
+    if drift == "canonical":
+        identity["data"]["canonical_sha256"] = "b" * 64
+    elif drift == "base_protocol":
+        identity["data"]["loss_protocol"]["reduction"] = "condition_mean"
+    elif drift == "extra":
+        identity["data"]["unapproved"] = True
+    elif drift == "mode":
+        identity["data"]["loss_protocol"]["staged_training"]["mode"] = "different"
+    if drift:
+        with pytest.raises(ValueError, match="only by declared staged_training"):
+            medium.pt1_parent_binding(
+                parent, identity, parent_path="parent", parent_sha256="c" * 64
+            )
+    else:
+        bound = medium.pt1_parent_binding(
+            parent, identity, parent_path="parent", parent_sha256="c" * 64
+        )
+        assert bound["data"] == identity["data"]
+        assert bound["schedule"] == initial["schedule"]
+        assert bound["training_protocol_binding"]["sampling_changed"] is False
+        assert bound["training_protocol_binding"]["original_parent_sha256"] == "c" * 64
+        assert medium.population_identity(bound["schedule"]) == medium.population_identity(
+            initial["schedule"]
+        )
+    assert parent == initial
