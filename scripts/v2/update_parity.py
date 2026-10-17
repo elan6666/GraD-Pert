@@ -1,4 +1,4 @@
-"""Compare two complete distributed updates from the same checkpoint and RNG.
+"""Compare complete distributed updates from the same checkpoint and RNG.
 
 This diagnostic copies gradients to CPU and is never throughput evidence.
 """
@@ -70,12 +70,12 @@ def cpu_copy(value: Any) -> Any:
     return value
 
 
-def comparison_batches(runtime: Any, *, staged: bool, cpu_prefetch: bool):
+def comparison_batches(runtime: Any, *, staged: bool, cpu_prefetch: bool, updates: int = 2):
     """Reopen data at the PT1 boundary so finetuning can read its targets."""
     for epoch in range(2 if staged else 1):
         stream = runtime.batches(epoch, cpu_prefetch=cpu_prefetch)
         try:
-            yield from itertools.islice(stream, 2)
+            yield from itertools.islice(stream, updates)
         finally:
             stream.close()
 
@@ -87,11 +87,19 @@ def compare_trees(
         "passed": True,
         "tensor_count": 0,
         "max_absolute": 0.0,
+        "max_relative_l2": 0.0,
+        "finite": True,
+        "structural_exact": True,
+        "numeric_failure_count": 0,
         "failures": [],
     }
 
-    def failure(path: str, message: str) -> None:
+    def failure(path: str, message: str, *, numeric: bool = False) -> None:
         result["passed"] = False
+        if numeric:
+            result["numeric_failure_count"] += 1
+        else:
+            result["structural_exact"] = False
         if len(result["failures"]) < 20:
             result["failures"].append({"path": path, "message": message[:1000]})
 
@@ -101,14 +109,25 @@ def compare_trees(
             if a.shape != b.shape or a.dtype != b.dtype:
                 failure(path, "shape/dtype differs")
                 return
+            if not a.is_floating_point() and not a.is_complex():
+                if not torch.equal(a, b):
+                    failure(path, "exact integer/bool tensor differs")
+                return
+            if not (torch.isfinite(a).all() and torch.isfinite(b).all()):
+                result["finite"] = False
+                failure(path, "nonfinite tensor", numeric=True)
+                return
             if a.numel():
-                result["max_absolute"] = max(
-                    result["max_absolute"], (a.double() - b.double()).abs().max().item()
+                delta = a.double() - b.double()
+                result["max_absolute"] = max(result["max_absolute"], delta.abs().max().item())
+                result["max_relative_l2"] = max(
+                    result["max_relative_l2"],
+                    delta.norm().item() / max(a.double().norm().item(), 1e-30),
                 )
             try:
                 torch.testing.assert_close(a, b, atol=atol, rtol=rtol)
             except AssertionError as error:
-                failure(path, str(error))
+                failure(path, str(error), numeric=True)
         elif isinstance(a, dict) and isinstance(b, dict) and a.keys() == b.keys():
             for key in a:
                 visit(a[key], b[key], path + "/" + str(key))
@@ -116,14 +135,35 @@ def compare_trees(
             for i, (left, right) in enumerate(zip(a, b, strict=True)):
                 visit(left, right, path + "/" + str(i))
         elif isinstance(a, (float, int)) and isinstance(b, (float, int)):
+            if type(a) is not type(b):
+                failure(path, "scalar type differs")
+                return
+            if not isinstance(a, float):
+                if a != b:
+                    failure(path, "exact integer/bool scalar differs")
+                return
+            if not (math.isfinite(a) and math.isfinite(b)):
+                result["finite"] = False
+                failure(path, "nonfinite scalar", numeric=True)
+                return
             result["max_absolute"] = max(result["max_absolute"], abs(float(a) - float(b)))
             if not math.isclose(a, b, abs_tol=atol, rel_tol=rtol):
-                failure(path, f"{a} != {b}")
+                failure(path, f"{a} != {b}", numeric=True)
         elif tree_digest(a) != tree_digest(b):
             failure(path, "exact value differs")
 
     visit(reference, actual, "root")
     return result
+
+
+def may_continue_comparison(
+    comparisons: dict[str, Any], *, exact_inputs_rng: bool, record_finite_drift: bool
+) -> bool:
+    """Recording float drift never accepts it or bypasses an identity/finite failure."""
+    return exact_inputs_rng and all(
+        row["passed"] or (record_finite_drift and row["finite"] and row["structural_exact"])
+        for row in comparisons.values()
+    )
 
 
 def execution_changes(reference: Any, candidate: Any, repeat: bool) -> list[str]:
@@ -288,7 +328,18 @@ def main() -> None:
     parser.add_argument("--candidate-aten-kda", action="store_true")
     parser.add_argument("--candidate-gram-forward-audit", action="store_true")
     parser.add_argument("--candidate-gram-backward-audit", action="store_true")
+    parser.add_argument("--updates", type=int, default=2)
+    parser.add_argument("--diagnostic-learning-rate", type=float)
+    parser.add_argument("--record-finite-drift", action="store_true")
     args = parser.parse_args()
+    if not 2 <= args.updates <= 10 or (args.pt1_execution and args.updates != 2):
+        parser.error("use 2..10 updates; PT1 execution retains two updates per phase")
+    if args.diagnostic_learning_rate is not None and (
+        not math.isfinite(args.diagnostic_learning_rate) or args.diagnostic_learning_rate <= 0
+    ):
+        parser.error("diagnostic learning rate must be positive and finite")
+    if args.record_finite_drift and not (args.candidate_gram_io or args.candidate_aten_kda):
+        parser.error("finite drift recording is only an isolated KDA candidate diagnostic")
     if args.candidate_gram_io:
         if (
             args.candidate_fused_gram
@@ -443,7 +494,11 @@ def main() -> None:
     primary_call(lambda: args.output.mkdir(parents=True, exist_ok=False))
     receipt: dict[str, Any] = {
         "status": "running",
-        "kind": "pt1_four_update_parity" if args.pt1_execution else "two_update_parity",
+        "kind": (
+            "pt1_four_update_parity"
+            if args.pt1_execution
+            else ("two_update_parity" if args.updates == 2 else "multi_update_parity")
+        ),
         "rank": rank,
         "source": source.payload(),
         "config_sha256": sha256_file(args.config),
@@ -452,6 +507,10 @@ def main() -> None:
         "atol": 3e-5,
         "rtol": 3e-4,
         "steps": [],
+        "updates_requested": 4 if args.pt1_execution else args.updates,
+        "diagnostic_learning_rate": args.diagnostic_learning_rate,
+        "record_finite_drift": args.record_finite_drift,
+        "numeric_all_passed": True,
         "execution_change": {name: getattr(candidate_architecture, name) for name in changed},
         "reference_repeat": args.reference_repeat,
         "pt1_execution": args.pt1_execution,
@@ -605,6 +664,7 @@ def main() -> None:
                             runtime,
                             staged=args.pt1_execution,
                             cpu_prefetch=args.candidate_cpu_prefetch and kernel == "candidate",
+                            updates=args.updates,
                         )
                     ):
                         input_digest = tree_digest(batch)
@@ -614,7 +674,9 @@ def main() -> None:
                             batch, count * rank // world, count * (rank + 1) // world
                         )
                         learning_rate = (
-                            options.finetune_learning_rate
+                            args.diagnostic_learning_rate
+                            if args.diagnostic_learning_rate is not None
+                            else options.finetune_learning_rate
                             if args.pt1_execution and step >= 2
                             else schedule.at_step(step, total_steps)["learning_rate"]
                         )
@@ -655,6 +717,7 @@ def main() -> None:
                             passed = record == expected_record and all(
                                 x["passed"] for x in compared.values()
                             )
+                            receipt["numeric_all_passed"] &= passed
                             receipt["steps"].append(
                                 {
                                     "step": step + 1,
@@ -667,7 +730,12 @@ def main() -> None:
                             )
                             atomic_json(receipt_path, receipt)
                             # All ranks reach the same decision before another update.
-                            flag = torch.tensor(int(passed), device="cuda")
+                            safe = may_continue_comparison(
+                                compared,
+                                exact_inputs_rng=record == expected_record,
+                                record_finite_drift=args.record_finite_drift,
+                            )
+                            flag = torch.tensor(int(safe), device="cuda")
                             torch.distributed.all_reduce(flag, op=torch.distributed.ReduceOp.MIN)
                             if not flag.item():
                                 raise AssertionError(
@@ -678,7 +746,7 @@ def main() -> None:
                         runtime.objective,
                         runtime.optimizer,
                         identity={"data": runtime.identity, "kernel": kernel},
-                        progress={"step": 4 if args.pt1_execution else 2},
+                        progress={"step": 4 if args.pt1_execution else args.updates},
                         generator=runtime.generator,
                     )
             finally:
@@ -693,7 +761,7 @@ def main() -> None:
             receipt["replay_graphs"] = int(manager.graph_counter.__reduce__()[1][0])
             receipt["replay_skips"] = counters["inductor"]["cudagraph_skips"]
             assert receipt["replay_graphs"] > 0 and receipt["replay_skips"] == 0
-        receipt["status"] = "passed"
+        receipt["status"] = "passed" if receipt["numeric_all_passed"] else "finite_drift_recorded"
     except BaseException as error:
         receipt.update(status="failed", error_type=type(error).__name__, error=str(error))
         raise

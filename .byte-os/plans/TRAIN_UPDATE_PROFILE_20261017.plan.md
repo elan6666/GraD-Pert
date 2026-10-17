@@ -1,5 +1,35 @@
 # Current-update profiling and semantic-preserving optimization
 
+## Real CUDA follow-through after DP2 handback
+
+DP2 accepted:4/4,600 updates,last18,same-medium1335/5317,deep128/506,
+gradient32/125,updates0,all1566 artifact bytes/SHA verified,zeroPKL.
+Source8882,checkpoint46cbba75...,report2b5b6042... . Main ACK recorded;
+both long monitors PAUSED. Permanent DP2 review/10figures/data archived.
+
+Published clean38f0987 and live-GitHub publication receipt
+738505131edcd2b6e668353813b2655fde8d05d80d2f85c35c7c73158080d391
+match immutable source-perf-38f0987. Actual CUDA derivative12 passed.
+Old full-update parity r1 failed at first LR=0 step:three gradient tensors,
+maxabs2.316311e-4,exact inputs/RNG,objective/optimizer passed. Preserve the
+failure; this is not multi-step nonzero-LR acceptance.
+
+Independent unprofiled ABBA A1/B1/B2/A2 uses10 updates/warmup2,global320,
+same seeded B0 joint config/source38f0987. Root gram-io-38f0987-abba-
+20261017-r1. Cache reuse after separately timed kernel/parity is explicit;
+do not call it cold compilation. Luna owns short read-only supervision.
+Finite-only failure does not suppress timing; no native adoption follows.
+
+Diagnostic repair only: --updates(2..10), strictly positive explicit
+--diagnostic-learning-rate, --record-finite-drift for isolated candidates.
+The unchanged3e-5/3e-4 check remains failed when exceeded. Opt-in recording
+continues finite floating discrepancies only, with status finite_drift_recorded,
+never passed. Integer values, gradient presence, shape/dtype, structure,
+ordered inputs and all RNG remain exact; nonfinite values always stop.
+Record original failure counts/maxabs/relativeL2. Relevant local45passed,
+12opt-in CUDA checks skipped(real CUDA12 independently passed on38f0987).
+Next fresh published-source three positive-LR full updates and ABBA evidence.
+
 Latest user addition (2026-10-17): after this performance stage, prioritize new
 PT2=2SSL+4MSE with both epoch2 and epoch6 medium diagnostics, then continue S12-L4
 and remaining authorized arms. Preparation and unimplemented endpoint orchestration

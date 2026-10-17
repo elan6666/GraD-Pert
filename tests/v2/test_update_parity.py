@@ -50,6 +50,97 @@ def test_nonfinite_or_dtype_changes_do_not_pass_parity():
     assert not MODULE.compare_trees(torch.ones(2), torch.ones(2, dtype=torch.float64))["passed"]
 
 
+def test_recording_finite_drift_preserves_the_original_failed_gate():
+    reference = {"weight": torch.zeros(2), "updates": 3}
+    drifted = {"weight": torch.tensor([1e-3, 0.0]), "updates": 3}
+    result = MODULE.compare_trees(reference, drifted)
+    assert not result["passed"] and result["finite"] and result["structural_exact"]
+    assert result["numeric_failure_count"] == 1
+    assert result["max_relative_l2"] > 0
+    assert MODULE.may_continue_comparison(
+        {"weights": result}, exact_inputs_rng=True, record_finite_drift=True
+    )
+    assert not MODULE.may_continue_comparison(
+        {"weights": result}, exact_inputs_rng=True, record_finite_drift=False
+    )
+    assert not MODULE.may_continue_comparison(
+        {"weights": result}, exact_inputs_rng=False, record_finite_drift=True
+    )
+
+
+@pytest.mark.parametrize(
+    "reference,actual",
+    [
+        (torch.zeros(1), torch.tensor([float("nan")])),
+        (torch.zeros(1), torch.tensor([float("inf")])),
+        (torch.zeros(1), torch.zeros(2)),
+        (torch.zeros(1), torch.zeros(1, dtype=torch.float64)),
+        (torch.tensor([1000000]), torch.tensor([1000001])),
+        (1000000, 1000001),
+        ({"grad": None}, {"grad": torch.zeros(1)}),
+    ],
+)
+def test_finite_drift_does_not_bypass_nonfinite_identity_or_gradient_structure(reference, actual):
+    result = MODULE.compare_trees(reference, actual)
+    assert not result["passed"]
+    assert not MODULE.may_continue_comparison(
+        {"result": result}, exact_inputs_rng=True, record_finite_drift=True
+    )
+
+
+def test_comparison_stream_can_request_three_updates_and_closes_once():
+    from types import SimpleNamespace
+
+    closed = []
+
+    def batches(epoch, *, cpu_prefetch):
+        try:
+            yield from range(20)
+        finally:
+            closed.append(epoch)
+
+    runtime = SimpleNamespace(batches=batches)
+    assert list(
+        MODULE.comparison_batches(runtime, staged=False, cpu_prefetch=False, updates=3)
+    ) == [0, 1, 2]
+    assert closed == [0]
+
+
+@pytest.mark.parametrize("rate", ["0", "-0.1", "nan", "inf"])
+def test_explicit_nonzero_learning_rate_rejects_invalid_values_before_cuda(rate):
+    import subprocess
+    import sys
+
+    script = Path(__file__).resolve().parents[2] / "scripts/v2/update_parity.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--config",
+            "unused",
+            "--candidate-config",
+            "unused",
+            "--data-root",
+            "/data/yilangliu",
+            "--output",
+            "/data/yilangliu/unused",
+            "--gpu",
+            "0,1",
+            "--publication",
+            "unused",
+            "--publication-sha256",
+            "unused",
+            "--diagnostic-learning-rate",
+            rate,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "positive and finite" in result.stderr
+
+
 def test_digest_accepts_zero_stride_singletons_broadcast_and_bfloat16():
     for dtype in (torch.int64, torch.bfloat16):
         seed = torch.tensor([3], dtype=dtype)

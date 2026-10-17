@@ -1,3 +1,9 @@
+## 2026-10-17：DP2终态/性能GPU验证为当前动作
+
+主独立验收DP2四轮/last18/同中等全部1566文件hash并接回main/build，terminal receipt fd0f0edda1f64b15a14f6c0175ed38ba1d5078383d5d9b16e4ed4f1ceb52cacc；两条跨chat监控PAUSED。中文报告、10图与B0完整对比在experiment-analysis/dino-pair-20261016/DP2/DP2_REVIEW_CN.md。
+
+真实CUDA Gram导数12通过；旧38f0987全更新在LR0首步3处梯度超原门(abs最大2.316e-4)，未到非零LR步骤，不能称通过。独立38f0987 ABBA10步×4/warmup2/global320，root development/gram-io-38f0987-abba-20261017-r1，由Luna唯一短监督，主不轮询。诊断补充显式正LR、多步、finite-only误差记录；仍保留原passed=false，结构/RNG/非有限异常停止。不可变服务器源/科学方法不改，尚无新提速/采用结论。下一验收吞吐和完整更新，再补PT2双端点编排；PT1中等pending。
+
 ## 2026-10-17：性能后新增PT2，两个阶段端点中等分析
 
 已授权下一新增实验PT2：SSL2轮(两套蒸馏)→MSE全Student微调4轮，总6轮/global320/seed1；保存epoch2/pretrain和epoch6/last，并按同一中等row/control/gene/view清单分析两个端点。配置/准备manifest已生成，prepared_not_dispatched；现有native budget可支持，但中间checkpoint分析编排须先补显式角色/哈希与验收，不能重标last-only收据。性能GPU整步验证优先，后PT2→S12-L4等；不抢当前DP2 GPU、不改其唯一监督租约。原PT1中等回填不取消。详情plans/PT2_STAGED_2PLUS4_20261017.plan.md；下方旧剩余次序由此覆盖。

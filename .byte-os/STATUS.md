@@ -1,3 +1,9 @@
+## 2026-10-17：DP2终态接回，真实CUDA与整步优化验证
+
+DP2四轮/600更新、epoch4 last18和同中等已独立核验：训练/评估源8882d615b907bdb9814f46f17d230e12aa97e7c7、last SHA46cbba75b80908bab0ac01e8713df0ee4e614abdbf06d9d895f11ee5cae6683b；全部1566个中等产物bytes/SHA通过，1335条件/5317行、深度128/506、梯度32/125，parity1.364e-11、updates0、run根zeroPKL。中文解读、10图/聚合数据已导入永久archive/dino-pair-20261016/DP2/DP2_REVIEW_CN.md。主exact main/build已ACK实质续接，两条跨会话monitor均PAUSED。
+
+源38f0987的Gram前后向IO真实CUDA12个导数检查通过，但旧整步parity在首个LR=0步骤即3处梯度超原3e-5/3e-4门，最大abs2.316e-4；输入/全部RNG一致，失败保留，不证明非零LR完整更新通过。独立ABBA每臂10步/warmup2/global320正在同immutable源测速，Luna唯一短监督，主不重复轮询。候选尚未采用。诊断脚本增加显式正LR/多步及finite-drift记录：原数值门不改，任何NaN/Inf、身份、整数、结构或RNG差异仍停止；记录float drift绝不改报passed。性能验收后才PT2；PT1中等回填仍待做。
+
 ## 2026-10-17：新增性能优化后的PT2（蒸馏2＋微调4）
 
 用户新增授权：性能优化结束后下一新增PT2，从头SSL两轮＋MSE全量微调四轮，共6轮；不只启用蒸馏②，前两轮仍SSL1 condition＋SSL2 DINO/iBOT。沿PT1/B0、global320/seed1/表达剔除与冻结300control评估。预测监督4轮/600步与B0相同，额外2轮SSL不视作等总算力。中间epoch2/pretrain和末端epoch6/last都保留，**两个端点都做同清单中等训练分析**，包括同/异条件GG/GL/LL、秩/方差/原型/梯度和全部图数据；微调后Teacher/CE不冒充活动SSL目标。
