@@ -1,0 +1,27 @@
+{
+  "status": "diagnostic_build_ready_gpu_not_started",
+  "verified_utc": "2026-10-17T07:08:52.007090+00:00",
+  "source": {
+    "repository_root": "/data/yilangliu/GraD-Pert/development/source-v2-train-profile-17f2194",
+    "commit": "17f2194bd03f0c1f4a9cae6ac031c756104c5618",
+    "dirty": false,
+    "tree_sha256": "0039b656ebad9cb865db5907b2896ef4475f984e46354ca9636cc2d165232446",
+    "formal_eligible": true,
+    "formal_eligibility_reason": null,
+    "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+    "remote_ref": "refs/heads/main",
+    "published_commit": "17f2194bd03f0c1f4a9cae6ac031c756104c5618",
+    "publication_receipt_sha256": "6cd5da958d6c622760fa7c76eb6772f4a3466bdb1ff1d32dbf53ce0f98767ed6"
+  },
+  "publication_sha256": "6cd5da958d6c622760fa7c76eb6772f4a3466bdb1ff1d32dbf53ce0f98767ed6",
+  "cpu_test_exit": 0,
+  "cpu_test_summary": "50 passed, 2 warnings in 150.34s (0:02:30)",
+  "cpu_log": "/data/yilangliu/GraD-Pert/development/train-profile-17f2194-cpu.log",
+  "cpu_log_sha256": "3e5dbd70e396fd18131875cb3cf700c0062fb9403b5ad05ed6ceff6ab8669da1",
+  "prepared_plan": "/data/yilangliu/GraD-Pert/development/train-update-profile-17f2194-20261017-r1/PREPARED_GPU_PROBES.json",
+  "prepared_plan_sha256": "fc388457fb91fca9d3d9d8fc4a5fb00e17b061819a3e5d1113816e75e4e0dfad",
+  "native_or_config_changes_vs_live_pt1": false,
+  "profiling_completed": false,
+  "optimization_adopted": false,
+  "ablation_continuation": "PT1 unchanged under designated supervisor; short capture after terminal/main acceptance then continue DP2 and remaining authorized arms; CPU analysis concurrent"
+}

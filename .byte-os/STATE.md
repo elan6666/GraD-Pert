@@ -2,7 +2,7 @@
 
 用户新增授权为当前完整更新做 CPU/CUDA 归因后再优化，且保持消融推进。主在独立工作树基于已发布 a0acaee6b05959093de2ae645fa54fa6ef3f35f3 仅构建诊断工具；监督会话仍持有 PT1/supervise，20min 监控不改，活动源 ec32671f4c37bc3d1d0f935ddca87fb89a55fa3e 与配置不动。监督已确认记录该独立 build 范围；此条不接管它的训练租约。
 
-计划 `.byte-os/plans/TRAIN_UPDATE_PROFILE_20261017.plan.md`：单独标记 KDA/FFN/原型/CE，组合 checkpoint 前向与重计算上下文；用 fwdbwd flow 桥接 OS 与 autograd 线程 ID，再按 thread+sequence 及 CUDA correlation 做不重复归因。Trace 流式留服务器，未关联项明确 unknown。短采集涵盖 PT1 的 SSL/MSE 和后续 joint 工作负载，profile_only 收据不能充当正式容量验收。本地44项相关回归及22项最终严格零容差定向检查通过；src/configs相对活动ec32671无差异。服务器CPU验证与CUDA采集待执行，尚无新CUDA归因或训练提速结论。
+计划 `.byte-os/plans/TRAIN_UPDATE_PROFILE_20261017.plan.md`：单独标记 KDA/FFN/原型/CE，组合 checkpoint 前向与重计算上下文；用 fwdbwd flow 桥接 OS 与 autograd 线程 ID，再按 thread+sequence 及 CUDA correlation 做不重复归因。Trace 流式留服务器，未关联项明确 unknown。短采集涵盖 PT1 的 SSL/MSE 和后续 joint 工作负载，profile_only 收据不能充当正式容量验收。本地44项相关回归及22项最终严格零容差定向检查通过；src/configs相对活动ec32671无差异。诊断源17f2194bd03f0c1f4a9cae6ac031c756104c5618已clean发布；服务器GPU隐藏CPU50项通过。BUILD_READY SHAed63bb362099a2e106c409da126ec4c8ae96caec28f2a5b32e9d924766173867；未启动GPU计划SHAfc388457fb91fca9d3d9d8fc4a5fb00e17b061819a3e5d1113816e75e4e0dfad。CUDA采集等PT1完整终态回交，尚无新CUDA归因或训练提速结论。
 
 PT1 全终态回主后插入短 GPU 采集，随后立即继续 DP2→S12-L4→CG1→U24→MR1→P1→C1→O1→K2-fixed-prefix；CPU trace 分析和候选实现与消融训练并行。不得为了优化重训/中断当前 PT1，也不让探针代替最终整步 ABBA 吞吐与完整更新语义验证。永久报告 `experiment-analysis/train-update-profile-20261017/REPORT_CN.md`。下方旧状态为历史。
 

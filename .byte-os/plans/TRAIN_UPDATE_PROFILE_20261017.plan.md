@@ -62,4 +62,7 @@ on /data/yilangliu. Update Byte state at launch, terminal evidence and adoption.
 Local relevant suite44passed; final diagnostic22passed with exact (atol=rtol=0)
 nonzero-LR complete-update/RNG tests, including checkpoint recomputation and
 2SSL+2MSE transition. Ruff/format/diff checks pass. No src/ or configs/ changes
-relative to live ec32671. Server CPU verification and real CUDA captures pending.
+relative to live ec32671. Server CPU50passed (CUDA hidden); clean release17f2194bd03f0c1f4a9cae6ac031c756104c5618.
+BUILD_READY SHAed63bb362099a2e106c409da126ec4c8ae96caec28f2a5b32e9d924766173867.
+PREPARED_GPU_PROBES SHAfc388457fb91fca9d3d9d8fc4a5fb00e17b061819a3e5d1113816e75e4e0dfad.
+Real CUDA captures await full PT1 terminal/main acceptance; no new gain claimed.
