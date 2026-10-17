@@ -306,6 +306,9 @@ def main() -> None:
         torch.cuda.set_per_process_memory_fraction(shared_policy["max_own_memory_fraction"], 0)
     elif total - free > 512 * 1024**2:
         raise RuntimeError("capacity probe requires idle GPU; existing work is preserved")
+    else:
+        # Idle engineering references retain the project's 90% memory ceiling.
+        torch.cuda.set_per_process_memory_fraction(0.9, 0)
     if world > 1:
         torch.cuda.set_device(0)
         torch.distributed.init_process_group("nccl", timeout=timedelta(minutes=30))
