@@ -36,6 +36,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     from generate_no_ssl import ARMS as NO_SSL_ARMS
     from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
     from generate_pt1 import SCHEMA as PT1_SCHEMA
+    from generate_pt2 import SCHEMA as PT2_SCHEMA
     from shared_gpu import DYNAMIC_SCHEMA, validate_policy
 
     from gradpert.hashing import sha256_file
@@ -53,6 +54,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             DP2_SCHEMA,
             NO_SSL_SCHEMA,
             PT1_SCHEMA,
+            PT2_SCHEMA,
         )
         or queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA
         or queue.get("source_commit") != source_commit
@@ -92,6 +94,12 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     ):
         raise ValueError("DP2 evaluation requires the exact singleton continuation scope")
     rows = [row for row in queue["rows"] if row["name"] == args.row_name]
+    if queue.get("family") == PT2_SCHEMA and (
+        queue.get("mode") != PT2_SCHEMA
+        or [row["name"] for row in queue["rows"]] != ["PT2"]
+        or queue.get("steps") != 10
+    ):
+        raise ValueError("PT2 evaluation requires its exact singleton six-epoch scope")
     if queue.get("family") == PT1_SCHEMA and (
         queue.get("mode") != PT1_SCHEMA
         or [row["name"] for row in queue["rows"]] != ["PT1"]

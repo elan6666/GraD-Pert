@@ -12,6 +12,7 @@ from cap40_posthoc import csv_write, read, sha, write
 from cap40_posthoc_stats import condition_summary
 
 ARM_DESCRIPTIONS = {
+    "PT2": "前2轮SSL预训练＋后4轮MSE全量微调；两端点共用中等诊断清单",
     "PT1": "前2轮仅SSL1/SSL2预训练，后2轮仅MSE全量微调；边界重建优化器",
     "DP": "DINO式weight_norm与首轮原型冻结",
     "FN": "统一角色MLP Pre-LayerNorm",
@@ -258,7 +259,13 @@ def render(args):
     )
     sections = [
         f"# {summary['arm']}：cap40 {scope_name}与分组补测报告\n",
-        "## 1. 结论与证据范围\n仅重载第4轮last.pt，无重训、无选参。"
+        f"## 1. 结论与证据范围\n仅重载第{summary['checkpoint_epoch']}轮"
+        f"{summary.get('checkpoint_role', 'last')} checkpoint，无重训、无选参。"
+        + (
+            "此端点预测头尚未训练；数值输出仅为未训练读出诊断，不是受监督预测成绩。"
+            if summary.get("checkpoint_role") == "pretrain"
+            else ""
+        )
         + scope_text
         + "。中等规模不是全部训练细胞；深度统计只描述固定分层条件子集，不冒称全体条件总体估计。\n",
         "## 2. 版本与校验\n"
@@ -301,7 +308,8 @@ def render(args):
         + table([{k: summary[k] for k in ("rows", "conditions", "deep_rows", "scope")}]),
         "同一扰动/不同扰动分开；context=cell_type::batch。只有Jurkat一个cell_line，不能计算跨细胞系效应。原始清单及真实row/control/gene/view/mask对应关系留在服务器，hash绑定所有实验。\n",
         "## 5. 统计定义、分组与不确定性\n有效秩=exp(−Σλ̃ logλ̃)，λ来自中心化协方差。relative variance=tr(C)/(tr(C)+‖mean‖²)。同细胞基因秩采样最多128个按ID哈希选择的基因，秩上限127；不采用前缀。CLI评估模式固定原有eval顺序，不能将此当作随机顺序鲁棒性实验。条件均值和95%区间以扰动条件为bootstrap单位（1000次），不将view或token当独立细胞。\n",
-        "## 6. 历史训练过程\n历史全量训练日志与四细胞旧probe原样保留，不能用当前last诊断补写过去epoch。\n",
+        "## 6. 历史训练过程\n历史训练日志与四细胞旧probe原样保留；"
+        "只展示所选端点之前的记录，不用当前checkpoint补写过去epoch。\n",
     ]
     old_csvs = []
     for filename in (
@@ -336,7 +344,12 @@ def render(args):
             "## 10. 梯度与效率\n"
             + table([{k: summary[k] for k in ("elapsed_seconds", "peak_allocated_mib", "updates")}])
             + table(tables["gradients"]),
-            "## 11. 原有正式last测试18项\n" + table(dict(old_csvs)["metrics.csv"]),
+            "## 11. 原有正式last测试18项\n"
+            + (
+                "预训练端点不做正式预测测试，不复用最终轮的指标。\n"
+                if summary.get("checkpoint_role") == "pretrain"
+                else table(dict(old_csvs)["metrics.csv"])
+            ),
             "## 12. 解释与限制\n表征是否区分：结合全局、同细胞基因、同基因跨control、同条件CLS和跨view共同判断。低loss来源：结合H与KL，不能只看CE。输出泛化：以原有all/seen/unseen测试结果为准；本训练probe保留表达剔除，不能冒称补测了未见表达的预测标签。梯度：仅局部诊断，无长期更新证明。\n"
             + "\n".join("- " + s for s in summary["limits"])
             + "\n",

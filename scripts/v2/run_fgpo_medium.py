@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from cap40_posthoc import population_identity, read, sha, write
+from checkpoint_endpoint import select_checkpoint
 from generate_dino_pair import ARMS as DINO_ARMS
 from generate_dino_pair import REMAINING_SCHEMA as DP2_SCHEMA
 from generate_dino_pair import SCHEMA as DINO_SCHEMA
@@ -20,6 +21,8 @@ from generate_no_ssl import ARMS as NO_SSL_ARMS
 from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
 from generate_pt1 import ARMS as PT1_ARMS
 from generate_pt1 import SCHEMA as PT1_SCHEMA
+from generate_pt2 import ARMS as PT2_ARMS
+from generate_pt2 import SCHEMA as PT2_SCHEMA
 
 FAMILY_ARMS = {
     SCHEMA: ARMS,
@@ -27,6 +30,7 @@ FAMILY_ARMS = {
     DP2_SCHEMA: {"DP2": DINO_ARMS["DP2"]},
     NO_SSL_SCHEMA: NO_SSL_ARMS,
     PT1_SCHEMA: PT1_ARMS,
+    PT2_SCHEMA: PT2_ARMS,
 }
 AUTHORIZED_ARMS = tuple(dict.fromkeys(name for arms in FAMILY_ARMS.values() for name in arms))
 
@@ -93,22 +97,31 @@ def medium_command(queue, row):
     ]
 
 
-def validate_medium_complete(queue, row, *, root=None):
+def validate_medium_complete(queue, row, *, root=None, checkpoint_role=None):
+    if queue.get("family") == PT2_SCHEMA and checkpoint_role is None:
+        from run_pt2_medium import validate_complete
+
+        return validate_complete(queue, row, root=root)
     root = Path(root) if root is not None else Path(queue["output"]) / f"{row['name']}-medium"
     path = root / "MEDIUM_COMPLETE.json"
     result = read(path)
     plan = row["plan"]
     journal = read(Path(plan["run_root"]) / "fit/epoch_state.json")
+    role = checkpoint_role or "last"
+    checkpoint = journal[role]
     expected = {
         "status": "completed",
         "arm": row["name"],
         "source_commit": queue["source_commit"],
         "queue_sha256": sha(Path(queue["output"]) / "queue.json"),
-        "checkpoint_sha256": journal["last"]["sha256"],
+        "checkpoint_sha256": checkpoint["sha256"],
         "updates": 0,
         **COUNTS,
     }
     parent = validate_analysis_spec(queue["medium_analysis"])
+    if queue.get("family") == PT2_SCHEMA:
+        _, endpoint = select_checkpoint(Path(plan["run_root"]), role)
+        expected["checkpoint_endpoint"] = endpoint
     expected["diagnostic_population_sha256"] = population_identity(parent["schedule"])
     if any(result.get(k) != v for k, v in expected.items()):
         raise ValueError("completed medium arm identity, population or counts differ")
@@ -120,6 +133,14 @@ def validate_medium_complete(queue, row, *, root=None):
         or summary.get("state_before") != summary.get("state_after")
         or summary.get("method_sha") != queue["source_commit"]
         or summary.get("checkpoint_sha256") != expected["checkpoint_sha256"]
+        or (
+            queue.get("family") == PT2_SCHEMA
+            and (
+                summary.get("checkpoint_role") != endpoint["role"]
+                or summary.get("checkpoint_epoch") != endpoint["epoch"]
+                or summary.get("training_stage") != endpoint["training_stage"]
+            )
+        )
         or summary.get("config_sha256") != plan["config_sha256"]
         or summary.get("diagnostic_population_sha256") != expected["diagnostic_population_sha256"]
         or any(summary.get(k) != v for k, v in COUNTS.items())
@@ -211,11 +232,31 @@ def pt1_parent_binding(parent, training_identity, *, parent_path, parent_sha256)
     }
 
 
-def execute(queue_path, arm, *, repair_output=None):
+def execute(
+    queue_path,
+    arm,
+    *,
+    repair_output=None,
+    checkpoint_role="last",
+    endpoint_root=None,
+    shared_manifest=None,
+):
     from profile_medium_observer import compare
     from run_br400_group import validate_complete, verify
 
     q = read(queue_path)
+    if q.get("family") == PT2_SCHEMA and endpoint_root is None:
+        if repair_output is not None or checkpoint_role != "last" or shared_manifest is not None:
+            raise ValueError(
+                "PT2 dual-endpoint scope cannot be replaced by a repair or single endpoint"
+            )
+        from run_pt2_medium import execute as execute_pt2
+
+        return execute_pt2(queue_path, arm)
+    if (
+        checkpoint_role != "last" or endpoint_root is not None or shared_manifest is not None
+    ) and q.get("family") != PT2_SCHEMA:
+        raise ValueError("additional diagnostic endpoints are scoped to PT2")
     if arm not in FAMILY_ARMS.get(q.get("family"), {}):
         raise ValueError("medium postfit work is limited to the authorized new family")
     verify(q)
@@ -227,15 +268,20 @@ def execute(queue_path, arm, *, repair_output=None):
     row = next(r for r in q["rows"] if r["name"] == arm)
     validate_complete(row["plan"])
     root = (
-        validate_report_repair(q, arm, repair_output, report_source)
-        if repair_output is not None
-        else Path(q["output"]) / f"{arm}-medium"
+        Path(endpoint_root)
+        if endpoint_root is not None
+        else (
+            validate_report_repair(q, arm, repair_output, report_source)
+            if repair_output is not None
+            else Path(q["output"]) / f"{arm}-medium"
+        )
     )
     if root.exists() or not root.resolve().is_relative_to(SERVER_ROOT):
         raise ValueError("fresh server-only medium run required")
     root.mkdir()
     start = time.perf_counter()
     plan = row["plan"]
+    checkpoint, endpoint = select_checkpoint(Path(plan["run_root"]), checkpoint_role)
     env = dict(
         os.environ,
         PYTHONPATH=str(source / "src"),
@@ -269,6 +315,8 @@ def execute(queue_path, arm, *, repair_output=None):
         plan["data_root"],
         "--method-sha",
         q["source_commit"],
+        "--checkpoint-role",
+        checkpoint_role,
     ]
     try:
         call(
@@ -282,12 +330,14 @@ def execute(queue_path, arm, *, repair_output=None):
                 str(root / "saved"),
                 "--name",
                 arm,
+                "--checkpoint-role",
+                checkpoint_role,
             ],
             "",
         )
         parent_path = q["medium_analysis"]["parent_manifest"]
         parent_sha256 = q["medium_analysis"]["parent_manifest_sha256"]
-        if arm == "PT1":
+        if arm in ("PT1", "PT2"):
             bound_parent = pt1_parent_binding(
                 parent,
                 read(Path(plan["run_root"]) / "run_manifest.json"),
@@ -297,25 +347,35 @@ def execute(queue_path, arm, *, repair_output=None):
             parent_path = root / "pt1-medium-parent.json"
             write(parent_path, bound_parent)
             parent_sha256 = sha(parent_path)
-        call(
-            "seal",
-            [
-                *base,
-                "seal-medium",
-                *common,
-                "--reuse-medium-schedule",
-                "--parent-manifest",
-                str(parent_path),
-                "--parent-manifest-sha256",
-                parent_sha256,
-                "--output",
-                str(root / "manifest"),
-            ],
-            "",
+        if shared_manifest is None:
+            call(
+                "seal",
+                [
+                    *base,
+                    "seal-medium",
+                    *common,
+                    "--reuse-medium-schedule",
+                    "--parent-manifest",
+                    str(parent_path),
+                    "--parent-manifest-sha256",
+                    parent_sha256,
+                    "--output",
+                    str(root / "manifest"),
+                ],
+                "",
+            )
+        manifest = (
+            Path(shared_manifest)
+            if shared_manifest is not None
+            else root / "manifest/manifest.json"
         )
-        manifest = root / "manifest/manifest.json"
         derived = read(manifest)
-        if population_identity(derived["schedule"]) != population_identity(parent["schedule"]):
+        if (
+            population_identity(derived["schedule"]) != population_identity(parent["schedule"])
+            or derived["method_sha"] != q["source_commit"]
+            or derived["view_recipe_config_sha256"] != plan["config_sha256"]
+            or not manifest.resolve().is_relative_to(Path(q["output"]).resolve())
+        ):
             raise ValueError("resealing changed the common diagnostic population")
         command = [
             *base,
@@ -370,7 +430,6 @@ def execute(queue_path, arm, *, repair_output=None):
             ],
             "",
         )
-        checkpoint = read(Path(plan["run_root"]) / "fit/epoch_state.json")["last"]
         write(
             root / "MEDIUM_COMPLETE.json",
             {
@@ -383,8 +442,10 @@ def execute(queue_path, arm, *, repair_output=None):
                 "parent_failed_output_preserved": repair_output is not None,
                 "queue_sha256": sha(queue_path),
                 "checkpoint_sha256": checkpoint["sha256"],
+                "checkpoint_endpoint": endpoint,
                 "diagnostic_population_sha256": population_identity(parent["schedule"]),
                 "manifest_sha256": sha(manifest),
+                "manifest": str(manifest),
                 "updates": 0,
                 **COUNTS,
                 "parity": parity,
@@ -399,7 +460,7 @@ def execute(queue_path, arm, *, repair_output=None):
                 },
             },
         )
-        validate_medium_complete(q, row, root=root)
+        validate_medium_complete(q, row, root=root, checkpoint_role=checkpoint_role)
     except BaseException as exc:
         write(
             root / "FAILURE.json",

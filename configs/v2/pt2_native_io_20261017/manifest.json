@@ -1,0 +1,52 @@
+{
+  "schema": "fgpo-pt2-staged-dual-endpoint-medium-1",
+  "family": "pt2_staged_2plus4_20261017",
+  "priority": [
+    "PT2"
+  ],
+  "preflight_priority": [
+    "PT2"
+  ],
+  "common_microbatch": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 320,
+  "epochs": 6,
+  "seed": 1,
+  "eval_batch": 128,
+  "validation": "disabled",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "analysis": "one physical frozen medium manifest shared by epoch2/pretrain and epoch6/last",
+  "rerun_old_BR_or_officials": false,
+  "prediction_epochs": 4,
+  "analysis_endpoints": {
+    "after_ssl2": {
+      "role": "pretrain",
+      "epoch": 2,
+      "training_stage": "ssl_pretrain"
+    },
+    "after_finetune4": {
+      "role": "last",
+      "epoch": 6,
+      "training_stage": "mse_finetune"
+    }
+  },
+  "rows": [
+    {
+      "name": "PT2",
+      "config": "configs/v2/pt2_native_io_20261017/PT2/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "69df2b9431eba0e00ce94c26c48c3dbe96fd4f732cc7843d09dcb41ada65a751",
+      "changes": {
+        "training_mode": "ssl_then_mse",
+        "ssl_pretrain_epochs": 2,
+        "finetune_learning_rate": 0.0002,
+        "weighted_gram_backend": "triton_io"
+      }
+    }
+  ]
+}

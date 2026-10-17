@@ -120,7 +120,9 @@ def trajectory(points: list[dict], values: list) -> tuple[list, list]:
     return x, y
 
 
-def collect(root: Path, *, name: str, analysis_identity: dict) -> dict:
+def collect(
+    root: Path, *, name: str, analysis_identity: dict, checkpoint_role: str = "last"
+) -> dict:
     """Reject partial runs and "
     "drift; expose scalar aggregates, "
     "never cell matrices."""
@@ -186,6 +188,21 @@ def collect(root: Path, *, name: str, analysis_identity: dict) -> dict:
         )
         paths.append(path)
     groups = probe_groups(config, snapshots)
+    endpoint_epoch = epochs
+    endpoint_stage = snapshots[-1].get("training_stage", "joint")
+    selected = complete["last"]
+    if checkpoint_role == "pretrain":
+        from checkpoint_endpoint import select_checkpoint
+
+        selected, endpoint = select_checkpoint(root, checkpoint_role)
+        endpoint_epoch, endpoint_stage = endpoint["epoch"], endpoint["training_stage"]
+        # Validate the entire completed run before selecting an earlier endpoint.
+        history = [h for h in history if h["epoch"] <= endpoint_epoch]
+        snapshots = [p for p in snapshots if p["epoch"] <= endpoint_epoch]
+        groups = [g for g in groups if g["stage"] == endpoint_stage]
+        paths.append(root / "fit/epoch_state.json")
+    elif checkpoint_role != "last":
+        raise ValueError("unsupported diagnostic checkpoint role")
     metrics = []
     result = test["result"]
     for group, values in {
@@ -213,9 +230,16 @@ def collect(root: Path, *, name: str, analysis_identity: dict) -> dict:
         "run_id": manifest["run_id"],
         "run_root": str(root),
         "training_source": source,
-        "evaluation_source": test["identity"]["evaluation"]["source"],
+        "evaluation_source": test["identity"]["evaluation"]["source"]
+        if checkpoint_role == "last"
+        else None,
         "analysis_identity": analysis_identity,
-        "checkpoint_sha256": complete["last"]["sha256"],
+        "checkpoint_sha256": selected["sha256"],
+        "checkpoint_role": checkpoint_role,
+        "checkpoint_epoch": endpoint_epoch,
+        "training_stage": endpoint_stage,
+        "full_training_epochs": epochs,
+        "test_performed_for_endpoint": checkpoint_role == "last",
         "config_sha256": manifest["config_sha256"],
         "resolved_config_sha256": digest(root / "resolved_config.json"),
         "inputs": {str(p.relative_to(root)): digest(p) for p in paths},
@@ -224,7 +248,7 @@ def collect(root: Path, *, name: str, analysis_identity: dict) -> dict:
         "cross_stage_probe_comparison": "different input/view recipes; compare within each phase"
         if groups
         else "one fixed recipe",
-        "epochs": epochs,
+        "epochs": endpoint_epoch,
         "history": [
             {
                 k: h[k]
@@ -242,8 +266,8 @@ def collect(root: Path, *, name: str, analysis_identity: dict) -> dict:
             for h in history
         ],
         "snapshots": snapshots,
-        "metrics": metrics,
-        "test_prediction_mse": result["prediction_loss"],
+        "metrics": metrics if checkpoint_role == "last" else [],
+        "test_prediction_mse": result["prediction_loss"] if checkpoint_role == "last" else None,
         "expression_exposure": result["expression_exposure"],
         "limitations": LIMITS,
     }
@@ -260,7 +284,7 @@ def report(data: dict) -> str:
     phase_notes = (
         [
             "阶段探针分别固定：SSL预训练不读扰动真值并含SSL视图；MSE微调读真值且不构造SSL视图。",
-            "跨阶段不是同一输入/视图，图中断开连线；表征端点只比较最后MSE阶段，蒸馏表只比较有效SSL阶段。",
+            "跨阶段不是同一输入/视图，图中断开连线；表征在最后有效阶段内比较，蒸馏表只比较有效SSL阶段。",
             "分阶段输入hash及epoch清单见summary.json；禁止把阶段切换当作同探针的表征突变。",
             "预训练Joint仅含SSL，微调Joint仅含MSE；两阶段数值不直接比较。",
             "",
@@ -271,9 +295,10 @@ def report(data: dict) -> str:
     lines = [
         f"# {data['name']}：训练过程与最终评估分析",
         "",
-        f"运行 `{data['run_id']}`；已完成 {data['epochs']} epoch，评估最后一轮 last.pt。",
+        f"运行 `{data['run_id']}`；分析第{data['epochs']}轮 "
+        f"{data.get('checkpoint_role', 'last')} checkpoint。",
         f"训练SHA `{data['training_source']['commit']}"
-        f"`；评估SHA `{data['evaluation_source']['commit']}"
+        f"`；评估SHA `{(data['evaluation_source'] or {}).get('commit', 'N/A:本端点不做正式测试')}"
         f"`；"
         f"分析SHA `{data['analysis_identity']['commit']}`。",
         f"checkpoint SHA256 `{data['checkpoint_sha256']}"
@@ -395,20 +420,29 @@ def report(data: dict) -> str:
         "",
     ]
     o = last["outputs"]
+    lines += (
+        [
+            "此端点尚未训练预测头，预测MSE、输出行为及预测梯度不适用；没有把它们填为0。",
+            "完整中等诊断若只读调用未训练读出，会单独标为diagnostic-only。",
+        ]
+        if data.get("checkpoint_role") == "pretrain"
+        else [
+            f"固定训练探针：预测MSE **{o['prediction_mse']:.6f}"
+            f"**，复制control的MSE "
+            f"**{o['control_copy_mse']:.6f}"
+            f"**，相对降低 **{o['mse_gain_over_copy']:.1%}"
+            f"**。",
+            f"预测Δ RMS **{o['delta_rms']:.4f}"
+            f"**，随机配对真实效应RMS比 **{o['paired_effect_rms_ratio']:.4f}"
+            f"**；"
+            f"负预测占比 **{o['negative_prediction_fraction']:.1%}"
+            f"**；误差最大的1%元素贡献 "
+            f"**{o['top_one_percent_loss_fraction']:.1%}**。",
+            "这些查询只来自训练可见表达基因；该效应比不是生物学反事实幅度校准，也不描述未见表达组。",
+            "",
+        ]
+    )
     lines += [
-        f"固定训练探针：预测MSE **{o['prediction_mse']:.6f}"
-        f"**，复制control的MSE "
-        f"**{o['control_copy_mse']:.6f}"
-        f"**，相对降低 **{o['mse_gain_over_copy']:.1%}"
-        f"**。",
-        f"预测Δ RMS **{o['delta_rms']:.4f}"
-        f"**，随机配对真实效应RMS比 **{o['paired_effect_rms_ratio']:.4f}"
-        f"**；"
-        f"负预测占比 **{o['negative_prediction_fraction']:.1%}"
-        f"**；误差最大的1%元素贡献 "
-        f"**{o['top_one_percent_loss_fraction']:.1%}**。",
-        "这些查询只来自训练可见表达基因；该效应比不是生物学反事实幅度校准，也不描述未见表达组。",
-        "",
         "| 共享参数组 | ∥预测梯度∥ | ∥SSL1梯度∥ | ∥SSL2梯度∥ | cos(预测,SSL1) | cos(预测,SSL2) |",
         "|---|---:|---:|---:|---:|---:|",
     ]
@@ -416,12 +450,13 @@ def report(data: dict) -> str:
         n, c = g["weighted_gradient_l2"], g["cosine"]
         # A disabled/zero-gradient objective has no cosine, not a zero cosine.
         cosines = {
-            key: "不适用（无有效梯度）" if value is None else f"{value:.4f}"
-            for key, value in c.items()
+            key: "不适用（无有效梯度）" if c.get(key) is None else f"{c[key]:.4f}"
+            for key in ("prediction_ssl1", "prediction_ssl2")
         }
         lines.append(
-            f"| {name} | {n['prediction']:.4g}"
-            f" | {n['ssl1']:.4g} | {n['ssl2']:.4g}"
+            f"| {name} | "
+            + ("不适用" if data.get("checkpoint_role") == "pretrain" else f"{n['prediction']:.4g}")
+            + f" | {n['ssl1']:.4g} | {n['ssl2']:.4g}"
             f" "
             f"| {cosines['prediction_ssl1']}"
             f" | {cosines['prediction_ssl2']}"
@@ -448,10 +483,16 @@ def report(data: dict) -> str:
             f" "
             f"|"
         )
+    if not data.get("test_performed_for_endpoint", True):
+        lines.append("本端点预测头尚未训练，不复用最终checkpoint的测试结果。")
     lines += [
         "",
-        f"最终测试MSE **{data['test_prediction_mse']:.6f}"
-        f"**；与上述训练探针MSE属于不同数据/采样口径。",
+        (
+            f"最终测试MSE **{data['test_prediction_mse']:.6f}"
+            "**；与上述训练探针MSE属于不同数据/采样口径。"
+            if data.get("test_performed_for_endpoint", True)
+            else "正式测试MSE：N/A；只有最终微调端点做正式测试。"
+        ),
         "",
         "## 自动诊断线索与边界",
         "",
@@ -704,6 +745,7 @@ def main() -> None:
     parser.add_argument("--run-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--name", required=True)
+    parser.add_argument("--checkpoint-role", choices=("last", "pretrain"), default="last")
     args = parser.parse_args()
     root, output = args.run_root.resolve(), args.output.resolve()
     if (
@@ -726,7 +768,9 @@ def main() -> None:
         "python": platform.python_version(),
         "training_method_unchanged": True,
     }
-    data = collect(root, name=args.name, analysis_identity=identity)
+    data = collect(
+        root, name=args.name, analysis_identity=identity, checkpoint_role=args.checkpoint_role
+    )
     export(data, output)
     print(
         json.dumps(

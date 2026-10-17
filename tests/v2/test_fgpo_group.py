@@ -361,20 +361,30 @@ def test_dp2_continuation_exact_eval_and_medium_scope(new_queue):
                 validate_eval_binding({**q, **change}, args, q["source_commit"])
 
 
-def test_pt1_singleton_scope_and_phase_specific_read_only_gates(new_queue):
-    from generate_pt1 import SCHEMA
+@pytest.mark.parametrize(
+    "name,directory",
+    [
+        ("PT1", "pt1_staged_20261017"),
+        ("PT2", "pt2_native_io_20261017"),
+    ],
+)
+def test_staged_singleton_scope_and_phase_specific_read_only_gates(new_queue, name, directory):
+    import generate_pt1
+    import generate_pt2
+
+    schema = generate_pt1.SCHEMA if name == "PT1" else generate_pt2.SCHEMA
 
     old, oldout = new_queue
     q = runner.prepare(
         ROOT,
-        ROOT / "configs/v2/pt1_staged_20261017/manifest.json",
+        ROOT / f"configs/v2/{directory}/manifest.json",
         Path(old["runtime"]),
-        oldout.parent / "pt1-scope",
+        oldout.parent / (name.lower() + "-scope"),
         copy.deepcopy(old["shared_gpu_policy"]),
     )
     runner.verify(q)
-    assert [r["name"] for r in q["rows"]] == ["PT1"]
-    assert SCHEMA in runner.LAST_ONLY_FAMILIES and list(medium.FAMILY_ARMS[SCHEMA]) == ["PT1"]
+    assert [r["name"] for r in q["rows"]] == [name]
+    assert schema in runner.LAST_ONLY_FAMILIES and list(medium.FAMILY_ARMS[schema]) == [name]
     row = q["rows"][0]
     receipt = training_receipt(q, row)
     receipt.pop("joint_validation_check")
@@ -401,7 +411,7 @@ def test_pt1_singleton_scope_and_phase_specific_read_only_gates(new_queue):
                 "components": {"ssl2_dino": 1} if phase == "ssl_pretrain" else {"prediction": 1},
             }
         }
-    path = Path(q["output"]) / "PT1-preflight/receipt.json"
+    path = Path(q["output"]) / f"{name}-preflight/receipt.json"
     atomic_json(path, receipt)
     entry = runner.gate_entry(path)
     runner.validate_training_gate(q, row, entry)

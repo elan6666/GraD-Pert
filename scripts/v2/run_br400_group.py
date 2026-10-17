@@ -35,6 +35,8 @@ from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
 from generate_no_ssl import verify_manifest as verify_no_ssl_manifest
 from generate_pt1 import SCHEMA as PT1_SCHEMA
 from generate_pt1 import verify_manifest as verify_pt1_manifest
+from generate_pt2 import SCHEMA as PT2_SCHEMA
+from generate_pt2 import verify_manifest as verify_pt2_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -59,7 +61,7 @@ from gradpert.hashing import sha256_file, sha256_json
 
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
-FGPO_FAMILIES = (FGPO_SCHEMA, DINO_SCHEMA, DP2_SCHEMA, NO_SSL_SCHEMA, PT1_SCHEMA)
+FGPO_FAMILIES = (FGPO_SCHEMA, DINO_SCHEMA, DP2_SCHEMA, NO_SSL_SCHEMA, PT1_SCHEMA, PT2_SCHEMA)
 LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA, *FGPO_FAMILIES)
 DEFERRED_SCDFM_POLICY = "scdfm_fit_gears_terminal_evaluation_deferred_v1"
 
@@ -131,6 +133,8 @@ def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
 
 
 def verify_manifest(source: Path, manifest: Path) -> dict:
+    if read_json(manifest).get("schema") == PT2_SCHEMA:
+        return verify_pt2_manifest(source, manifest)
     if read_json(manifest).get("schema") == PT1_SCHEMA:
         return verify_pt1_manifest(source, manifest)
     if read_json(manifest).get("schema") == NO_SSL_SCHEMA:
@@ -406,10 +410,12 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
         raise ValueError("exact10 restore/inference/read-only joint-validation gate missing")
     if queue["family"] in LAST_ONLY_FAMILIES:
         if (
-            queue["family"] == PT1_SCHEMA
+            queue["family"] in (PT1_SCHEMA, PT2_SCHEMA)
             and receipt.get("staged_training_gate", {}).get("passed") is not True
         ):
-            raise ValueError("PT1 requires actual SSL/MSE transition and restore evidence")
+            raise ValueError(
+                "staged training requires actual SSL/MSE transition and restore evidence"
+            )
         if (
             row["plan"]["resolved_config"]["model"]["parameters"]["validation_mode"]["value"]
             != "disabled"
@@ -428,7 +434,7 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
                     or (
                         not observed.get("distributions")
                         and not (
-                            queue["family"] == PT1_SCHEMA
+                            queue["family"] in (PT1_SCHEMA, PT2_SCHEMA)
                             and key == "updated_loss_diagnostic"
                             and observed.get("training_stage") == "mse_finetune"
                             and not any(k.startswith("ssl") for k in observed.get("components", {}))
@@ -584,11 +590,12 @@ def evaluation_command(path: Path) -> list[str]:
 
 def validate_training_contract(plan: dict) -> dict:
     training = validate_training_stage(plan)
+    epochs = expected_epochs(plan)
     if plan["resolved_config"]["model"]["parameters"]["validation_mode"]["value"] == "disabled":
         root = Path(plan["run_root"])
         if (
-            training["epoch"] != 4
-            or training["last"]["epoch"] != 4
+            training["epoch"] != epochs
+            or training["last"]["epoch"] != epochs
             or training["test_roles"] != ["last"]
             or training["best"] is not None
             or (root / "fit/best-test.json").exists()
@@ -599,6 +606,28 @@ def validate_training_contract(plan: dict) -> dict:
         ):
             raise ValueError("last-only training must contain no best or actual validation")
     return training
+
+
+def expected_epochs(plan: dict) -> int:
+    """Six epochs belong only to the exact published PT2 configuration."""
+    from generate_pt2 import configuration
+
+    if plan["resolved_config"]["training"]["max_epochs"]["value"] == 6:
+        expected = load_experiment_config(
+            Path(plan["repository_root"])
+            / "configs/v2/pt2_native_io_20261017/PT2/gradpert_v2/nadig_jurkat.yaml"
+        ).model_dump(mode="json")
+        # Check the file against its generator as well as the plan's resolved identity.
+        import yaml
+
+        if (
+            yaml.safe_load(Path(plan["config"]).read_text())
+            != configuration(Path(plan["repository_root"]))
+            or plan["resolved_config"] != expected
+        ):
+            raise ValueError("six-epoch dispatch is restricted to the exact PT2 configuration")
+        return 6
+    return 4
 
 
 def validate_complete(plan: dict) -> dict:
@@ -618,12 +647,12 @@ def validate_complete(plan: dict) -> dict:
     )
     roles = ["last"] if last_only else ["best", "last"]
     if (
-        training["epoch"] != 4
-        or training["last"]["epoch"] != 4
+        training["epoch"] != expected_epochs(plan)
+        or training["last"]["epoch"] != expected_epochs(plan)
         or training["test_roles"] != roles
         or (last_only and (training["best"] is not None or (root / "fit/best-test.json").exists()))
     ):
-        raise ValueError("four epochs and both checkpoint roles required")
+        raise ValueError("exact epoch budget and checkpoint roles required")
     original_complete = read_json(root / "COMPLETE.json")
     if finalize_deferred_run(plan, training) != original_complete:
         raise ValueError("canonical completion changed")

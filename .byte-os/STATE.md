@@ -1,3 +1,9 @@
+## 2026-10-17：PT2双端点编排完成，118项本地回归通过
+
+原生772075c工程链已由主独立核验：CUDA导数12项、10步/恢复/300-control推理通过；正LR3步输入/RNG/结构finite通过，但原数值门仍FAILED，初始同权重raw输出maxabs0，后续轨迹漂移如实保留。原生配置入口ABBA在native-gram-772075c-abba-20261017-r1运行，PLAN SHA c731aa253b103b793ccf8cec30623d7624ce5ada125dfa6e6cbd8f236dfbbec4，Luna短监督，主不重复查。旧诊断ABBA +8.64%/allocated−15.85%不能冒充此新入口已终态。完整小收据/漂移说明见永久archive train-update-profile-20261017/NATIVE_GRAM_IO_ENGINEERING_CN.md。
+
+PT2新增单独六轮schema/config（pt2_native_io_20261017），不是扩大历史PT1预算。2SSL＋4MSE、global320、无验证、last18；显式native IO待工程采用验收。epoch2/pretrain与epoch6/last独立checkpoint/阶段/哈希，**同一个物理封存medium manifest**、相同1335/5317、deep128/506、gradient32/125。预训练saved报告不复用最终test，不把缺失预测loss/梯度填0；中等范围只读未训练输出明确diagnostic-only。两端点分别parity/state unchanged/artifact hash且都完成才写总MEDIUM_COMPLETE。默认旧last流程和四轮family保持兼容。本地118项回归通过、lint/format通过；尚未启动PT2。下一步clean发布→10步阶段切换/恢复及双卡eval128门→主核验后正式启动并交唯一长监督。
+
 ## 2026-10-17：整步IO收益已证实，原生集成待GPU门
 
 双卡38f0987 ABBA终态：慢rank训练wall合并13.8066→14.9990cells/s(+8.64%)，含启动+8.03%，峰值allocated下降15.85%。57295c3三次LR=.001更新exact input/RNG/结构、全finite；原数值门仍FAILED，Student整体state相对L2 .001144、maxabs .003448。依据用户接受浮点差异/性能优先，仅准备显式原生triton_io后端；default eager/旧身份不变，9个KDA覆盖，不更改数学/数据/时点。130CPU相关验证通过，未发科学训练。下一发布后真实原生输出/完整更新，再PT2双端点编排与10步恢复/评估门；PT1中等pending。当前短监督已结束，长监控均暂停。

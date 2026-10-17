@@ -32,6 +32,7 @@ from cap40_posthoc_stats import (
     seeded_int,
     select_balanced,
 )
+from checkpoint_endpoint import select_checkpoint
 
 HEADS = ("ssl1_cls", "ssl1_node", "ssl2_cls", "ssl2_node")
 METHOD_SHA = "420d3a1ecf0ca05a88859ae2c2457fa85a126ef0"
@@ -1153,8 +1154,7 @@ def run(args):
             raise ValueError("deterministic validation requires a bound cuBLAS workspace")
         # Both benchmark arms use this read-only policy; training is unchanged.
         torch.use_deterministic_algorithms(True)
-    journal = read(args.run_root / "fit/epoch_state.json")
-    cp = journal["last"]
+    cp, endpoint = select_checkpoint(args.run_root, getattr(args, "checkpoint_role", "last"))
     checkpoint = args.run_root / "fit" / cp["file"]
     if sha(checkpoint) != cp["sha256"]:
         raise ValueError("checkpoint hash differs")
@@ -1211,6 +1211,8 @@ def run(args):
             checkpoint, rt.objective, training_identity=identity, checkpoint_sha256=cp["sha256"]
         )
         obj = rt.objective
+        if getattr(obj, "training_stage", "joint") != endpoint["training_stage"]:
+            raise ValueError("loaded checkpoint phase differs from its diagnostic endpoint")
         obj.eval()
         before = validation_state(rt)
         rows_out, basic_features, deep_results = [], [], []
@@ -1269,6 +1271,7 @@ def run(args):
                 "manifest_sha256": args.manifest_sha256,
                 "config_sha256": sha(args.config),
                 "checkpoint_sha256": cp["sha256"],
+                "checkpoint_endpoint": endpoint,
                 "schedule_sha256": digest_json(schedule),
                 "stats_backend": getattr(args, "stats_backend", "reference"),
                 "deterministic": torch.are_deterministic_algorithms_enabled(),
@@ -1516,6 +1519,13 @@ def run(args):
             ),
             "loss_weights": {"ssl1": list(obj.weights[0]), "ssl2": list(obj.weights[1])},
             "checkpoint_epoch": cp["epoch"],
+            "checkpoint_role": endpoint["role"],
+            "training_stage": endpoint["training_stage"],
+            "prediction_status": (
+                "untrained_readout_diagnostic_only"
+                if endpoint["role"] == "pretrain"
+                else "trained_prediction"
+            ),
             "checkpoint_sha256": cp["sha256"],
             "run_root": str(args.run_root),
             "run_manifest_sha256": sha(args.run_root / "run_manifest.json"),
@@ -1642,6 +1652,7 @@ def cli():
         )
     p.add_argument("--manifest-sha256")
     p.add_argument("--method-sha", default=METHOD_SHA)
+    p.add_argument("--checkpoint-role", choices=("last", "pretrain"), default="last")
     p.add_argument("--reuse-medium-schedule", action="store_true")
     p.add_argument("--peer-receipt", type=Path)
     p.add_argument("--peer-receipt-sha256")
