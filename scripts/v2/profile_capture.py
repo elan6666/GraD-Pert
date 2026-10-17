@@ -64,10 +64,15 @@ def diagnostic_regions(runtime: Any) -> Iterator[None]:
     Labels are nested; their times must not be summed as disjoint phases.
     """
     import torch
+    import torch.utils.checkpoint as checkpoint_module
 
+    import gradpert.modeling.v2.graph_mhc as graph_mhc
+    import gradpert.modeling.v2.model as model_module
+    import gradpert.modeling.v2.operators as operators
     import gradpert.training.v2.distributed as distributed
     import gradpert.training.v2.engine as engine
     import gradpert.training.v2.runtime as runtime_module
+    from gradpert.modeling.v2.restored_ffn import MatchedGELUFeedForward
 
     changes: list[tuple[Any, str, Any, bool]] = []
 
@@ -84,6 +89,31 @@ def diagnostic_regions(runtime: Any) -> Iterator[None]:
         setattr(owner, attr, measured)
 
     try:
+        # Diagnostic-only composition, including dynamically imported calls.
+        # Do not change RNG preservation, checkpoint policy or saved tensors.
+        original_checkpoint = checkpoint_module.checkpoint
+
+        @functools.wraps(original_checkpoint)
+        def measured_checkpoint(function: Any, *args: Any, **kwargs: Any) -> Any:
+            if kwargs.get("use_reentrant") is not False:
+                raise ValueError("diagnostic checkpoint labels require non-reentrant checkpoint")
+            context_fn = kwargs.get("context_fn", checkpoint_module.noop_context_fn)
+
+            def contexts() -> tuple[Any, Any]:
+                forward, recompute = context_fn()
+
+                @contextlib.contextmanager
+                def marked(original: Any, phase: str) -> Iterator[None]:
+                    with original, torch.profiler.record_function("gradpert/checkpoint/" + phase):
+                        yield
+
+                return marked(forward, "forward"), marked(recompute, "recompute")
+
+            return original_checkpoint(function, *args, **dict(kwargs, context_fn=contexts))
+
+        for owner in (checkpoint_module, model_module, operators, graph_mhc):
+            changes.append((owner, "checkpoint", owner.checkpoint, True))
+            owner.checkpoint = measured_checkpoint
         for name in ("_materialize_cpu_batch", "_to_training_batch"):
             if hasattr(runtime.data, name):
                 wrap(runtime.data, name, "data/" + name.removeprefix("_"))
@@ -95,6 +125,7 @@ def diagnostic_regions(runtime: Any) -> Iterator[None]:
         wrap(runtime.objective, "commit_statistics", "ema_centers")
         wrap(runtime.objective, "graph_loss", "loss/ssl1")
         wrap(runtime.objective, "cell_loss", "loss/ssl2")
+        wrap(runtime.objective, "_cross_entropy_terms", "loss/prototype_ce")
         for role in ("student", "teacher"):
             model = getattr(runtime.objective, role)
             for name in (
@@ -105,6 +136,8 @@ def diagnostic_regions(runtime: Any) -> Iterator[None]:
                 "ssl1_node",
                 "ssl2_cls",
                 "ssl2_node",
+                "expression",
+                "prediction",
             ):
                 wrap(getattr(model, name), "forward", f"{role}/{name}")
             for name, module in model.named_modules():
@@ -113,6 +146,30 @@ def diagnostic_regions(runtime: Any) -> Iterator[None]:
                     and name.count(".") == 2
                 ):
                     wrap(module, "forward", f"{role}/{name}")
+                if isinstance(module, operators.RelayDeltaAttention):
+                    # Graph reads use .graph, not .forward; these three regions
+                    # cover both neighborhood and sequence/cross execution.
+                    for method, part in (
+                        ("_project_writes", "project"),
+                        ("_write_state", "scan"),
+                        ("_read", "read"),
+                    ):
+                        wrap(module, method, f"component/{role}/{name}/kda_{part}")
+                elif isinstance(module, model_module.Projector):
+                    wrap(module.features, "forward", f"component/{role}/{name}/projector_features")
+                    wrap(module.prototypes, "forward", f"component/{role}/{name}/prototypes")
+                elif isinstance(
+                    module, (operators.GatedFeedForward, MatchedGELUFeedForward)
+                ) or name.endswith(".ffn"):
+                    wrap(module, "forward", f"component/{role}/{name}/ffn")
+                elif isinstance(
+                    module, (operators.LatentAttention, operators.LatentCrossAttention)
+                ):
+                    wrap(module, "forward", f"component/{role}/{name}/mla")
+                elif isinstance(module, model_module.SparseRead):
+                    wrap(module, "attention", f"component/{role}/{name}/graph_mla")
+                elif name == "graph.adapter":
+                    wrap(module, "forward", f"component/{role}/{name}/genept")
         yield
     finally:
         for owner, attr, original, own_attribute in reversed(changes):
@@ -136,10 +193,14 @@ def interval_union(intervals: list[tuple[float, float]]) -> list[tuple[float, fl
 
 def trace_summary(trace: dict[str, Any]) -> dict[str, Any]:
     """Union overlapping GPU intervals, keeping launch count and gap evidence."""
-    events = trace.get("traceEvents", [])
+    return summarize_events(lambda: iter(trace.get("traceEvents", [])))
+
+
+def summarize_events(factory: Any) -> dict[str, Any]:
+    """Two streaming passes; retain intervals and bounded memory samples only."""
     windows = [
         (float(e["ts"]), float(e["ts"]) + float(e["dur"]))
-        for e in events
+        for e in factory()
         if e.get("ph") == "X"
         and e.get("name") == "gradpert/capture_window"
         and e.get("cat") != "gpu_user_annotation"
@@ -149,13 +210,19 @@ def trace_summary(trace: dict[str, Any]) -> dict[str, Any]:
     start, end = windows[0]
     device, kernels, copies = [], 0, 0
     memory = []
-    for event in events:
+    memory_count, memory_peak = 0, None
+    labels: dict[str, dict[str, float]] = {}
+    for event in factory():
         args = event.get("args", {})
         if (
             event.get("name") == "[memory]"
             and args.get("Device Type") == 1
             and start <= float(event.get("ts", -1)) <= end
         ):
+            memory_count += 1
+            allocated = args.get("Total Allocated")
+            if allocated is not None:
+                memory_peak = allocated if memory_peak is None else max(memory_peak, allocated)
             memory.append(
                 {
                     "time_us": float(event["ts"]) - start,
@@ -163,8 +230,10 @@ def trace_summary(trace: dict[str, Any]) -> dict[str, Any]:
                     "reserved_bytes": args.get("Total Reserved"),
                 }
             )
-    labels: dict[str, dict[str, float]] = {}
-    for event in events:
+            # Keep recent samples plus a progressively thinned history, never all
+            # allocation events in million-event CUDA traces.
+            if len(memory) > 512:
+                memory = memory[::2]
         if event.get("ph") != "X" or "dur" not in event:
             continue
         left = max(start, float(event["ts"]))
@@ -200,12 +269,12 @@ def trace_summary(trace: dict[str, Any]) -> dict[str, Any]:
         if device
         else [],
         "regions": labels,
-        "cuda_allocation_event_count": len(memory),
-        "cuda_allocation_peak_bytes": max(
-            (row["allocated_bytes"] for row in memory if row["allocated_bytes"] is not None),
-            default=None,
-        ),
+        "cuda_allocation_event_count": memory_count,
+        "cuda_allocation_peak_bytes": memory_peak,
         "cuda_memory_timeline_sample": memory[:: max(1, (len(memory) + 255) // 256)],
+        "cuda_memory_timeline_sampling": (
+            "bounded thinned history; exact count/peak, not a full timeline"
+        ),
         "scope": (
             "one rank, nested CPU-inclusive regions; GPU interval union includes "
             "kernel/memcpy/memset; profiler overhead included; "
@@ -248,7 +317,13 @@ class ProfileCapture:
             return None
         path = self.output / f"rank-{self.rank}-trace.json"
         self.profiler.export_chrome_trace(str(path))
-        summary = trace_summary(json.loads(path.read_text()))
+        from trace_costs import events
+
+        def factory() -> Iterator[dict[str, Any]]:
+            with path.open() as handle:
+                yield from events(handle)
+
+        summary = summarize_events(factory)
         (self.output / f"rank-{self.rank}-trace-summary.json").write_text(
             json.dumps(summary, indent=2) + "\n"
         )

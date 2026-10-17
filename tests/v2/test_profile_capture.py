@@ -25,6 +25,26 @@ PROFILE = load_script("scripts/v2/profile_capture.py")
 FIXTURE = load_script("tests/v2/test_relay_method.py")
 
 
+def assert_exact(actual, expected):
+    if isinstance(actual, torch.Tensor):
+        torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+    elif isinstance(actual, dict):
+        assert actual.keys() == expected.keys()
+        for key in actual:
+            assert_exact(actual[key], expected[key])
+    elif isinstance(actual, (list, tuple)):
+        assert len(actual) == len(expected)
+        for left, right in zip(actual, expected, strict=True):
+            assert_exact(left, right)
+    else:
+        assert actual == expected
+
+
+@pytest.fixture(autouse=True)
+def scripts_on_path(monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "scripts/v2"))
+
+
 def test_trace_union_counts_parallel_kernels_once_and_missing_cuda_is_unknown():
     trace = {
         "traceEvents": [
@@ -81,7 +101,38 @@ def test_profile_preserves_complete_update_rng_and_restores_wrapped_methods(
         snapshots.append(
             (terms, current.state_dict(), optimizer.state_dict(), torch.get_rng_state())
         )
-    FIXTURE.assert_tree_close(snapshots[0], snapshots[1])
+    assert_exact(snapshots[0], snapshots[1])
+
+
+def test_checkpoint_recomputation_labels_and_exact_multistep_updates(tmp_path):
+    objective, batch = FIXTURE.relay_training_fixture(checkpointed=True)
+    snapshots = []
+    for enabled in (False, True):
+        current = copy.deepcopy(objective)
+        optimizer = V2Optimizer(current.student, 0.001, 0)
+        runtime = SimpleNamespace(objective=current, optimizer=optimizer, data=SimpleNamespace())
+        capture = PROFILE.ProfileCapture(runtime, tmp_path, 0)
+        torch.manual_seed(211)
+        if enabled:
+            capture.start(cuda=False)
+        terms = []
+        for _ in range(3):
+            terms.append(
+                optimizer_step(
+                    current, optimizer, batch, microbatch=2, lr=0.001, momentum=0.99, bf16=False
+                )
+            )
+        if enabled:
+            result = capture.close()
+            labels = result["summary"]["regions"]
+            assert labels["gradpert/checkpoint/recompute"]["calls"] > 0
+            assert any("kda_scan" in label for label in labels)
+            assert any(label.endswith("/prototypes") for label in labels)
+            assert "gradpert/loss/prototype_ce" in labels
+        snapshots.append(
+            (terms, current.state_dict(), optimizer.state_dict(), torch.get_rng_state())
+        )
+    assert_exact(*snapshots)
 
 
 def test_cuda_mirrored_annotations_are_not_cpu_windows_or_cpu_regions():
@@ -125,11 +176,54 @@ def test_cuda_mirrored_annotations_are_not_cpu_windows_or_cpu_regions():
 
 
 def test_region_cleanup_on_failure():
+    import torch.utils.checkpoint as checkpoint_module
+
     objective, _ = FIXTURE.relay_training_fixture()
     optimizer = V2Optimizer(objective.student, 0.001, 0)
     runtime = SimpleNamespace(objective=objective, optimizer=optimizer, data=SimpleNamespace())
     original = torch.autograd.backward
+    original_checkpoint = checkpoint_module.checkpoint
     with pytest.raises(RuntimeError, match="injected"), PROFILE.diagnostic_regions(runtime):
         raise RuntimeError("injected")
     assert torch.autograd.backward is original
+    assert checkpoint_module.checkpoint is original_checkpoint
     assert "forward" not in vars(objective.student.graph)
+
+
+def test_staged_four_updates_restore_teacher_center_optimizer_and_rng(tmp_path):
+    import sys
+
+    sys.path.insert(0, str(ROOT / "tests/v2"))
+    from test_staged_training import fixture, update
+
+    objective, batch, _ = fixture(pretrain_steps=2)
+    states = []
+    for enabled in (False, True):
+        current = copy.deepcopy(objective)
+        optimizer = V2Optimizer(current.student, 0.001, 0)
+        runtime = SimpleNamespace(objective=current, optimizer=optimizer, data=SimpleNamespace())
+        capture = PROFILE.ProfileCapture(runtime, tmp_path, 0)
+        torch.manual_seed(601)
+        if enabled:
+            capture.start(cuda=False)
+        outputs = []
+        for _ in range(4):
+            terms = update(current, batch, optimizer)
+            gradients = {
+                n: p.grad.clone()
+                for n, p in current.student.named_parameters()
+                if p.grad is not None
+            }
+            outputs.append((terms, gradients))
+        if enabled:
+            capture.close()
+        states.append(
+            (
+                outputs,
+                current.state_dict(),
+                optimizer.state_dict(),
+                current.pending,
+                torch.get_rng_state(),
+            )
+        )
+    assert_exact(*states)

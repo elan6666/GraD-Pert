@@ -183,6 +183,7 @@ def main() -> None:
     parser.add_argument("--benchmark-only", action="store_true")
     parser.add_argument("--warmup-steps", type=int)
     parser.add_argument("--profile-last-update", action="store_true")
+    parser.add_argument("--profile-pt1-stages", action="store_true")
     parser.add_argument("--profile-memory", action="store_true")
     parser.add_argument("--profile-operator-table", action="store_true")
     parser.add_argument("--sync-phase-timing", action="store_true")
@@ -221,10 +222,23 @@ def main() -> None:
         not args.benchmark_only or args.steps - warmup_steps < 2 or args.sync_phase_timing
     ):
         parser.error("profile requires benchmark-only, two post-warmup updates and no sync timing")
-    if args.profile_memory and not args.profile_last_update:
-        parser.error("profile-memory requires profile-last-update")
-    if args.profile_operator_table and not args.profile_last_update:
-        parser.error("operator table requires profile-last-update")
+    if args.profile_pt1_stages and (
+        kind != "preflight_only"
+        or args.steps != 10
+        or args.profile_last_update
+        or args.sync_phase_timing
+        or args.cpu_prefetch
+        or args.shared_queue
+    ):
+        parser.error(
+            "PT1 stage profiles require an idle-GPU ten-update diagnostic "
+            "without other profiling modes"
+        )
+    profiling = args.profile_last_update or args.profile_pt1_stages
+    if args.profile_memory and not profiling:
+        parser.error("profile-memory requires a profiling mode")
+    if args.profile_operator_table and not profiling:
+        parser.error("operator table requires a profiling mode")
     if args.cpu_prefetch and not args.benchmark_only:
         parser.error("CPU prefetch is currently benchmark-only diagnostic")
     if args.fused_sinkhorn and (
@@ -241,7 +255,12 @@ def main() -> None:
         parser.error("saved no-grad Sinkhorn requires an isolated benchmark-only diagnostic")
     if args.no_sequence_checkpoint and not args.benchmark_only:
         parser.error("no-sequence-checkpoint is benchmark-only diagnostic, not capacity evidence")
-    measured_stop = args.steps - int(args.profile_last_update)
+    profiled_indices = (
+        {3, 8}
+        if args.profile_pt1_stages
+        else ({args.steps - 1} if args.profile_last_update else set())
+    )
+    measured_indices = [i for i in range(warmup_steps, args.steps) if i not in profiled_indices]
     if not args.output.resolve().is_relative_to("/data/yilangliu"):
         parser.error("capacity artifacts stay on the server")
     world = int(os.environ.get("WORLD_SIZE", "1"))
@@ -314,9 +333,9 @@ def main() -> None:
         torch.distributed.init_process_group("nccl", timeout=timedelta(minutes=30))
     primary_call(lambda: args.output.mkdir(parents=True, exist_ok=False))
     receipt = {
-        "kind": "profile_only" if args.profile_last_update else kind,
+        "kind": "profile_only" if profiling else kind,
         "data_root": str(args.data_root.resolve()),
-        "inference_exercised": kind in ("preflight_only", "capacity_only"),
+        "inference_exercised": not profiling and kind in ("preflight_only", "capacity_only"),
         "source": source.payload(),
         "environment": environment.payload(),
         "config_sha256": sha256_file(args.config),
@@ -327,6 +346,7 @@ def main() -> None:
         "status": "running",
         "warmup_steps": warmup_steps,
         "profile_last_update": args.profile_last_update,
+        "profile_pt1_stages": args.profile_pt1_stages,
         "profile_memory": args.profile_memory,
         "profile_operator_table": args.profile_operator_table,
         "sync_phase_timing": args.sync_phase_timing,
@@ -378,6 +398,9 @@ def main() -> None:
                 capture = ProfileCapture(runtime, args.output, rank)
             total_steps = int(config.training.max_epochs.value) * runtime.steps_per_epoch
             staged_gate = runtime.options.training_mode == "ssl_then_mse"
+            if args.profile_pt1_stages and not staged_gate:
+                raise ValueError("PT1 stage profiles require ssl_then_mse configuration")
+            staged_profiles = []
             if args.reference_unused_ssl_decoder:
                 if not staged_gate or args.shared_queue:
                     raise ValueError("unused-decoder reference is idle-GPU PT1 engineering only")
@@ -407,10 +430,15 @@ def main() -> None:
                 runtime.options.prediction_reduction_override != "inherit"
                 or runtime.options.process_diagnostics
             )
-            if loss_diagnostics_enabled and kind in (
-                "preflight_only",
-                "capacity_only",
-                "integration_only",
+            if (
+                not profiling
+                and loss_diagnostics_enabled
+                and kind
+                in (
+                    "preflight_only",
+                    "capacity_only",
+                    "integration_only",
+                )
             ):
                 torch.cuda.reset_peak_memory_stats()
                 started = time.perf_counter()
@@ -508,6 +536,15 @@ def main() -> None:
                             timings["gradient_reduction_seconds"] if world > 1 else 0.0
                         )
                     step += 1
+                    if args.profile_pt1_stages and step - 1 in profiled_indices:
+                        staged_profiles.append(
+                            dict(
+                                completed_update=step,
+                                phase=runtime.objective.training_stage,
+                                capture=capture.close(operator_table=args.profile_operator_table),
+                            )
+                        )
+                        capture = None
                     if staged_gate:
                         phase = runtime.objective.training_stage
                         expected_no_labels = phase == "ssl_pretrain"
@@ -582,6 +619,11 @@ def main() -> None:
                         primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
                     if capture is not None and step == args.steps - 1:
                         capture.start(memory=args.profile_memory)
+                    if args.profile_pt1_stages and step in profiled_indices:
+                        directory = args.output / ("ssl_pretrain" if step < 5 else "mse_finetune")
+                        directory.mkdir(exist_ok=True)
+                        capture = ProfileCapture(runtime, directory, rank)
+                        capture.start(memory=args.profile_memory)
                     next_batch_ready = time.perf_counter()
                     if step >= args.steps:
                         batch_stream.close()
@@ -618,10 +660,15 @@ def main() -> None:
                 )
                 if not all(checks.values()):
                     raise ValueError("PT1 full-update stage transition failed")
-            if loss_diagnostics_enabled and kind in (
-                "preflight_only",
-                "capacity_only",
-                "integration_only",
+            if (
+                not profiling
+                and loss_diagnostics_enabled
+                and kind
+                in (
+                    "preflight_only",
+                    "capacity_only",
+                    "integration_only",
+                )
             ):
                 started = time.perf_counter()
                 receipt["updated_loss_diagnostic"] = primary_call(runtime.loss_diagnostics)
@@ -705,7 +752,7 @@ def main() -> None:
                         runtime, batch_size=joint_batch, bf16=True, on_batch_complete=progress
                     )
                 )
-            if kind in ("preflight_only", "capacity_only"):
+            if not profiling and kind in ("preflight_only", "capacity_only"):
                 receipt.update(primary_call(validation_probe))
             local_measurement = {
                 "rank": rank,
@@ -717,16 +764,21 @@ def main() -> None:
                 "runtime_preparation_seconds": receipt["runtime_preparation_seconds"],
                 "warmup_update_seconds": durations[:warmup_steps],
                 "warmup_data_wait_seconds": data_wait_seconds[:warmup_steps],
-                "update_seconds": durations[warmup_steps:measured_stop],
-                "data_wait_seconds": data_wait_seconds[warmup_steps:measured_stop],
-                "gradient_reduction_seconds": gradient_reduction_seconds[
-                    warmup_steps:measured_stop
-                ],
+                "update_seconds": [durations[i] for i in measured_indices],
+                "data_wait_seconds": [data_wait_seconds[i] for i in measured_indices],
+                "gradient_reduction_seconds": [
+                    gradient_reduction_seconds[i] for i in measured_indices
+                ]
+                if args.sync_phase_timing
+                else [],
+                "all_update_seconds": durations,
+                "all_data_wait_seconds": data_wait_seconds,
                 "host": host_snapshot(),
                 "profile": profile_summary,
+                "staged_profiles": staged_profiles,
                 "memory_after_update": memory_samples,
                 "view_generator_after_sha256": sha256_json(runtime.generator.bit_generator.state),
-                "profiled_update_seconds": durations[measured_stop:],
+                "profiled_update_seconds": [durations[i] for i in sorted(profiled_indices)],
             }
             measurements: list[Any] = [local_measurement]
             if world > 1:
@@ -736,17 +788,14 @@ def main() -> None:
                 all_updates = [
                     max(values)
                     for values in zip(
-                        *(m["warmup_update_seconds"] + m["update_seconds"] for m in measurements),
+                        *(m["all_update_seconds"] for m in measurements),
                         strict=True,
                     )
                 ]
                 all_waits = [
                     max(values)
                     for values in zip(
-                        *(
-                            m["warmup_data_wait_seconds"] + m["data_wait_seconds"]
-                            for m in measurements
-                        ),
+                        *(m["all_data_wait_seconds"] for m in measurements),
                         strict=True,
                     )
                 ]
@@ -756,10 +805,25 @@ def main() -> None:
                         "data_wait_seconds": all_waits[start:end],
                         "steady_warmup_excluded_updates": 1,
                         "steady_median_update_seconds": float(
-                            np.median(all_updates[start + 1 : end])
+                            np.median(
+                                [
+                                    all_updates[i]
+                                    for i in range(start + 1, end)
+                                    if i not in profiled_indices
+                                ]
+                            )
                         ),
-                        "steady_cells_per_second_including_data_wait": sum(cells[start + 1 : end])
-                        / sum(all_updates[i] + all_waits[i] for i in range(start + 1, end)),
+                        "steady_cells_per_second_including_data_wait": sum(
+                            cells[i] for i in range(start + 1, end) if i not in profiled_indices
+                        )
+                        / sum(
+                            all_updates[i] + all_waits[i]
+                            for i in range(start + 1, end)
+                            if i not in profiled_indices
+                        ),
+                        "profiled_completed_updates_excluded": [
+                            i + 1 for i in range(start, end) if i in profiled_indices
+                        ],
                     }
                     for name, start, end in (("ssl_pretrain", 0, 5), ("mse_finetune", 5, 10))
                 }
@@ -808,7 +872,7 @@ def main() -> None:
             receipt["measured_update_median_seconds"] = float(np.median(durations_measured))
             receipt["measured_update_p95_seconds"] = float(np.quantile(durations_measured, 0.95))
             receipt["measured_cells_per_second_including_data_wait"] = sum(
-                cells[warmup_steps:measured_stop]
+                cells[i] for i in measured_indices
             ) / sum(step_totals)
             from gradpert.modeling.v2.operators import ManifoldResidual
 
@@ -822,7 +886,7 @@ def main() -> None:
             receipt["pipeline_stats"] = runtime.data.pipeline_stats.payload()
             receipt["timing_limitations"] = (
                 "step-boundary synchronization; checkpoints excluded from measured update/gap "
-                "samples but included in wall time; profiled last update excluded from samples; "
+                "samples but included in wall time; profiled updates/export excluded from samples; "
                 "wall throughput with profiler enabled is diagnostic only"
             )
             receipt.update(
@@ -830,21 +894,27 @@ def main() -> None:
                 peak_allocated_bytes=max(m["peak_allocated_bytes"] for m in measurements),
                 peak_reserved_bytes=max(m["peak_reserved_bytes"] for m in measurements),
                 measured_update_seconds=durations_measured,
-                cells_per_second=sum(cells[warmup_steps:measured_stop]) / sum(durations_measured),
+                cells_per_second=sum(cells[i] for i in measured_indices) / sum(durations_measured),
                 coverage=(
-                    "one optimizer update; checkpoint reload; "
-                    "no sustained-capacity or inference evidence"
-                    if kind == "integration_only"
+                    "instrumented engineering updates only; profiler/export overhead included; "
+                    "not a formal preflight, capacity or scientific result"
+                    if profiling
                     else (
-                        "bounded training only; no checkpoint in timed benchmark; "
+                        "one optimizer update; checkpoint reload; "
                         "no sustained-capacity or inference evidence"
-                        if kind == "benchmark_only"
+                        if kind == "integration_only"
                         else (
-                            "short preflight; checkpoint continuation; single-condition inference; "
-                            "no sustained-capacity claim"
-                            if kind == "preflight_only"
-                            else "128+ updates; checkpoint continuation; "
-                            "single-condition validation"
+                            "bounded training only; no checkpoint in timed benchmark; "
+                            "no sustained-capacity or inference evidence"
+                            if kind == "benchmark_only"
+                            else (
+                                "short preflight; checkpoint continuation; "
+                                "single-condition inference; "
+                                "no sustained-capacity claim"
+                                if kind == "preflight_only"
+                                else "128+ updates; checkpoint continuation; "
+                                "single-condition validation"
+                            )
                         )
                     )
                 ),

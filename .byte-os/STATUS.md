@@ -1,3 +1,11 @@
+## 2026-10-17：完整训练 profile 构建与消融并行推进
+
+用户新增授权为当前完整更新做 CPU/CUDA 归因后再优化，且保持消融推进。主在独立工作树基于已发布 a0acaee6b05959093de2ae645fa54fa6ef3f35f3 仅构建诊断工具；监督会话仍持有 PT1/supervise，20min 监控不改，活动源 ec32671f4c37bc3d1d0f935ddca87fb89a55fa3e 与配置不动。监督已确认记录该独立 build 范围；此条不接管它的训练租约。
+
+计划 `.byte-os/plans/TRAIN_UPDATE_PROFILE_20261017.plan.md`：单独标记 KDA/FFN/原型/CE，组合 checkpoint 前向与重计算上下文；用 fwdbwd flow 桥接 OS 与 autograd 线程 ID，再按 thread+sequence 及 CUDA correlation 做不重复归因。Trace 流式留服务器，未关联项明确 unknown。短采集涵盖 PT1 的 SSL/MSE 和后续 joint 工作负载，profile_only 收据不能充当正式容量验收。本地44项相关回归及22项最终严格零容差定向检查通过；src/configs相对活动ec32671无差异。服务器CPU验证与CUDA采集待执行，尚无新CUDA归因或训练提速结论。
+
+PT1 全终态回主后插入短 GPU 采集，随后立即继续 DP2→S12-L4→CG1→U24→MR1→P1→C1→O1→K2-fixed-prefix；CPU trace 分析和候选实现与消融训练并行。不得为了优化重训/中断当前 PT1，也不让探针代替最终整步 ABBA 吞吐与完整更新语义验证。永久报告 `experiment-analysis/train-update-profile-20261017/REPORT_CN.md`。下方旧状态为历史。
+
 ## 2026-10-17：PT1与代码优化通过工程验收，正式训练已启动
 
 训练源ec32671f4c37bc3d1d0f935ddca87fb89a55fa3e，clean/pushed/immutable；配置SHA7202d4f16e7dd83547294e21144500be3a971b9ffe934b3106b2f44bc9d52ac5。新增PT1两轮SSL后两轮MSE、阶段恢复和同/异条件Global/Local中等诊断；拓扑打包与评估静态图复用、无用SSL decoder/I/O移除。CPU组件12.49倍/1.65倍；双卡单条件eval约1.59倍、输出误差0；整步训练未证明稳定加速。独立GPU state差异原样保留，受控同checkpoint/RNG两rank×2SSL+2MSE的loss/梯度/完整objective/optimizer逐值相同；10步/恢复及两卡eval128原2e-6门再次通过。

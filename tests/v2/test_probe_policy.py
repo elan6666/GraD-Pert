@@ -36,6 +36,10 @@ def test_bounded_benchmark_cannot_be_mistaken_for_capacity():
         (["--benchmark-only", "--steps", "3", "--warmup-steps", "3"], "custom warmup"),
         (["--benchmark-only", "--profile-last-update", "--sync-phase-timing"], "profile requires"),
         (["--benchmark-only", "--profile-memory"], "profile-memory requires"),
+        (["--profile-pt1-stages", "--steps", "11"], "PT1 stage profiles require"),
+        (["--profile-pt1-stages", "--benchmark-only"], "PT1 stage profiles require"),
+        (["--profile-pt1-stages", "--sync-phase-timing"], "PT1 stage profiles require"),
+        (["--profile-pt1-stages", "--cpu-prefetch"], "PT1 stage profiles require"),
         (["--integration-only"], "launch requires PYTORCH_ALLOC_CONF"),
     ],
 )
