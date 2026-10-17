@@ -271,8 +271,10 @@ def staged_run(run):
         p["graph_gradients"] = dict(
             groups={
                 "graph": dict(
-                    weighted_gradient_l2=dict(prediction=0 if epoch <= 2 else 1, ssl1=1, ssl2=1),
-                    cosine=dict(prediction_ssl1=None, prediction_ssl2=None),
+                    weighted_gradient_l2=(
+                        dict(ssl1=1, ssl2=1) if epoch <= 2 else dict(prediction=1, ssl1=0, ssl2=0)
+                    ),
+                    cosine={} if epoch <= 2 else dict(prediction_ssl1=None, prediction_ssl2=None),
                 )
             }
         )
@@ -320,6 +322,15 @@ def test_staged_probes_keep_separate_identities_and_render_missing_prediction(st
     assert "跨阶段不是同一输入" in text and "| 1 | 不适用" in text
     assert "epoch 3→4" in text
     assert len(list(output.glob("*.png"))) == 4
+    import csv
+
+    gradients = list(csv.DictReader((output / "gradients.csv").open()))
+    assert gradients[0]["prediction"] == ""
+    assert gradients[0]["prediction_ssl1"] == ""
+    assert gradients[-1]["prediction"] == "1"
+    assert gradients[-1]["ssl1"] == "0"
+    stages = [r["training_stage"] for r in csv.DictReader((output / "training.csv").open())]
+    assert stages == ["ssl_pretrain"] * 2 + ["mse_finetune"] * 2
 
 
 @pytest.mark.parametrize(

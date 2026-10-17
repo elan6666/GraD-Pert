@@ -1,3 +1,7 @@
+## 2026-10-17：PT1真实CPU报告补齐阶段缺失梯度
+
+0be7a1c报告修复r1仅运行CPU即退出1：SSL阶段没有prediction梯度和prediction/SSL余弦，绘图仍以必有键读取。FAILURE SHA c855ebe1d95ba96493012100ba6b9f6589d75a06d3e6989973b7df94309c21b3、日志SHA389e1facf126ee73ba5cc190b97f46d17b471c19821c539c7ace9ee6be7fac09均保留；未启动GPU seal/probe/medium。改为缺失值断线，不填零；用真实缺失字段结构补回归，training.csv也明确阶段。下一新报告源/独立输出先验收真实CPU整份报告，再继续原中等流程。训练/测试/数值方法源ec32671不变。主owner，短监督Luna已终态，旧定时仍PAUSED。
+
 ## 2026-10-17：PT1四轮及last18已核验，中等报告适配修复
 
 主已接回exact main/build并ACK，旧监督与return均PAUSED。PT1 fit四轮600更新及last18已独立核验，last checkpoint SHA520b71f4b5f49139724e7d0639df8676f74a3379727f7d523b88a7e63e668b0f；无PKL。原队列因CPU saved-report的跨阶段input hash校验失败而终态failed，失败root不改、不重训。

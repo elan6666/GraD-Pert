@@ -32,3 +32,5 @@ numerical medium/parent generators unchanged relative to trainingec32671.
 Main independently verified epoch1/2 SSL150/300 steps and epoch3/4 MSE450/600,
 last checkpoint520b71f4...b0f, all18metrics/test SHA20bc22c7...d68, zeroPKL.
 Real CPU saved report and fixed comparable medium still pending.
+
+Real r1 CPU export failed on missing pretraining prediction-gradient key. No GPU stage ran. Preserve the complete failed root and receipt; render absent gradient/cosine as gaps, keep real zero gradients as zero, add staged regression with omitted keys and CSV blank checks. Training CSV explicitly includes phase. A new immutable controller/output is required; first verify its real CPU report before delegating the medium wait.

@@ -588,7 +588,7 @@ def plots(data: dict, output: Path) -> None:
             *trajectory(
                 points,
                 [
-                    p["graph_gradients"]["groups"]["graph"]["weighted_gradient_l2"][loss]
+                    p["graph_gradients"]["groups"]["graph"]["weighted_gradient_l2"].get(loss)
                     for p in points
                 ],
             ),
@@ -598,7 +598,8 @@ def plots(data: dict, output: Path) -> None:
     for key in ("prediction_ssl1", "prediction_ssl2"):
         ax[1, 1].plot(
             *trajectory(
-                points, [p["graph_gradients"]["groups"]["graph"]["cosine"][key] for p in points]
+                points,
+                [p["graph_gradients"]["groups"]["graph"]["cosine"].get(key) for p in points],
             ),
             "o-",
             label=key,
@@ -667,6 +668,7 @@ def export(data: dict, output: Path) -> None:
         [
             {
                 "epoch": h["epoch"],
+                "training_stage": h.get("training_stage", "joint"),
                 "training_seconds": h["training_seconds"],
                 "diagnostic_seconds": h["diagnostic_seconds"],
                 **h["training"],
