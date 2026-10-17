@@ -1,5 +1,16 @@
 # 性能工程文献驱动矩阵
 
+## 2026-10-17 当前优先候选：KDA Gram 前后向 IO
+
+用户接受普通有限精度差异，CPU浮点检查改用已有全更新3e-5/3e-4门；身份、RNG、mask与更新语义仍严格一致，评估门不改。旧失败记录保留。当前joint profile扫描占rank0累计kernel时间57.9%，其中图扫描约58.7%；该比例不是整步收益预测。原型头不足1%，暂不优先。
+
+|来源|可借鉴机制与假设|当前对应/实现|边界与验证|
+|---|---|---|---|
+|[Kimi Linear](https://arxiv.org/abs/2510.26692)，[FLA冻结chunk_intra](https://github.com/fla-org/flash-linear-attention/blob/954438d1fcb5e1bb05c22f9908de9c5c2df74ae5/fla/ops/kda/chunk_intra.py)及[chunk_bwd](https://github.com/fla-org/flash-linear-attention/blob/954438d1fcb5e1bb05c22f9908de9c5c2df74ae5/fla/ops/kda/chunk_bwd.py)|分块与显式反向一起设计，避免仅前向融合而反向仍昂贵|当前Gram前向候选已有小核；旧反向重建[B,H,C,C,D]。新token/head归属的反向kernel同时归约两向边贡献，去掉这部分全局临时张量|保留原C16/C32、三角解、最终S与合法邻域，不直接移植其全token输出路径；CPU解析导数→真实kernel→完整更新→整步ABBA|
+|[FlashAttention](https://arxiv.org/abs/2205.14135)|片上分块/重计算以减少HBM中间存取；更少内存不自动等于更快|新反向只输出dk/dg，避免通道展开矩阵；FP32、mask-before-exp、不做门控裁剪|适配其IO原则，不是复现softmax算子；寄存器压力、重复邻居读取及contiguous复制需实测；不搬用论文设备加速比|
+
+独立诊断位于scripts/performance/gram_io_cuda.py与scripts/v2/gram_io_candidate.py，未接入native默认。B64/H4/C32/D64单个展开FP32临时为64MiB，仅为形状估计，不能当作实际峰值或HBM流量节省。新候选与旧forward-only失败有明确新假设；不是据此宣称已解决原完整梯度失败。主机C++候选H保留为低成本对照；Linux严格零梯度测试的9.54e-7差异不再作为无条件淘汰理由。当前没有新双卡整步提速结论。
+
 ## 2026-09-27：文献假设的双卡验证结论
 
 [PyTorch 官方 NUMA 绑定接口](https://docs.pytorch.org/docs/main/elastic/numa.html)解决多 socket 机器的 worker/设备局部性问题；我们仅适配其现有 `--numa-binding=node` 执行选项，非原创机制。真实双5090完整更新 A1/B1/B2/A2 各12步、同源码/配置/随机计划，B/A 配对含等待速度比1.05240和1.04927，几何均值1.05083，预留显存不变。因此在当前服务器采用；不能外推到其他拓扑或宣称长期模型效果。详见[性能报告](GRADPERT_V2_SINGLE_PASS_PERFORMANCE.md#numa-本地-cpu-绑定整步对照终态2026-09-27)。这项有实测收益的调度借鉴与失败的局部 CUDA Graph/图投影候选并列记录，不能抹去后者的精度反证。

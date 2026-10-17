@@ -2,6 +2,7 @@
 
 import copy
 import importlib.util
+import math
 import os
 import runpy
 import sys
@@ -31,17 +32,28 @@ CANDIDATE = helper("scripts/v2/kda_aten_candidate.py")
 FIXTURE = helper("tests/v2/test_relay_method.py")
 
 
-def exact(actual, expected):
+def bounded(actual, expected):
+    """Use the existing full-update tolerance for floats; keep RNG/IDs exact.
+
+    The earlier zero-tolerance Linux failure remains a failed historical run.
+    The user explicitly accepted ordinary finite-precision differences.
+    """
     if isinstance(actual, torch.Tensor):
-        torch.testing.assert_close(actual, expected, atol=0, rtol=0)
+        floating = actual.is_floating_point() or actual.is_complex()
+        torch.testing.assert_close(
+            actual, expected, atol=3e-5 if floating else 0, rtol=3e-4 if floating else 0
+        )
     elif isinstance(actual, dict):
         assert actual.keys() == expected.keys()
         for key in actual:
-            exact(actual[key], expected[key])
+            bounded(actual[key], expected[key])
     elif isinstance(actual, (list, tuple)):
         assert len(actual) == len(expected)
         for a, b in zip(actual, expected, strict=True):
-            exact(a, b)
+            bounded(a, b)
+    elif isinstance(actual, float):
+        assert math.isfinite(actual) and math.isfinite(expected)
+        assert math.isclose(actual, expected, abs_tol=3e-5, rel_tol=3e-4)
     else:
         assert actual == expected
 
@@ -69,8 +81,8 @@ def test_same_block_arithmetic_gradients_and_rng(length, bf16, chunk_size):
             output = f(*args[:4], state=args[4], chunk_size=chunk_size)
         gradients = torch.autograd.grad((output * upstream).sum(), args)
         results.append((output, gradients))
-    exact(*results)
-    exact(torch.get_rng_state(), rng)
+    bounded(*results)
+    bounded(torch.get_rng_state(), rng)
 
 
 def test_checkpointed_nonzero_lr_multistep_complete_update_and_cleanup():
@@ -110,7 +122,7 @@ def test_checkpointed_nonzero_lr_multistep_complete_update_and_cleanup():
             terms = updates(current, optimizer)
         assert operators.chunk_delta_final_state is original
         results.append((terms, current.state_dict(), optimizer.state_dict(), torch.get_rng_state()))
-    exact(*results)
+    bounded(*results)
     with pytest.raises(RuntimeError, match="injected"), CANDIDATE.candidate_scope():
         raise RuntimeError("injected")
     assert operators.chunk_delta_final_state is original

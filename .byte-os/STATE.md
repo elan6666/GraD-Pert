@@ -1,3 +1,9 @@
+## 2026-10-17：当前CPU构建：KDA前后向IO候选
+
+用户最新允许普通有限精度差异，性能优先；CPU浮点诊断使用已有全更新3e-5/3e-4，RNG/整数与训练语义仍精确，评估门不改。LinuxH927aa3a/r2的旧零门9.54e-7梯度差异失败保留，未重标。主在独立工作树实现scripts/performance/gram_io_cuda.py和scripts/v2/gram_io_candidate.py：新反向不展开[B,H,C,C,D]，其余三角解/块长/最终S不变，原生默认无改。52CPU检查通过、6真实kernel显式skip，待published独立Linux CPU解释器/离线编译和空闲GPU全更新/ABBA。未采用、无新整步提速证据。
+
+不触碰DP2活动8882源/配置/进程/训练venv或监督租约；监督会话20min独占查询，主只CPU工作。DP2终态回交须主验收后继续S12-L4等已授权队列；短性能窗口和PT1中等回填按空闲安排。详见STATUS与当前profile plan；下文为历史。
+
 ## 2026-10-17：模块/内存归因与KDA主机执行候选
 
 已有trace的CPU模块归因完成（ba7620583f4405a60dc5dd06e1b8390dae4dedf0）；SSL/joint rank0图KDA扫描累计3.2248/2.8690s，Cell/Response扫描1.3645/2.0199s。原profile allocator peak17,185,907,200/19,351,012,864bytes精确复核；分配/释放流量不当成live保存内存或HBM带宽。小原始JSON、模块成本及分配CSV和中文解释已归档，原trace留server，未新采集GPU。CPU分析源本机GitHub ref和服务器clean HEAD一致；server直连GitHub超时，未伪造formal CUDA publication receipt、未改代理/路由。

@@ -193,12 +193,28 @@ def main() -> None:
     parser.add_argument("--fused-sinkhorn", action="store_true")
     parser.add_argument("--save-no-grad-sinkhorn", action="store_true")
     parser.add_argument("--fused-gram", action="store_true")
+    parser.add_argument("--gram-io", action="store_true")
     parser.add_argument("--aten-kda", action="store_true")
     parser.add_argument("--shared-queue", type=Path)
     parser.add_argument("--resource-owner-pid", type=int)
     parser.add_argument("--joint-validation-check", action="store_true")
     parser.add_argument("--reference-unused-ssl-decoder", action="store_true")
     args = parser.parse_args()
+    if args.gram_io:
+        if args.fused_gram:
+            parser.error("choose one Gram implementation")
+        if (
+            args.shared_queue
+            or args.integration_only
+            or args.profile_last_update
+            or args.profile_pt1_stages
+            or args.sync_phase_timing
+            or args.save_no_grad_sinkhorn
+            or args.reference_unused_ssl_decoder
+            or args.joint_validation_check
+        ):
+            parser.error("Gram IO requires an isolated unprofiled benchmark-only diagnostic")
+        args.fused_gram = True
     if args.aten_kda and (
         not args.benchmark_only
         or args.integration_only
@@ -372,6 +388,7 @@ def main() -> None:
         "fused_sinkhorn_diagnostic_only": args.fused_sinkhorn,
         "save_no_grad_sinkhorn_diagnostic_only": args.save_no_grad_sinkhorn,
         "fused_gram_diagnostic_only": args.fused_gram,
+        "gram_io_diagnostic_only": args.gram_io,
         "aten_kda_diagnostic_only": args.aten_kda,
         "sequence_checkpoint_disabled_diagnostic_only": args.no_sequence_checkpoint,
         "joint_validation_check_requested": args.joint_validation_check,
@@ -385,6 +402,13 @@ def main() -> None:
     capture = None
     candidate_contexts = ExitStack()
     try:
+        if args.gram_io:
+            from gram_io_candidate import candidate_scope
+
+            candidate_contexts.enter_context(candidate_scope())
+            receipt["gram_io_kernel_sha256"] = sha256_file(
+                Path(__file__).resolve().parents[1] / "performance/gram_io_cuda.py"
+            )
         if args.aten_kda:
             from kda_aten_candidate import candidate_scope
 

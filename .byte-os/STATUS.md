@@ -1,3 +1,11 @@
+## 2026-10-17：用户接受浮点差异，优先KDA前后向IO机制
+
+用户明确接受普通数值差异、性能优先。仅CPU浮点诊断从自设0/0改用已有全更新atol3e-5/rtol3e-4；RNG/整数/身份仍精确，评估门不动，旧失败不改。H的Linux927aa3a/r2旧零门失败maxabs9.54e-7保留，不继续追逐位DAG一致；Ninja仅在独立tooling安装，活动训练环境未改。
+
+主优先实现诊断候选I：Gram前向沿旧融合实现，新反向按token/head归约两向边贡献，避免[B,H,C,C,D]全局临时张量。保持块长、三角解、状态/衰减/图邻域/顺序和所有训练更新语义；不是新数学模型、也无原创算法声明。CPU float64导数、三步非零LR完整更新及恢复scope和原H相关检查52passed/6实际kernel显式skip；尚未CUDA验证/采用，没有新整步吞吐结论。下一发布新隔离源做Linux CPU解释器/离线sm120编译；GPU测试仅在DP2终态回主后合适空闲窗口，以完整更新与10步ABBA决定，不打断消融。
+
+DP2唯一20min监督继续；主不重复轮询。科学队列DP2→S12-L4→CG1→U24→MR1→P1→C1→O1→K2-fixed-prefix和PT1中等待回填不变。详细公式/来源/收益限制与下一实验见plans/TRAIN_UPDATE_PROFILE_20261017.plan.md及永久性能报告。下文为历史。
+
 ## 2026-10-17：模块/内存归因与KDA主机执行候选
 
 已有trace的CPU模块归因完成（ba7620583f4405a60dc5dd06e1b8390dae4dedf0）；SSL/joint rank0图KDA扫描累计3.2248/2.8690s，Cell/Response扫描1.3645/2.0199s。原profile allocator peak17,185,907,200/19,351,012,864bytes精确复核；分配/释放流量不当成live保存内存或HBM带宽。小原始JSON、模块成本及分配CSV和中文解释已归档，原trace留server，未新采集GPU。CPU分析源本机GitHub ref和服务器clean HEAD一致；server直连GitHub超时，未伪造formal CUDA publication receipt、未改代理/路由。

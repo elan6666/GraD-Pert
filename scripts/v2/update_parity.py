@@ -284,10 +284,19 @@ def main() -> None:
     parser.add_argument("--candidate-fused-sinkhorn", action="store_true")
     parser.add_argument("--candidate-no-grad-elision", action="store_true")
     parser.add_argument("--candidate-fused-gram", action="store_true")
+    parser.add_argument("--candidate-gram-io", action="store_true")
     parser.add_argument("--candidate-aten-kda", action="store_true")
     parser.add_argument("--candidate-gram-forward-audit", action="store_true")
     parser.add_argument("--candidate-gram-backward-audit", action="store_true")
     args = parser.parse_args()
+    if args.candidate_gram_io:
+        if (
+            args.candidate_fused_gram
+            or args.candidate_gram_forward_audit
+            or args.candidate_gram_backward_audit
+        ):
+            parser.error("Gram IO must isolate its own forward/backward implementation")
+        args.candidate_fused_gram = True
     if args.candidate_aten_kda and any(
         (
             args.reference_repeat,
@@ -451,6 +460,7 @@ def main() -> None:
         "candidate_fused_sinkhorn_diagnostic_only": args.candidate_fused_sinkhorn,
         "candidate_no_grad_elision_diagnostic_only": args.candidate_no_grad_elision,
         "candidate_fused_gram_diagnostic_only": args.candidate_fused_gram,
+        "candidate_gram_io_diagnostic_only": args.candidate_gram_io,
         "candidate_aten_kda_diagnostic_only": args.candidate_aten_kda,
         "candidate_gram_forward_audit": args.candidate_gram_forward_audit,
         "candidate_gram_backward_audit": args.candidate_gram_backward_audit,
@@ -517,6 +527,13 @@ def main() -> None:
             try:
                 for kernel in ("reference", "candidate"):
                     if kernel == "candidate":
+                        if args.candidate_gram_io:
+                            from gram_io_candidate import candidate_scope
+
+                            candidate_contexts.enter_context(candidate_scope())
+                            receipt["gram_io_kernel_sha256"] = sha256_file(
+                                Path(__file__).resolve().parents[1] / "performance/gram_io_cuda.py"
+                            )
                         if args.candidate_aten_kda:
                             from kda_aten_candidate import candidate_scope
 

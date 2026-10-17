@@ -94,3 +94,69 @@ CPU-only attribution source ba7620583f4405a60dc5dd06e1b8390dae4dedf0 is clean/pu
 Candidate H implementation is isolated in scripts/performance/kda_aten.cpp and scripts/v2/kda_aten_candidate.py. capacity_probe --aten-kda is benchmark-only and rejects profiling/mixed candidates/active shared queues; update_parity --candidate-aten-kda uses unchanged configs/checkpoint/RNG, compiles before the reference snapshot, restores the global probe scope on exceptions, and records source/cold-load identity. Native src/config remain untouched. Initial synthetic CPU12passed; related suite56passed; final direct block tests changed to actual4heads64channels and await their targeted run. No CUDA adoption or throughput claim. Module attribution PLAN/COMPLETE and output hashes verified; no second capture.
 
 Final CPU checks:4head×64 at both actual C16/C32 with BF16 input gradient casts passed25tests in4.15s; related56tests passed68.33s. Complete checkpointed3-step nonzeroLR exact CPU optimizer/objective/Teacher/center/RNG and probe exception cleanup included. Ruff/format/diff passed. No src/config/numerical medium changes. Pending Linux CPU build and then published-source dualGPU numeric/ABBA gates in an idle window; no adoption yet.
+
+## User correction: finite precision and candidate I (current)
+
+The user explicitly accepts numerical differences and prioritizes performance.
+Do not spend optimization time reproducing the exact reduction/accumulation DAG.
+Mathematical equations, gene IDs, legal neighbors, random draws, masks and update
+timing remain fixed. Float CPU checks now use the existing full-update GPU
+atol=3e-5/rtol=3e-4, with RNG/integers exact and nonfinite values rejected; this
+supersedes the self-imposed CPU zero-tolerance requirement above, not scientific
+or evaluation contracts. Old failed runs are never relabeled.
+
+Candidate H Linux927aa3a r1 failed before compilation (missing Ninja). Isolated
+Ninja1.13.2 was installed outside the active training venv. Linux r2 failed the
+old zero test on key gradients (maxabs9.5367e-7, 1858/8704 unequal), not the
+existing GPU tolerance. Mac exact results remain historical device-specific
+evidence. Changed primitive view/accumulation ordering is a possible explanation,
+not a proven Linux root cause. Do not repeat unchanged zero-gate probes.
+
+Priority I: remove channel-expanded Gram tensors in BOTH forward and backward.
+Earlier forward-only Gram fusion kept eager five-dimensional backward, so this
+is a new specific IO hypothesis, not an unchanged retry of that rejected version.
+Keep C16/C32, triangular solve, inter-chunk final-state propagation, FP32 state
+and gate formula. Reuse the old forward implementation, implement a new diagnostic
+Triton backward that owns a token/head and reduces incoming/outgoing contributions
+without atomics or global [B,H,C,C,D] intermediates. No native default change.
+
+For strict i>j, P_ij=sum_d k_id*k_jd*exp(g_id-g_jd), u=dL/dP. Then
+dk_id=sum_(j<i)u_ij*exp(g_id-g_jd)*k_jd
+      +sum_(j>i)u_ji*exp(g_jd-g_id)*k_jd;
+dg_id=sum_(j<i)u_ij*k_id*k_jd*exp(g_id-g_jd)
+      -sum_(j>i)u_ji*k_jd*k_id*exp(g_jd-g_id).
+Mask before exp; do not use exp(g_i)/exp(g_j), clip gates or change the solve.
+Float summation order may differ. For B64,H4,C32,D64, one expanded FP32 tensor
+is64MiB; this is a shape calculation, not measured peak/HBM traffic saved.
+The kernel trades repeated on-chip neighbor loads and reductions for fewer HBM
+temporaries/launches; register pressure, occupancy and contiguous input copies
+may erase the gain. Scan is ~58% of joint kernel time, but Gram is only part of
+scan and kernel percentages cannot bound end-to-end gain without critical path.
+
+Sources checked before this implementation: Kimi Linear
+https://arxiv.org/abs/2510.26692, FlashAttention
+https://arxiv.org/abs/2205.14135, frozen FLA954438d1fcb5e1bb05c22f9908de9c5c2df74ae5
+fla/ops/kda/chunk_intra.py and chunk_bwd.py. Borrow IO-aware tiling and explicit
+backward principles; independently derive our final-state block subexpression.
+No upstream import/copy or originality claim. FLA all-token output pipeline is
+not a drop-in replacement for our final-state training path.
+
+Implementation: scripts/performance/gram_io_cuda.py, scripts/v2/gram_io_candidate.py;
+--gram-io isolated unprofiled benchmark-only and --candidate-gram-io paired update.
+They restore original functions on exceptions and reject mixed candidates.
+CPU float64 derivative oracle covers tails/noncontiguous upstream/strong decay;
+checkpointed three nonzero-LR full updates cover loss, gradients, optimizer,
+Teacher, center and RNG with CPU kernel oracles (not CUDA verification).
+Local r3:52passed,6 explicit kernel tests skipped. Original r1 scalar exact failure
+and r2 missing-Ninja-PATH failure retained. Next published immutable Linux source:
+CPU interpreter kernel derivatives and offline sm120 compile, then idle-window
+dual5090 local forward/backward, full optimizer/EMA/center numeric gates, unprofiled
+10-update ABBA and measured startup/cold compilation/steady cells/s/peak memory.
+Candidate H is a secondary host-only control. Reject candidates without whole-step
+gain; do not substitute isolated kernel speed for acceptance.
+
+DP2 formal source8882, its unique20min supervisor and authorized scientific queue
+remain unchanged. Main does not poll DP2 or occupy its GPUs. At terminal handback,
+independently accept DP2, run a bounded useful optimization test window if ready,
+and immediately continue S12-L4 and remaining authorized arms. PT1 medium backfill
+remains pending at an idle window; no re-training or new scientific groups.
