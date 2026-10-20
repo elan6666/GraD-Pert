@@ -24,3 +24,9 @@ CPU真实前向测试先复现“纯SSL response_cache包含main”的错误；�
 跨版本保护仅针对PT2允许这一个明确的条件变更：用Git读取训练SHA的原cap40_posthoc.py，逐字节应用该唯一替换后必须与分析版本文件完全一致；其他改动仍拒绝，src及数值统计/资源门等文件继续冻结。70项相关测试通过。
 
 新独立修复允许复制此前已成功封存manifest的完全相同字节，核对输入及复制后的SHA256；后续各端点仍核对data/config/采样population，并在同一物理manifest上比较。旧manifest及recipes保留，来源写REUSED_MANIFEST.json，省去193.89秒重复CPU封存。不能据CPU通过声明GPU探针通过。
+
+## 独立输出根的收尾校验
+
+attempt5两个端点均已完成：真实1335条件/5317行、deep128/506、gradient32/125，同一物理manifest。主在服务器重新执行reference/fast统计比较，epoch2最大误差2.9103830456733704e-11，epoch6为3.694822225952521e-13，均通过原1e-8门；逐项封存产物哈希、0更新/state unchanged、完成训练的受保护哈希及zeroPKL再次验证。
+
+控制器最后调用validate_complete时遗漏实际root参数，回到旧queue/PT2-medium查找汇总收据，发生FileNotFoundError。修复只将已解析root传入最终校验；新增执行路径回归测试在修复前失败、修复后通过。71项相关测试及ruff/format/diff检查通过。原attempt5失败标记保留，另建仅验收的收据根，引用已有两端产物；不重训、不重复前向、不把失败控制器改标为成功。

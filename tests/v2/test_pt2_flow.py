@@ -356,3 +356,29 @@ def test_pt2_completion_requires_both_endpoints_and_identical_physical_manifest(
     atomic_json(root / "MEDIUM_COMPLETE.json", complete)
     with pytest.raises(ValueError, match="identical physical"):
         dual.validate_complete(queue, row, root=root)
+
+
+def test_pt2_repair_finalizes_the_actual_output_root(tmp_path, monkeypatch):
+    queue_path = tmp_path / "queue.json"
+    row = dict(name="PT2", plan={})
+    atomic_json(queue_path, dict(family=family.SCHEMA, rows=[row], source_commit="a" * 40))
+    repair_root = tmp_path / "independent-repair"
+    monkeypatch.setattr(runner, "verify", lambda queue: None)
+    monkeypatch.setattr(runner, "validate_complete", lambda plan: None)
+    monkeypatch.setattr(medium, "SERVER_ROOT", tmp_path)
+    monkeypatch.setattr(medium, "validate_report_repair", lambda *args: repair_root)
+
+    def endpoint(queue_path, arm, *, endpoint_root, **kwargs):
+        atomic_json(endpoint_root / "MEDIUM_COMPLETE.json", dict(manifest="sealed.json"))
+
+    monkeypatch.setattr(medium, "execute", endpoint)
+    monkeypatch.setattr(medium, "validate_medium_complete", lambda *args, **kwargs: {})
+
+    def finalize(queue, selected, *, root=None):
+        assert root == repair_root
+        assert read_json(root / "MEDIUM_COMPLETE.json")["status"] == "completed"
+        return dict(receipt=str(root / "MEDIUM_COMPLETE.json"))
+
+    monkeypatch.setattr(dual, "validate_complete", finalize)
+    proof = dual.execute(queue_path, "PT2", repair_output=repair_root)
+    assert proof["receipt"] == str(repair_root / "MEDIUM_COMPLETE.json")

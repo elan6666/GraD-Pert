@@ -133,7 +133,7 @@ def execute(
                 **COUNTS,
             ),
         )
-        return validate_complete(queue, row)
+        return validate_complete(queue, row, root=root)
     except BaseException as exc:
         write(
             root / "FAILURE.json",
