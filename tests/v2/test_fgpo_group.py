@@ -125,6 +125,39 @@ def test_exact_new_family_and_no_official_dependency_or_old_br(new_queue):
     assert all(b["cell_batch"] == 128 for b in q["eval_bindings"])
 
 
+def test_pending_singleton_keeps_all_gates_and_rejects_scope_tampering(new_queue):
+    old, output = new_queue
+    queue = runner.prepare(
+        ROOT,
+        Path(old["manifest"]),
+        Path(old["runtime"]),
+        output.parent / "s12-only",
+        old["shared_gpu_policy"],
+        only_arms=["S12-L4"],
+    )
+    runner.verify(queue)
+    assert [row["name"] for row in queue["rows"]] == ["S12-L4"]
+    assert len(queue["eval_bindings"]) == 2
+    assert queue["steps"] == 10 and queue["medium_analysis"] == old["medium_analysis"]
+    assert runner.selected_matrix(
+        runner.verify_manifest(ROOT, Path(old["manifest"])), queue["only_arms"]
+    )["preflight_priority"] == ["S12-L4"]
+    queue["only_arms"] = ["CG1"]
+    with pytest.raises(ValueError, match="scope/order"):
+        runner.verify(queue)
+
+
+@pytest.mark.parametrize(
+    "arms", [[], ["B0"], ["VH"], ["unknown"], ["CG1", "S12-L4"], ["S12-L4"] * 2]
+)
+def test_pending_selection_rejects_completed_unknown_duplicate_or_reordered_arms(arms):
+    matrix = family.verify_manifest(
+        ROOT, ROOT / "configs/v2/fgpo_node0_20261016_b320/manifest.json"
+    )
+    with pytest.raises(ValueError, match="pending FGPO"):
+        runner.selected_matrix(matrix, arms)
+
+
 @pytest.mark.parametrize("change", ["hash", "gain", "scope", "tolerance", "state", "rows"])
 def test_analysis_cannot_expand_population_or_bypass_performance_acceptance(
     tmp_path, monkeypatch, change

@@ -64,6 +64,28 @@ POLL_SECONDS = 5
 FGPO_FAMILIES = (FGPO_SCHEMA, DINO_SCHEMA, DP2_SCHEMA, NO_SSL_SCHEMA, PT1_SCHEMA, PT2_SCHEMA)
 LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA, *FGPO_FAMILIES)
 DEFERRED_SCDFM_POLICY = "scdfm_fit_gears_terminal_evaluation_deferred_v1"
+PENDING_FGPO_ARMS = ("S12-L4", "CG1", "U24", "MR1", "P1", "C1", "O1", "K2-fixed-prefix")
+
+
+def selected_matrix(matrix: dict, only_arms: list[str] | None) -> dict:
+    """Select an ordered pending scope without changing the sealed family configs."""
+    if only_arms is None:
+        return matrix
+    if (
+        matrix["schema"] != FGPO_SCHEMA
+        or not only_arms
+        or only_arms != [name for name in PENDING_FGPO_ARMS if name in only_arms]
+    ):
+        raise ValueError("selection requires ordered, unique, pending FGPO arms")
+    selected = copy.deepcopy(matrix)
+    selected["rows"] = [row for row in matrix["rows"] if row["name"] in only_arms]
+    selected["priority"] = list(only_arms)
+    selected["preflight_priority"] = [
+        name for name in matrix["preflight_priority"] if name in only_arms
+    ]
+    if [row["name"] for row in selected["rows"]] != only_arms:
+        raise ValueError("selected arms are missing from the sealed family")
+    return selected
 
 
 def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
@@ -191,13 +213,21 @@ def official_dependency_ready(spec: dict) -> bool:
     return True
 
 
-def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: dict) -> dict:
+def prepare(
+    source: Path,
+    manifest: Path,
+    runtime: Path,
+    output: Path,
+    policy: dict,
+    *,
+    only_arms: list[str] | None = None,
+) -> dict:
     source, manifest, runtime, output = (
         path.resolve() for path in (source, manifest, runtime, output)
     )
     if output.exists() or not output.is_relative_to(SERVER_ROOT):
         raise ValueError("fresh server queue root required")
-    matrix = verify_manifest(source, manifest)
+    matrix = selected_matrix(verify_manifest(source, manifest), only_arms)
     validate_policy(policy)
     if policy["schema"] != DYNAMIC_SCHEMA:
         raise ValueError("BR400 requires exact approved dual-GPU schema3 policy")
@@ -234,6 +264,8 @@ def prepare(source: Path, manifest: Path, runtime: Path, output: Path, policy: d
         "policy_sha256": sha256_json(policy),
         "eval_bindings": [],
     }
+    if only_arms is not None:
+        queue["only_arms"] = list(only_arms)
     if matrix["schema"] == FFN_SCHEMA:
         queue["official_dependency"] = read_json(runtime)["official_dependency"]
     elif matrix["schema"] in FGPO_FAMILIES:
@@ -280,7 +312,9 @@ def verify(queue: dict) -> None:
     for key in ("runtime", "manifest"):
         if sha256_file(Path(queue[key])) != queue[key + "_sha256"]:
             raise ValueError("sealed BR400 input changed")
-    matrix = verify_manifest(source, Path(queue["manifest"]))
+    matrix = selected_matrix(
+        verify_manifest(source, Path(queue["manifest"])), queue.get("only_arms")
+    )
     if (
         matrix["schema"] in LAST_ONLY_FAMILIES
         and queue["shared_gpu_policy"]["max_own_memory_fraction"] != 0.90
@@ -797,7 +831,9 @@ def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -
     ):
         raise ValueError("fresh CPU-only execution must match sealed source/root/queue")
     verify(queue)
-    matrix = verify_manifest(Path(queue["source"]), Path(queue["manifest"]))
+    matrix = selected_matrix(
+        verify_manifest(Path(queue["source"]), Path(queue["manifest"])), queue.get("only_arms")
+    )
     if eval_only_row is not None and (
         queue["family"] != FFN_SCHEMA or eval_only_row not in matrix["priority"]
     ):
@@ -962,6 +998,7 @@ def main() -> None:
         parser.add_argument("--" + key, type=Path)
     parser.add_argument("--prepare", action="store_true")
     parser.add_argument("--eval-only-row", choices=("DP", "FN", "FG", "FB", "PO"))
+    parser.add_argument("--only-arms", nargs="+", choices=PENDING_FGPO_ARMS)
     args = parser.parse_args()
     fields = ("source", "manifest", "runtime", "output", "shared_policy")
     if (
@@ -971,9 +1008,19 @@ def main() -> None:
         and all(getattr(args, key) is not None for key in fields)
     ):
         prepare(
-            args.source, args.manifest, args.runtime, args.output, read_json(args.shared_policy)
+            args.source,
+            args.manifest,
+            args.runtime,
+            args.output,
+            read_json(args.shared_policy),
+            only_arms=args.only_arms,
         )
-    elif args.queue and not args.prepare and all(getattr(args, key) is None for key in fields):
+    elif (
+        args.queue
+        and not args.prepare
+        and args.only_arms is None
+        and all(getattr(args, key) is None for key in fields)
+    ):
         execute(
             read_json(args.queue), args.queue.resolve().parent, eval_only_row=args.eval_only_row
         )
