@@ -166,8 +166,9 @@ def validate_report_repair(q, arm, output, report_source):
         ("D0", NO_SSL_SCHEMA),
         ("PT1", PT1_SCHEMA),
         ("PT2", PT2_SCHEMA),
+        ("CG1", SCHEMA),
     ):
-        raise ValueError("analysis-only report repair is scoped to D0, PT1 or PT2")
+        raise ValueError("analysis-only report repair is scoped to D0, PT1, PT2 or CG1")
     output = Path(output).resolve()
     protected = [Path(q["output"]).resolve()] + [
         Path(row["plan"]["run_root"]).resolve() for row in q["rows"]
@@ -185,6 +186,7 @@ def validate_report_repair(q, arm, output, report_source):
         "scripts/v2/generate_no_ssl.py",
         "scripts/v2/generate_pt1.py",
         "scripts/v2/generate_pt2.py",
+        "scripts/v2/generate_fgpo_family.py",
     ]
     dirty = subprocess.check_output(
         ["git", "-C", str(report_source), "status", "--porcelain"], text=True
@@ -227,6 +229,32 @@ def validate_report_repair(q, arm, output, report_source):
     if dirty or changed:
         raise ValueError("repair source is dirty or numerical method/analysis code changed")
     return output
+
+
+def cg1_parent_binding(parent, training_identity, *, parent_path, parent_sha256):
+    """Bind CG1's recorded SSL1 scope without changing the diagnostic population."""
+    trained = training_identity["data"]
+    comparable = copy.deepcopy(trained)
+    scope = comparable["loss_protocol"].pop("conditional_ssl1_scope", None)
+    if (
+        scope != "local_control_rows_global_condition_weights_masked_node_mean"
+        or comparable != parent["data"]
+    ):
+        raise ValueError("CG1 medium parent may differ only by declared conditional_ssl1_scope")
+    return {
+        **copy.deepcopy(parent),
+        "data": copy.deepcopy(trained),
+        "training_protocol_binding": {
+            "original_parent_manifest": str(parent_path),
+            "original_parent_sha256": parent_sha256,
+            "changed_field": "data.loss_protocol.conditional_ssl1_scope",
+            "previous_value": None,
+            "training_value": scope,
+            "training_run_id": training_identity["run_id"],
+            "diagnostic_population_sha256": population_identity(parent["schedule"]),
+            "sampling_changed": False,
+        },
+    }
 
 
 def pt1_parent_binding(parent, training_identity, *, parent_path, parent_sha256):
@@ -369,14 +397,17 @@ def execute(
         )
         parent_path = q["medium_analysis"]["parent_manifest"]
         parent_sha256 = q["medium_analysis"]["parent_manifest_sha256"]
-        if arm in ("PT1", "PT2"):
-            bound_parent = pt1_parent_binding(
+        if arm in ("PT1", "PT2", "CG1"):
+            bind_parent = cg1_parent_binding if arm == "CG1" else pt1_parent_binding
+            bound_parent = bind_parent(
                 parent,
                 read(Path(plan["run_root"]) / "run_manifest.json"),
                 parent_path=parent_path,
                 parent_sha256=parent_sha256,
             )
-            parent_path = root / "pt1-medium-parent.json"
+            parent_path = root / (
+                "cg1-medium-parent.json" if arm == "CG1" else "pt1-medium-parent.json"
+            )
             write(parent_path, bound_parent)
             parent_sha256 = sha(parent_path)
         if shared_manifest is None:

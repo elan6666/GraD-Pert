@@ -191,15 +191,18 @@ def test_disabled_heads_report_absent_not_collapsed():
 
 
 @pytest.mark.parametrize("failure", [None, "dirty", "numeric", "arm", "old_output"])
-@pytest.mark.parametrize("repair_arm", ["D0", "PT1", "PT2"])
+@pytest.mark.parametrize("repair_arm", ["D0", "PT1", "PT2", "CG1"])
 def test_analysis_repair_freezes_numeric_source_and_protects_old_outputs(
     tmp_path, monkeypatch, failure, repair_arm
 ):
     monkeypatch.setattr(medium, "SERVER_ROOT", tmp_path)
     q = {
-        "family": {"D0": family.SCHEMA, "PT1": medium.PT1_SCHEMA, "PT2": medium.PT2_SCHEMA}[
-            repair_arm
-        ],
+        "family": {
+            "D0": family.SCHEMA,
+            "PT1": medium.PT1_SCHEMA,
+            "PT2": medium.PT2_SCHEMA,
+            "CG1": medium.SCHEMA,
+        }[repair_arm],
         "source_commit": "a" * 40,
         "output": str(tmp_path / "old-queue"),
         "rows": [{"plan": {"run_root": str(tmp_path / "old-run")}}],
@@ -265,4 +268,59 @@ def test_pt1_medium_parent_retains_exact_data_and_population(drift):
         assert medium.population_identity(bound["schedule"]) == medium.population_identity(
             initial["schedule"]
         )
+    assert parent == initial
+
+
+@pytest.mark.parametrize("drift", [None, "canonical", "controls", "extra", "scope", "missing"])
+def test_cg1_medium_binding_preserves_data_and_diagnostic_population(drift):
+    parent = {
+        "data": {
+            "canonical_sha256": "a" * 64,
+            "controls_sha256": "b" * 64,
+            "loss_protocol": {"reduction": "row_mean"},
+        },
+        "schedule": [
+            dict(
+                index=0,
+                condition_id="a+ctrl",
+                rows=[{"control_row_id": "c1"}],
+                deep_rows=[],
+                gradient_rows=[],
+                queries=[2, 3],
+                view_seed=5,
+            )
+        ],
+    }
+    initial = copy.deepcopy(parent)
+    identity = dict(run_id="cg1", data=copy.deepcopy(parent["data"]))
+    identity["data"]["loss_protocol"]["conditional_ssl1_scope"] = (
+        "local_control_rows_global_condition_weights_masked_node_mean"
+    )
+    if drift == "canonical":
+        identity["data"]["canonical_sha256"] = "c" * 64
+    elif drift == "controls":
+        identity["data"]["controls_sha256"] = "c" * 64
+    elif drift == "extra":
+        identity["data"]["loss_protocol"]["unapproved"] = True
+    elif drift == "scope":
+        identity["data"]["loss_protocol"]["conditional_ssl1_scope"] = "different"
+    elif drift == "missing":
+        del identity["data"]["loss_protocol"]["conditional_ssl1_scope"]
+    if drift:
+        with pytest.raises(ValueError, match="only by declared conditional_ssl1_scope"):
+            medium.cg1_parent_binding(
+                parent, identity, parent_path="parent", parent_sha256="d" * 64
+            )
+    else:
+        bound = medium.cg1_parent_binding(
+            parent, identity, parent_path="parent", parent_sha256="d" * 64
+        )
+        assert bound["data"] == identity["data"]
+        assert bound["schedule"] == initial["schedule"]
+        assert bound["training_protocol_binding"]["sampling_changed"] is False
+        assert medium.population_identity(bound["schedule"]) == medium.population_identity(
+            parent["schedule"]
+        )
+        bound["schedule"][0]["queries"].append(4)
+        assert parent == initial
     assert parent == initial
