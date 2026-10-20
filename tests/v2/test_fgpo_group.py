@@ -142,9 +142,26 @@ def test_pending_singleton_keeps_all_gates_and_rejects_scope_tampering(new_queue
     assert runner.selected_matrix(
         runner.verify_manifest(ROOT, Path(old["manifest"])), queue["only_arms"]
     )["preflight_priority"] == ["S12-L4"]
+    row = queue["rows"][0]
+    for binding in queue["eval_bindings"]:
+        args = SimpleNamespace(
+            gpu=binding["gpu"],
+            cell_batch=128,
+            reference_batch=128,
+            config=Path(row["plan"]["config"]),
+            publication=Path(row["plan"]["publication"]),
+            publication_sha256=row["plan"]["publication_sha256"],
+            data_root=Path(row["plan"]["data_root"]),
+            output=Path(binding["output"]),
+            shared_queue=Path(queue["output"]) / "queue.json",
+            row_name="S12-L4",
+        )
+        assert validate_eval_binding(queue, args, queue["source_commit"]) == row
     queue["only_arms"] = ["CG1"]
     with pytest.raises(ValueError, match="scope/order"):
         runner.verify(queue)
+    with pytest.raises(ValueError, match="scope"):
+        validate_eval_binding(queue, args, queue["source_commit"])
 
 
 @pytest.mark.parametrize(

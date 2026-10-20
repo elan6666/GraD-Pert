@@ -31,8 +31,8 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     from generate_dino_pair import SCHEMA as DINO_SCHEMA
     from generate_ffn_five import PRIORITY as FFN_PRIORITY
     from generate_ffn_five import SCHEMA as FFN_SCHEMA
-    from generate_fgpo_family import ARMS as FGPO_ARMS
     from generate_fgpo_family import SCHEMA as FGPO_SCHEMA
+    from generate_fgpo_family import verify_manifest as verify_fgpo_manifest
     from generate_no_ssl import ARMS as NO_SSL_ARMS
     from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
     from generate_pt1 import SCHEMA as PT1_SCHEMA
@@ -75,12 +75,19 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         or queue.get("steps") != 10
     ):
         raise ValueError("FFN evaluation requires the exact last-only five-arm scope")
-    if queue.get("family") == FGPO_SCHEMA and (
-        queue.get("mode") != FGPO_SCHEMA
-        or [row["name"] for row in queue["rows"]] != list(FGPO_ARMS)
-        or queue.get("steps") != 10
-    ):
-        raise ValueError("new B0 evaluation requires the exact ten-arm scope")
+    if queue.get("family") == FGPO_SCHEMA:
+        from run_br400_group import selected_matrix
+
+        matrix = selected_matrix(
+            verify_fgpo_manifest(Path(queue["source"]), Path(queue["manifest"])),
+            queue.get("only_arms"),
+        )
+        if (
+            queue.get("mode") != FGPO_SCHEMA
+            or [row["name"] for row in queue["rows"]] != matrix["priority"]
+            or queue.get("steps") != 10
+        ):
+            raise ValueError("new B0 evaluation requires its sealed ten-arm or selected scope")
     if queue.get("family") == DINO_SCHEMA and (
         queue.get("mode") != DINO_SCHEMA
         or [row["name"] for row in queue["rows"]] != list(DINO_ARMS)
