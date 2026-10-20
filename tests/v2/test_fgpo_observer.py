@@ -29,6 +29,34 @@ def records(batch):
     ]
 
 
+def test_ssl_only_observer_does_not_label_first_global_as_prediction_main():
+    from test_staged_training import fixture
+
+    obj, batch, _ = fixture()
+    obj.eval()
+    collector = Collector(batch, records(batch), 42, stats_backend="fast")
+    initial = {k: v.clone() for k, v in obj.state_dict().items()}
+    with torch.no_grad(), torch.random.fork_rng():
+        expected_loss, expected_terms = obj(batch)
+    collector.install(obj)
+    try:
+        with torch.no_grad(), torch.random.fork_rng():
+            loss, terms = obj(batch)
+        torch.testing.assert_close(loss, expected_loss, rtol=0, atol=0)
+        for key in terms:
+            torch.testing.assert_close(terms[key], expected_terms[key], rtol=0, atol=0)
+        assert ("student", "main") not in collector.response_cache
+        assert not hasattr(collector, "main_response_inputs")
+        assert {v for role, v in collector.response_cache if role == "student"} == {
+            f"view{i}" for i in range(len(batch.cell_views))
+        }
+    finally:
+        collector.close()
+    collector.result()
+    for k, v in obj.state_dict().items():
+        torch.testing.assert_close(v, initial[k], rtol=0, atol=0)
+
+
 @pytest.mark.parametrize("arm", ["B0", "CG1", "MR1", "S12-L4"])
 def test_observer_labels_actual_forward_paths_and_never_changes_model_or_loss(arm):
     obj, batch = new_fixture(arm)

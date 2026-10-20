@@ -645,7 +645,7 @@ class Collector:
             )
             response_layout = (
                 [("main", None)] + ([("masked_response", None)] if auxiliary_response else [])
-                if role == "student"
+                if role == "student" and obj.prediction_enabled
                 else []
             )
             response_layout += [

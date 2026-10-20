@@ -186,25 +186,45 @@ def validate_report_repair(q, arm, output, report_source):
         "scripts/v2/generate_pt1.py",
         "scripts/v2/generate_pt2.py",
     ]
-    if (
-        subprocess.check_output(
-            ["git", "-C", str(report_source), "status", "--porcelain"], text=True
-        ).strip()
-        or subprocess.check_output(
+    dirty = subprocess.check_output(
+        ["git", "-C", str(report_source), "status", "--porcelain"], text=True
+    ).strip()
+    changed = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(report_source),
+            "diff",
+            "--name-only",
+            q["source_commit"],
+            "HEAD",
+            "--",
+            *paths,
+        ],
+        text=True,
+    ).splitlines()
+    if arm == "PT2" and "scripts/v2/cap40_posthoc.py" in changed:
+        original = subprocess.check_output(
             [
                 "git",
                 "-C",
                 str(report_source),
-                "diff",
-                "--name-only",
-                q["source_commit"],
-                "HEAD",
-                "--",
-                *paths,
+                "show",
+                q["source_commit"] + ":scripts/v2/cap40_posthoc.py",
             ],
             text=True,
-        ).strip()
-    ):
+        )
+        before = '\n                if role == "student"\n                else []'
+        after = (
+            '\n                if role == "student" and obj.prediction_enabled'
+            '\n                else []'
+        )
+        if original.count(before) != 1 or (
+            report_source / "scripts/v2/cap40_posthoc.py"
+        ).read_text() != original.replace(before, after):
+            raise ValueError("only the declared SSL-only observer layout correction is allowed")
+        changed.remove("scripts/v2/cap40_posthoc.py")
+    if dirty or changed:
         raise ValueError("repair source is dirty or numerical method/analysis code changed")
     return output
 

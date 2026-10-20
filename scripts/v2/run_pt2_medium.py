@@ -52,7 +52,25 @@ def validate_complete(queue, row, *, root=None):
     )
 
 
-def execute(queue_path, arm, *, repair_output=None):
+def copy_sealed_manifest(root, source, expected_sha256):
+    """Reuse exact sealed recipes; endpoints still verify data/config/population."""
+    from run_fgpo_medium import SERVER_ROOT
+
+    source = Path(source).resolve()
+    if not source.is_relative_to(SERVER_ROOT) or sha(source) != expected_sha256:
+        raise ValueError("reused sealed manifest path or hash differs")
+    target = root / "shared-manifest.json"
+    with target.open("xb") as stream:
+        stream.write(source.read_bytes())
+    if sha(target) != expected_sha256:
+        raise ValueError("copied sealed manifest changed")
+    write(root / "REUSED_MANIFEST.json", dict(source=str(source), sha256=expected_sha256))
+    return target
+
+
+def execute(
+    queue_path, arm, *, repair_output=None, sealed_manifest=None, sealed_manifest_sha256=None
+):
     from run_br400_group import validate_complete as validate_training
     from run_br400_group import verify
     from run_fgpo_medium import (
@@ -66,6 +84,8 @@ def execute(queue_path, arm, *, repair_output=None):
     queue = read(queue_path)
     if arm != "PT2" or queue.get("family") != SCHEMA:
         raise ValueError("dual endpoint analysis is limited to the exact PT2 family")
+    if sealed_manifest is not None and repair_output is None:
+        raise ValueError("sealed manifest reuse requires an independent repair root")
     verify(queue)
     row = next(r for r in queue["rows"] if r["name"] == arm)
     validate_training(row["plan"])
@@ -78,7 +98,12 @@ def execute(queue_path, arm, *, repair_output=None):
         raise ValueError("fresh server-only dual-endpoint output required")
     root.mkdir()
     started = time.perf_counter()
-    proofs, manifest = {}, None
+    proofs = {}
+    manifest = (
+        copy_sealed_manifest(root, sealed_manifest, sealed_manifest_sha256)
+        if sealed_manifest is not None
+        else None
+    )
     try:
         for label, spec in ENDPOINTS.items():
             child = root / label

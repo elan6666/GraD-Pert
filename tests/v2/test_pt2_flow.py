@@ -233,6 +233,55 @@ def test_completed_recovered_report_hashes_original_parent_snapshots(staged_run,
     )
 
 
+@pytest.mark.parametrize("changed", [False, True])
+def test_dual_repair_reuses_exact_sealed_manifest_bytes(tmp_path, monkeypatch, changed):
+    monkeypatch.setattr(medium, "SERVER_ROOT", tmp_path)
+    source = tmp_path / "original.json"
+    atomic_json(source, dict(schedule=[dict(index=0)], rows=5317, conditions=1335))
+    expected = sha256_file(source)
+    root = tmp_path / "repair"
+    root.mkdir()
+    if changed:
+        source.write_text("{}")
+        with pytest.raises(ValueError, match="path or hash"):
+            dual.copy_sealed_manifest(root, source, expected)
+        assert not (root / "shared-manifest.json").exists()
+    else:
+        copied = dual.copy_sealed_manifest(root, source, expected)
+        assert copied.read_bytes() == source.read_bytes()
+
+
+@pytest.mark.parametrize("extra_change", [False, True])
+def test_pt2_repair_permits_only_declared_observer_layout_change(
+    tmp_path, monkeypatch, extra_change
+):
+    monkeypatch.setattr(medium, "SERVER_ROOT", tmp_path)
+    source = tmp_path / "source"
+    old = 'x = (\n                if role == "student"\n                else [])\n'
+    new = old.replace('if role == "student"', 'if role == "student" and obj.prediction_enabled')
+    script = source / "scripts/v2/cap40_posthoc.py"
+    script.parent.mkdir(parents=True)
+    script.write_text(new + ("# additional change\n" if extra_change else ""))
+
+    def git(command, **kwargs):
+        if "status" in command:
+            return ""
+        return old if "show" in command else "scripts/v2/cap40_posthoc.py\n"
+
+    monkeypatch.setattr(medium.subprocess, "check_output", git)
+    queue = dict(
+        family=family.SCHEMA, source_commit="a" * 40, output=str(tmp_path / "old"), rows=[]
+    )
+    if extra_change:
+        with pytest.raises(ValueError, match="only the declared"):
+            medium.validate_report_repair(queue, "PT2", tmp_path / "fresh", source)
+    else:
+        assert (
+            medium.validate_report_repair(queue, "PT2", tmp_path / "fresh", source)
+            == tmp_path / "fresh"
+        )
+
+
 def test_pt2_completion_requires_both_endpoints_and_identical_physical_manifest(
     tmp_path, monkeypatch
 ):

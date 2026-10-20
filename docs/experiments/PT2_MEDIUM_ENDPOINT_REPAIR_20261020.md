@@ -14,3 +14,13 @@ PT2修复在新的独立输出根执行，继续要求两个不同checkpoint、�
 ## 验证
 
 本地65项相关测试通过（PT2端点、父诊断来源、完整报告、无SSL缺省项、中等observer），ruff及format/diff检查通过。新增测试拒绝错误identity、收据/journal冲突、错误epoch、内容hash变化及父history变化。服务器还将以真实保留的epoch2/epoch6分别做CPU端点与saved报告预检，之后仅补中等分析，不重训、不重做已完成last测试、不扩全量。
+
+## GPU参考探针的纯蒸馏路径修复
+
+11d7af7版本CPU端点通过并完成封存，但after_ssl2 reference probe因gather索引越界退出。分析钩子的response_layout无条件给Student预留main位置，纯SSL实际没有main预测forward，导致第一个Global被误标为main，随后诊断补跑把其较小的图表示当成完整查询集合。CUDA异步错误在后续算子及RNG恢复处显现。
+
+CPU真实前向测试先复现“纯SSL response_cache包含main”的错误；修复仅将Collector.install中的布局条件加上obj.prediction_enabled。未改模型或损失，测试验证无钩子/有钩子loss与分项精确相同，全部状态不变，各Global/Local标签一一对应。原B0/CG1/MR1/S12-L4及MSE-only钩子回归继续通过。
+
+跨版本保护仅针对PT2允许这一个明确的条件变更：用Git读取训练SHA的原cap40_posthoc.py，逐字节应用该唯一替换后必须与分析版本文件完全一致；其他改动仍拒绝，src及数值统计/资源门等文件继续冻结。70项相关测试通过。
+
+新独立修复允许复制此前已成功封存manifest的完全相同字节，核对输入及复制后的SHA256；后续各端点仍核对data/config/采样population，并在同一物理manifest上比较。旧manifest及recipes保留，来源写REUSED_MANIFEST.json，省去193.89秒重复CPU封存。不能据CPU通过声明GPU探针通过。
