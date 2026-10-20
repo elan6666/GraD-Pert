@@ -217,7 +217,7 @@ def validate_report_repair(q, arm, output, report_source):
         before = '\n                if role == "student"\n                else []'
         after = (
             '\n                if role == "student" and obj.prediction_enabled'
-            '\n                else []'
+            "\n                else []"
         )
         if original.count(before) != 1 or (
             report_source / "scripts/v2/cap40_posthoc.py"
