@@ -1,6 +1,7 @@
 """PT2 has a six-epoch scope and genuine phase-specific diagnostic checkpoints."""
 
 import copy
+import shutil
 import sys
 from pathlib import Path
 
@@ -137,6 +138,98 @@ def test_legacy_config_does_not_acquire_six_epoch_dispatch():
             dict(resolved_config=load_experiment_config(p).model_dump(mode="json"))
         )
         == 4
+    )
+
+
+@pytest.mark.parametrize("change", [None, "identity", "conflict", "hash", "epoch"])
+def test_retained_pretrain_receipt_survives_later_journal_without_role(staged_run, change):
+    cp = seal_pretrain(staged_run)
+    identity = read_json(staged_run / "run_manifest.json")
+    receipt = dict(identity=identity, checkpoint=copy.deepcopy(cp))
+    journal = read_json(staged_run / "fit/epoch_state.json")
+    journal.pop("pretrain")
+    if change == "identity":
+        receipt["identity"] = {}
+    elif change == "conflict":
+        journal["pretrain"] = {**cp, "sha256": "f" * 64}
+    elif change == "hash":
+        receipt["checkpoint"]["sha256"] = "f" * 64
+    elif change == "epoch":
+        receipt["checkpoint"]["epoch"] = 3
+    atomic_json(staged_run / "fit/epoch_state.json", journal)
+    atomic_json(staged_run / "fit/pretrain-checkpoint.json", receipt)
+    if change is None:
+        assert select_checkpoint(staged_run, "pretrain")[0] == cp
+    else:
+        with pytest.raises(ValueError):
+            select_checkpoint(staged_run, "pretrain")
+
+
+@pytest.mark.parametrize("change", [None, "history", "epoch", "identity"])
+def test_inherited_diagnostics_require_verified_parent_lineage(tmp_path, change):
+    root, parent = tmp_path / "child", tmp_path / "parent"
+    identity = dict(run_id="child", source={"commit": "a" * 40}, data={}, config_sha256="b" * 64)
+    history = [dict(epoch=i) for i in range(1, 7)]
+    prior = {**copy.deepcopy(identity), "run_id": "parent"}
+    recovery = dict(
+        status="verified",
+        run_id="child",
+        parent_run_id="parent",
+        source_commit="a" * 40,
+        config_sha256="b" * 64,
+        inherited_epochs=[1, 2, 3],
+        parent_run_root=str(parent),
+    )
+    if change == "identity":
+        prior["source"] = {"commit": "c" * 40}
+    atomic_json(parent / "run_manifest.json", prior)
+    atomic_json(parent / "fit/history.json", history[:3])
+    atomic_json(root / "RECOVERY_MIGRATION.json", recovery)
+    if change == "history":
+        history[0] = dict(epoch=1, modified=True)
+    epoch = 4 if change == "epoch" else 2
+    if change is None:
+        path, origins = analysis.diagnostic_path(root, epoch, identity, history)
+        assert path == parent / "fit/loss-diagnostic-epoch-0002.json"
+        assert parent / "run_manifest.json" in origins
+    else:
+        with pytest.raises(ValueError, match="inherited diagnostic"):
+            analysis.diagnostic_path(root, epoch, identity, history)
+
+
+def test_completed_recovered_report_hashes_original_parent_snapshots(staged_run, tmp_path):
+    parent = tmp_path / "immutable-parent"
+    identity = read_json(staged_run / "run_manifest.json")
+    identity["data"] = {}
+    atomic_json(staged_run / "run_manifest.json", identity)
+    complete = read_json(staged_run / "COMPLETE.json")
+    complete["identity"] = identity
+    atomic_json(staged_run / "COMPLETE.json", complete)
+    test = read_json(staged_run / "fit/last-test.json")
+    test["identity"]["training"] = identity
+    atomic_json(staged_run / "fit/last-test.json", test)
+    shutil.copytree(staged_run, parent)
+    prior = {**copy.deepcopy(identity), "run_id": "parent"}
+    atomic_json(parent / "run_manifest.json", prior)
+    atomic_json(
+        staged_run / "RECOVERY_MIGRATION.json",
+        dict(
+            status="verified",
+            run_id=identity["run_id"],
+            parent_run_id="parent",
+            parent_run_root=str(parent),
+            inherited_epochs=[1, 2, 3],
+            source_commit=identity["source"]["commit"],
+            config_sha256=identity["config_sha256"],
+        ),
+    )
+    for epoch in range(4):
+        (staged_run / f"fit/loss-diagnostic-epoch-{epoch:04d}.json").unlink()
+    result = analysis.collect(staged_run, name="PT2", analysis_identity={})
+    inherited = parent / "fit/loss-diagnostic-epoch-0002.json"
+    assert result["inputs"][str(inherited)] == sha256_file(inherited)
+    assert result["inputs"]["RECOVERY_MIGRATION.json"] == sha256_file(
+        staged_run / "RECOVERY_MIGRATION.json"
     )
 
 

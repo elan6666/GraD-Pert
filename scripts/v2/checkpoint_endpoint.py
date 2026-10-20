@@ -26,6 +26,16 @@ def select_checkpoint(root: Path, role: str = "last") -> tuple[dict, dict]:
     else:
         raise ValueError("only last and retained pretrain checkpoints are diagnostic endpoints")
     cp = journal.get(role)
+    receipt_path = root / "fit/pretrain-checkpoint.json"
+    if role == "pretrain" and receipt_path.exists():
+        receipt = json.loads(receipt_path.read_text())
+        identity = json.loads((root / "run_manifest.json").read_text())
+        retained = receipt.get("checkpoint")
+        if receipt.get("identity") != identity or (cp is not None and cp != retained):
+            raise ValueError("retained pretrain receipt identity or journal differs")
+        # Historical journals omit this role after the boundary epoch. The
+        # separate training receipt remains authoritative and is hash checked below.
+        cp = retained
     if not isinstance(cp, dict) or cp.get("epoch") != epoch:
         raise ValueError("selected checkpoint does not match the declared endpoint epoch")
     path = (root / "fit" / cp["file"]).resolve()

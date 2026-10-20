@@ -120,6 +120,38 @@ def trajectory(points: list[dict], values: list) -> tuple[list, list]:
     return x, y
 
 
+def diagnostic_path(root: Path, epoch: int, manifest: dict, history: list) -> tuple[Path, list]:
+    """Resolve inherited snapshots only through an explicit verified recovery lineage."""
+    path = root / f"fit/loss-diagnostic-epoch-{epoch:04d}.json"
+    if path.exists():
+        return path, []
+    receipt_path = root / "RECOVERY_MIGRATION.json"
+    recovery = read(receipt_path)
+    inherited = recovery.get("inherited_epochs", [])
+    parent = Path(recovery["parent_run_root"]).resolve()
+    prior = read(parent / "run_manifest.json")
+    prior_history = read(parent / "fit/history.json")
+    if (
+        recovery.get("status") != "verified"
+        or recovery.get("run_id") != manifest["run_id"]
+        or recovery.get("parent_run_id") != prior["run_id"]
+        or recovery.get("source_commit") != manifest["source"]["commit"]
+        or recovery.get("config_sha256") != manifest["config_sha256"]
+        or any(prior[k] != manifest[k] for k in ("source", "data", "config_sha256"))
+        or not inherited
+        or inherited != list(range(1, len(inherited) + 1))
+        or (epoch != 0 and epoch not in inherited)
+        or history[: len(inherited)] != prior_history[: len(inherited)]
+        or parent == root.resolve()
+    ):
+        raise ValueError("inherited diagnostic recovery identity or epoch differs")
+    return parent / path.relative_to(root), [
+        receipt_path,
+        parent / "run_manifest.json",
+        parent / "fit/history.json",
+    ]
+
+
 def collect(
     root: Path, *, name: str, analysis_identity: dict, checkpoint_role: str = "last"
 ) -> dict:
@@ -163,7 +195,8 @@ def collect(
     ]
     snapshots = []
     for epoch in range(epochs + 1):
-        path = root / f"fit/loss-diagnostic-epoch-{epoch:04d}.json"
+        path, origin = diagnostic_path(root, epoch, manifest, history)
+        paths.extend(p for p in origin if p not in paths)
         d = read(path)
         p = d["process"]
         if p["split"] != "train" or p["selection_use"] != "none":
@@ -242,7 +275,9 @@ def collect(
         "test_performed_for_endpoint": checkpoint_role == "last",
         "config_sha256": manifest["config_sha256"],
         "resolved_config_sha256": digest(root / "resolved_config.json"),
-        "inputs": {str(p.relative_to(root)): digest(p) for p in paths},
+        "inputs": {
+            str(p.relative_to(root)) if p.is_relative_to(root) else str(p): digest(p) for p in paths
+        },
         "fixed_input_sha256": snapshots[0]["input_sha256"] if not groups else None,
         "fixed_inputs_by_training_stage": groups,
         "cross_stage_probe_comparison": "different input/view recipes; compare within each phase"

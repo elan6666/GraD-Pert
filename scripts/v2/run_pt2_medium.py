@@ -52,10 +52,15 @@ def validate_complete(queue, row, *, root=None):
     )
 
 
-def execute(queue_path, arm):
+def execute(queue_path, arm, *, repair_output=None):
     from run_br400_group import validate_complete as validate_training
     from run_br400_group import verify
-    from run_fgpo_medium import COUNTS, SERVER_ROOT, validate_medium_complete
+    from run_fgpo_medium import (
+        COUNTS,
+        SERVER_ROOT,
+        validate_medium_complete,
+        validate_report_repair,
+    )
     from run_fgpo_medium import execute as endpoint
 
     queue = read(queue_path)
@@ -64,7 +69,11 @@ def execute(queue_path, arm):
     verify(queue)
     row = next(r for r in queue["rows"] if r["name"] == arm)
     validate_training(row["plan"])
-    root = Path(queue["output"]) / "PT2-medium"
+    root = (
+        validate_report_repair(queue, arm, repair_output, Path(__file__).resolve().parents[2])
+        if repair_output is not None
+        else Path(queue["output"]) / "PT2-medium"
+    )
     if root.exists() or not root.resolve().is_relative_to(SERVER_ROOT):
         raise ValueError("fresh server-only dual-endpoint output required")
     root.mkdir()
@@ -79,6 +88,7 @@ def execute(queue_path, arm):
                 checkpoint_role=spec["role"],
                 endpoint_root=child,
                 shared_manifest=manifest,
+                repair_output=repair_output,
             )
             proofs[label] = validate_medium_complete(
                 queue, row, root=child, checkpoint_role=spec["role"]

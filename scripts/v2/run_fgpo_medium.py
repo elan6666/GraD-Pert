@@ -108,7 +108,11 @@ def validate_medium_complete(queue, row, *, root=None, checkpoint_role=None):
     plan = row["plan"]
     journal = read(Path(plan["run_root"]) / "fit/epoch_state.json")
     role = checkpoint_role or "last"
-    checkpoint = journal[role]
+    checkpoint = (
+        select_checkpoint(Path(plan["run_root"]), role)[0]
+        if queue.get("family") == PT2_SCHEMA
+        else journal[role]
+    )
     expected = {
         "status": "completed",
         "arm": row["name"],
@@ -157,9 +161,13 @@ def validate_medium_complete(queue, row, *, root=None, checkpoint_role=None):
 
 
 def validate_report_repair(q, arm, output, report_source):
-    """Postfit D0/PT1 report repair; freeze numerical code and the parent queue."""
-    if (arm, q.get("family")) not in (("D0", NO_SSL_SCHEMA), ("PT1", PT1_SCHEMA)):
-        raise ValueError("analysis-only report repair is scoped to D0 or PT1")
+    """Postfit report repair; freeze numerical code and the parent queue."""
+    if (arm, q.get("family")) not in (
+        ("D0", NO_SSL_SCHEMA),
+        ("PT1", PT1_SCHEMA),
+        ("PT2", PT2_SCHEMA),
+    ):
+        raise ValueError("analysis-only report repair is scoped to D0, PT1 or PT2")
     output = Path(output).resolve()
     protected = [Path(q["output"]).resolve()] + [
         Path(row["plan"]["run_root"]).resolve() for row in q["rows"]
@@ -176,6 +184,7 @@ def validate_report_repair(q, arm, output, report_source):
         "scripts/v2/run_br400_group.py",
         "scripts/v2/generate_no_ssl.py",
         "scripts/v2/generate_pt1.py",
+        "scripts/v2/generate_pt2.py",
     ]
     if (
         subprocess.check_output(
@@ -246,13 +255,11 @@ def execute(
 
     q = read(queue_path)
     if q.get("family") == PT2_SCHEMA and endpoint_root is None:
-        if repair_output is not None or checkpoint_role != "last" or shared_manifest is not None:
-            raise ValueError(
-                "PT2 dual-endpoint scope cannot be replaced by a repair or single endpoint"
-            )
+        if checkpoint_role != "last" or shared_manifest is not None:
+            raise ValueError("PT2 dual-endpoint scope cannot be replaced by a single endpoint")
         from run_pt2_medium import execute as execute_pt2
 
-        return execute_pt2(queue_path, arm)
+        return execute_pt2(queue_path, arm, repair_output=repair_output)
     if (
         checkpoint_role != "last" or endpoint_root is not None or shared_manifest is not None
     ) and q.get("family") != PT2_SCHEMA:
@@ -264,6 +271,8 @@ def execute(
     report_source = Path(__file__).resolve().parents[2]
     if repair_output is None and source.resolve() != report_source:
         raise ValueError("medium worker must use the exact published queue source")
+    if repair_output is not None:
+        validate_report_repair(q, arm, repair_output, report_source)
     parent = validate_analysis_spec(q["medium_analysis"])
     row = next(r for r in q["rows"] if r["name"] == arm)
     validate_complete(row["plan"])
@@ -305,7 +314,10 @@ def execute(
             )
         stages[label] = time.perf_counter() - begin
 
-    base = [sys.executable, str(source / "scripts/v2/cap40_posthoc.py")]
+    # A repair changes endpoint metadata only. Native imports stay on the frozen
+    # training source via PYTHONPATH; the analysis checkout is separately recorded.
+    analysis_source = report_source if repair_output is not None else source
+    base = [sys.executable, str(analysis_source / "scripts/v2/cap40_posthoc.py")]
     common = [
         "--run-root",
         plan["run_root"],
@@ -374,7 +386,9 @@ def execute(
             population_identity(derived["schedule"]) != population_identity(parent["schedule"])
             or derived["method_sha"] != q["source_commit"]
             or derived["view_recipe_config_sha256"] != plan["config_sha256"]
-            or not manifest.resolve().is_relative_to(Path(q["output"]).resolve())
+            or not manifest.resolve().is_relative_to(
+                root.parent.resolve() if endpoint_root is not None else root.resolve()
+            )
         ):
             raise ValueError("resealing changed the common diagnostic population")
         command = [
