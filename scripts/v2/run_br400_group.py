@@ -37,6 +37,8 @@ from generate_pt1 import SCHEMA as PT1_SCHEMA
 from generate_pt1 import verify_manifest as verify_pt1_manifest
 from generate_pt2 import SCHEMA as PT2_SCHEMA
 from generate_pt2 import verify_manifest as verify_pt2_manifest
+from generate_representation_round1 import SCHEMA as RS_SCHEMA
+from generate_representation_round1 import verify_manifest as verify_rs_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -61,7 +63,15 @@ from gradpert.hashing import sha256_file, sha256_json
 
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
-FGPO_FAMILIES = (FGPO_SCHEMA, DINO_SCHEMA, DP2_SCHEMA, NO_SSL_SCHEMA, PT1_SCHEMA, PT2_SCHEMA)
+FGPO_FAMILIES = (
+    FGPO_SCHEMA,
+    DINO_SCHEMA,
+    DP2_SCHEMA,
+    NO_SSL_SCHEMA,
+    PT1_SCHEMA,
+    PT2_SCHEMA,
+    RS_SCHEMA,
+)
 LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA, *FGPO_FAMILIES)
 DEFERRED_SCDFM_POLICY = "scdfm_fit_gears_terminal_evaluation_deferred_v1"
 PENDING_FGPO_ARMS = ("S12-L4", "CG1", "U24", "MR1", "P1", "C1", "O1", "K2-fixed-prefix")
@@ -155,6 +165,8 @@ def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
 
 
 def verify_manifest(source: Path, manifest: Path) -> dict:
+    if read_json(manifest).get("schema") == RS_SCHEMA:
+        return verify_rs_manifest(source, manifest)
     if read_json(manifest).get("schema") == PT2_SCHEMA:
         return verify_pt2_manifest(source, manifest)
     if read_json(manifest).get("schema") == PT1_SCHEMA:
@@ -643,9 +655,20 @@ def validate_training_contract(plan: dict) -> dict:
 
 
 def expected_epochs(plan: dict) -> int:
-    """Six epochs belong only to the exact published PT2 configuration."""
+    """Short research and staged budgets require exact frozen family configurations."""
     from generate_pt2 import configuration
 
+    if plan["resolved_config"]["training"]["max_epochs"]["value"] == 2:
+        import yaml
+        from generate_representation_round1 import configs
+
+        source = Path(plan["repository_root"])
+        raw = yaml.safe_load(Path(plan["config"]).read_text())
+        if raw not in configs(source).values() or plan["resolved_config"] != load_experiment_config(
+            plan["config"]
+        ).model_dump(mode="json"):
+            raise ValueError("two-epoch dispatch requires an exact representation round1 arm")
+        return 2
     if plan["resolved_config"]["training"]["max_epochs"]["value"] == 6:
         expected = load_experiment_config(
             Path(plan["repository_root"])
@@ -949,6 +972,42 @@ def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -
                 state["phase"] = f"{row['name']}_fit"
                 run_stage(queue, row, "fit", training_command(path), "0,1", state, guard)
                 validate_training_contract(row["plan"])
+                if queue["family"] == RS_SCHEMA:
+                    from run_representation_postfit import (
+                        postfit_command,
+                        validate_research_complete,
+                    )
+
+                    state["phase"] = f"{row['name']}_postfit_validation"
+                    run_stage(
+                        queue,
+                        row,
+                        "postfit-validation",
+                        postfit_command(queue, row, "validation"),
+                        "0,1",
+                        state,
+                        guard,
+                    )
+                    # Analysis workers acquire GPU0 themselves; preserve the same
+                    # lease lifecycle as the existing medium worker below.
+                    gpu_leases.close()
+                    state["phase"] = f"{row['name']}_research_analysis"
+                    run_stage(
+                        queue,
+                        row,
+                        "research-analysis",
+                        postfit_command(queue, row, "analysis"),
+                        "0",
+                        state,
+                        guard,
+                    )
+                    state.setdefault("research_completed", {})[row["name"]] = (
+                        validate_research_complete(queue, row)
+                    )
+                    atomic_json(directory / "state.json", state)
+                    for gpu in ("0", "1"):
+                        gpu_leases.enter_context(lock(LEASE_ROOT / f"v2-gpu-{gpu}.lock"))
+                    continue
                 eval_stage = "last" if queue["family"] in LAST_ONLY_FAMILIES else "best-last"
                 phase = "last" if queue["family"] in LAST_ONLY_FAMILIES else "best_last"
                 state["phase"] = f"{row['name']}_{phase}"
@@ -977,6 +1036,16 @@ def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -
                     atomic_json(directory / "state.json", state)
                     for gpu in ("0", "1"):
                         gpu_leases.enter_context(lock(LEASE_ROOT / f"v2-gpu-{gpu}.lock"))
+            if queue["family"] == RS_SCHEMA:
+                state.update(
+                    status="research_complete",
+                    phase="awaiting_main_analysis",
+                    scientific_complete=False,
+                    test_status="deferred_until_design_lock",
+                )
+                atomic_json(directory / "state.json", state)
+                atomic_json(directory / "RESEARCH_COMPLETE.json", state)
+                return
             state.update(status="complete", phase="complete", scientific_complete=True)
             atomic_json(directory / "state.json", state)
             atomic_json(directory / "COMPLETE.json", state)

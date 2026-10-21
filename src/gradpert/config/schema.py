@@ -140,6 +140,7 @@ class TrainingConfig(StrictModel):
         "v2_fixed_3",
         "v2_fixed_4",
         "v2_fixed_1",
+        "v2_fixed_2",
         "inference_only",
         "vnext_combination_100",
         "vnext_combination_200",
@@ -174,6 +175,7 @@ class TrainingConfig(StrictModel):
                     "v2_fixed_3",
                     "v2_fixed_4",
                     "v2_fixed_1",
+                    "v2_fixed_2",
                 }:
                     raise ValueError("LR-only schedule requires R50 policy")
             elif self.formal_run_policy not in {"vnext_combination_100", "vnext_combination_200"}:
@@ -247,9 +249,11 @@ class TrainingConfig(StrictModel):
                 "v2_fixed_3",
                 "v2_fixed_4",
                 "v2_fixed_1",
+                "v2_fixed_2",
             }:
                 expected_epochs = {
                     "v2_fixed_1": 1,
+                    "v2_fixed_2": 2,
                     "v2_fixed_3": 3,
                     "v2_fixed_4": 4,
                     "v2_fixed_5": 5,
@@ -263,10 +267,14 @@ class TrainingConfig(StrictModel):
                         f"epoch{'s' if expected_epochs != 1 else ''} without early stopping"
                     )
                 final_only = (
-                    self.formal_run_policy in {"v2_fixed_6", "v2_fixed_4"}
+                    self.formal_run_policy in {"v2_fixed_6", "v2_fixed_4", "v2_fixed_2"}
                     and self.monitor == "none"
                     and self.monitor_mode == "none"
                 )
+                if self.formal_run_policy == "v2_fixed_2" and not final_only:
+                    raise ValueError(
+                        "v2 fixed2 research requires monitor=none and last-only selection"
+                    )
                 if not final_only and (
                     self.monitor not in {"val/prediction_loss", "val/joint_loss"}
                     or self.monitor_mode != "min"
@@ -444,6 +452,7 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_3",
                 "v2_fixed_4",
                 "v2_fixed_1",
+                "v2_fixed_2",
                 "fixed_epoch_pilot",
                 "vnext_combination_100",
                 "vnext_combination_200",
@@ -470,6 +479,7 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_3",
                 "v2_fixed_4",
                 "v2_fixed_1",
+                "v2_fixed_2",
             }
             and self.model_id != "gradpert_v2"
         ):
@@ -488,12 +498,13 @@ class ExperimentConfig(StrictModel):
             if disabled != (self.training.monitor == "none") or (
                 disabled
                 and (
-                    self.training.formal_run_policy not in {"v2_fixed_6", "v2_fixed_4"}
+                    self.training.formal_run_policy
+                    not in {"v2_fixed_6", "v2_fixed_4", "v2_fixed_2"}
                     or self.continuation
                 )
             ):
                 raise ValueError(
-                    "disabled validation requires fresh fixed4/fixed6 and monitor=none"
+                    "disabled validation requires fresh fixed2/fixed4/fixed6 and monitor=none"
                 )
             if self.artifacts.result_mode != "metrics_only":
                 raise ValueError("v2 requires metrics_only with server-side best/last checkpoints")
@@ -505,8 +516,10 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_3",
                 "v2_fixed_4",
                 "v2_fixed_1",
+                "v2_fixed_2",
             } or self.training.max_epochs.value != {
                 "v2_fixed_1": 1,
+                "v2_fixed_2": 2,
                 "v2_fixed_3": 3,
                 "v2_fixed_4": 4,
                 "v2_fixed_5": 5,
@@ -514,7 +527,7 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_20": 20,
                 "v2_fixed_50": 50,
             }.get(self.training.formal_run_policy):
-                raise ValueError("v2 requires a fixed 1/3/5/6/20/50 epoch best/last protocol")
+                raise ValueError("v2 requires its exact fixed-epoch checkpoint protocol")
             if self.training.optimizer.value != "GLM5MuonSplit_v2":
                 raise ValueError("v2 requires its explicit parameter-route optimizer")
             if (

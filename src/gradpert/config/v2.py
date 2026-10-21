@@ -63,6 +63,7 @@ class V2Architecture:
     genept_middle_width: int = 0
     control_conditioned_graph: bool = False
     perturbation_injection: str = "per_layer"
+    response_injection_residual: bool = False
     random_gene_order: bool = True
 
     def __post_init__(self) -> None:
@@ -93,6 +94,7 @@ class V2Architecture:
             "graph_mhc",
             "all_kda_prefix",
             "fixed_gene_order",
+            "response_injection_residual",
         ):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f"{name} must be boolean")
@@ -177,6 +179,7 @@ class V2Architecture:
             self.mlp_profile == "unified"
             or self.control_conditioned_graph
             or self.perturbation_injection != "per_layer"
+            or self.response_injection_residual
             or not self.random_gene_order
         ) and self.attention != "relay_full":
             raise ValueError("new mechanism profiles require relay attention")
@@ -377,6 +380,7 @@ class V2Architecture:
             ("genept_middle_width", 0),
             ("control_conditioned_graph", False),
             ("perturbation_injection", "per_layer"),
+            ("response_injection_residual", False),
             ("random_gene_order", True),
         ):
             if getattr(self, name) == default:
@@ -521,6 +525,7 @@ class V2Options:
             "genept_middle_width",
             "control_conditioned_graph",
             "perturbation_injection",
+            "response_injection_residual",
             "random_gene_order",
             "ssl1_local_views",
             "ssl2_local_views",

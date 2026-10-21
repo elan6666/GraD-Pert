@@ -23,8 +23,11 @@ from generate_pt1 import ARMS as PT1_ARMS
 from generate_pt1 import SCHEMA as PT1_SCHEMA
 from generate_pt2 import ARMS as PT2_ARMS
 from generate_pt2 import SCHEMA as PT2_SCHEMA
+from generate_representation_round1 import ARMS as RS_ARMS
+from generate_representation_round1 import SCHEMA as RS_SCHEMA
 
 FAMILY_ARMS = {
+    RS_SCHEMA: RS_ARMS,
     SCHEMA: ARMS,
     DINO_SCHEMA: DINO_ARMS,
     DP2_SCHEMA: {"DP2": DINO_ARMS["DP2"]},
@@ -344,7 +347,7 @@ def execute(
     shared_manifest=None,
 ):
     from profile_medium_observer import compare
-    from run_br400_group import validate_complete, verify
+    from run_br400_group import validate_complete, validate_training_contract, verify
 
     q = read(queue_path)
     if q.get("family") == PT2_SCHEMA and endpoint_root is None:
@@ -368,7 +371,11 @@ def execute(
         validate_report_repair(q, arm, repair_output, report_source)
     parent = validate_analysis_spec(q["medium_analysis"])
     row = next(r for r in q["rows"] if r["name"] == arm)
-    validate_complete(row["plan"])
+    research = q.get("family") == RS_SCHEMA
+    if research:
+        validate_training_contract(row["plan"])
+    else:
+        validate_complete(row["plan"])
     root = (
         Path(endpoint_root)
         if endpoint_root is not None
@@ -424,22 +431,23 @@ def execute(
         checkpoint_role,
     ]
     try:
-        call(
-            "saved-training-report",
-            [
-                sys.executable,
-                str(report_source / "scripts/v2/analyze_completed_ablation.py"),
-                "--run-root",
-                plan["run_root"],
-                "--output",
-                str(root / "saved"),
-                "--name",
-                arm,
-                "--checkpoint-role",
-                checkpoint_role,
-            ],
-            "",
-        )
+        if not research:
+            call(
+                "saved-training-report",
+                [
+                    sys.executable,
+                    str(report_source / "scripts/v2/analyze_completed_ablation.py"),
+                    "--run-root",
+                    plan["run_root"],
+                    "--output",
+                    str(root / "saved"),
+                    "--name",
+                    arm,
+                    "--checkpoint-role",
+                    checkpoint_role,
+                ],
+                "",
+            )
         parent_path = q["medium_analysis"]["parent_manifest"]
         parent_sha256 = q["medium_analysis"]["parent_manifest_sha256"]
         if arm in ("PT1", "PT2", "CG1", "U24", "MR1", "P1"):
@@ -529,20 +537,25 @@ def execute(
         summary = read(root / "analysis/summary.json")
         if any(summary.get(k) != v for k, v in COUNTS.items()):
             raise ValueError("medium output coverage incomplete")
-        call(
-            "report",
-            [
-                sys.executable,
-                str(source / "scripts/v2/cap40_posthoc_report.py"),
-                "--input",
-                str(root / "analysis"),
-                "--original",
-                str(root / "saved"),
-                "--output",
-                str(root / "report"),
-            ],
-            "",
-        )
+        if research:
+            from run_representation_postfit import render_medium_report
+
+            render_medium_report(q, row, root)
+        else:
+            call(
+                "report",
+                [
+                    sys.executable,
+                    str(source / "scripts/v2/cap40_posthoc_report.py"),
+                    "--input",
+                    str(root / "analysis"),
+                    "--original",
+                    str(root / "saved"),
+                    "--output",
+                    str(root / "report"),
+                ],
+                "",
+            )
         write(
             root / "MEDIUM_COMPLETE.json",
             {

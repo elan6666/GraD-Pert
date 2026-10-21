@@ -1,0 +1,89 @@
+{
+  "schema": "representation-round1-medium-1",
+  "family": "representation_round1_20261021",
+  "priority": [
+    "RS-B0",
+    "RS-RI"
+  ],
+  "preflight_priority": [
+    "RS-B0",
+    "RS-RI"
+  ],
+  "common_microbatch": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 320,
+  "epochs": 2,
+  "seed": 1,
+  "eval_batch": 128,
+  "validation": "disabled",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "initialization": "from_scratch; common B0 parameter initialization and seed",
+  "analysis": "same sealed medium population plus a separate fixed-panel training probe",
+  "baseline": {
+    "config": "configs/v2/fgpo_node0_20261016_b320/B0/gradpert_v2/nadig_jurkat.yaml",
+    "sha256": "80f5ee1d6c4d826d9d2c023f304c08f1734b5a05acd28d565f7053e367117830"
+  },
+  "schedule_semantics": {
+    "lr": "unchanged endpoint warmup cosine, warmup_fraction=0.16, over two epochs",
+    "ema": "unchanged cosine 0.99 to 1.0 over two epochs",
+    "comparison": "both arms share the shorter relative schedule; historical epoch2 is not this anchor"
+  },
+  "fixed_panel_diagnostics": {
+    "split": "train",
+    "conditions": 32,
+    "controls_per_condition": 4,
+    "query_genes": 1000,
+    "deep_gene_sample": 128,
+    "panel": "one fixed allowed training-expression panel shared by all arms and conditions",
+    "pairing": [
+      "same_condition_different_control",
+      "different_condition_same_control"
+    ],
+    "stratification": [
+      "cell_line",
+      "cell_type",
+      "context_id"
+    ],
+    "identity": "reuse sealed medium condition/row identities where eligible; seal the extra probe separately",
+    "independence": "deduplicate controls; report actual valid counts; do not replace missing rows silently",
+    "stages": "Response injection input, branch and actual state; self/cross/FFN; final norm",
+    "state_updates": false,
+    "persist_full_activations": false
+  },
+  "research_iteration": {
+    "round": 1,
+    "authorized_rounds": 4,
+    "future_rounds": "design only after deep analysis of the preceding round",
+    "design_evidence": [
+      "train",
+      "validation"
+    ],
+    "test_results_for_selection": false,
+    "success": "joint representation separation and response utility; not CE or DINO rank alone"
+  },
+  "rerun_old_BR_or_officials": false,
+  "rows": [
+    {
+      "name": "RS-B0",
+      "config": "configs/v2/representation_round1_20261021/RS-B0/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "cd41d23cbb19efdab22fc27819300dac1e6961bca4f226f5612c86b2c745a6b1",
+      "changes": {}
+    },
+    {
+      "name": "RS-RI",
+      "config": "configs/v2/representation_round1_20261021/RS-RI/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "65304a02704561f9fbe3addb7be335fc88a51688f9cef69941ac81d1a920a4f7",
+      "changes": {
+        "response_injection_residual": true
+      }
+    }
+  ],
+  "postfit_validation": true,
+  "test_timing": "after_four_round_design_lock"
+}

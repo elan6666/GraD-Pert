@@ -38,6 +38,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     config = load_experiment_config(plan["config"])
     if config.model_id != "gradpert_v2" or config.training.formal_run_policy not in {
         "v2_fixed_1",
+        "v2_fixed_2",
         "v2_fixed_3",
         "v2_fixed_4",
         "v2_fixed_5",

@@ -220,6 +220,7 @@ class RelayResponseEncoder(nn.Module):
         d, streams = options.width, options.streams
         self.streams = streams
         self.injection_mode = options.perturbation_injection
+        self.injection_residual = options.response_injection_residual
         self.checkpoint_layers = options.checkpoint_layers
         self.injections = nn.ModuleList(
             nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, d))
@@ -265,7 +266,8 @@ class RelayResponseEncoder(nn.Module):
     ) -> Tensor:
         p = condition[:, None, None, :].expand_as(x)
         if index == 0 or self.injection_mode == "per_layer":
-            x = self.injections[index](torch.cat((x, p), dim=-1))
+            injected = self.injections[index](torch.cat((x, p), dim=-1))
+            x = x + injected if self.injection_residual else injected
         x = self.self_layers[index](x, order=order, block_cls_to_gene=block_cls_to_gene)
         x = self.cross_layers[index](x, memory=control, order=order)
         return cast(Tensor, self.ffn_layers[index](x))
