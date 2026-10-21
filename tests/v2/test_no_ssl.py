@@ -191,7 +191,7 @@ def test_disabled_heads_report_absent_not_collapsed():
 
 
 @pytest.mark.parametrize("failure", [None, "dirty", "numeric", "arm", "old_output"])
-@pytest.mark.parametrize("repair_arm", ["D0", "PT1", "PT2", "CG1"])
+@pytest.mark.parametrize("repair_arm", ["D0", "PT1", "PT2", "CG1", "U24"])
 def test_analysis_repair_freezes_numeric_source_and_protects_old_outputs(
     tmp_path, monkeypatch, failure, repair_arm
 ):
@@ -202,6 +202,7 @@ def test_analysis_repair_freezes_numeric_source_and_protects_old_outputs(
             "PT1": medium.PT1_SCHEMA,
             "PT2": medium.PT2_SCHEMA,
             "CG1": medium.SCHEMA,
+            "U24": medium.SCHEMA,
         }[repair_arm],
         "source_commit": "a" * 40,
         "output": str(tmp_path / "old-queue"),
@@ -324,3 +325,70 @@ def test_cg1_medium_binding_preserves_data_and_diagnostic_population(drift):
         bound["schedule"][0]["queries"].append(4)
         assert parent == initial
     assert parent == initial
+
+
+@pytest.mark.parametrize("arm", ["U24", "MR1", "P1"])
+@pytest.mark.parametrize("drift", [None, "canonical", "controls", "mechanism", "protocol", "arm"])
+def test_response_parent_binding_only_declared_metadata(arm, drift):
+    parent = {
+        "data": {
+            "canonical_sha256": "a" * 64,
+            "controls_sha256": "b" * 64,
+            "unseen_gene_mechanisms": {"gene_conditioned_readout": False, "pca": False},
+            "loss_protocol": {"reduction": "row_mean", "batch_order": "random_mixed_seeded_v2"},
+        },
+        "schedule": [
+            dict(
+                index=0,
+                condition_id="a",
+                rows=[{"control_row_id": "c"}],
+                deep_rows=[],
+                gradient_rows=[],
+                queries=[2, 3],
+                view_seed=5,
+            )
+        ],
+    }
+    original = copy.deepcopy(parent)
+    identity = dict(run_id=arm, data=copy.deepcopy(parent["data"]))
+    if arm == "U24":
+        identity["data"]["unseen_gene_mechanisms"]["gene_conditioned_readout"] = True
+    else:
+        config = load_experiment_config(
+            ROOT / f"configs/v2/fgpo_node0_20261016_b320/{arm}/gradpert_v2/nadig_jurkat.yaml"
+        )
+        _, options = V2Options.parse_parameters(config.model.parameters)
+        protocol = identity["data"]["loss_protocol"]
+        protocol["new_response_supervision"] = dict(
+            population_response=options.population_response,
+            lambda_mmd=options.lambda_mmd,
+            mmd_bandwidth="detached_training_truth_median_offdiagonal",
+            masked_response_ratio=options.masked_response_ratio,
+            lambda_masked_response=options.lambda_masked_response,
+            masked_raw_residual="blocked",
+            epoch_budget="each_selected_training_truth_once",
+        )
+        if options.population_response:
+            protocol["batch_order"] = "same_condition_population_train_rows_once"
+            protocol["population_scope"] = "complete_effective_batch_all_microbatches_and_ranks"
+    if drift == "canonical":
+        identity["data"]["canonical_sha256"] = "c" * 64
+    elif drift == "controls":
+        identity["data"]["controls_sha256"] = "c" * 64
+    elif drift == "mechanism":
+        identity["data"]["unseen_gene_mechanisms"]["pca"] = True
+    elif drift == "protocol":
+        identity["data"]["loss_protocol"]["reduction"] = "condition_mean"
+    kwargs = dict(arm="B0" if drift == "arm" else arm, parent_path="parent", parent_sha256="d" * 64)
+    if drift:
+        with pytest.raises(ValueError):
+            medium.response_parent_binding(parent, identity, **kwargs)
+    else:
+        bound = medium.response_parent_binding(parent, identity, **kwargs)
+        assert bound["data"] == identity["data"]
+        assert medium.population_identity(bound["schedule"]) == medium.population_identity(
+            parent["schedule"]
+        )
+        assert bound["training_protocol_binding"]["sampling_changed"] is False
+        bound["schedule"][0]["queries"].append(4)
+    assert parent == original

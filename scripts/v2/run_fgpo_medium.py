@@ -167,8 +167,9 @@ def validate_report_repair(q, arm, output, report_source):
         ("PT1", PT1_SCHEMA),
         ("PT2", PT2_SCHEMA),
         ("CG1", SCHEMA),
+        ("U24", SCHEMA),
     ):
-        raise ValueError("analysis-only report repair is scoped to D0, PT1, PT2 or CG1")
+        raise ValueError("analysis-only report repair is scoped to D0, PT1, PT2, CG1 or U24")
     output = Path(output).resolve()
     protected = [Path(q["output"]).resolve()] + [
         Path(row["plan"]["run_root"]).resolve() for row in q["rows"]
@@ -250,6 +251,50 @@ def cg1_parent_binding(parent, training_identity, *, parent_path, parent_sha256)
             "changed_field": "data.loss_protocol.conditional_ssl1_scope",
             "previous_value": None,
             "training_value": scope,
+            "training_run_id": training_identity["run_id"],
+            "diagnostic_population_sha256": population_identity(parent["schedule"]),
+            "sampling_changed": False,
+        },
+    }
+
+
+def response_parent_binding(parent, training_identity, *, arm, parent_path, parent_sha256):
+    """Bind only preregistered U24/MR1/P1 metadata; preserve the entire population."""
+    trained = training_identity["data"]
+    expected = copy.deepcopy(parent["data"])
+    if arm == "U24":
+        if expected["unseen_gene_mechanisms"]["gene_conditioned_readout"] is not False:
+            raise ValueError("U24 needs the original unconditioned readout parent")
+        expected["unseen_gene_mechanisms"]["gene_conditioned_readout"] = True
+    elif arm in ("MR1", "P1"):
+        protocol = expected["loss_protocol"]
+        if "new_response_supervision" in protocol or "population_scope" in protocol:
+            raise ValueError("response binding requires the original joint parent")
+        protocol["new_response_supervision"] = {
+            "population_response": arm == "P1",
+            "lambda_mmd": 1.0,
+            "mmd_bandwidth": "detached_training_truth_median_offdiagonal",
+            "masked_response_ratio": 0.25 if arm == "MR1" else 0.0,
+            "lambda_masked_response": 1.0 if arm == "MR1" else 0.0,
+            "masked_raw_residual": "blocked",
+            "epoch_budget": "each_selected_training_truth_once",
+        }
+        if arm == "P1":
+            if protocol["batch_order"] != "random_mixed_seeded_v2":
+                raise ValueError("P1 needs the original mixed batch parent")
+            protocol["batch_order"] = "same_condition_population_train_rows_once"
+            protocol["population_scope"] = "complete_effective_batch_all_microbatches_and_ranks"
+    else:
+        raise ValueError("response parent binding is scoped to U24, MR1 and P1")
+    if trained != expected:
+        raise ValueError("medium parent differs beyond declared " + arm + " metadata")
+    return {
+        **copy.deepcopy(parent),
+        "data": copy.deepcopy(trained),
+        "training_protocol_binding": {
+            "arm": arm,
+            "original_parent_manifest": str(parent_path),
+            "original_parent_sha256": parent_sha256,
             "training_run_id": training_identity["run_id"],
             "diagnostic_population_sha256": population_identity(parent["schedule"]),
             "sampling_changed": False,
@@ -397,17 +442,20 @@ def execute(
         )
         parent_path = q["medium_analysis"]["parent_manifest"]
         parent_sha256 = q["medium_analysis"]["parent_manifest_sha256"]
-        if arm in ("PT1", "PT2", "CG1"):
-            bind_parent = cg1_parent_binding if arm == "CG1" else pt1_parent_binding
+        if arm in ("PT1", "PT2", "CG1", "U24", "MR1", "P1"):
+            bind_parent = (
+                response_parent_binding
+                if arm in ("U24", "MR1", "P1")
+                else (cg1_parent_binding if arm == "CG1" else pt1_parent_binding)
+            )
             bound_parent = bind_parent(
                 parent,
                 read(Path(plan["run_root"]) / "run_manifest.json"),
                 parent_path=parent_path,
                 parent_sha256=parent_sha256,
+                **({"arm": arm} if arm in ("U24", "MR1", "P1") else {}),
             )
-            parent_path = root / (
-                "cg1-medium-parent.json" if arm == "CG1" else "pt1-medium-parent.json"
-            )
+            parent_path = root / f"{arm.lower()}-medium-parent.json"
             write(parent_path, bound_parent)
             parent_sha256 = sha(parent_path)
         if shared_manifest is None:
