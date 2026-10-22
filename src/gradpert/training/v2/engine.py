@@ -185,6 +185,7 @@ def optimizer_step(
                     if row_weights is None
                     else row_weights[start : start + len(micro.control)],
                     deferred_koleo=deferred_koleo,
+                    checkpoint_deferred_response=deferred_koleo is not None and microbatch < total,
                     deferred_population=deferred_population,
                 )
             if not torch.isfinite(loss):

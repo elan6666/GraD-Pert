@@ -44,3 +44,8 @@ e25b80b预检中RI、HN通过，KL在首步的iBOT概率构造处超出显存预
 同微批划分的CPU冻结原engine对照中loss与RNG逐值一致。FP32累加顺序变化带来梯度差异：实测最大绝对差3.05e-5，所在参数参考梯度最大64.36；RI参数/状态最大差1.32e-5。近坍缩无RI小模型的接近零梯度经Muon归一化可放大至8.51e-5。此修复不承诺位级或长轨迹等价，不改变既有恢复/评估2e-6门限。CPU保存张量生命周期证明投影头分支释放，不能代替CUDA峰值证据；共享Global祖先重复反向可能增加耗时。
 
 新版本使用新run ID和干净服务器checkout，重新跑全三臂10step/restore及双卡eval128/reference128。容量预检先KL，再RI/HN；正式训练顺序仍RI、HN、KL。只有真实CUDA预检通过、显存与整步耗时记录完成后，主会话才签署正式训练接续。失败证据和旧run均保留。
+
+
+第二次预检中，2bd0d92仍在KL首个cell反向时超出显存预算，0/10成功更新，尚未触及RI/HN。分支释放不足以解决Global编码器祖先总量及反向峰值。后续修复增加显式内部执行开关：仅engine多微批deferred KoLeo路径启用纯Student Global encode_response的外层non-reentrant checkpoint，保存/恢复其默认CPU/CUDA RNG；teacher、center与pending统计不在重计算范围。保留的Global CLS显式clone解除其对完整gene输出storage的view别名，不detach梯度。关闭KoLeo、单微批、P1与冻结诊断默认不启用此执行开关。
+
+外层checkpoint可能重复执行已有逐层checkpoint，需以真实随机KDA、Dropout及嵌套反向测试确认RNG/梯度/一次更新的状态语义，并实测CUDA峰值与吞吐；不从CPU对象数量推断字节显存，也不因预检失败作科学保留/否定。继续使用新源码/新run ID，旧两次失败全部保留。

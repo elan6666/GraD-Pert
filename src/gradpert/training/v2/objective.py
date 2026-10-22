@@ -10,6 +10,7 @@ from typing import cast
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
+from torch.utils.checkpoint import checkpoint
 
 from gradpert.modeling.v2 import GraDPertV2
 from gradpert.modeling.v2.model import GraphContext, PredictionMetadata
@@ -334,6 +335,7 @@ class JointObjective(nn.Module):
         row_weights: Tensor | None = None,
         deferred_koleo: list[tuple[Tensor, Tensor, Tensor]] | None = None,
         deferred_population: list[tuple[Tensor, Tensor]] | None = None,
+        checkpoint_deferred_response: bool = False,
     ) -> tuple[Tensor, dict[str, Tensor]]:
         model = self.student
         student_prefix = (
@@ -445,6 +447,7 @@ class JointObjective(nn.Module):
                 ibot_population=ibot_population,
                 reduction_weights=reduction_weights,
                 deferred_koleo=deferred_koleo,
+                checkpoint_deferred_response=checkpoint_deferred_response,
                 student_prefix=student_prefix,
                 teacher_prefix=teacher_prefix,
             )
@@ -661,10 +664,17 @@ class JointObjective(nn.Module):
         deferred_koleo: list[tuple[Tensor, Tensor, Tensor]] | None = None,
         student_prefix: Tensor | None = None,
         teacher_prefix: Tensor | None = None,
+        checkpoint_deferred_response: bool = False,
     ) -> dict[str, Tensor]:
         if len(batch.cell_views) < 2:
             raise ValueError("SSL2 requires two globals")
         student_outputs, teacher_outputs = [], []
+        checkpoint_globals = (
+            checkpoint_deferred_response
+            and deferred_koleo is not None
+            and self.student.options.checkpoint_layers
+            and torch.is_grad_enabled()
+        )
         active_views = batch.cell_views if self.weights[1][0] else batch.cell_views[:2]
         for i, view in enumerate(active_views):
             p = view.positions
@@ -680,8 +690,20 @@ class JointObjective(nn.Module):
                 view.mask,
             )
             metadata = self.response_metadata(batch, p)
+            # Checkpoint only the pure Student encoder, never Teacher targets
+            # or pending center statistics. Explicit arguments bind this view's
+            # tensors and preserve its random order/dropout during recomputation.
             student_outputs.append(
-                self.student.encode_response(*args, **metadata, decode=self.decode_ssl_views)
+                checkpoint(
+                    self.student.encode_response,
+                    *args,
+                    **metadata,
+                    decode=self.decode_ssl_views,
+                    use_reentrant=False,
+                    preserve_rng_state=True,
+                )
+                if checkpoint_globals and i < 2
+                else self.student.encode_response(*args, **metadata, decode=self.decode_ssl_views)
             )
             if i < 2:
                 with torch.no_grad():
@@ -759,6 +781,11 @@ class JointObjective(nn.Module):
             ]
             ids = batch.condition_index if selected is None else batch.condition_index[selected]
             if deferred_koleo is not None:
+                # CLS is a view into all final gene tokens. Keep its gradient
+                # ancestry but release that larger backing storage after the
+                # immediate cell-loss backward has consumed the other outputs.
+                if checkpoint_globals:
+                    values = [value.clone() for value in values]
                 deferred_koleo.append((values[0], values[1], ids))
                 koleo = zero
             else:
