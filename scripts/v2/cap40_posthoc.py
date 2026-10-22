@@ -1140,6 +1140,7 @@ def run(args):
     from shared_gpu import admit, snapshot
 
     from gradpert.training.v2.checkpoint import load_evaluation_checkpoint
+    from gradpert.training.v2.diagnostic_objective import diagnostic_objective
     from gradpert.training.v2.process_diagnostics import evaluate_graph_gradient_diagnostics
     from gradpert.training.v2.runtime import _move_batch_tree
 
@@ -1376,7 +1377,7 @@ def run(args):
                             torch.no_grad(),
                             torch.autocast("cuda", dtype=torch.bfloat16),
                         ):
-                            loss, terms = obj(deep_batch)
+                            loss, terms, diagnostic_scope = diagnostic_objective(obj, deep_batch)
                         with stages.region("deep_finalize_statistics"):
                             deep = collector.result()
                             collector.add_to_view_bank(grouped_views)
@@ -1403,6 +1404,7 @@ def run(args):
                             "independent_controls": len(
                                 {r["control_row_id"] for r in g["deep_rows"]}
                             ),
+                            **diagnostic_scope,
                             "joint": float(loss),
                             "loss_terms": {k: float(v) for k, v in terms.items()},
                         }

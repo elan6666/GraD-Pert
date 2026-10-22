@@ -162,7 +162,7 @@ def test_pending_updates_rejected_and_observer_cleaned_after_failure(monkeypatch
     from gradpert.training.v2 import objective as module
 
     model, batch = fixture()
-    objective = JointObjective(model).train()
+    objective = JointObjective(model, loss_reduction="row_mean").train()
     original = module.cross_entropy_terms
     objective.pending["ssl1_cls"] = [torch.zeros(2, 11)]
     with pytest.raises(ValueError, match="pending"):

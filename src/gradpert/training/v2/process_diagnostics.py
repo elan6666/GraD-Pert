@@ -22,6 +22,7 @@ from gradpert.hashing import sha256_json
 from gradpert.modeling.v2.operators import RelayDeltaAttention
 
 from . import objective as objective_module
+from .diagnostic_objective import diagnostic_objective
 from .engine import slice_cells
 from .objective import JointObjective, TrainingBatch
 from .reductions import population_weights
@@ -363,7 +364,7 @@ def evaluate_process_diagnostics(
                 torch.no_grad(),
                 torch.autocast(batch.control.device.type, dtype=torch.bfloat16, enabled=bf16),
             ):
-                joint, terms = objective(batch)
+                joint, terms, diagnostic_scope = diagnostic_objective(objective, batch)
             # Avoid folding intervention activations into the fixed-view statistics.
         finally:
             objective_module.cross_entropy_terms = original_ce
@@ -467,6 +468,7 @@ def evaluate_process_diagnostics(
             "feature_dimensions": max_feature_dimensions,
             "intervention_forwards": intervention_budget,
         },
+        **diagnostic_scope,
         "joint_loss": float(joint),
         "components": {k: float(v) for k, v in terms.items()},
         **(
@@ -536,7 +538,7 @@ def evaluate_graph_gradient_diagnostics(
     started = perf_counter()
     with _read_only(objective, batch, 0x71A1):
         with torch.autocast(batch.control.device.type, dtype=torch.bfloat16, enabled=bf16):
-            _, terms = objective(batch)
+            _, terms, diagnostic_scope = diagnostic_objective(objective, batch)
             zero = next(iter(terms.values())) * 0
             losses = {"prediction": terms["prediction"]} if objective.prediction_enabled else {}
             for index, (prefix, names) in enumerate(
@@ -591,6 +593,7 @@ def evaluate_graph_gradient_diagnostics(
             }
     return {
         "performed": True,
+        **diagnostic_scope,
         "split": "train",
         "groups": groups,
         "elapsed_seconds": perf_counter() - started,

@@ -11,9 +11,13 @@ import sys
 from pathlib import Path
 
 from generate_representation_round1 import ARMS, SCHEMA
+from generate_representation_round2 import ARMS as ROUND2_ARMS
+from generate_representation_round2 import SCHEMA as ROUND2_SCHEMA
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
+
+FAMILY_ARMS = {SCHEMA: ARMS, ROUND2_SCHEMA: ROUND2_ARMS}
 
 
 def postfit_command(queue, row, stage):
@@ -35,8 +39,8 @@ def context(queue, row):
     from run_br400_group import validate_training_contract, verify
 
     verify(queue)
-    if queue["family"] != SCHEMA or row["name"] not in ARMS or row not in queue["rows"]:
-        raise ValueError("research postfit requires a sealed round1 arm")
+    if row["name"] not in FAMILY_ARMS.get(queue["family"], {}) or row not in queue["rows"]:
+        raise ValueError("research postfit requires a sealed representation research arm")
     plan = row["plan"]
     root = Path(plan["run_root"])
     if read_json(root / "launch.json") != plan:
@@ -262,8 +266,14 @@ def render_medium_report(queue, row, root):
             tables.setdefault(key, []).extend(
                 {"condition_id": group["condition_id"], **r} for r in group.get(key, [])
             )
+        loss_scope = group.get("diagnostic_objective_scope", {})
         tables.setdefault("frozen_losses", []).append(
-            {"condition_id": group["condition_id"], "joint": group["joint"], **group["loss_terms"]}
+            {
+                "condition_id": group["condition_id"],
+                "joint": group["joint"],
+                **group["loss_terms"],
+                **({"ssl2_koleo": None, **flatten(loss_scope)} if loss_scope else {}),
+            }
         )
     tables["gradients"] = [flatten(v) for v in read_json(root / "analysis/gradients.json")]
     grouped = root / "analysis/grouped_views.json"
@@ -300,6 +310,7 @@ def render_medium_report(queue, row, root):
         "中等诊断沿用原清单；额外固定基因面板独立存储，不替代历史可比统计。\n",
         "![表征有效秩与相对方差](representation.png)\n",
         "有效秩描述差异分散方向，相对方差描述差异能量占比；两者都不是独立质量分数。\n",
+        "启用KoLeo时，逐条件小探针缺完整全局异条件群体：KoLeo记NA，joint和SSL2梯度仅含可测项；完整训练loss仍包含KoLeo，见scope字段。\n",
     ]
     for name in ("training", "validation", "global_features", "global_heads", "frozen_losses"):
         text.extend([f"## {name}\n", table(tables[name])])
@@ -404,7 +415,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("stage", choices=("validation", "analysis"))
     parser.add_argument("--queue", type=Path, required=True)
-    parser.add_argument("--arm", choices=tuple(ARMS), required=True)
+    parser.add_argument(
+        "--arm",
+        choices=tuple(name for arms in FAMILY_ARMS.values() for name in arms),
+        required=True,
+    )
     args = parser.parse_args()
     queue = read_json(args.queue)
     if Path(queue["source"]).resolve() != Path(__file__).resolve().parents[2]:

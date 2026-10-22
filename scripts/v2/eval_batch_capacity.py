@@ -40,6 +40,9 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     from generate_representation_round1 import ARMS as RS_ARMS
     from generate_representation_round1 import SCHEMA as RS_SCHEMA
     from generate_representation_round1 import verify_manifest as verify_rs_manifest
+    from generate_representation_round2 import ARMS as RS2_ARMS
+    from generate_representation_round2 import SCHEMA as RS2_SCHEMA
+    from generate_representation_round2 import verify_manifest as verify_rs2_manifest
     from shared_gpu import DYNAMIC_SCHEMA, validate_policy
 
     from gradpert.hashing import sha256_file
@@ -59,6 +62,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             PT1_SCHEMA,
             PT2_SCHEMA,
             RS_SCHEMA,
+            RS2_SCHEMA,
         )
         or queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA
         or queue.get("source_commit") != source_commit
@@ -104,16 +108,22 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         or queue.get("steps") != 10
     ):
         raise ValueError("DP2 evaluation requires the exact singleton continuation scope")
-    if queue.get("family") == RS_SCHEMA:
-        matrix = verify_rs_manifest(Path(queue["source"]), Path(queue["manifest"]))
+    if queue.get("family") in (RS_SCHEMA, RS2_SCHEMA):
+        family_schema = queue["family"]
+        verifier, arms = (
+            (verify_rs_manifest, RS_ARMS)
+            if family_schema == RS_SCHEMA
+            else (verify_rs2_manifest, RS2_ARMS)
+        )
+        matrix = verifier(Path(queue["source"]), Path(queue["manifest"]))
         if (
-            queue.get("mode") != RS_SCHEMA
-            or [row["name"] for row in queue["rows"]] != list(RS_ARMS)
+            queue.get("mode") != family_schema
+            or [row["name"] for row in queue["rows"]] != list(arms)
             or queue.get("steps") != 10
             or args.cell_batch != matrix["eval_batch"]
             or queue.get("only_arms") is not None
         ):
-            raise ValueError("research evaluation requires exact two-arm two-epoch scope")
+            raise ValueError("research evaluation requires the exact sealed two-epoch arm scope")
     rows = [row for row in queue["rows"] if row["name"] == args.row_name]
     if queue.get("family") == PT2_SCHEMA and (
         queue.get("mode") != PT2_SCHEMA

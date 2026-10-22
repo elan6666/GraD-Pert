@@ -8,6 +8,7 @@ import torch
 
 from gradpert.hashing import sha256_json
 
+from .diagnostic_objective import diagnostic_objective
 from .objective import JointObjective, TrainingBatch
 from .reductions import population_weights
 
@@ -59,7 +60,9 @@ def evaluate_loss_diagnostics(
                 del graph_terms
                 objective.pending.clear()
             with torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=bf16):
-                loss, terms = objective(batch, include_ssl1=False)
+                loss, terms, diagnostic_scope = diagnostic_objective(
+                    objective, batch, include_ssl1=False
+                )
                 del loss
                 zero = terms["prediction"] * 0
                 ssl = sum(
@@ -139,6 +142,7 @@ def evaluate_loss_diagnostics(
                 components["prediction_mse"],
             )
             return {
+                **diagnostic_scope,
                 "split": "train",
                 "mode": "fixed_training_batch_eval",
                 "input_sha256": sha256_json(
@@ -194,7 +198,9 @@ def evaluate_ssl_diagnostics(
         with torch.autocast(
             device_type=batch.control.device.type, dtype=torch.bfloat16, enabled=bf16
         ):
-            loss, terms = objective(batch, include_ssl1=False)
+            loss, terms, diagnostic_scope = diagnostic_objective(
+                objective, batch, include_ssl1=False
+            )
         gradients = torch.autograd.grad(loss, parameters, allow_unused=True)
         norm = sum(float(g.detach().float().square().sum()) for g in gradients if g is not None)
         components.update({k: float(v.detach()) for k, v in terms.items()})
@@ -202,6 +208,7 @@ def evaluate_ssl_diagnostics(
         "split": "train",
         "mode": "fixed_training_batch_eval",
         "training_stage": "ssl_pretrain",
+        **diagnostic_scope,
         "prediction_status": "not_applicable:no_labels",
         "cells": len(batch.control),
         "query_genes": batch.control.shape[1],

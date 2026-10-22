@@ -52,6 +52,7 @@ class V2Architecture:
     mlp_profile: str = "historical"
     ffn_variant: str = "mixed"
     ffn_input_norm: str = "historical"
+    ssl2_cls_input_layernorm: bool = False
     ffn_clip: bool = True
     ffn_linear_bias: str = "historical"
     prototype_weight_norm: bool = False
@@ -95,6 +96,7 @@ class V2Architecture:
             "all_kda_prefix",
             "fixed_gene_order",
             "response_injection_residual",
+            "ssl2_cls_input_layernorm",
         ):
             if type(getattr(self, name)) is not bool:
                 raise ValueError(f"{name} must be boolean")
@@ -135,6 +137,12 @@ class V2Architecture:
             or self.prediction_parameterization not in ("residual", "softplus")
         ):
             raise ValueError("invalid five-arm FFN controls")
+        if self.ssl2_cls_input_layernorm and (
+            self.mlp_profile != "restored" or self.ffn_input_norm != "historical"
+        ):
+            raise ValueError(
+                "SSL2 CLS input LayerNorm requires restored profile and historical FFN input norm"
+            )
         if self.prototype_freeze_epochs and not self.prototype_weight_norm:
             raise ValueError("prototype freeze requires the explicit weight-normalized arm")
         if self.prototype_fixed_scale and not self.prototype_weight_norm:
@@ -369,6 +377,7 @@ class V2Architecture:
             ("mlp_profile", "historical"),
             ("ffn_variant", "mixed"),
             ("ffn_input_norm", "historical"),
+            ("ssl2_cls_input_layernorm", False),
             ("ffn_clip", True),
             ("ffn_linear_bias", "historical"),
             ("prototype_weight_norm", False),
@@ -526,6 +535,7 @@ class V2Options:
             "control_conditioned_graph",
             "perturbation_injection",
             "response_injection_residual",
+            "ssl2_cls_input_layernorm",
             "random_gene_order",
             "ssl1_local_views",
             "ssl2_local_views",

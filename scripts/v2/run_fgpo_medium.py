@@ -25,9 +25,12 @@ from generate_pt2 import ARMS as PT2_ARMS
 from generate_pt2 import SCHEMA as PT2_SCHEMA
 from generate_representation_round1 import ARMS as RS_ARMS
 from generate_representation_round1 import SCHEMA as RS_SCHEMA
+from generate_representation_round2 import ARMS as RS2_ARMS
+from generate_representation_round2 import SCHEMA as RS2_SCHEMA
 
 FAMILY_ARMS = {
     RS_SCHEMA: RS_ARMS,
+    RS2_SCHEMA: RS2_ARMS,
     SCHEMA: ARMS,
     DINO_SCHEMA: DINO_ARMS,
     DP2_SCHEMA: {"DP2": DINO_ARMS["DP2"]},
@@ -371,7 +374,7 @@ def execute(
         validate_report_repair(q, arm, repair_output, report_source)
     parent = validate_analysis_spec(q["medium_analysis"])
     row = next(r for r in q["rows"] if r["name"] == arm)
-    research = q.get("family") == RS_SCHEMA
+    research = q.get("family") in (RS_SCHEMA, RS2_SCHEMA)
     if research:
         validate_training_contract(row["plan"])
     else:

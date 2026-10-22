@@ -117,6 +117,10 @@ def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architectur
             model.prediction = nn.Sequential(pre_norm(2 * d), model.prediction)
             for head in (model.ssl1_cls, model.ssl1_node, model.ssl2_cls, model.ssl2_node):
                 head.features = nn.Sequential(pre_norm(d), head.features)
+        if options.ssl2_cls_input_layernorm:
+            model.ssl2_cls.features = nn.Sequential(
+                Float32LayerNorm(d, eps=1e-6), model.ssl2_cls.features
+            )
         if options.ffn_linear_bias == "none":
             # These role roots exclude Q/K/V, KDA state gates, mHC routing and norm beta.
             roles: list[nn.Module] = [model.graph.adapter, model.expression, model.prediction]
