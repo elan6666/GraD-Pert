@@ -1,0 +1,24 @@
+{
+  "schema": "representation-round3-au-decision-1",
+  "calibration_source_commit": "288fe94232611a32f86f7fa92539a6032c41026d",
+  "balanced": {
+    "alignment_weight": 0.05,
+    "uniformity_weight": 0.005
+  },
+  "strong": {
+    "alignment_weight": 0.1,
+    "uniformity_weight": 0.01
+  },
+  "strength_multiplier": 2,
+  "rationale": "Fixed before any R3 outcome using eight paired train-only no-update populations at initialization and unchanged RI-last. Balanced combined auxiliary gradient / MSE gradient median: Response 0.0852 init and 0.3963 RI-last; Graph 0.0700 init and 0.1921 RI-last. RI-last Response per-batch range 0.1517–0.8427, so stronger exactly doubles both coefficients rather than changing their ratio or removing safeguards. Initialization A and U gradients oppose (mean 148 degrees on Response); the 10:1 coefficient ratio and 30-update warmup limit early dispersion pressure. RI-last auxiliary/joint mean angle near 90 degrees supplies a distinct signal. These raw-gradient observations do not predict Muon/AdamW update effects; success still requires matched representation stability/discrimination, distillation signal and validation prediction utility. No rank/cosine target, test-set tuning, or change to EMA, sampler, architecture and original objectives.",
+  "calibration": {
+    "init": {
+      "root": "calibration/init",
+      "complete_sha256": "f4bd4952334e90301b9f55736686b1cba5b8b56aaee55e57e62a161c6d7ce4e4"
+    },
+    "ri_last": {
+      "root": "calibration/ri_last",
+      "complete_sha256": "468fac43ba552331ae741b8e3f8215fcd2c0dcafd432ad6e4befc883a45365c5"
+    }
+  }
+}

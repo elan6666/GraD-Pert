@@ -1,0 +1,42 @@
+{
+  "schema": "gradpert-au-calibration-1",
+  "run_id": "representation-round3-au-calibration-288fe94-20261023-init",
+  "mode": "gradients",
+  "source": {
+    "repository_root": "/data/yilangliu/GraD-Pert/development/source-representation-round3-au-288fe94",
+    "commit": "288fe94232611a32f86f7fa92539a6032c41026d",
+    "dirty": false,
+    "tree_sha256": "1deeedc548e1d754cfe0c8a52f2943326be5d240ccf336ff874cfaa39e0b1ec4",
+    "formal_eligible": true,
+    "formal_eligibility_reason": null,
+    "remote_url": "https://github.com/elan6666/GraD-Pert.git",
+    "remote_ref": "refs/heads/main",
+    "published_commit": "288fe94232611a32f86f7fa92539a6032c41026d",
+    "publication_receipt_sha256": "e5c8c8d3bd9b615f8cb55cddfde56d43b71697977c369bdc5d374b4ba1ac31e8"
+  },
+  "config_sha256": "65304a02704561f9fbe3addb7be335fc88a51688f9cef69941ac81d1a920a4f7",
+  "seed": 1,
+  "checkpoint_sha256": null,
+  "training_identity": null,
+  "batches": 8,
+  "effective_population": 320,
+  "microbatch": 80,
+  "temperature": 2.0,
+  "rng_seed": 41239,
+  "topology": "single_gpu_diagnostic_not_ddp_resume",
+  "updates": 0,
+  "split": "train_only",
+  "gpu": "0",
+  "shared_policy_sha256": "37df41f6b477c6afcd799a071fe3baacbcaf0b07409fdf3232ea070cf41b0501",
+  "cpu_environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "lock_file": "/data/yilangliu/GraD-Pert/development/source-representation-round3-au-288fe94/uv.lock",
+    "lock_file_sha256": "313e9dbbd63ab8405d77ae991a724081fe6fa4ed26b0ae8047321733e015375d",
+    "torch_version": "2.13.0+cu130",
+    "cuda_runtime": null,
+    "cudnn_version": null,
+    "device_name": "x86_64",
+    "payload_sha256": "699e5dbbed80fa1b54c3fb11e222ad0deea909314338121a80e5cb13ea186ae0"
+  }
+}

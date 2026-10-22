@@ -1,0 +1,18 @@
+{
+  "calibration_complete": true,
+  "scientific_complete": false,
+  "updates": 0,
+  "plan_sha256": "e9c2478f58b915a710fc4d8929b66a381c15ddadaf8d6d0973bdaf14493182f7",
+  "batches_completed": 8,
+  "expected": 8,
+  "batch_receipts": {
+    "batch-00.json": "436a2ab1abe92f039590d3a93bb71707e0340268deb898cac280d385b22d81e2",
+    "batch-01.json": "0799de1948188c6bed7a20c073dfee28b1be8940e7604b7c1eee22b950963bed",
+    "batch-02.json": "80cec8b1c13cdea9900c9d943d0d6bd4be5363a7bb73afc8ce50d01ce1071171",
+    "batch-03.json": "716923f7269b69058c00d7c63742847cb41dc801b7d0c58c0e93533b2a8c43c9",
+    "batch-04.json": "f5f37abf8ebec0a4fe7ff5cfec7f0c6c42c2357558dc974ca53d61e8f4f6b2cf",
+    "batch-05.json": "4d1311d7a41a6d12804857f29de8282dec63b375d8327f9eef0127367eb5e62e",
+    "batch-06.json": "83f269f7d6ba1e06cf825bac21e3b2900bb8efcc1ec35ffae17729db2d0e8c45",
+    "batch-07.json": "341f6190f02f72fba01f9e8d58dfa458085102d6f00716f55332eee35af2a356"
+  }
+}

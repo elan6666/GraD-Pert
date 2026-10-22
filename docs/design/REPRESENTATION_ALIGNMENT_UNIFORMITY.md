@@ -62,3 +62,39 @@ For unit vectors, squared distance is `2*(1-cosine)`; our alignment is half the
 paper's squared-distance alignment. Context filtering and same-condition
 exclusion are project adaptations and do not inherit a theorem about global
 uniformity. The native implementation does not import an external package.
+
+## Round 3 locked configuration
+
+The eight paired train-only no-update calibration batches were completed with
+clean published source `288fe94232611a32f86f7fa92539a6032c41026d`. Both endpoints
+used exactly the same population and RNG; all sixteen state-invariance checks
+passed with maximum replay error zero. This is calibration, not an outcome of
+training with AU. Original RI-last training identity remains in its receipt.
+
+| Arm | Alignment weight | Uniformity weight | Budget |
+| --- | ---: | ---: | --- |
+| R3-RI | 0 | 0 | 2 epochs |
+| R3-AUB | 0.05 | 0.005 | 2 epochs |
+| R3-AUS | 0.10 | 0.010 | 2 epochs |
+
+All arms keep global320 (micro80, two GPUs, accumulation2); AU arms use t2 and
+30 successful-update warmup. R3-RI exactly repeats the unchanged RI configuration.
+The sealed family `configs/v2/representation_round3_20261023/manifest.json`
+contains the coefficient decision and copies of the small calibration evidence.
+Training source is separately bound by its clean published launch receipt.
+
+For the balanced weights, the median auxiliary/MSE raw-gradient norm ratio was
+0.0852 at initialization and 0.3963 at RI-last for Response parameters; Graph
+ratios were 0.0700 and 0.1921. RI-last Response ratios ranged from 0.1517 to
+0.8427 across batches. The stronger arm doubles both terms without changing
+sampling, EMA or the alignment:uniformity ratio. These are raw-gradient
+observations, not predicted Muon/AdamW parameter updates or guarantees of safety.
+
+After each arm, run validation18 and the same medium/crossed analysis panel.
+Compare same-input GG/GL/LL stability, matched same/different-condition separation,
+rank and relative variance, prototype entropy/JS and correct/mismatched CE/KL,
+and prediction utility. The existing exploratory GG<0.90 or validation MSE>5%
+worse than the round's RI control prevents a claim of resolution; neither is a
+new loss target. Test results remain deferred until design lock. Old rank-floor
+V2 candidates remain preserved and parked. A completed round is followed by
+analysis and, when needed, a revised next round rather than automatic closure.

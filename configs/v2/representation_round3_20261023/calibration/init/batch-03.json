@@ -1,0 +1,531 @@
+{
+  "losses": {
+    "A": 0.18517832458019257,
+    "U": -1.0680887699127197,
+    "MSE": 0.2173222377896309,
+    "joint": 28.74455165863037
+  },
+  "gradients": {
+    "response": {
+      "norms": {
+        "A": 3.420879398459794,
+        "U": 23.024095242061374,
+        "MSE": 1.138365111093952,
+        "joint": 2.2218392693660642
+      },
+      "pairs": {
+        "A__U": {
+          "cosine": -0.893301629164058,
+          "angle_degrees": 153.29110589807783
+        },
+        "A__MSE": {
+          "cosine": 0.03914235356077657,
+          "angle_degrees": 87.75673526533352
+        },
+        "A__joint": {
+          "cosine": 0.698749256330238,
+          "angle_degrees": 45.673257402774844
+        },
+        "U__MSE": {
+          "cosine": 0.03973328898380527,
+          "angle_degrees": 87.72285079791594
+        },
+        "U__joint": {
+          "cosine": -0.745327495217532,
+          "angle_degrees": 138.1872360017288
+        },
+        "MSE__joint": {
+          "cosine": 0.48666749478595606,
+          "angle_degrees": 60.87821999315297
+        }
+      },
+      "parameter_count": 4987539
+    },
+    "graph": {
+      "norms": {
+        "A": 5.146978719202943,
+        "U": 37.71854411707477,
+        "MSE": 3.3177968813387824,
+        "joint": 4.694007825080022
+      },
+      "pairs": {
+        "A__U": {
+          "cosine": -0.897340868950331,
+          "angle_degrees": 153.81070825714485
+        },
+        "A__MSE": {
+          "cosine": -0.08832107411948079,
+          "angle_degrees": 95.06702705975766
+        },
+        "A__joint": {
+          "cosine": 0.5857685545035121,
+          "angle_degrees": 54.14269656355231
+        },
+        "U__MSE": {
+          "cosine": 0.18864095902322464,
+          "angle_degrees": 79.126517259227
+        },
+        "U__joint": {
+          "cosine": -0.6515870102492778,
+          "angle_degrees": 130.66136278292964
+        },
+        "MSE__joint": {
+          "cosine": 0.4566292561606456,
+          "angle_degrees": 62.83018747061553
+        }
+      },
+      "parameter_count": 17271592
+    }
+  },
+  "spectrum": {
+    "global0": {
+      "effective_rank": 77.52085348318671,
+      "normalized_rank": 0.3028158339186981,
+      "relative_variance": 0.2750816979532898,
+      "covariance_trace": 70.42089813544698,
+      "mean_squared_norm": 185.5790417347976,
+      "sample_count": 320,
+      "width": 256
+    },
+    "global1": {
+      "effective_rank": 76.76835823297392,
+      "normalized_rank": 0.2998763993475544,
+      "relative_variance": 0.27312742084453945,
+      "covariance_trace": 69.92060365636021,
+      "mean_squared_norm": 186.07933747059863,
+      "sample_count": 320,
+      "width": 256
+    }
+  },
+  "pair_count": 894,
+  "unique_count": 320,
+  "replay_max_abs_error": 0.0,
+  "replay_tolerance": 2e-06,
+  "updates": 0,
+  "plan_sha256": "e9c2478f58b915a710fc4d8929b66a381c15ddadaf8d6d0973bdaf14493182f7",
+  "batch_index": 3,
+  "census": {
+    "input_count": 320,
+    "unique_count": 320,
+    "duplicate_count": 0,
+    "pair_count": 894,
+    "context_count": 55,
+    "contexts": [
+      {
+        "context_id": "jurkat::1",
+        "input_count": 3,
+        "condition_count": 3,
+        "pair_count": 3,
+        "pair_weight": 0.003355704697986577
+      },
+      {
+        "context_id": "jurkat::10",
+        "input_count": 6,
+        "condition_count": 6,
+        "pair_count": 15,
+        "pair_weight": 0.016778523489932886
+      },
+      {
+        "context_id": "jurkat::11",
+        "input_count": 5,
+        "condition_count": 5,
+        "pair_count": 10,
+        "pair_weight": 0.011185682326621925
+      },
+      {
+        "context_id": "jurkat::12",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::13",
+        "input_count": 5,
+        "condition_count": 5,
+        "pair_count": 10,
+        "pair_weight": 0.011185682326621925
+      },
+      {
+        "context_id": "jurkat::14",
+        "input_count": 4,
+        "condition_count": 4,
+        "pair_count": 6,
+        "pair_weight": 0.006711409395973154
+      },
+      {
+        "context_id": "jurkat::15",
+        "input_count": 2,
+        "condition_count": 2,
+        "pair_count": 1,
+        "pair_weight": 0.0011185682326621924
+      },
+      {
+        "context_id": "jurkat::16",
+        "input_count": 8,
+        "condition_count": 8,
+        "pair_count": 28,
+        "pair_weight": 0.03131991051454139
+      },
+      {
+        "context_id": "jurkat::17",
+        "input_count": 8,
+        "condition_count": 8,
+        "pair_count": 28,
+        "pair_weight": 0.03131991051454139
+      },
+      {
+        "context_id": "jurkat::18",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::19",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::2",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::20",
+        "input_count": 4,
+        "condition_count": 4,
+        "pair_count": 6,
+        "pair_weight": 0.006711409395973154
+      },
+      {
+        "context_id": "jurkat::21",
+        "input_count": 8,
+        "condition_count": 8,
+        "pair_count": 28,
+        "pair_weight": 0.03131991051454139
+      },
+      {
+        "context_id": "jurkat::22",
+        "input_count": 4,
+        "condition_count": 4,
+        "pair_count": 6,
+        "pair_weight": 0.006711409395973154
+      },
+      {
+        "context_id": "jurkat::23",
+        "input_count": 2,
+        "condition_count": 2,
+        "pair_count": 1,
+        "pair_weight": 0.0011185682326621924
+      },
+      {
+        "context_id": "jurkat::24",
+        "input_count": 8,
+        "condition_count": 8,
+        "pair_count": 28,
+        "pair_weight": 0.03131991051454139
+      },
+      {
+        "context_id": "jurkat::25",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::26",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::27",
+        "input_count": 3,
+        "condition_count": 3,
+        "pair_count": 3,
+        "pair_weight": 0.003355704697986577
+      },
+      {
+        "context_id": "jurkat::28",
+        "input_count": 8,
+        "condition_count": 8,
+        "pair_count": 28,
+        "pair_weight": 0.03131991051454139
+      },
+      {
+        "context_id": "jurkat::29",
+        "input_count": 10,
+        "condition_count": 10,
+        "pair_count": 45,
+        "pair_weight": 0.050335570469798654
+      },
+      {
+        "context_id": "jurkat::3",
+        "input_count": 5,
+        "condition_count": 5,
+        "pair_count": 10,
+        "pair_weight": 0.011185682326621925
+      },
+      {
+        "context_id": "jurkat::30",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::31",
+        "input_count": 4,
+        "condition_count": 4,
+        "pair_count": 6,
+        "pair_weight": 0.006711409395973154
+      },
+      {
+        "context_id": "jurkat::32",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::33",
+        "input_count": 8,
+        "condition_count": 8,
+        "pair_count": 28,
+        "pair_weight": 0.03131991051454139
+      },
+      {
+        "context_id": "jurkat::34",
+        "input_count": 4,
+        "condition_count": 4,
+        "pair_count": 6,
+        "pair_weight": 0.006711409395973154
+      },
+      {
+        "context_id": "jurkat::35",
+        "input_count": 6,
+        "condition_count": 6,
+        "pair_count": 15,
+        "pair_weight": 0.016778523489932886
+      },
+      {
+        "context_id": "jurkat::36",
+        "input_count": 4,
+        "condition_count": 4,
+        "pair_count": 6,
+        "pair_weight": 0.006711409395973154
+      },
+      {
+        "context_id": "jurkat::37",
+        "input_count": 8,
+        "condition_count": 8,
+        "pair_count": 28,
+        "pair_weight": 0.03131991051454139
+      },
+      {
+        "context_id": "jurkat::38",
+        "input_count": 6,
+        "condition_count": 6,
+        "pair_count": 15,
+        "pair_weight": 0.016778523489932886
+      },
+      {
+        "context_id": "jurkat::39",
+        "input_count": 5,
+        "condition_count": 5,
+        "pair_count": 10,
+        "pair_weight": 0.011185682326621925
+      },
+      {
+        "context_id": "jurkat::4",
+        "input_count": 11,
+        "condition_count": 11,
+        "pair_count": 55,
+        "pair_weight": 0.06152125279642058
+      },
+      {
+        "context_id": "jurkat::40",
+        "input_count": 6,
+        "condition_count": 6,
+        "pair_count": 15,
+        "pair_weight": 0.016778523489932886
+      },
+      {
+        "context_id": "jurkat::42",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::43",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::44",
+        "input_count": 6,
+        "condition_count": 6,
+        "pair_count": 15,
+        "pair_weight": 0.016778523489932886
+      },
+      {
+        "context_id": "jurkat::45",
+        "input_count": 4,
+        "condition_count": 4,
+        "pair_count": 6,
+        "pair_weight": 0.006711409395973154
+      },
+      {
+        "context_id": "jurkat::46",
+        "input_count": 3,
+        "condition_count": 3,
+        "pair_count": 3,
+        "pair_weight": 0.003355704697986577
+      },
+      {
+        "context_id": "jurkat::47",
+        "input_count": 6,
+        "condition_count": 6,
+        "pair_count": 15,
+        "pair_weight": 0.016778523489932886
+      },
+      {
+        "context_id": "jurkat::48",
+        "input_count": 8,
+        "condition_count": 8,
+        "pair_count": 28,
+        "pair_weight": 0.03131991051454139
+      },
+      {
+        "context_id": "jurkat::49",
+        "input_count": 6,
+        "condition_count": 6,
+        "pair_count": 15,
+        "pair_weight": 0.016778523489932886
+      },
+      {
+        "context_id": "jurkat::5",
+        "input_count": 3,
+        "condition_count": 3,
+        "pair_count": 3,
+        "pair_weight": 0.003355704697986577
+      },
+      {
+        "context_id": "jurkat::50",
+        "input_count": 1,
+        "condition_count": 1,
+        "pair_count": 0,
+        "pair_weight": 0.0
+      },
+      {
+        "context_id": "jurkat::51",
+        "input_count": 5,
+        "condition_count": 5,
+        "pair_count": 10,
+        "pair_weight": 0.011185682326621925
+      },
+      {
+        "context_id": "jurkat::52",
+        "input_count": 4,
+        "condition_count": 4,
+        "pair_count": 6,
+        "pair_weight": 0.006711409395973154
+      },
+      {
+        "context_id": "jurkat::53",
+        "input_count": 2,
+        "condition_count": 2,
+        "pair_count": 1,
+        "pair_weight": 0.0011185682326621924
+      },
+      {
+        "context_id": "jurkat::54",
+        "input_count": 6,
+        "condition_count": 6,
+        "pair_count": 15,
+        "pair_weight": 0.016778523489932886
+      },
+      {
+        "context_id": "jurkat::55",
+        "input_count": 6,
+        "condition_count": 6,
+        "pair_count": 15,
+        "pair_weight": 0.016778523489932886
+      },
+      {
+        "context_id": "jurkat::56",
+        "input_count": 8,
+        "condition_count": 8,
+        "pair_count": 28,
+        "pair_weight": 0.03131991051454139
+      },
+      {
+        "context_id": "jurkat::6",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::7",
+        "input_count": 9,
+        "condition_count": 9,
+        "pair_count": 36,
+        "pair_weight": 0.040268456375838924
+      },
+      {
+        "context_id": "jurkat::8",
+        "input_count": 7,
+        "condition_count": 7,
+        "pair_count": 21,
+        "pair_weight": 0.02348993288590604
+      },
+      {
+        "context_id": "jurkat::9",
+        "input_count": 4,
+        "condition_count": 4,
+        "pair_count": 6,
+        "pair_weight": 0.006711409395973154
+      }
+    ],
+    "ordered_identity_sha256": "7e86e24d03fd458e73668b7c7440f1483e8c08dd6ebd5c2cad6bf3b4041855fe"
+  },
+  "state_unchanged": true,
+  "frozen_state": {
+    "student": "970ec8541708a34427e63a9ffe5767086f9d2c05dc2c34c25b2bdae26f3a6b9d",
+    "teacher": "970ec8541708a34427e63a9ffe5767086f9d2c05dc2c34c25b2bdae26f3a6b9d",
+    "centers": "8c2672a3b4ef98449cff41646e8aab559e721765204e4e28d3e11cb8b1bf4a89",
+    "optimizer": "fe790a96eb0ec8a02c3138868ad9eded7d6290f3e0dfa0219e7b23622b00dc30",
+    "gradients": "641daa4d3200c3da95c1d9560efcff498f95f4593b39bd7a18a214dcbf629db4",
+    "numpy_rng": "46f90255fa0e8ede086719549b54d33ff07ec96da0c675ac042c0c56ba11a679",
+    "python_rng": "12fc63da6a038629cb0804eef66c59cde61a06523731b4c417eaa7c19817f1cd",
+    "torch_rng": "4f8f019bb328615c957604551e778c3d9cb970f5ead3c1d498b8938992544901",
+    "pending_statistics": "f57d2d4f927a9190ee4561301d2eaac552ac0e7f1d4f4f06ac861c0a53790cc9",
+    "auxiliary_statistics": "71e9915904c1781399c74f5a3fecdf6eb56b9a3d0c1f942b8b5560adfbc774ce",
+    "module_modes": "8e81062200d6d1cddca53e614a28c718955d3f811fd26cc1dddc1b4faae36fc6"
+  },
+  "environment": {
+    "python_version": "3.12.3",
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "lock_file": "/data/yilangliu/GraD-Pert/development/source-representation-round3-au-288fe94/uv.lock",
+    "lock_file_sha256": "313e9dbbd63ab8405d77ae991a724081fe6fa4ed26b0ae8047321733e015375d",
+    "torch_version": "2.13.0+cu130",
+    "cuda_runtime": "13.0",
+    "cudnn_version": 92000,
+    "device_name": "NVIDIA GeForce RTX 5090",
+    "payload_sha256": "66686852a6fef100d790e0d5a6a767c2e8914bd2b006c16023ad27d961f837c8"
+  },
+  "elapsed_seconds": 82.19208256498678,
+  "cells_per_second": 3.8933190401518996,
+  "peak_allocated_bytes": 25159533056,
+  "peak_reserved_bytes": 25948061696
+}

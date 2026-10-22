@@ -41,6 +41,8 @@ from generate_representation_round1 import SCHEMA as RS_SCHEMA
 from generate_representation_round1 import verify_manifest as verify_rs_manifest
 from generate_representation_round2 import SCHEMA as RS2_SCHEMA
 from generate_representation_round2 import verify_manifest as verify_rs2_manifest
+from generate_representation_round3 import SCHEMA as RS3_SCHEMA
+from generate_representation_round3 import verify_manifest as verify_rs3_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -63,7 +65,7 @@ from gradpert.execution.v2_deferred_postfit import finalize_deferred_run
 from gradpert.execution.v2_training_stage import validate_training_stage
 from gradpert.hashing import sha256_file, sha256_json
 
-RESEARCH_FAMILIES = (RS_SCHEMA, RS2_SCHEMA)
+RESEARCH_FAMILIES = (RS_SCHEMA, RS2_SCHEMA, RS3_SCHEMA)
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
 FGPO_FAMILIES = (
@@ -168,6 +170,8 @@ def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
 
 
 def verify_manifest(source: Path, manifest: Path) -> dict:
+    if read_json(manifest).get("schema") == RS3_SCHEMA:
+        return verify_rs3_manifest(source, manifest)
     if read_json(manifest).get("schema") == RS2_SCHEMA:
         return verify_rs2_manifest(source, manifest)
     if read_json(manifest).get("schema") == RS_SCHEMA:
@@ -671,6 +675,13 @@ def expected_epochs(plan: dict) -> int:
         source = Path(plan["repository_root"])
         raw = yaml.safe_load(Path(plan["config"]).read_text())
         registered = [*configs(source).values(), *configs2(source).values()]
+        family_manifest = Path(plan["config"]).parents[2] / "manifest.json"
+        if family_manifest.is_file() and read_json(family_manifest).get("schema") == RS3_SCHEMA:
+            family = verify_rs3_manifest(source, family_manifest)
+            matching = [r for r in family["rows"] if source / r["config"] == Path(plan["config"])]
+            if len(matching) != 1:
+                raise ValueError("round3 dispatch requires its exact sealed family leaf")
+            registered.append(raw)
         if raw not in registered or plan["resolved_config"] != load_experiment_config(
             plan["config"]
         ).model_dump(mode="json"):

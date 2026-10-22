@@ -1,0 +1,150 @@
+{
+  "schema": "representation-round3-medium-1",
+  "family": "representation_round3_20261023",
+  "priority": [
+    "R3-RI",
+    "R3-AUB",
+    "R3-AUS"
+  ],
+  "preflight_priority": [
+    "R3-AUS",
+    "R3-RI",
+    "R3-AUB"
+  ],
+  "common_microbatch": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 320,
+  "epochs": 2,
+  "seed": 1,
+  "eval_batch": 128,
+  "validation": "disabled",
+  "postfit_validation": true,
+  "test_timing": "after_research_design_lock",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "initialization": "from_scratch; common B0 parameter initialization and seed",
+  "analysis": "same sealed medium population plus a separate fixed-panel training probe",
+  "baseline": {
+    "config": "configs/v2/fgpo_node0_20261016_b320/B0/gradpert_v2/nadig_jurkat.yaml",
+    "sha256": "80f5ee1d6c4d826d9d2c023f304c08f1734b5a05acd28d565f7053e367117830"
+  },
+  "schedule_semantics": {
+    "lr": "unchanged endpoint warmup cosine, warmup_fraction=0.16, over two epochs",
+    "ema": "unchanged cosine 0.99 to 1.0 over two epochs",
+    "comparison": "both arms share the shorter relative schedule; historical epoch2 is not this anchor"
+  },
+  "fixed_panel_diagnostics": {
+    "split": "train",
+    "conditions": 32,
+    "controls_per_condition": 4,
+    "query_genes": 1000,
+    "deep_gene_sample": 128,
+    "panel": "one fixed allowed training-expression panel shared by all arms and conditions",
+    "pairing": [
+      "same_condition_different_control",
+      "different_condition_same_control"
+    ],
+    "stratification": [
+      "cell_line",
+      "cell_type",
+      "context_id"
+    ],
+    "identity": "reuse sealed medium condition/row identities where eligible; seal the extra probe separately",
+    "independence": "deduplicate controls; report actual valid counts; do not replace missing rows silently",
+    "stages": "Response injection input, branch and actual state; self/cross/FFN; final norm",
+    "state_updates": false,
+    "persist_full_activations": false
+  },
+  "research_iteration": {
+    "round": 3,
+    "authorized_rounds": null,
+    "future_rounds": "adaptive after deep analysis; four rounds are a review, not automatic success",
+    "design_evidence": [
+      "train",
+      "validation"
+    ],
+    "test_results_for_selection": false,
+    "success": "joint representation separation and response utility; not CE or DINO rank alone",
+    "stage_review_after_round": 4,
+    "continuation": "until task-relevant representation problem is resolved",
+    "original_anchor": "representation_round1_20261021/RS-B0",
+    "repeated_candidate": "R3-RI exactly repeats the unchanged two-epoch RI configuration",
+    "hypothesis": "same-input alignment and compatible-context dispersion improve response representation without setting target rank or cosine margins"
+  },
+  "rerun_old_BR_or_officials": false,
+  "coefficient_decision": {
+    "path": "decision.json",
+    "sha256": "bab5399726e9f7b7ef836c617bef5e074f08cc66dc2fc7327cc514a9e784c69f"
+  },
+  "calibration": {
+    "init": {
+      "root": "calibration/init",
+      "complete_sha256": "f4bd4952334e90301b9f55736686b1cba5b8b56aaee55e57e62a161c6d7ce4e4"
+    },
+    "ri_last": {
+      "root": "calibration/ri_last",
+      "complete_sha256": "468fac43ba552331ae741b8e3f8215fcd2c0dcafd432ad6e4befc883a45365c5"
+    }
+  },
+  "source_roles": {
+    "calibration_commit": "288fe94232611a32f86f7fa92539a6032c41026d",
+    "training_commit": "bound separately by the native clean published queue and launch source_commit",
+    "ri_last_training_commit": "preserved in calibration/ri_last/PLAN.json training_identity"
+  },
+  "alignment_uniformity": {
+    "representation": "two Student Global Response CLS after final RMSNorm before projector",
+    "normalization": "auxiliary FP32 L2 only; main representations unchanged",
+    "alignment": "mean(1-cos) for the same control and perturbation across two Globals",
+    "uniformity": "logmeanexp(4*(cos-1)) across eligible unordered pairs separately per Global, then mean",
+    "eligible_pairs": "same control cell_type::batch context and different perturbation",
+    "population": "complete differentiable cross-rank and accumulation population; deduplicate(control,p) before sharding",
+    "temperature": 2.0,
+    "warmup_successful_updates": 30,
+    "balanced": {
+      "alignment_weight": 0.05,
+      "uniformity_weight": 0.005
+    },
+    "strong": {
+      "alignment_weight": 0.1,
+      "uniformity_weight": 0.01
+    },
+    "strength_multiplier": 2,
+    "empty_pairs": "fail explicitly",
+    "partial_diagnostics": "AU unavailable; never fake a full-population loss"
+  },
+  "rows": [
+    {
+      "name": "R3-RI",
+      "config": "configs/v2/representation_round3_20261023/R3-RI/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "65304a02704561f9fbe3addb7be335fc88a51688f9cef69941ac81d1a920a4f7",
+      "changes": {}
+    },
+    {
+      "name": "R3-AUB",
+      "config": "configs/v2/representation_round3_20261023/R3-AUB/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "a1410a98c6983a42c3ebb2c3218e8bd62a89b53aba8c061c7e2267ab62796e2a",
+      "changes": {
+        "au_alignment_weight": 0.05,
+        "au_uniformity_weight": 0.005,
+        "au_temperature": 2.0,
+        "au_warmup_steps": 30
+      }
+    },
+    {
+      "name": "R3-AUS",
+      "config": "configs/v2/representation_round3_20261023/R3-AUS/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "c16bcadc30c828998fea7c1799064bb13f31d41b5355b1cbd8d5b4e0ee82a789",
+      "changes": {
+        "au_alignment_weight": 0.1,
+        "au_uniformity_weight": 0.01,
+        "au_temperature": 2.0,
+        "au_warmup_steps": 30
+      }
+    }
+  ]
+}

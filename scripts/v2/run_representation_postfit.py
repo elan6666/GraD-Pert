@@ -13,11 +13,13 @@ from pathlib import Path
 from generate_representation_round1 import ARMS, SCHEMA
 from generate_representation_round2 import ARMS as ROUND2_ARMS
 from generate_representation_round2 import SCHEMA as ROUND2_SCHEMA
+from generate_representation_round3 import ARMS as ROUND3_ARMS
+from generate_representation_round3 import SCHEMA as ROUND3_SCHEMA
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
 
-FAMILY_ARMS = {SCHEMA: ARMS, ROUND2_SCHEMA: ROUND2_ARMS}
+FAMILY_ARMS = {SCHEMA: ARMS, ROUND2_SCHEMA: ROUND2_ARMS, ROUND3_SCHEMA: ROUND3_ARMS}
 
 
 def postfit_command(queue, row, stage):
@@ -272,7 +274,14 @@ def render_medium_report(queue, row, root):
                 "condition_id": group["condition_id"],
                 "joint": group["joint"],
                 **group["loss_terms"],
-                **({"ssl2_koleo": None, **flatten(loss_scope)} if loss_scope else {}),
+                **(
+                    {
+                        **{key: None for key in loss_scope.get("unavailable_terms", {})},
+                        **flatten(loss_scope),
+                    }
+                    if loss_scope
+                    else {}
+                ),
             }
         )
     tables["gradients"] = [flatten(v) for v in read_json(root / "analysis/gradients.json")]
@@ -312,6 +321,12 @@ def render_medium_report(queue, row, root):
         "有效秩描述差异分散方向，相对方差描述差异能量占比；两者都不是独立质量分数。\n",
         "启用KoLeo时，逐条件小探针缺完整全局异条件群体：KoLeo记NA，joint和SSL2梯度仅含可测项；完整训练loss仍包含KoLeo，见scope字段。\n",
     ]
+    if queue.get("family") == ROUND3_SCHEMA:
+        text.append(
+            "AU作用于两Global的Student Response CLS；完整训练loss逐项记录A、U、"
+            "warmup和加权贡献。中等诊断的逐条件小探针缺完整有效批，AU记NA，"
+            "该joint不含AU；不得与完整训练joint混同。\n"
+        )
     for name in ("training", "validation", "global_features", "global_heads", "frozen_losses"):
         text.extend([f"## {name}\n", table(tables[name])])
     text.append("## 完整聚合表\n")

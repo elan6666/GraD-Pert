@@ -27,10 +27,13 @@ from generate_representation_round1 import ARMS as RS_ARMS
 from generate_representation_round1 import SCHEMA as RS_SCHEMA
 from generate_representation_round2 import ARMS as RS2_ARMS
 from generate_representation_round2 import SCHEMA as RS2_SCHEMA
+from generate_representation_round3 import ARMS as RS3_ARMS
+from generate_representation_round3 import SCHEMA as RS3_SCHEMA
 
 FAMILY_ARMS = {
     RS_SCHEMA: RS_ARMS,
     RS2_SCHEMA: RS2_ARMS,
+    RS3_SCHEMA: RS3_ARMS,
     SCHEMA: ARMS,
     DINO_SCHEMA: DINO_ARMS,
     DP2_SCHEMA: {"DP2": DINO_ARMS["DP2"]},

@@ -1,0 +1,3133 @@
+{
+  "plan_sha256": "3d01f7876b2806b0543f764683d4d7cde3a3bc39c3503f5109f661d7fae2c6ae",
+  "batches": [
+    {
+      "input_count": 320,
+      "unique_count": 320,
+      "duplicate_count": 0,
+      "pair_count": 941,
+      "context_count": 55,
+      "contexts": [
+        {
+          "context_id": "jurkat::1",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::10",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.022316684378320937
+        },
+        {
+          "context_id": "jurkat::11",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.022316684378320937
+        },
+        {
+          "context_id": "jurkat::12",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.022316684378320937
+        },
+        {
+          "context_id": "jurkat::13",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0010626992561105207
+        },
+        {
+          "context_id": "jurkat::14",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003188097768331562
+        },
+        {
+          "context_id": "jurkat::15",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.022316684378320937
+        },
+        {
+          "context_id": "jurkat::16",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.022316684378320937
+        },
+        {
+          "context_id": "jurkat::17",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003188097768331562
+        },
+        {
+          "context_id": "jurkat::18",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::19",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.022316684378320937
+        },
+        {
+          "context_id": "jurkat::2",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010626992561105207
+        },
+        {
+          "context_id": "jurkat::20",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03825717321997875
+        },
+        {
+          "context_id": "jurkat::21",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02975557917109458
+        },
+        {
+          "context_id": "jurkat::22",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015940488841657812
+        },
+        {
+          "context_id": "jurkat::23",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003188097768331562
+        },
+        {
+          "context_id": "jurkat::24",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.022316684378320937
+        },
+        {
+          "context_id": "jurkat::25",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03825717321997875
+        },
+        {
+          "context_id": "jurkat::26",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015940488841657812
+        },
+        {
+          "context_id": "jurkat::27",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010626992561105207
+        },
+        {
+          "context_id": "jurkat::28",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0010626992561105207
+        },
+        {
+          "context_id": "jurkat::29",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.022316684378320937
+        },
+        {
+          "context_id": "jurkat::3",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02975557917109458
+        },
+        {
+          "context_id": "jurkat::30",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02975557917109458
+        },
+        {
+          "context_id": "jurkat::31",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006376195536663124
+        },
+        {
+          "context_id": "jurkat::32",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02975557917109458
+        },
+        {
+          "context_id": "jurkat::33",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010626992561105207
+        },
+        {
+          "context_id": "jurkat::34",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.05844845908607864
+        },
+        {
+          "context_id": "jurkat::35",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010626992561105207
+        },
+        {
+          "context_id": "jurkat::36",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006376195536663124
+        },
+        {
+          "context_id": "jurkat::37",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02975557917109458
+        },
+        {
+          "context_id": "jurkat::38",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010626992561105207
+        },
+        {
+          "context_id": "jurkat::39",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010626992561105207
+        },
+        {
+          "context_id": "jurkat::4",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010626992561105207
+        },
+        {
+          "context_id": "jurkat::40",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003188097768331562
+        },
+        {
+          "context_id": "jurkat::42",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003188097768331562
+        },
+        {
+          "context_id": "jurkat::43",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03825717321997875
+        },
+        {
+          "context_id": "jurkat::44",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006376195536663124
+        },
+        {
+          "context_id": "jurkat::45",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006376195536663124
+        },
+        {
+          "context_id": "jurkat::46",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02975557917109458
+        },
+        {
+          "context_id": "jurkat::47",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03825717321997875
+        },
+        {
+          "context_id": "jurkat::48",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010626992561105207
+        },
+        {
+          "context_id": "jurkat::49",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015940488841657812
+        },
+        {
+          "context_id": "jurkat::5",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015940488841657812
+        },
+        {
+          "context_id": "jurkat::50",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0010626992561105207
+        },
+        {
+          "context_id": "jurkat::51",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0010626992561105207
+        },
+        {
+          "context_id": "jurkat::52",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015940488841657812
+        },
+        {
+          "context_id": "jurkat::53",
+          "input_count": 10,
+          "condition_count": 10,
+          "pair_count": 45,
+          "pair_weight": 0.04782146652497343
+        },
+        {
+          "context_id": "jurkat::54",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02975557917109458
+        },
+        {
+          "context_id": "jurkat::55",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.022316684378320937
+        },
+        {
+          "context_id": "jurkat::56",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03825717321997875
+        },
+        {
+          "context_id": "jurkat::6",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003188097768331562
+        },
+        {
+          "context_id": "jurkat::7",
+          "input_count": 11,
+          "condition_count": 10,
+          "pair_count": 54,
+          "pair_weight": 0.057385759829968117
+        },
+        {
+          "context_id": "jurkat::8",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006376195536663124
+        },
+        {
+          "context_id": "jurkat::9",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015940488841657812
+        }
+      ],
+      "ordered_identity_sha256": "e58f7413085f4d0d4f82df969a80e4eaabd5624a7f96b9701fa7d1d421489832"
+    },
+    {
+      "input_count": 320,
+      "unique_count": 320,
+      "duplicate_count": 0,
+      "pair_count": 1028,
+      "context_count": 54,
+      "contexts": [
+        {
+          "context_id": "jurkat::1",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::10",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::11",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.014591439688715954
+        },
+        {
+          "context_id": "jurkat::12",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::13",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.027237354085603113
+        },
+        {
+          "context_id": "jurkat::14",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.014591439688715954
+        },
+        {
+          "context_id": "jurkat::15",
+          "input_count": 10,
+          "condition_count": 10,
+          "pair_count": 45,
+          "pair_weight": 0.04377431906614786
+        },
+        {
+          "context_id": "jurkat::16",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020428015564202335
+        },
+        {
+          "context_id": "jurkat::17",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.014591439688715954
+        },
+        {
+          "context_id": "jurkat::18",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020428015564202335
+        },
+        {
+          "context_id": "jurkat::19",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0029182879377431907
+        },
+        {
+          "context_id": "jurkat::2",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020428015564202335
+        },
+        {
+          "context_id": "jurkat::20",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0009727626459143969
+        },
+        {
+          "context_id": "jurkat::21",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.014591439688715954
+        },
+        {
+          "context_id": "jurkat::22",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.027237354085603113
+        },
+        {
+          "context_id": "jurkat::23",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::24",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0029182879377431907
+        },
+        {
+          "context_id": "jurkat::25",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.014591439688715954
+        },
+        {
+          "context_id": "jurkat::26",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.053501945525291826
+        },
+        {
+          "context_id": "jurkat::27",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.005836575875486381
+        },
+        {
+          "context_id": "jurkat::28",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::29",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.027237354085603113
+        },
+        {
+          "context_id": "jurkat::3",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0029182879377431907
+        },
+        {
+          "context_id": "jurkat::30",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.005836575875486381
+        },
+        {
+          "context_id": "jurkat::31",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::32",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0009727626459143969
+        },
+        {
+          "context_id": "jurkat::33",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::34",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0029182879377431907
+        },
+        {
+          "context_id": "jurkat::35",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::36",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0029182879377431907
+        },
+        {
+          "context_id": "jurkat::37",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.014591439688715954
+        },
+        {
+          "context_id": "jurkat::38",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::39",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::4",
+          "input_count": 12,
+          "condition_count": 12,
+          "pair_count": 66,
+          "pair_weight": 0.06420233463035019
+        },
+        {
+          "context_id": "jurkat::40",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::42",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.005836575875486381
+        },
+        {
+          "context_id": "jurkat::43",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0009727626459143969
+        },
+        {
+          "context_id": "jurkat::44",
+          "input_count": 15,
+          "condition_count": 15,
+          "pair_count": 105,
+          "pair_weight": 0.10214007782101167
+        },
+        {
+          "context_id": "jurkat::45",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0029182879377431907
+        },
+        {
+          "context_id": "jurkat::46",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.005836575875486381
+        },
+        {
+          "context_id": "jurkat::47",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03501945525291829
+        },
+        {
+          "context_id": "jurkat::48",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.027237354085603113
+        },
+        {
+          "context_id": "jurkat::49",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03501945525291829
+        },
+        {
+          "context_id": "jurkat::5",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.027237354085603113
+        },
+        {
+          "context_id": "jurkat::50",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::51",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.053501945525291826
+        },
+        {
+          "context_id": "jurkat::53",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.053501945525291826
+        },
+        {
+          "context_id": "jurkat::54",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::55",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::56",
+          "input_count": 10,
+          "condition_count": 10,
+          "pair_count": 45,
+          "pair_weight": 0.04377431906614786
+        },
+        {
+          "context_id": "jurkat::6",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009727626459143969
+        },
+        {
+          "context_id": "jurkat::7",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020428015564202335
+        },
+        {
+          "context_id": "jurkat::8",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03501945525291829
+        },
+        {
+          "context_id": "jurkat::9",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.014591439688715954
+        }
+      ],
+      "ordered_identity_sha256": "08d08561958e8f18b3335bb4b286209da894391eed1bb00f8d0fe91e24b6ee45"
+    },
+    {
+      "input_count": 320,
+      "unique_count": 320,
+      "duplicate_count": 0,
+      "pair_count": 980,
+      "context_count": 54,
+      "contexts": [
+        {
+          "context_id": "jurkat::10",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003061224489795918
+        },
+        {
+          "context_id": "jurkat::11",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006122448979591836
+        },
+        {
+          "context_id": "jurkat::12",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02857142857142857
+        },
+        {
+          "context_id": "jurkat::13",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006122448979591836
+        },
+        {
+          "context_id": "jurkat::14",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006122448979591836
+        },
+        {
+          "context_id": "jurkat::15",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003061224489795918
+        },
+        {
+          "context_id": "jurkat::16",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003061224489795918
+        },
+        {
+          "context_id": "jurkat::17",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02142857142857143
+        },
+        {
+          "context_id": "jurkat::18",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003061224489795918
+        },
+        {
+          "context_id": "jurkat::19",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006122448979591836
+        },
+        {
+          "context_id": "jurkat::2",
+          "input_count": 13,
+          "condition_count": 13,
+          "pair_count": 78,
+          "pair_weight": 0.07959183673469387
+        },
+        {
+          "context_id": "jurkat::20",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.036734693877551024
+        },
+        {
+          "context_id": "jurkat::21",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.01020408163265306
+        },
+        {
+          "context_id": "jurkat::22",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.05612244897959184
+        },
+        {
+          "context_id": "jurkat::23",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02857142857142857
+        },
+        {
+          "context_id": "jurkat::24",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015306122448979591
+        },
+        {
+          "context_id": "jurkat::25",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02142857142857143
+        },
+        {
+          "context_id": "jurkat::26",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.01020408163265306
+        },
+        {
+          "context_id": "jurkat::27",
+          "input_count": 10,
+          "condition_count": 10,
+          "pair_count": 45,
+          "pair_weight": 0.04591836734693878
+        },
+        {
+          "context_id": "jurkat::28",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003061224489795918
+        },
+        {
+          "context_id": "jurkat::29",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02142857142857143
+        },
+        {
+          "context_id": "jurkat::3",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.036734693877551024
+        },
+        {
+          "context_id": "jurkat::30",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006122448979591836
+        },
+        {
+          "context_id": "jurkat::31",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006122448979591836
+        },
+        {
+          "context_id": "jurkat::32",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.01020408163265306
+        },
+        {
+          "context_id": "jurkat::33",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.01020408163265306
+        },
+        {
+          "context_id": "jurkat::34",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003061224489795918
+        },
+        {
+          "context_id": "jurkat::35",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006122448979591836
+        },
+        {
+          "context_id": "jurkat::36",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006122448979591836
+        },
+        {
+          "context_id": "jurkat::37",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0010204081632653062
+        },
+        {
+          "context_id": "jurkat::38",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.036734693877551024
+        },
+        {
+          "context_id": "jurkat::39",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02857142857142857
+        },
+        {
+          "context_id": "jurkat::4",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.01020408163265306
+        },
+        {
+          "context_id": "jurkat::40",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0010204081632653062
+        },
+        {
+          "context_id": "jurkat::42",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006122448979591836
+        },
+        {
+          "context_id": "jurkat::43",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02142857142857143
+        },
+        {
+          "context_id": "jurkat::44",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0010204081632653062
+        },
+        {
+          "context_id": "jurkat::45",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02857142857142857
+        },
+        {
+          "context_id": "jurkat::46",
+          "input_count": 13,
+          "condition_count": 13,
+          "pair_count": 78,
+          "pair_weight": 0.07959183673469387
+        },
+        {
+          "context_id": "jurkat::47",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02142857142857143
+        },
+        {
+          "context_id": "jurkat::48",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02142857142857143
+        },
+        {
+          "context_id": "jurkat::49",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.01020408163265306
+        },
+        {
+          "context_id": "jurkat::5",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02857142857142857
+        },
+        {
+          "context_id": "jurkat::50",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003061224489795918
+        },
+        {
+          "context_id": "jurkat::51",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.02857142857142857
+        },
+        {
+          "context_id": "jurkat::52",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015306122448979591
+        },
+        {
+          "context_id": "jurkat::53",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015306122448979591
+        },
+        {
+          "context_id": "jurkat::54",
+          "input_count": 10,
+          "condition_count": 10,
+          "pair_count": 45,
+          "pair_weight": 0.04591836734693878
+        },
+        {
+          "context_id": "jurkat::55",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.01020408163265306
+        },
+        {
+          "context_id": "jurkat::56",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015306122448979591
+        },
+        {
+          "context_id": "jurkat::6",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.036734693877551024
+        },
+        {
+          "context_id": "jurkat::7",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015306122448979591
+        },
+        {
+          "context_id": "jurkat::8",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003061224489795918
+        },
+        {
+          "context_id": "jurkat::9",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015306122448979591
+        }
+      ],
+      "ordered_identity_sha256": "ddff65b6b17c345faebdf68642d1cff06de5a0b77f449931fe7e62626248ff22"
+    },
+    {
+      "input_count": 320,
+      "unique_count": 320,
+      "duplicate_count": 0,
+      "pair_count": 894,
+      "context_count": 55,
+      "contexts": [
+        {
+          "context_id": "jurkat::1",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003355704697986577
+        },
+        {
+          "context_id": "jurkat::10",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016778523489932886
+        },
+        {
+          "context_id": "jurkat::11",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.011185682326621925
+        },
+        {
+          "context_id": "jurkat::12",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::13",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.011185682326621925
+        },
+        {
+          "context_id": "jurkat::14",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006711409395973154
+        },
+        {
+          "context_id": "jurkat::15",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0011185682326621924
+        },
+        {
+          "context_id": "jurkat::16",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.03131991051454139
+        },
+        {
+          "context_id": "jurkat::17",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.03131991051454139
+        },
+        {
+          "context_id": "jurkat::18",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::19",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::2",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::20",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006711409395973154
+        },
+        {
+          "context_id": "jurkat::21",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.03131991051454139
+        },
+        {
+          "context_id": "jurkat::22",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006711409395973154
+        },
+        {
+          "context_id": "jurkat::23",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0011185682326621924
+        },
+        {
+          "context_id": "jurkat::24",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.03131991051454139
+        },
+        {
+          "context_id": "jurkat::25",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::26",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::27",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003355704697986577
+        },
+        {
+          "context_id": "jurkat::28",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.03131991051454139
+        },
+        {
+          "context_id": "jurkat::29",
+          "input_count": 10,
+          "condition_count": 10,
+          "pair_count": 45,
+          "pair_weight": 0.050335570469798654
+        },
+        {
+          "context_id": "jurkat::3",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.011185682326621925
+        },
+        {
+          "context_id": "jurkat::30",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::31",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006711409395973154
+        },
+        {
+          "context_id": "jurkat::32",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::33",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.03131991051454139
+        },
+        {
+          "context_id": "jurkat::34",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006711409395973154
+        },
+        {
+          "context_id": "jurkat::35",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016778523489932886
+        },
+        {
+          "context_id": "jurkat::36",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006711409395973154
+        },
+        {
+          "context_id": "jurkat::37",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.03131991051454139
+        },
+        {
+          "context_id": "jurkat::38",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016778523489932886
+        },
+        {
+          "context_id": "jurkat::39",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.011185682326621925
+        },
+        {
+          "context_id": "jurkat::4",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.06152125279642058
+        },
+        {
+          "context_id": "jurkat::40",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016778523489932886
+        },
+        {
+          "context_id": "jurkat::42",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::43",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::44",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016778523489932886
+        },
+        {
+          "context_id": "jurkat::45",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006711409395973154
+        },
+        {
+          "context_id": "jurkat::46",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003355704697986577
+        },
+        {
+          "context_id": "jurkat::47",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016778523489932886
+        },
+        {
+          "context_id": "jurkat::48",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.03131991051454139
+        },
+        {
+          "context_id": "jurkat::49",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016778523489932886
+        },
+        {
+          "context_id": "jurkat::5",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.003355704697986577
+        },
+        {
+          "context_id": "jurkat::50",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::51",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.011185682326621925
+        },
+        {
+          "context_id": "jurkat::52",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006711409395973154
+        },
+        {
+          "context_id": "jurkat::53",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0011185682326621924
+        },
+        {
+          "context_id": "jurkat::54",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016778523489932886
+        },
+        {
+          "context_id": "jurkat::55",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016778523489932886
+        },
+        {
+          "context_id": "jurkat::56",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.03131991051454139
+        },
+        {
+          "context_id": "jurkat::6",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::7",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.040268456375838924
+        },
+        {
+          "context_id": "jurkat::8",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02348993288590604
+        },
+        {
+          "context_id": "jurkat::9",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006711409395973154
+        }
+      ],
+      "ordered_identity_sha256": "7e86e24d03fd458e73668b7c7440f1483e8c08dd6ebd5c2cad6bf3b4041855fe"
+    },
+    {
+      "input_count": 320,
+      "unique_count": 320,
+      "duplicate_count": 0,
+      "pair_count": 1011,
+      "context_count": 54,
+      "contexts": [
+        {
+          "context_id": "jurkat::1",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::10",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020771513353115726
+        },
+        {
+          "context_id": "jurkat::11",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.05440158259149357
+        },
+        {
+          "context_id": "jurkat::12",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.027695351137487636
+        },
+        {
+          "context_id": "jurkat::13",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009891196834817012
+        },
+        {
+          "context_id": "jurkat::14",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.002967359050445104
+        },
+        {
+          "context_id": "jurkat::15",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.027695351137487636
+        },
+        {
+          "context_id": "jurkat::16",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0009891196834817012
+        },
+        {
+          "context_id": "jurkat::17",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.01483679525222552
+        },
+        {
+          "context_id": "jurkat::18",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020771513353115726
+        },
+        {
+          "context_id": "jurkat::19",
+          "input_count": 7,
+          "condition_count": 6,
+          "pair_count": 20,
+          "pair_weight": 0.019782393669634024
+        },
+        {
+          "context_id": "jurkat::2",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.027695351137487636
+        },
+        {
+          "context_id": "jurkat::20",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.002967359050445104
+        },
+        {
+          "context_id": "jurkat::21",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020771513353115726
+        },
+        {
+          "context_id": "jurkat::22",
+          "input_count": 13,
+          "condition_count": 13,
+          "pair_count": 78,
+          "pair_weight": 0.0771513353115727
+        },
+        {
+          "context_id": "jurkat::23",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.01483679525222552
+        },
+        {
+          "context_id": "jurkat::24",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.005934718100890208
+        },
+        {
+          "context_id": "jurkat::25",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.002967359050445104
+        },
+        {
+          "context_id": "jurkat::26",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.01483679525222552
+        },
+        {
+          "context_id": "jurkat::27",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.005934718100890208
+        },
+        {
+          "context_id": "jurkat::28",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020771513353115726
+        },
+        {
+          "context_id": "jurkat::29",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020771513353115726
+        },
+        {
+          "context_id": "jurkat::3",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.01483679525222552
+        },
+        {
+          "context_id": "jurkat::30",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.027695351137487636
+        },
+        {
+          "context_id": "jurkat::31",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020771513353115726
+        },
+        {
+          "context_id": "jurkat::32",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020771513353115726
+        },
+        {
+          "context_id": "jurkat::33",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03560830860534125
+        },
+        {
+          "context_id": "jurkat::34",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.002967359050445104
+        },
+        {
+          "context_id": "jurkat::35",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.005934718100890208
+        },
+        {
+          "context_id": "jurkat::36",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.002967359050445104
+        },
+        {
+          "context_id": "jurkat::37",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.002967359050445104
+        },
+        {
+          "context_id": "jurkat::38",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020771513353115726
+        },
+        {
+          "context_id": "jurkat::39",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009891196834817012
+        },
+        {
+          "context_id": "jurkat::4",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0009891196834817012
+        },
+        {
+          "context_id": "jurkat::40",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0009891196834817012
+        },
+        {
+          "context_id": "jurkat::42",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.027695351137487636
+        },
+        {
+          "context_id": "jurkat::43",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.002967359050445104
+        },
+        {
+          "context_id": "jurkat::44",
+          "input_count": 15,
+          "condition_count": 15,
+          "pair_count": 105,
+          "pair_weight": 0.10385756676557864
+        },
+        {
+          "context_id": "jurkat::45",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020771513353115726
+        },
+        {
+          "context_id": "jurkat::46",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.01483679525222552
+        },
+        {
+          "context_id": "jurkat::47",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.01483679525222552
+        },
+        {
+          "context_id": "jurkat::48",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009891196834817012
+        },
+        {
+          "context_id": "jurkat::49",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.01483679525222552
+        },
+        {
+          "context_id": "jurkat::5",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.020771513353115726
+        },
+        {
+          "context_id": "jurkat::51",
+          "input_count": 12,
+          "condition_count": 12,
+          "pair_count": 66,
+          "pair_weight": 0.06528189910979229
+        },
+        {
+          "context_id": "jurkat::52",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009891196834817012
+        },
+        {
+          "context_id": "jurkat::53",
+          "input_count": 10,
+          "condition_count": 10,
+          "pair_count": 45,
+          "pair_weight": 0.04451038575667656
+        },
+        {
+          "context_id": "jurkat::54",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.002967359050445104
+        },
+        {
+          "context_id": "jurkat::55",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::56",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.027695351137487636
+        },
+        {
+          "context_id": "jurkat::6",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.01483679525222552
+        },
+        {
+          "context_id": "jurkat::7",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009891196834817012
+        },
+        {
+          "context_id": "jurkat::8",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.009891196834817012
+        },
+        {
+          "context_id": "jurkat::9",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.002967359050445104
+        }
+      ],
+      "ordered_identity_sha256": "c331c622b7cf693265896040e7d84d53aab7145f663945ecffac849477c674db"
+    },
+    {
+      "input_count": 320,
+      "unique_count": 320,
+      "duplicate_count": 0,
+      "pair_count": 968,
+      "context_count": 54,
+      "contexts": [
+        {
+          "context_id": "jurkat::1",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::10",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010330578512396695
+        },
+        {
+          "context_id": "jurkat::11",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010330578512396695
+        },
+        {
+          "context_id": "jurkat::12",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.028925619834710745
+        },
+        {
+          "context_id": "jurkat::13",
+          "input_count": 14,
+          "condition_count": 14,
+          "pair_count": 91,
+          "pair_weight": 0.09400826446280992
+        },
+        {
+          "context_id": "jurkat::14",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02169421487603306
+        },
+        {
+          "context_id": "jurkat::15",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006198347107438017
+        },
+        {
+          "context_id": "jurkat::16",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.028925619834710745
+        },
+        {
+          "context_id": "jurkat::17",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::18",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006198347107438017
+        },
+        {
+          "context_id": "jurkat::19",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0010330578512396695
+        },
+        {
+          "context_id": "jurkat::2",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02169421487603306
+        },
+        {
+          "context_id": "jurkat::20",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006198347107438017
+        },
+        {
+          "context_id": "jurkat::21",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.0371900826446281
+        },
+        {
+          "context_id": "jurkat::22",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006198347107438017
+        },
+        {
+          "context_id": "jurkat::23",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0030991735537190084
+        },
+        {
+          "context_id": "jurkat::24",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006198347107438017
+        },
+        {
+          "context_id": "jurkat::25",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015495867768595042
+        },
+        {
+          "context_id": "jurkat::26",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.0371900826446281
+        },
+        {
+          "context_id": "jurkat::27",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010330578512396695
+        },
+        {
+          "context_id": "jurkat::28",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010330578512396695
+        },
+        {
+          "context_id": "jurkat::29",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015495867768595042
+        },
+        {
+          "context_id": "jurkat::3",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02169421487603306
+        },
+        {
+          "context_id": "jurkat::30",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.028925619834710745
+        },
+        {
+          "context_id": "jurkat::31",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02169421487603306
+        },
+        {
+          "context_id": "jurkat::32",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.028925619834710745
+        },
+        {
+          "context_id": "jurkat::33",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.056818181818181816
+        },
+        {
+          "context_id": "jurkat::34",
+          "input_count": 10,
+          "condition_count": 10,
+          "pair_count": 45,
+          "pair_weight": 0.04648760330578512
+        },
+        {
+          "context_id": "jurkat::35",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.028925619834710745
+        },
+        {
+          "context_id": "jurkat::36",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02169421487603306
+        },
+        {
+          "context_id": "jurkat::37",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010330578512396695
+        },
+        {
+          "context_id": "jurkat::38",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.028925619834710745
+        },
+        {
+          "context_id": "jurkat::39",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006198347107438017
+        },
+        {
+          "context_id": "jurkat::4",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.028925619834710745
+        },
+        {
+          "context_id": "jurkat::40",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006198347107438017
+        },
+        {
+          "context_id": "jurkat::42",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010330578512396695
+        },
+        {
+          "context_id": "jurkat::43",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.028925619834710745
+        },
+        {
+          "context_id": "jurkat::44",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010330578512396695
+        },
+        {
+          "context_id": "jurkat::45",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0030991735537190084
+        },
+        {
+          "context_id": "jurkat::46",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015495867768595042
+        },
+        {
+          "context_id": "jurkat::47",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02169421487603306
+        },
+        {
+          "context_id": "jurkat::48",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0030991735537190084
+        },
+        {
+          "context_id": "jurkat::49",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02169421487603306
+        },
+        {
+          "context_id": "jurkat::5",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006198347107438017
+        },
+        {
+          "context_id": "jurkat::51",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006198347107438017
+        },
+        {
+          "context_id": "jurkat::52",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010330578512396695
+        },
+        {
+          "context_id": "jurkat::53",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015495867768595042
+        },
+        {
+          "context_id": "jurkat::54",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010330578512396695
+        },
+        {
+          "context_id": "jurkat::55",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0030991735537190084
+        },
+        {
+          "context_id": "jurkat::56",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02169421487603306
+        },
+        {
+          "context_id": "jurkat::6",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02169421487603306
+        },
+        {
+          "context_id": "jurkat::7",
+          "input_count": 12,
+          "condition_count": 12,
+          "pair_count": 66,
+          "pair_weight": 0.06818181818181818
+        },
+        {
+          "context_id": "jurkat::8",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006198347107438017
+        },
+        {
+          "context_id": "jurkat::9",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0030991735537190084
+        }
+      ],
+      "ordered_identity_sha256": "675294b7b61ae1021a5cafc1bb40459fef815dad6097467d75e96456d4e04de7"
+    },
+    {
+      "input_count": 320,
+      "unique_count": 320,
+      "duplicate_count": 0,
+      "pair_count": 962,
+      "context_count": 54,
+      "contexts": [
+        {
+          "context_id": "jurkat::10",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015592515592515593
+        },
+        {
+          "context_id": "jurkat::11",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015592515592515593
+        },
+        {
+          "context_id": "jurkat::12",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.029106029106029108
+        },
+        {
+          "context_id": "jurkat::13",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.037422037422037424
+        },
+        {
+          "context_id": "jurkat::14",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006237006237006237
+        },
+        {
+          "context_id": "jurkat::15",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010395010395010396
+        },
+        {
+          "context_id": "jurkat::16",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015592515592515593
+        },
+        {
+          "context_id": "jurkat::17",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015592515592515593
+        },
+        {
+          "context_id": "jurkat::18",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0031185031185031187
+        },
+        {
+          "context_id": "jurkat::19",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010395010395010396
+        },
+        {
+          "context_id": "jurkat::2",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.029106029106029108
+        },
+        {
+          "context_id": "jurkat::20",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006237006237006237
+        },
+        {
+          "context_id": "jurkat::21",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015592515592515593
+        },
+        {
+          "context_id": "jurkat::22",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006237006237006237
+        },
+        {
+          "context_id": "jurkat::23",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0031185031185031187
+        },
+        {
+          "context_id": "jurkat::24",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006237006237006237
+        },
+        {
+          "context_id": "jurkat::25",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010395010395010396
+        },
+        {
+          "context_id": "jurkat::26",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.029106029106029108
+        },
+        {
+          "context_id": "jurkat::27",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.037422037422037424
+        },
+        {
+          "context_id": "jurkat::28",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006237006237006237
+        },
+        {
+          "context_id": "jurkat::29",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015592515592515593
+        },
+        {
+          "context_id": "jurkat::3",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.037422037422037424
+        },
+        {
+          "context_id": "jurkat::30",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010395010395010396
+        },
+        {
+          "context_id": "jurkat::31",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015592515592515593
+        },
+        {
+          "context_id": "jurkat::32",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.029106029106029108
+        },
+        {
+          "context_id": "jurkat::33",
+          "input_count": 12,
+          "condition_count": 12,
+          "pair_count": 66,
+          "pair_weight": 0.06860706860706861
+        },
+        {
+          "context_id": "jurkat::34",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006237006237006237
+        },
+        {
+          "context_id": "jurkat::35",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::36",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0031185031185031187
+        },
+        {
+          "context_id": "jurkat::37",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02182952182952183
+        },
+        {
+          "context_id": "jurkat::38",
+          "input_count": 9,
+          "condition_count": 8,
+          "pair_count": 35,
+          "pair_weight": 0.036382536382536385
+        },
+        {
+          "context_id": "jurkat::39",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0031185031185031187
+        },
+        {
+          "context_id": "jurkat::4",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015592515592515593
+        },
+        {
+          "context_id": "jurkat::40",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::42",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010395010395010396
+        },
+        {
+          "context_id": "jurkat::43",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010395010395010396
+        },
+        {
+          "context_id": "jurkat::44",
+          "input_count": 10,
+          "condition_count": 10,
+          "pair_count": 45,
+          "pair_weight": 0.04677754677754678
+        },
+        {
+          "context_id": "jurkat::45",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.057172557172557176
+        },
+        {
+          "context_id": "jurkat::46",
+          "input_count": 10,
+          "condition_count": 10,
+          "pair_count": 45,
+          "pair_weight": 0.04677754677754678
+        },
+        {
+          "context_id": "jurkat::47",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.006237006237006237
+        },
+        {
+          "context_id": "jurkat::48",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010395010395010396
+        },
+        {
+          "context_id": "jurkat::49",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.0010395010395010396
+        },
+        {
+          "context_id": "jurkat::5",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02182952182952183
+        },
+        {
+          "context_id": "jurkat::50",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::51",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010395010395010396
+        },
+        {
+          "context_id": "jurkat::52",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.057172557172557176
+        },
+        {
+          "context_id": "jurkat::53",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010395010395010396
+        },
+        {
+          "context_id": "jurkat::54",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.029106029106029108
+        },
+        {
+          "context_id": "jurkat::55",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010395010395010396
+        },
+        {
+          "context_id": "jurkat::56",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010395010395010396
+        },
+        {
+          "context_id": "jurkat::6",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015592515592515593
+        },
+        {
+          "context_id": "jurkat::7",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.015592515592515593
+        },
+        {
+          "context_id": "jurkat::8",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.029106029106029108
+        },
+        {
+          "context_id": "jurkat::9",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.029106029106029108
+        }
+      ],
+      "ordered_identity_sha256": "cab550fdc107e482609607a3afdf92a62a43089c3dde8518586ebd62b4ef7d73"
+    },
+    {
+      "input_count": 320,
+      "unique_count": 320,
+      "duplicate_count": 0,
+      "pair_count": 930,
+      "context_count": 55,
+      "contexts": [
+        {
+          "context_id": "jurkat::1",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::10",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.05913978494623656
+        },
+        {
+          "context_id": "jurkat::11",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010752688172043012
+        },
+        {
+          "context_id": "jurkat::12",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.030107526881720432
+        },
+        {
+          "context_id": "jurkat::13",
+          "input_count": 1,
+          "condition_count": 1,
+          "pair_count": 0,
+          "pair_weight": 0.0
+        },
+        {
+          "context_id": "jurkat::14",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010752688172043012
+        },
+        {
+          "context_id": "jurkat::15",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.030107526881720432
+        },
+        {
+          "context_id": "jurkat::16",
+          "input_count": 10,
+          "condition_count": 10,
+          "pair_count": 45,
+          "pair_weight": 0.04838709677419355
+        },
+        {
+          "context_id": "jurkat::17",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010752688172043012
+        },
+        {
+          "context_id": "jurkat::18",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0032258064516129032
+        },
+        {
+          "context_id": "jurkat::19",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016129032258064516
+        },
+        {
+          "context_id": "jurkat::2",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010752688172043012
+        },
+        {
+          "context_id": "jurkat::20",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016129032258064516
+        },
+        {
+          "context_id": "jurkat::21",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.030107526881720432
+        },
+        {
+          "context_id": "jurkat::22",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02258064516129032
+        },
+        {
+          "context_id": "jurkat::23",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.030107526881720432
+        },
+        {
+          "context_id": "jurkat::24",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03870967741935484
+        },
+        {
+          "context_id": "jurkat::25",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.0064516129032258064
+        },
+        {
+          "context_id": "jurkat::26",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016129032258064516
+        },
+        {
+          "context_id": "jurkat::27",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.0064516129032258064
+        },
+        {
+          "context_id": "jurkat::28",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010752688172043012
+        },
+        {
+          "context_id": "jurkat::29",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.0064516129032258064
+        },
+        {
+          "context_id": "jurkat::3",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010752688172043012
+        },
+        {
+          "context_id": "jurkat::30",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010752688172043012
+        },
+        {
+          "context_id": "jurkat::31",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.0064516129032258064
+        },
+        {
+          "context_id": "jurkat::32",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0032258064516129032
+        },
+        {
+          "context_id": "jurkat::33",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016129032258064516
+        },
+        {
+          "context_id": "jurkat::34",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.0064516129032258064
+        },
+        {
+          "context_id": "jurkat::35",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.030107526881720432
+        },
+        {
+          "context_id": "jurkat::36",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.05913978494623656
+        },
+        {
+          "context_id": "jurkat::37",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.030107526881720432
+        },
+        {
+          "context_id": "jurkat::38",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.0064516129032258064
+        },
+        {
+          "context_id": "jurkat::39",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0032258064516129032
+        },
+        {
+          "context_id": "jurkat::4",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.0064516129032258064
+        },
+        {
+          "context_id": "jurkat::40",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.0064516129032258064
+        },
+        {
+          "context_id": "jurkat::42",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010752688172043012
+        },
+        {
+          "context_id": "jurkat::43",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010752688172043012
+        },
+        {
+          "context_id": "jurkat::44",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03870967741935484
+        },
+        {
+          "context_id": "jurkat::45",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02258064516129032
+        },
+        {
+          "context_id": "jurkat::46",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.0064516129032258064
+        },
+        {
+          "context_id": "jurkat::47",
+          "input_count": 11,
+          "condition_count": 11,
+          "pair_count": 55,
+          "pair_weight": 0.05913978494623656
+        },
+        {
+          "context_id": "jurkat::48",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03870967741935484
+        },
+        {
+          "context_id": "jurkat::49",
+          "input_count": 8,
+          "condition_count": 8,
+          "pair_count": 28,
+          "pair_weight": 0.030107526881720432
+        },
+        {
+          "context_id": "jurkat::5",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02258064516129032
+        },
+        {
+          "context_id": "jurkat::50",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0032258064516129032
+        },
+        {
+          "context_id": "jurkat::51",
+          "input_count": 9,
+          "condition_count": 9,
+          "pair_count": 36,
+          "pair_weight": 0.03870967741935484
+        },
+        {
+          "context_id": "jurkat::52",
+          "input_count": 2,
+          "condition_count": 2,
+          "pair_count": 1,
+          "pair_weight": 0.001075268817204301
+        },
+        {
+          "context_id": "jurkat::53",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016129032258064516
+        },
+        {
+          "context_id": "jurkat::54",
+          "input_count": 3,
+          "condition_count": 3,
+          "pair_count": 3,
+          "pair_weight": 0.0032258064516129032
+        },
+        {
+          "context_id": "jurkat::55",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016129032258064516
+        },
+        {
+          "context_id": "jurkat::56",
+          "input_count": 7,
+          "condition_count": 7,
+          "pair_count": 21,
+          "pair_weight": 0.02258064516129032
+        },
+        {
+          "context_id": "jurkat::6",
+          "input_count": 5,
+          "condition_count": 5,
+          "pair_count": 10,
+          "pair_weight": 0.010752688172043012
+        },
+        {
+          "context_id": "jurkat::7",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016129032258064516
+        },
+        {
+          "context_id": "jurkat::8",
+          "input_count": 6,
+          "condition_count": 6,
+          "pair_count": 15,
+          "pair_weight": 0.016129032258064516
+        },
+        {
+          "context_id": "jurkat::9",
+          "input_count": 4,
+          "condition_count": 4,
+          "pair_count": 6,
+          "pair_weight": 0.0064516129032258064
+        }
+      ],
+      "ordered_identity_sha256": "9c4c09c9618bda16f046c75b4c7e3a30b1a17fd7d52d5c3edae0fcf33cff3d7a"
+    }
+  ],
+  "complete": true,
+  "model_forward": false,
+  "updates": 0
+}

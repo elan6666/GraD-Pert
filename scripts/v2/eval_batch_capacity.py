@@ -43,6 +43,9 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     from generate_representation_round2 import ARMS as RS2_ARMS
     from generate_representation_round2 import SCHEMA as RS2_SCHEMA
     from generate_representation_round2 import verify_manifest as verify_rs2_manifest
+    from generate_representation_round3 import ARMS as RS3_ARMS
+    from generate_representation_round3 import SCHEMA as RS3_SCHEMA
+    from generate_representation_round3 import verify_manifest as verify_rs3_manifest
     from shared_gpu import DYNAMIC_SCHEMA, validate_policy
 
     from gradpert.hashing import sha256_file
@@ -63,6 +66,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             PT2_SCHEMA,
             RS_SCHEMA,
             RS2_SCHEMA,
+            RS3_SCHEMA,
         )
         or queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA
         or queue.get("source_commit") != source_commit
@@ -108,13 +112,13 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         or queue.get("steps") != 10
     ):
         raise ValueError("DP2 evaluation requires the exact singleton continuation scope")
-    if queue.get("family") in (RS_SCHEMA, RS2_SCHEMA):
+    if queue.get("family") in (RS_SCHEMA, RS2_SCHEMA, RS3_SCHEMA):
         family_schema = queue["family"]
-        verifier, arms = (
-            (verify_rs_manifest, RS_ARMS)
-            if family_schema == RS_SCHEMA
-            else (verify_rs2_manifest, RS2_ARMS)
-        )
+        verifier, arms = {
+            RS_SCHEMA: (verify_rs_manifest, RS_ARMS),
+            RS2_SCHEMA: (verify_rs2_manifest, RS2_ARMS),
+            RS3_SCHEMA: (verify_rs3_manifest, RS3_ARMS),
+        }[family_schema]
         matrix = verifier(Path(queue["source"]), Path(queue["manifest"]))
         if (
             queue.get("mode") != family_schema
