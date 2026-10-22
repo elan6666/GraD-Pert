@@ -7,9 +7,9 @@
     "R2-KL"
   ],
   "preflight_priority": [
+    "R2-KL",
     "R2-RI",
-    "R2-HN",
-    "R2-KL"
+    "R2-HN"
   ],
   "common_microbatch": 80,
   "world_size": 2,

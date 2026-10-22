@@ -35,6 +35,8 @@ def test_round2_exact_independent_axes_and_same_two_epoch_anchor():
     values = family.configs(ROOT)
     assert values["R2-RI"] == first.configs(ROOT)["RS-RI"]
     assert manifest["epochs"] == 2 and manifest["global_batch"] == 320
+    assert manifest["preflight_priority"] == ["R2-KL", "R2-RI", "R2-HN"]
+    assert manifest["priority"] == ["R2-RI", "R2-HN", "R2-KL"]
     assert manifest["test_timing"] == "after_research_design_lock"
     assert manifest["koleo"]["context_restriction"] is False
     assert manifest["head_norm"]["other_heads"] == "unchanged; iBOT has no added input norm"

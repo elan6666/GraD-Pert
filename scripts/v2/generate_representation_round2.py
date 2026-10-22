@@ -41,7 +41,12 @@ def configs(source: Path) -> dict:
 
 def metadata() -> dict:
     value = first_metadata()
-    value.update(schema=SCHEMA, family=FAMILY, priority=list(ARMS), preflight_priority=list(ARMS))
+    value.update(
+        schema=SCHEMA,
+        family=FAMILY,
+        priority=list(ARMS),
+        preflight_priority=["R2-KL", "R2-RI", "R2-HN"],
+    )
     value["test_timing"] = "after_research_design_lock"
     value["research_iteration"].update(
         round=2,

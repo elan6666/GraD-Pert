@@ -41,9 +41,10 @@ def optimizer_step(
     """Accumulate cell terms; count graph terms once per effective update.
 
     Unified KoLeo collects all microbatch representations before cross-rank
-    neighbor selection. Cell and KoLeo terms share one backward pass after the
-    accumulated forwards, avoiding a second traversal of retained encoder
-    graphs. This does not guarantee lower peak memory.
+    neighbor selection. For multiple microbatches, backpropagate cell losses
+    immediately, retaining the shared ancestors until the global KoLeo pass.
+    Dropping each loss graph releases its prediction and projector branches;
+    only the two Global CLS ancestor graphs survive across microbatches.
     The legacy objective route retains its historical local neighborhoods.
     Distributed callers provide the unsharded condition index; graph terms
     remain once per global update, cell means are weighted by actual rank rows.
@@ -195,8 +196,10 @@ def optimizer_step(
                 koleo = global_koleo()
                 loss = loss + objective.lambda2 * objective.weights[1][2] * koleo
                 metrics["ssl2_koleo"] = float(koleo.detach())
-            if (deferred_koleo is not None and not single_micro) or deferred_population is not None:
+            if deferred_population is not None:
                 pending_cell_losses.append(loss * fraction * population_factor)
+            elif deferred_koleo is not None and not single_micro:
+                (loss * fraction * population_factor).backward(retain_graph=True)
             else:
                 (loss * fraction * population_factor).backward()
             for name, value in terms.items():
@@ -249,10 +252,7 @@ def optimizer_step(
             deferred_population.clear()
         elif deferred_koleo is not None and microbatch < total:
             koleo = global_koleo()
-            (
-                torch.stack(pending_cell_losses).sum()
-                + koleo * population_factor * objective.lambda2 * objective.weights[1][2]
-            ).backward()  # type: ignore[no-untyped-call]
+            (koleo * population_factor * objective.lambda2 * objective.weights[1][2]).backward()  # type: ignore[no-untyped-call]
             metrics["ssl2_koleo"] = float(koleo.detach())
         if deferred_koleo is not None:
             deferred_koleo.clear()
