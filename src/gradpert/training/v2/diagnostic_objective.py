@@ -1,4 +1,4 @@
-"""Partial fixed-probe objectives never stand in for global-population KoLeo."""
+"""Partial probes explicitly omit unavailable effective-population objectives."""
 
 from __future__ import annotations
 
@@ -19,27 +19,40 @@ def diagnostic_objective(
     and label the remaining objective explicitly. No weights or modes are changed.
     Disabled KoLeo takes the exact original forward path and adds no metadata.
     """
-    if not (objective.lambda2 and objective.weights[1][2]):
+    koleo = bool(objective.lambda2 and objective.weights[1][2])
+    au = bool(getattr(objective, "au_enabled", False))
+    if not (koleo or au):
         loss, terms = objective(batch, **kwargs)
         return loss, terms, {}
     if objective.loss_reduction is None:
         raise ValueError("fixed-probe KoLeo exclusion requires unified loss_reduction")
-    if "deferred_koleo" in kwargs:
-        raise ValueError("diagnostic objective owns its unavailable KoLeo population")
+    if "deferred_koleo" in kwargs or "deferred_au" in kwargs:
+        raise ValueError("diagnostic objective owns its unavailable representation population")
     deferred: list[tuple[Tensor, Tensor, Tensor]] = []
+    collection: dict[str, Any] = {}
+    if koleo:
+        collection["deferred_koleo"] = deferred
+    if au:
+        collection["omit_au_for_diagnostic"] = True
     try:
-        loss, terms = objective(batch, deferred_koleo=deferred, **kwargs)
+        loss, terms = objective(batch, **collection, **kwargs)
     finally:
         deferred.clear()
-    terms = {key: value for key, value in terms.items() if key != "ssl2_koleo"}
+    unavailable = (["ssl2_koleo"] if koleo else []) + (
+        ["au_alignment", "au_uniformity"] if au else []
+    )
+    terms = {key: value for key, value in terms.items() if key not in unavailable}
+    suffix = "representation_terms" if au else "koleo"
     return (
         loss,
         terms,
         {
             "diagnostic_objective_scope": {
-                "unavailable_terms": {"ssl2_koleo": "requires_complete_global_population"},
-                "joint_scope": "prediction_and_ssl_excluding_unavailable_koleo",
-                "ssl2_gradient_scope": "dino_and_ibot_excluding_unavailable_koleo",
+                "unavailable_terms": {
+                    key: "requires_complete_global_population" for key in unavailable
+                },
+                "joint_scope": f"prediction_and_ssl_excluding_unavailable_{suffix}",
+                "ssl2_gradient_scope": f"dino_and_ibot_excluding_unavailable_{suffix}",
             }
         },
     )

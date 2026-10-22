@@ -471,6 +471,10 @@ class V2Options:
     training_mode: str = "joint"
     ssl_pretrain_epochs: int = 0
     finetune_learning_rate: float = 2e-4
+    au_alignment_weight: float = 0.0
+    au_uniformity_weight: float = 0.0
+    au_temperature: float = 2.0
+    au_warmup_steps: int = 30
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -552,6 +556,10 @@ class V2Options:
             "training_mode",
             "ssl_pretrain_epochs",
             "finetune_learning_rate",
+            "au_alignment_weight",
+            "au_uniformity_weight",
+            "au_temperature",
+            "au_warmup_steps",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -571,6 +579,32 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
+        for name in ("au_alignment_weight", "au_uniformity_weight", "au_temperature"):
+            value = getattr(self, name)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value < 0
+            ):
+                raise ValueError(f"invalid AU parameter: {name}")
+        if (
+            self.au_temperature <= 0
+            or type(self.au_warmup_steps) is not int
+            or self.au_warmup_steps < 0
+        ):
+            raise ValueError("AU temperature must be positive and warmup nonnegative")
+        if (self.au_alignment_weight or self.au_uniformity_weight) and (
+            not self.lambda2
+            or self.loss_reduction != "row_mean"
+            or self.ssl2_koleo
+            or self.population_response
+            or self.training_mode != "joint"
+            or self.max_conditions == 1
+        ):
+            raise ValueError(
+                "AU requires mixed joint SSL2, row_mean, and disabled KoLeo/population loss"
+            )
         if self.training_mode not in ("joint", "ssl_then_mse"):
             raise ValueError("unknown v2 training mode")
         if type(self.ssl_pretrain_epochs) is not int or (

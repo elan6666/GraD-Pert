@@ -1,0 +1,9 @@
+# R3 AU implementation and calibration
+
+Baseline clean/published 60e9187b91918192745a7a7e60f7c05c28f5339b. User authorizes adaptive representation research; preserve legacy queues.
+
+Scope: RI control plus balanced/aggressive AU; two Student Global Response CLS after existing final RMSNorm, auxiliary L2 only. A=mean(1-cos positive); U=mean_over_views(logmeanexp(4*(cos-1))) over unordered same cell_type::batch context and different perturbation pairs, duplicate(control,p) removed across full batch before sharding. Entire effective population320, differentiable gather; no averaging microbatch logmeanexp. Empty population fails explicitly. t2, warmup30 successful updates; coefficients fixed only after train calibration. Other objectives/architecture/EMA/mask/data/sampler unchanged. 2epochs then val18, same medium/crossed panel, no test tuning.
+
+Ownership: integration agent owns src/gradpert/config/v2.py and training/v2/{objective,engine,views,runtime}.py plus new tests/v2/test_au_integration*.py. Loss agent owns training/v2/alignment_uniformity.py plus tests/v2/test_alignment_uniformity.py. Calibration agent owns scripts/v2/calibrate_alignment_uniformity.py plus tests/v2/test_au_calibration.py. Main owns family generator/dispatch, docs, state, publishing, server launch and independent acceptance. Existing tests may only be extended by their assigned owner or main. No agent commits or launches GPU.
+
+Validation: analytic loss and masks; full versus partitioned parameter gradients across2ranks/accumulation; zero-weight parity; warmup resume; finite updates/onecentercommit; pair metadata census; no-update state/RNG invariance; all3arms10step restore/eval128ref128 before main acceptance. Background supervisor exact run and20min monitor; terminal handback returns substantive work to main.

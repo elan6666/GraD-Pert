@@ -238,6 +238,7 @@ def assemble_batch(
     rng: np.random.Generator,
     *,
     allowed_expression_ids: np.ndarray[Any, Any] | None = None,
+    context_index: Tensor | None = None,
 ) -> TrainingBatch:
     device = raw.control_expression.device
     n = raw.control_expression.shape[1]
@@ -358,4 +359,5 @@ def assemble_batch(
         tuple(graph_views),
         tuple(cell_views),
         torch.tensor(list(first.values()), device=device),
+        context_index,
     )

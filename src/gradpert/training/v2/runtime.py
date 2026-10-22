@@ -42,6 +42,24 @@ class Runtime:
     purpose: Literal["training", "evaluation"] = "training"
 
     @cached_property
+    def _au_context_codes(self) -> tuple[int, ...]:
+        codes = {value: index for index, value in enumerate(sorted(set(self.data.context_ids)))}
+        return tuple(codes[value] for value in self.data.context_ids)
+
+    def au_context_indices(self, raw: Any) -> torch.Tensor | None:
+        """Map controls to stable data-wide context codes without changing sampling."""
+        if not (
+            getattr(self.options, "au_alignment_weight", 0)
+            or getattr(self.options, "au_uniformity_weight", 0)
+        ):
+            return None
+        return torch.tensor(
+            [self._au_context_codes[self.data._row_index[row]] for row in raw.control_row_ids],
+            device=raw.control_expression.device,
+            dtype=torch.long,
+        )
+
+    @cached_property
     def steps_per_epoch(self) -> int:
         if self.purpose != "training":
             raise RuntimeError("evaluation runtime cannot enter training")
@@ -107,6 +125,7 @@ class Runtime:
                 options,
                 generator,
                 allowed_expression_ids=self.allowed_expression_ids,
+                context_index=self.au_context_indices(raw),
             )
 
     def loss_diagnostics(self) -> dict[str, Any]:
@@ -164,6 +183,7 @@ class Runtime:
                     self.options,
                     generator,
                     allowed_expression_ids=self.allowed_expression_ids,
+                    context_index=self.au_context_indices(raw),
                 ),
                 identity,
             )
@@ -351,6 +371,10 @@ def prepare_runtime(
             lambda_masked_response=options.lambda_masked_response,
             population_response=options.population_response,
             lambda_mmd=options.lambda_mmd,
+            au_alignment_weight=options.au_alignment_weight,
+            au_uniformity_weight=options.au_uniformity_weight,
+            au_temperature=options.au_temperature,
+            au_warmup_steps=options.au_warmup_steps,
             teacher_temperature_start=options.teacher_temperature_start,
             teacher_temperature_end=options.teacher_temperature_end,
             teacher_temperature_warmup_steps=(
@@ -444,6 +468,20 @@ def prepare_runtime(
                 "pretrain_truth": "not_loaded_nan_sentinel",
                 "transition": "student_retained_optimizer_moments_reset",
                 "finetune_teacher_centers": "frozen_unused",
+            }
+        if objective.au_enabled:
+            identity["loss_protocol"]["alignment_uniformity"] = {
+                "alignment_weight": options.au_alignment_weight,
+                "uniformity_weight": options.au_uniformity_weight,
+                "temperature": options.au_temperature,
+                "warmup_completed_optimizer_updates": options.au_warmup_steps,
+                "representation": "student_response_cls_after_final_rmsnorm_before_projector",
+                "population_scope": "complete_effective_batch_all_microbatches_and_ranks",
+                "deduplication": "control_row_id_and_condition_id_before_rank_partition",
+                "alignment": "same_control_and_condition_two_global_views_both_student_gradients",
+                "uniformity_pairs": "unordered_same_cell_type_batch_context_different_condition",
+                "reduction": "log_mean_exp_over_all_eligible_pairs_then_mean_two_globals",
+                "partial_diagnostics": "unavailable_requires_complete_global_population",
             }
         if (
             options.prediction_error_power != 2

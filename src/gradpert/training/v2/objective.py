@@ -48,6 +48,8 @@ class TrainingBatch:
     graph_views: tuple[GraphView, ...]
     cell_views: tuple[CellView, ...]
     unique_cell_indices: Tensor | None = None
+    # Stable cell_type::batch codes, aligned to controls, only required by AU.
+    context_index: Tensor | None = None
 
 
 def cross_entropy(
@@ -114,10 +116,33 @@ class JointObjective(nn.Module):
         teacher_temperature_start: float = 0.04,
         teacher_temperature_end: float = 0.04,
         teacher_temperature_warmup_steps: int = 0,
+        au_alignment_weight: float = 0.0,
+        au_uniformity_weight: float = 0.0,
+        au_temperature: float = 2.0,
+        au_warmup_steps: int = 30,
     ) -> None:
         super().__init__()
         if min(lambda1, lambda2, *ssl1_weights, *ssl2_weights) < 0:
             raise ValueError("loss weights must be nonnegative")
+        for value in (au_alignment_weight, au_uniformity_weight, au_temperature):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value < 0
+            ):
+                raise ValueError("AU parameters must be finite and nonnegative")
+        if au_temperature <= 0 or type(au_warmup_steps) is not int or au_warmup_steps < 0:
+            raise ValueError("AU temperature must be positive and warmup nonnegative")
+        self.au_alignment_weight = au_alignment_weight
+        self.au_uniformity_weight = au_uniformity_weight
+        self.au_temperature = au_temperature
+        self.au_warmup_steps = au_warmup_steps
+        self.au_enabled = bool(au_alignment_weight or au_uniformity_weight)
+        if self.au_enabled and (
+            not lambda2 or loss_reduction != "row_mean" or ssl2_weights[2] or population_response
+        ):
+            raise ValueError("AU requires joint SSL2 row_mean and disabled KoLeo/population loss")
         self.student = student
         self.teacher = copy.deepcopy(student).requires_grad_(False).eval()
         self.prediction_enabled = True
@@ -335,8 +360,17 @@ class JointObjective(nn.Module):
         row_weights: Tensor | None = None,
         deferred_koleo: list[tuple[Tensor, Tensor, Tensor]] | None = None,
         deferred_population: list[tuple[Tensor, Tensor]] | None = None,
+        deferred_au: list[tuple[Tensor, Tensor, Tensor, Tensor]] | None = None,
+        omit_au_for_diagnostic: bool = False,
         checkpoint_deferred_response: bool = False,
     ) -> tuple[Tensor, dict[str, Tensor]]:
+        if omit_au_for_diagnostic and deferred_au is not None:
+            raise ValueError("diagnostic AU omission cannot collect a partial population")
+        if self.au_enabled and deferred_au is None and not omit_au_for_diagnostic:
+            raise ValueError(
+                "AU requires explicit complete-population collection; "
+                "partial diagnostics must defer it"
+            )
         model = self.student
         student_prefix = (
             model.graph.relay_prefix(batch.graph.context)
@@ -447,6 +481,7 @@ class JointObjective(nn.Module):
                 ibot_population=ibot_population,
                 reduction_weights=reduction_weights,
                 deferred_koleo=deferred_koleo,
+                deferred_au=deferred_au,
                 checkpoint_deferred_response=checkpoint_deferred_response,
                 student_prefix=student_prefix,
                 teacher_prefix=teacher_prefix,
@@ -662,6 +697,7 @@ class JointObjective(nn.Module):
         ibot_population: Tensor | None = None,
         reduction_weights: tuple[Tensor, Tensor] | None = None,
         deferred_koleo: list[tuple[Tensor, Tensor, Tensor]] | None = None,
+        deferred_au: list[tuple[Tensor, Tensor, Tensor, Tensor]] | None = None,
         student_prefix: Tensor | None = None,
         teacher_prefix: Tensor | None = None,
         checkpoint_deferred_response: bool = False,
@@ -671,7 +707,7 @@ class JointObjective(nn.Module):
         student_outputs, teacher_outputs = [], []
         checkpoint_globals = (
             checkpoint_deferred_response
-            and deferred_koleo is not None
+            and (deferred_koleo is not None or deferred_au is not None)
             and self.student.options.checkpoint_layers
             and torch.is_grad_enabled()
         )
@@ -773,6 +809,21 @@ class JointObjective(nn.Module):
                     )
                 nodes.append(node_loss)
         zero = student_outputs[0]["response_cls"].sum() * 0
+        if deferred_au is not None:
+            if (
+                batch.context_index is None
+                or batch.context_index.shape != batch.condition_index.shape
+            ):
+                raise ValueError("AU collection requires aligned control context IDs")
+            selected = batch.unique_cell_indices
+            values = [o["response_cls"] for o in student_outputs[:2]]
+            ids, contexts = batch.condition_index, batch.context_index
+            if selected is not None:
+                values = [v[selected] for v in values]
+                ids, contexts = ids[selected], contexts[selected]
+            if checkpoint_globals:
+                values = [v.clone() for v in values]
+            deferred_au.append((values[0], values[1], ids, contexts))
         if self.weights[1][2] and self.loss_reduction is not None:
             selected = batch.unique_cell_indices
             values = [

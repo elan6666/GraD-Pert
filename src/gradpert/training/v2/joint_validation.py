@@ -1,4 +1,4 @@
-"""Read-only, fixed-view validation of the complete v2 training objective."""
+"""Read-only fixed-view validation with explicit unavailable-population scope."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import torch
 
 from gradpert.hashing import sha256_json
 
+from .diagnostic_objective import diagnostic_objective
 from .objective import JointObjective, TrainingBatch
 
 
@@ -74,12 +75,18 @@ def evaluate_joint_loss(
     totals: dict[str, float] = {}
     total_cells = 0
     batch_hashes: list[str] = []
+    diagnostic_scope: dict[str, Any] = {}
     try:
         with torch.random.fork_rng(devices=cuda_devices), torch.no_grad():
             objective.eval()
             for batch, identity_hash in batches:
                 with torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=bf16):
-                    loss, terms = objective(batch)
+                    if getattr(objective, "au_enabled", False):
+                        # Validation/probe populations are not the sealed training
+                        # effective batch; never report their AU as its objective.
+                        loss, terms, diagnostic_scope = diagnostic_objective(objective, batch)
+                    else:
+                        loss, terms = objective(batch)
                 cells = len(batch.control)
                 value = float(loss.float())
                 if cells < 1 or not math.isfinite(value):
@@ -108,4 +115,5 @@ def evaluate_joint_loss(
         "batch_identity_sha256": sha256_json(batch_hashes),
         "reduction": "cell_weighted_mean_of_complete_validation_batch_losses",
         "teacher_update": "none",
+        **diagnostic_scope,
     }

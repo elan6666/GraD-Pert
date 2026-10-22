@@ -22,6 +22,7 @@ def slice_cells(batch: TrainingBatch, start: int, end: int) -> TrainingBatch:
         truth=batch.truth[start:end],
         condition_index=batch.condition_index[start:end],
         unique_cell_indices=unique,
+        context_index=None if batch.context_index is None else batch.context_index[start:end],
         cell_views=tuple(CellView(v.positions, v.mask[start:end]) for v in batch.cell_views),
     )
 
@@ -103,6 +104,10 @@ def optimizer_step(
     deferred_koleo: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] | None = (
         [] if unified and objective.lambda2 and objective.weights[1][2] else None
     )
+    deferred_au: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]] | None = (
+        [] if getattr(objective, "au_enabled", False) else None
+    )
+    au_metrics: dict[str, float] = {}
     deferred_population: list[tuple[torch.Tensor, torch.Tensor]] | None = (
         [] if objective.population_response else None
     )
@@ -163,6 +168,40 @@ def optimizer_step(
             )
         return torch.stack(view_terms).mean()
 
+    def global_au() -> torch.Tensor:
+        from .alignment_uniformity import alignment_uniformity
+
+        assert deferred_au is not None
+        values = [gather_rows(torch.cat([item[i] for item in deferred_au])) for i in range(4)]
+        result = alignment_uniformity(
+            values[0], values[1], values[2], values[3], temperature=objective.au_temperature
+        )
+        warmup = (
+            min(1.0, optimizer.steps / objective.au_warmup_steps)
+            if objective.au_warmup_steps
+            else 1.0
+        )
+        alignment = warmup * objective.au_alignment_weight * result.alignment
+        uniformity = warmup * objective.au_uniformity_weight * result.uniformity
+        weighted = alignment + uniformity
+        if not torch.isfinite(weighted):
+            raise FloatingPointError("nonfinite full-population AU objective")
+        au_metrics.update(
+            au_alignment=float(result.alignment.detach()),
+            au_uniformity=float(result.uniformity.detach()),
+            au_alignment_weighted=float(alignment.detach()),
+            au_uniformity_weighted=float(uniformity.detach()),
+            au_weighted=float(weighted.detach()),
+            au_warmup=warmup,
+            au_pair_count=float(result.pair_count),
+            au_input_count=float(result.input_count),
+            au_context_count=float(result.context_count),
+        )
+        # Every rank evaluates the same complete loss. Gather backward sums its
+        # feature contributions; the later parameter-gradient average cancels
+        # this replication. Do not multiply this global scalar by world size.
+        return weighted
+
     try:
         for start in range(0, total, microbatch):
             micro = slice_cells(batch, start, min(start + microbatch, total))
@@ -185,21 +224,29 @@ def optimizer_step(
                     if row_weights is None
                     else row_weights[start : start + len(micro.control)],
                     deferred_koleo=deferred_koleo,
-                    checkpoint_deferred_response=deferred_koleo is not None and microbatch < total,
+                    **({"deferred_au": deferred_au} if deferred_au is not None else {}),
+                    checkpoint_deferred_response=(
+                        deferred_koleo is not None or deferred_au is not None
+                    )
+                    and microbatch < total,
                     deferred_population=deferred_population,
                 )
             if not torch.isfinite(loss):
                 finite = False
                 if not distributed:
                     raise FloatingPointError("nonfinite v2 cell loss")
-            single_micro = deferred_koleo is not None and microbatch >= total
-            if single_micro:
+            single_micro = (
+                deferred_koleo is not None or deferred_au is not None
+            ) and microbatch >= total
+            if single_micro and deferred_koleo is not None:
                 koleo = global_koleo()
                 loss = loss + objective.lambda2 * objective.weights[1][2] * koleo
                 metrics["ssl2_koleo"] = float(koleo.detach())
+            if single_micro and deferred_au is not None:
+                loss = loss + global_au() / population_factor
             if deferred_population is not None:
                 pending_cell_losses.append(loss * fraction * population_factor)
-            elif deferred_koleo is not None and not single_micro:
+            elif (deferred_koleo is not None or deferred_au is not None) and not single_micro:
                 (loss * fraction * population_factor).backward(retain_graph=True)
             else:
                 (loss * fraction * population_factor).backward()
@@ -255,8 +302,12 @@ def optimizer_step(
             koleo = global_koleo()
             (koleo * population_factor * objective.lambda2 * objective.weights[1][2]).backward()  # type: ignore[no-untyped-call]
             metrics["ssl2_koleo"] = float(koleo.detach())
+        elif deferred_au is not None and microbatch < total:
+            global_au().backward()  # type: ignore[no-untyped-call]
         if deferred_koleo is not None:
             deferred_koleo.clear()
+        if deferred_au is not None:
+            deferred_au.clear()
         if objective.lambda1 and objective.student.options.control_conditioned_graph:
             if objective.weights[0][2] and microbatch < total:
                 raise ValueError("CG1 spread cannot be reduced independently across cell chunks")
@@ -388,6 +439,11 @@ def optimizer_step(
         metrics["joint_loss"] += objective.lambda_masked_response * metrics.get(
             "masked_response", 0.0
         )
+        if au_metrics:
+            # These are replicated global scalars, not rank-local row sums.
+            metrics.update(au_metrics)
+            metrics["joint_loss_without_au"] = metrics["joint_loss"]
+            metrics["joint_loss"] += au_metrics["au_weighted"]
         metrics["gradient_norm"] = float(norm)
         metrics["gradient_clipped"] = float(norm > 1.0)
         metrics["learning_rate"] = lr
