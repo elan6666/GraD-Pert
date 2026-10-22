@@ -19,7 +19,12 @@ from prototype_pair_diagnostics import PrototypePairBank
 from representation_panel import MatchedCellViews, panel_schedule, validate_panel_runtime
 from representation_panel import assemble_control_only as assemble
 from response_stage_diagnostics import ResponseStageObserver
-from run_representation_panel import add_prototype_rows, grouped_main_result, prototype_result
+from run_representation_panel import (
+    add_prototype_rows,
+    collect_panel_views,
+    grouped_main_result,
+    prototype_result,
+)
 
 from gradpert.training.v2.optimizer import V2Optimizer
 
@@ -79,10 +84,13 @@ def native_runtime(arm="N0"):
     return rt, panel
 
 
-@pytest.mark.parametrize("arm", ["N0", "CG1", "U24"])
+@pytest.mark.parametrize("arm", ["N0", "CG1", "U24", "KL"])
 def test_native_crossed_forward_queries_hooks_and_state_preservation(arm):
     torch.set_num_threads(1)
     rt, panel = native_runtime(arm)
+    if arm == "KL":
+        rt.objective.weights = (rt.objective.weights[0], (1, 1, 0.1))
+        rt.objective.koleo_exclude_same_condition = True
     before = validation_state(rt)
     views, prototypes = GroupedViewBank(), PrototypePairBank()
     matched = MatchedCellViews()
@@ -109,16 +117,17 @@ def test_native_crossed_forward_queries_hooks_and_state_preservation(arm):
             deep = assemble(rt, group["rows"], group["queries"], group["view_seed"], deep=True)
             deep, receipt = matched.bind(deep, group["rows"])
             receipts.append(receipt)
-            collector = Collector(deep, group["rows"], 11, stats_backend="fast")
-            collector.install(rt.objective)
-            try:
-                rt.objective(deep)
-                collector.complete_feature_views()
-                collector.add_to_view_bank(views)
-                add_prototype_rows(collector, prototypes)
-            finally:
-                collector.close()
+            scope = collect_panel_views(rt.objective, deep, group["rows"], 11, views, prototypes)
+            if arm == "KL":
+                assert scope["diagnostic_objective_scope"]["unavailable_terms"] == {
+                    "ssl2_koleo": "requires_complete_global_population"
+                }
+                # Fixed-probe observation must not weaken the real objective.
+                with pytest.raises(ValueError, match="unlike-condition neighbor"):
+                    rt.objective(deep)
                 rt.objective.pending.clear()
+            else:
+                assert scope == {}
     assert rt.data.read_indices
     assert before == validation_state(rt)
     assert views.entries

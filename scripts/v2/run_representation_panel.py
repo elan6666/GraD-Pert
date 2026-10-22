@@ -102,6 +102,23 @@ def prototype_result(bank, objective):
     return result
 
 
+def collect_panel_views(objective, batch, records, seed, views, prototypes):
+    """Observe fixed probes without inventing their unavailable global KoLeo loss."""
+    from gradpert.training.v2.diagnostic_objective import diagnostic_objective
+
+    collector = Collector(batch, records, seed, stats_backend="fast")
+    collector.install(objective)
+    try:
+        _, _, scope = diagnostic_objective(objective, batch)
+        collector.complete_feature_views()
+        collector.add_to_view_bank(views)
+        add_prototype_rows(collector, prototypes)
+        return scope
+    finally:
+        collector.close()
+        objective.pending.clear()
+
+
 def execute(args):
     from capacity_probe import validation_state
     from prototype_pair_diagnostics import PrototypePairBank
@@ -152,7 +169,7 @@ def execute(args):
     write(args.output / "panel.json", panel)
     started = time.perf_counter()
     stage_rows = {name: [] for name in ("cell_statistics", "group_statistics", "pair_statistics")}
-    matched_cell_views, view_receipts = MatchedCellViews(), []
+    matched_cell_views, view_receipts, diagnostic_scopes = MatchedCellViews(), [], []
     views, prototypes, main_views = GroupedViewBank(), PrototypePairBank(), GroupedViewBank()
     with prepare(
         config,
@@ -216,16 +233,8 @@ def execute(args):
                 )
                 deep, view_receipt = matched_cell_views.bind(deep, group["rows"])
                 view_receipts.append({"condition_id": group["condition_id"], **view_receipt})
-                collector = Collector(deep, group["rows"], args.seed, stats_backend="fast")
-                collector.install(obj)
-                try:
-                    obj(deep)
-                    collector.complete_feature_views()
-                    collector.add_to_view_bank(views)
-                    add_prototype_rows(collector, prototypes)
-                finally:
-                    collector.close()
-                    obj.pending.clear()
+                scope = collect_panel_views(obj, deep, group["rows"], args.seed, views, prototypes)
+                diagnostic_scopes.append({"condition_id": group["condition_id"], **scope})
                 write(
                     args.output / "progress.json",
                     dict(
@@ -270,6 +279,7 @@ def execute(args):
         data=identity["data"],
         panel_sha256=panel["panel_sha256"],
         panel_rows=panel["rows"],
+        diagnostic_objective_scopes=diagnostic_scopes,
         state_before=before,
         state_after=after,
         state_unchanged=True,
