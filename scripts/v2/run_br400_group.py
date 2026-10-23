@@ -88,8 +88,8 @@ def selected_matrix(matrix: dict, only_arms: list[str] | None) -> dict:
     if only_arms is None:
         return matrix
     if matrix["schema"] == RS3_SCHEMA:
-        if only_arms != list(R3_CONTINUATION_ARMS):
-            raise ValueError("R3 continuation requires exactly ordered R3-AUB, R3-AUS")
+        if only_arms not in (list(R3_CONTINUATION_ARMS), ["R3-AUS"]):
+            raise ValueError("R3 continuation requires ordered R3-AUB, R3-AUS or singleton R3-AUS")
     elif (
         matrix["schema"] != FGPO_SCHEMA
         or not only_arms

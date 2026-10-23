@@ -119,6 +119,50 @@ def collect_panel_views(objective, batch, records, seed, views, prototypes):
         objective.pending.clear()
 
 
+def panel_parent_binding(parent, identity, queue, args):
+    """Bind only frozen AU metadata after resolving the exact queued endpoint."""
+    from generate_representation_round3 import SCHEMA
+    from run_fgpo_medium import au_parent_binding
+
+    rows = [
+        row
+        for row in queue["rows"]
+        if Path(row["plan"]["run_root"]).resolve() == args.run_root.resolve()
+    ]
+    if len(rows) != 1:
+        raise ValueError("panel requires one exact resource-queue run binding")
+    row = rows[0]
+    plan = row["plan"]
+    if (
+        plan["run_id"] != identity["run_id"]
+        or Path(plan["config"]).resolve() != args.config.resolve()
+        or plan["config_sha256"] != sha(args.config)
+        or queue["source_commit"] != args.method_sha
+        or identity["source"]["commit"] != args.method_sha
+    ):
+        raise ValueError("panel queue/run/config binding differs")
+    if row["name"] in ("R3-AUB", "R3-AUS"):
+        spec = queue["medium_analysis"]
+        if (
+            queue.get("family") != SCHEMA
+            or Path(spec["parent_manifest"]).resolve() != args.parent_manifest.resolve()
+            or spec["parent_manifest_sha256"] != args.parent_manifest_sha256
+        ):
+            raise ValueError("AU panel requires its exact original family parent")
+        bound = au_parent_binding(
+            parent,
+            identity,
+            arm=row["name"],
+            config=args.config,
+            parent_path=args.parent_manifest,
+            parent_sha256=args.parent_manifest_sha256,
+        )
+        return bound["training_protocol_binding"]
+    if parent["data"] != identity["data"]:
+        raise ValueError("medium parent and checkpoint data differ")
+    return None
+
+
 def execute(args):
     from capacity_probe import validation_state
     from prototype_pair_diagnostics import PrototypePairBank
@@ -146,8 +190,8 @@ def execute(args):
     )
     torch, config, identity, prepare, _ = runtime_args(args)
     analysis_source = source_identity(Path(__file__).resolve().parents[2])
-    if parent["data"] != identity["data"]:
-        raise ValueError("medium parent and checkpoint data differ")
+    queue = read(args.resource_queue)
+    parent_binding = panel_parent_binding(parent, identity, queue, args)
     cp, endpoint = select_checkpoint(args.run_root, args.checkpoint_role)
     checkpoint = args.run_root / "fit" / cp["file"]
     if sha(checkpoint) != cp["sha256"]:
@@ -158,7 +202,7 @@ def execute(args):
         raise ValueError("allocator contract missing")
     if os.environ.get("CUBLAS_WORKSPACE_CONFIG") != ":4096:8":
         raise ValueError("deterministic probe requires CUBLAS_WORKSPACE_CONFIG=:4096:8")
-    policy = read(args.resource_queue)["shared_gpu_policy"]
+    policy = queue["shared_gpu_policy"]
     observed = snapshot(os.getpid())
     admit(policy, observed)
     torch.cuda.set_per_process_memory_fraction(policy["max_own_memory_fraction"], 0)
@@ -276,6 +320,7 @@ def execute(args):
         config_sha256=sha(args.config),
         parent_manifest=str(args.parent_manifest),
         parent_manifest_sha256=args.parent_manifest_sha256,
+        training_protocol_binding=parent_binding,
         data=identity["data"],
         panel_sha256=panel["panel_sha256"],
         panel_rows=panel["rows"],

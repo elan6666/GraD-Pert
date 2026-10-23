@@ -290,7 +290,7 @@ def round3_queue(bundle, new_queue, monkeypatch, request):
     return queue, Path(queue["output"])
 
 
-@pytest.mark.parametrize("round3_queue", [None, ["R3-AUB", "R3-AUS"]], indirect=True)
+@pytest.mark.parametrize("round3_queue", [None, ["R3-AUB", "R3-AUS"], ["R3-AUS"]], indirect=True)
 def test_round3_native_gates_and_separate_training_source(round3_queue):
     queue, output = round3_queue
     assert queue["source_commit"] != family.CALIBRATION_SOURCE
@@ -300,6 +300,13 @@ def test_round3_native_gates_and_separate_training_source(round3_queue):
     for row in queue["rows"]:
         plan = row["plan"]
         assert runner.expected_epochs(plan) == 2
+        from gradpert.config.v2 import V2Options
+
+        _, options = V2Options.parse_parameters(
+            load_experiment_config(plan["config"]).model.parameters
+        )
+        assert options.microbatch * options.accumulation * options.world_size == 320
+        assert options.world_size == 2
         atomic_json(output / f"{row['name']}-preflight/receipt.json", training_gate(queue, row))
         runner.validate_training_gate(
             queue, row, runner.gate_entry(output / f"{row['name']}-preflight/receipt.json")
@@ -320,7 +327,7 @@ def test_round3_native_gates_and_separate_training_source(round3_queue):
             assert validate_eval_binding(queue, args, queue["source_commit"]) == row
 
 
-@pytest.mark.parametrize("round3_queue", [None, ["R3-AUB", "R3-AUS"]], indirect=True)
+@pytest.mark.parametrize("round3_queue", [None, ["R3-AUB", "R3-AUS"], ["R3-AUS"]], indirect=True)
 def test_round3_controller_runs_val_and_diagnostics_then_returns_for_research(
     round3_queue, monkeypatch
 ):
@@ -375,7 +382,8 @@ def test_round3_controller_runs_val_and_diagnostics_then_returns_for_research(
     assert not (output / "COMPLETE.json").exists()
 
 
-def test_round3_continuation_uses_fresh_queue_and_ids_preserving_original_ri(round3_queue):
+@pytest.mark.parametrize("scope", [["R3-AUB", "R3-AUS"], ["R3-AUS"]])
+def test_round3_continuation_uses_fresh_queue_and_ids_preserving_original_ri(round3_queue, scope):
     original, old_output = round3_queue
     original_bytes = (old_output / "queue.json").read_bytes()
     atomic_json(old_output / "state.json", dict(status="failed"))
@@ -384,18 +392,24 @@ def test_round3_continuation_uses_fresh_queue_and_ids_preserving_original_ri(rou
     ri_last.parent.mkdir(parents=True)
     ri_last.write_bytes(b"preserved original RI checkpoint")
     checkpoint_hash = sha256_file(ri_last)
+    aub_last = Path(original["rows"][1]["plan"]["run_root"]) / "fit/last.pt"
+    aub_last.parent.mkdir(parents=True)
+    aub_last.write_bytes(b"preserved completed AUB checkpoint")
+    aub_hash = sha256_file(aub_last)
     queue = runner.prepare(
         Path(original["source"]),
         Path(original["manifest"]),
         Path(original["runtime"]),
-        old_output.parent / "aub-aus-continuation",
+        old_output.parent / "pending-continuation",
         original["shared_gpu_policy"],
-        only_arms=["R3-AUB", "R3-AUS"],
+        only_arms=scope,
     )
     runner.verify(queue)
-    assert [r["name"] for r in queue["rows"]] == ["R3-AUB", "R3-AUS"]
-    assert len(queue["eval_bindings"]) == 4 and queue["steps"] == 10
+    assert [r["name"] for r in queue["rows"]] == scope
+    assert len(queue["eval_bindings"]) == 2 * len(scope) and queue["steps"] == 10
     assert queue["medium_analysis"] == original["medium_analysis"]
+    assert all(b["cell_batch"] == b["reference_batch"] == 128 for b in queue["eval_bindings"])
+    assert {b["row_name"] for b in queue["eval_bindings"]} == set(scope)
     for key in ("run_id", "run_root", "test_root"):
         assert {r["plan"][key] for r in original["rows"]}.isdisjoint(
             r["plan"][key] for r in queue["rows"]
@@ -404,6 +418,7 @@ def test_round3_continuation_uses_fresh_queue_and_ids_preserving_original_ri(rou
     assert read_json(old_output / "state.json") == dict(status="failed")
     assert read_json(old_output / "FAILURE.json") == dict(error="original analysis failure")
     assert sha256_file(ri_last) == checkpoint_hash
+    assert sha256_file(aub_last) == aub_hash
     with pytest.raises(ValueError, match="fresh server queue root"):
         runner.prepare(
             Path(original["source"]),
@@ -411,7 +426,7 @@ def test_round3_continuation_uses_fresh_queue_and_ids_preserving_original_ri(rou
             Path(original["runtime"]),
             old_output,
             original["shared_gpu_policy"],
-            only_arms=["R3-AUB", "R3-AUS"],
+            only_arms=scope,
         )
 
 
@@ -421,7 +436,7 @@ def test_round3_continuation_uses_fresh_queue_and_ids_preserving_original_ri(rou
         [],
         ["R3-RI"],
         ["R3-AUB"],
-        ["R3-AUS"],
+        ["R3-AUS", "R3-AUS"],
         ["R3-AUS", "R3-AUB"],
         ["R3-AUB", "R3-AUB", "R3-AUS"],
         ["R3-RI", "R3-AUB", "R3-AUS"],
@@ -434,7 +449,7 @@ def test_round3_continuation_rejects_any_other_subset(arms):
         runner.selected_matrix(dict(schema=family.SCHEMA), arms)
 
 
-@pytest.mark.parametrize("round3_queue", [["R3-AUB", "R3-AUS"]], indirect=True)
+@pytest.mark.parametrize("round3_queue", [["R3-AUB", "R3-AUS"], ["R3-AUS"]], indirect=True)
 @pytest.mark.parametrize("bad", ["selection", "mixed_subset", "order", "row", "eval_binding"])
 def test_round3_continuation_rejects_resealed_queue_scope_tampering(round3_queue, bad):
     queue, output = round3_queue
@@ -457,7 +472,10 @@ def test_round3_continuation_rejects_resealed_queue_scope_tampering(round3_queue
     elif bad == "mixed_subset":
         queue["only_arms"] = ["R3-AUB", "S12-L4"]
     elif bad == "order":
-        queue["rows"].reverse()
+        if len(queue["rows"]) == 1:
+            queue["rows"].append(copy.deepcopy(row))
+        else:
+            queue["rows"].reverse()
     elif bad == "row":
         queue["rows"][0]["name"] = "R3-RI"
     else:
@@ -469,7 +487,8 @@ def test_round3_continuation_rejects_resealed_queue_scope_tampering(round3_queue
         validate_eval_binding(queue, args, queue["source_commit"])
 
 
-def test_round3_continuation_cli_accepts_exact_pair(tmp_path, monkeypatch):
+@pytest.mark.parametrize("scope", [["R3-AUB", "R3-AUS"], ["R3-AUS"]])
+def test_round3_continuation_cli_accepts_exact_pair(tmp_path, monkeypatch, scope):
     policy = tmp_path / "policy.json"
     atomic_json(policy, {})
     monkeypatch.setattr(
@@ -489,14 +508,13 @@ def test_round3_continuation_cli_accepts_exact_pair(tmp_path, monkeypatch):
             "--shared-policy",
             str(policy),
             "--only-arms",
-            "R3-AUB",
-            "R3-AUS",
+            *scope,
         ],
     )
     calls = []
     monkeypatch.setattr(runner, "prepare", lambda *a, **kw: calls.append((a, kw)))
     runner.main()
-    assert len(calls) == 1 and calls[0][1] == dict(only_arms=["R3-AUB", "R3-AUS"])
+    assert len(calls) == 1 and calls[0][1] == dict(only_arms=scope)
 
 
 @pytest.mark.parametrize("round3_queue", [["R3-AUB", "R3-AUS"]], indirect=True)
