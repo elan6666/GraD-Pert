@@ -45,6 +45,13 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
 - Configs are self-contained files at
   `configs/experiments/<model_id>/<dataset_id>.yaml`. No global experiment
   config, hidden defaults chain, or config inheritance.
+- Reuse completed compatible baselines by default. Do not automatically retrain
+  an unchanged baseline for each research round, auxiliary-loss implementation,
+  analysis repair, or controller-only source change. Preserve the original
+  training/checkpoint provenance and label cross-version comparisons honestly.
+  Reconsider baseline training only for a material model, data, or training
+  semantic change, or an explicitly requested replication; explain the concrete
+  necessity before scheduling it. Current representation work reuses R3-RI.
 - Every GraD-Pert, GEARS, and TxPert dataset integration must first pass an
   exactly one-epoch server smoke. Only GraD-Pert proceeds to a full run with
   `max_epochs=100` and validation-only early stopping `patience=10`; GEARS and
