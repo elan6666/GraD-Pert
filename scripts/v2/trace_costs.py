@@ -25,33 +25,42 @@ def events(handle: TextIO, chunk_size: int = 65536) -> Iterator[dict[str, Any]]:
             raise ValueError("missing bounded traceEvents header")
         buffer += piece
     expect_value = True
+    cursor = 0
+    whitespace = re.compile(r"\s*")
     while True:
-        buffer = buffer.lstrip()
-        if not buffer:
+        cursor = whitespace.match(buffer, cursor).end()
+        if cursor == len(buffer):
+            cursor = 0
             buffer = handle.read(chunk_size)
             if not buffer:
                 raise ValueError("truncated trace array")
             continue
-        if buffer.startswith("]"):
+        if buffer[cursor] == "]":
             return
         if not expect_value:
-            if not buffer.startswith(","):
+            if buffer[cursor] != ",":
                 raise ValueError("missing event separator")
-            buffer = buffer[1:]
+            cursor += 1
             expect_value = True
             continue
         try:
-            event, end = decoder.raw_decode(buffer)
+            event, end = decoder.raw_decode(buffer, cursor)
         except json.JSONDecodeError as error:
             piece = handle.read(chunk_size)
-            if not piece or len(buffer) > 64 * 1024**2:
-                raise ValueError("truncated or oversized event") from error
-            buffer += piece
+            if not piece or len(buffer) - cursor > 64 * 1024**2:
+                # Keep the legacy event-relative decoder error on terminal failure.
+                relative_error = json.JSONDecodeError(
+                    error.msg, buffer[cursor:], error.pos - cursor
+                )
+                raise ValueError("truncated or oversized event") from relative_error
+            # Compact only when another bounded read is needed.
+            buffer = buffer[cursor:] + piece
+            cursor = 0
             continue
         if not isinstance(event, dict):
             raise ValueError("trace event must be an object")
         yield event
-        buffer = buffer[end:]
+        cursor = end
         expect_value = False
 
 
