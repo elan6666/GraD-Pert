@@ -613,9 +613,13 @@ def test_nonresearch_medium_still_requires_test_completion(new_queue):
 
 
 @pytest.mark.parametrize(
-    "bad", [None, "dirty", "numerical", "controller", "queue_output", "run_output", "other_arm"]
+    "bad",
+    [None, "dirty", "numerical", "controller", "queue_output", "run_output", "other_arm", "family"],
 )
-def test_round3_ri_repair_freezes_source_and_preserves_original_outputs(tmp_path, monkeypatch, bad):
+@pytest.mark.parametrize("repair_arm", ["R3-RI", "R3-AUB", "R3-AUS"])
+def test_round3_ri_repair_freezes_source_and_preserves_original_outputs(
+    tmp_path, monkeypatch, bad, repair_arm
+):
     monkeypatch.setattr(medium, "SERVER_ROOT", tmp_path)
     queue = dict(
         family=family.SCHEMA,
@@ -645,7 +649,10 @@ def test_round3_ri_repair_freezes_source_and_preserves_original_outputs(tmp_path
         "queue_output": tmp_path / "original-queue/repair",
         "run_output": tmp_path / "original-run/repair",
     }.get(bad, tmp_path / "independent-repair")
-    arm = "R3-AUB" if bad == "other_arm" else "R3-RI"
+    arm = "RS-RI" if bad == "other_arm" else repair_arm
+    if bad == "family":
+        queue["family"] = "unsupported"
+        before = copy.deepcopy(queue)
     if bad is None:
         assert (
             medium.validate_report_repair(queue, arm, output, tmp_path / "repair-source") == output
@@ -691,3 +698,154 @@ def test_au_partial_analysis_exports_both_terms_as_na(tmp_path):
     for key in unavailable:
         assert rows[0][key] == ""
         assert rows[0]["unavailable_terms." + key] == unavailable[key]
+
+
+def au_binding_case(arm):
+    from gradpert.config.v2 import V2Options
+
+    config = ROOT / f"configs/v2/representation_round3_20261023/{arm}/gradpert_v2/nadig_jurkat.yaml"
+    _, options = V2Options.parse_parameters(load_experiment_config(config).model.parameters)
+    protocol = dict(
+        alignment_weight=options.au_alignment_weight,
+        uniformity_weight=options.au_uniformity_weight,
+        temperature=2.0,
+        warmup_completed_optimizer_updates=30,
+        representation="student_response_cls_after_final_rmsnorm_before_projector",
+        population_scope="complete_effective_batch_all_microbatches_and_ranks",
+        deduplication="control_row_id_and_condition_id_before_rank_partition",
+        alignment="same_control_and_condition_two_global_views_both_student_gradients",
+        uniformity_pairs="unordered_same_cell_type_batch_context_different_condition",
+        reduction="log_mean_exp_over_all_eligible_pairs_then_mean_two_globals",
+        partial_diagnostics="unavailable_requires_complete_global_population",
+    )
+    parent = dict(
+        data=dict(canonical_sha256="a" * 64, loss_protocol=dict(reduction="row_mean")),
+        schedule=[
+            dict(
+                index=0,
+                condition_id="p",
+                rows=[dict(control_row_id="c", truth_row_id="t")],
+                deep_rows=[],
+                gradient_rows=[],
+                queries=[1],
+                view_seed=3,
+            )
+        ],
+    )
+    identity = dict(run_id=arm, data=copy.deepcopy(parent["data"]))
+    identity["data"]["loss_protocol"]["alignment_uniformity"] = protocol
+    kwargs = dict(arm=arm, config=config, parent_path="original.json", parent_sha256="b" * 64)
+    return parent, identity, kwargs
+
+
+@pytest.mark.parametrize("arm", ["R3-AUB", "R3-AUS"])
+def test_au_parent_binding_preserves_population_and_rejects_drift(arm):
+    parent, identity, kwargs = au_binding_case(arm)
+    original = copy.deepcopy(parent)
+    protocol = identity["data"]["loss_protocol"]["alignment_uniformity"]
+    bound = medium.au_parent_binding(parent, identity, **kwargs)
+    assert bound["data"] == identity["data"]
+    assert bound["schedule"] == parent["schedule"]
+    binding = bound["training_protocol_binding"]
+    assert binding["training_value"] == protocol
+    assert binding["original_parent_sha256"] == "b" * 64
+    assert binding["sampling_changed"] is False
+    for drift in ("data", "protocol", "weight", "semantics", "extra", "missing"):
+        changed = copy.deepcopy(identity)
+        au = changed["data"]["loss_protocol"]["alignment_uniformity"]
+        if drift == "data":
+            changed["data"]["canonical_sha256"] = "c" * 64
+        elif drift == "protocol":
+            changed["data"]["loss_protocol"]["reduction"] = "other"
+        elif drift == "weight":
+            au["alignment_weight"] *= 2
+        elif drift == "semantics":
+            au["population_scope"] = "microbatch"
+        elif drift == "extra":
+            au["unknown"] = True
+        else:
+            del au["deduplication"]
+        with pytest.raises(ValueError):
+            medium.au_parent_binding(parent, changed, **kwargs)
+    with pytest.raises(ValueError):
+        medium.au_parent_binding(parent, identity, **dict(kwargs, arm="R3-RI"))
+    with pytest.raises(ValueError):
+        medium.au_parent_binding(bound, identity, **kwargs)
+    bound["schedule"][0]["queries"].append(2)
+    assert parent == original
+
+
+@pytest.mark.parametrize("round3_queue", [["R3-AUB", "R3-AUS"]], indirect=True)
+@pytest.mark.parametrize("population_drift", [False, True])
+def test_au_medium_execute_seals_bound_parent_with_frozen_source(
+    round3_queue, monkeypatch, population_drift
+):
+    queue, output = round3_queue
+    arm = "R3-AUB"
+    row = next(r for r in queue["rows"] if r["name"] == arm)
+    plan = row["plan"]
+    parent, identity, binding_kwargs = au_binding_case(arm)
+    plan["config"] = str(binding_kwargs["config"])
+    queue_path = output / "queue.json"
+    atomic_json(queue_path, queue)
+    identity["run_id"] = plan["run_id"]
+    atomic_json(Path(plan["run_root"]) / "run_manifest.json", identity)
+    original = copy.deepcopy(parent)
+    repair = output.parent / "fresh-au-report-repair"
+    checkpoint = dict(sha256="d" * 64)
+    monkeypatch.setattr(runner, "verify", lambda q: None)
+    monkeypatch.setattr(runner, "validate_training_contract", lambda p: None)
+    monkeypatch.setattr(medium, "validate_report_repair", lambda *a: repair)
+    monkeypatch.setattr(medium, "validate_analysis_spec", lambda spec: parent)
+    monkeypatch.setattr(medium, "select_checkpoint", lambda *a: (checkpoint, {}))
+
+    def run(command, **kwargs):
+        assert "seal-medium" in command
+        assert "--reuse-medium-schedule" in command
+        assert command[command.index("--method-sha") + 1] == queue["source_commit"]
+        assert kwargs["env"]["PYTHONPATH"] == str(Path(queue["source"]) / "src")
+        assert command[command.index("--run-root") + 1] == plan["run_root"]
+        path = Path(command[command.index("--parent-manifest") + 1])
+        assert path.parent == repair
+        assert sha256_file(path) == command[command.index("--parent-manifest-sha256") + 1]
+        bound = read_json(path)
+        assert bound["data"] == identity["data"]
+        assert bound["schedule"] == original["schedule"]
+        assert (
+            bound["training_protocol_binding"]["original_parent_sha256"]
+            == queue["medium_analysis"]["parent_manifest_sha256"]
+        )
+        if population_drift:
+            bound["schedule"][0]["rows"][0]["truth_row_id"] = "wrong-truth-row"
+            bound.update(
+                method_sha=queue["source_commit"], view_recipe_config_sha256=plan["config_sha256"]
+            )
+            atomic_json(Path(command[command.index("--output") + 1]) / "manifest.json", bound)
+        else:
+            raise RuntimeError("verified real AU seal dispatch")
+
+    monkeypatch.setattr(medium.subprocess, "run", run)
+    error, message = (
+        (ValueError, "resealing changed the common diagnostic population")
+        if population_drift
+        else (RuntimeError, "verified real AU seal dispatch")
+    )
+    with pytest.raises(error, match=message):
+        medium.execute(output / "queue.json", arm, repair_output=repair)
+    assert parent == original
+    assert read_json(repair / "FAILURE.json")["status"] == "failed"
+    assert not (output / f"{arm}-medium").exists()
+
+
+@pytest.mark.parametrize(
+    "field,value", [("au_alignment_weight", 0.1), ("au_temperature", 3.0), ("au_warmup_steps", 31)]
+)
+def test_au_binding_rejects_changed_frozen_config(tmp_path, field, value):
+    parent, identity, kwargs = au_binding_case("R3-AUB")
+    config = yaml.safe_load(kwargs["config"].read_text())
+    config["model"]["parameters"][field]["value"] = value
+    target = tmp_path / "gradpert_v2/nadig_jurkat.yaml"
+    target.parent.mkdir()
+    target.write_text(yaml.safe_dump(config))
+    with pytest.raises(ValueError, match="frozen arm"):
+        medium.au_parent_binding(parent, identity, **dict(kwargs, config=target))

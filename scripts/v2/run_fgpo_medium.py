@@ -178,8 +178,12 @@ def validate_report_repair(q, arm, output, report_source):
         ("CG1", SCHEMA),
         ("U24", SCHEMA),
         ("R3-RI", RS3_SCHEMA),
+        ("R3-AUB", RS3_SCHEMA),
+        ("R3-AUS", RS3_SCHEMA),
     ):
-        raise ValueError("analysis-only report repair is scoped to D0, PT1, PT2, CG1, U24 or R3-RI")
+        raise ValueError(
+            "analysis-only report repair is scoped to D0, PT1, PT2, CG1, U24 or R3 RI/AU"
+        )
     output = Path(output).resolve()
     protected = [Path(q["output"]).resolve()] + [
         Path(row["plan"]["run_root"]).resolve() for row in q["rows"]
@@ -305,6 +309,57 @@ def response_parent_binding(parent, training_identity, *, arm, parent_path, pare
             "arm": arm,
             "original_parent_manifest": str(parent_path),
             "original_parent_sha256": parent_sha256,
+            "training_run_id": training_identity["run_id"],
+            "diagnostic_population_sha256": population_identity(parent["schedule"]),
+            "sampling_changed": False,
+        },
+    }
+
+
+def au_parent_binding(parent, training_identity, *, arm, config, parent_path, parent_sha256):
+    """Bind the frozen R3 AU protocol without changing any diagnostic sampling."""
+    from gradpert.config import load_experiment_config
+    from gradpert.config.v2 import V2Options
+
+    weights = {"R3-AUB": (0.05, 0.005), "R3-AUS": (0.1, 0.01)}
+    if arm not in weights:
+        raise ValueError("AU parent binding is scoped to R3-AUB and R3-AUS")
+    _, options = V2Options.parse_parameters(load_experiment_config(config).model.parameters)
+    if (
+        (options.au_alignment_weight, options.au_uniformity_weight) != weights[arm]
+        or options.au_temperature != 2.0
+        or options.au_warmup_steps != 30
+    ):
+        raise ValueError("AU parent binding requires the frozen arm coefficients and schedule")
+    protocol = {
+        "alignment_weight": options.au_alignment_weight,
+        "uniformity_weight": options.au_uniformity_weight,
+        "temperature": options.au_temperature,
+        "warmup_completed_optimizer_updates": options.au_warmup_steps,
+        "representation": "student_response_cls_after_final_rmsnorm_before_projector",
+        "population_scope": "complete_effective_batch_all_microbatches_and_ranks",
+        "deduplication": "control_row_id_and_condition_id_before_rank_partition",
+        "alignment": "same_control_and_condition_two_global_views_both_student_gradients",
+        "uniformity_pairs": "unordered_same_cell_type_batch_context_different_condition",
+        "reduction": "log_mean_exp_over_all_eligible_pairs_then_mean_two_globals",
+        "partial_diagnostics": "unavailable_requires_complete_global_population",
+    }
+    expected = copy.deepcopy(parent["data"])
+    if "alignment_uniformity" in expected["loss_protocol"]:
+        raise ValueError("AU binding requires the original parent without AU metadata")
+    expected["loss_protocol"]["alignment_uniformity"] = protocol
+    if training_identity["data"] != expected:
+        raise ValueError("AU medium parent differs beyond the frozen alignment_uniformity protocol")
+    return {
+        **copy.deepcopy(parent),
+        "data": copy.deepcopy(training_identity["data"]),
+        "training_protocol_binding": {
+            "arm": arm,
+            "original_parent_manifest": str(parent_path),
+            "original_parent_sha256": parent_sha256,
+            "changed_field": "data.loss_protocol.alignment_uniformity",
+            "previous_value": None,
+            "training_value": protocol,
             "training_run_id": training_identity["run_id"],
             "diagnostic_population_sha256": population_identity(parent["schedule"]),
             "sampling_changed": False,
@@ -462,18 +517,26 @@ def execute(
             )
         parent_path = q["medium_analysis"]["parent_manifest"]
         parent_sha256 = q["medium_analysis"]["parent_manifest_sha256"]
-        if arm in ("PT1", "PT2", "CG1", "U24", "MR1", "P1"):
+        if arm in ("PT1", "PT2", "CG1", "U24", "MR1", "P1", "R3-AUB", "R3-AUS"):
             bind_parent = (
-                response_parent_binding
-                if arm in ("U24", "MR1", "P1")
-                else (cg1_parent_binding if arm == "CG1" else pt1_parent_binding)
+                au_parent_binding
+                if arm in ("R3-AUB", "R3-AUS")
+                else (
+                    response_parent_binding
+                    if arm in ("U24", "MR1", "P1")
+                    else (cg1_parent_binding if arm == "CG1" else pt1_parent_binding)
+                )
             )
             bound_parent = bind_parent(
                 parent,
                 read(Path(plan["run_root"]) / "run_manifest.json"),
                 parent_path=parent_path,
                 parent_sha256=parent_sha256,
-                **({"arm": arm} if arm in ("U24", "MR1", "P1") else {}),
+                **(
+                    {"arm": arm, "config": plan["config"]}
+                    if arm in ("R3-AUB", "R3-AUS")
+                    else ({"arm": arm} if arm in ("U24", "MR1", "P1") else {})
+                ),
             )
             parent_path = root / f"{arm.lower()}-medium-parent.json"
             write(parent_path, bound_parent)
