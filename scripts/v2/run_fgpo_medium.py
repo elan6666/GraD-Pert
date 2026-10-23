@@ -177,8 +177,9 @@ def validate_report_repair(q, arm, output, report_source):
         ("PT2", PT2_SCHEMA),
         ("CG1", SCHEMA),
         ("U24", SCHEMA),
+        ("R3-RI", RS3_SCHEMA),
     ):
-        raise ValueError("analysis-only report repair is scoped to D0, PT1, PT2, CG1 or U24")
+        raise ValueError("analysis-only report repair is scoped to D0, PT1, PT2, CG1, U24 or R3-RI")
     output = Path(output).resolve()
     protected = [Path(q["output"]).resolve()] + [
         Path(row["plan"]["run_root"]).resolve() for row in q["rows"]
@@ -353,7 +354,12 @@ def execute(
     shared_manifest=None,
 ):
     from profile_medium_observer import compare
-    from run_br400_group import validate_complete, validate_training_contract, verify
+    from run_br400_group import (
+        RESEARCH_FAMILIES,
+        validate_complete,
+        validate_training_contract,
+        verify,
+    )
 
     q = read(queue_path)
     if q.get("family") == PT2_SCHEMA and endpoint_root is None:
@@ -377,7 +383,7 @@ def execute(
         validate_report_repair(q, arm, repair_output, report_source)
     parent = validate_analysis_spec(q["medium_analysis"])
     row = next(r for r in q["rows"] if r["name"] == arm)
-    research = q.get("family") in (RS_SCHEMA, RS2_SCHEMA)
+    research = q.get("family") in RESEARCH_FAMILIES
     if research:
         validate_training_contract(row["plan"])
     else:

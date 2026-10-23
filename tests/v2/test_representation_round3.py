@@ -362,6 +362,127 @@ def test_round3_controller_runs_val_and_diagnostics_then_returns_for_research(
     assert not (output / "COMPLETE.json").exists()
 
 
+@pytest.mark.parametrize("bad", [None, "checkpoint", "history", "terminal", "failure"])
+def test_round3_medium_requires_real_training_terminal_without_test(round3_queue, monkeypatch, bad):
+    from gradpert.execution.v2_training_stage import seal_training_stage
+
+    queue, output = round3_queue
+    row = queue["rows"][0]
+    plan = row["plan"]
+    root = Path(plan["run_root"])
+    identity = dict(
+        run_id=plan["run_id"],
+        config_sha256=plan["config_sha256"],
+        source=dict(
+            commit=queue["source_commit"], published_commit=queue["source_commit"], dirty=False
+        ),
+    )
+    atomic_json(root / "launch.json", plan)
+    atomic_json(root / "run_manifest.json", identity)
+    checkpoint = root / "fit/last.pt"
+    checkpoint.parent.mkdir()
+    checkpoint.write_bytes(b"synthetic last checkpoint")
+    atomic_json(
+        root / "fit/epoch_state.json",
+        dict(
+            identity=identity,
+            epoch=2,
+            budget=[2, 1],
+            best=None,
+            last=dict(file=checkpoint.name, epoch=2, sha256=sha256_file(checkpoint)),
+        ),
+    )
+    atomic_json(
+        root / "fit/history.json",
+        [
+            dict(epoch=i, validation=dict(validation_mode="disabled", performed=False))
+            for i in (1, 2)
+        ],
+    )
+    seal_training_stage(root, identity, 2)
+    if bad == "checkpoint":
+        checkpoint.write_bytes(b"changed")
+    elif bad == "history":
+        atomic_json(root / "fit/history.json", [dict(epoch=1)])
+    elif bad == "terminal":
+        (root / "TRAIN_COMPLETE.json").unlink()
+    elif bad == "failure":
+        atomic_json(root / "FAILURE.json", {})
+    monkeypatch.setattr(
+        medium, "__file__", str(Path(queue["source"]) / "scripts/v2/run_fgpo_medium.py")
+    )
+
+    def reached_checkpoint(*args):
+        raise RuntimeError("passed training terminal gate")
+
+    monkeypatch.setattr(medium, "select_checkpoint", reached_checkpoint)
+    if bad is None:
+        with pytest.raises(RuntimeError, match="passed training terminal gate"):
+            medium.execute(output / "queue.json", row["name"])
+    else:
+        error, message = {
+            "checkpoint": (ValueError, "checkpoint escaped or changed"),
+            "history": (ValueError, "complete sealed epoch budget"),
+            "terminal": (FileNotFoundError, "TRAIN_COMPLETE.json"),
+            "failure": (ValueError, "failed training cannot advance"),
+        }[bad]
+        with pytest.raises(error, match=message):
+            medium.execute(output / "queue.json", row["name"])
+        assert not (output / f"{row['name']}-medium").exists()
+    assert not (root / "COMPLETE.json").exists()
+
+
+def test_nonresearch_medium_still_requires_test_completion(new_queue):
+    queue, output = new_queue
+    with pytest.raises(ValueError, match="scientific run has no successful native terminal"):
+        medium.execute(output / "queue.json", queue["rows"][0]["name"])
+    assert not (output / f"{queue['rows'][0]['name']}-medium").exists()
+
+
+@pytest.mark.parametrize(
+    "bad", [None, "dirty", "numerical", "controller", "queue_output", "run_output", "other_arm"]
+)
+def test_round3_ri_repair_freezes_source_and_preserves_original_outputs(tmp_path, monkeypatch, bad):
+    monkeypatch.setattr(medium, "SERVER_ROOT", tmp_path)
+    queue = dict(
+        family=family.SCHEMA,
+        source_commit="a" * 40,
+        output=str(tmp_path / "original-queue"),
+        rows=[dict(plan=dict(run_root=str(tmp_path / "original-run")))],
+    )
+    before = copy.deepcopy(queue)
+
+    def git(command, **kwargs):
+        if "status" in command:
+            return " M scripts/v2/run_fgpo_medium.py" if bad == "dirty" else ""
+        assert command[command.index("--name-only") + 1 : command.index("--")] == [
+            queue["source_commit"],
+            "HEAD",
+        ]
+        assert "src" in command and "scripts/v2/run_br400_group.py" in command
+        assert "scripts/v2/cap40_posthoc*.py" in command
+        # The dispatch-only worker repair is outside the numerical source diff.
+        assert "scripts/v2/run_fgpo_medium.py" not in command
+        if bad == "numerical":
+            return "src/gradpert/training/v2/objective.py\n"
+        return "scripts/v2/run_br400_group.py\n" if bad == "controller" else ""
+
+    monkeypatch.setattr(medium.subprocess, "check_output", git)
+    output = {
+        "queue_output": tmp_path / "original-queue/repair",
+        "run_output": tmp_path / "original-run/repair",
+    }.get(bad, tmp_path / "independent-repair")
+    arm = "R3-AUB" if bad == "other_arm" else "R3-RI"
+    if bad is None:
+        assert (
+            medium.validate_report_repair(queue, arm, output, tmp_path / "repair-source") == output
+        )
+    else:
+        with pytest.raises(ValueError):
+            medium.validate_report_repair(queue, arm, output, tmp_path / "repair-source")
+    assert queue == before
+
+
 def test_au_partial_analysis_exports_both_terms_as_na(tmp_path):
     import csv
 
