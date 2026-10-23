@@ -252,7 +252,7 @@ def test_family_rejects_rehashed_protocol_changes(bundle, mutation):
 
 
 @pytest.fixture
-def round3_queue(bundle, new_queue, monkeypatch):
+def round3_queue(bundle, new_queue, monkeypatch, request):
     source, decision, family_root = bundle
     family.generate(source, family_root, decision)
     old, output = new_queue
@@ -285,10 +285,12 @@ def round3_queue(bundle, new_queue, monkeypatch):
         runtime,
         output.parent / "round3",
         old["shared_gpu_policy"],
+        only_arms=getattr(request, "param", None),
     )
     return queue, Path(queue["output"])
 
 
+@pytest.mark.parametrize("round3_queue", [None, ["R3-AUB", "R3-AUS"]], indirect=True)
 def test_round3_native_gates_and_separate_training_source(round3_queue):
     queue, output = round3_queue
     assert queue["source_commit"] != family.CALIBRATION_SOURCE
@@ -318,6 +320,7 @@ def test_round3_native_gates_and_separate_training_source(round3_queue):
             assert validate_eval_binding(queue, args, queue["source_commit"]) == row
 
 
+@pytest.mark.parametrize("round3_queue", [None, ["R3-AUB", "R3-AUS"]], indirect=True)
 def test_round3_controller_runs_val_and_diagnostics_then_returns_for_research(
     round3_queue, monkeypatch
 ):
@@ -355,11 +358,181 @@ def test_round3_controller_runs_val_and_diagnostics_then_returns_for_research(
     monkeypatch.setattr(runner, "validate_complete", lambda p: pytest.fail("test finalizer used"))
     monkeypatch.setattr(research, "validate_research_complete", lambda *a: {"research": True})
     runner.execute(queue, output)
-    assert calls[9:] == [
-        (a, s) for a in family.ARMS for s in ("fit", "postfit-validation", "research-analysis")
+    arms = [row["name"] for row in queue["rows"]]
+    selected = runner.selected_matrix(
+        runner.verify_manifest(Path(queue["source"]), Path(queue["manifest"])),
+        queue.get("only_arms"),
+    )
+    assert calls[: len(arms) * 3] == [
+        (a, s)
+        for a in selected["preflight_priority"]
+        for s in ("preflight", "eval-capacity-g0", "eval-capacity-g1")
+    ]
+    assert calls[len(arms) * 3 :] == [
+        (a, s) for a in arms for s in ("fit", "postfit-validation", "research-analysis")
     ]
     assert read_json(output / "RESEARCH_COMPLETE.json")["scientific_complete"] is False
     assert not (output / "COMPLETE.json").exists()
+
+
+def test_round3_continuation_uses_fresh_queue_and_ids_preserving_original_ri(round3_queue):
+    original, old_output = round3_queue
+    original_bytes = (old_output / "queue.json").read_bytes()
+    atomic_json(old_output / "state.json", dict(status="failed"))
+    atomic_json(old_output / "FAILURE.json", dict(error="original analysis failure"))
+    ri_last = Path(original["rows"][0]["plan"]["run_root"]) / "fit/last.pt"
+    ri_last.parent.mkdir(parents=True)
+    ri_last.write_bytes(b"preserved original RI checkpoint")
+    checkpoint_hash = sha256_file(ri_last)
+    queue = runner.prepare(
+        Path(original["source"]),
+        Path(original["manifest"]),
+        Path(original["runtime"]),
+        old_output.parent / "aub-aus-continuation",
+        original["shared_gpu_policy"],
+        only_arms=["R3-AUB", "R3-AUS"],
+    )
+    runner.verify(queue)
+    assert [r["name"] for r in queue["rows"]] == ["R3-AUB", "R3-AUS"]
+    assert len(queue["eval_bindings"]) == 4 and queue["steps"] == 10
+    assert queue["medium_analysis"] == original["medium_analysis"]
+    for key in ("run_id", "run_root", "test_root"):
+        assert {r["plan"][key] for r in original["rows"]}.isdisjoint(
+            r["plan"][key] for r in queue["rows"]
+        )
+    assert (old_output / "queue.json").read_bytes() == original_bytes
+    assert read_json(old_output / "state.json") == dict(status="failed")
+    assert read_json(old_output / "FAILURE.json") == dict(error="original analysis failure")
+    assert sha256_file(ri_last) == checkpoint_hash
+    with pytest.raises(ValueError, match="fresh server queue root"):
+        runner.prepare(
+            Path(original["source"]),
+            Path(original["manifest"]),
+            Path(original["runtime"]),
+            old_output,
+            original["shared_gpu_policy"],
+            only_arms=["R3-AUB", "R3-AUS"],
+        )
+
+
+@pytest.mark.parametrize(
+    "arms",
+    [
+        [],
+        ["R3-RI"],
+        ["R3-AUB"],
+        ["R3-AUS"],
+        ["R3-AUS", "R3-AUB"],
+        ["R3-AUB", "R3-AUB", "R3-AUS"],
+        ["R3-RI", "R3-AUB", "R3-AUS"],
+        ["R3-AUB", "unknown"],
+        ["S12-L4"],
+    ],
+)
+def test_round3_continuation_rejects_any_other_subset(arms):
+    with pytest.raises(ValueError, match=r"R3-AUB.*R3-AUS"):
+        runner.selected_matrix(dict(schema=family.SCHEMA), arms)
+
+
+@pytest.mark.parametrize("round3_queue", [["R3-AUB", "R3-AUS"]], indirect=True)
+@pytest.mark.parametrize("bad", ["selection", "mixed_subset", "order", "row", "eval_binding"])
+def test_round3_continuation_rejects_resealed_queue_scope_tampering(round3_queue, bad):
+    queue, output = round3_queue
+    queue = copy.deepcopy(queue)
+    row, binding = queue["rows"][0], queue["eval_bindings"][0]
+    args = SimpleNamespace(
+        gpu=binding["gpu"],
+        cell_batch=128,
+        reference_batch=128,
+        config=Path(row["plan"]["config"]),
+        publication=Path(row["plan"]["publication"]),
+        publication_sha256=row["plan"]["publication_sha256"],
+        data_root=Path(row["plan"]["data_root"]),
+        output=Path(binding["output"]),
+        shared_queue=output / "queue.json",
+        row_name=row["name"],
+    )
+    if bad == "selection":
+        queue["only_arms"] = ["R3-RI"]
+    elif bad == "mixed_subset":
+        queue["only_arms"] = ["R3-AUB", "S12-L4"]
+    elif bad == "order":
+        queue["rows"].reverse()
+    elif bad == "row":
+        queue["rows"][0]["name"] = "R3-RI"
+    else:
+        queue["eval_bindings"][0]["reference_batch"] = 64
+    atomic_json(output / "queue.json", queue)
+    with pytest.raises(ValueError):
+        runner.verify(queue)
+    with pytest.raises(ValueError):
+        validate_eval_binding(queue, args, queue["source_commit"])
+
+
+def test_round3_continuation_cli_accepts_exact_pair(tmp_path, monkeypatch):
+    policy = tmp_path / "policy.json"
+    atomic_json(policy, {})
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_br400_group.py",
+            "--prepare",
+            "--source",
+            str(tmp_path / "source"),
+            "--manifest",
+            str(tmp_path / "manifest.json"),
+            "--runtime",
+            str(tmp_path / "runtime.json"),
+            "--output",
+            str(tmp_path / "fresh"),
+            "--shared-policy",
+            str(policy),
+            "--only-arms",
+            "R3-AUB",
+            "R3-AUS",
+        ],
+    )
+    calls = []
+    monkeypatch.setattr(runner, "prepare", lambda *a, **kw: calls.append((a, kw)))
+    runner.main()
+    assert len(calls) == 1 and calls[0][1] == dict(only_arms=["R3-AUB", "R3-AUS"])
+
+
+@pytest.mark.parametrize("round3_queue", [["R3-AUB", "R3-AUS"]], indirect=True)
+@pytest.mark.parametrize("substitution", ["ri_under_aub", "aub_aus_swapped"])
+def test_round3_eval_rejects_rehashed_real_config_substitution(round3_queue, substitution):
+    queue, output = round3_queue
+    queue = copy.deepcopy(queue)
+    source = Path(queue["source"])
+    full = runner.verify_manifest(source, Path(queue["manifest"]))
+    replacements = (
+        [full["rows"][0]] if substitution == "ri_under_aub" else list(reversed(full["rows"][1:]))
+    )
+    for row, spec in zip(queue["rows"], replacements, strict=False):
+        config = source / spec["config"]
+        row["plan"].update(
+            config=str(config),
+            config_sha256=sha256_file(config),
+            resolved_config=load_experiment_config(config).model_dump(mode="json"),
+        )
+    atomic_json(output / "queue.json", queue)
+    for row in queue["rows"][: len(replacements)]:
+        binding = next(b for b in queue["eval_bindings"] if b["row_name"] == row["name"])
+        args = SimpleNamespace(
+            gpu=binding["gpu"],
+            cell_batch=128,
+            reference_batch=128,
+            config=Path(row["plan"]["config"]),
+            publication=Path(row["plan"]["publication"]),
+            publication_sha256=row["plan"]["publication_sha256"],
+            data_root=Path(row["plan"]["data_root"]),
+            output=Path(binding["output"]),
+            shared_queue=output / "queue.json",
+            row_name=row["name"],
+        )
+        with pytest.raises(ValueError, match="manifest configuration"):
+            validate_eval_binding(queue, args, queue["source_commit"])
 
 
 @pytest.mark.parametrize("bad", [None, "checkpoint", "history", "terminal", "failure"])

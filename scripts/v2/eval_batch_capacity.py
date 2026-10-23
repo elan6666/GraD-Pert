@@ -120,12 +120,17 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             RS3_SCHEMA: (verify_rs3_manifest, RS3_ARMS),
         }[family_schema]
         matrix = verifier(Path(queue["source"]), Path(queue["manifest"]))
+        if family_schema == RS3_SCHEMA:
+            from run_br400_group import selected_matrix
+
+            matrix = selected_matrix(matrix, queue.get("only_arms"))
+            arms = matrix["priority"]
         if (
             queue.get("mode") != family_schema
             or [row["name"] for row in queue["rows"]] != list(arms)
             or queue.get("steps") != 10
             or args.cell_batch != matrix["eval_batch"]
-            or queue.get("only_arms") is not None
+            or (family_schema != RS3_SCHEMA and queue.get("only_arms") is not None)
         ):
             raise ValueError("research evaluation requires the exact sealed two-epoch arm scope")
     rows = [row for row in queue["rows"] if row["name"] == args.row_name]
@@ -150,6 +155,26 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     if len(rows) != 1:
         raise ValueError("evaluation probe must select one sealed queue row")
     row, plan = rows[0], rows[0]["plan"]
+    if queue.get("family") == RS3_SCHEMA:
+        from gradpert.config import load_experiment_config
+
+        specs = [spec for spec in matrix["rows"] if spec["name"] == row["name"]]
+        if len(specs) != 1:
+            raise ValueError("research evaluation needs one selected manifest configuration")
+        spec = specs[0]
+        expected_config = (Path(queue["source"]) / spec["config"]).resolve()
+        if (
+            Path(plan["config"]).resolve() != expected_config
+            or args.config.resolve() != expected_config
+            or plan["config_sha256"] != spec["sha256"]
+            or sha256_file(args.config) != spec["sha256"]
+            or (
+                "resolved_config" in plan
+                and plan["resolved_config"]
+                != load_experiment_config(expected_config).model_dump(mode="json")
+            )
+        ):
+            raise ValueError("research evaluation differs from its selected manifest configuration")
     binding = {
         "row_name": args.row_name,
         "gpu": args.gpu,

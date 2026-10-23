@@ -80,13 +80,17 @@ FGPO_FAMILIES = (
 LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA, *FGPO_FAMILIES)
 DEFERRED_SCDFM_POLICY = "scdfm_fit_gears_terminal_evaluation_deferred_v1"
 PENDING_FGPO_ARMS = ("S12-L4", "CG1", "U24", "MR1", "P1", "C1", "O1", "K2-fixed-prefix")
+R3_CONTINUATION_ARMS = ("R3-AUB", "R3-AUS")
 
 
 def selected_matrix(matrix: dict, only_arms: list[str] | None) -> dict:
     """Select an ordered pending scope without changing the sealed family configs."""
     if only_arms is None:
         return matrix
-    if (
+    if matrix["schema"] == RS3_SCHEMA:
+        if only_arms != list(R3_CONTINUATION_ARMS):
+            raise ValueError("R3 continuation requires exactly ordered R3-AUB, R3-AUS")
+    elif (
         matrix["schema"] != FGPO_SCHEMA
         or not only_arms
         or only_arms != [name for name in PENDING_FGPO_ARMS if name in only_arms]
@@ -1085,7 +1089,9 @@ def main() -> None:
         parser.add_argument("--" + key, type=Path)
     parser.add_argument("--prepare", action="store_true")
     parser.add_argument("--eval-only-row", choices=("DP", "FN", "FG", "FB", "PO"))
-    parser.add_argument("--only-arms", nargs="+", choices=PENDING_FGPO_ARMS)
+    parser.add_argument(
+        "--only-arms", nargs="+", choices=(*PENDING_FGPO_ARMS, *R3_CONTINUATION_ARMS)
+    )
     args = parser.parse_args()
     fields = ("source", "manifest", "runtime", "output", "shared_policy")
     if (
