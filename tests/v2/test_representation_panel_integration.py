@@ -232,7 +232,8 @@ def test_active_missing_prototypes_fail_closed_and_disabled_empty_is_explicit():
     assert prototype_result(bank, rt.objective)["status"].startswith("unavailable:")
 
 
-def test_teacher_signal_wraps_native_collector_without_state_or_truth_changes():
+@pytest.mark.parametrize("clean_globals", [False, True])
+def test_teacher_signal_wraps_native_collector_without_state_or_truth_changes(clean_globals):
     from teacher_signal_diagnostics import TeacherSignalBank
 
     torch.set_num_threads(1)
@@ -245,6 +246,23 @@ def test_teacher_signal_wraps_native_collector_without_state_or_truth_changes():
         for group in panel["schedule"]:
             deep = assemble(rt, group["rows"], group["queries"], group["view_seed"], deep=True)
             deep, _ = matched.bind(deep, group["rows"])
+            if clean_globals:
+                from run_representation_panel import clean_global_expression_views
+
+                original = deep
+                masks = [v.mask.clone() for v in original.cell_views]
+                deep = clean_global_expression_views(deep)
+                assert deep.control is original.control
+                assert deep.graph is original.graph
+                for i, (old, new) in enumerate(
+                    zip(original.cell_views, deep.cell_views, strict=True)
+                ):
+                    torch.testing.assert_close(old.mask, masks[i], rtol=0, atol=0)
+                    assert new.positions is old.positions
+                    if i < 2:
+                        assert not new.mask.any()
+                    else:
+                        assert new is old
             with bank.capture(rt.objective, group["rows"]):
                 collect_panel_views(rt.objective, deep, group["rows"], 11, views, prototypes)
         result = bank.result()

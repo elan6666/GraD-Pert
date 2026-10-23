@@ -169,6 +169,23 @@ def panel_parent_binding(parent, identity, queue, args):
     return None
 
 
+def clean_global_expression_views(batch):
+    """Remove only augmentation masks from the two existing Global inputs."""
+    from dataclasses import replace
+
+    import torch
+
+    if len(batch.cell_views) < 2:
+        raise ValueError("two original Global expression views required")
+    return replace(
+        batch,
+        cell_views=tuple(
+            replace(view, mask=torch.zeros_like(view.mask)) if i < 2 else view
+            for i, view in enumerate(batch.cell_views)
+        ),
+    )
+
+
 def execute(args):
     from capacity_probe import validation_state
     from prototype_pair_diagnostics import PrototypePairBank
@@ -194,6 +211,9 @@ def execute(args):
     panel = panel_schedule(
         parent, seed=args.seed, conditions=args.conditions, controls=args.controls
     )
+    clean_globals = bool(getattr(args, "teacher_signal_clean_globals", False))
+    if clean_globals and not getattr(args, "teacher_signal_audit", False):
+        raise ValueError("clean Global input intervention requires teacher signal audit")
     teacher_signal = None
     if getattr(args, "teacher_signal_audit", False):
         from teacher_signal_diagnostics import TeacherSignalBank
@@ -312,6 +332,18 @@ def execute(args):
                     rt.device,
                 )
                 deep, view_receipt = matched_cell_views.bind(deep, group["rows"])
+                if clean_globals:
+                    before_masks = [int(v.mask.sum()) for v in deep.cell_views[:2]]
+                    deep = clean_global_expression_views(deep)
+                    view_receipt = {
+                        **view_receipt,
+                        "input_intervention": "clean_globals_preserve_positions_and_control",
+                        "student_global_mask_entries_before": before_masks,
+                        "student_global_mask_entries_after": [
+                            int(v.mask.sum()) for v in deep.cell_views[:2]
+                        ],
+                        "effective_cell_views_sha256": MatchedCellViews.signature(deep.cell_views),
+                    }
                 view_receipts.append({"condition_id": group["condition_id"], **view_receipt})
                 if teacher_signal is None:
                     scope = collect_panel_views(
@@ -407,6 +439,10 @@ def execute(args):
             "no observed paired counterfactual truth; no task-success claim from rank alone"
         ),
     )
+    if teacher_signal is not None:
+        result["teacher_signal_input_mode"] = (
+            "clean_globals" if clean_globals else "native_student_masked_teacher_clean"
+        )
     result["outputs"] = {
         p.name: {"sha256": sha(p), "bytes": p.stat().st_size}
         for p in sorted(args.output.iterdir())
@@ -429,6 +465,11 @@ def main():
     p.add_argument("--path-audit", action="store_true", help="truth-free F/B/decoder-swap audit")
     p.add_argument(
         "--teacher-signal-audit", action="store_true", help="frozen SSL2 encoder/head crossover"
+    )
+    p.add_argument(
+        "--teacher-signal-clean-globals",
+        action="store_true",
+        help="same clean Global expressions for Student and Teacher; frozen input intervention",
     )
     args = p.parse_args()
     from run_group import lock
