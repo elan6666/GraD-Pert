@@ -1,4 +1,4 @@
-"""R4/R5 observers preserve exact metadata and the original frozen population."""
+"""R4/R5/R6 observers preserve exact metadata and the original frozen population."""
 
 import copy
 import csv
@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/v2"))
 import generate_representation_round4 as round4  # noqa: E402
 import generate_representation_round5 as round5  # noqa: E402
+import generate_representation_round6 as round6  # noqa: E402
 import run_br400_group as runner  # noqa: E402
 import run_fgpo_medium as medium  # noqa: E402
 import run_representation_postfit as research  # noqa: E402
@@ -22,7 +23,7 @@ from representation_panel import panel_schedule  # noqa: E402
 from run_representation_panel import panel_parent_binding  # noqa: E402
 
 
-@pytest.fixture(params=[round4, round5], ids=["R4-CR", "R5-PROJ"])
+@pytest.fixture(params=[round4, round5, round6], ids=["R4-CR", "R5-PROJ", "R6-EMA99"])
 def family(request):
     return request.param
 
@@ -35,7 +36,7 @@ def cr_case(tmp_path, family):
     config.write_text(yaml.safe_dump(family.configs(ROOT)[arm]))
     representation = (
         "student_ssl2_cls_features_before_l2_and_prototypes"
-        if family is round5
+        if family in (round5, round6)
         else "student_response_cls_after_final_rmsnorm_before_projector"
     )
     schedule = []
@@ -239,7 +240,9 @@ def test_cr_binding_rejects_unapproved_config(cr_case, tmp_path, field, value):
     parent, identity, _, _, kwargs = cr_case
     raw = yaml.safe_load(kwargs["config"].read_text())
     if value == "opposite_space":
-        value = "response_cls" if kwargs["arm"] == "R5-PROJ" else "ssl2_cls_bottleneck"
+        value = (
+            "response_cls" if kwargs["arm"] in ("R5-PROJ", "R6-EMA99") else "ssl2_cls_bottleneck"
+        )
     raw["model"]["parameters"].setdefault(
         field, dict(source="project_preregistered", reference="test:unapproved-space")
     )["value"] = value
@@ -329,7 +332,22 @@ def test_cr_report_keeps_missing_population_terms_na(tmp_path, family):
     assert loss["joint"] == "2"
     report = (root / "report/REPORT_CN.md").read_text()
     assert ".00004" in report
-    if family is round5:
+    if family is round6:
+        assert "恒定.99" in report and "A/CR仍为NA" in report
+    elif family is round5:
         assert "256维瓶颈" in report and "A/CR均为NA" in report
     else:
         assert "CR权重=.00004" in report and "A与CR均记NA" in report
+
+
+def test_r6_parent_rejects_nonconstant_ema(cr_case, tmp_path):
+    parent, identity, _, _, kwargs = cr_case
+    if kwargs["arm"] != "R6-EMA99":
+        return
+    raw = yaml.safe_load(kwargs["config"].read_text())
+    raw["model"]["parameters"]["teacher_end"]["value"] = 1.0
+    target = tmp_path / "changed/gradpert_v2/nadig_jurkat.yaml"
+    target.parent.mkdir(parents=True)
+    target.write_text(yaml.safe_dump(raw))
+    with pytest.raises(ValueError, match=r"constant \.99"):
+        medium.cr_parent_binding(parent, identity, **dict(kwargs, config=target))

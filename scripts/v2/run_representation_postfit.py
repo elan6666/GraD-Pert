@@ -19,6 +19,8 @@ from generate_representation_round4 import ARMS as ROUND4_ARMS
 from generate_representation_round4 import SCHEMA as ROUND4_SCHEMA
 from generate_representation_round5 import ARMS as ROUND5_ARMS
 from generate_representation_round5 import SCHEMA as ROUND5_SCHEMA
+from generate_representation_round6 import ARMS as ROUND6_ARMS
+from generate_representation_round6 import SCHEMA as ROUND6_SCHEMA
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
@@ -29,6 +31,7 @@ FAMILY_ARMS = {
     ROUND3_SCHEMA: ROUND3_ARMS,
     ROUND4_SCHEMA: ROUND4_ARMS,
     ROUND5_SCHEMA: ROUND5_ARMS,
+    ROUND6_SCHEMA: ROUND6_ARMS,
 }
 
 
@@ -349,6 +352,13 @@ def render_medium_report(queue, row, root):
             "R5-PROJ保留R4的A=.05和CR=.00004，仅将二者移到现有SSL2 CLS投影头的256维瓶颈，"
             "在L2和原型层之前取值；不增加head、不隔离主干梯度。逐条件小探针中A/CR均为NA。"
             "共同报告投影前后表征；只有瓶颈高秩不构成问题解决。\n"
+        )
+    if queue.get("family") == ROUND6_SCHEMA:
+        text.append(
+            "R6-EMA99仅将R5的Teacher EMA终点1改为.99，起点仍.99；"
+            "即每次成功优化器更新后恒定.99。A=.05、CR=.00004及瓶颈作用点保持。"
+            "复用原对照不重训；Teacher分布变尖或秩上升本身不代表预测效用改善。"
+            "逐条件小探针缺完整有效批，A/CR仍为NA。\n"
         )
     for name in ("training", "validation", "global_features", "global_heads", "frozen_losses"):
         text.extend([f"## {name}\n", table(tables[name])])

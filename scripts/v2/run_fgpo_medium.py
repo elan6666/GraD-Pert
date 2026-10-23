@@ -33,6 +33,8 @@ from generate_representation_round4 import ARMS as RS4_ARMS
 from generate_representation_round4 import SCHEMA as RS4_SCHEMA
 from generate_representation_round5 import ARMS as RS5_ARMS
 from generate_representation_round5 import SCHEMA as RS5_SCHEMA
+from generate_representation_round6 import ARMS as RS6_ARMS
+from generate_representation_round6 import SCHEMA as RS6_SCHEMA
 
 FAMILY_ARMS = {
     RS_SCHEMA: RS_ARMS,
@@ -40,6 +42,7 @@ FAMILY_ARMS = {
     RS3_SCHEMA: RS3_ARMS,
     RS4_SCHEMA: RS4_ARMS,
     RS5_SCHEMA: RS5_ARMS,
+    RS6_SCHEMA: RS6_ARMS,
     SCHEMA: ARMS,
     DINO_SCHEMA: DINO_ARMS,
     DP2_SCHEMA: {"DP2": DINO_ARMS["DP2"]},
@@ -406,12 +409,12 @@ def au_parent_binding(parent, training_identity, *, arm, config, parent_path, pa
 
 
 def cr_parent_binding(parent, training_identity, *, arm, config, parent_path, parent_sha256):
-    """Bind only R4's frozen alignment and coding-rate additions to the original parent."""
+    """Bind the frozen population auxiliary protocol and its exact EMA variant."""
     from gradpert.config import load_experiment_config
     from gradpert.config.v2 import V2Options
 
-    if arm not in ("R4-CR", "R5-PROJ"):
-        raise ValueError("CR parent binding is scoped to frozen R4/R5 arms")
+    if arm not in ("R4-CR", "R5-PROJ", "R6-EMA99"):
+        raise ValueError("CR parent binding is scoped to frozen R4/R5/R6 arms")
     _, options = V2Options.parse_parameters(load_experiment_config(config).model.parameters)
     if (
         (options.au_alignment_weight, options.au_uniformity_weight) != (0.05, 0.0)
@@ -422,12 +425,14 @@ def cr_parent_binding(parent, training_identity, *, arm, config, parent_path, pa
         or options.cr_warmup_steps != 30
     ):
         raise ValueError("CR parent binding requires the frozen arm coefficients and schedule")
-    expected_space = "ssl2_cls_bottleneck" if arm == "R5-PROJ" else "response_cls"
+    if arm == "R6-EMA99" and (options.teacher_start, options.teacher_end) != (0.99, 0.99):
+        raise ValueError("R6 parent binding requires constant .99 Teacher EMA")
+    expected_space = "ssl2_cls_bottleneck" if arm in ("R5-PROJ", "R6-EMA99") else "response_cls"
     if options.population_aux_space != expected_space:
         raise ValueError("CR parent binding auxiliary representation space differs")
     representation = (
         "student_ssl2_cls_features_before_l2_and_prototypes"
-        if arm == "R5-PROJ"
+        if arm in ("R5-PROJ", "R6-EMA99")
         else "student_response_cls_after_final_rmsnorm_before_projector"
     )
     protocols = {
@@ -629,10 +634,22 @@ def execute(
             )
         parent_path = q["medium_analysis"]["parent_manifest"]
         parent_sha256 = q["medium_analysis"]["parent_manifest_sha256"]
-        if arm in ("PT1", "PT2", "CG1", "U24", "MR1", "P1", "R3-AUB", "R3-AUS", "R4-CR", "R5-PROJ"):
+        if arm in (
+            "PT1",
+            "PT2",
+            "CG1",
+            "U24",
+            "MR1",
+            "P1",
+            "R3-AUB",
+            "R3-AUS",
+            "R4-CR",
+            "R5-PROJ",
+            "R6-EMA99",
+        ):
             bind_parent = (
                 cr_parent_binding
-                if arm in ("R4-CR", "R5-PROJ")
+                if arm in ("R4-CR", "R5-PROJ", "R6-EMA99")
                 else au_parent_binding
                 if arm in ("R3-AUB", "R3-AUS")
                 else (
@@ -648,7 +665,7 @@ def execute(
                 parent_sha256=parent_sha256,
                 **(
                     {"arm": arm, "config": plan["config"]}
-                    if arm in ("R3-AUB", "R3-AUS", "R4-CR", "R5-PROJ")
+                    if arm in ("R3-AUB", "R3-AUS", "R4-CR", "R5-PROJ", "R6-EMA99")
                     else ({"arm": arm} if arm in ("U24", "MR1", "P1") else {})
                 ),
             )

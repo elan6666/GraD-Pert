@@ -47,6 +47,8 @@ from generate_representation_round4 import SCHEMA as RS4_SCHEMA
 from generate_representation_round4 import verify_manifest as verify_rs4_manifest
 from generate_representation_round5 import SCHEMA as RS5_SCHEMA
 from generate_representation_round5 import verify_manifest as verify_rs5_manifest
+from generate_representation_round6 import SCHEMA as RS6_SCHEMA
+from generate_representation_round6 import verify_manifest as verify_rs6_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -69,7 +71,7 @@ from gradpert.execution.v2_deferred_postfit import finalize_deferred_run
 from gradpert.execution.v2_training_stage import validate_training_stage
 from gradpert.hashing import sha256_file, sha256_json
 
-RESEARCH_FAMILIES = (RS_SCHEMA, RS2_SCHEMA, RS3_SCHEMA, RS4_SCHEMA, RS5_SCHEMA)
+RESEARCH_FAMILIES = (RS_SCHEMA, RS2_SCHEMA, RS3_SCHEMA, RS4_SCHEMA, RS5_SCHEMA, RS6_SCHEMA)
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
 FGPO_FAMILIES = (
@@ -178,29 +180,23 @@ def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
 
 
 def verify_manifest(source: Path, manifest: Path) -> dict:
-    if read_json(manifest).get("schema") == RS5_SCHEMA:
-        return verify_rs5_manifest(source, manifest)
-    if read_json(manifest).get("schema") == RS4_SCHEMA:
-        return verify_rs4_manifest(source, manifest)
-    if read_json(manifest).get("schema") == RS3_SCHEMA:
-        return verify_rs3_manifest(source, manifest)
-    if read_json(manifest).get("schema") == RS2_SCHEMA:
-        return verify_rs2_manifest(source, manifest)
-    if read_json(manifest).get("schema") == RS_SCHEMA:
-        return verify_rs_manifest(source, manifest)
-    if read_json(manifest).get("schema") == PT2_SCHEMA:
-        return verify_pt2_manifest(source, manifest)
-    if read_json(manifest).get("schema") == PT1_SCHEMA:
-        return verify_pt1_manifest(source, manifest)
-    if read_json(manifest).get("schema") == NO_SSL_SCHEMA:
-        return verify_no_ssl_manifest(source, manifest)
-    if read_json(manifest).get("schema") in (DINO_SCHEMA, DP2_SCHEMA):
-        return verify_dino_manifest(source, manifest)
-    if read_json(manifest).get("schema") == FGPO_SCHEMA:
-        return verify_fgpo_manifest(source, manifest)
-    if read_json(manifest).get("schema") == FFN_SCHEMA:
-        return verify_ffn_manifest(source, manifest)
-    return verify_br_manifest(source, manifest)
+    schema = read_json(manifest).get("schema")
+    verifier = {
+        RS6_SCHEMA: verify_rs6_manifest,
+        RS5_SCHEMA: verify_rs5_manifest,
+        RS4_SCHEMA: verify_rs4_manifest,
+        RS3_SCHEMA: verify_rs3_manifest,
+        RS2_SCHEMA: verify_rs2_manifest,
+        RS_SCHEMA: verify_rs_manifest,
+        PT2_SCHEMA: verify_pt2_manifest,
+        PT1_SCHEMA: verify_pt1_manifest,
+        NO_SSL_SCHEMA: verify_no_ssl_manifest,
+        DINO_SCHEMA: verify_dino_manifest,
+        DP2_SCHEMA: verify_dino_manifest,
+        FGPO_SCHEMA: verify_fgpo_manifest,
+        FFN_SCHEMA: verify_ffn_manifest,
+    }.get(schema, verify_br_manifest)
+    return verifier(source, manifest)
 
 
 def official_dependency_ready(spec: dict) -> bool:
@@ -692,6 +688,7 @@ def expected_epochs(plan: dict) -> int:
             RS3_SCHEMA,
             RS4_SCHEMA,
             RS5_SCHEMA,
+            RS6_SCHEMA,
         ):
             family = verify_manifest(source, family_manifest)
             matching = [r for r in family["rows"] if source / r["config"] == Path(plan["config"])]

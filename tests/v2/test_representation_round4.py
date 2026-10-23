@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "scripts/v2"))
 import generate_representation_round1 as first  # noqa: E402
 import generate_representation_round4 as round4  # noqa: E402
 import generate_representation_round5 as round5  # noqa: E402
+import generate_representation_round6 as round6  # noqa: E402
 import run_br400_group as runner  # noqa: E402
 import run_fgpo_medium as medium  # noqa: E402
 import run_representation_postfit as research  # noqa: E402
@@ -26,7 +27,7 @@ from test_fgpo_group import new_queue as new_queue  # noqa: E402
 from test_fgpo_group import training_gate  # noqa: E402
 
 
-@pytest.fixture(params=[round4, round5], ids=["R4-CR", "R5-PROJ"])
+@pytest.fixture(params=[round4, round5, round6], ids=["R4-CR", "R5-PROJ", "R6-EMA99"])
 def family(request):
     return request.param
 
@@ -49,9 +50,11 @@ def test_only_declared_loss_changes_no_repeat_baseline(family_root, family):
     assert manifest["repeat_baseline"] is False and manifest["epochs"] == 2
     assert manifest["initialization"].startswith("from_scratch")
     config = copy.deepcopy(family.configs(source)[family.ARMS[0]])
+    baseline = first.configs(source)["RS-RI"]
     for key, value in family.CHANGES.items():
         assert config["model"]["parameters"].pop(key)["value"] == value
-    assert config == first.configs(source)["RS-RI"]
+        baseline["model"]["parameters"].pop(key, None)
+    assert config == baseline
 
 
 @pytest.mark.parametrize("mutation", ["weight", "budget", "baseline", "evidence", "test"])
@@ -162,7 +165,14 @@ def test_family_evidence_is_exact_and_versioned(family_root, family):
     source, output = family_root
     manifest = family.verify_manifest(source, output / "manifest.json")
     decision = manifest["coefficient_decision"]
-    if family is round5:
+    if family is round6:
+        assert decision["parent_arm"] == "R5-PROJ"
+        assert decision["evidence"]["parent_training_commit"] == round6.PARENT_TRAINING_SOURCE
+        assert (
+            decision["evidence"]["clean_global_signal"]["analysis_commit"] == round6.BASELINE_SOURCE
+        )
+        assert decision["updates"] == 0
+    elif family is round5:
         assert "complete_sha256" not in decision
         assert decision["frozen_path_audit_source"] == "ae2ce0098416c9f6767d696183b6368cdf85e475"
         assert decision["updates"] == 0

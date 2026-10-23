@@ -52,6 +52,9 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     from generate_representation_round5 import ARMS as RS5_ARMS
     from generate_representation_round5 import SCHEMA as RS5_SCHEMA
     from generate_representation_round5 import verify_manifest as verify_rs5_manifest
+    from generate_representation_round6 import ARMS as RS6_ARMS
+    from generate_representation_round6 import SCHEMA as RS6_SCHEMA
+    from generate_representation_round6 import verify_manifest as verify_rs6_manifest
     from shared_gpu import DYNAMIC_SCHEMA, validate_policy
 
     from gradpert.hashing import sha256_file
@@ -75,6 +78,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             RS3_SCHEMA,
             RS4_SCHEMA,
             RS5_SCHEMA,
+            RS6_SCHEMA,
         )
         or queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA
         or queue.get("source_commit") != source_commit
@@ -120,7 +124,14 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         or queue.get("steps") != 10
     ):
         raise ValueError("DP2 evaluation requires the exact singleton continuation scope")
-    if queue.get("family") in (RS_SCHEMA, RS2_SCHEMA, RS3_SCHEMA, RS4_SCHEMA, RS5_SCHEMA):
+    if queue.get("family") in (
+        RS_SCHEMA,
+        RS2_SCHEMA,
+        RS3_SCHEMA,
+        RS4_SCHEMA,
+        RS5_SCHEMA,
+        RS6_SCHEMA,
+    ):
         family_schema = queue["family"]
         verifier, arms = {
             RS_SCHEMA: (verify_rs_manifest, RS_ARMS),
@@ -128,6 +139,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             RS3_SCHEMA: (verify_rs3_manifest, RS3_ARMS),
             RS4_SCHEMA: (verify_rs4_manifest, RS4_ARMS),
             RS5_SCHEMA: (verify_rs5_manifest, RS5_ARMS),
+            RS6_SCHEMA: (verify_rs6_manifest, RS6_ARMS),
         }[family_schema]
         matrix = verifier(Path(queue["source"]), Path(queue["manifest"]))
         if family_schema == RS3_SCHEMA:
@@ -165,7 +177,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     if len(rows) != 1:
         raise ValueError("evaluation probe must select one sealed queue row")
     row, plan = rows[0], rows[0]["plan"]
-    if queue.get("family") in (RS3_SCHEMA, RS4_SCHEMA, RS5_SCHEMA):
+    if queue.get("family") in (RS3_SCHEMA, RS4_SCHEMA, RS5_SCHEMA, RS6_SCHEMA):
         from gradpert.config import load_experiment_config
 
         specs = [spec for spec in matrix["rows"] if spec["name"] == row["name"]]
