@@ -816,7 +816,6 @@ class JointObjective(nn.Module):
                         teacher_outputs[j]["response_tokens"][mask]
                     )
                 self._targets("ssl2_node", target_node)
-                node_loss = self._cross_entropy(source, target_node, self.ssl2_node_center)
                 if reduction_weights is not None:
                     token_terms = self._cross_entropy_terms(
                         source, target_node, self.ssl2_node_center
@@ -825,14 +824,16 @@ class JointObjective(nn.Module):
                     per_row = token_terms.new_zeros(len(mask)).scatter_add(0, rows, token_terms)
                     per_row = per_row / mask.sum(-1).clamp_min(1)
                     node_loss = (per_row * reduction_weights[1][j]).sum()
-                elif ibot_population is not None:
-                    # Return a cell-scaled contribution so the engine's row
-                    # weighting cancels and yields the global masked-token mean.
-                    node_loss = (
-                        node_loss
-                        * (mask.sum() / ibot_population[j])
-                        * (ibot_population[2] / len(batch.control))
-                    )
+                else:
+                    node_loss = self._cross_entropy(source, target_node, self.ssl2_node_center)
+                    if ibot_population is not None:
+                        # Return a cell-scaled contribution so the engine's row
+                        # weighting cancels and yields the global masked-token mean.
+                        node_loss = (
+                            node_loss
+                            * (mask.sum() / ibot_population[j])
+                            * (ibot_population[2] / len(batch.control))
+                        )
                 nodes.append(node_loss)
         zero = student_outputs[0]["response_cls"].sum() * 0
         if deferred_au is not None:
