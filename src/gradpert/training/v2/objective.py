@@ -123,8 +123,12 @@ class JointObjective(nn.Module):
         cr_weight: float = 0.0,
         cr_epsilon_squared: float = 0.05,
         cr_warmup_steps: int = 30,
+        population_aux_space: str = "response_cls",
     ) -> None:
         super().__init__()
+        if population_aux_space not in ("response_cls", "ssl2_cls_bottleneck"):
+            raise ValueError("unknown population auxiliary space")
+        self.population_aux_space = population_aux_space
         if min(lambda1, lambda2, *ssl1_weights, *ssl2_weights) < 0:
             raise ValueError("loss weights must be nonnegative")
         for value in (au_alignment_weight, au_uniformity_weight, au_temperature):
@@ -783,11 +787,30 @@ class JointObjective(nn.Module):
                             decode=self.decode_ssl_views,
                         )
                     )
-        source_logits = (
-            [self.student.ssl2_cls(o["response_cls"]) for o in student_outputs]
-            if self.weights[1][0]
-            else []
+        projected_aux = (
+            deferred_au is not None and self.population_aux_space == "ssl2_cls_bottleneck"
         )
+        auxiliary_features = []
+        if projected_aux:
+            source_logits = []
+            for i, output in enumerate(student_outputs):
+                if i < 2:
+                    if self.weights[1][0]:
+                        features, logits = self.student.ssl2_cls(
+                            output["response_cls"], return_features=True
+                        )
+                        source_logits.append(logits)
+                    else:
+                        features = self.student.ssl2_cls.features(output["response_cls"])
+                    auxiliary_features.append(features)
+                elif self.weights[1][0]:
+                    source_logits.append(self.student.ssl2_cls(output["response_cls"]))
+        else:
+            source_logits = (
+                [self.student.ssl2_cls(o["response_cls"]) for o in student_outputs]
+                if self.weights[1][0]
+                else []
+            )
         with torch.no_grad():
             target_logits = (
                 [self.teacher.ssl2_cls(o["response_cls"]) for o in teacher_outputs]
@@ -843,7 +866,11 @@ class JointObjective(nn.Module):
             ):
                 raise ValueError("AU collection requires aligned control context IDs")
             selected = batch.unique_cell_indices
-            values = [o["response_cls"] for o in student_outputs[:2]]
+            values = (
+                auxiliary_features
+                if projected_aux
+                else [o["response_cls"] for o in student_outputs[:2]]
+            )
             ids, contexts = batch.condition_index, batch.context_index
             if selected is not None:
                 values = [v[selected] for v in values]

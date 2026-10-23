@@ -495,7 +495,17 @@ class Projector(nn.Module):
         )
         self.prototypes = nn.Linear(options.projector_bottleneck, options.prototypes, bias=False)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward_with_features(self, x: Tensor) -> tuple[Tensor, Tensor]:
+        """Return the existing pre-L2 bottleneck and logits from one MLP evaluation."""
+        features = self.features(x)
+        logits = self.prototypes(F.normalize(features.float(), dim=-1))
+        return features, logits
+
+    def forward(
+        self, x: Tensor, *, return_features: bool = False
+    ) -> Tensor | tuple[Tensor, Tensor]:
+        if return_features:
+            return self.forward_with_features(x)
         return cast(Tensor, self.prototypes(F.normalize(self.features(x).float(), dim=-1)))
 
 

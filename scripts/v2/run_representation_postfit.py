@@ -17,6 +17,8 @@ from generate_representation_round3 import ARMS as ROUND3_ARMS
 from generate_representation_round3 import SCHEMA as ROUND3_SCHEMA
 from generate_representation_round4 import ARMS as ROUND4_ARMS
 from generate_representation_round4 import SCHEMA as ROUND4_SCHEMA
+from generate_representation_round5 import ARMS as ROUND5_ARMS
+from generate_representation_round5 import SCHEMA as ROUND5_SCHEMA
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
@@ -26,6 +28,7 @@ FAMILY_ARMS = {
     ROUND2_SCHEMA: ROUND2_ARMS,
     ROUND3_SCHEMA: ROUND3_ARMS,
     ROUND4_SCHEMA: ROUND4_ARMS,
+    ROUND5_SCHEMA: ROUND5_ARMS,
 }
 
 
@@ -340,6 +343,12 @@ def render_medium_report(queue, row, root):
             "CR权重=.00004、epsilon²=.05、warmup=30个完成更新。完整有效批跨所有上下文，"
             "这是受SimDINO启发的改动。逐条件小探针缺完整有效批，A与CR均记NA，"
             "该joint不含这些项；有效秩仍为中心化诊断，不由logdet推导。\n"
+        )
+    if queue.get("family") == ROUND5_SCHEMA:
+        text.append(
+            "R5-PROJ保留R4的A=.05和CR=.00004，仅将二者移到现有SSL2 CLS投影头的256维瓶颈，"
+            "在L2和原型层之前取值；不增加head、不隔离主干梯度。逐条件小探针中A/CR均为NA。"
+            "共同报告投影前后表征；只有瓶颈高秩不构成问题解决。\n"
         )
     for name in ("training", "validation", "global_features", "global_heads", "frozen_losses"):
         text.extend([f"## {name}\n", table(tables[name])])

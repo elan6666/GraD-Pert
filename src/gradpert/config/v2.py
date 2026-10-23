@@ -478,6 +478,7 @@ class V2Options:
     cr_weight: float = 0.0
     cr_epsilon_squared: float = 0.05
     cr_warmup_steps: int = 30
+    population_aux_space: str = "response_cls"
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -566,6 +567,7 @@ class V2Options:
             "cr_weight",
             "cr_epsilon_squared",
             "cr_warmup_steps",
+            "population_aux_space",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -585,6 +587,8 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
+        if self.population_aux_space not in ("response_cls", "ssl2_cls_bottleneck"):
+            raise ValueError("unknown population auxiliary space")
         if (
             isinstance(self.cr_weight, bool)
             or not isinstance(self.cr_weight, (int, float))

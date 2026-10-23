@@ -146,3 +146,36 @@ def test_disabled_ssl_feature_probes_reuse_main_graph_without_teacher_or_heads()
     assert all(r["role"] == "student" for r in grouped["pairs"])
     for h in handles:
         h.remove()
+
+
+@pytest.mark.parametrize("space", ["response_cls", "ssl2_cls_bottleneck"])
+def test_population_feature_return_keeps_observer_logits_and_bottleneck_aligned(space):
+    from test_cr_integration import fixture
+
+    obj, batch = fixture()
+    obj.population_aux_space = space
+    obj.eval()
+    initial = {k: v.clone() for k, v in obj.state_dict().items()}
+    with torch.no_grad(), torch.random.fork_rng():
+        torch.manual_seed(33)
+        expected = obj(batch, deferred_au=[])
+    collector = Collector(batch, records(batch), 42, stats_backend="fast")
+    with torch.no_grad(), torch.random.fork_rng():
+        torch.manual_seed(33)
+        collector.install(obj)
+        try:
+            actual = obj(batch, deferred_au=[])
+        finally:
+            collector.close()
+    assert torch.equal(actual[0], expected[0])
+    assert actual[1].keys() == expected[1].keys()
+    for key in actual[1]:
+        assert torch.equal(actual[1][key], expected[1][key])
+    for key, value in obj.state_dict().items():
+        assert torch.equal(value, initial[key])
+    result = collector.result()
+    for index in (0, 1):
+        key = f"student.ssl2_cls.view{index}"
+        assert key + ".bottleneck" in result["features"]
+        assert key in result["heads"]
+    assert result["pairs"]

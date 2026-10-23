@@ -123,6 +123,7 @@ def panel_parent_binding(parent, identity, queue, args):
     """Bind frozen population-auxiliary metadata to the exact queued endpoint."""
     from generate_representation_round3 import SCHEMA
     from generate_representation_round4 import SCHEMA as CR_SCHEMA
+    from generate_representation_round5 import SCHEMA as PROJ_SCHEMA
     from run_fgpo_medium import au_parent_binding, cr_parent_binding
 
     rows = [
@@ -142,16 +143,18 @@ def panel_parent_binding(parent, identity, queue, args):
         or identity["source"]["commit"] != args.method_sha
     ):
         raise ValueError("panel queue/run/config binding differs")
-    if row["name"] in ("R3-AUB", "R3-AUS", "R4-CR"):
+    if row["name"] in ("R3-AUB", "R3-AUS", "R4-CR", "R5-PROJ"):
         spec = queue["medium_analysis"]
-        family = CR_SCHEMA if row["name"] == "R4-CR" else SCHEMA
+        family = {"R4-CR": CR_SCHEMA, "R5-PROJ": PROJ_SCHEMA}.get(row["name"], SCHEMA)
         if (
             queue.get("family") != family
             or Path(spec["parent_manifest"]).resolve() != args.parent_manifest.resolve()
             or spec["parent_manifest_sha256"] != args.parent_manifest_sha256
         ):
             raise ValueError("population auxiliary panel requires its exact original family parent")
-        bind_parent = cr_parent_binding if row["name"] == "R4-CR" else au_parent_binding
+        bind_parent = (
+            cr_parent_binding if row["name"] in ("R4-CR", "R5-PROJ") else au_parent_binding
+        )
         bound = bind_parent(
             parent,
             identity,

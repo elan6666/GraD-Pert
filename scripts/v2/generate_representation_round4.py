@@ -7,12 +7,9 @@ import copy
 import json
 from pathlib import Path
 
-import yaml
+import representation_family as sealed
 from generate_representation_round1 import configs as first_configs
 from generate_representation_round1 import metadata as first_metadata
-
-from gradpert.config import load_experiment_config
-from gradpert.hashing import sha256_file
 
 SCHEMA = "representation-round4-cr-medium-1"
 FAMILY = "representation_round4_20261023"
@@ -96,48 +93,11 @@ def metadata() -> dict:
 
 
 def verify_manifest(source: Path, path: Path) -> dict:
-    source, path = source.resolve(), path.resolve()
-    if not path.is_relative_to(source):
-        raise ValueError("manifest must remain source contained")
-    value = json.loads(path.read_text())
-    if {k: v for k, v in value.items() if k != "rows"} != metadata():
-        raise ValueError("R4 frozen coding-rate research protocol changed")
-    if [r["name"] for r in value["rows"]] != list(ARMS):
-        raise ValueError("R4 dispatch is exactly one CR arm, with no repeated baseline")
-    target = path.parent / "R4-CR/gradpert_v2/nadig_jurkat.yaml"
-    if target.is_symlink() or not target.resolve().is_relative_to(source):
-        raise ValueError("configuration must remain source contained")
-    expected = {
-        "name": "R4-CR",
-        "config": str(target.relative_to(source)),
-        "sha256": sha256_file(target),
-        "changes": CHANGES,
-    }
-    if (
-        value["rows"] != [expected]
-        or yaml.safe_load(target.read_text()) != configs(source)["R4-CR"]
-    ):
-        raise ValueError("R4 must preserve RI and the exact frozen A/CR coefficients")
-    load_experiment_config(target)
-    return value
+    return sealed.verify(source, path, metadata(), configs(source), CHANGES)
 
 
 def generate(source: Path, output: Path) -> dict:
-    source, output = source.resolve(), output.resolve()
-    if output.exists() or not output.is_relative_to(source):
-        raise ValueError("fresh source-contained family required")
-    target = output / "R4-CR/gradpert_v2/nadig_jurkat.yaml"
-    target.parent.mkdir(parents=True)
-    target.write_text(yaml.safe_dump(configs(source)["R4-CR"], sort_keys=False, allow_unicode=True))
-    row = dict(
-        name="R4-CR",
-        config=str(target.relative_to(source)),
-        sha256=sha256_file(target),
-        changes=CHANGES,
-    )
-    path = output / "manifest.json"
-    path.write_text(json.dumps({**metadata(), "rows": [row]}, indent=2) + "\n")
-    return verify_manifest(source, path)
+    return sealed.generate(source, output, metadata(), configs(source), CHANGES)
 
 
 if __name__ == "__main__":

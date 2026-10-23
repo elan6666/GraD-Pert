@@ -1,4 +1,4 @@
-"""R4 observers bind exact metadata while preserving the original frozen population."""
+"""R4/R5 observers preserve exact metadata and the original frozen population."""
 
 import copy
 import csv
@@ -13,32 +13,63 @@ from gradpert.data._io import atomic_json, read_json
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/v2"))
-import generate_representation_round4 as family  # noqa: E402
+import generate_representation_round4 as round4  # noqa: E402
+import generate_representation_round5 as round5  # noqa: E402
 import run_br400_group as runner  # noqa: E402
 import run_fgpo_medium as medium  # noqa: E402
 import run_representation_postfit as research  # noqa: E402
+from representation_panel import panel_schedule  # noqa: E402
 from run_representation_panel import panel_parent_binding  # noqa: E402
 
 
+@pytest.fixture(params=[round4, round5], ids=["R4-CR", "R5-PROJ"])
+def family(request):
+    return request.param
+
+
 @pytest.fixture
-def cr_case(tmp_path):
-    config = ROOT / "configs/v2/representation_round4_20261023/R4-CR/gradpert_v2/nadig_jurkat.yaml"
-    parent = dict(
-        data=dict(canonical_sha256="a" * 64, loss_protocol=dict(reduction="row_mean")),
-        schedule=[
+def cr_case(tmp_path, family):
+    arm = family.ARMS[0]
+    config = tmp_path / family.FAMILY / arm / "gradpert_v2/nadig_jurkat.yaml"
+    config.parent.mkdir(parents=True)
+    config.write_text(yaml.safe_dump(family.configs(ROOT)[arm]))
+    representation = (
+        "student_ssl2_cls_features_before_l2_and_prototypes"
+        if family is round5
+        else "student_response_cls_after_final_rmsnorm_before_projector"
+    )
+    schedule = []
+    for index, condition in enumerate(("p", "q")):
+        rows = [
             dict(
-                index=0,
-                condition_id="p",
-                rows=[dict(control_row_id="c", truth_row_id="t")],
-                deep_rows=[],
-                gradient_rows=[],
-                queries=[1],
+                control_row_id=f"c{control}",
+                truth_row_id=f"t{index}-{control}",
+                condition_id=condition,
+                cell_line="Jurkat",
+                cell_type="jurkat",
+                context_id="jurkat::1",
+                batch="1",
+            )
+            for control in range(4)
+        ]
+        schedule.append(
+            dict(
+                index=index,
+                condition_id=condition,
+                rows=rows,
+                deep_rows=copy.deepcopy(rows),
+                gradient_rows=copy.deepcopy(rows[:1]),
+                queries=[1, 3],
                 view_seed=3,
             )
-        ],
+        )
+    parent = dict(
+        analysis_scope="medium_cap40_stratified",
+        data=dict(canonical_sha256="a" * 64, loss_protocol=dict(reduction="row_mean")),
+        schedule=schedule,
     )
     identity = dict(
-        run_id="R4-CR-run", source=dict(commit="c" * 40), data=copy.deepcopy(parent["data"])
+        run_id=arm + "-run", source=dict(commit="c" * 40), data=copy.deepcopy(parent["data"])
     )
     identity["data"]["loss_protocol"].update(
         alignment_uniformity=dict(
@@ -46,7 +77,7 @@ def cr_case(tmp_path):
             uniformity_weight=0.0,
             temperature=2.0,
             warmup_completed_optimizer_updates=30,
-            representation="student_response_cls_after_final_rmsnorm_before_projector",
+            representation=representation,
             population_scope="complete_effective_batch_all_microbatches_and_ranks",
             deduplication="control_row_id_and_condition_id_before_rank_partition",
             alignment="same_control_and_condition_two_global_views_both_student_gradients",
@@ -58,7 +89,7 @@ def cr_case(tmp_path):
             weight=0.00004,
             epsilon_squared=0.05,
             warmup_completed_optimizer_updates=30,
-            representation="student_response_cls_after_final_rmsnorm_before_projector",
+            representation=representation,
             population_scope="complete_effective_batch_all_microbatches_and_ranks_all_contexts",
             deduplication="control_row_id_and_condition_id_before_rank_partition",
             formula="mean_two_globals_negative_half_logdet_I_plus_d_over_N_epsilon_squared_UtU",
@@ -85,7 +116,7 @@ def cr_case(tmp_path):
         ),
         rows=[
             dict(
-                name="R4-CR",
+                name=arm,
                 plan=dict(
                     run_root=str(args.run_root),
                     run_id=identity["run_id"],
@@ -97,7 +128,7 @@ def cr_case(tmp_path):
         ],
     )
     kwargs = dict(
-        arm="R4-CR",
+        arm=arm,
         config=config,
         parent_path=args.parent_manifest,
         parent_sha256=args.parent_manifest_sha256,
@@ -108,10 +139,12 @@ def cr_case(tmp_path):
 def test_cr_binding_preserves_original_parent_and_panel_binding(cr_case):
     parent, identity, queue, args, kwargs = cr_case
     before = copy.deepcopy((parent, identity, queue))
+    original_panel = panel_schedule(parent, conditions=2, controls=4)
     bound = medium.cr_parent_binding(parent, identity, **kwargs)
     binding = bound["training_protocol_binding"]
     assert bound["data"] == identity["data"]
     assert bound["schedule"] == parent["schedule"]
+    assert panel_schedule(bound, conditions=2, controls=4) == original_panel
     assert binding["changed_fields"] == [
         "data.loss_protocol.alignment_uniformity",
         "data.loss_protocol.coding_rate",
@@ -142,6 +175,8 @@ def test_cr_binding_preserves_original_parent_and_panel_binding(cr_case):
         (("loss_protocol", "coding_rate", "population_scope"), "per_context"),
         (("loss_protocol", "coding_rate", "normalization"), "centered"),
         (("loss_protocol", "coding_rate", "partial_diagnostics"), "computed"),
+        (("loss_protocol", "coding_rate", "representation"), "wrong_space"),
+        (("loss_protocol", "alignment_uniformity", "representation"), "wrong_space"),
         (("loss_protocol", "alignment_uniformity", "uniformity_weight"), 0.005),
         (("loss_protocol", "alignment_uniformity", "alignment_weight"), 0.1),
     ],
@@ -196,16 +231,22 @@ def test_cr_panel_rejects_queue_endpoint_drift(cr_case, drift):
         ("au_warmup_steps", 31),
         ("cr_weight", 0.00008),
         ("cr_warmup_steps", 31),
+        ("cr_epsilon_squared", 0.1),
+        ("population_aux_space", "opposite_space"),
     ],
 )
 def test_cr_binding_rejects_unapproved_config(cr_case, tmp_path, field, value):
     parent, identity, _, _, kwargs = cr_case
     raw = yaml.safe_load(kwargs["config"].read_text())
-    raw["model"]["parameters"][field]["value"] = value
+    if value == "opposite_space":
+        value = "response_cls" if kwargs["arm"] == "R5-PROJ" else "ssl2_cls_bottleneck"
+    raw["model"]["parameters"].setdefault(
+        field, dict(source="project_preregistered", reference="test:unapproved-space")
+    )["value"] = value
     target = tmp_path / "gradpert_v2/nadig_jurkat.yaml"
     target.parent.mkdir()
     target.write_text(yaml.safe_dump(raw))
-    with pytest.raises(ValueError, match="frozen arm"):
+    with pytest.raises(ValueError, match=r"frozen arm|representation space|epsilon_squared"):
         medium.cr_parent_binding(parent, identity, **dict(kwargs, config=target))
 
 
@@ -246,15 +287,16 @@ def test_cr_medium_execute_binds_before_native_seal(cr_case, monkeypatch, popula
         else (RuntimeError, "verified CR native seal dispatch")
     )
     with pytest.raises(error, match=message):
-        medium.execute(queue_path, "R4-CR")
+        medium.execute(queue_path, row["name"])
     assert parent == before
-    root = Path(queue["output"]) / "R4-CR-medium"
+    root = Path(queue["output"]) / (row["name"] + "-medium")
     assert read_json(root / "FAILURE.json")["status"] == "failed"
 
 
-def test_cr_report_keeps_missing_population_terms_na(tmp_path):
+def test_cr_report_keeps_missing_population_terms_na(tmp_path, family):
+    arm = family.ARMS[0]
     root, run = tmp_path / "medium", tmp_path / "run"
-    row = dict(name="R4-CR", plan=dict(run_root=str(run), config_sha256="c" * 64))
+    row = dict(name=arm, plan=dict(run_root=str(run), config_sha256="c" * 64))
     queue = dict(output=str(tmp_path), source_commit="a" * 40, family=family.SCHEMA)
     atomic_json(root / "analysis/summary.json", dict(global_features={}, global_heads={}))
     unavailable = {
@@ -286,4 +328,8 @@ def test_cr_report_keeps_missing_population_terms_na(tmp_path):
         assert loss[key] == "" and loss["unavailable_terms." + key] == reason
     assert loss["joint"] == "2"
     report = (root / "report/REPORT_CN.md").read_text()
-    assert "CR权重=.00004" in report and "A与CR均记NA" in report
+    assert ".00004" in report
+    if family is round5:
+        assert "256维瓶颈" in report and "A/CR均为NA" in report
+    else:
+        assert "CR权重=.00004" in report and "A与CR均记NA" in report

@@ -768,6 +768,9 @@ class Collector:
                 head = getattr(model, head_name)
 
                 def head_hook(mod, inputs, output, role=role, head_name=head_name):
+                    # Optional auxiliary features share this forward; statistics use logits.
+                    if isinstance(output, tuple):
+                        _, output = output
                     k = (role, head_name)
                     index = self.head_count[k]
                     self.head_count[k] += 1

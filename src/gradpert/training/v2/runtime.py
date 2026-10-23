@@ -379,6 +379,7 @@ def prepare_runtime(
             cr_weight=options.cr_weight,
             cr_epsilon_squared=options.cr_epsilon_squared,
             cr_warmup_steps=options.cr_warmup_steps,
+            population_aux_space=options.population_aux_space,
             teacher_temperature_start=options.teacher_temperature_start,
             teacher_temperature_end=options.teacher_temperature_end,
             teacher_temperature_warmup_steps=(
@@ -478,7 +479,11 @@ def prepare_runtime(
                 "weight": options.cr_weight,
                 "epsilon_squared": options.cr_epsilon_squared,
                 "warmup_completed_optimizer_updates": options.cr_warmup_steps,
-                "representation": "student_response_cls_after_final_rmsnorm_before_projector",
+                "representation": (
+                    "student_ssl2_cls_features_before_l2_and_prototypes"
+                    if options.population_aux_space == "ssl2_cls_bottleneck"
+                    else "student_response_cls_after_final_rmsnorm_before_projector"
+                ),
                 "population_scope": (
                     "complete_effective_batch_all_microbatches_and_ranks_all_contexts"
                 ),
@@ -495,7 +500,11 @@ def prepare_runtime(
                 "uniformity_weight": options.au_uniformity_weight,
                 "temperature": options.au_temperature,
                 "warmup_completed_optimizer_updates": options.au_warmup_steps,
-                "representation": "student_response_cls_after_final_rmsnorm_before_projector",
+                "representation": (
+                    "student_ssl2_cls_features_before_l2_and_prototypes"
+                    if options.population_aux_space == "ssl2_cls_bottleneck"
+                    else "student_response_cls_after_final_rmsnorm_before_projector"
+                ),
                 "population_scope": "complete_effective_batch_all_microbatches_and_ranks",
                 "deduplication": "control_row_id_and_condition_id_before_rank_partition",
                 "alignment": "same_control_and_condition_two_global_views_both_student_gradients",

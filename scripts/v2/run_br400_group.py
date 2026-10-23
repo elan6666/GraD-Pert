@@ -45,6 +45,8 @@ from generate_representation_round3 import SCHEMA as RS3_SCHEMA
 from generate_representation_round3 import verify_manifest as verify_rs3_manifest
 from generate_representation_round4 import SCHEMA as RS4_SCHEMA
 from generate_representation_round4 import verify_manifest as verify_rs4_manifest
+from generate_representation_round5 import SCHEMA as RS5_SCHEMA
+from generate_representation_round5 import verify_manifest as verify_rs5_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -67,7 +69,7 @@ from gradpert.execution.v2_deferred_postfit import finalize_deferred_run
 from gradpert.execution.v2_training_stage import validate_training_stage
 from gradpert.hashing import sha256_file, sha256_json
 
-RESEARCH_FAMILIES = (RS_SCHEMA, RS2_SCHEMA, RS3_SCHEMA, RS4_SCHEMA)
+RESEARCH_FAMILIES = (RS_SCHEMA, RS2_SCHEMA, RS3_SCHEMA, RS4_SCHEMA, RS5_SCHEMA)
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
 FGPO_FAMILIES = (
@@ -176,6 +178,8 @@ def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
 
 
 def verify_manifest(source: Path, manifest: Path) -> dict:
+    if read_json(manifest).get("schema") == RS5_SCHEMA:
+        return verify_rs5_manifest(source, manifest)
     if read_json(manifest).get("schema") == RS4_SCHEMA:
         return verify_rs4_manifest(source, manifest)
     if read_json(manifest).get("schema") == RS3_SCHEMA:
@@ -687,6 +691,7 @@ def expected_epochs(plan: dict) -> int:
         if family_manifest.is_file() and read_json(family_manifest).get("schema") in (
             RS3_SCHEMA,
             RS4_SCHEMA,
+            RS5_SCHEMA,
         ):
             family = verify_manifest(source, family_manifest)
             matching = [r for r in family["rows"] if source / r["config"] == Path(plan["config"])]
