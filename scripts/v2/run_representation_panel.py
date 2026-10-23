@@ -191,6 +191,15 @@ def execute(args):
     panel = panel_schedule(
         parent, seed=args.seed, conditions=args.conditions, controls=args.controls
     )
+    path_audit = None
+    if getattr(args, "path_audit", False):
+        from response_path_diagnostics import PathAuditBank
+
+        if (args.conditions, args.controls, args.checkpoint_role) != (32, 4, "last") or panel[
+            "conditions"
+        ] != 32:
+            raise ValueError("path audit requires the frozen 32 x 4 last-checkpoint panel")
+        path_audit = PathAuditBank(panel, required_shape=(16, 2, 4))
     torch, config, identity, prepare, _ = runtime_args(args)
     analysis_source = source_identity(Path(__file__).resolve().parents[2])
     queue = read(args.resource_queue)
@@ -256,6 +265,18 @@ def execute(args):
                     raise ValueError("assembled common query panel order changed")
                 if number == 0:
                     parity = verify_cache(rt, batch, cached)
+                if path_audit is not None:
+                    path_audit.add(rt, batch, cached, group)
+                    write(
+                        args.output / "progress.json",
+                        dict(
+                            condition_context_groups_done=number + 1,
+                            total=len(panel["schedule"]),
+                            path_audit_contexts_done=len(path_audit.receipts),
+                            elapsed_seconds=time.perf_counter() - started,
+                        ),
+                    )
+                    continue
                 with ResponseStageObserver(
                     obj.student.response, gene_ids=actual_ids, records=group["rows"], seed=args.seed
                 ) as observer:
@@ -295,14 +316,22 @@ def execute(args):
             raise ValueError(
                 "diagnostic changed model/teacher/center/optimizer/gradients/RNG/checkpoint"
             )
-    for name, rows in stage_rows.items():
-        csv_write(args.output / ("stage_" + name + ".csv"), rows)
-    write(args.output / "matched_expression_views.json", view_receipts)
+    path_result = path_audit.result() if path_audit is not None else None
+    if path_result is not None:
+        write(args.output / "path_audit.json", path_result)
+        for name in ("decomposition", "pairs", "interventions", "context_means"):
+            csv_write(args.output / ("path_" + name + ".csv"), path_result[name])
+    else:
+        for name, rows in stage_rows.items():
+            csv_write(args.output / ("stage_" + name + ".csv"), rows)
+        write(args.output / "matched_expression_views.json", view_receipts)
     for name, bank in (
         ("crossed_views", views),
         ("crossed_main", main_views),
         ("prototype_pairs", prototypes),
     ):
+        if path_audit is not None:
+            continue
         result = (
             grouped_main_result(bank)
             if name == "crossed_main"
@@ -328,6 +357,18 @@ def execute(args):
         panel_sha256=panel["panel_sha256"],
         panel_rows=panel["rows"],
         diagnostic_objective_scopes=diagnostic_scopes,
+        diagnostic_mode="response_path_audit" if path_audit is not None else "crossed_views",
+        path_audit=(
+            {
+                "schema": path_result["schema"],
+                "contexts": path_result["contexts"],
+                "input_rows": path_result["input_rows"],
+                "first_context_seconds": path_result["receipts"][0]["elapsed_seconds"],
+                "forward_row_evaluations": path_result["forward_row_evaluations"],
+            }
+            if path_result is not None
+            else None
+        ),
         state_before=before,
         state_after=after,
         state_unchanged=True,
@@ -357,6 +398,7 @@ def main():
     p.add_argument("--seed", type=int, default=20261021)
     p.add_argument("--conditions", type=int, default=32)
     p.add_argument("--controls", type=int, default=4)
+    p.add_argument("--path-audit", action="store_true", help="truth-free F/B/decoder-swap audit")
     args = p.parse_args()
     from run_group import lock
 
