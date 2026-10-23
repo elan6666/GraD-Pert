@@ -120,6 +120,9 @@ class JointObjective(nn.Module):
         au_uniformity_weight: float = 0.0,
         au_temperature: float = 2.0,
         au_warmup_steps: int = 30,
+        cr_weight: float = 0.0,
+        cr_epsilon_squared: float = 0.05,
+        cr_warmup_steps: int = 30,
     ) -> None:
         super().__init__()
         if min(lambda1, lambda2, *ssl1_weights, *ssl2_weights) < 0:
@@ -134,6 +137,25 @@ class JointObjective(nn.Module):
                 raise ValueError("AU parameters must be finite and nonnegative")
         if au_temperature <= 0 or type(au_warmup_steps) is not int or au_warmup_steps < 0:
             raise ValueError("AU temperature must be positive and warmup nonnegative")
+        if (
+            isinstance(cr_weight, bool)
+            or not isinstance(cr_weight, (int, float))
+            or not math.isfinite(cr_weight)
+            or cr_weight < 0
+            or isinstance(cr_epsilon_squared, bool)
+            or cr_epsilon_squared != 0.05
+            or type(cr_warmup_steps) is not int
+            or cr_warmup_steps < 0
+        ):
+            raise ValueError("invalid CR weight, epsilon_squared or warmup")
+        self.cr_weight = cr_weight
+        self.cr_epsilon_squared = cr_epsilon_squared
+        self.cr_warmup_steps = cr_warmup_steps
+        self.cr_enabled = bool(cr_weight)
+        if self.cr_enabled and (
+            not lambda2 or loss_reduction != "row_mean" or ssl2_weights[2] or population_response
+        ):
+            raise ValueError("CR requires joint SSL2 row_mean and disabled KoLeo/population loss")
         self.au_alignment_weight = au_alignment_weight
         self.au_uniformity_weight = au_uniformity_weight
         self.au_temperature = au_temperature
@@ -366,7 +388,11 @@ class JointObjective(nn.Module):
     ) -> tuple[Tensor, dict[str, Tensor]]:
         if omit_au_for_diagnostic and deferred_au is not None:
             raise ValueError("diagnostic AU omission cannot collect a partial population")
-        if self.au_enabled and deferred_au is None and not omit_au_for_diagnostic:
+        if (
+            (self.au_enabled or self.cr_enabled)
+            and deferred_au is None
+            and not omit_au_for_diagnostic
+        ):
             raise ValueError(
                 "AU requires explicit complete-population collection; "
                 "partial diagnostics must defer it"

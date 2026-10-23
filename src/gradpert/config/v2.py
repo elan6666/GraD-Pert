@@ -475,6 +475,9 @@ class V2Options:
     au_uniformity_weight: float = 0.0
     au_temperature: float = 2.0
     au_warmup_steps: int = 30
+    cr_weight: float = 0.0
+    cr_epsilon_squared: float = 0.05
+    cr_warmup_steps: int = 30
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -560,6 +563,9 @@ class V2Options:
             "au_uniformity_weight",
             "au_temperature",
             "au_warmup_steps",
+            "cr_weight",
+            "cr_epsilon_squared",
+            "cr_warmup_steps",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -579,6 +585,30 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
+        if (
+            isinstance(self.cr_weight, bool)
+            or not isinstance(self.cr_weight, (int, float))
+            or not math.isfinite(self.cr_weight)
+            or self.cr_weight < 0
+            or isinstance(self.cr_epsilon_squared, bool)
+            or self.cr_epsilon_squared != 0.05
+            or type(self.cr_warmup_steps) is not int
+            or self.cr_warmup_steps < 0
+        ):
+            raise ValueError(
+                "CR requires finite nonnegative weight, epsilon_squared .05 and nonnegative warmup"
+            )
+        if self.cr_weight and (
+            not self.lambda2
+            or self.loss_reduction != "row_mean"
+            or self.ssl2_koleo
+            or self.population_response
+            or self.training_mode != "joint"
+            or self.max_conditions == 1
+        ):
+            raise ValueError(
+                "CR requires mixed joint SSL2 row_mean and disabled KoLeo/population loss"
+            )
         for name in ("au_alignment_weight", "au_uniformity_weight", "au_temperature"):
             value = getattr(self, name)
             if (

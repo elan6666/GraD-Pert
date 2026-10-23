@@ -51,6 +51,7 @@ def assemble_control_only(runtime, records, queries, seed, *, deep):
             )
             else {}
         ),
+        **({"cr_weight": 0.0} if not deep and getattr(runtime.options, "cr_weight", 0.0) else {}),
     )
     return assemble_batch(
         raw,

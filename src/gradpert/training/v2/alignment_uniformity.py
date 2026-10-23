@@ -83,6 +83,8 @@ def alignment_uniformity(
     condition_ids: Tensor,
     context_ids: Tensor,
     temperature: float = 2.0,
+    *,
+    compute_uniformity: bool = True,
 ) -> AUResult:
     """Compute A and U without weights, margins, rank targets, or detach.
 
@@ -122,7 +124,7 @@ def alignment_uniformity(
         diagonal=1,
     )
     pair_count = int(pairs.count_nonzero().item())
-    if pair_count == 0:
+    if compute_uniformity and pair_count == 0:
         raise ValueError("no eligible same-context, different-condition unordered pairs")
 
     # Explicitly disable outer mixed precision: .float() alone does not stop
@@ -139,11 +141,51 @@ def alignment_uniformity(
             normalized.append(F.normalize(values, p=2, dim=1, eps=0.0))
         u1, u2 = normalized
         alignment = (1.0 - (u1 * u2).sum(dim=1)).mean()
-        uniformities = [
-            torch.logsumexp(2.0 * temperature * ((view @ view.T)[pairs] - 1.0), dim=0)
-            - math.log(pair_count)
-            for view in normalized
-        ]
-        uniformity = (uniformities[0] + uniformities[1]) * 0.5
+        uniformities = (
+            [
+                torch.logsumexp(2.0 * temperature * ((view @ view.T)[pairs] - 1.0), dim=0)
+                - math.log(pair_count)
+                for view in normalized
+            ]
+            if compute_uniformity
+            else []
+        )
+        uniformity = (
+            (uniformities[0] + uniformities[1]) * 0.5 if compute_uniformity else alignment * 0
+        )
 
     return AUResult(alignment, uniformity, pair_count, n, torch.unique(contexts).numel())
+
+
+def negative_coding_rate(global0: Tensor, global1: Tensor, epsilon_squared: float = 0.05) -> Tensor:
+    """Shared native training/diagnostic CR; normalize separate Globals without centering."""
+    if (
+        not isinstance(global0, Tensor)
+        or not isinstance(global1, Tensor)
+        or global0.ndim != 2
+        or global1.shape != global0.shape
+        or global0.device != global1.device
+        or not global0.is_floating_point()
+        or not global1.is_floating_point()
+    ):
+        raise ValueError("coding rate requires aligned floating-point Global matrices")
+    rates = []
+    for values in (global0, global1):
+        if values.ndim != 2 or not all(values.shape):
+            raise ValueError("coding rate requires nonempty feature matrices")
+        x = values.double()
+        norms = torch.linalg.vector_norm(x, dim=-1, keepdim=True)
+        if not torch.isfinite(x).all() or not torch.isfinite(norms).all() or (norms <= 0).any():
+            raise ValueError("coding rate requires finite nonzero unit norms")
+        if epsilon_squared != 0.05:
+            raise ValueError("coding-rate epsilon_squared is fixed at 0.05")
+        unit = x / norms
+        n, d = unit.shape
+        gram = unit.T @ unit
+        matrix = torch.eye(d, dtype=x.dtype, device=x.device) + d / (n * epsilon_squared) * gram
+        matrix = (matrix + matrix.T) / 2
+        factor, info = torch.linalg.cholesky_ex(matrix)
+        if info.any() or not torch.isfinite(factor).all():
+            raise ValueError("coding rate matrix is not finite positive definite")
+        rates.append(-factor.diagonal().log().sum())
+    return (rates[0] + rates[1]) / 2

@@ -51,6 +51,7 @@ class Runtime:
         if not (
             getattr(self.options, "au_alignment_weight", 0)
             or getattr(self.options, "au_uniformity_weight", 0)
+            or getattr(self.options, "cr_weight", 0)
         ):
             return None
         return torch.tensor(
@@ -375,6 +376,9 @@ def prepare_runtime(
             au_uniformity_weight=options.au_uniformity_weight,
             au_temperature=options.au_temperature,
             au_warmup_steps=options.au_warmup_steps,
+            cr_weight=options.cr_weight,
+            cr_epsilon_squared=options.cr_epsilon_squared,
+            cr_warmup_steps=options.cr_warmup_steps,
             teacher_temperature_start=options.teacher_temperature_start,
             teacher_temperature_end=options.teacher_temperature_end,
             teacher_temperature_warmup_steps=(
@@ -468,6 +472,22 @@ def prepare_runtime(
                 "pretrain_truth": "not_loaded_nan_sentinel",
                 "transition": "student_retained_optimizer_moments_reset",
                 "finetune_teacher_centers": "frozen_unused",
+            }
+        if objective.cr_enabled:
+            identity["loss_protocol"]["coding_rate"] = {
+                "weight": options.cr_weight,
+                "epsilon_squared": options.cr_epsilon_squared,
+                "warmup_completed_optimizer_updates": options.cr_warmup_steps,
+                "representation": "student_response_cls_after_final_rmsnorm_before_projector",
+                "population_scope": (
+                    "complete_effective_batch_all_microbatches_and_ranks_all_contexts"
+                ),
+                "deduplication": "control_row_id_and_condition_id_before_rank_partition",
+                "formula": (
+                    "mean_two_globals_negative_half_logdet_I_plus_d_over_N_epsilon_squared_UtU"
+                ),
+                "normalization": "separate_global_unit_rows_uncentered_fp64_cholesky",
+                "partial_diagnostics": "unavailable_requires_complete_global_population",
             }
         if objective.au_enabled:
             identity["loss_protocol"]["alignment_uniformity"] = {

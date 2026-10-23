@@ -17,10 +17,13 @@ import cap40_posthoc as posthoc  # noqa: E402
 import run_fgpo_medium as medium  # noqa: E402
 
 
-@pytest.mark.parametrize("arm", ["R3-AUB", "R3-AUS"])
+@pytest.mark.parametrize("arm", ["R3-AUB", "R3-AUS", "R4-CR"])
 @pytest.mark.parametrize("deep", [False, True])
 def test_real_au_options_only_disable_shallow_assembly(tmp_path, monkeypatch, arm, deep):
-    config = ROOT / f"configs/v2/representation_round3_20261023/{arm}/gradpert_v2/nadig_jurkat.yaml"
+    family = (
+        "representation_round4_20261023" if arm == "R4-CR" else "representation_round3_20261023"
+    )
+    config = ROOT / f"configs/v2/{family}/{arm}/gradpert_v2/nadig_jurkat.yaml"
     _, options = V2Options.parse_parameters(load_experiment_config(config).model.parameters)
     before = copy.deepcopy(options)
     runtime = SimpleNamespace(options=options, index=object())
@@ -34,10 +37,16 @@ def test_real_au_options_only_disable_shallow_assembly(tmp_path, monkeypatch, ar
         if deep
         else dict(lambda1=0.0, lambda2=0.0, au_alignment_weight=0.0, au_uniformity_weight=0.0)
     )
+    if not deep and arm == "R4-CR":
+        expected["cr_weight"] = 0.0
     assert actual == dataclasses.replace(options, **expected)
     assert runtime.options is options
     assert options == before
-    assert options.au_alignment_weight > 0 and options.au_uniformity_weight > 0
+    assert options.au_alignment_weight > 0
+    assert options.au_uniformity_weight == (
+        0.0 if arm == "R4-CR" else 0.005 if arm == "R3-AUB" else 0.01
+    )
+    assert options.cr_weight == (0.00004 if arm == "R4-CR" else 0.0)
 
 
 @pytest.mark.parametrize("arm", ["R3-AUB", "R3-AUS", "R3-RI"])
@@ -59,6 +68,7 @@ def test_report_guard_allows_only_exact_au_shallow_patch(tmp_path, monkeypatch, 
                 or getattr(runtime.options, "au_uniformity_weight", 0.0)
                 else {}
             ),
+            **({"cr_weight": 0.0} if getattr(runtime.options, "cr_weight", 0.0) else {}),
         )"""
     assert corrected.count(after) == 1
     original = corrected.replace(after, before)

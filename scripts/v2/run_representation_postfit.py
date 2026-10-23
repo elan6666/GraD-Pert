@@ -15,11 +15,18 @@ from generate_representation_round2 import ARMS as ROUND2_ARMS
 from generate_representation_round2 import SCHEMA as ROUND2_SCHEMA
 from generate_representation_round3 import ARMS as ROUND3_ARMS
 from generate_representation_round3 import SCHEMA as ROUND3_SCHEMA
+from generate_representation_round4 import ARMS as ROUND4_ARMS
+from generate_representation_round4 import SCHEMA as ROUND4_SCHEMA
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
 
-FAMILY_ARMS = {SCHEMA: ARMS, ROUND2_SCHEMA: ROUND2_ARMS, ROUND3_SCHEMA: ROUND3_ARMS}
+FAMILY_ARMS = {
+    SCHEMA: ARMS,
+    ROUND2_SCHEMA: ROUND2_ARMS,
+    ROUND3_SCHEMA: ROUND3_ARMS,
+    ROUND4_SCHEMA: ROUND4_ARMS,
+}
 
 
 def postfit_command(queue, row, stage):
@@ -326,6 +333,13 @@ def render_medium_report(queue, row, root):
             "AU作用于两Global的Student Response CLS；完整训练loss逐项记录A、U、"
             "warmup和加权贡献。中等诊断的逐条件小探针缺完整有效批，AU记NA，"
             "该joint不含AU；不得与完整训练joint混同。\n"
+        )
+    if queue.get("family") == ROUND4_SCHEMA:
+        text.append(
+            "R4-CR保留A=.05、U=0，并在两Global的Student Response CLS上加入负编码率："
+            "CR权重=.00004、epsilon²=.05、warmup=30个完成更新。完整有效批跨所有上下文，"
+            "这是受SimDINO启发的改动。逐条件小探针缺完整有效批，A与CR均记NA，"
+            "该joint不含这些项；有效秩仍为中心化诊断，不由logdet推导。\n"
         )
     for name in ("training", "validation", "global_features", "global_heads", "frozen_losses"):
         text.extend([f"## {name}\n", table(tables[name])])

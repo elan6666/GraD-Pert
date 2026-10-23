@@ -21,7 +21,10 @@ from run_representation_panel import panel_parent_binding  # noqa: E402
 
 
 def case(tmp_path, arm):
-    config = ROOT / f"configs/v2/representation_round3_20261023/{arm}/gradpert_v2/nadig_jurkat.yaml"
+    family = (
+        "representation_round4_20261023" if arm == "R4-CR" else "representation_round3_20261023"
+    )
+    config = ROOT / f"configs/v2/{family}/{arm}/gradpert_v2/nadig_jurkat.yaml"
     _, options = V2Options.parse_parameters(load_experiment_config(config).model.parameters)
     parent = dict(
         analysis_scope="medium_cap40_stratified",
@@ -164,7 +167,7 @@ def test_non_au_still_requires_exact_data(tmp_path):
     assert panel_parent_binding(parent, identity, queue, args) is None
 
 
-@pytest.mark.parametrize("arm", ["R3-AUB", "R3-AUS", "historical"])
+@pytest.mark.parametrize("arm", ["R3-AUB", "R3-AUS", "R4-CR", "historical"])
 @pytest.mark.parametrize("deep", [False, True])
 def test_control_assembly_only_changes_transient_options(tmp_path, monkeypatch, arm, deep):
     if arm == "historical":
@@ -197,6 +200,8 @@ def test_control_assembly_only_changes_transient_options(tmp_path, monkeypatch, 
     changes = dict(lambda1=float(deep), lambda2=float(deep))
     if not deep and arm != "historical":
         changes.update(au_alignment_weight=0.0, au_uniformity_weight=0.0)
+    if not deep and arm == "R4-CR":
+        changes["cr_weight"] = 0.0
     assert actual == dataclasses.replace(options, **changes)
     assert runtime.options is options and options == before
     assert raw.target_expression.count_nonzero() == 0

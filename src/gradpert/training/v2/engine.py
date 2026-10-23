@@ -105,7 +105,9 @@ def optimizer_step(
         [] if unified and objective.lambda2 and objective.weights[1][2] else None
     )
     deferred_au: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]] | None = (
-        [] if getattr(objective, "au_enabled", False) else None
+        []
+        if getattr(objective, "au_enabled", False) or getattr(objective, "cr_enabled", False)
+        else None
     )
     au_metrics: dict[str, float] = {}
     deferred_population: list[tuple[torch.Tensor, torch.Tensor]] | None = (
@@ -169,34 +171,60 @@ def optimizer_step(
         return torch.stack(view_terms).mean()
 
     def global_au() -> torch.Tensor:
-        from .alignment_uniformity import alignment_uniformity
+        from .alignment_uniformity import alignment_uniformity, negative_coding_rate
 
         assert deferred_au is not None
         values = [gather_rows(torch.cat([item[i] for item in deferred_au])) for i in range(4)]
-        result = alignment_uniformity(
-            values[0], values[1], values[2], values[3], temperature=objective.au_temperature
-        )
-        warmup = (
-            min(1.0, optimizer.steps / objective.au_warmup_steps)
-            if objective.au_warmup_steps
-            else 1.0
-        )
-        alignment = warmup * objective.au_alignment_weight * result.alignment
-        uniformity = warmup * objective.au_uniformity_weight * result.uniformity
-        weighted = alignment + uniformity
+        weighted = values[0].sum() * 0
+        if objective.au_enabled:
+            result = alignment_uniformity(
+                values[0],
+                values[1],
+                values[2],
+                values[3],
+                temperature=objective.au_temperature,
+                compute_uniformity=not objective.cr_enabled or bool(objective.au_uniformity_weight),
+            )
+            warmup = (
+                min(1.0, optimizer.steps / objective.au_warmup_steps)
+                if objective.au_warmup_steps
+                else 1.0
+            )
+            alignment = warmup * objective.au_alignment_weight * result.alignment
+            uniformity = warmup * objective.au_uniformity_weight * result.uniformity
+            weighted = alignment + uniformity
+            au_metrics.update(
+                au_alignment=float(result.alignment.detach()),
+                au_uniformity=float(result.uniformity.detach()),
+                au_alignment_weighted=float(alignment.detach()),
+                au_uniformity_weighted=float(uniformity.detach()),
+                au_weighted=float(weighted.detach()),
+                au_warmup=warmup,
+                au_pair_count=float(result.pair_count),
+                au_input_count=float(result.input_count),
+                au_context_count=float(result.context_count),
+            )
+        if objective.cr_enabled:
+            if not objective.au_uniformity_weight:
+                au_metrics.pop("au_uniformity", None)
+                au_metrics.pop("au_uniformity_weighted", None)
+            cr = negative_coding_rate(values[0], values[1], objective.cr_epsilon_squared)
+            cr_warmup = (
+                min(1.0, optimizer.steps / objective.cr_warmup_steps)
+                if objective.cr_warmup_steps
+                else 1.0
+            )
+            cr_weighted = cr_warmup * objective.cr_weight * cr
+            weighted = weighted + cr_weighted
+            au_metrics.update(
+                cr_negative=float(cr.detach()),
+                cr_weighted=float(cr_weighted.detach()),
+                cr_warmup=cr_warmup,
+                cr_input_count=float(len(values[0])),
+            )
+            au_metrics["population_aux_weighted"] = float(weighted.detach())
         if not torch.isfinite(weighted):
-            raise FloatingPointError("nonfinite full-population AU objective")
-        au_metrics.update(
-            au_alignment=float(result.alignment.detach()),
-            au_uniformity=float(result.uniformity.detach()),
-            au_alignment_weighted=float(alignment.detach()),
-            au_uniformity_weighted=float(uniformity.detach()),
-            au_weighted=float(weighted.detach()),
-            au_warmup=warmup,
-            au_pair_count=float(result.pair_count),
-            au_input_count=float(result.input_count),
-            au_context_count=float(result.context_count),
-        )
+            raise FloatingPointError("nonfinite full-population auxiliary objective")
         # Every rank evaluates the same complete loss. Gather backward sums its
         # feature contributions; the later parameter-gradient average cancels
         # this replication. Do not multiply this global scalar by world size.
@@ -442,8 +470,12 @@ def optimizer_step(
         if au_metrics:
             # These are replicated global scalars, not rank-local row sums.
             metrics.update(au_metrics)
-            metrics["joint_loss_without_au"] = metrics["joint_loss"]
-            metrics["joint_loss"] += au_metrics["au_weighted"]
+            if objective.cr_enabled:
+                metrics["joint_loss_without_population_aux"] = metrics["joint_loss"]
+                metrics["joint_loss"] += au_metrics["population_aux_weighted"]
+            else:
+                metrics["joint_loss_without_au"] = metrics["joint_loss"]
+                metrics["joint_loss"] += au_metrics["au_weighted"]
         metrics["gradient_norm"] = float(norm)
         metrics["gradient_clipped"] = float(norm > 1.0)
         metrics["learning_rate"] = lr

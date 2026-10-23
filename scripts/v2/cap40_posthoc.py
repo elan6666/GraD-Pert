@@ -190,6 +190,7 @@ def assemble(runtime, records, queries, seed, *, deep, dummy=False):
                 or getattr(runtime.options, "au_uniformity_weight", 0.0)
                 else {}
             ),
+            **({"cr_weight": 0.0} if getattr(runtime.options, "cr_weight", 0.0) else {}),
         )
     )
     return assemble_batch(

@@ -177,30 +177,7 @@ MECHANISM_SCOPE = dict(
 )
 
 
-def negative_coding_rate(global0, global1, epsilon_squared=0.05):
-    """Native diagnostic candidate; normalize each Global separately, without centering."""
-    import torch
-
-    rates = []
-    for values in (global0, global1):
-        if values.ndim != 2 or not all(values.shape):
-            raise ValueError("coding rate requires nonempty feature matrices")
-        x = values.double()
-        norms = torch.linalg.vector_norm(x, dim=-1, keepdim=True)
-        if not torch.isfinite(x).all() or (norms <= 0).any():
-            raise ValueError("coding rate requires finite nonzero unit norms")
-        if epsilon_squared != 0.05:
-            raise ValueError("diagnostic epsilon_squared is fixed at 0.05")
-        unit = x / norms
-        n, d = unit.shape
-        gram = unit.T @ unit
-        matrix = torch.eye(d, dtype=x.dtype, device=x.device) + d / (n * epsilon_squared) * gram
-        matrix = (matrix + matrix.T) / 2
-        factor, info = torch.linalg.cholesky_ex(matrix)
-        if info.any() or not torch.isfinite(factor).all():
-            raise ValueError("coding rate matrix is not finite positive definite")
-        rates.append(-factor.diagonal().log().sum())
-    return sum(rates) / 2
+from gradpert.training.v2.alignment_uniformity import negative_coding_rate  # noqa: E402
 
 
 def gradient_summary(banks, names, *, profile=None, activity=None):

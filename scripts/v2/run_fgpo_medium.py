@@ -29,11 +29,14 @@ from generate_representation_round2 import ARMS as RS2_ARMS
 from generate_representation_round2 import SCHEMA as RS2_SCHEMA
 from generate_representation_round3 import ARMS as RS3_ARMS
 from generate_representation_round3 import SCHEMA as RS3_SCHEMA
+from generate_representation_round4 import ARMS as RS4_ARMS
+from generate_representation_round4 import SCHEMA as RS4_SCHEMA
 
 FAMILY_ARMS = {
     RS_SCHEMA: RS_ARMS,
     RS2_SCHEMA: RS2_ARMS,
     RS3_SCHEMA: RS3_ARMS,
+    RS4_SCHEMA: RS4_ARMS,
     SCHEMA: ARMS,
     DINO_SCHEMA: DINO_ARMS,
     DP2_SCHEMA: {"DP2": DINO_ARMS["DP2"]},
@@ -243,6 +246,8 @@ def validate_report_repair(q, arm, output, report_source):
             '                or getattr(runtime.options, "au_uniformity_weight", 0.0)\n'
             "                else {}\n"
             "            ),\n"
+            '            **({"cr_weight": 0.0} '
+            'if getattr(runtime.options, "cr_weight", 0.0) else {}),\n'
             "        )"
         )
         if original.count(before) != 1 or (
@@ -390,6 +395,72 @@ def au_parent_binding(parent, training_identity, *, arm, config, parent_path, pa
             "changed_field": "data.loss_protocol.alignment_uniformity",
             "previous_value": None,
             "training_value": protocol,
+            "training_run_id": training_identity["run_id"],
+            "diagnostic_population_sha256": population_identity(parent["schedule"]),
+            "sampling_changed": False,
+        },
+    }
+
+
+def cr_parent_binding(parent, training_identity, *, arm, config, parent_path, parent_sha256):
+    """Bind only R4's frozen alignment and coding-rate additions to the original parent."""
+    from gradpert.config import load_experiment_config
+    from gradpert.config.v2 import V2Options
+
+    if arm != "R4-CR":
+        raise ValueError("CR parent binding is scoped to R4-CR")
+    _, options = V2Options.parse_parameters(load_experiment_config(config).model.parameters)
+    if (
+        (options.au_alignment_weight, options.au_uniformity_weight) != (0.05, 0.0)
+        or options.au_temperature != 2.0
+        or options.au_warmup_steps != 30
+        or options.cr_weight != 0.00004
+        or options.cr_epsilon_squared != 0.05
+        or options.cr_warmup_steps != 30
+    ):
+        raise ValueError("CR parent binding requires the frozen arm coefficients and schedule")
+    protocols = {
+        "alignment_uniformity": {
+            "alignment_weight": options.au_alignment_weight,
+            "uniformity_weight": options.au_uniformity_weight,
+            "temperature": options.au_temperature,
+            "warmup_completed_optimizer_updates": options.au_warmup_steps,
+            "representation": "student_response_cls_after_final_rmsnorm_before_projector",
+            "population_scope": "complete_effective_batch_all_microbatches_and_ranks",
+            "deduplication": "control_row_id_and_condition_id_before_rank_partition",
+            "alignment": "same_control_and_condition_two_global_views_both_student_gradients",
+            "uniformity_pairs": "unordered_same_cell_type_batch_context_different_condition",
+            "reduction": "log_mean_exp_over_all_eligible_pairs_then_mean_two_globals",
+            "partial_diagnostics": "unavailable_requires_complete_global_population",
+        },
+        "coding_rate": {
+            "weight": options.cr_weight,
+            "epsilon_squared": options.cr_epsilon_squared,
+            "warmup_completed_optimizer_updates": options.cr_warmup_steps,
+            "representation": "student_response_cls_after_final_rmsnorm_before_projector",
+            "population_scope": "complete_effective_batch_all_microbatches_and_ranks_all_contexts",
+            "deduplication": "control_row_id_and_condition_id_before_rank_partition",
+            "formula": "mean_two_globals_negative_half_logdet_I_plus_d_over_N_epsilon_squared_UtU",
+            "normalization": "separate_global_unit_rows_uncentered_fp64_cholesky",
+            "partial_diagnostics": "unavailable_requires_complete_global_population",
+        },
+    }
+    expected = copy.deepcopy(parent["data"])
+    if set(protocols).intersection(expected["loss_protocol"]):
+        raise ValueError("CR binding requires the original parent without AU or CR metadata")
+    expected["loss_protocol"].update(protocols)
+    if training_identity["data"] != expected:
+        raise ValueError("CR medium parent differs beyond the frozen AU and coding_rate protocols")
+    return {
+        **copy.deepcopy(parent),
+        "data": copy.deepcopy(training_identity["data"]),
+        "training_protocol_binding": {
+            "arm": arm,
+            "original_parent_manifest": str(parent_path),
+            "original_parent_sha256": parent_sha256,
+            "changed_fields": ["data.loss_protocol." + key for key in protocols],
+            "previous_values": dict.fromkeys(protocols),
+            "training_values": protocols,
             "training_run_id": training_identity["run_id"],
             "diagnostic_population_sha256": population_identity(parent["schedule"]),
             "sampling_changed": False,
@@ -547,9 +618,11 @@ def execute(
             )
         parent_path = q["medium_analysis"]["parent_manifest"]
         parent_sha256 = q["medium_analysis"]["parent_manifest_sha256"]
-        if arm in ("PT1", "PT2", "CG1", "U24", "MR1", "P1", "R3-AUB", "R3-AUS"):
+        if arm in ("PT1", "PT2", "CG1", "U24", "MR1", "P1", "R3-AUB", "R3-AUS", "R4-CR"):
             bind_parent = (
-                au_parent_binding
+                cr_parent_binding
+                if arm == "R4-CR"
+                else au_parent_binding
                 if arm in ("R3-AUB", "R3-AUS")
                 else (
                     response_parent_binding
@@ -564,7 +637,7 @@ def execute(
                 parent_sha256=parent_sha256,
                 **(
                     {"arm": arm, "config": plan["config"]}
-                    if arm in ("R3-AUB", "R3-AUS")
+                    if arm in ("R3-AUB", "R3-AUS", "R4-CR")
                     else ({"arm": arm} if arm in ("U24", "MR1", "P1") else {})
                 ),
             )

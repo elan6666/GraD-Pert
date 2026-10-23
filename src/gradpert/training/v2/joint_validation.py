@@ -81,7 +81,9 @@ def evaluate_joint_loss(
             objective.eval()
             for batch, identity_hash in batches:
                 with torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=bf16):
-                    if getattr(objective, "au_enabled", False):
+                    if getattr(objective, "au_enabled", False) or getattr(
+                        objective, "cr_enabled", False
+                    ):
                         # Validation/probe populations are not the sealed training
                         # effective batch; never report their AU as its objective.
                         loss, terms, diagnostic_scope = diagnostic_objective(objective, batch)
