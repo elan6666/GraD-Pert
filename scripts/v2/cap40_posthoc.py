@@ -180,7 +180,17 @@ def assemble(runtime, records, queries, seed, *, deep, dummy=False):
     options = (
         dataclasses.replace(runtime.options, lambda1=1.0, lambda2=1.0)
         if deep
-        else dataclasses.replace(runtime.options, lambda1=0.0, lambda2=0.0)
+        else dataclasses.replace(
+            runtime.options,
+            lambda1=0.0,
+            lambda2=0.0,
+            **(
+                {"au_alignment_weight": 0.0, "au_uniformity_weight": 0.0}
+                if getattr(runtime.options, "au_alignment_weight", 0.0)
+                or getattr(runtime.options, "au_uniformity_weight", 0.0)
+                else {}
+            ),
+        )
     )
     return assemble_batch(
         make_raw(runtime, records, dummy=dummy),

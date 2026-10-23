@@ -220,6 +220,36 @@ def validate_report_repair(q, arm, output, report_source):
         ],
         text=True,
     ).splitlines()
+    if arm in ("R3-AUB", "R3-AUS") and "scripts/v2/cap40_posthoc.py" in changed:
+        original = subprocess.check_output(
+            [
+                "git",
+                "-C",
+                str(report_source),
+                "show",
+                q["source_commit"] + ":scripts/v2/cap40_posthoc.py",
+            ],
+            text=True,
+        )
+        before = "else dataclasses.replace(runtime.options, lambda1=0.0, lambda2=0.0)"
+        after = (
+            "else dataclasses.replace(\n"
+            "            runtime.options,\n"
+            "            lambda1=0.0,\n"
+            "            lambda2=0.0,\n"
+            "            **(\n"
+            '                {"au_alignment_weight": 0.0, "au_uniformity_weight": 0.0}\n'
+            '                if getattr(runtime.options, "au_alignment_weight", 0.0)\n'
+            '                or getattr(runtime.options, "au_uniformity_weight", 0.0)\n'
+            "                else {}\n"
+            "            ),\n"
+            "        )"
+        )
+        if original.count(before) != 1 or (
+            report_source / "scripts/v2/cap40_posthoc.py"
+        ).read_text() != original.replace(before, after):
+            raise ValueError("only the declared shallow AU assembly correction is allowed")
+        changed.remove("scripts/v2/cap40_posthoc.py")
     if arm == "PT2" and "scripts/v2/cap40_posthoc.py" in changed:
         original = subprocess.check_output(
             [
