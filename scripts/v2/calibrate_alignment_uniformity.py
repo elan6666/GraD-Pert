@@ -162,13 +162,62 @@ def preserved_observer(runtime, seed):
             raise RuntimeError("calibration mutated forbidden state: " + ", ".join(changed))
 
 
-def gradient_summary(banks, names):
+MECHANISM_PROFILE = "mechanism-v1"
+MECHANISM_SCOPE = dict(
+    joint="prediction+weighted_SSL1+weighted_SSL2; excludes active AU",
+    CR="negative uncentered coding rate; full deduplicated population; no context filtering",
+    SSL1="lambda1-weighted original graph self-distillation",
+    SSL2="lambda2-weighted original response self-distillation; derived micro joint minus MSE",
+    SSL2_activity="union of parent-bank autograd participation; not direct structural reachability",
+    SSL2_numerics="FP32 gradient subtraction can leave tiny cancellation residuals",
+    inactive_parameters="autograd-unused parameters; SSL2 uses parent-bank union",
+    zero_gradient_parameters="exact zeros in accumulated diagnostic gradient bank",
+    interpretation="raw parameter gradients only; not optimizer displacement",
+    epsilon_squared=0.05,
+)
+
+
+def negative_coding_rate(global0, global1, epsilon_squared=0.05):
+    """Native diagnostic candidate; normalize each Global separately, without centering."""
+    import torch
+
+    rates = []
+    for values in (global0, global1):
+        if values.ndim != 2 or not all(values.shape):
+            raise ValueError("coding rate requires nonempty feature matrices")
+        x = values.double()
+        norms = torch.linalg.vector_norm(x, dim=-1, keepdim=True)
+        if not torch.isfinite(x).all() or (norms <= 0).any():
+            raise ValueError("coding rate requires finite nonzero unit norms")
+        if epsilon_squared != 0.05:
+            raise ValueError("diagnostic epsilon_squared is fixed at 0.05")
+        unit = x / norms
+        n, d = unit.shape
+        gram = unit.T @ unit
+        matrix = torch.eye(d, dtype=x.dtype, device=x.device) + d / (n * epsilon_squared) * gram
+        matrix = (matrix + matrix.T) / 2
+        factor, info = torch.linalg.cholesky_ex(matrix)
+        if info.any() or not torch.isfinite(factor).all():
+            raise ValueError("coding rate matrix is not finite positive definite")
+        rates.append(-factor.diagonal().log().sum())
+    return sum(rates) / 2
+
+
+def gradient_summary(banks, names, *, profile=None, activity=None):
     """FP64 dot products of complete accumulated parameter gradients."""
     import torch
 
     result = {}
-    for group in ("response", "graph"):
-        indices = [i for i, name in enumerate(names) if name.startswith(group + ".")]
+    for group in (
+        ("response", "graph", "cell", "prediction", "response_cls")
+        if profile
+        else ("response", "graph")
+    ):
+        indices = [
+            i for i, name in enumerate(names) if name == group or name.startswith(group + ".")
+        ]
+        if not indices and profile:
+            continue
         if not indices:
             raise ValueError("missing calibration parameter group: " + group)
         norm2 = {
@@ -176,7 +225,7 @@ def gradient_summary(banks, names):
             for label, grad in banks.items()
         }
         pairs = {}
-        for a, b in itertools.combinations(banks, 2):
+        for a, b in itertools.combinations(sorted(banks) if profile else banks, 2):
             dot = sum(
                 float(torch.dot(banks[a][i].double().reshape(-1), banks[b][i].double().reshape(-1)))
                 for i in indices
@@ -184,6 +233,7 @@ def gradient_summary(banks, names):
             denominator = math.sqrt(norm2[a] * norm2[b])
             cosine = max(-1.0, min(1.0, dot / denominator)) if denominator else None
             pairs[a + "__" + b] = dict(
+                **({"dot": dot} if profile else {}),
                 cosine=cosine,
                 angle_degrees=math.degrees(math.acos(cosine)) if cosine is not None else None,
             )
@@ -192,6 +242,13 @@ def gradient_summary(banks, names):
             pairs=pairs,
             parameter_count=sum(banks["A"][i].numel() for i in indices),
         )
+        if profile:
+            result[group]["inactive_parameters"] = {
+                label: [names[i] for i in indices if not activity[label][i]] for label in banks
+            }
+            result[group]["zero_gradient_parameters"] = {
+                label: [names[i] for i in indices if not banks[label][i].any()] for label in banks
+            }
     return result
 
 
@@ -204,6 +261,7 @@ def calibrate_batch(
     bf16=True,
     replay_tolerance=2e-6,
     return_gradients=False,
+    profile=None,
 ):
     """Exact chain-rule AU gradients for one full population; no optimizer call.
 
@@ -218,6 +276,8 @@ def calibrate_batch(
     from gradpert.training.v2.engine import slice_cells
     from gradpert.training.v2.reductions import population_weights
 
+    if profile not in (None, MECHANISM_PROFILE):
+        raise ValueError("unknown diagnostic profile")
     obj, device = runtime.objective, runtime.device
     if (
         obj.loss_reduction != "row_mean"
@@ -236,13 +296,21 @@ def calibrate_batch(
     parameters = [
         (name, p)
         for name, p in obj.student.named_parameters()
-        if p.requires_grad and name.startswith(("response.", "graph."))
+        if p.requires_grad
+        and (
+            name.startswith(("response.", "graph."))
+            or (profile and (name == "response_cls" or name.startswith(("cell.", "prediction."))))
+        )
     ]
     names, params = zip(*parameters, strict=True)
     banks = {
         key: [torch.zeros_like(p, device="cpu", dtype=torch.float32) for p in params]
         for key in ("A", "U", "MSE", "joint")
     }
+    activity = {key: [False] * len(params) for key in banks}
+    if profile:
+        banks["CR"] = [torch.zeros_like(p, device="cpu", dtype=torch.float32) for p in params]
+        activity["CR"] = [False] * len(params)
     n = len(batch.control)
     ids = batch.condition_index
     row = population_weights(ids, torch.ones_like(ids, dtype=torch.bool), "row_mean")
@@ -287,6 +355,10 @@ def calibrate_batch(
     au = alignment_uniformity(z[0], z[1], condition, context, temperature=temperature)
     da = torch.autograd.grad(au.alignment, z, retain_graph=True)
     du = torch.autograd.grad(au.uniformity, z)
+    if profile:
+        cr = negative_coding_rate(*z)
+        dc = torch.autograd.grad(cr, z)
+        losses["CR"] = float(cr.detach())
     losses.update(A=float(au.alignment.detach()), U=float(au.uniformity.detach()))
     statistics = {f"global{v}": spectrum(z[v]) for v in range(2)}
 
@@ -300,7 +372,9 @@ def calibrate_batch(
             if gradient is not None:
                 if not torch.isfinite(gradient).all():
                     raise FloatingPointError("nonfinite calibration gradient " + label)
+                activity[label][i] = True
                 banks[label][i].add_(gradient.detach().float().cpu())
+        return gradients
 
     offset, maximum_error = 0, 0.0
     for index, start in enumerate(starts):
@@ -328,13 +402,24 @@ def calibrate_batch(
         accumulate("MSE", terms["prediction_mse"], True)
         accumulate("joint", joint, True)
         accumulate("A", a, True)
-        accumulate("U", u)
+        accumulate("U", u, bool(profile))
+        if profile:
+            c = sum((values[v].float() * dc[v][offset : offset + count]).sum() for v in range(2))
+            accumulate("CR", c)
         losses["MSE"] += float(terms["prediction_mse"].detach())
         losses["joint"] += float(joint.detach())
         offset += count
         obj.pending.clear()
         del collect, values, joint, terms, a, u
     rng_restore(end_forward_rng, device)
+    if profile:
+        if obj.prediction_strategy != "row_mean":
+            raise ValueError("mechanism decomposition requires row_mean prediction")
+        banks["SSL2"] = [a - b for a, b in zip(banks["joint"], banks["MSE"], strict=True)]
+        activity["SSL2"] = [a or b for a, b in zip(activity["joint"], activity["MSE"], strict=True)]
+        losses["SSL2"] = losses["joint"] - losses["MSE"]
+        graph_gradients = [None] * len(params)
+        losses["SSL1"] = 0.0
     if obj.lambda1:
         with torch.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=bf16):
             graph_terms = obj.graph_loss(
@@ -346,12 +431,22 @@ def calibrate_batch(
             graph_loss = obj.lambda1 * sum(
                 w * value for w, value in zip(obj.weights[0], graph_terms.values(), strict=True)
             )
-        accumulate("joint", graph_loss)
+        graph_gradients = accumulate("joint", graph_loss)
         losses["joint"] += float(graph_loss.detach())
+        if profile:
+            losses["SSL1"] = float(graph_loss.detach())
     obj.pending.clear()
+    if profile:
+        banks["SSL1"] = [
+            torch.zeros_like(p, device="cpu", dtype=torch.float32)
+            if g is None
+            else g.detach().float().cpu()
+            for p, g in zip(params, graph_gradients, strict=True)
+        ]
+        activity["SSL1"] = [g is not None for g in graph_gradients]
     result = dict(
         losses=losses,
-        gradients=gradient_summary(banks, names),
+        gradients=gradient_summary(banks, names, profile=profile, activity=activity),
         spectrum=statistics,
         pair_count=au.pair_count,
         unique_count=len(z[0]),
@@ -359,6 +454,8 @@ def calibrate_batch(
         replay_tolerance=replay_tolerance,
         updates=0,
     )
+    if profile:
+        result.update(profile=profile, loss_scope=MECHANISM_SCOPE)
     if return_gradients:
         return result, banks
     return result
@@ -392,7 +489,7 @@ def require_raw_identity(raw, spec):
             raise ValueError("actual training batch differs from census: " + name)
 
 
-def validate_batch_receipt(record, *, index, plan_hash, census):
+def validate_batch_receipt(record, *, index, plan_hash, census, profile=None):
     """Partial or mismatched observations cannot satisfy calibration completion."""
     if (
         record.get("plan_sha256") != plan_hash
@@ -408,17 +505,57 @@ def validate_batch_receipt(record, *, index, plan_hash, census):
         or not 0 <= record.get("replay_max_abs_error", math.inf) <= 2e-6
     ):
         raise ValueError("batch receipt does not establish complete unchanged observation")
-    if set(record.get("losses", {})) != {"A", "U", "MSE", "joint"}:
+    expected_losses = {"A", "U", "MSE", "joint"} | ({"CR", "SSL1", "SSL2"} if profile else set())
+    if record.get("profile") != profile or (
+        profile and record.get("loss_scope") != MECHANISM_SCOPE
+    ):
+        raise ValueError("batch receipt diagnostic profile differs")
+    if set(record.get("losses", {})) != expected_losses:
         raise ValueError("batch receipt lacks all four calibrated losses")
     if not all(math.isfinite(value) for value in record["losses"].values()):
         raise ValueError("batch receipt contains nonfinite losses")
-    if set(record.get("gradients", {})) != {"graph", "response"} or set(
-        record.get("spectrum", {})
-    ) != {"global0", "global1"}:
+    groups = set(record.get("gradients", {}))
+    expected_groups = (
+        {"graph", "response", "cell", "prediction", "response_cls"}
+        if profile
+        else {"graph", "response"}
+    )
+    if groups != expected_groups or set(record.get("spectrum", {})) != {"global0", "global1"}:
         raise ValueError("batch receipt lacks parameter groups or representation statistics")
+    if profile:
+        expected_pairs = {
+            a + "__" + b for a, b in itertools.combinations(sorted(expected_losses), 2)
+        }
+        for group in record["gradients"].values():
+            if (
+                set(group)
+                != {
+                    "norms",
+                    "pairs",
+                    "parameter_count",
+                    "inactive_parameters",
+                    "zero_gradient_parameters",
+                }
+                or set(group["norms"]) != expected_losses
+                or set(group["pairs"]) != expected_pairs
+                or set(group["inactive_parameters"]) != expected_losses
+                or set(group["zero_gradient_parameters"]) != expected_losses
+                or not all(math.isfinite(v) and v >= 0 for v in group["norms"].values())
+                or not isinstance(group["parameter_count"], int)
+                or group["parameter_count"] < 1
+            ):
+                raise ValueError("mechanism receipt lacks complete gradient banks")
+            for pair in group["pairs"].values():
+                if (
+                    set(pair) != {"dot", "cosine", "angle_degrees"}
+                    or not math.isfinite(pair["dot"])
+                    or (pair["cosine"] is not None and not -1 <= pair["cosine"] <= 1)
+                    or (pair["angle_degrees"] is not None and not 0 <= pair["angle_degrees"] <= 180)
+                ):
+                    raise ValueError("mechanism receipt contains invalid gradient comparison")
 
 
-def verified_batch_index(output, plan_hash, census):
+def verified_batch_index(output, plan_hash, census, *, profile=None):
     """Use a separate checksum index; an orphan batch is not silently accepted."""
     from cap40_posthoc import read, sha, write
 
@@ -439,7 +576,11 @@ def verified_batch_index(output, plan_hash, census):
             raise ValueError("batch receipt checksum mismatch: " + name)
         number = int(name[6:8])
         validate_batch_receipt(
-            read(output / name), index=number, plan_hash=plan_hash, census=census[number]
+            read(output / name),
+            index=number,
+            plan_hash=plan_hash,
+            census=census[number],
+            profile=profile,
         )
     return index
 
@@ -481,6 +622,7 @@ def execute(args):
 
     for path in (args.config, args.data_root, args.output, args.publication):
         server_path(path)
+    profile = getattr(args, "profile", None)
     config = load_experiment_config(args.config)
     _, options = V2Options.parse_parameters(config.model.parameters)
     if int(config.training.train_batch_size.value) != 320 or options.microbatch != 80:
@@ -494,7 +636,9 @@ def execute(args):
     )
     if source.commit != args.source_commit:
         raise ValueError("calibration source differs from planned clean published commit")
-    if any(getattr(options, name) for name in ("au_alignment_weight", "au_uniformity_weight")):
+    if not profile and any(
+        getattr(options, name) for name in ("au_alignment_weight", "au_uniformity_weight")
+    ):
         raise ValueError("calibration must use sealed unmodified RI base configuration")
     checkpoint_flags = [
         bool(value)
@@ -546,6 +690,10 @@ def execute(args):
             Path(__file__).resolve().parents[2], device_name="cpu", require_cuda=False
         ).payload(),
     )
+    if profile:
+        plan.update(
+            schema="gradpert-mechanism-calibration-1", profile=profile, loss_scope=MECHANISM_SCOPE
+        )
     plan_hash = sha256_json(plan)
     if args.output.exists():
         if not args.resume or read(args.output / "PLAN.json") != plan:
@@ -576,7 +724,7 @@ def execute(args):
         raise ValueError("allocator contract missing")
     if not args.shared_policy or not args.shared_policy_sha256:
         raise ValueError("gradient calibration requires the sealed resource policy")
-    receipt_index = verified_batch_index(args.output, plan_hash, census)
+    receipt_index = verified_batch_index(args.output, plan_hash, census, profile=profile)
     server_path(args.shared_policy)
     if sha(args.shared_policy) != args.shared_policy_sha256:
         raise ValueError("shared resource policy checksum mismatch")
@@ -669,7 +817,9 @@ def execute(args):
                 torch.cuda.synchronize()
                 started = time.perf_counter()
                 with preserved_observer(runtime, args.calibration_seed + index) as before:
-                    result = calibrate_batch(runtime, batch, temperature=args.temperature)
+                    result = calibrate_batch(
+                        runtime, batch, temperature=args.temperature, profile=profile
+                    )
                 torch.cuda.synchronize()
                 elapsed = time.perf_counter() - started
                 if (
@@ -689,7 +839,9 @@ def execute(args):
                     peak_allocated_bytes=torch.cuda.max_memory_allocated(),
                     peak_reserved_bytes=torch.cuda.max_memory_reserved(),
                 )
-                validate_batch_receipt(result, index=index, plan_hash=plan_hash, census=expected)
+                validate_batch_receipt(
+                    result, index=index, plan_hash=plan_hash, census=expected, profile=profile
+                )
                 write(output, result)
                 receipt_index["receipts"][output.name] = sha(output)
                 write(args.output / "BATCH_INDEX.json", receipt_index)
@@ -708,7 +860,7 @@ def execute(args):
         or sha(args.training_manifest) != args.training_manifest_sha256
     ):
         raise ValueError("checkpoint or training manifest changed during observation")
-    completed = verified_batch_index(args.output, plan_hash, census)["receipts"]
+    completed = verified_batch_index(args.output, plan_hash, census, profile=profile)["receipts"]
     result = dict(
         calibration_complete=len(completed) == 8,
         scientific_complete=False,
@@ -734,6 +886,7 @@ def main():
         parser.add_argument("--" + name, type=Path, required=True)
     for name in ("publication-sha256", "source-commit", "run-id"):
         parser.add_argument("--" + name, required=True)
+    parser.add_argument("--profile", choices=(MECHANISM_PROFILE,))
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--calibration-seed", type=int, default=41239)
     parser.add_argument("--temperature", type=float, default=2.0)
