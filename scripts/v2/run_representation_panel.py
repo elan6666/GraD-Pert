@@ -194,6 +194,15 @@ def execute(args):
     panel = panel_schedule(
         parent, seed=args.seed, conditions=args.conditions, controls=args.controls
     )
+    teacher_signal = None
+    if getattr(args, "teacher_signal_audit", False):
+        from teacher_signal_diagnostics import TeacherSignalBank
+
+        if getattr(args, "path_audit", False):
+            raise ValueError("teacher signal and response path audits require separate outputs")
+        if (args.conditions, args.controls, args.checkpoint_role) != (32, 4, "last"):
+            raise ValueError("teacher signal audit requires the frozen 32 x 4 last panel")
+        teacher_signal = TeacherSignalBank()
     path_audit = None
     if getattr(args, "path_audit", False):
         from response_path_diagnostics import PathAuditBank
@@ -304,7 +313,15 @@ def execute(args):
                 )
                 deep, view_receipt = matched_cell_views.bind(deep, group["rows"])
                 view_receipts.append({"condition_id": group["condition_id"], **view_receipt})
-                scope = collect_panel_views(obj, deep, group["rows"], args.seed, views, prototypes)
+                if teacher_signal is None:
+                    scope = collect_panel_views(
+                        obj, deep, group["rows"], args.seed, views, prototypes
+                    )
+                else:
+                    with teacher_signal.capture(obj, group["rows"]):
+                        scope = collect_panel_views(
+                            obj, deep, group["rows"], args.seed, views, prototypes
+                        )
                 diagnostic_scopes.append({"condition_id": group["condition_id"], **scope})
                 write(
                     args.output / "progress.json",
@@ -319,6 +336,8 @@ def execute(args):
             raise ValueError(
                 "diagnostic changed model/teacher/center/optimizer/gradients/RNG/checkpoint"
             )
+    if teacher_signal is not None:
+        write(args.output / "teacher_signal.json", teacher_signal.result())
     path_result = path_audit.result() if path_audit is not None else None
     if path_result is not None:
         write(args.output / "path_audit.json", path_result)
@@ -360,7 +379,13 @@ def execute(args):
         panel_sha256=panel["panel_sha256"],
         panel_rows=panel["rows"],
         diagnostic_objective_scopes=diagnostic_scopes,
-        diagnostic_mode="response_path_audit" if path_audit is not None else "crossed_views",
+        diagnostic_mode=(
+            "response_path_audit"
+            if path_audit is not None
+            else "teacher_signal_audit"
+            if teacher_signal is not None
+            else "crossed_views"
+        ),
         path_audit=(
             {
                 "schema": path_result["schema"],
@@ -402,6 +427,9 @@ def main():
     p.add_argument("--conditions", type=int, default=32)
     p.add_argument("--controls", type=int, default=4)
     p.add_argument("--path-audit", action="store_true", help="truth-free F/B/decoder-swap audit")
+    p.add_argument(
+        "--teacher-signal-audit", action="store_true", help="frozen SSL2 encoder/head crossover"
+    )
     args = p.parse_args()
     from run_group import lock
 

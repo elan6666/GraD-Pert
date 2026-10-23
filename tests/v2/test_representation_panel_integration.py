@@ -230,3 +230,35 @@ def test_active_missing_prototypes_fail_closed_and_disabled_empty_is_explicit():
         prototype_result(bank, rt.objective)
     rt.objective.lambda1 = rt.objective.lambda2 = 0
     assert prototype_result(bank, rt.objective)["status"].startswith("unavailable:")
+
+
+def test_teacher_signal_wraps_native_collector_without_state_or_truth_changes():
+    from teacher_signal_diagnostics import TeacherSignalBank
+
+    torch.set_num_threads(1)
+    rt, panel = native_runtime()
+    bank = TeacherSignalBank()
+    views, prototypes = GroupedViewBank(), PrototypePairBank()
+    matched = MatchedCellViews()
+    before = validation_state(rt)
+    with torch.random.fork_rng(), torch.no_grad():
+        for group in panel["schedule"]:
+            deep = assemble(rt, group["rows"], group["queries"], group["view_seed"], deep=True)
+            deep, _ = matched.bind(deep, group["rows"])
+            with bank.capture(rt.objective, group["rows"]):
+                collect_panel_views(rt.objective, deep, group["rows"], 11, views, prototypes)
+        result = bank.result()
+    assert result["status"] == "completed"
+    assert result["updates"] == result["encoder_recompute"] == 0
+    assert {r["path"] for r in result["paths"]} == {"SS", "ST", "TS", "TT"}
+    assert all(r["native_head_calls"] == {"student": 4, "teacher": 2} for r in result["captures"])
+    assert all(
+        p["bottleneck_maxabs"] == p["logits_maxabs"] == 0
+        for r in result["captures"]
+        for p in r["parity"]
+    )
+    assert validation_state(rt) == before
+    assert rt.data.read_indices and all(i >= 4 for i in rt.data.read_indices)
+    assert prototypes.result()["pairs"]
+    assert not rt.objective.student.ssl2_cls._forward_hooks
+    assert not rt.objective.teacher.ssl2_cls.features._forward_hooks
