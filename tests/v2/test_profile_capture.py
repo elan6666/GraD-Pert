@@ -135,6 +135,32 @@ def test_checkpoint_recomputation_labels_and_exact_multistep_updates(tmp_path):
     assert_exact(*snapshots)
 
 
+def test_checkpoint_region_can_recompute_the_same_graph_more_than_once():
+    import torch.utils.checkpoint as checkpoint_module
+
+    objective, _ = FIXTURE.relay_training_fixture(checkpointed=True)
+    optimizer = V2Optimizer(objective.student, 0.001, 0)
+    runtime = SimpleNamespace(objective=objective, optimizer=optimizer, data=SimpleNamespace())
+    snapshots = []
+    for enabled in (False, True):
+        x = torch.linspace(-1, 1, 7, requires_grad=True)
+
+        def compute(value):
+            y = checkpoint_module.checkpoint(
+                lambda input_value: input_value.sin().square(), value, use_reentrant=False
+            )
+            first = torch.autograd.grad(y.sum(), value, retain_graph=True)[0]
+            second = torch.autograd.grad(y.sum(), value)[0]
+            return y.detach(), first, second
+
+        if enabled:
+            with PROFILE.diagnostic_regions(runtime):
+                snapshots.append(compute(x))
+        else:
+            snapshots.append(compute(x))
+    assert_exact(*snapshots)
+
+
 def test_cuda_mirrored_annotations_are_not_cpu_windows_or_cpu_regions():
     trace = {
         "traceEvents": [

@@ -102,12 +102,26 @@ def diagnostic_regions(runtime: Any) -> Iterator[None]:
             def contexts() -> tuple[Any, Any]:
                 forward, recompute = context_fn()
 
-                @contextlib.contextmanager
-                def marked(original: Any, phase: str) -> Iterator[None]:
-                    with original, torch.profiler.record_function("gradpert/checkpoint/" + phase):
-                        yield
+                class MarkedContext:
+                    """A retained checkpoint may enter its recompute context repeatedly."""
 
-                return marked(forward, "forward"), marked(recompute, "recompute")
+                    def __init__(self, original: Any, phase: str) -> None:
+                        self.original = original
+                        self.phase = phase
+                        self.active: list[contextlib.ExitStack] = []
+
+                    def __enter__(self) -> None:
+                        with contextlib.ExitStack() as stack:
+                            stack.enter_context(self.original)
+                            stack.enter_context(
+                                torch.profiler.record_function("gradpert/checkpoint/" + self.phase)
+                            )
+                            self.active.append(stack.pop_all())
+
+                    def __exit__(self, *exc: Any) -> bool | None:
+                        return self.active.pop().__exit__(*exc)
+
+                return MarkedContext(forward, "forward"), MarkedContext(recompute, "recompute")
 
             return original_checkpoint(function, *args, **dict(kwargs, context_fn=contexts))
 
