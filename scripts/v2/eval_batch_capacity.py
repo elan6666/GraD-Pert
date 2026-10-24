@@ -61,6 +61,9 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     from generate_representation_round8 import ARMS as RS8_ARMS
     from generate_representation_round8 import SCHEMA as RS8_SCHEMA
     from generate_representation_round8 import verify_manifest as verify_rs8_manifest
+    from generate_representation_round9 import ARMS as RS9_ARMS
+    from generate_representation_round9 import SCHEMA as RS9_SCHEMA
+    from generate_representation_round9 import verify_manifest as verify_rs9_manifest
     from shared_gpu import DYNAMIC_SCHEMA, validate_policy
 
     from gradpert.hashing import sha256_file
@@ -87,6 +90,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             RS6_SCHEMA,
             RS7_SCHEMA,
             RS8_SCHEMA,
+            RS9_SCHEMA,
         )
         or queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA
         or queue.get("source_commit") != source_commit
@@ -141,6 +145,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         RS6_SCHEMA,
         RS7_SCHEMA,
         RS8_SCHEMA,
+        RS9_SCHEMA,
     ):
         family_schema = queue["family"]
         verifier, arms = {
@@ -152,6 +157,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             RS6_SCHEMA: (verify_rs6_manifest, RS6_ARMS),
             RS7_SCHEMA: (verify_rs7_manifest, RS7_ARMS),
             RS8_SCHEMA: (verify_rs8_manifest, RS8_ARMS),
+            RS9_SCHEMA: (verify_rs9_manifest, RS9_ARMS),
         }[family_schema]
         matrix = verifier(Path(queue["source"]), Path(queue["manifest"]))
         if family_schema == RS3_SCHEMA:
@@ -166,7 +172,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             or args.cell_batch != matrix["eval_batch"]
             or (family_schema != RS3_SCHEMA and queue.get("only_arms") is not None)
         ):
-            raise ValueError("research evaluation requires the exact sealed two-epoch arm scope")
+            raise ValueError("research evaluation requires the exact sealed family arm scope")
     rows = [row for row in queue["rows"] if row["name"] == args.row_name]
     if queue.get("family") == PT2_SCHEMA and (
         queue.get("mode") != PT2_SCHEMA
@@ -196,6 +202,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         RS6_SCHEMA,
         RS7_SCHEMA,
         RS8_SCHEMA,
+        RS9_SCHEMA,
     ):
         from gradpert.config import load_experiment_config
 
@@ -205,7 +212,11 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         spec = specs[0]
         expected_config = (Path(queue["source"]) / spec["config"]).resolve()
         if (
-            Path(plan["config"]).resolve() != expected_config
+            (
+                queue["family"] == RS9_SCHEMA
+                and ("resolved_config" not in plan or plan.get("source_commit") != source_commit)
+            )
+            or Path(plan["config"]).resolve() != expected_config
             or args.config.resolve() != expected_config
             or plan["config_sha256"] != spec["sha256"]
             or sha256_file(args.config) != spec["sha256"]

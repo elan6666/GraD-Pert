@@ -20,6 +20,8 @@ import run_br400_group as runner  # noqa: E402
 import run_fgpo_medium as medium  # noqa: E402
 import run_representation_postfit as postfit  # noqa: E402
 import test_cr_medium_adapter as observer  # noqa: E402
+from test_br400_group import prepared as prepared  # noqa: E402
+from test_fgpo_group import new_queue as new_queue  # noqa: E402
 
 
 @pytest.fixture
@@ -201,3 +203,129 @@ def test_capacity_gate_rejects_legacy_or_incomplete_phase_proof():
         bad[key] = changed
         with pytest.raises(ValueError):
             runner.validate_staged_joint_gate(bad)
+
+
+@pytest.fixture
+def generated_r9_queue(family_root, new_queue, monkeypatch):
+    """Use the real generator and queue builder; replace only external source resolution."""
+    from gradpert.data._io import atomic_json, read_json
+
+    source, family_output = family_root
+    old, old_output = new_queue
+    runtime = Path(old["runtime"])
+    atomic_json(runtime, {**read_json(runtime), "repository_root": str(source)})
+
+    def resolve(args):
+        plan = copy.deepcopy(old["rows"][0]["plan"])
+        plan.update(
+            config=str(args.config),
+            config_sha256=sha256_file(args.config),
+            resolved_config=load_experiment_config(args.config).model_dump(mode="json"),
+            runtime_sha256=sha256_file(runtime),
+            repository_root=str(source),
+            run_id="fresh-r9-eval",
+            run_root=str(Path(plan["run_root"]).parent / "fresh-r9-eval"),
+            test_root=str(Path(plan["test_root"]).parent / "fresh-r9-eval-test"),
+        )
+        return plan
+
+    monkeypatch.setattr(runner, "resolve_plan", resolve)
+    monkeypatch.setattr(runner, "__file__", str(source / "scripts/v2/run_br400_group.py"))
+    return runner.prepare(
+        source,
+        family_output / "manifest.json",
+        runtime,
+        old_output.parent / "r9-eval",
+        old["shared_gpu_policy"],
+    )
+
+
+def r9_eval_args(queue, gpu):
+    from types import SimpleNamespace
+
+    row = queue["rows"][0]
+    plan = row["plan"]
+    binding = next(binding for binding in queue["eval_bindings"] if binding["gpu"] == gpu)
+    return SimpleNamespace(
+        gpu=gpu,
+        cell_batch=128,
+        reference_batch=128,
+        config=Path(plan["config"]),
+        publication=Path(plan["publication"]),
+        publication_sha256=plan["publication_sha256"],
+        data_root=Path(plan["data_root"]),
+        output=Path(binding["output"]),
+        shared_queue=Path(queue["output"]) / "queue.json",
+        row_name=row["name"],
+    )
+
+
+@pytest.mark.parametrize("gpu", ["0", "1"])
+def test_exact_r9_eval_leaf_accepts_both_real_generated_gpu_bindings(generated_r9_queue, gpu):
+    from eval_batch_capacity import PARITY_ATOL, PARITY_RTOL, validate_eval_binding
+
+    queue = generated_r9_queue
+    assert len(queue["eval_bindings"]) == 2
+    assert {binding["gpu"] for binding in queue["eval_bindings"]} == {"0", "1"}
+    assert (
+        validate_eval_binding(queue, r9_eval_args(queue, gpu), queue["source_commit"])
+        == queue["rows"][0]
+    )
+    assert PARITY_ATOL == PARITY_RTOL == 2e-6
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "mode",
+        "extra_arm",
+        "steps",
+        "selected_subset",
+        "source",
+        "plan_source",
+        "config_sha",
+        "missing_resolved",
+        "resolved",
+        "cell_batch",
+        "reference_batch",
+        "output",
+        "data_root",
+        "publication",
+    ],
+)
+def test_r9_eval_rejects_scope_or_identity_drift(generated_r9_queue, change):
+    from eval_batch_capacity import validate_eval_binding
+
+    queue = copy.deepcopy(generated_r9_queue)
+    args = r9_eval_args(queue, "0")
+    plan = queue["rows"][0]["plan"]
+    if change == "mode":
+        queue["mode"] = r6.SCHEMA
+    elif change == "extra_arm":
+        queue["rows"].append({**queue["rows"][0], "name": "R6-EMA99"})
+    elif change == "steps":
+        queue["steps"] = 9
+    elif change == "selected_subset":
+        queue["only_arms"] = list(family.ARMS)
+    elif change == "source":
+        queue["source_commit"] = "f" * 40
+    elif change == "plan_source":
+        plan["source_commit"] = "f" * 40
+    elif change == "config_sha":
+        plan["config_sha256"] = "f" * 64
+    elif change == "missing_resolved":
+        plan.pop("resolved_config")
+    elif change == "resolved":
+        plan["resolved_config"]["training"]["max_epochs"]["value"] = 2
+    elif change == "cell_batch":
+        args.cell_batch = 129
+    elif change == "reference_batch":
+        args.reference_batch = 129
+    elif change == "output":
+        args.output = args.output.parent / "unbound-output"
+    elif change == "data_root":
+        args.data_root = args.data_root / "other-data"
+    elif change == "publication":
+        args.publication_sha256 = "f" * 64
+    with pytest.raises(ValueError):
+        validate_eval_binding(queue, args, generated_r9_queue["source_commit"])

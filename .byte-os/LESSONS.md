@@ -2,6 +2,8 @@
 
 439efcb已支持DINO两臂的prepare/runner/medium，却漏接eval_batch_capacity.validate_eval_binding白名单，导致10-update通过后在评估推理前失败。cfe641b修复并增加四个真实leaf参数调用，以及mode、步数、顺序和缺行的拒绝测试。预防：新family既测试生成/prepare，也逐一调用全部训练、评估、collector和分析子入口；不能把runner.verify通过当成完整链路通过。失败queue不原地重试，发布新版本和ID重验。跨agent收据SHA必须程序计算传递，主独立校验原文件，不手工补写或信任转写字符串。
 
+2026-10-25复发：R9在fa80ba0下10步阶段切换与完整恢复通过，但同一评估注册遗漏再次阻断了首个GPU leaf。此前family测试仅覆盖训练／medium／postfit，未把真实生成queue送入eval绑定。此次新增实际generator＋prepare生成的两卡leaf接受测试与配置／resolved config／source／arm范围／batch漂移拒绝测试。新family验收必须带这类端到端入口测试，不能只复制已存在的family注册断言；不把工程预检失败记作正式训练或科学结论。
+
 ## 2026-10-13：设备别名不等于设备不一致
 
 已确认Accelerate1.9单进程device可为cuda（index=None），与显式cuda:0直接torch.device比较为False。CPU集成没有覆盖此GPU guard。预防：将未编号CUDA绑定到真实current_device再比较；测试当前index非0、显式错卡、CPU/CUDA类型错配和多进程拒绝。不得用无条件接受cuda或删除隔离检查来修复。正式门仍必须使用真实GPU。
