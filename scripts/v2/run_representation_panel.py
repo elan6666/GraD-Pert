@@ -125,6 +125,7 @@ def panel_parent_binding(parent, identity, queue, args):
     from generate_representation_round4 import SCHEMA as CR_SCHEMA
     from generate_representation_round5 import SCHEMA as PROJ_SCHEMA
     from generate_representation_round6 import SCHEMA as EMA_SCHEMA
+    from generate_representation_round7 import SCHEMA as DOSE_SCHEMA
     from run_fgpo_medium import au_parent_binding, cr_parent_binding
 
     rows = [
@@ -144,11 +145,14 @@ def panel_parent_binding(parent, identity, queue, args):
         or identity["source"]["commit"] != args.method_sha
     ):
         raise ValueError("panel queue/run/config binding differs")
-    if row["name"] in ("R3-AUB", "R3-AUS", "R4-CR", "R5-PROJ", "R6-EMA99"):
+    if row["name"] in ("R3-AUB", "R3-AUS", "R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05"):
         spec = queue["medium_analysis"]
-        family = {"R4-CR": CR_SCHEMA, "R5-PROJ": PROJ_SCHEMA, "R6-EMA99": EMA_SCHEMA}.get(
-            row["name"], SCHEMA
-        )
+        family = {
+            "R4-CR": CR_SCHEMA,
+            "R5-PROJ": PROJ_SCHEMA,
+            "R6-EMA99": EMA_SCHEMA,
+            "R7-S1D05": DOSE_SCHEMA,
+        }.get(row["name"], SCHEMA)
         if (
             queue.get("family") != family
             or Path(spec["parent_manifest"]).resolve() != args.parent_manifest.resolve()
@@ -157,7 +161,7 @@ def panel_parent_binding(parent, identity, queue, args):
             raise ValueError("population auxiliary panel requires its exact original family parent")
         bind_parent = (
             cr_parent_binding
-            if row["name"] in ("R4-CR", "R5-PROJ", "R6-EMA99")
+            if row["name"] in ("R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05")
             else au_parent_binding
         )
         bound = bind_parent(

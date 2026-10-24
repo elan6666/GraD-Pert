@@ -21,6 +21,8 @@ from generate_representation_round5 import ARMS as ROUND5_ARMS
 from generate_representation_round5 import SCHEMA as ROUND5_SCHEMA
 from generate_representation_round6 import ARMS as ROUND6_ARMS
 from generate_representation_round6 import SCHEMA as ROUND6_SCHEMA
+from generate_representation_round7 import ARMS as ROUND7_ARMS
+from generate_representation_round7 import SCHEMA as ROUND7_SCHEMA
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
@@ -32,6 +34,7 @@ FAMILY_ARMS = {
     ROUND4_SCHEMA: ROUND4_ARMS,
     ROUND5_SCHEMA: ROUND5_ARMS,
     ROUND6_SCHEMA: ROUND6_ARMS,
+    ROUND7_SCHEMA: ROUND7_ARMS,
 }
 
 
@@ -66,7 +69,7 @@ def context(queue, row):
     if training["last"]["epoch"] != 2:
         raise ValueError("research requires exact two-epoch last")
     if (root / "COMPLETE.json").exists() or (root / "fit/last-test.json").exists():
-        raise ValueError("research test must remain deferred until four-round design lock")
+        raise ValueError("research test must remain deferred until research design lock")
     return training
 
 
@@ -258,6 +261,40 @@ def panel_command(queue, row):
     return command
 
 
+def ssl_loss_contributions(history, config):
+    """Separate raw component losses from their fixed configured overall weights."""
+    from gradpert.config import load_experiment_config
+    from gradpert.config.v2 import V2Options
+
+    _, options = V2Options.parse_parameters(load_experiment_config(config).model.parameters)
+    rows = []
+    for entry in history:
+        terms = entry.get("training", {})
+        row = dict(epoch=entry["epoch"], prediction=terms.get("prediction"))
+        for stage, scale, components in (
+            (1, options.lambda1, ("condition", "node", "spread")),
+            (2, options.lambda2, ("dino", "ibot", "koleo")),
+        ):
+            weights = [getattr(options, f"ssl{stage}_{name}") for name in components]
+            values = [terms.get(f"ssl{stage}_{name}") for name in components]
+            raw = (
+                None
+                if any(w and v is None for w, v in zip(weights, values, strict=True))
+                else sum(w * v for w, v in zip(weights, values, strict=True) if w)
+            )
+            row.update(
+                {
+                    f"lambda{stage}": scale,
+                    f"ssl{stage}_before_overall_weight": raw,
+                    f"ssl{stage}_contribution": None if raw is None else scale * raw,
+                }
+            )
+        # Preserve saved means of actual warmup-weighted contributions.
+        row.update({k: terms.get(k) for k in ("au_weighted", "cr_weighted", "joint_loss")})
+        rows.append(row)
+    return rows
+
+
 def render_medium_report(queue, row, root):
     """Research report reads training/validation artifacts, never last-test.json."""
     import matplotlib
@@ -274,6 +311,10 @@ def render_medium_report(queue, row, root):
     history = read_json(Path(row["plan"]["run_root"]) / "fit/history.json")
     validation = read_json(validation_path(queue, row) / "COMPLETE.json")["result"]
     tables = {"training": [flatten(r) for r in history]}
+    if queue.get("family") == ROUND7_SCHEMA:
+        tables["training_loss_contributions"] = ssl_loss_contributions(
+            history, row["plan"]["config"]
+        )
     for name in ("global_features", "global_heads", "metrics", "cls_decomposition", "centers"):
         tables[name] = [{"name": k, **flatten(v)} for k, v in summary.get(name, {}).items()]
     for group in deep:
@@ -327,7 +368,7 @@ def render_medium_report(queue, row, root):
     plt.close(fig)
     text = [
         f"# {row['name']}：两轮表征研究\n",
-        "仅训练侧冻结诊断及训练后验证集评估；测试推迟至四轮设计锁定，不作为选型依据。\n",
+        "仅训练侧冻结诊断及训练后验证集评估；测试推迟至研究设计锁定，不作为选型依据。\n",
         f"训练源码：`{queue['source_commit']}`；配置：`{row['plan']['config_sha256']}`。\n",
         "中等诊断沿用原清单；额外固定基因面板独立存储，不替代历史可比统计。\n",
         "![表征有效秩与相对方差](representation.png)\n",
@@ -359,6 +400,16 @@ def render_medium_report(queue, row, root):
             "即每次成功优化器更新后恒定.99。A=.05、CR=.00004及瓶颈作用点保持。"
             "复用原对照不重训；Teacher分布变尖或秩上升本身不代表预测效用改善。"
             "逐条件小探针缺完整有效批，A/CR仍为NA。\n"
+        )
+    if queue.get("family") == ROUND7_SCHEMA:
+        text.append(
+            "R7-S1D05仅将R6的SSL1总权重lambda1从1改为.05；lambda2仍为user_locked 1，"
+            "Teacher EMA保持恒定.99，A=.05、CR=.00004及瓶颈作用点保持。"
+            "原始SSL1/SSL2损失与加权贡献分开报告；权重不同的joint不直接排序。"
+            "逐条件小探针缺完整有效批，A/CR仍为NA，降低CE或提高秩不构成预测改善。\n"
+        )
+        text.extend(
+            ["## training_loss_contributions\n", table(tables["training_loss_contributions"])]
         )
     for name in ("training", "validation", "global_features", "global_heads", "frozen_losses"):
         text.extend([f"## {name}\n", table(tables[name])])
