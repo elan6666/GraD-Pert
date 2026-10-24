@@ -1,0 +1,204 @@
+{
+  "schema": "representation-round8-cr0-medium-1",
+  "family": "representation_round8_20261024",
+  "priority": [
+    "R8-CR0"
+  ],
+  "preflight_priority": [
+    "R8-CR0"
+  ],
+  "common_microbatch": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 320,
+  "epochs": 2,
+  "seed": 1,
+  "eval_batch": 128,
+  "validation": "disabled",
+  "postfit_validation": true,
+  "test_timing": "after_research_design_lock",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "initialization": "from_scratch; unchanged RI architecture and seed; no checkpoint resume",
+  "analysis": "same sealed medium population plus a separate fixed-panel training probe",
+  "baseline": {
+    "config": "configs/v2/fgpo_node0_20261016_b320/B0/gradpert_v2/nadig_jurkat.yaml",
+    "sha256": "80f5ee1d6c4d826d9d2c023f304c08f1734b5a05acd28d565f7053e367117830"
+  },
+  "schedule_semantics": {
+    "lr": "unchanged endpoint warmup cosine, warmup_fraction=0.16, over two epochs",
+    "ema": "constant 0.99 at every successful optimizer update; unchanged native cosine formula with equal teacher_start and teacher_end",
+    "comparison": "original R6 parent; only cr_weight changes from 0.00004 to 0; not a R7-parent ablation"
+  },
+  "fixed_panel_diagnostics": {
+    "split": "train",
+    "conditions": 32,
+    "controls_per_condition": 4,
+    "query_genes": 1000,
+    "deep_gene_sample": 128,
+    "panel": "one fixed allowed training-expression panel shared by all arms and conditions",
+    "pairing": [
+      "same_condition_different_control",
+      "different_condition_same_control"
+    ],
+    "stratification": [
+      "cell_line",
+      "cell_type",
+      "context_id"
+    ],
+    "identity": "reuse sealed medium condition/row identities where eligible; seal the extra probe separately",
+    "independence": "deduplicate controls; report actual valid counts; do not replace missing rows silently",
+    "stages": "Response injection input, branch and actual state; self/cross/FFN; final norm",
+    "state_updates": false,
+    "persist_full_activations": false
+  },
+  "research_iteration": {
+    "round": 8,
+    "authorized_rounds": null,
+    "future_rounds": "redesign from evidence until task-relevant representation is improved",
+    "design_evidence": [
+      "train",
+      "validation"
+    ],
+    "test_results_for_selection": false,
+    "success": "joint representation separation and response utility; not CE or DINO rank alone",
+    "stage_review_after_round": 8,
+    "hypothesis": "removing global CR expansion may improve R6 prediction while retaining Teacher condition signal and view stability; local gradient evidence does not ensure utility",
+    "continuation_authority": "user-authorized ongoing representation-resolution loop, reaffirmed 2026-10-24; continue from evidence until resolved or explicitly paused, without expanding scope"
+  },
+  "rerun_old_BR_or_officials": false,
+  "reused_controls": [
+    "R3-RI",
+    "R3-AUB",
+    "R3-AUS",
+    "R4-CR",
+    "R5-PROJ",
+    "R6-EMA99",
+    "R7-S1D05"
+  ],
+  "repeat_baseline": false,
+  "coefficient_decision": {
+    "weights": {
+      "au_alignment_weight": 0.05,
+      "au_uniformity_weight": 0.0,
+      "au_temperature": 2.0,
+      "au_warmup_steps": 30,
+      "cr_weight": 0.0,
+      "cr_epsilon_squared": 0.05,
+      "cr_warmup_steps": 30,
+      "population_aux_space": "ssl2_cls_bottleneck",
+      "teacher_end": 0.99
+    },
+    "parent_arm": "R6-EMA99",
+    "intervention": {
+      "cr_weight": {
+        "previous": 4e-05,
+        "value": 0.0
+      }
+    },
+    "unchanged_lambda1": 1.0,
+    "unchanged_lambda2": {
+      "value": 1.0,
+      "source": "user_locked"
+    },
+    "evidence": {
+      "parent_training_commit": "8a78218424802f1fab01be2b8b134d120c91dd71",
+      "parent_config": "configs/v2/representation_round6_20261024/R6-EMA99/gradpert_v2/nadig_jurkat.yaml",
+      "parent_config_sha256": "ffda3bd855a6eaa2d9417dfb90ca3878a9947c2d4944900a78dd1bac9450bf8a",
+      "parent_run_id": "nadig_jurkat-seed1-20261023T210003Z-5435b634f57449a384fe0b2af01ef692",
+      "parent_checkpoint_role": "last",
+      "parent_checkpoint_epoch": 2,
+      "parent_checkpoint_sha256": "610eb0c6058870e13eb226cfe037d1899af5841ec452fc2fbbf813eb6ae0ceab",
+      "panel_sha256": "b0b4d6e09ca40ab40cb51d881cfaaeb00d23d71d832bf45b0d1f82de45a1913b",
+      "panel_rows": 128,
+      "medium_population_sha256": "afa9c95fa26dc19167e9919bc09c86a8d99f9446466de95a1efd613b1f93bd86",
+      "validation_summary_sha256": "9c29ffc5eb7556fc9e758ba8b1107a647ef732aea67f7f55755649a032dac320",
+      "research_evidence_sha256": "1f26707932b2bd65d52d2933255d584c1e529a2fbd04689eb171827ce285bcc6",
+      "r7_dose_counterexample": {
+        "training_commit": "3d61cb0b50f66535023bf276a7cd04f69adafc3b",
+        "validation_mse": 0.006258086035934465,
+        "pearson_below_r6": 14,
+        "pearson_count": 18,
+        "interpretation": "lower SSL1 dose did not restore prediction; R7 is not the parent"
+      },
+      "full_population_observation": {
+        "analysis_commit": "8a78218424802f1fab01be2b8b134d120c91dd71",
+        "batch_sha256": "705c0f5137e34e58f932124cb2cb7ba7ecf5d7be056aa33f6c015806a547cb55",
+        "observed_populations_per_endpoint": 1,
+        "original_planned_populations": 8,
+        "population_size": 320,
+        "updates": 0,
+        "replay_tolerance": 2e-06,
+        "scope": "single-GPU frozen population; not DDP update equivalence",
+        "r6_graph_cr_mse_cosine": -0.3724035124119608,
+        "r5_cr0_total_mse_cosine_counterexample": [
+          0.9653325039478091,
+          0.5703735062490288
+        ],
+        "limits": "R6 response direction also did not improve; no universal CR harm claim"
+      }
+    }
+  },
+  "coding_rate": {
+    "representation": "existing Student ssl2_cls.features 256-dimensional bottleneck before L2 and prototypes",
+    "formula": "mean_views(-0.5*logdet(I+d/(N*epsilon_squared)*U.T@U))",
+    "normalization": "auxiliary FP64 L2; uncentered second moment; main tensors unchanged",
+    "population": "full deduplicated effective batch across ranks and microbatches",
+    "limitations": [
+      "ordinary projector retains backbone gradients; no gradient isolation",
+      "same coefficients do not imply matched gradient dose across spaces",
+      "projector-only high rank is not task-relevant representation success",
+      "full-population CR can reward context differences; not official SimDINO replication"
+    ],
+    "partial_diagnostics": "disabled CR has no history observation; missing measurements stay NA",
+    "enabled": false,
+    "training_weight": 0.0,
+    "runtime_protocol": "coding_rate absent; alignment_uniformity retained unchanged"
+  },
+  "teacher_tracking": {
+    "parent": {
+      "teacher_start": 0.99,
+      "teacher_end": 0.99
+    },
+    "candidate": {
+      "teacher_start": 0.99,
+      "teacher_end": 0.99
+    },
+    "implementation": "existing lifecycle cosine and successful-step commit_statistics",
+    "center_temperature_prototypes": "unchanged R6 rules",
+    "training_views": "native R6 views",
+    "native_source_baseline_commit": "3d61cb0b50f66535023bf276a7cd04f69adafc3b",
+    "native_source_git_tree": "baa481e0ae0d99a0d5830bbdc7a9f8409741f4fe",
+    "limits": [
+      "frozen encoder/head swaps do not uniquely identify EMA as the cause",
+      "EMA recurrence coefficients are not fractions of biological information",
+      "one seed and two epochs do not establish general resolution",
+      "lower entropy, CE or higher rank alone cannot satisfy scientific acceptance",
+      "new source/config/checkpoint identities are required; never overwrite R5"
+    ],
+    "native_source_git_tree_path": "src"
+  },
+  "loss_reporting": "retain original SSL losses and actual weighted contributions; disabled CR history must not be fabricated as zero-valued observations; joint across CR weights is not comparable; global negative CR is not whole-versus-within-class MCR2",
+  "rows": [
+    {
+      "name": "R8-CR0",
+      "config": "configs/v2/representation_round8_20261024/R8-CR0/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "5042a72c3fd7395433914ece4af92d6c16d8b72af91a761c5fafceb111b9102c",
+      "changes": {
+        "au_alignment_weight": 0.05,
+        "au_uniformity_weight": 0.0,
+        "au_temperature": 2.0,
+        "au_warmup_steps": 30,
+        "cr_weight": 0.0,
+        "cr_epsilon_squared": 0.05,
+        "cr_warmup_steps": 30,
+        "population_aux_space": "ssl2_cls_bottleneck",
+        "teacher_end": 0.99
+      }
+    }
+  ]
+}

@@ -37,6 +37,8 @@ from generate_representation_round6 import ARMS as RS6_ARMS
 from generate_representation_round6 import SCHEMA as RS6_SCHEMA
 from generate_representation_round7 import ARMS as RS7_ARMS
 from generate_representation_round7 import SCHEMA as RS7_SCHEMA
+from generate_representation_round8 import ARMS as RS8_ARMS
+from generate_representation_round8 import SCHEMA as RS8_SCHEMA
 
 FAMILY_ARMS = {
     RS_SCHEMA: RS_ARMS,
@@ -46,6 +48,7 @@ FAMILY_ARMS = {
     RS5_SCHEMA: RS5_ARMS,
     RS6_SCHEMA: RS6_ARMS,
     RS7_SCHEMA: RS7_ARMS,
+    RS8_SCHEMA: RS8_ARMS,
     SCHEMA: ARMS,
     DINO_SCHEMA: DINO_ARMS,
     DP2_SCHEMA: {"DP2": DINO_ARMS["DP2"]},
@@ -416,33 +419,40 @@ def cr_parent_binding(parent, training_identity, *, arm, config, parent_path, pa
     from gradpert.config import load_experiment_config
     from gradpert.config.v2 import V2Options
 
-    if arm not in ("R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05"):
-        raise ValueError("CR parent binding is scoped to frozen R4/R5/R6/R7 arms")
+    if arm not in ("R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05", "R8-CR0"):
+        raise ValueError("CR parent binding is scoped to frozen R4/R5/R6/R7/R8 arms")
     _, options = V2Options.parse_parameters(load_experiment_config(config).model.parameters)
     if (
         (options.au_alignment_weight, options.au_uniformity_weight) != (0.05, 0.0)
         or options.au_temperature != 2.0
         or options.au_warmup_steps != 30
-        or options.cr_weight != 0.00004
+        or options.cr_weight != (0.0 if arm == "R8-CR0" else 0.00004)
         or options.cr_epsilon_squared != 0.05
         or options.cr_warmup_steps != 30
     ):
         raise ValueError("CR parent binding requires the frozen arm coefficients and schedule")
-    if arm in ("R6-EMA99", "R7-S1D05") and (options.teacher_start, options.teacher_end) != (
+    if arm in ("R6-EMA99", "R7-S1D05", "R8-CR0") and (
+        options.teacher_start,
+        options.teacher_end,
+    ) != (
         0.99,
         0.99,
     ):
-        raise ValueError("R6/R7 parent binding requires constant .99 Teacher EMA")
+        raise ValueError("R6/R7/R8 parent binding requires constant .99 Teacher EMA")
     if arm == "R7-S1D05" and (options.lambda1, options.lambda2) != (0.05, 1.0):
         raise ValueError("R7 parent binding requires lambda1=.05 and locked lambda2=1")
+    if arm == "R8-CR0" and (options.lambda1, options.lambda2) != (1.0, 1.0):
+        raise ValueError("R8 parent binding requires lambda1=1 and locked lambda2=1")
     expected_space = (
-        "ssl2_cls_bottleneck" if arm in ("R5-PROJ", "R6-EMA99", "R7-S1D05") else "response_cls"
+        "ssl2_cls_bottleneck"
+        if arm in ("R5-PROJ", "R6-EMA99", "R7-S1D05", "R8-CR0")
+        else "response_cls"
     )
     if options.population_aux_space != expected_space:
         raise ValueError("CR parent binding auxiliary representation space differs")
     representation = (
         "student_ssl2_cls_features_before_l2_and_prototypes"
-        if arm in ("R5-PROJ", "R6-EMA99", "R7-S1D05")
+        if arm in ("R5-PROJ", "R6-EMA99", "R7-S1D05", "R8-CR0")
         else "student_response_cls_after_final_rmsnorm_before_projector"
     )
     protocols = {
@@ -471,6 +481,8 @@ def cr_parent_binding(parent, training_identity, *, arm, config, parent_path, pa
             "partial_diagnostics": "unavailable_requires_complete_global_population",
         },
     }
+    if arm == "R8-CR0":
+        del protocols["coding_rate"]  # Native disabled CR has no runtime protocol entry.
     expected = copy.deepcopy(parent["data"])
     if set(protocols).intersection(expected["loss_protocol"]):
         raise ValueError("CR binding requires the original parent without AU or CR metadata")
@@ -657,10 +669,11 @@ def execute(
             "R5-PROJ",
             "R6-EMA99",
             "R7-S1D05",
+            "R8-CR0",
         ):
             bind_parent = (
                 cr_parent_binding
-                if arm in ("R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05")
+                if arm in ("R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05", "R8-CR0")
                 else au_parent_binding
                 if arm in ("R3-AUB", "R3-AUS")
                 else (
@@ -676,7 +689,8 @@ def execute(
                 parent_sha256=parent_sha256,
                 **(
                     {"arm": arm, "config": plan["config"]}
-                    if arm in ("R3-AUB", "R3-AUS", "R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05")
+                    if arm
+                    in ("R3-AUB", "R3-AUS", "R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05", "R8-CR0")
                     else ({"arm": arm} if arm in ("U24", "MR1", "P1") else {})
                 ),
             )

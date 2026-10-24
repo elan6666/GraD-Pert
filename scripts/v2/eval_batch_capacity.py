@@ -58,6 +58,9 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     from generate_representation_round7 import ARMS as RS7_ARMS
     from generate_representation_round7 import SCHEMA as RS7_SCHEMA
     from generate_representation_round7 import verify_manifest as verify_rs7_manifest
+    from generate_representation_round8 import ARMS as RS8_ARMS
+    from generate_representation_round8 import SCHEMA as RS8_SCHEMA
+    from generate_representation_round8 import verify_manifest as verify_rs8_manifest
     from shared_gpu import DYNAMIC_SCHEMA, validate_policy
 
     from gradpert.hashing import sha256_file
@@ -83,6 +86,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             RS5_SCHEMA,
             RS6_SCHEMA,
             RS7_SCHEMA,
+            RS8_SCHEMA,
         )
         or queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA
         or queue.get("source_commit") != source_commit
@@ -136,6 +140,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         RS5_SCHEMA,
         RS6_SCHEMA,
         RS7_SCHEMA,
+        RS8_SCHEMA,
     ):
         family_schema = queue["family"]
         verifier, arms = {
@@ -146,6 +151,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             RS5_SCHEMA: (verify_rs5_manifest, RS5_ARMS),
             RS6_SCHEMA: (verify_rs6_manifest, RS6_ARMS),
             RS7_SCHEMA: (verify_rs7_manifest, RS7_ARMS),
+            RS8_SCHEMA: (verify_rs8_manifest, RS8_ARMS),
         }[family_schema]
         matrix = verifier(Path(queue["source"]), Path(queue["manifest"]))
         if family_schema == RS3_SCHEMA:
@@ -183,7 +189,14 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     if len(rows) != 1:
         raise ValueError("evaluation probe must select one sealed queue row")
     row, plan = rows[0], rows[0]["plan"]
-    if queue.get("family") in (RS3_SCHEMA, RS4_SCHEMA, RS5_SCHEMA, RS6_SCHEMA, RS7_SCHEMA):
+    if queue.get("family") in (
+        RS3_SCHEMA,
+        RS4_SCHEMA,
+        RS5_SCHEMA,
+        RS6_SCHEMA,
+        RS7_SCHEMA,
+        RS8_SCHEMA,
+    ):
         from gradpert.config import load_experiment_config
 
         specs = [spec for spec in matrix["rows"] if spec["name"] == row["name"]]

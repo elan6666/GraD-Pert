@@ -51,6 +51,8 @@ from generate_representation_round6 import SCHEMA as RS6_SCHEMA
 from generate_representation_round6 import verify_manifest as verify_rs6_manifest
 from generate_representation_round7 import SCHEMA as RS7_SCHEMA
 from generate_representation_round7 import verify_manifest as verify_rs7_manifest
+from generate_representation_round8 import SCHEMA as RS8_SCHEMA
+from generate_representation_round8 import verify_manifest as verify_rs8_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -81,6 +83,7 @@ RESEARCH_FAMILIES = (
     RS5_SCHEMA,
     RS6_SCHEMA,
     RS7_SCHEMA,
+    RS8_SCHEMA,
 )
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
@@ -194,6 +197,7 @@ def verify_manifest(source: Path, manifest: Path) -> dict:
     verifier = {
         RS6_SCHEMA: verify_rs6_manifest,
         RS7_SCHEMA: verify_rs7_manifest,
+        RS8_SCHEMA: verify_rs8_manifest,
         RS5_SCHEMA: verify_rs5_manifest,
         RS4_SCHEMA: verify_rs4_manifest,
         RS3_SCHEMA: verify_rs3_manifest,
@@ -701,6 +705,7 @@ def expected_epochs(plan: dict) -> int:
             RS5_SCHEMA,
             RS6_SCHEMA,
             RS7_SCHEMA,
+            RS8_SCHEMA,
         ):
             family = verify_manifest(source, family_manifest)
             matching = [r for r in family["rows"] if source / r["config"] == Path(plan["config"])]

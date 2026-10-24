@@ -23,6 +23,8 @@ from generate_representation_round6 import ARMS as ROUND6_ARMS
 from generate_representation_round6 import SCHEMA as ROUND6_SCHEMA
 from generate_representation_round7 import ARMS as ROUND7_ARMS
 from generate_representation_round7 import SCHEMA as ROUND7_SCHEMA
+from generate_representation_round8 import ARMS as ROUND8_ARMS
+from generate_representation_round8 import SCHEMA as ROUND8_SCHEMA
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
@@ -35,6 +37,7 @@ FAMILY_ARMS = {
     ROUND5_SCHEMA: ROUND5_ARMS,
     ROUND6_SCHEMA: ROUND6_ARMS,
     ROUND7_SCHEMA: ROUND7_ARMS,
+    ROUND8_SCHEMA: ROUND8_ARMS,
 }
 
 
@@ -311,7 +314,7 @@ def render_medium_report(queue, row, root):
     history = read_json(Path(row["plan"]["run_root"]) / "fit/history.json")
     validation = read_json(validation_path(queue, row) / "COMPLETE.json")["result"]
     tables = {"training": [flatten(r) for r in history]}
-    if queue.get("family") == ROUND7_SCHEMA:
+    if queue.get("family") in (ROUND7_SCHEMA, ROUND8_SCHEMA):
         tables["training_loss_contributions"] = ssl_loss_contributions(
             history, row["plan"]["config"]
         )
@@ -407,6 +410,16 @@ def render_medium_report(queue, row, root):
             "Teacher EMA保持恒定.99，A=.05、CR=.00004及瓶颈作用点保持。"
             "原始SSL1/SSL2损失与加权贡献分开报告；权重不同的joint不直接排序。"
             "逐条件小探针缺完整有效批，A/CR仍为NA，降低CE或提高秩不构成预测改善。\n"
+        )
+        text.extend(
+            ["## training_loss_contributions\n", table(tables["training_loss_contributions"])]
+        )
+    if queue.get("family") == ROUND8_SCHEMA:
+        text.append(
+            "R8-CR0以原R6为科学父臂，仅关闭CR：cr_weight=.00004→0；"
+            "lambda1=1、lambda2=user_locked 1、恒定EMA=.99、A=.05与瓶颈作用点均保持。"
+            "不重训R6；R7不是单因素父臂。历史中未计算的CR项保留NA，不以0冒充观测。"
+            "原始SSL损失与实际加权贡献分列；几何或熵的变化不能替代预测效用。\n"
         )
         text.extend(
             ["## training_loss_contributions\n", table(tables["training_loss_contributions"])]
