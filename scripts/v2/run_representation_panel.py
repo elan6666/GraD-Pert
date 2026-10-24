@@ -238,6 +238,22 @@ def execute(args):
     clean_globals = bool(getattr(args, "teacher_signal_clean_globals", False))
     if clean_globals and not getattr(args, "teacher_signal_audit", False):
         raise ValueError("clean Global input intervention requires teacher signal audit")
+    truth_requested = bool(getattr(args, "truth_path_audit", False))
+    if truth_requested and (
+        getattr(args, "path_audit", False) or getattr(args, "teacher_signal_audit", False)
+    ):
+        raise ValueError(
+            "truth path, response path and teacher signal audits require separate outputs"
+        )
+    if truth_requested and (args.conditions, args.controls, args.checkpoint_role) != (
+        32,
+        4,
+        "last",
+    ):
+        raise ValueError("truth path audit requires frozen 32 x 4 final-checkpoint panel")
+    if truth_requested and panel["conditions"] != 32:
+        raise ValueError("truth path audit requires exactly 32 distinct frozen conditions")
+    truth_audit = None
     teacher_signal = None
     if getattr(args, "teacher_signal_audit", False):
         from teacher_signal_diagnostics import TeacherSignalBank
@@ -267,6 +283,11 @@ def execute(args):
     torch, config, identity, prepare, _ = runtime_args(args)
     analysis_source = source_identity(Path(__file__).resolve().parents[2])
     queue = read(args.resource_queue)
+    if truth_requested:
+        from generate_representation_round9 import SCHEMA as TRUTH_JOINT_SCHEMA
+
+        if queue.get("family") != TRUTH_JOINT_SCHEMA:
+            raise ValueError("truth path audit requires the R9 staged-joint final checkpoint")
     parent_binding = panel_parent_binding(parent, identity, queue, args)
     cp, endpoint = select_checkpoint(args.run_root, args.checkpoint_role)
     checkpoint = args.run_root / "fit" / cp["file"]
@@ -301,6 +322,10 @@ def execute(args):
         if rt.identity != identity["data"]:
             raise ValueError("runtime data mismatch")
         validate_panel_runtime(panel, rt)
+        if truth_requested:
+            from truth_path_diagnostics import TruthPathBank
+
+            truth_audit = TruthPathBank(panel, rt)
         load_evaluation_checkpoint(
             checkpoint, rt.objective, training_identity=identity, checkpoint_sha256=cp["sha256"]
         )
@@ -329,6 +354,17 @@ def execute(args):
                     raise ValueError("assembled common query panel order changed")
                 if number == 0:
                     parity = verify_cache(rt, batch, cached)
+                if truth_audit is not None:
+                    truth_audit.add(rt, batch, cached, group)
+                    write(
+                        args.output / "progress.json",
+                        dict(
+                            condition_context_groups_done=number + 1,
+                            total=len(panel["schedule"]),
+                            elapsed_seconds=time.perf_counter() - started,
+                        ),
+                    )
+                    continue
                 if path_audit is not None:
                     path_audit.add(rt, batch, cached, group)
                     write(
@@ -403,11 +439,16 @@ def execute(args):
     if teacher_signal is not None:
         write(args.output / "teacher_signal.json", teacher_signal.result())
     path_result = path_audit.result() if path_audit is not None else None
+    truth_result = truth_audit.result() if truth_audit is not None else None
+    if truth_result is not None:
+        write(args.output / "truth_path_audit.json", truth_result)
+        csv_write(args.output / "truth_path_errors.csv", truth_result["rows"])
+        csv_write(args.output / "truth_path_context_means.csv", truth_result["context_means"])
     if path_result is not None:
         write(args.output / "path_audit.json", path_result)
         for name in ("decomposition", "pairs", "interventions", "context_means"):
             csv_write(args.output / ("path_" + name + ".csv"), path_result[name])
-    else:
+    elif truth_result is None:
         for name, rows in stage_rows.items():
             csv_write(args.output / ("stage_" + name + ".csv"), rows)
         write(args.output / "matched_expression_views.json", view_receipts)
@@ -416,7 +457,7 @@ def execute(args):
         ("crossed_main", main_views),
         ("prototype_pairs", prototypes),
     ):
-        if path_audit is not None:
+        if path_audit is not None or truth_audit is not None:
             continue
         result = (
             grouped_main_result(bank)
@@ -444,7 +485,9 @@ def execute(args):
         panel_rows=panel["rows"],
         diagnostic_objective_scopes=diagnostic_scopes,
         diagnostic_mode=(
-            "response_path_audit"
+            "truth_path_audit"
+            if truth_audit is not None
+            else "response_path_audit"
             if path_audit is not None
             else "teacher_signal_audit"
             if teacher_signal is not None
@@ -471,6 +514,17 @@ def execute(args):
             "no observed paired counterfactual truth; no task-success claim from rank alone"
         ),
     )
+    if truth_result is not None:
+        result["truth_path_audit"] = {
+            key: truth_result[key]
+            for key in (
+                "schema",
+                "contexts",
+                "input_rows",
+                "query_count",
+                "forward_row_evaluations",
+            )
+        }
     if teacher_signal is not None:
         result["teacher_signal_input_mode"] = (
             "clean_globals" if clean_globals else "native_student_masked_teacher_clean"
@@ -494,6 +548,9 @@ def main():
     p.add_argument("--seed", type=int, default=20261021)
     p.add_argument("--conditions", type=int, default=32)
     p.add_argument("--controls", type=int, default=4)
+    p.add_argument(
+        "--truth-path-audit", action="store_true", help="train population truth F/B errors"
+    )
     p.add_argument("--path-audit", action="store_true", help="truth-free F/B/decoder-swap audit")
     p.add_argument(
         "--teacher-signal-audit", action="store_true", help="frozen SSL2 encoder/head crossover"
