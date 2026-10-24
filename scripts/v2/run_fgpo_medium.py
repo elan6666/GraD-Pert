@@ -39,8 +39,11 @@ from generate_representation_round7 import ARMS as RS7_ARMS
 from generate_representation_round7 import SCHEMA as RS7_SCHEMA
 from generate_representation_round8 import ARMS as RS8_ARMS
 from generate_representation_round8 import SCHEMA as RS8_SCHEMA
+from generate_representation_round9 import ARMS as RS9_ARMS
+from generate_representation_round9 import SCHEMA as RS9_SCHEMA
 
 FAMILY_ARMS = {
+    RS9_SCHEMA: RS9_ARMS,
     RS_SCHEMA: RS_ARMS,
     RS2_SCHEMA: RS2_ARMS,
     RS3_SCHEMA: RS3_ARMS,
@@ -122,6 +125,10 @@ def medium_command(queue, row):
 
 
 def validate_medium_complete(queue, row, *, root=None, checkpoint_role=None):
+    if queue.get("family") == RS9_SCHEMA and checkpoint_role is None:
+        from run_staged_joint_medium import validate_complete
+
+        return validate_complete(queue, row, root=root)
     if queue.get("family") == PT2_SCHEMA and checkpoint_role is None:
         from run_pt2_medium import validate_complete
 
@@ -134,7 +141,7 @@ def validate_medium_complete(queue, row, *, root=None, checkpoint_role=None):
     role = checkpoint_role or "last"
     checkpoint = (
         select_checkpoint(Path(plan["run_root"]), role)[0]
-        if queue.get("family") == PT2_SCHEMA
+        if queue.get("family") in (PT2_SCHEMA, RS9_SCHEMA)
         else journal[role]
     )
     expected = {
@@ -147,7 +154,7 @@ def validate_medium_complete(queue, row, *, root=None, checkpoint_role=None):
         **COUNTS,
     }
     parent = validate_analysis_spec(queue["medium_analysis"])
-    if queue.get("family") == PT2_SCHEMA:
+    if queue.get("family") in (PT2_SCHEMA, RS9_SCHEMA):
         _, endpoint = select_checkpoint(Path(plan["run_root"]), role)
         expected["checkpoint_endpoint"] = endpoint
     expected["diagnostic_population_sha256"] = population_identity(parent["schedule"])
@@ -162,7 +169,7 @@ def validate_medium_complete(queue, row, *, root=None, checkpoint_role=None):
         or summary.get("method_sha") != queue["source_commit"]
         or summary.get("checkpoint_sha256") != expected["checkpoint_sha256"]
         or (
-            queue.get("family") == PT2_SCHEMA
+            queue.get("family") in (PT2_SCHEMA, RS9_SCHEMA)
             and (
                 summary.get("checkpoint_role") != endpoint["role"]
                 or summary.get("checkpoint_epoch") != endpoint["epoch"]
@@ -506,6 +513,55 @@ def cr_parent_binding(parent, training_identity, *, arm, config, parent_path, pa
     }
 
 
+def staged_joint_parent_binding(
+    parent, training_identity, *, arm, config, parent_path, parent_sha256
+):
+    """Add only sealed R9 phase metadata to the original R6 population binding."""
+    import yaml
+    from generate_representation_round9 import configs
+
+    if (
+        arm != "R9-SSL1J2"
+        or yaml.safe_load(Path(config).read_text())
+        != configs(Path(__file__).resolve().parents[2])[arm]
+    ):
+        raise ValueError("staged-joint binding requires the exact R9 configuration")
+    comparable = copy.deepcopy(training_identity)
+    staged = comparable["data"]["loss_protocol"].pop("staged_training", None)
+    expected = dict(
+        mode="ssl_then_joint",
+        pretrain_epochs=1,
+        pretrain_steps=150,
+        joint_epochs=2,
+        joint_steps=300,
+        total_steps=450,
+        pretrain_truth="not_loaded_nan_sentinel",
+        transition="student_teacher_centers_optimizer_moments_retained",
+        joint_teacher_centers="continuously_updated",
+        learning_rate_clocks="separate_prefix_and_joint_endpoint_cosines",
+        auxiliary_warmup_clock="global_successful_updates",
+        sampler_epochs="prefix_local_then_joint_local",
+        view_rng="continuous_checkpointed_not_baseline_replay",
+    )
+    if staged != expected:
+        raise ValueError("R9 staged protocol or budget changed")
+    bound = cr_parent_binding(
+        parent,
+        comparable,
+        arm="R6-EMA99",
+        config=config,
+        parent_path=parent_path,
+        parent_sha256=parent_sha256,
+    )
+    bound["data"] = copy.deepcopy(training_identity["data"])
+    binding = bound["training_protocol_binding"]
+    binding["arm"] = arm
+    binding["changed_fields"].append("data.loss_protocol.staged_training")
+    binding["previous_values"]["staged_training"] = None
+    binding["training_values"]["staged_training"] = expected
+    return bound
+
+
 def pt1_parent_binding(parent, training_identity, *, parent_path, parent_sha256):
     """Adapt only PT1's declared phase metadata, retaining every sampling field.
 
@@ -556,6 +612,12 @@ def execute(
     )
 
     q = read(queue_path)
+    if q.get("family") == RS9_SCHEMA and endpoint_root is None:
+        if checkpoint_role != "last" or shared_manifest is not None or repair_output is not None:
+            raise ValueError("R9 requires both sealed endpoints")
+        from run_staged_joint_medium import execute as execute_staged_joint
+
+        return execute_staged_joint(queue_path, arm)
     if q.get("family") == PT2_SCHEMA and endpoint_root is None:
         if checkpoint_role != "last" or shared_manifest is not None:
             raise ValueError("PT2 dual-endpoint scope cannot be replaced by a single endpoint")
@@ -564,7 +626,7 @@ def execute(
         return execute_pt2(queue_path, arm, repair_output=repair_output)
     if (
         checkpoint_role != "last" or endpoint_root is not None or shared_manifest is not None
-    ) and q.get("family") != PT2_SCHEMA:
+    ) and q.get("family") not in (PT2_SCHEMA, RS9_SCHEMA):
         raise ValueError("additional diagnostic endpoints are scoped to PT2")
     if arm not in FAMILY_ARMS.get(q.get("family"), {}):
         raise ValueError("medium postfit work is limited to the authorized new family")
@@ -670,9 +732,12 @@ def execute(
             "R6-EMA99",
             "R7-S1D05",
             "R8-CR0",
+            "R9-SSL1J2",
         ):
             bind_parent = (
-                cr_parent_binding
+                staged_joint_parent_binding
+                if arm == "R9-SSL1J2"
+                else cr_parent_binding
                 if arm in ("R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05", "R8-CR0")
                 else au_parent_binding
                 if arm in ("R3-AUB", "R3-AUS")
@@ -690,7 +755,16 @@ def execute(
                 **(
                     {"arm": arm, "config": plan["config"]}
                     if arm
-                    in ("R3-AUB", "R3-AUS", "R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05", "R8-CR0")
+                    in (
+                        "R3-AUB",
+                        "R3-AUS",
+                        "R4-CR",
+                        "R5-PROJ",
+                        "R6-EMA99",
+                        "R7-S1D05",
+                        "R8-CR0",
+                        "R9-SSL1J2",
+                    )
                     else ({"arm": arm} if arm in ("U24", "MR1", "P1") else {})
                 ),
             )

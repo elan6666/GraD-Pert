@@ -607,7 +607,7 @@ class V2Options:
             or self.loss_reduction != "row_mean"
             or self.ssl2_koleo
             or self.population_response
-            or self.training_mode != "joint"
+            or self.training_mode not in ("joint", "ssl_then_joint")
             or self.max_conditions == 1
         ):
             raise ValueError(
@@ -633,17 +633,18 @@ class V2Options:
             or self.loss_reduction != "row_mean"
             or self.ssl2_koleo
             or self.population_response
-            or self.training_mode != "joint"
+            or self.training_mode not in ("joint", "ssl_then_joint")
             or self.max_conditions == 1
         ):
             raise ValueError(
                 "AU requires mixed joint SSL2, row_mean, and disabled KoLeo/population loss"
             )
-        if self.training_mode not in ("joint", "ssl_then_mse"):
+        if self.training_mode not in ("joint", "ssl_then_mse", "ssl_then_joint"):
             raise ValueError("unknown v2 training mode")
         if type(self.ssl_pretrain_epochs) is not int or (
             self.ssl_pretrain_epochs < 0
-            or (self.training_mode == "ssl_then_mse") != bool(self.ssl_pretrain_epochs)
+            or (self.training_mode in ("ssl_then_mse", "ssl_then_joint"))
+            != bool(self.ssl_pretrain_epochs)
         ):
             raise ValueError("two-stage training needs an explicit pretraining epoch budget")
         if (

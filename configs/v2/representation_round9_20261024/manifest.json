@@ -1,0 +1,205 @@
+{
+  "schema": "representation-round9-staged-joint-medium-1",
+  "family": "representation_round9_20261024",
+  "priority": [
+    "R9-SSL1J2"
+  ],
+  "preflight_priority": [
+    "R9-SSL1J2"
+  ],
+  "common_microbatch": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 320,
+  "epochs": 3,
+  "seed": 1,
+  "eval_batch": 128,
+  "validation": "disabled",
+  "postfit_validation": true,
+  "test_timing": "after_research_design_lock",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "initialization": "from_scratch; unchanged RI architecture and seed; no checkpoint resume",
+  "analysis": "same sealed medium population plus a separate fixed-panel training probe",
+  "baseline": {
+    "config": "configs/v2/fgpo_node0_20261016_b320/B0/gradpert_v2/nadig_jurkat.yaml",
+    "sha256": "80f5ee1d6c4d826d9d2c023f304c08f1734b5a05acd28d565f7053e367117830"
+  },
+  "schedule_semantics": {
+    "lr": "independent endpoint cosine prefix150 and joint300; joint300 equals original R6",
+    "ema": "constant 0.99 at every successful optimizer update; unchanged native cosine formula with equal teacher_start and teacher_end",
+    "comparison": "450 total updates (+50%); 300 prediction-supervised updates as original R6",
+    "sampler_epochs": [
+      0,
+      0,
+      1
+    ],
+    "view_rng": "continuous_checkpointed_not_baseline_replay",
+    "teacher_centers_optimizer": "continuous; no reset at boundary",
+    "auxiliary_warmup": "global completed-update clock; once at start"
+  },
+  "fixed_panel_diagnostics": {
+    "split": "train",
+    "conditions": 32,
+    "controls_per_condition": 4,
+    "query_genes": 1000,
+    "deep_gene_sample": 128,
+    "panel": "one fixed allowed training-expression panel shared by all arms and conditions",
+    "pairing": [
+      "same_condition_different_control",
+      "different_condition_same_control"
+    ],
+    "stratification": [
+      "cell_line",
+      "cell_type",
+      "context_id"
+    ],
+    "identity": "reuse sealed medium condition/row identities where eligible; seal the extra probe separately",
+    "independence": "deduplicate controls; report actual valid counts; do not replace missing rows silently",
+    "stages": "Response injection input, branch and actual state; self/cross/FFN; final norm",
+    "state_updates": false,
+    "persist_full_activations": false
+  },
+  "research_iteration": {
+    "round": 9,
+    "authorized_rounds": null,
+    "future_rounds": "redesign from evidence until task-relevant representation is improved",
+    "design_evidence": [
+      "train",
+      "validation"
+    ],
+    "test_results_for_selection": false,
+    "success": "joint representation separation and response utility; not CE or DINO rank alone",
+    "stage_review_after_round": 9,
+    "hypothesis": "an SSL prefix may mature Teacher geometry before prediction; utility remains required",
+    "continuation_authority": "user-authorized ongoing representation-resolution loop, reaffirmed 2026-10-24; continue from evidence until resolved or explicitly paused, without expanding scope"
+  },
+  "rerun_old_BR_or_officials": false,
+  "reused_controls": [
+    "R3-RI",
+    "R3-AUB",
+    "R3-AUS",
+    "R4-CR",
+    "R5-PROJ",
+    "R6-EMA99",
+    "R7-S1D05",
+    "R8-CR0"
+  ],
+  "repeat_baseline": false,
+  "coefficient_decision": {
+    "weights": {
+      "au_alignment_weight": 0.05,
+      "au_uniformity_weight": 0.0,
+      "au_temperature": 2.0,
+      "au_warmup_steps": 30,
+      "cr_weight": 4e-05,
+      "cr_epsilon_squared": 0.05,
+      "cr_warmup_steps": 30,
+      "population_aux_space": "ssl2_cls_bottleneck",
+      "teacher_end": 0.99,
+      "training_mode": "ssl_then_joint",
+      "ssl_pretrain_epochs": 1
+    },
+    "parent_arm": "R6-EMA99",
+    "unchanged_lambda1": 1.0,
+    "unchanged_lambda2": {
+      "value": 1.0,
+      "source": "user_locked"
+    },
+    "evidence": {
+      "parent_training_commit": "8a78218424802f1fab01be2b8b134d120c91dd71",
+      "parent_config": "configs/v2/representation_round6_20261024/R6-EMA99/gradpert_v2/nadig_jurkat.yaml",
+      "parent_config_sha256": "ffda3bd855a6eaa2d9417dfb90ca3878a9947c2d4944900a78dd1bac9450bf8a",
+      "parent_run_id": "nadig_jurkat-seed1-20261023T210003Z-5435b634f57449a384fe0b2af01ef692",
+      "parent_checkpoint_role": "last",
+      "parent_checkpoint_epoch": 2,
+      "parent_checkpoint_sha256": "610eb0c6058870e13eb226cfe037d1899af5841ec452fc2fbbf813eb6ae0ceab"
+    }
+  },
+  "coding_rate": {
+    "representation": "existing Student ssl2_cls.features 256-dimensional bottleneck before L2 and prototypes",
+    "formula": "mean_views(-0.5*logdet(I+d/(N*epsilon_squared)*U.T@U))",
+    "normalization": "auxiliary FP64 L2; uncentered second moment; main tensors unchanged",
+    "population": "full deduplicated effective batch across ranks and microbatches",
+    "limitations": [
+      "ordinary projector retains backbone gradients; no gradient isolation",
+      "same coefficients do not imply matched gradient dose across spaces",
+      "projector-only high rank is not task-relevant representation success",
+      "full-population CR can reward context differences; not official SimDINO replication"
+    ],
+    "partial_diagnostics": "unavailable; training loss requires full population"
+  },
+  "teacher_tracking": {
+    "parent": {
+      "teacher_start": 0.99,
+      "teacher_end": 0.99
+    },
+    "candidate": {
+      "teacher_start": 0.99,
+      "teacher_end": 0.99
+    },
+    "implementation": "existing lifecycle cosine and successful-step commit_statistics",
+    "center_temperature_prototypes": "unchanged R6, continuously updated across450 steps",
+    "training_views": "native R6 views; continuous checkpointed RNG",
+    "native_source_baseline_commit": "19b266ce43c63868478894753232c403814f2172",
+    "limits": [
+      "450 total updates versus R6 300; not budget matched",
+      "one seed; prefix rank or lower CE alone does not establish scientific success",
+      "global auxiliary warmup is continuous; joint start dose differs from R6"
+    ],
+    "native_source_git_tree_path": "src"
+  },
+  "diagnostic_endpoints": {
+    "pretrain": {
+      "role": "pretrain",
+      "epoch": 1,
+      "training_stage": "ssl_pretrain"
+    },
+    "last": {
+      "role": "last",
+      "epoch": 3,
+      "training_stage": "joint"
+    }
+  },
+  "scientific_complete": false,
+  "staged_joint": {
+    "mode": "ssl_then_joint",
+    "pretrain_epochs": 1,
+    "joint_epochs": 2,
+    "pretrain_steps": 150,
+    "joint_steps": 300,
+    "total_steps": 450,
+    "prefix_prediction": "disabled; untrained readout is diagnostic only",
+    "prefix_regularizers": "R6 SSL1+SSL2+A=.05/U=0/CR=.00004; explicit design interpretation",
+    "final_validation_conditions": 445,
+    "final_validation_metrics": 18,
+    "dual_endpoint_medium": "one physical manifest",
+    "dual_endpoint_panel": "one fixed32x4 panel",
+    "total_budget_matched": false,
+    "baseline_initialization": false
+  },
+  "rows": [
+    {
+      "name": "R9-SSL1J2",
+      "config": "configs/v2/representation_round9_20261024/R9-SSL1J2/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "e486b1d2d8ee671b14379659af88e2914174f460965271aaf8c527a20f664dd1",
+      "changes": {
+        "au_alignment_weight": 0.05,
+        "au_uniformity_weight": 0.0,
+        "au_temperature": 2.0,
+        "au_warmup_steps": 30,
+        "cr_weight": 4e-05,
+        "cr_epsilon_squared": 0.05,
+        "cr_warmup_steps": 30,
+        "population_aux_space": "ssl2_cls_bottleneck",
+        "teacher_end": 0.99,
+        "training_mode": "ssl_then_joint",
+        "ssl_pretrain_epochs": 1
+      }
+    }
+  ]
+}

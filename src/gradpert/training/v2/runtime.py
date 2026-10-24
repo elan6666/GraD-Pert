@@ -98,7 +98,7 @@ class Runtime:
     ) -> Generator[TrainingBatch, None, None]:
         if self.purpose != "training":
             raise RuntimeError("evaluation runtime cannot enter training")
-        staged = self.options.training_mode == "ssl_then_mse"
+        staged = self.options.training_mode in ("ssl_then_mse", "ssl_then_joint")
         pretraining = staged and (
             not self.objective.prediction_enabled
             if diagnostic
@@ -107,11 +107,16 @@ class Runtime:
         self.data.control_only_training = pretraining
         options = (
             replace(self.options, lambda1=0.0, lambda2=0.0)
-            if staged and not pretraining
+            if self.options.training_mode == "ssl_then_mse" and not pretraining
             else self.options
         )
+        sampler_epoch = (
+            max(0, epoch - self.options.ssl_pretrain_epochs)
+            if self.options.training_mode == "ssl_then_joint" and not pretraining
+            else epoch
+        )
         for raw in self.data.iter_train_epoch(
-            epoch=epoch,
+            epoch=sampler_epoch,
             device=device,
             batch_size=self.batch_size,
             max_unique_conditions=(
@@ -343,16 +348,23 @@ def prepare_runtime(
                 rank=config.continuation.lora_rank,
                 alpha=config.continuation.lora_alpha,
             )
-        from .staged import StagedObjective
+        from .staged import SSLThenJointObjective, StagedObjective
 
-        staged = options.training_mode == "ssl_then_mse"
+        staged = options.training_mode in ("ssl_then_mse", "ssl_then_joint")
         if staged and (
             config.continuation is not None
             or options.validation_mode != "disabled"
             or not 0 < options.ssl_pretrain_epochs < int(config.training.max_epochs.value)
         ):
             raise ValueError("staged training needs a fresh train-only budget with both stages")
-        objective = (StagedObjective if staged else JointObjective)(
+        objective_type = (
+            SSLThenJointObjective
+            if options.training_mode == "ssl_then_joint"
+            else StagedObjective
+            if staged
+            else JointObjective
+        )
+        objective = objective_type(
             student,
             lambda1=options.lambda1,
             lambda2=options.lambda2,
@@ -400,7 +412,13 @@ def prepare_runtime(
                     "pretrain_steps": options.ssl_pretrain_epochs
                     * data.steps_per_epoch(
                         batch_size=int(config.training.train_batch_size.value),
-                        max_unique_conditions=options.max_conditions,
+                        max_unique_conditions=(
+                            0
+                            if options.max_conditions == 0
+                            else min(
+                                options.max_conditions, int(config.training.train_batch_size.value)
+                            )
+                        ),
                     )
                 }
                 if staged
@@ -473,6 +491,27 @@ def prepare_runtime(
                 "pretrain_truth": "not_loaded_nan_sentinel",
                 "transition": "student_retained_optimizer_moments_reset",
                 "finetune_teacher_centers": "frozen_unused",
+            }
+        if isinstance(objective, SSLThenJointObjective):
+            joint_epochs = int(config.training.max_epochs.value) - options.ssl_pretrain_epochs
+            identity["loss_protocol"]["staged_training"] = {
+                "mode": options.training_mode,
+                "pretrain_epochs": options.ssl_pretrain_epochs,
+                "pretrain_steps": objective.pretrain_steps,
+                "joint_epochs": joint_epochs,
+                "joint_steps": objective.pretrain_steps
+                * joint_epochs
+                // options.ssl_pretrain_epochs,
+                "total_steps": objective.pretrain_steps
+                * int(config.training.max_epochs.value)
+                // options.ssl_pretrain_epochs,
+                "pretrain_truth": "not_loaded_nan_sentinel",
+                "transition": "student_teacher_centers_optimizer_moments_retained",
+                "joint_teacher_centers": "continuously_updated",
+                "learning_rate_clocks": "separate_prefix_and_joint_endpoint_cosines",
+                "auxiliary_warmup_clock": "global_successful_updates",
+                "sampler_epochs": "prefix_local_then_joint_local",
+                "view_rng": "continuous_checkpointed_not_baseline_replay",
             }
         if objective.cr_enabled:
             identity["loss_protocol"]["coding_rate"] = {

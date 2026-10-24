@@ -53,6 +53,8 @@ from generate_representation_round7 import SCHEMA as RS7_SCHEMA
 from generate_representation_round7 import verify_manifest as verify_rs7_manifest
 from generate_representation_round8 import SCHEMA as RS8_SCHEMA
 from generate_representation_round8 import verify_manifest as verify_rs8_manifest
+from generate_representation_round9 import SCHEMA as RS9_SCHEMA
+from generate_representation_round9 import verify_manifest as verify_rs9_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -84,6 +86,7 @@ RESEARCH_FAMILIES = (
     RS6_SCHEMA,
     RS7_SCHEMA,
     RS8_SCHEMA,
+    RS9_SCHEMA,
 )
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
@@ -198,6 +201,7 @@ def verify_manifest(source: Path, manifest: Path) -> dict:
         RS6_SCHEMA: verify_rs6_manifest,
         RS7_SCHEMA: verify_rs7_manifest,
         RS8_SCHEMA: verify_rs8_manifest,
+        RS9_SCHEMA: verify_rs9_manifest,
         RS5_SCHEMA: verify_rs5_manifest,
         RS4_SCHEMA: verify_rs4_manifest,
         RS3_SCHEMA: verify_rs3_manifest,
@@ -449,6 +453,33 @@ def verify(queue: dict) -> None:
         raise ValueError("capacity bindings or unique fresh IDs changed")
 
 
+def validate_staged_joint_gate(gate: dict) -> None:
+    """Require real short engineering evidence for both R9 phases and retained state."""
+    checks = {
+        "phase_order",
+        "teacher_centers_continuously_updated",
+        "teacher_updated_in_both_phases",
+        "centers_updated_in_both_phases",
+        "prefix_keeps_ssl_and_aux",
+        "prefix_head_has_no_grad_or_moments",
+        "optimizer_never_reset",
+        "boundary_moments_retained",
+        "joint_keeps_ssl_prediction_and_aux",
+        "prediction_head_learned_only_in_joint",
+        "both_phase_resumes_exact",
+    }
+    if (
+        gate.get("mode") != "ssl_then_joint"
+        or gate.get("passed") is not True
+        or gate.get("formal_pretrain_steps") != 150
+        or gate.get("engineering_pretrain_steps") != 5
+        or gate.get("engineering_joint_steps") != 5
+        or set(gate.get("checks", {})) != checks
+        or any(value is not True for value in gate["checks"].values())
+    ):
+        raise ValueError("R9 needs exact prefix/joint continuous-state short preflight evidence")
+
+
 def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
     validate_preflight(row["plan"], entry)
     receipt = read_json(Path(entry["receipt"]))
@@ -487,8 +518,10 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
     ):
         raise ValueError("exact10 restore/inference/read-only joint-validation gate missing")
     if queue["family"] in LAST_ONLY_FAMILIES:
+        if queue["family"] == RS9_SCHEMA:
+            validate_staged_joint_gate(receipt.get("staged_training_gate", {}))
         if (
-            queue["family"] in (PT1_SCHEMA, PT2_SCHEMA)
+            queue["family"] in (PT1_SCHEMA, PT2_SCHEMA, RS9_SCHEMA)
             and receipt.get("staged_training_gate", {}).get("passed") is not True
         ):
             raise ValueError(
@@ -690,6 +723,15 @@ def expected_epochs(plan: dict) -> int:
     """Short research and staged budgets require exact frozen family configurations."""
     from generate_pt2 import configuration
 
+    if plan["resolved_config"]["training"]["max_epochs"]["value"] == 3:
+        source = Path(plan["repository_root"])
+        target = Path(plan["config"])
+        family = verify_rs9_manifest(source, target.parents[2] / "manifest.json")
+        if len([r for r in family["rows"] if source / r["config"] == target]) != 1 or plan[
+            "resolved_config"
+        ] != load_experiment_config(target).model_dump(mode="json"):
+            raise ValueError("three-epoch dispatch requires the exact sealed R9 family")
+        return 3
     if plan["resolved_config"]["training"]["max_epochs"]["value"] == 2:
         import yaml
         from generate_representation_round1 import configs

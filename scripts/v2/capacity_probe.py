@@ -15,6 +15,27 @@ from pathlib import Path
 from typing import Any
 
 
+def staged_joint_probe_lr(
+    schedule: Any, step: int, *, formal_pretrain_steps: int, formal_total_steps: int
+) -> dict[str, Any]:
+    """Map engineering5+5 updates onto the first five steps of each formal LR clock."""
+    if type(step) is not int or not 0 <= step < 10:
+        raise ValueError("staged-joint engineering LR requires updates0 through9")
+    if not 5 <= formal_pretrain_steps <= formal_total_steps - 5:
+        raise ValueError("both formal LR clocks require at least five updates")
+    prefix = step < 5
+    local_step = step if prefix else step - 5
+    horizon = formal_pretrain_steps if prefix else formal_total_steps - formal_pretrain_steps
+    return dict(
+        engineering_update=step + 1,
+        phase="ssl_pretrain" if prefix else "joint",
+        phase_local_step=local_step,
+        formal_global_step=local_step if prefix else formal_pretrain_steps + local_step,
+        formal_clock_horizon=horizon,
+        learning_rate=schedule.at_step(local_step, horizon)["learning_rate"],
+    )
+
+
 def state_fingerprint(value: Any) -> str:
     """Hash nested optimizer/RNG state exactly without holding a second model copy."""
     import numpy as np
@@ -87,6 +108,38 @@ def validation_state(runtime: Any) -> dict[str, str]:
             }
         ),
     }
+
+
+def staged_restore_fingerprint(runtime: Any, *, continuing_joint: bool) -> str:
+    """Retain historical full-state proof and bind R9 phase flags plus every RNG."""
+    full_state = (
+        runtime.objective.state_dict(),
+        runtime.optimizer.state_dict(),
+        runtime.generator.bit_generator.state,
+    )
+    if not continuing_joint:
+        return state_fingerprint(full_state)
+    objective = runtime.objective
+    return state_fingerprint(
+        dict(
+            full_state=full_state,
+            update_state=update_parity_state(runtime),
+            phase_flags={
+                name: getattr(objective, name)
+                for name in (
+                    "prediction_enabled",
+                    "teacher_updates_enabled",
+                    "decode_ssl_views",
+                    "training_stage",
+                    "pretrain_steps",
+                )
+            },
+            optimizer_phase=dict(
+                training_stage=runtime.optimizer.training_stage,
+                stage_reset_count=runtime.optimizer.stage_reset_count,
+            ),
+        )
+    )
 
 
 def inference_identity(evaluation: Any, draw: Any) -> dict[str, str]:
@@ -492,12 +545,13 @@ def main() -> None:
             if args.profile_last_update:
                 capture = ProfileCapture(runtime, args.output, rank)
             total_steps = int(config.training.max_epochs.value) * runtime.steps_per_epoch
-            staged_gate = runtime.options.training_mode == "ssl_then_mse"
-            if args.profile_pt1_stages and not staged_gate:
+            staged_joint = runtime.options.training_mode == "ssl_then_joint"
+            staged_gate = runtime.options.training_mode in ("ssl_then_mse", "ssl_then_joint")
+            if args.profile_pt1_stages and (not staged_gate or staged_joint):
                 raise ValueError("PT1 stage profiles require ssl_then_mse configuration")
             staged_profiles = []
             if args.reference_unused_ssl_decoder:
-                if not staged_gate or args.shared_queue:
+                if not staged_gate or staged_joint or args.shared_queue:
                     raise ValueError("unused-decoder reference is idle-GPU PT1 engineering only")
                 runtime.objective.decode_ssl_views = True
                 runtime.index.cache_full_context = False
@@ -508,15 +562,40 @@ def main() -> None:
             staged_resumes = []
             frozen_teacher = None
             initial_head = None
+            initial_training_state = validation_state(runtime) if staged_joint else None
+            continuous_moments = []
+            joint_terms_active = []
+            prefix_terms_active = []
+            prefix_head_inactive = []
+            staged_joint_lr_mapping = []
             if staged_gate:
+                formal_pretrain_steps = runtime.objective.pretrain_steps
                 if kind != "preflight_only" or args.steps != 10 or args.cpu_prefetch:
                     raise ValueError("PT1 engineering gate requires10 updates without CPU prefetch")
                 receipt["staged_training_gate"] = {
-                    "formal_pretrain_steps": runtime.objective.pretrain_steps,
+                    "formal_pretrain_steps": formal_pretrain_steps,
                     "engineering_pretrain_steps": 5,
-                    "engineering_mse_steps": 5,
+                    "engineering_joint_steps" if staged_joint else "engineering_mse_steps": 5,
+                    "mode": runtime.options.training_mode,
                     "passed": False,
                 }
+                if staged_joint:
+                    staged_joint_lr_mapping = [
+                        staged_joint_probe_lr(
+                            schedule,
+                            step,
+                            formal_pretrain_steps=formal_pretrain_steps,
+                            formal_total_steps=total_steps,
+                        )
+                        for step in range(10)
+                    ]
+                    receipt["staged_training_gate"]["learning_rate_clocks"] = dict(
+                        scope="engineering5plus5_first5_steps_of_each_formal_clock",
+                        formal_pretrain_steps=formal_pretrain_steps,
+                        formal_joint_steps=total_steps - formal_pretrain_steps,
+                        formal_total_steps=total_steps,
+                        mapping=staged_joint_lr_mapping,
+                    )
                 runtime.objective.pretrain_steps = 5
                 initial_head = state_fingerprint(runtime.objective.student.prediction.state_dict())
             receipt["data"] = runtime.identity
@@ -549,14 +628,14 @@ def main() -> None:
             schedule_hashes: list[str] = []
             for epoch_number in itertools.count():
                 identities = runtime.data.training_batch_identity_specs(
-                    epoch=epoch_number,
+                    epoch=0 if staged_joint and epoch_number == 1 else epoch_number,
                     batch_size=runtime.batch_size,
                     max_unique_conditions=runtime.options.max_conditions,
                 )[: min(remaining, 5) if staged_gate else remaining]
                 schedule_hashes.extend(
                     sha256_json(
                         {
-                            "epoch": epoch_number,
+                            "epoch": 0 if staged_joint and epoch_number == 1 else epoch_number,
                             "control": list(item.control_row_ids),
                             "truth": list(item.perturbed_row_ids),
                             "conditions": list(item.condition_ids),
@@ -602,12 +681,25 @@ def main() -> None:
                     torch.cuda.synchronize()
                     started = time.perf_counter()
                     timings: dict[str, float] = {}
+                    if staged_joint and step == 5:
+                        before = runtime.optimizer.state_dict()
+                        moments = state_fingerprint(
+                            {k: before[k] for k in ("muon", "adamw", "steps")}
+                        )
+                        runtime.objective.prepare_update(runtime.optimizer)
+                        after = runtime.optimizer.state_dict()
+                        continuous_moments.append(
+                            moments
+                            == state_fingerprint({k: after[k] for k in ("muon", "adamw", "steps")})
+                        )
                     terms = optimizer_step(
                         runtime.objective,
                         runtime.optimizer,
                         batch,
                         microbatch=runtime.options.microbatch,
-                        lr=runtime.options.finetune_learning_rate
+                        lr=staged_joint_lr_mapping[step]["learning_rate"]
+                        if staged_joint
+                        else runtime.options.finetune_learning_rate
                         if staged_gate and step >= 5
                         else schedule.at_step(step, total_steps)["learning_rate"],
                         momentum=runtime.options.teacher_end
@@ -656,6 +748,47 @@ def main() -> None:
                         if bool(batch.truth.isnan().all()) != expected_no_labels:
                             raise ValueError("PT1 pretraining numerical-label boundary changed")
                         staged_phases.append(phase)
+                        if staged_joint and phase == "ssl_pretrain":
+                            prefix_terms_active.append(
+                                all(
+                                    name in terms
+                                    for name in (
+                                        "ssl1_condition",
+                                        "ssl2_dino",
+                                        "au_weighted",
+                                        "cr_weighted",
+                                    )
+                                )
+                            )
+                            head_parameters = set(runtime.objective.student.prediction.parameters())
+                            routed_head = head_parameters | {
+                                part
+                                for parameter, parts in runtime.optimizer.views
+                                if parameter in head_parameters
+                                for part in parts
+                            }
+                            prefix_head_inactive.append(
+                                all(p.grad is None for p in head_parameters)
+                                and all(
+                                    p not in opt.state
+                                    for opt in (runtime.optimizer.muon, runtime.optimizer.adamw)
+                                    if opt is not None
+                                    for p in routed_head
+                                )
+                            )
+                        if staged_joint and phase == "joint":
+                            joint_terms_active.append(
+                                all(
+                                    name in terms
+                                    for name in (
+                                        "prediction",
+                                        "ssl1_condition",
+                                        "ssl2_dino",
+                                        "au_weighted",
+                                        "cr_weighted",
+                                    )
+                                )
+                            )
                         if step in (5, 10):
                             staged_states.append(dict(step=step, state=validation_state(runtime)))
                         if step == 5:
@@ -681,13 +814,7 @@ def main() -> None:
                     ):
                         path = args.output / "resume.pt"
                         before_restore = (
-                            state_fingerprint(
-                                (
-                                    runtime.objective.state_dict(),
-                                    runtime.optimizer.state_dict(),
-                                    runtime.generator.bit_generator.state,
-                                )
-                            )
+                            staged_restore_fingerprint(runtime, continuing_joint=staged_joint)
                             if staged_gate
                             else None
                         )
@@ -710,12 +837,8 @@ def main() -> None:
                             raise ValueError("capacity checkpoint resume progress mismatch")
                         receipt["resume_checkpoint_sha256"] = sha256_file(path)
                         if staged_gate:
-                            same = before_restore == state_fingerprint(
-                                (
-                                    runtime.objective.state_dict(),
-                                    runtime.optimizer.state_dict(),
-                                    runtime.generator.bit_generator.state,
-                                )
+                            same = before_restore == staged_restore_fingerprint(
+                                runtime, continuing_joint=staged_joint
                             )
                             staged_resumes.append(same)
                             if not same:
@@ -758,6 +881,35 @@ def main() -> None:
                     != state_fingerprint(runtime.objective.student.prediction.state_dict()),
                     "both_phase_resumes_exact": staged_resumes == [True, True],
                 }
+                if staged_joint:
+                    checks = {
+                        "phase_order": staged_phases == ["ssl_pretrain"] * 5 + ["joint"] * 5,
+                        "teacher_centers_continuously_updated": frozen_teacher != final_teacher,
+                        "teacher_updated_in_both_phases": all(
+                            a["teacher"] != b["teacher"]
+                            for a, b in zip(
+                                [initial_training_state, staged_states[0]["state"]],
+                                [staged_states[0]["state"], staged_states[1]["state"]],
+                                strict=True,
+                            )
+                        ),
+                        "centers_updated_in_both_phases": all(
+                            a["centers"] != b["centers"]
+                            for a, b in zip(
+                                [initial_training_state, staged_states[0]["state"]],
+                                [staged_states[0]["state"], staged_states[1]["state"]],
+                                strict=True,
+                            )
+                        ),
+                        "prefix_keeps_ssl_and_aux": prefix_terms_active == [True] * 5,
+                        "prefix_head_has_no_grad_or_moments": prefix_head_inactive == [True] * 5,
+                        "optimizer_never_reset": runtime.optimizer.stage_reset_count == 0,
+                        "boundary_moments_retained": continuous_moments == [True],
+                        "joint_keeps_ssl_prediction_and_aux": joint_terms_active == [True] * 5,
+                        "prediction_head_learned_only_in_joint": initial_head
+                        != state_fingerprint(runtime.objective.student.prediction.state_dict()),
+                        "both_phase_resumes_exact": staged_resumes == [True, True],
+                    }
                 receipt["staged_training_gate"].update(
                     checks=checks,
                     passed=all(checks.values()),
@@ -931,7 +1083,10 @@ def main() -> None:
                             i + 1 for i in range(start, end) if i in profiled_indices
                         ],
                     }
-                    for name, start, end in (("ssl_pretrain", 0, 5), ("mse_finetune", 5, 10))
+                    for name, start, end in (
+                        ("ssl_pretrain", 0, 5),
+                        ("joint" if staged_joint else "mse_finetune", 5, 10),
+                    )
                 }
             durations_measured = [
                 max(times)

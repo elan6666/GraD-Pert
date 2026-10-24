@@ -25,11 +25,15 @@ from generate_representation_round7 import ARMS as ROUND7_ARMS
 from generate_representation_round7 import SCHEMA as ROUND7_SCHEMA
 from generate_representation_round8 import ARMS as ROUND8_ARMS
 from generate_representation_round8 import SCHEMA as ROUND8_SCHEMA
+from generate_representation_round9 import ARMS as ROUND9_ARMS
+from generate_representation_round9 import ENDPOINTS as ROUND9_ENDPOINTS
+from generate_representation_round9 import SCHEMA as ROUND9_SCHEMA
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
 
 FAMILY_ARMS = {
+    ROUND9_SCHEMA: ROUND9_ARMS,
     SCHEMA: ARMS,
     ROUND2_SCHEMA: ROUND2_ARMS,
     ROUND3_SCHEMA: ROUND3_ARMS,
@@ -69,7 +73,7 @@ def context(queue, row):
     if read_json(root / "resolved_config.json") != plan["resolved_config"]:
         raise ValueError("training resolved config changed")
     training = validate_training_contract(plan)
-    if training["last"]["epoch"] != 2:
+    if training["last"]["epoch"] != (3 if queue.get("family") == ROUND9_SCHEMA else 2):
         raise ValueError("research requires exact two-epoch last")
     if (root / "COMPLETE.json").exists() or (root / "fit/last-test.json").exists():
         raise ValueError("research test must remain deferred until research design lock")
@@ -88,7 +92,7 @@ def validate_validation(queue, row):
     expected = {
         "training_run_root": str(Path(plan["run_root"]).resolve()),
         "checkpoint_sha256": training["last"]["sha256"],
-        "checkpoint_epoch": 2,
+        "checkpoint_epoch": 3 if queue.get("family") == ROUND9_SCHEMA else 2,
         "checkpoint_role": "last",
         "split": "val",
         "config_sha256": plan["config_sha256"],
@@ -126,6 +130,7 @@ def validate_validation(queue, row):
             if (
                 type(n) is not int
                 or type(total) is not int
+                or (queue.get("family") == ROUND9_SCHEMA and total != 445)
                 or not 0 <= n <= total
                 or (n == 0 and value is not None)
                 or (n > 0 and (value is None or not math.isfinite(value)))
@@ -190,16 +195,106 @@ def validate_outputs(root, outputs):
             raise ValueError("research artifact changed or escaped output root")
 
 
-def validate_panel(queue, row):
+def validate_staged_joint_teacher_signal(root, receipt, panel):
+    """R9 requires the sealed native Teacher signal observation at each endpoint."""
+    artifact = root / "teacher_signal.json"
+    record = receipt.get("outputs", {}).get("teacher_signal.json")
+    if (
+        receipt.get("diagnostic_mode") != "teacher_signal_audit"
+        or receipt.get("teacher_signal_input_mode") != "native_student_masked_teacher_clean"
+        or not isinstance(record, dict)
+        or not artifact.is_file()
+        or record.get("sha256") != sha256_file(artifact)
+        or record.get("bytes") != artifact.stat().st_size
+    ):
+        raise ValueError("R9 needs a sealed native Teacher signal artifact")
+    signal = read_json(artifact)
+    expected = dict(
+        schema="teacher-signal-localization-1",
+        status="completed",
+        updates=0,
+        encoder_recompute=0,
+        tolerance=2e-6,
+        active_head="ssl2_cls",
+    )
+    if (
+        any(signal.get(k) != v for k, v in expected.items())
+        or panel.get("conditions") != 32
+        or panel.get("rows") != 128
+        or len(panel["schedule"]) != 32
+        or any(len(group["rows"]) != 4 for group in panel["schedule"])
+        or any(
+            not signal.get(k)
+            for k in ("native_pairs", "pairs", "feature_pairs", "context_features", "sensitivity")
+        )
+    ):
+        raise ValueError("R9 Teacher signal schema or frozen32x4 scope is incomplete")
+    captures = signal.get("captures", [])
+    native_pairs = {(path, view) for path in ("SS", "TT") for view in ("global0", "global1")}
+    if len(captures) != len(panel["schedule"]):
+        raise ValueError("R9 Teacher signal capture count differs from the sealed panel")
+    for capture, group in zip(captures, panel["schedule"], strict=True):
+        parity = capture.get("parity", [])
+        if (
+            capture.get("rows") != len(group["rows"])
+            or capture.get("captured_globals_per_role") != 2
+            or capture.get("head_only_replays") != 8
+            or capture.get("encoder_recompute") != 0
+            or capture.get("native_head_calls") != {"student": 4, "teacher": 2}
+            or len(parity) != 4
+            or {(p.get("path"), p.get("view")) for p in parity} != native_pairs
+            or any(
+                not 0 <= p.get(k, float("inf")) <= 2e-6
+                for p in parity
+                for k in ("bottleneck_maxabs", "logits_maxabs")
+            )
+        ):
+            raise ValueError("R9 Teacher signal capture or native replay parity is incomplete")
+    paths = signal.get("paths", [])
+    expected_paths = {
+        (path, view, stage)
+        for path in ("SS", "ST", "TS", "TT")
+        for view in ("global0", "global1")
+        for stage in ("input", "bottleneck_pre_l2", "bottleneck_unit", "raw_logits")
+    }
+    if (
+        len(paths) != len(expected_paths)
+        or {(p.get("path"), p.get("view"), p.get("stage")) for p in paths} != expected_paths
+        or any(p.get("conditions") != 32 or p.get("rows") != 128 for p in paths)
+    ):
+        raise ValueError("R9 Teacher signal paths omit the frozen panel population")
+
+
+def validate_panel(queue, row, *, checkpoint_role=None):
     training = context(queue, row)
+    if queue.get("family") == ROUND9_SCHEMA and checkpoint_role is None:
+        endpoints = {
+            label: validate_panel(queue, row, checkpoint_role=spec["role"])
+            for label, spec in ROUND9_ENDPOINTS.items()
+        }
+        if len({value["panel_sha256"] for value in endpoints.values()}) != 1:
+            raise ValueError("R9 endpoints require identical fixed panels")
+        return {"endpoints": endpoints}
+    from checkpoint_endpoint import select_checkpoint
+
+    role = checkpoint_role or "last"
+    if queue.get("family") == ROUND9_SCHEMA:
+        cp, endpoint = select_checkpoint(Path(row["plan"]["run_root"]), role)
+    else:
+        if role != "last":
+            raise ValueError("additional panel endpoints require the sealed R9 family")
+        cp = training["last"]
+        endpoint = dict(role="last", epoch=2, training_stage="joint", full_training_epochs=2)
     root = Path(queue["output"]) / f"{row['name']}-panel"
+    if queue.get("family") == ROUND9_SCHEMA:
+        root = root / role
     receipt = read_json(root / "COMPLETE.json")
     expected = dict(
         status="completed",
         updates=0,
         method_sha=queue["source_commit"],
         run_id=row["plan"]["run_id"],
-        checkpoint_sha256=training["last"]["sha256"],
+        checkpoint_sha256=cp["sha256"],
         config_sha256=row["plan"]["config_sha256"],
         state_unchanged=True,
         parent_manifest=queue["medium_analysis"]["parent_manifest"],
@@ -219,8 +314,7 @@ def validate_panel(queue, row):
         read_json(root / "panel.json") != sealed_panel
         or receipt.get("panel_sha256") != sealed_panel["panel_sha256"]
         or receipt.get("panel_rows") != sealed_panel["rows"]
-        or receipt.get("checkpoint_endpoint")
-        != dict(role="last", epoch=2, training_stage="joint", full_training_epochs=2)
+        or receipt.get("checkpoint_endpoint") != endpoint
         or parity.get("used_path_passed") is not True
         or parity.get("tolerance") != 2e-6
         or parity.get("cell_chunk_used") is not False
@@ -231,6 +325,8 @@ def validate_panel(queue, row):
     ):
         raise ValueError("fixed-panel population, endpoint or numerical parity differs")
     validate_outputs(root, receipt["outputs"])
+    if queue.get("family") == ROUND9_SCHEMA:
+        validate_staged_joint_teacher_signal(root, receipt, sealed_panel)
     return {
         "receipt": str(root / "COMPLETE.json"),
         "sha256": sha256_file(root / "COMPLETE.json"),
@@ -238,7 +334,7 @@ def validate_panel(queue, row):
     }
 
 
-def panel_command(queue, row):
+def panel_command(queue, row, *, checkpoint_role="last"):
     plan, spec = row["plan"], queue["medium_analysis"]
     command = [
         sys.executable,
@@ -248,19 +344,23 @@ def panel_command(queue, row):
         "run-root": plan["run_root"],
         "config": plan["config"],
         "data-root": plan["data_root"],
-        "output": str(Path(queue["output"]) / f"{row['name']}-panel"),
+        "output": str(Path(queue["output"]) / f"{row['name']}-panel" / checkpoint_role)
+        if queue.get("family") == ROUND9_SCHEMA
+        else str(Path(queue["output"]) / f"{row['name']}-panel"),
         "method-sha": queue["source_commit"],
         "parent-manifest": spec["parent_manifest"],
         "parent-manifest-sha256": spec["parent_manifest_sha256"],
         "resource-queue": str(Path(queue["output"]) / "queue.json"),
         "resource-queue-sha256": sha256_file(Path(queue["output"]) / "queue.json"),
-        "checkpoint-role": "last",
+        "checkpoint-role": checkpoint_role,
         "conditions": "32",
         "controls": "4",
         "seed": "20261021",
     }
     for name, value in values.items():
         command.extend(["--" + name, value])
+    if queue.get("family") == ROUND9_SCHEMA:
+        command.append("--teacher-signal-audit")
     return command
 
 
@@ -273,7 +373,13 @@ def ssl_loss_contributions(history, config):
     rows = []
     for entry in history:
         terms = entry.get("training", {})
-        row = dict(epoch=entry["epoch"], prediction=terms.get("prediction"))
+        row = dict(
+            epoch=entry["epoch"],
+            prediction=terms.get("prediction"),
+            training_stage=entry.get(
+                "training_stage", entry.get("staged_training", {}).get("phase")
+            ),
+        )
         for stage, scale, components in (
             (1, options.lambda1, ("condition", "node", "spread")),
             (2, options.lambda2, ("dino", "ibot", "koleo")),
@@ -314,7 +420,7 @@ def render_medium_report(queue, row, root):
     history = read_json(Path(row["plan"]["run_root"]) / "fit/history.json")
     validation = read_json(validation_path(queue, row) / "COMPLETE.json")["result"]
     tables = {"training": [flatten(r) for r in history]}
-    if queue.get("family") in (ROUND7_SCHEMA, ROUND8_SCHEMA):
+    if queue.get("family") in (ROUND7_SCHEMA, ROUND8_SCHEMA, ROUND9_SCHEMA):
         tables["training_loss_contributions"] = ssl_loss_contributions(
             history, row["plan"]["config"]
         )
@@ -370,7 +476,7 @@ def render_medium_report(queue, row, root):
     fig.savefig(report / "representation.png", dpi=150)
     plt.close(fig)
     text = [
-        f"# {row['name']}：两轮表征研究\n",
+        f"# {row['name']}：冻结端点表征研究\n",
         "仅训练侧冻结诊断及训练后验证集评估；测试推迟至研究设计锁定，不作为选型依据。\n",
         f"训练源码：`{queue['source_commit']}`；配置：`{row['plan']['config_sha256']}`。\n",
         "中等诊断沿用原清单；额外固定基因面板独立存储，不替代历史可比统计。\n",
@@ -420,6 +526,13 @@ def render_medium_report(queue, row, root):
             "lambda1=1、lambda2=user_locked 1、恒定EMA=.99、A=.05与瓶颈作用点均保持。"
             "不重训R6；R7不是单因素父臂。历史中未计算的CR项保留NA，不以0冒充观测。"
             "原始SSL损失与实际加权贡献分列；几何或熵的变化不能替代预测效用。\n"
+        )
+        text.extend(
+            ["## training_loss_contributions\n", table(tables["training_loss_contributions"])]
+        )
+    if queue.get("family") == ROUND9_SCHEMA:
+        text.append(
+            "R9先150步无MSE，再300步持续联合；Teacher、centers和moments连续。总450步比R6多50%，监督仍300步；不是预算匹配。前缀readout未经训练，仅作诊断，不解释为预测效用；只有最后epoch3验证，测试仍推迟。\n"
         )
         text.extend(
             ["## training_loss_contributions\n", table(tables["training_loss_contributions"])]
@@ -480,29 +593,48 @@ def run_analysis(queue, row):
     medium = validate_medium_complete(queue, row)
     root = Path(queue["output"]) / f"{row['name']}-research"
     root.mkdir(exist_ok=False)
-    with (root / "panel.log").open("x") as log:
-        subprocess.run(
-            panel_command(queue, row),
-            cwd=queue["source"],
-            env=dict(
-                os.environ,
-                CUDA_VISIBLE_DEVICES="0",
-                CUBLAS_WORKSPACE_CONFIG=":4096:8",
-                OMP_NUM_THREADS="1",
-                OPENBLAS_NUM_THREADS="1",
-                PYTORCH_ALLOC_CONF="expandable_segments:True",
-                PYTHONPATH=str(Path(queue["source"]) / "src"),
-            ),
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            check=True,
-        )
+    roles = tuple(ROUND9_ENDPOINTS) if queue.get("family") == ROUND9_SCHEMA else ("last",)
+    for role in roles:
+        log_name = f"panel-{role}.log" if queue.get("family") == ROUND9_SCHEMA else "panel.log"
+        with (root / log_name).open("x") as log:
+            subprocess.run(
+                panel_command(queue, row, checkpoint_role=role)
+                if queue.get("family") == ROUND9_SCHEMA
+                else panel_command(queue, row),
+                cwd=queue["source"],
+                env=dict(
+                    os.environ,
+                    CUDA_VISIBLE_DEVICES="0",
+                    CUBLAS_WORKSPACE_CONFIG=":4096:8",
+                    OMP_NUM_THREADS="1",
+                    OPENBLAS_NUM_THREADS="1",
+                    PYTORCH_ALLOC_CONF="expandable_segments:True",
+                    PYTHONPATH=str(Path(queue["source"]) / "src"),
+                ),
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                check=True,
+            )
     panel = validate_panel(queue, row)
     (root / "REPORT_CN.md").write_text(
         f"# {row['name']} 研究结果索引\n\n"
-        f"[中等训练分析与验证](../{row['name']}-medium/report/REPORT_CN.md)\n\n"
-        f"[固定面板与逐层响应诊断](../{row['name']}-panel/COMPLETE.json)\n\n"
-        "研究阶段完成；独立测试尚未进行，下一轮由主会话依据训练/验证证据重新设计。\n"
+        + (
+            "".join(
+                f"[{label}中等分析](../{row['name']}-medium/{label}/report/REPORT_CN.md)\n\n"
+                for label in ROUND9_ENDPOINTS
+            )
+            if queue.get("family") == ROUND9_SCHEMA
+            else f"[中等训练分析与验证](../{row['name']}-medium/report/REPORT_CN.md)\n\n"
+        )
+        + (
+            "".join(
+                f"[{label}固定面板](../{row['name']}-panel/{label}/COMPLETE.json)\n\n"
+                for label in ROUND9_ENDPOINTS
+            )
+            if queue.get("family") == ROUND9_SCHEMA
+            else f"[固定面板与逐层响应诊断](../{row['name']}-panel/COMPLETE.json)\n\n"
+        )
+        + "研究阶段完成；独立测试尚未进行，下一轮由主会话依据训练/验证证据重新设计。\n"
     )
     atomic_json(
         root / "RESEARCH_COMPLETE.json",

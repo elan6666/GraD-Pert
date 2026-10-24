@@ -1,4 +1,4 @@
-"""Explicit self-distillation pretraining followed by prediction-only finetuning."""
+"""Explicit SSL prefixes followed by declared prediction training objectives."""
 
 from __future__ import annotations
 
@@ -65,3 +65,72 @@ class StagedObjective(JointObjective):
     @property
     def training_stage(self) -> str:
         return "mse_finetune" if self.prediction_enabled else "ssl_pretrain"
+
+
+class SSLThenJointObjective(JointObjective):
+    """Add prediction after an SSL prefix while retaining the complete training state."""
+
+    stage_phase: torch.Tensor
+
+    def __init__(self, *args: Any, pretrain_steps: int, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if type(pretrain_steps) is not int or pretrain_steps < 1:
+            raise ValueError("pretraining requires a positive successful-update budget")
+        if not self.lambda1 or not self.lambda2:
+            raise ValueError("staged joint training requires both self-distillation branches")
+        if self.population_response or self.auxiliary_mask_ratio or self.masked_response_ratio:
+            raise ValueError("staged mode cannot silently add other supervised objectives")
+        self.decode_ssl_views = False
+        self.pretrain_steps = pretrain_steps
+        self.register_buffer("stage_phase", torch.zeros((), dtype=torch.long))
+        self.register_load_state_dict_post_hook(self._restore_phase)  # type: ignore[no-untyped-call]
+        self._apply_phase(0)
+
+    def _apply_phase(self, phase: int) -> None:
+        if phase not in (0, 1):
+            raise ValueError("unknown staged-joint training phase")
+        self.prediction_enabled = bool(phase)
+        self.decode_ssl_views = bool(phase)
+        self.teacher_updates_enabled = True
+
+    def _restore_phase(self, module: torch.nn.Module, incompatible_keys: object) -> None:
+        self._apply_phase(int(self.stage_phase.item()))
+
+    def prepare_update(self, optimizer: V2Optimizer) -> None:
+        previous = optimizer.training_stage
+        phase = int(self.stage_phase.item())
+        if optimizer.stage_reset_count:
+            raise ValueError("staged joint optimizer must retain its moments")
+        if previous not in (None, "ssl_pretrain", "joint") or (
+            previous is None and optimizer.steps != 0
+        ):
+            raise ValueError("unknown or missing staged-joint optimizer phase")
+        if previous is not None and previous != self.training_stage:
+            raise ValueError("objective and optimizer training phases differ")
+        if optimizer.steps < self.pretrain_steps:
+            if phase:
+                raise ValueError("cannot rewind joint training into pretraining")
+        elif not phase:
+            if optimizer.steps != self.pretrain_steps:
+                raise ValueError("joint transition requires the exact prefix boundary")
+            phase = 1
+        self.stage_phase.fill_(phase)
+        self._apply_phase(phase)
+        optimizer.training_stage = self.training_stage
+
+    def completed_updates(self, steps: int) -> dict[str, int]:
+        """Report completed counts; the boundary checkpoint still belongs to SSL."""
+        if type(steps) is not int or steps < 0:
+            raise ValueError("invalid successful-update count")
+        return {
+            "global_successful_updates": steps,
+            "pretrain_successful_updates": min(steps, self.pretrain_steps),
+            "joint_successful_updates": max(0, steps - self.pretrain_steps),
+            "phase_successful_updates": (
+                max(0, steps - self.pretrain_steps) if self.prediction_enabled else steps
+            ),
+        }
+
+    @property
+    def training_stage(self) -> str:
+        return "joint" if self.prediction_enabled else "ssl_pretrain"

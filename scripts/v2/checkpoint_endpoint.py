@@ -12,7 +12,8 @@ def select_checkpoint(root: Path, role: str = "last") -> tuple[dict, dict]:
     config = json.loads((root / "resolved_config.json").read_text())
     journal = json.loads((root / "fit/epoch_state.json").read_text())
     parameters = config.get("model", {}).get("parameters", {})
-    staged = parameters.get("training_mode", {}).get("value") == "ssl_then_mse"
+    mode = parameters.get("training_mode", {}).get("value")
+    staged = mode in ("ssl_then_mse", "ssl_then_joint")
     total = config["training"]["max_epochs"]["value"]
     if role == "pretrain":
         if not staged:
@@ -22,7 +23,7 @@ def select_checkpoint(root: Path, role: str = "last") -> tuple[dict, dict]:
             raise ValueError("invalid pretraining checkpoint boundary")
         stage = "ssl_pretrain"
     elif role == "last":
-        epoch, stage = total, "mse_finetune" if staged else "joint"
+        epoch, stage = total, "mse_finetune" if mode == "ssl_then_mse" else "joint"
     else:
         raise ValueError("only last and retained pretrain checkpoints are diagnostic endpoints")
     cp = journal.get(role)

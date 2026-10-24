@@ -267,7 +267,8 @@ class TrainingConfig(StrictModel):
                         f"epoch{'s' if expected_epochs != 1 else ''} without early stopping"
                     )
                 final_only = (
-                    self.formal_run_policy in {"v2_fixed_6", "v2_fixed_4", "v2_fixed_2"}
+                    self.formal_run_policy
+                    in {"v2_fixed_6", "v2_fixed_4", "v2_fixed_3", "v2_fixed_2"}
                     and self.monitor == "none"
                     and self.monitor_mode == "none"
                 )
@@ -499,12 +500,13 @@ class ExperimentConfig(StrictModel):
                 disabled
                 and (
                     self.training.formal_run_policy
-                    not in {"v2_fixed_6", "v2_fixed_4", "v2_fixed_2"}
+                    not in {"v2_fixed_6", "v2_fixed_4", "v2_fixed_3", "v2_fixed_2"}
                     or self.continuation
                 )
             ):
                 raise ValueError(
-                    "disabled validation requires fresh fixed2/fixed4/fixed6 and monitor=none"
+                    "disabled validation requires fresh fixed2/fixed3/fixed4/fixed6 "
+                    "and monitor=none"
                 )
             if self.artifacts.result_mode != "metrics_only":
                 raise ValueError("v2 requires metrics_only with server-side best/last checkpoints")

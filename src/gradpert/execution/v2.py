@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, TypedDict, cast
 
 from gradpert.config import load_experiment_config
 from gradpert.config.step_schedule import EndpointLRWarmupCosine, load_training_schedule
@@ -79,6 +79,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     from gradpert.training.v2.joint_validation import evaluate_epoch_validation
     from gradpert.training.v2.lifecycle import (
         ConstantStageLR,
+        PretrainThenJointLR,
         PretrainThenMSELR,
         fit,
         test_selected,
@@ -245,6 +246,8 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             schedule=(
                 ConstantStageLR(config.continuation.learning_rate)
                 if config.continuation is not None
+                else PretrainThenJointLR(schedule, cast(int, runtime.objective.pretrain_steps))
+                if runtime.options.training_mode == "ssl_then_joint"
                 else PretrainThenMSELR(
                     schedule,
                     runtime.objective.pretrain_steps,

@@ -61,6 +61,30 @@ class PretrainThenMSELR:
         return {"learning_rate": self.finetune_learning_rate}
 
 
+@dataclass(frozen=True)
+class PretrainThenJointLR:
+    """Independent prefix and joint LR clocks with continuous optimizer moments."""
+
+    pretrain: EndpointLRWarmupCosine
+    pretrain_steps: int
+
+    def at_step(self, step: int, total_steps: int) -> dict[str, float]:
+        if (
+            type(step) is not int
+            or type(total_steps) is not int
+            or type(self.pretrain_steps) is not int
+            or not 0 < self.pretrain_steps < total_steps
+            or step < 0
+        ):
+            raise ValueError("both stages require a positive update budget")
+        # Validate both intervals before fitting, including the later joint clock.
+        self.pretrain.at_step(0, self.pretrain_steps)
+        self.pretrain.at_step(0, total_steps - self.pretrain_steps)
+        if step < self.pretrain_steps:
+            return self.pretrain.at_step(step, self.pretrain_steps)
+        return self.pretrain.at_step(step - self.pretrain_steps, total_steps - self.pretrain_steps)
+
+
 def _role_links(root: Path, journal: dict[str, Any]) -> None:
     for role in ("best", "last"):
         if journal[role] is None:
@@ -85,7 +109,7 @@ def fit(
     steps_per_epoch: int,
     batches: Callable[[int], Iterable[TrainingBatch]],
     validate: Callable[[], dict[str, Any]] | None,
-    schedule: EndpointLRWarmupCosine | ConstantStageLR | PretrainThenMSELR,
+    schedule: EndpointLRWarmupCosine | ConstantStageLR | PretrainThenMSELR | PretrainThenJointLR,
     teacher_start: float,
     teacher_end: float,
     microbatch: int,
@@ -125,6 +149,25 @@ def fit(
         or any(record.get("epoch") != index for index, record in enumerate(bootstrap_history, 1))
     ):
         raise ValueError("parent progress differs from the continuation budget")
+    from .staged import SSLThenJointObjective
+
+    staged_joint = isinstance(objective, SSLThenJointObjective)
+    if isinstance(objective, SSLThenJointObjective) and (
+        validate is not None
+        or not isinstance(schedule, PretrainThenJointLR)
+        or schedule.pretrain_steps != objective.pretrain_steps
+        or objective.pretrain_steps % steps_per_epoch
+        or not 0 < objective.pretrain_steps < epochs * steps_per_epoch
+    ):
+        raise ValueError("staged joint lifecycle requires its exact train-only phase clocks")
+
+    def staged_progress() -> dict[str, Any]:
+        return (
+            {"staged_training": objective.completed_updates(optimizer.steps)}
+            if isinstance(objective, SSLThenJointObjective)
+            else {}
+        )
+
     total = epochs * steps_per_epoch
     schedule.at_step(0, total)  # Reject invalid timing before writing run state.
     distributed = torch.distributed.is_initialized()
@@ -144,7 +187,11 @@ def fit(
         progress = load_checkpoint(
             root / "last.pt", objective, optimizer, identity=identity, generator=generator
         )
+        if staged_joint and progress.get("staged_training") != staged_progress()["staged_training"]:
+            raise ValueError("checkpoint staged successful-update counts differ")
         history = progress["history"]
+        if staged_joint and history and history[-1]["training_stage"] != objective.training_stage:
+            raise ValueError("checkpoint phase differs from its last completed epoch")
         if len(history) != journal["epoch"] or optimizer.steps != len(history) * steps_per_epoch:
             raise ValueError("checkpoint progress differs from committed epoch journal")
     elif journal_path.exists() or any(root.iterdir()):
@@ -158,7 +205,7 @@ def fit(
             objective,
             optimizer,
             identity=identity,
-            progress={"history": history},
+            progress={"history": history, **staged_progress()},
             generator=generator,
         )
         best = None
@@ -359,6 +406,14 @@ def fit(
             {
                 "epoch": epoch + 1,
                 "optimizer_steps": optimizer.steps,
+                **staged_progress(),
+                **(
+                    {"sampler_epoch": max(0, epoch - objective.pretrain_steps // steps_per_epoch)}
+                    if isinstance(objective, SSLThenJointObjective) and objective.prediction_enabled
+                    else {"sampler_epoch": epoch}
+                    if staged_joint
+                    else {}
+                ),
                 "training": {k: v / count for k, v in sums.items()},
                 "validation": validation,
                 **(
@@ -387,7 +442,7 @@ def fit(
             objective,
             optimizer,
             identity=identity,
-            progress={"history": history},
+            progress={"history": history, **staged_progress()},
             generator=generator,
         )
         selected = {

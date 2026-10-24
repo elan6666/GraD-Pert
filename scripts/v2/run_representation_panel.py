@@ -127,7 +127,8 @@ def panel_parent_binding(parent, identity, queue, args):
     from generate_representation_round6 import SCHEMA as EMA_SCHEMA
     from generate_representation_round7 import SCHEMA as DOSE_SCHEMA
     from generate_representation_round8 import SCHEMA as CR0_SCHEMA
-    from run_fgpo_medium import au_parent_binding, cr_parent_binding
+    from generate_representation_round9 import SCHEMA as JOINT_SCHEMA
+    from run_fgpo_medium import au_parent_binding, cr_parent_binding, staged_joint_parent_binding
 
     rows = [
         row
@@ -146,7 +147,16 @@ def panel_parent_binding(parent, identity, queue, args):
         or identity["source"]["commit"] != args.method_sha
     ):
         raise ValueError("panel queue/run/config binding differs")
-    if row["name"] in ("R3-AUB", "R3-AUS", "R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05", "R8-CR0"):
+    if row["name"] in (
+        "R3-AUB",
+        "R3-AUS",
+        "R4-CR",
+        "R5-PROJ",
+        "R6-EMA99",
+        "R7-S1D05",
+        "R8-CR0",
+        "R9-SSL1J2",
+    ):
         spec = queue["medium_analysis"]
         family = {
             "R4-CR": CR_SCHEMA,
@@ -154,6 +164,7 @@ def panel_parent_binding(parent, identity, queue, args):
             "R6-EMA99": EMA_SCHEMA,
             "R7-S1D05": DOSE_SCHEMA,
             "R8-CR0": CR0_SCHEMA,
+            "R9-SSL1J2": JOINT_SCHEMA,
         }.get(row["name"], SCHEMA)
         if (
             queue.get("family") != family
@@ -162,7 +173,9 @@ def panel_parent_binding(parent, identity, queue, args):
         ):
             raise ValueError("population auxiliary panel requires its exact original family parent")
         bind_parent = (
-            cr_parent_binding
+            staged_joint_parent_binding
+            if row["name"] == "R9-SSL1J2"
+            else cr_parent_binding
             if row["name"] in ("R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05", "R8-CR0")
             else au_parent_binding
         )
@@ -231,8 +244,16 @@ def execute(args):
 
         if getattr(args, "path_audit", False):
             raise ValueError("teacher signal and response path audits require separate outputs")
-        if (args.conditions, args.controls, args.checkpoint_role) != (32, 4, "last"):
-            raise ValueError("teacher signal audit requires the frozen 32 x 4 last panel")
+        from generate_representation_round9 import SCHEMA as JOINT_SCHEMA
+
+        signal_queue = read(args.resource_queue)
+        prefix = args.checkpoint_role == "pretrain" and signal_queue.get("family") == JOINT_SCHEMA
+        if (
+            (args.conditions, args.controls) != (32, 4)
+            or (args.checkpoint_role != "last" and not prefix)
+            or (prefix and clean_globals)
+        ):
+            raise ValueError("teacher signal audit requires frozen32x4 last or sealed R9 prefix")
         teacher_signal = TeacherSignalBank()
     path_audit = None
     if getattr(args, "path_audit", False):
