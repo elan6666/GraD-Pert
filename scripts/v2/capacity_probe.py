@@ -99,6 +99,14 @@ def inference_identity(evaluation: Any, draw: Any) -> dict[str, str]:
     }
 
 
+def update_parity_state(runtime: Any) -> dict[str, str]:
+    """Extend validation snapshots with all objective buffers and temperature clock."""
+    state = validation_state(runtime)
+    state["objective_buffers"] = state_fingerprint(dict(runtime.objective.named_buffers()))
+    state["temperature_updates"] = state_fingerprint(runtime.objective._temperature_updates)
+    return state
+
+
 def joint_validation_check(
     runtime: Any, *, batch_size: int, bf16: bool, on_batch_complete: Any = None
 ) -> dict[str, Any]:
@@ -170,6 +178,32 @@ def probe_policy(
     return (steps, 8, "capacity_only") if steps >= 128 else (steps, 2, "preflight_only")
 
 
+def validate_metric_scalar_mode(args: argparse.Namespace) -> None:
+    """Keep scalar-packing and state-hash experiments outside formal preflight."""
+    if not (args.metric_scalar_batch or args.record_update_state):
+        return
+    incompatible = (
+        "integration_only",
+        "shared_queue",
+        "profile_last_update",
+        "profile_pt1_stages",
+        "profile_memory",
+        "profile_operator_table",
+        "sync_phase_timing",
+        "cpu_prefetch",
+        "no_sequence_checkpoint",
+        "fused_sinkhorn",
+        "save_no_grad_sinkhorn",
+        "fused_gram",
+        "gram_io",
+        "aten_kda",
+        "reference_unused_ssl_decoder",
+        "joint_validation_check",
+    )
+    if not args.benchmark_only or any(getattr(args, name) for name in incompatible):
+        raise ValueError("metric scalars require an isolated unprofiled benchmark-only diagnostic")
+
+
 def main() -> None:
     process_started = time.perf_counter()
     parser = argparse.ArgumentParser(description=__doc__)
@@ -195,11 +229,17 @@ def main() -> None:
     parser.add_argument("--fused-gram", action="store_true")
     parser.add_argument("--gram-io", action="store_true")
     parser.add_argument("--aten-kda", action="store_true")
+    parser.add_argument("--metric-scalar-batch", action="store_true")
+    parser.add_argument("--record-update-state", action="store_true")
     parser.add_argument("--shared-queue", type=Path)
     parser.add_argument("--resource-owner-pid", type=int)
     parser.add_argument("--joint-validation-check", action="store_true")
     parser.add_argument("--reference-unused-ssl-decoder", action="store_true")
     args = parser.parse_args()
+    try:
+        validate_metric_scalar_mode(args)
+    except ValueError as error:
+        parser.error(str(error))
     if args.gram_io:
         if args.fused_gram:
             parser.error("choose one Gram implementation")
@@ -390,6 +430,8 @@ def main() -> None:
         "fused_gram_diagnostic_only": args.fused_gram,
         "gram_io_diagnostic_only": args.gram_io,
         "aten_kda_diagnostic_only": args.aten_kda,
+        "metric_scalar_batch_diagnostic_only": args.metric_scalar_batch,
+        "update_state_recording_diagnostic_only": args.record_update_state,
         "sequence_checkpoint_disabled_diagnostic_only": args.no_sequence_checkpoint,
         "joint_validation_check_requested": args.joint_validation_check,
         "hardware": environment_snapshot(torch),
@@ -531,6 +573,9 @@ def main() -> None:
                 runtime.generator.bit_generator.state
             )
             durations = []
+            update_states = []
+            if args.record_update_state:
+                update_states.append(dict(step=0, state=update_parity_state(runtime)))
             data_wait_seconds = []
             cells = []
             memory_samples = []
@@ -572,9 +617,16 @@ def main() -> None:
                         bf16=True,
                         global_condition_index=global_conditions,
                         timings=timings if args.sync_phase_timing else None,
+                        batch_metric_scalars=args.metric_scalar_batch,
                     )
                     torch.cuda.synchronize()
                     durations.append(time.perf_counter() - started)
+                    if args.record_update_state:
+                        # Deliberately outside the update timer. These parity runs
+                        # include state-copy overhead and are not speed evidence.
+                        update_states.append(
+                            dict(step=step + 1, state=update_parity_state(runtime), terms=terms)
+                        )
                     cells.append(global_cells)
                     memory_samples.append(
                         {
@@ -826,6 +878,7 @@ def main() -> None:
                 else [],
                 "all_update_seconds": durations,
                 "all_data_wait_seconds": data_wait_seconds,
+                "update_states": update_states,
                 "host": host_snapshot(),
                 "profile": profile_summary,
                 "staged_profiles": staged_profiles,

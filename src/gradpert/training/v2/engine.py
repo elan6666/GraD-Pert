@@ -12,6 +12,26 @@ from .optimizer import V2Optimizer
 from .reductions import gather_rows, nearest_neighbor_terms, population_weights
 
 
+def _metric_scalar_values(values: list[torch.Tensor]) -> list[float]:
+    """Copy one microbatch's detached metric values without narrowing precision."""
+    if not values:
+        return []
+    if any(
+        not isinstance(value, torch.Tensor)
+        or value.numel() != 1
+        or value.is_complex()
+        or value.device != values[0].device
+        for value in values
+    ):
+        # Preserve ordinary scalar conversion and its errors on unusual inputs.
+        return [float(value.detach()) for value in values]
+    return (
+        torch.stack([value.detach().reshape(()).to(dtype=torch.float64) for value in values])
+        .cpu()
+        .tolist()
+    )
+
+
 def slice_cells(batch: TrainingBatch, start: int, end: int) -> TrainingBatch:
     unique = batch.unique_cell_indices
     if unique is not None:
@@ -38,6 +58,7 @@ def optimizer_step(
     bf16: bool,
     global_condition_index: torch.Tensor | None = None,
     timings: dict[str, float] | None = None,
+    batch_metric_scalars: bool = False,
 ) -> dict[str, float]:
     """Accumulate cell terms; count graph terms once per effective update.
 
@@ -49,6 +70,7 @@ def optimizer_step(
     The legacy objective route retains its historical local neighborhoods.
     Distributed callers provide the unsharded condition index; graph terms
     remain once per global update, cell means are weighted by actual rank rows.
+    The opt-in benchmark flag batches only the microbatch term scalar copies.
     """
     if hasattr(objective, "prepare_update"):
         objective.prepare_update(optimizer)
@@ -278,8 +300,16 @@ def optimizer_step(
                 (loss * fraction * population_factor).backward(retain_graph=True)
             else:
                 (loss * fraction * population_factor).backward()
-            for name, value in terms.items():
-                metrics[name] = metrics.get(name, 0.0) + float(value.detach()) * fraction
+            if batch_metric_scalars:
+                scalar_values = _metric_scalar_values(list(terms.values()))
+                for (name, value), scalar in zip(  # noqa: B007
+                    terms.items(), scalar_values, strict=True
+                ):
+                    metrics[name] = metrics.get(name, 0.0) + scalar * fraction
+                del scalar_values
+            else:
+                for name, value in terms.items():
+                    metrics[name] = metrics.get(name, 0.0) + float(value.detach()) * fraction
             # Keep only CLS ancestor graphs for the deferred global KoLeo pass,
             # not projection-head losses or the main prediction graph.
             del loss, terms, value

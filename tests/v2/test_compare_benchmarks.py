@@ -74,6 +74,9 @@ def test_reports_two_replicates_and_recomputes_whole_step_rank_max():
         ("steps_completed", 4),
         ("kind", "profile_only"),
         ("sync_phase_timing", True),
+        ("profile_pt1_stages", True),
+        ("profile_operator_table", True),
+        ("update_state_recording_diagnostic_only", True),
         ("ordered_batch_schedule_sha256", "different"),
         ("measured_update_seconds", [1, 2, 3]),
     ],
@@ -113,6 +116,45 @@ def test_cpu_prefetch_factor_requires_identical_configs_and_only_expected_flags(
     payloads[1]["model"]["parameters"]["width"]["value"] = 128
     with pytest.raises(ValueError, match="configuration factor"):
         MODULE.validate_execution_factor(payloads, rows, "cpu_prefetch")
+
+
+def test_metric_scalar_factor_requires_explicit_abba_flags_and_identical_configs():
+    payloads = [{"model": {"parameters": {"width": {"value": 256}}}} for _ in range(2)]
+    rows = [receipt(10) for _ in range(4)]
+    for record, flag in zip(rows, (False, True, True, False), strict=True):
+        record["metric_scalar_batch_diagnostic_only"] = flag
+    MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "metric_scalar_batch")
+    with pytest.raises(ValueError, match="metric scalar execution"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "cpu_prefetch")
+    rows[2]["metric_scalar_batch_diagnostic_only"] = False
+    with pytest.raises(ValueError, match="metric scalar execution"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "metric_scalar_batch")
+
+
+@pytest.mark.parametrize(
+    "flag",
+    [
+        "gram_io_diagnostic_only",
+        "aten_kda_diagnostic_only",
+        "unused_ssl_decoder_reference",
+        "joint_validation_check_requested",
+    ],
+)
+def test_metric_scalar_rejects_hidden_reference_arm_overrides(flag):
+    payloads = [{"model": {"parameters": {}}} for _ in range(2)]
+    rows = [receipt(10) for _ in range(4)]
+    for record, enabled in zip(rows, (False, True, True, False), strict=True):
+        record["metric_scalar_batch_diagnostic_only"] = enabled
+    rows[0][flag] = True
+    with pytest.raises(ValueError, match="confounding override"):
+        MODULE.validate_execution_factor(copy.deepcopy(payloads), rows, "metric_scalar_batch")
+
+
+def test_state_copy_arrays_cannot_be_hidden_by_a_false_top_level_flag():
+    rows = [receipt(10) for _ in range(4)]
+    rows[0]["rank_measurements"][0]["update_states"] = [{"step": 0, "state": {}}]
+    with pytest.raises(ValueError, match="state copies"):
+        MODULE.summarize(rows)
 
 
 @pytest.mark.parametrize(

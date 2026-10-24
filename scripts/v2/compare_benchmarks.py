@@ -25,9 +25,21 @@ def summarize(receipts: list[dict[str, Any]]) -> dict[str, Any]:
     for role, record in zip(("A1", "B1", "B2", "A2"), receipts, strict=True):
         require(record["status"] == "passed", "incomplete benchmark")
         require(record["kind"] == "benchmark_only", "not an unprofiled benchmark")
+        require(
+            record.get("update_state_recording_diagnostic_only", False) is False,
+            "state-copy instrumentation is parity evidence, not a timing benchmark",
+        )
         require(record["steps_completed"] == record["steps_requested"], "partial benchmark")
-        for flag in ("profile_last_update", "profile_memory", "sync_phase_timing"):
-            require(record[flag] is False, "timing altered by profiler or diagnostic sync")
+        for flag in (
+            "profile_last_update",
+            "profile_memory",
+            "sync_phase_timing",
+            "profile_pt1_stages",
+            "profile_operator_table",
+        ):
+            require(
+                record.get(flag, False) is False, "timing altered by profiler or diagnostic sync"
+            )
         source = record["source"]
         require(
             source["dirty"] is False
@@ -58,6 +70,7 @@ def summarize(receipts: list[dict[str, Any]]) -> dict[str, Any]:
         reference_ranks = sorted(original["rank_measurements"], key=lambda x: x["rank"])
         require([r["rank"] for r in ranks] == [0, 1], "missing or duplicate rank")
         for rank, reference in zip(ranks, reference_ranks, strict=True):
+            require(not rank.get("update_states"), "state copies confound timing evidence")
             for key in ("physical_gpu", "view_generator_after_sha256"):
                 require(rank[key] == reference[key], f"different rank {key}")
             require(rank["profile"] is None, "profiled rank")
@@ -138,10 +151,28 @@ def validate_execution_factor(
             candidate is not None and candidate["value"] in {48, 64},
             "wrong sequence chunk candidate",
         )
-    elif factor not in {"cpu_prefetch", "fused_sinkhorn", "fused_gram", "teacher_no_grad_elision"}:
+    elif factor not in {
+        "cpu_prefetch",
+        "fused_sinkhorn",
+        "fused_gram",
+        "teacher_no_grad_elision",
+        "metric_scalar_batch",
+    }:
         raise ValueError("unsupported execution factor")
     require(payloads[0] == payloads[1], "more than one configuration factor changed")
     for record, candidate in zip(receipts, (False, True, True, False), strict=True):
+        for flag in (
+            "gram_io_diagnostic_only",
+            "aten_kda_diagnostic_only",
+            "unused_ssl_decoder_reference",
+            "joint_validation_check_requested",
+        ):
+            require(record.get(flag, False) is False, f"confounding override {flag}")
+        require(
+            record.get("metric_scalar_batch_diagnostic_only", False)
+            is (candidate if factor == "metric_scalar_batch" else False),
+            "wrong metric scalar execution flag",
+        )
         require(
             record.get("sequence_checkpoint_disabled_diagnostic_only", False) is False,
             "checkpoint override confounds benchmark",
@@ -196,6 +227,7 @@ def main() -> None:
             "fused_sinkhorn",
             "fused_gram",
             "teacher_no_grad_elision",
+            "metric_scalar_batch",
         ),
         default="relay_validate_once",
     )
