@@ -178,7 +178,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             RS13_SCHEMA: (verify_rs13_manifest, RS13_ARMS),
         }[family_schema]
         matrix = verifier(Path(queue["source"]), Path(queue["manifest"]))
-        if family_schema == RS3_SCHEMA:
+        if family_schema in (RS3_SCHEMA, RS13_SCHEMA):
             from run_br400_group import selected_matrix
 
             matrix = selected_matrix(matrix, queue.get("only_arms"))
@@ -188,7 +188,10 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             or [row["name"] for row in queue["rows"]] != list(arms)
             or queue.get("steps") != 10
             or args.cell_batch != matrix["eval_batch"]
-            or (family_schema != RS3_SCHEMA and queue.get("only_arms") is not None)
+            or (
+                family_schema not in (RS3_SCHEMA, RS13_SCHEMA)
+                and queue.get("only_arms") is not None
+            )
         ):
             raise ValueError("research evaluation requires the exact sealed family arm scope")
     rows = [row for row in queue["rows"] if row["name"] == args.row_name]
@@ -223,6 +226,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         RS9_SCHEMA,
         RS11_SCHEMA,
         RS12_SCHEMA,
+        RS13_SCHEMA,
     ):
         from gradpert.config import load_experiment_config
 
@@ -233,7 +237,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         expected_config = (Path(queue["source"]) / spec["config"]).resolve()
         if (
             (
-                queue["family"] in (RS9_SCHEMA, RS11_SCHEMA, RS12_SCHEMA)
+                queue["family"] in (RS9_SCHEMA, RS11_SCHEMA, RS12_SCHEMA, RS13_SCHEMA)
                 and ("resolved_config" not in plan or plan.get("source_commit") != source_commit)
             )
             or Path(plan["config"]).resolve() != expected_config

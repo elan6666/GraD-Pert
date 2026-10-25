@@ -372,6 +372,106 @@ def test_r13_queue_prepare_and_verify_bind_preflight_only(generated_r13_queue):
         runner.verify(bad)
 
 
+@pytest.mark.parametrize(
+    "selection", [["R13-SRAMP"], ["R13-SRAMPNC", "R13-SRAMPNC"], list(family.ARMS), []]
+)
+def test_r13_selection_never_repeats_fitted_arm(family_root, selection):
+    source, output = family_root
+    matrix = runner.verify_manifest(source, output / "manifest.json")
+    original = copy.deepcopy(matrix)
+    with pytest.raises(ValueError, match="untrained"):
+        runner.selected_matrix(matrix, selection)
+    assert matrix == original
+    selected = runner.selected_matrix(matrix, ["R13-SRAMPNC"])
+    assert selected["rows"] == [original["rows"][1]]
+    assert selected["priority"] == selected["preflight_priority"] == ["R13-SRAMPNC"]
+    assert matrix == original
+
+
+@pytest.fixture
+def singleton_r13_queue(generated_r13_queue):
+    q = generated_r13_queue
+    return runner.prepare(
+        Path(q["source"]),
+        Path(q["manifest"]),
+        Path(q["runtime"]),
+        Path(q["output"]).parent / "r13-nc-singleton",
+        q["shared_gpu_policy"],
+        only_arms=["R13-SRAMPNC"],
+        preflight_only=True,
+    )
+
+
+@pytest.mark.parametrize("gpu", ["0", "1"])
+def test_singleton_eval_scope_config_and_source_remain_strict(singleton_r13_queue, gpu):
+    from eval_batch_capacity import validate_eval_binding
+    from test_representation_round11 import r11_eval_args
+
+    q = singleton_r13_queue
+    runner.verify(q)
+    assert len(q["rows"]) == 1 and len(q["eval_bindings"]) == 2
+    args = r11_eval_args(q, gpu)
+    args.row_name = "R13-SRAMPNC"
+    args.output = Path(next(b["output"] for b in q["eval_bindings"] if b["gpu"] == gpu))
+    assert validate_eval_binding(q, args, q["source_commit"]) == q["rows"][0]
+    for bad_field, value in [("source_commit", "0" * 40), ("resolved_config", {})]:
+        bad = copy.deepcopy(q)
+        bad["rows"][0]["plan"][bad_field] = value
+        with pytest.raises(ValueError, match="manifest configuration"):
+            validate_eval_binding(bad, args, q["source_commit"])
+
+
+def test_singleton_promotion_seals_only_nc_and_never_repeats_sramp(
+    singleton_r13_queue, monkeypatch
+):
+    from gradpert.data._io import atomic_json, read_json
+
+    q = singleton_r13_queue
+    directory, calls = mock_preflight_runtime(q, monkeypatch)
+    runner.execute(q, directory, preflight_only=True)
+    ready = read_json(directory / "PREFLIGHT_COMPLETE.json")
+    assert ready["formal_order"] == ["R13-SRAMPNC"]
+    assert calls == ["preflight", "eval-capacity-g0", "eval-capacity-g1"]
+    atomic_json(directory / "MAIN_ACCEPTANCE.json", {**ready, "approved": True})
+    assert runner.validate_fit_promotion(q, directory, read_json(directory / "state.json")) == ready
+    with pytest.raises(RuntimeError, match="mock fit reached"):
+        runner.execute(q, directory, resume_fit=True)
+    assert calls[-1] == "fit" and len(calls) == 4
+
+
+def test_cli_accepts_only_named_nc_continuation(singleton_r13_queue, monkeypatch, tmp_path):
+    from gradpert.data._io import atomic_json
+
+    q = singleton_r13_queue
+    policy = tmp_path / "policy.json"
+    atomic_json(policy, q["shared_gpu_policy"])
+    captured = []
+    monkeypatch.setattr(runner, "prepare", lambda *a, **kw: captured.append((a, kw)))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "runner",
+            "--prepare",
+            "--preflight-only",
+            "--source",
+            q["source"],
+            "--manifest",
+            q["manifest"],
+            "--runtime",
+            q["runtime"],
+            "--output",
+            str(tmp_path / "new"),
+            "--shared-policy",
+            str(policy),
+            "--only-arms",
+            "R13-SRAMPNC",
+        ],
+    )
+    runner.main()
+    assert captured[0][1] == dict(only_arms=["R13-SRAMPNC"], preflight_only=True)
+
+
 @pytest.fixture
 def bound_calibration(tmp_path, monkeypatch):
     import calibrate_relative_amplitude as calibration

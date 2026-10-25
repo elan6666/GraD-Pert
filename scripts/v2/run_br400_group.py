@@ -121,6 +121,9 @@ def selected_matrix(matrix: dict, only_arms: list[str] | None) -> dict:
     if matrix["schema"] == RS3_SCHEMA:
         if only_arms not in (list(R3_CONTINUATION_ARMS), ["R3-AUS"]):
             raise ValueError("R3 continuation requires ordered R3-AUB, R3-AUS or singleton R3-AUS")
+    elif matrix["schema"] == RS13_SCHEMA:
+        if only_arms != ["R13-SRAMPNC"]:
+            raise ValueError("R13 continuation permits only the untrained SRAMPNC singleton")
     elif (
         matrix["schema"] != FGPO_SCHEMA
         or not only_arms
@@ -1101,7 +1104,9 @@ def validate_fit_promotion(queue, directory, state):
         raise ValueError(
             "R13 resume-fit requires the exact successful preflight-only terminal state"
         )
-    matrix = verify_manifest(Path(queue["source"]), Path(queue["manifest"]))
+    matrix = selected_matrix(
+        verify_manifest(Path(queue["source"]), Path(queue["manifest"])), queue.get("only_arms")
+    )
     common = validate_common_gates(queue, state)
     expected = dict(
         common_identity=common,
@@ -1442,7 +1447,9 @@ def main() -> None:
     parser.add_argument("--resume-fit", action="store_true")
     parser.add_argument("--eval-only-row", choices=("DP", "FN", "FG", "FB", "PO"))
     parser.add_argument(
-        "--only-arms", nargs="+", choices=(*PENDING_FGPO_ARMS, *R3_CONTINUATION_ARMS)
+        "--only-arms",
+        nargs="+",
+        choices=(*PENDING_FGPO_ARMS, *R3_CONTINUATION_ARMS, "R13-SRAMPNC"),
     )
     args = parser.parse_args()
     fields = ("source", "manifest", "runtime", "output", "shared_policy")
