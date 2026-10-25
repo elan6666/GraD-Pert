@@ -129,6 +129,8 @@ class JointObjective(nn.Module):
         spectral_cosine_weight: float = 0.0,
         spectral_softness: float = 0.25,
         spectral_warmup_steps: int = 30,
+        spectral_amplitude_target: float = 0.0225,
+        spectral_amplitude_weight: float = 0.0,
     ) -> None:
         super().__init__()
         if population_aux_space not in ("response_cls", "ssl2_cls_bottleneck"):
@@ -178,6 +180,8 @@ class JointObjective(nn.Module):
             ("rank_weight", spectral_rank_weight),
             ("cosine_weight", spectral_cosine_weight),
             ("target", spectral_rank_target),
+            ("amplitude_target", spectral_amplitude_target),
+            ("amplitude_weight", spectral_amplitude_weight),
         ):
             if (
                 isinstance(value, bool)
@@ -188,6 +192,7 @@ class JointObjective(nn.Module):
                 raise ValueError(f"invalid spectral {name}")
         if (
             not 0 < spectral_rank_target <= 1
+            or not 0 < spectral_amplitude_target <= 1
             or isinstance(spectral_softness, bool)
             or spectral_softness != 0.25
             or type(spectral_warmup_steps) is not int
@@ -199,7 +204,11 @@ class JointObjective(nn.Module):
         self.spectral_cosine_weight = spectral_cosine_weight
         self.spectral_softness = spectral_softness
         self.spectral_warmup_steps = spectral_warmup_steps
-        self.spectral_enabled = bool(spectral_rank_weight or spectral_cosine_weight)
+        self.spectral_amplitude_target = spectral_amplitude_target
+        self.spectral_amplitude_weight = spectral_amplitude_weight
+        self.spectral_enabled = bool(
+            spectral_rank_weight or spectral_cosine_weight or spectral_amplitude_weight
+        )
         if self.spectral_enabled and (
             not lambda2
             or loss_reduction != "row_mean"

@@ -250,13 +250,18 @@ def optimizer_step(
             )
             au_metrics["population_aux_weighted"] = float(weighted.detach())
         if getattr(objective, "spectral_enabled", False):
-            from .spectral_pair import spectral_pair
+            from .spectral_pair import SpectralAmplitudePairResult, spectral_pair
 
             result_spectral = spectral_pair(
                 values[0],
                 values[1],
                 target=objective.spectral_rank_target,
                 softness=objective.spectral_softness,
+                **(
+                    {"amplitude_target": objective.spectral_amplitude_target}
+                    if objective.spectral_amplitude_weight
+                    else {}
+                ),
             )
             warmup = (
                 min(1.0, optimizer.steps / objective.spectral_warmup_steps)
@@ -282,6 +287,27 @@ def optimizer_step(
                 spectral_max_rank=float(result_spectral.max_rank),
                 population_aux_weighted=float(weighted.detach()),
             )
+            if objective.spectral_amplitude_weight:
+                assert isinstance(result_spectral, SpectralAmplitudePairResult)
+                amplitude_weighted = (
+                    warmup * objective.spectral_amplitude_weight * result_spectral.amplitude
+                )
+                weighted = weighted + amplitude_weighted
+                au_metrics.update(
+                    spectral_amplitude=float(result_spectral.amplitude.detach()),
+                    spectral_amplitude_weighted=float(amplitude_weighted.detach()),
+                    spectral_amplitude_target=objective.spectral_amplitude_target,
+                    spectral_q_g0=float(result_spectral.q[0].detach()),
+                    spectral_q_g1=float(result_spectral.q[1].detach()),
+                    spectral_total_energy_g0=float(result_spectral.total_energies[0].detach()),
+                    spectral_total_energy_g1=float(result_spectral.total_energies[1].detach()),
+                    spectral_mean_energy_g0=float(result_spectral.mean_energies[0].detach()),
+                    spectral_mean_energy_g1=float(result_spectral.mean_energies[1].detach()),
+                    spectral_weighted=float(
+                        (rank_weighted + cosine_weighted + amplitude_weighted).detach()
+                    ),
+                    population_aux_weighted=float(weighted.detach()),
+                )
         if not torch.isfinite(weighted):
             raise FloatingPointError("nonfinite full-population auxiliary objective")
         # Every rank evaluates the same complete loss. Gather backward sums its

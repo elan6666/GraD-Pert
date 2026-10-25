@@ -414,6 +414,8 @@ def prepare_runtime(
             spectral_cosine_weight=options.spectral_cosine_weight,
             spectral_softness=options.spectral_softness,
             spectral_warmup_steps=options.spectral_warmup_steps,
+            spectral_amplitude_target=options.spectral_amplitude_target,
+            spectral_amplitude_weight=options.spectral_amplitude_weight,
             teacher_temperature_start=options.teacher_temperature_start,
             teacher_temperature_end=options.teacher_temperature_end,
             teacher_temperature_warmup_steps=(
@@ -570,6 +572,18 @@ def prepare_runtime(
                 "cosine": "same_input_two_globals_both_student_gradients",
                 "partial_diagnostics": "unavailable_requires_complete_global_population",
             }
+            if options.spectral_amplitude_weight:
+                identity["loss_protocol"]["spectral_pair"]["amplitude"] = {
+                    "target_q": options.spectral_amplitude_target,
+                    "weight": options.spectral_amplitude_weight,
+                    "formula": "mean_globals_relu_sqrt_target_minus_sqrt_q_plus_epsilon",
+                    "q": "centered_population_covariance_trace_over_mean_raw_squared_norm",
+                    "epsilon_q": 1e-8,
+                    "denominator_gradients": True,
+                    "statistics_dtype": "float64",
+                    "near_zero_total_energy_rejection": 1e-24,
+                    "q_roundoff": "64_D_eps64_tolerance_then_clamp_zero_one",
+                }
         if objective.cr_enabled:
             identity["loss_protocol"]["coding_rate"] = {
                 "weight": options.cr_weight,

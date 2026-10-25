@@ -6,7 +6,13 @@ import pytest
 import torch
 from torch.nn import functional as F
 
-from gradpert.training.v2.spectral_pair import _spectral_entropy, spectral_pair
+from gradpert.training.v2.spectral_pair import (
+    SpectralAmplitudePairResult,
+    SpectralPairResult,
+    _relative_variance,
+    _spectral_entropy,
+    spectral_pair,
+)
 
 
 def test_population_covariance_repeated_full_rank_analytic_value():
@@ -108,3 +114,112 @@ def test_zero_row_norm_rejected_and_outer_autocast_cannot_narrow_eigensolve():
     zero_row[0] = 0
     with pytest.raises(ValueError, match="row norms"):
         spectral_pair(zero_row, zero_row)
+
+
+def test_amplitude_analytic_relative_energy_and_fixed_epsilon():
+    x = torch.tensor([[3.0, 1], [3, -1], [4, 1], [4, -1]], dtype=torch.float64)
+    result = spectral_pair(x, 2 * x, amplitude_target=0.20)
+    assert isinstance(result, SpectralAmplitudePairResult)
+    torch.testing.assert_close(result.q, torch.full((2,), 1.25 / 13.5, dtype=torch.float64))
+    torch.testing.assert_close(result.total_energies, torch.tensor([13.5, 54.0]).double())
+    torch.testing.assert_close(result.mean_energies, torch.tensor([12.25, 49.0]).double())
+    torch.testing.assert_close(result.traces, result.total_energies - result.mean_energies)
+    assert result.amplitude.item() == pytest.approx(math.sqrt(0.20) - math.sqrt(1.25 / 13.5 + 1e-8))
+    legacy = spectral_pair(x, 2 * x)
+    assert type(legacy) is SpectralPairResult
+    assert not hasattr(legacy, "amplitude")
+
+
+def test_amplitude_gradcheck_both_globals_and_analytic_denominator_derivative():
+    torch.manual_seed(18)
+    x = (torch.randn(6, 3, dtype=torch.float64) + 8).requires_grad_()
+    y = (torch.randn(6, 3, dtype=torch.float64) - 9).requires_grad_()
+
+    def term(a, b):
+        result = spectral_pair(a, b, amplitude_target=0.0225)
+        assert isinstance(result, SpectralAmplitudePairResult)
+        return result.amplitude
+
+    assert torch.autograd.gradcheck(term, (x, y))
+    result = spectral_pair(x, y, amplitude_target=0.0225)
+    assert isinstance(result, SpectralAmplitudePairResult)
+    gradients = torch.autograd.grad(result.amplitude, (x, y))
+    for i, (z, gradient) in enumerate(zip((x, y), gradients, strict=True)):
+        centered = z - z.mean(0)
+        energy = z.square().sum(-1).mean()
+        variance = centered.square().sum(-1).mean()
+        dq = 2 * (centered * energy - variance * z) / (len(z) * energy.square())
+        expected = -dq / (4 * (result.q[i] + 1e-8).sqrt())
+        torch.testing.assert_close(gradient, expected, atol=2e-15, rtol=2e-12)
+        assert gradient.norm() > 0
+        # Detaching E would remove this exact scale-invariance orthogonality.
+        assert abs(float((gradient * z).sum().detach())) < 1e-14
+
+
+def test_amplitude_uniform_scale_invariance_and_shared_mean_sensitivity():
+    torch.manual_seed(19)
+    x, y = (torch.randn(7, 4, dtype=torch.float64) + 5 for _ in range(2))
+    original = spectral_pair(x, y, amplitude_target=0.20)
+    scaled = spectral_pair(0.03 * x, -7 * y, amplitude_target=0.20)
+    shifted = spectral_pair(x + 20, y + 20, amplitude_target=0.20)
+    assert isinstance(original, SpectralAmplitudePairResult)
+    assert isinstance(scaled, SpectralAmplitudePairResult)
+    assert isinstance(shifted, SpectralAmplitudePairResult)
+    torch.testing.assert_close(original.q, scaled.q, rtol=2e-13, atol=2e-15)
+    torch.testing.assert_close(original.amplitude, scaled.amplitude, rtol=2e-13, atol=2e-15)
+    torch.testing.assert_close(original.traces, shifted.traces, rtol=2e-13, atol=2e-13)
+    assert (shifted.q < original.q).all()
+    assert shifted.amplitude > original.amplitude
+
+
+def test_tiny_variance_epsilon_limit_does_not_invent_amplitude_or_rank_recovery():
+    x = (torch.ones(4, 2, dtype=torch.float64) + 1e-7 * torch.eye(4, 2)).requires_grad_()
+    result = spectral_pair(x, x, amplitude_target=0.0225)
+    assert isinstance(result, SpectralAmplitudePairResult)
+    assert (result.q < 1e-8).all()
+    expected = (math.sqrt(0.0225) - (result.q + 1e-8).sqrt()).mean()
+    torch.testing.assert_close(result.amplitude, expected, rtol=0, atol=0)
+    gradient = torch.autograd.grad(result.amplitude, x)[0]
+    assert torch.isfinite(gradient).all() and gradient.norm() > 0
+    with pytest.raises(ValueError, match="trace"):
+        spectral_pair(torch.ones_like(x), torch.ones_like(x), amplitude_target=0.0225)
+
+
+def test_inactive_amplitude_hinge_exact_zero_and_zero_gradient():
+    x = torch.cat((torch.eye(3), -torch.eye(3))).double().requires_grad_()
+    result = spectral_pair(x, x, amplitude_target=0.0225)
+    assert isinstance(result, SpectralAmplitudePairResult)
+    assert result.amplitude.item() == 0
+    torch.testing.assert_close(torch.autograd.grad(result.amplitude, x)[0], torch.zeros_like(x))
+
+
+@pytest.mark.parametrize("target", [True, -0.1, 0.0, 1.01, float("nan"), float("inf")])
+def test_amplitude_rejects_invalid_target(target):
+    with pytest.raises(ValueError, match="amplitude target"):
+        spectral_pair(torch.eye(3), torch.eye(3), amplitude_target=target)
+
+
+def test_relative_variance_rejects_invalid_energy_or_ratio_except_fp64_roundoff():
+    x = torch.ones(4, 3, dtype=torch.float64)
+    for tiny in (0.0, 1e-13, float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="total raw energy"):
+            _relative_variance(x * tiny, torch.eye(3, dtype=torch.float64))
+    for value in (-0.1, 1.1, float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="outside"):
+            _relative_variance(x, value * torch.eye(3, dtype=torch.float64))
+    q, _, _ = _relative_variance(x, -1e-16 * torch.eye(3, dtype=torch.float64))
+    assert q.item() == 0
+    q, _, _ = _relative_variance(x, (1 + 1e-15) * torch.eye(3, dtype=torch.float64))
+    assert q.item() == 1
+
+
+def test_active_amplitude_outer_autocast_remains_fp64_and_short_population_bound():
+    x = (torch.eye(3, 5) + 3).bfloat16().requires_grad_()
+    y = (torch.eye(3, 5) - 4).bfloat16().requires_grad_()
+    with torch.autocast("cpu", dtype=torch.bfloat16):
+        result = spectral_pair(x, y, amplitude_target=0.20)
+    assert isinstance(result, SpectralAmplitudePairResult)
+    assert result.amplitude.dtype == result.q.dtype == torch.float64
+    assert result.max_rank == 2
+    gradients = torch.autograd.grad(result.amplitude, (x, y))
+    assert all(torch.isfinite(g).all() and g.norm() > 0 for g in gradients)

@@ -489,6 +489,8 @@ class V2Options:
     spectral_cosine_weight: float = 0.0
     spectral_softness: float = 0.25
     spectral_warmup_steps: int = 30
+    spectral_amplitude_target: float = 0.0225
+    spectral_amplitude_weight: float = 0.0
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -588,6 +590,8 @@ class V2Options:
             "spectral_cosine_weight",
             "spectral_softness",
             "spectral_warmup_steps",
+            "spectral_amplitude_target",
+            "spectral_amplitude_weight",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -607,7 +611,13 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
-        for name in ("spectral_rank_weight", "spectral_cosine_weight", "spectral_rank_target"):
+        for name in (
+            "spectral_rank_weight",
+            "spectral_cosine_weight",
+            "spectral_rank_target",
+            "spectral_amplitude_target",
+            "spectral_amplitude_weight",
+        ):
             value = getattr(self, name)
             if (
                 isinstance(value, bool)
@@ -618,13 +628,18 @@ class V2Options:
                 raise ValueError(f"invalid spectral parameter: {name}")
         if (
             not 0 < self.spectral_rank_target <= 1
+            or not 0 < self.spectral_amplitude_target <= 1
             or isinstance(self.spectral_softness, bool)
             or self.spectral_softness != 0.25
             or type(self.spectral_warmup_steps) is not int
             or self.spectral_warmup_steps < 0
         ):
             raise ValueError("spectral target needs (0,1], softness .25, nonnegative warmup")
-        if (self.spectral_rank_weight or self.spectral_cosine_weight) and (
+        if (
+            self.spectral_rank_weight
+            or self.spectral_cosine_weight
+            or self.spectral_amplitude_weight
+        ) and (
             not self.lambda2
             or self.loss_reduction != "row_mean"
             or self.ssl2_koleo

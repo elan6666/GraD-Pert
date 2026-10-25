@@ -48,6 +48,8 @@ def diagnostic_objective(
     unavailable += ["cr_negative"] if cr else []
     terms = {key: value for key, value in terms.items() if key not in unavailable}
     unavailable += ["spectral_rank", "spectral_cosine"] if spectral else []
+    if getattr(objective, "spectral_amplitude_weight", 0):
+        unavailable.append("spectral_amplitude")
     suffix = "representation_terms" if au or cr or spectral else "koleo"
     return (
         loss,

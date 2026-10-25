@@ -168,6 +168,11 @@ def evaluate_loss_diagnostics(
                         "unavailable_weighted_gradient_l2": {
                             "spectral_rank": None,
                             "spectral_cosine": None,
+                            **(
+                                {"spectral_amplitude": None}
+                                if getattr(objective, "spectral_amplitude_weight", 0)
+                                else {}
+                            ),
                             "reason": "requires_complete_global_population",
                         }
                     }
@@ -318,6 +323,11 @@ def evaluate_ssl_diagnostics(
                 "unavailable_weighted_gradient_l2": {
                     "spectral_rank": None,
                     "spectral_cosine": None,
+                    **(
+                        {"spectral_amplitude": None}
+                        if getattr(objective, "spectral_amplitude_weight", 0)
+                        else {}
+                    ),
                     "reason": "requires_complete_global_population",
                 }
             }

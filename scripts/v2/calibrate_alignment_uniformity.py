@@ -164,6 +164,16 @@ def preserved_observer(runtime, seed):
             raise RuntimeError("calibration mutated forbidden state: " + ", ".join(changed))
 
 
+AMPLITUDE_PROFILE = "relative-amplitude-v1"
+AMPLITUDE_SCOPE = dict(
+    joint="original MSE+weighted_SSL1+weighted_SSL2; excludes population auxiliary terms",
+    amplitude="mean Globals linear hinge sqrt(.0225)-sqrt(centered_trace/raw_energy+1e-8)",
+    population="complete unique320; raw post-final-RMSNorm ResponseCLS; both denominator gradients",
+    rank="BAL target.20 weight.02 softness.25",
+    cosine="same-input Globals; base arms cosine.10 and0; both Student gradients",
+    coefficient="unselected unit amplitude; full-warmup diagnostic only; first update weight0",
+    interpretation="engineering-only raw shared-parameter gradients; no optimizer displacement",
+)
 SPECTRAL_PROFILE = "spectral-pair-v1"
 SPECTRAL_SCOPE = dict(
     joint="original MSE+weighted_SSL1+weighted_SSL2; excludes new spectral objectives",
@@ -200,14 +210,21 @@ def gradient_summary(banks, names, *, profile=None, activity=None):
     for group in (
         ("response", "graph", "cell", "prediction", "response_cls")
         if profile == MECHANISM_PROFILE
-        else ("response", "graph")
+        else (
+            ("response", "graph", "full") if profile == AMPLITUDE_PROFILE else ("response", "graph")
+        )
     ):
         indices = [
             i
             for i, name in enumerate(names)
-            if name == group
+            if group == "full"
+            or name == group
             or name.startswith(group + ".")
-            or (profile == SPECTRAL_PROFILE and group == "response" and name == "response_cls")
+            or (
+                profile in (SPECTRAL_PROFILE, AMPLITUDE_PROFILE)
+                and group == "response"
+                and name == "response_cls"
+            )
         ]
         if not indices and profile:
             continue
@@ -269,10 +286,11 @@ def calibrate_batch(
     from gradpert.training.v2.engine import slice_cells
     from gradpert.training.v2.reductions import population_weights
 
-    if profile not in (None, MECHANISM_PROFILE, SPECTRAL_PROFILE):
+    if profile not in (None, MECHANISM_PROFILE, SPECTRAL_PROFILE, AMPLITUDE_PROFILE):
         raise ValueError("unknown diagnostic profile")
-    mechanism = profile == MECHANISM_PROFILE
-    spectral = profile == SPECTRAL_PROFILE
+    amplitude = profile == AMPLITUDE_PROFILE
+    mechanism = profile == MECHANISM_PROFILE or amplitude
+    spectral = profile == SPECTRAL_PROFILE or amplitude
     obj, device = runtime.objective, runtime.device
     if (
         obj.loss_reduction != "row_mean"
@@ -293,7 +311,8 @@ def calibrate_batch(
         for name, p in obj.student.named_parameters()
         if p.requires_grad
         and (
-            name.startswith(("response.", "graph."))
+            amplitude
+            or name.startswith(("response.", "graph."))
             or (spectral and name == "response_cls")
             or (mechanism and (name == "response_cls" or name.startswith(("cell.", "prediction."))))
         )
@@ -302,13 +321,15 @@ def calibrate_batch(
     banks = {
         key: [torch.zeros_like(p, device="cpu", dtype=torch.float32) for p in params]
         for key in (
-            ("rank_bal", "rank_agg", "cosine", "MSE", "joint")
+            ("rank_bal", "cosine", "amplitude", "MSE", "joint")
+            if amplitude
+            else ("rank_bal", "rank_agg", "cosine", "MSE", "joint")
             if spectral
             else ("A", "U", "MSE", "joint")
         )
     }
     activity = {key: [False] * len(params) for key in banks}
-    if mechanism:
+    if mechanism and not amplitude:
         banks["CR"] = [torch.zeros_like(p, device="cpu", dtype=torch.float32) for p in params]
         activity["CR"] = [False] * len(params)
     n = len(batch.control)
@@ -359,9 +380,15 @@ def calibrate_batch(
         # an unexpected repeated input rather than silently reweighting it here.
         if len(z[0]) != n:
             raise ValueError("spectral calibration requires the complete unique population")
-        balanced = spectral_pair(*z, target=0.20)
-        aggressive = spectral_pair(*z, target=0.35)
-        scalars = dict(rank_bal=balanced.rank, rank_agg=aggressive.rank, cosine=balanced.cosine)
+        if amplitude:
+            balanced = spectral_pair(*z, target=0.20, amplitude_target=0.0225)
+            scalars = dict(
+                rank_bal=balanced.rank, cosine=balanced.cosine, amplitude=balanced.amplitude
+            )
+        else:
+            balanced = spectral_pair(*z, target=0.20)
+            aggressive = spectral_pair(*z, target=0.35)
+            scalars = dict(rank_bal=balanced.rank, rank_agg=aggressive.rank, cosine=balanced.cosine)
         derivatives = {
             label: torch.autograd.grad(value, z, retain_graph=True)
             for label, value in scalars.items()
@@ -463,7 +490,18 @@ def calibrate_batch(
             for p, g in zip(params, graph_gradients, strict=True)
         ]
         activity["SSL1"] = [g is not None for g in graph_gradients]
-    if spectral:
+    if amplitude:
+        for label, cosine_weight in (("base_cos010", 0.10), ("base_cos000", 0.0)):
+            coefficients = dict(joint=1.0, rank_bal=0.02, cosine=cosine_weight)
+            banks[label] = [
+                sum(c * banks[k][i] for k, c in coefficients.items()) for i in range(len(params))
+            ]
+            activity[label] = [
+                any(activity[k][i] for k, c in coefficients.items() if c)
+                for i in range(len(params))
+            ]
+            losses[label] = sum(c * losses[k] for k, c in coefficients.items())
+    if spectral and not amplitude:
         from generate_representation_round12 import STRENGTHS
 
         for arm, strength in STRENGTHS.items():
@@ -503,7 +541,14 @@ def calibrate_batch(
         updates=0,
     )
     if profile:
-        result.update(profile=profile, loss_scope=SPECTRAL_SCOPE if spectral else MECHANISM_SCOPE)
+        result.update(
+            profile=profile,
+            loss_scope=AMPLITUDE_SCOPE
+            if amplitude
+            else SPECTRAL_SCOPE
+            if spectral
+            else MECHANISM_SCOPE,
+        )
     if spectral:
         result["spectral"] = dict(
             rho=balanced.rho.detach().cpu().tolist(),
@@ -517,6 +562,14 @@ def calibrate_batch(
             weighted_warmup_scale=1.0,
             first_update_scale=0.0,
         )
+    if amplitude:
+        from calibrate_relative_amplitude import amplitude_statistics
+        from capacity_probe import state_fingerprint
+
+        result["relative_amplitude"] = amplitude_statistics(z, balanced, obj.student)
+        result["observation_rng_sha256"] = state_fingerprint(replay[0])
+        result["microbatch_rng_sha256"] = [state_fingerprint(state) for state in replay]
+        result["spectral"].pop("raw_rank_target_agg")
     if return_gradients:
         return result, banks
     return result
@@ -566,6 +619,11 @@ def validate_batch_receipt(record, *, index, plan_hash, census, profile=None):
         or not 0 <= record.get("replay_max_abs_error", math.inf) <= 2e-6
     ):
         raise ValueError("batch receipt does not establish complete unchanged observation")
+    if profile == AMPLITUDE_PROFILE:
+        from calibrate_relative_amplitude import validate_amplitude_record
+
+        validate_amplitude_record(record)
+        return
     expected_losses = {"A", "U", "MSE", "joint"} | ({"CR", "SSL1", "SSL2"} if profile else set())
     if profile == SPECTRAL_PROFILE:
         expected_losses = {"rank_bal", "rank_agg", "cosine", "MSE", "joint"} | {
@@ -761,6 +819,10 @@ def execute(args):
             config.model_dump(mode="json")
         ):
             raise ValueError("old checkpoint requires its original exact resolved config")
+    if profile == AMPLITUDE_PROFILE:
+        from calibrate_relative_amplitude import validate_endpoint_inputs
+
+        validate_endpoint_inputs(args, config, checkpoint_identity)
     plan = dict(
         schema="gradpert-au-calibration-1",
         run_id=args.run_id,
@@ -795,6 +857,19 @@ def execute(args):
     if profile == SPECTRAL_PROFILE:
         plan.pop("temperature")  # The AU temperature is irrelevant to the spectral profile.
         plan["softness"] = 0.25
+    if profile == AMPLITUDE_PROFILE:
+        plan.pop("temperature")
+        plan.update(
+            schema="gradpert-relative-amplitude-calibration-1",
+            loss_scope=AMPLITUDE_SCOPE,
+            endpoint=args.endpoint,
+            amplitude_target=0.0225,
+            amplitude_epsilon=1e-8,
+            softness=0.25,
+            publication_sha256=args.publication_sha256,
+            training_manifest_sha256=args.training_manifest_sha256,
+            resolved_config_sha256=sha256_json(config.model_dump(mode="json")),
+        )
     plan_hash = sha256_json(plan)
     if args.output.exists():
         if not args.resume or read(args.output / "PLAN.json") != plan:
@@ -803,7 +878,9 @@ def execute(args):
         args.output.mkdir(parents=True)
         write(args.output / "PLAN.json", plan)
     census = _census_data(config, options, args.data_root, args.seed)
-    if profile == SPECTRAL_PROFILE and any(r["unique_count"] != 320 for r in census):
+    if profile in (SPECTRAL_PROFILE, AMPLITUDE_PROFILE) and any(
+        r["unique_count"] != 320 for r in census
+    ):
         raise ValueError("spectral calibration requires eight complete unique populations of320")
     census_receipt = dict(
         plan_sha256=plan_hash, batches=census, complete=True, model_forward=False, updates=0
@@ -919,6 +996,10 @@ def execute(args):
                 torch.cuda.reset_peak_memory_stats()
                 torch.cuda.synchronize()
                 started = time.perf_counter()
+                if profile == AMPLITUDE_PROFILE:
+                    from calibrate_relative_amplitude import batch_identity
+
+                    view_identity = batch_identity(batch)
                 with preserved_observer(runtime, args.calibration_seed + index) as before:
                     result = calibrate_batch(
                         runtime, batch, temperature=args.temperature, profile=profile
@@ -942,6 +1023,14 @@ def execute(args):
                     peak_allocated_bytes=torch.cuda.max_memory_allocated(),
                     peak_reserved_bytes=torch.cuda.max_memory_reserved(),
                 )
+                if profile == AMPLITUDE_PROFILE:
+                    from capacity_probe import validation_state
+
+                    result.update(
+                        frozen_state_after=validation_state(runtime),
+                        assembled_batch_sha256=view_identity,
+                        observation_seed=args.calibration_seed + index,
+                    )
                 validate_batch_receipt(
                     result, index=index, plan_hash=plan_hash, census=expected, profile=profile
                 )
@@ -963,6 +1052,22 @@ def execute(args):
         or sha(args.training_manifest) != args.training_manifest_sha256
     ):
         raise ValueError("checkpoint or training manifest changed during observation")
+    if profile == AMPLITUDE_PROFILE:
+        if (
+            sha(args.config) != plan["config_sha256"]
+            or sha(args.publication) != args.publication_sha256
+            or sha(args.shared_policy) != args.shared_policy_sha256
+        ):
+            raise ValueError("immutable amplitude calibration input changed during observation")
+        after_source = inspect_source_identity(
+            Path(__file__).resolve().parents[2],
+            formal=True,
+            expected_repository=config.source_code.repository,
+            publication_receipt=args.publication,
+            expected_publication_receipt_sha256=args.publication_sha256,
+        )
+        if after_source.payload() != plan["source"]:
+            raise ValueError("calibration source changed during observation")
     completed = verified_batch_index(args.output, plan_hash, census, profile=profile)["receipts"]
     result = dict(
         calibration_complete=len(completed) == 8,
@@ -989,7 +1094,10 @@ def main():
         parser.add_argument("--" + name, type=Path, required=True)
     for name in ("publication-sha256", "source-commit", "run-id"):
         parser.add_argument("--" + name, required=True)
-    parser.add_argument("--profile", choices=(MECHANISM_PROFILE, SPECTRAL_PROFILE))
+    parser.add_argument(
+        "--profile", choices=(MECHANISM_PROFILE, SPECTRAL_PROFILE, AMPLITUDE_PROFILE)
+    )
+    parser.add_argument("--endpoint", choices=("init", "ri_last", "r12bal_last"))
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--calibration-seed", type=int, default=41239)
     parser.add_argument("--temperature", type=float, default=2.0)
