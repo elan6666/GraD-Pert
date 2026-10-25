@@ -12,6 +12,7 @@ from cap40_posthoc import csv_write, read, sha, write
 from cap40_posthoc_stats import condition_summary
 
 ARM_DESCRIPTIONS = {
+    "R11-READOUT": "R9原prediction MLP额外300步适配；主干/Teacher/centers冻结，SSL停用",
     "PT2": "前2轮SSL预训练＋后4轮MSE全量微调；两端点共用中等诊断清单",
     "PT1": "前2轮仅SSL1/SSL2预训练，后2轮仅MSE全量微调；边界重建优化器",
     "DP": "DINO式weight_norm与首轮原型冻结",
@@ -64,6 +65,21 @@ def table(rows):
             + ["|" + "|".join(cell(r.get(k)) for k in keys) + "|" for r in rows]
         )
         + "\n"
+    )
+
+
+def gradient_caption(gradients):
+    if gradients and all(not g.get("performed", False) for g in gradients):
+        reasons = sorted({g.get("reason", "not_recorded") for g in gradients})
+        return (
+            "图梯度不可用（"
+            + ",".join(reasons)
+            + "）：主干冻结；不构造SSL梯度、范数或余弦，NA不替换为0。"
+        )
+    return (
+        f"固定{len(gradients)}个条件、每条件最多4个细胞，在共享图参数上比较加权预测与SSL梯度。"
+        "没有optimizer/EMA/center更新，也没有梯度写入param.grad。"
+        "负余弦表示该probe中的局部方向冲突，不等于蒸馏无效。"
     )
 
 
@@ -255,7 +271,7 @@ def render(args):
     save(
         "09_grouped_gradients.png",
         fig,
-        f"固定{len(gradients)}个条件、每条件最多4个细胞，在共享图参数上比较加权预测与SSL梯度。没有optimizer/EMA/center更新，也没有梯度写入param.grad。负余弦表示该probe中的局部方向冲突，不等于蒸馏无效。",
+        gradient_caption(gradients),
     )
     sections = [
         f"# {summary['arm']}：cap40 {scope_name}与分组补测报告\n",

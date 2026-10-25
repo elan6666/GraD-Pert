@@ -41,9 +41,12 @@ from generate_representation_round8 import ARMS as RS8_ARMS
 from generate_representation_round8 import SCHEMA as RS8_SCHEMA
 from generate_representation_round9 import ARMS as RS9_ARMS
 from generate_representation_round9 import SCHEMA as RS9_SCHEMA
+from generate_representation_round11 import ARMS as RS11_ARMS
+from generate_representation_round11 import SCHEMA as RS11_SCHEMA
 
 FAMILY_ARMS = {
     RS9_SCHEMA: RS9_ARMS,
+    RS11_SCHEMA: RS11_ARMS,
     RS_SCHEMA: RS_ARMS,
     RS2_SCHEMA: RS2_ARMS,
     RS3_SCHEMA: RS3_ARMS,
@@ -594,6 +597,44 @@ def pt1_parent_binding(parent, training_identity, *, parent_path, parent_sha256)
     }
 
 
+def frozen_readout_parent_binding(
+    parent, training_identity, *, arm, config, parent_path, parent_sha256
+):
+    """Preserve every physical data/population field; declare inactive child losses."""
+    import yaml
+    from generate_representation_round11 import configs
+
+    if (
+        arm != "R11-READOUT"
+        or yaml.safe_load(Path(config).read_text())
+        != configs(Path(__file__).resolve().parents[2])[arm]
+    ):
+        raise ValueError("R11 requires its sealed frozen readout config")
+    trained = training_identity["data"]
+    if {k: v for k, v in parent["data"].items() if k != "loss_protocol"} != {
+        k: v for k, v in trained.items() if k != "loss_protocol"
+    }:
+        raise ValueError("R11 physical medium data/population changed")
+    return {
+        **copy.deepcopy(parent),
+        "data": copy.deepcopy(trained),
+        "training_protocol_binding": dict(
+            arm=arm,
+            original_parent_manifest=str(parent_path),
+            original_parent_sha256=parent_sha256,
+            changed_fields=["data.loss_protocol"],
+            previous_values=parent["data"]["loss_protocol"],
+            training_values=trained["loss_protocol"],
+            training_run_id=training_identity["run_id"],
+            diagnostic_population_sha256=population_identity(parent["schedule"]),
+            sampling_changed=False,
+            teacher_ssl_status=(
+                "inactive; unchanged R9 reference only with frozen-state digest proof"
+            ),
+        ),
+    }
+
+
 def execute(
     queue_path,
     arm,
@@ -733,9 +774,12 @@ def execute(
             "R7-S1D05",
             "R8-CR0",
             "R9-SSL1J2",
+            "R11-READOUT",
         ):
             bind_parent = (
-                staged_joint_parent_binding
+                frozen_readout_parent_binding
+                if arm == "R11-READOUT"
+                else staged_joint_parent_binding
                 if arm == "R9-SSL1J2"
                 else cr_parent_binding
                 if arm in ("R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05", "R8-CR0")
@@ -764,6 +808,7 @@ def execute(
                         "R7-S1D05",
                         "R8-CR0",
                         "R9-SSL1J2",
+                        "R11-READOUT",
                     )
                     else ({"arm": arm} if arm in ("U24", "MR1", "P1") else {})
                 ),

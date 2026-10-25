@@ -308,6 +308,29 @@ def collect(
     }
 
 
+def graph_gradient_groups(snapshot: dict) -> dict:
+    """Frozen backbone diagnostics truthfully have no trainable graph groups."""
+    return snapshot.get("graph_gradients", {}).get("groups", {})
+
+
+def graph_gradient_status(snapshot: dict) -> str:
+    if graph_gradient_groups(snapshot):
+        return "observed"
+    return "unavailable:" + snapshot.get("graph_gradients", {}).get("reason", "not_recorded")
+
+
+def graph_gradient_rows(snapshots: list[dict]) -> list[dict]:
+    rows = []
+    for point in snapshots:
+        base = {"epoch": point["epoch"], "training_stage": point.get("training_stage", "joint")}
+        groups = graph_gradient_groups(point)
+        if not groups:
+            rows.append({**base, "group": None, "status": graph_gradient_status(point)})
+        for name, value in groups.items():
+            rows.append({**base, "group": name, **value["weighted_gradient_l2"], **value["cosine"]})
+    return rows
+
+
 def report(data: dict) -> str:
     first, last = data["snapshots"][0], data["snapshots"][-1]
     groups = data.get("fixed_inputs_by_training_stage", [])
@@ -341,6 +364,14 @@ def report(data: dict) -> str:
         f"[summary.json](summary.json)。",
         "",
         *phase_notes,
+        *(
+            [
+                "R11仅原prediction MLP额外适配；Teacher、centers与主干冻结。"
+                "SSL/A/U/CR/EMA停用，零项不解释为改善；冻结Teacher几何仅引用已验证R9。"
+            ]
+            if last.get("training_stage") == "frozen_readout"
+            else []
+        ),
         "## 训练损失和耗时",
         "",
         "| Epoch | 预测MSE | Joint | 训练分钟 | 诊断秒 |",
@@ -375,8 +406,8 @@ def report(data: dict) -> str:
     ]
     for head in HEADS:
         a, b = (
-            head_first["distributions"]["teacher." + head],
-            head_last["distributions"]["teacher." + head],
+            head_first["distributions"].get("teacher." + head, {}),
+            head_last["distributions"].get("teacher." + head, {}),
         )
         if not a.get("samples") or not b.get("samples"):
             lines.append(f"| {head} | 未采集：该头未调用 | — | — | — | — |")
@@ -481,7 +512,9 @@ def report(data: dict) -> str:
         "| 共享参数组 | ∥预测梯度∥ | ∥SSL1梯度∥ | ∥SSL2梯度∥ | cos(预测,SSL1) | cos(预测,SSL2) |",
         "|---|---:|---:|---:|---:|---:|",
     ]
-    for name, g in last["graph_gradients"]["groups"].items():
+    if not graph_gradient_groups(last):
+        lines.append("图梯度：" + graph_gradient_status(last) + "；冻结主干，不计算SSL梯度或余弦。")
+    for name, g in graph_gradient_groups(last).items():
         n, c = g["weighted_gradient_l2"], g["cosine"]
         # A disabled/zero-gradient objective has no cosine, not a zero cosine.
         cosines = {
@@ -533,7 +566,7 @@ def report(data: dict) -> str:
         "",
     ]
     for head in HEADS:
-        d = last["distributions"]["teacher." + head]
+        d = last["distributions"].get("teacher." + head, {})
         if not d.get("samples"):
             continue
         if d["largest_argmax_fraction"] >= 0.95:
@@ -624,7 +657,7 @@ def plots(data: dict, output: Path) -> None:
     fig, ax = plt.subplots(1, 2, figsize=(11, 3.6))
     for head in HEADS:
         for a, key in zip(ax, ("mean_sample_entropy", "sample_dependence_js"), strict=True):
-            values = [p["distributions"]["teacher." + head].get(key) for p in points]
+            values = [p["distributions"].get("teacher." + head, {}).get(key) for p in points]
             if any(v is not None for v in values):
                 a.plot(*trajectory(points, values), "o-", label=head)
     ax[0].set_title("Teacher entropy (head-prefix rows)")
@@ -664,7 +697,10 @@ def plots(data: dict, output: Path) -> None:
             *trajectory(
                 points,
                 [
-                    p["graph_gradients"]["groups"]["graph"]["weighted_gradient_l2"].get(loss)
+                    graph_gradient_groups(p)
+                    .get("graph", {})
+                    .get("weighted_gradient_l2", {})
+                    .get(loss)
                     for p in points
                 ],
             ),
@@ -675,7 +711,10 @@ def plots(data: dict, output: Path) -> None:
         ax[1, 1].plot(
             *trajectory(
                 points,
-                [p["graph_gradients"]["groups"]["graph"]["cosine"].get(key) for p in points],
+                [
+                    graph_gradient_groups(p).get("graph", {}).get("cosine", {}).get(key)
+                    for p in points
+                ],
             ),
             "o-",
             label=key,
@@ -725,20 +764,7 @@ def export(data: dict, output: Path) -> None:
             for p in data["snapshots"]
         ],
     )
-    write_csv(
-        output / "gradients.csv",
-        [
-            {
-                "epoch": p["epoch"],
-                "training_stage": p.get("training_stage", "joint"),
-                "group": g,
-                **v["weighted_gradient_l2"],
-                **v["cosine"],
-            }
-            for p in data["snapshots"]
-            for g, v in p["graph_gradients"]["groups"].items()
-        ],
-    )
+    write_csv(output / "gradients.csv", graph_gradient_rows(data["snapshots"]))
     write_csv(
         output / "training.csv",
         [

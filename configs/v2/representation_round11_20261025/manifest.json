@@ -1,0 +1,173 @@
+{
+  "schema": "representation-round11-frozen-readout-medium-1",
+  "family": "representation_round11_20261025",
+  "priority": [
+    "R11-READOUT"
+  ],
+  "preflight_priority": [
+    "R11-READOUT"
+  ],
+  "common_microbatch": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 320,
+  "epochs": 2,
+  "seed": 1,
+  "eval_batch": 128,
+  "validation": "disabled",
+  "postfit_validation": true,
+  "test_timing": "after_research_design_lock",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "initialization": "exact R9 epoch3 all-state warm start; original prediction MLP; fresh child RNG/optimizer",
+  "analysis": "same sealed medium population plus a separate fixed-panel training probe",
+  "baseline": {
+    "config": "configs/v2/fgpo_node0_20261016_b320/B0/gradpert_v2/nadig_jurkat.yaml",
+    "sha256": "80f5ee1d6c4d826d9d2c023f304c08f1734b5a05acd28d565f7053e367117830"
+  },
+  "schedule_semantics": {
+    "lr": "original two-epoch300-update endpoint cosine",
+    "ema": "inactive",
+    "comparison": "parent450 total/300 MSE + child300 head MSE =750 total/600 MSE; unmatched extra budget",
+    "sampler_epochs": [
+      0,
+      1
+    ],
+    "view_rng": "fresh seeded child RNG; no original replay claim",
+    "teacher_centers_optimizer": "Teacher/centers/backbone frozen; fresh native head optimizer",
+    "auxiliary_warmup": "inactive"
+  },
+  "fixed_panel_diagnostics": {
+    "split": "train",
+    "conditions": 32,
+    "controls_per_condition": 4,
+    "query_genes": 1000,
+    "deep_gene_sample": 128,
+    "panel": "one fixed allowed training-expression panel shared by all arms and conditions",
+    "pairing": [
+      "same_condition_different_control",
+      "different_condition_same_control"
+    ],
+    "stratification": [
+      "cell_line",
+      "cell_type",
+      "context_id"
+    ],
+    "identity": "reuse sealed medium condition/row identities where eligible; seal the extra probe separately",
+    "independence": "deduplicate controls; report actual valid counts; do not replace missing rows silently",
+    "stages": "Response injection input, branch and actual state; self/cross/FFN; final norm",
+    "state_updates": false,
+    "persist_full_activations": false
+  },
+  "research_iteration": {
+    "round": 11,
+    "authorized_rounds": null,
+    "future_rounds": "redesign from evidence until task-relevant representation is improved",
+    "design_evidence": [
+      "train",
+      "validation"
+    ],
+    "test_results_for_selection": false,
+    "success": "final validation prediction MSE and full18; frozen representation preserved; no new SSL learning",
+    "stage_review_after_round": 11,
+    "hypothesis": "frozen R9 features may retain prediction MLP adaptation capacity",
+    "continuation_authority": "user-authorized ongoing representation-resolution loop, reaffirmed 2026-10-24; continue from evidence until resolved or explicitly paused, without expanding scope"
+  },
+  "rerun_old_BR_or_officials": false,
+  "reused_controls": [
+    "R3-RI",
+    "R5-PROJ",
+    "R6-EMA99",
+    "R9-SSL1J2"
+  ],
+  "repeat_baseline": false,
+  "coefficient_decision": {
+    "weights": {
+      "training_mode": "frozen_readout",
+      "ssl_pretrain_epochs": 0,
+      "lambda1": 0.0,
+      "lambda2": 0.0,
+      "au_alignment_weight": 0.0,
+      "au_uniformity_weight": 0.0,
+      "cr_weight": 0.0,
+      "readout_parent_run_root": "/data/yilangliu/GraD-Pert/development/representation-r9-staged-joint-4f04c5f-20261025-a2/runs/nadig_jurkat-seed1-20261024T160937Z-352f0995e12243be9f8be24f1f95defa",
+      "readout_parent_run_id": "nadig_jurkat-seed1-20261024T160937Z-352f0995e12243be9f8be24f1f95defa",
+      "readout_parent_source_commit": "4f04c5f3a6a5d735b5337f3bd1ccc9337b155246",
+      "readout_parent_checkpoint_sha256": "33c9a2fa27d9aaea96e667ee7d3542e8d923812b45f4bd3cf256e0e8d7ece595",
+      "readout_parent_epoch": 3
+    },
+    "parent_arm": "R9-SSL1J2",
+    "intervention": "only existing prediction MLP trainable; no SSL/A/U/CR/EMA"
+  },
+  "teacher_tracking": {
+    "parent": {
+      "teacher_start": 0.99,
+      "teacher_end": 0.99
+    },
+    "candidate": {
+      "teacher_start": 0.99,
+      "teacher_end": 0.99
+    },
+    "implementation": "native frozen readout; zero Teacher/center commits",
+    "center_temperature_prototypes": "frozen R9; inactive SSL",
+    "training_views": "backbone eval; only native prediction MLP trains",
+    "native_source_baseline_commit": "c4c825a20cf3e71ca878079235e337374f9d5f0a",
+    "limits": [
+      "existing nonlinear head; not standard DINO linear evaluation",
+      "extra head-update budget; not matched compute",
+      "one seed; test deferred"
+    ],
+    "native_source_git_tree_path": "src"
+  },
+  "scientific_complete": false,
+  "frozen_readout": {
+    "parent_run_root": "/data/yilangliu/GraD-Pert/development/representation-r9-staged-joint-4f04c5f-20261025-a2/runs/nadig_jurkat-seed1-20261024T160937Z-352f0995e12243be9f8be24f1f95defa",
+    "parent_checkpoint_sha256": "33c9a2fa27d9aaea96e667ee7d3542e8d923812b45f4bd3cf256e0e8d7ece595",
+    "parent_source_commit": "4f04c5f3a6a5d735b5337f3bd1ccc9337b155246",
+    "parent_terminal": "TRAIN_COMPLETE only; tests deferred",
+    "parent_evidence_sha256": {
+      "fit/epoch_state.json": "ea9a9ca9593ef81b707638969a4dece8720e4750a9033a2988f86dce670241da",
+      "TRAIN_COMPLETE.json": "b9f5d5c44960d2b293398d611991f0a98739397231ced4e08e2bbb775dc9aa36",
+      "resolved_config.json": "0ff2c230123622e1ea404fd5388f91af2360f01207fe96c5018a064c53635f85",
+      "run_manifest.json": "7670e88549a98ab6285668f48b73126443f643a281fb14f408c571c5295cab4f"
+    },
+    "parent_resolved_config_canonical_sha256": "5d7534762fcb0c8682e0a9e15d432dc1c101cfffb5b04b618634f83762ad7cf2",
+    "child_epochs": 2,
+    "child_head_updates": 300,
+    "total_updates": 750,
+    "total_mse_updates": 600,
+    "total_budget_matched": false,
+    "teacher_updates": 0,
+    "center_updates": 0,
+    "prediction_parameters": 131585,
+    "prediction_tensors": 4,
+    "teacher_geometry": "unchanged R9 reference requires frozen digest proof",
+    "final_validation_conditions": 445,
+    "final_validation_metrics": 18
+  },
+  "rows": [
+    {
+      "name": "R11-READOUT",
+      "config": "configs/v2/representation_round11_20261025/R11-READOUT/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "1e3b227e2d4dce62f42d8ec2cc2c8f500a8b096b821bc26d3cda0b10e670e12a",
+      "changes": {
+        "training_mode": "frozen_readout",
+        "ssl_pretrain_epochs": 0,
+        "lambda1": 0.0,
+        "lambda2": 0.0,
+        "au_alignment_weight": 0.0,
+        "au_uniformity_weight": 0.0,
+        "cr_weight": 0.0,
+        "readout_parent_run_root": "/data/yilangliu/GraD-Pert/development/representation-r9-staged-joint-4f04c5f-20261025-a2/runs/nadig_jurkat-seed1-20261024T160937Z-352f0995e12243be9f8be24f1f95defa",
+        "readout_parent_run_id": "nadig_jurkat-seed1-20261024T160937Z-352f0995e12243be9f8be24f1f95defa",
+        "readout_parent_source_commit": "4f04c5f3a6a5d735b5337f3bd1ccc9337b155246",
+        "readout_parent_checkpoint_sha256": "33c9a2fa27d9aaea96e667ee7d3542e8d923812b45f4bd3cf256e0e8d7ece595",
+        "readout_parent_epoch": 3
+      }
+    }
+  ]
+}

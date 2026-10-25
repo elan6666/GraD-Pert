@@ -55,6 +55,8 @@ from generate_representation_round8 import SCHEMA as RS8_SCHEMA
 from generate_representation_round8 import verify_manifest as verify_rs8_manifest
 from generate_representation_round9 import SCHEMA as RS9_SCHEMA
 from generate_representation_round9 import verify_manifest as verify_rs9_manifest
+from generate_representation_round11 import SCHEMA as RS11_SCHEMA
+from generate_representation_round11 import verify_manifest as verify_rs11_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -87,6 +89,7 @@ RESEARCH_FAMILIES = (
     RS7_SCHEMA,
     RS8_SCHEMA,
     RS9_SCHEMA,
+    RS11_SCHEMA,
 )
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
@@ -202,6 +205,7 @@ def verify_manifest(source: Path, manifest: Path) -> dict:
         RS7_SCHEMA: verify_rs7_manifest,
         RS8_SCHEMA: verify_rs8_manifest,
         RS9_SCHEMA: verify_rs9_manifest,
+        RS11_SCHEMA: verify_rs11_manifest,
         RS5_SCHEMA: verify_rs5_manifest,
         RS4_SCHEMA: verify_rs4_manifest,
         RS3_SCHEMA: verify_rs3_manifest,
@@ -480,6 +484,52 @@ def validate_staged_joint_gate(gate: dict) -> None:
         raise ValueError("R9 needs exact prefix/joint continuous-state short preflight evidence")
 
 
+def validate_frozen_readout_parent(parent: dict) -> None:
+    from generate_representation_round11 import (
+        PARENT_CHECKPOINT_SHA256,
+        PARENT_RUN,
+        PARENT_TRAINING_SOURCE,
+        metadata,
+    )
+
+    expected = metadata()["frozen_readout"]["parent_evidence_sha256"]
+    if (
+        parent.get("parent_run_id") != PARENT_RUN
+        or parent.get("parent_checkpoint_sha256") != PARENT_CHECKPOINT_SHA256
+        or parent.get("parent_training_source", {}).get("commit") != PARENT_TRAINING_SOURCE
+        or parent.get("parent_epoch") != 3
+        or parent.get("parent_scientific_training_complete") is not True
+        or parent.get("parent_full_test_complete") is not False
+        or parent.get("optimizer_restored") is not False
+        or parent.get("child_initial_steps") != 0
+        or any(parent.get("parent_evidence_sha256", {}).get(k) != v for k, v in expected.items())
+    ):
+        raise ValueError("R11 exact scientific R9 parent evidence changed")
+
+
+def validate_frozen_readout_gate(proof: dict) -> None:
+    if (
+        not all(
+            proof.get(k) is True
+            for k in (
+                "passed",
+                "exact_restore",
+                "head_changed",
+                "frozen_equal",
+                "frozen_gradients_none",
+                "all_four_head_tensors_updated",
+                "prediction_changed",
+                "native_softplus_preserved",
+            )
+        )
+        or proof.get("steps") != 10
+        or proof.get("teacher_updates") != 0
+        or proof.get("center_updates") != 0
+        or proof.get("trainable_parameters") != 131585
+    ):
+        raise ValueError("R11 needs actual head-only frozen-state exact10 restore proof")
+
+
 def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
     validate_preflight(row["plan"], entry)
     receipt = read_json(Path(entry["receipt"]))
@@ -518,6 +568,9 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
     ):
         raise ValueError("exact10 restore/inference/read-only joint-validation gate missing")
     if queue["family"] in LAST_ONLY_FAMILIES:
+        if queue["family"] == RS11_SCHEMA:
+            validate_frozen_readout_parent(receipt.get("readout_parent", {}))
+            validate_frozen_readout_gate(receipt.get("frozen_readout_gate", {}))
         if queue["family"] == RS9_SCHEMA:
             validate_staged_joint_gate(receipt.get("staged_training_gate", {}))
         if (
@@ -616,7 +669,10 @@ def eval_capacity_command(queue: dict, row: dict, binding: dict) -> list[str]:
 def validate_eval_gate(queue: dict, row: dict, binding: dict, entry: dict) -> dict:
     from eval_batch_capacity import validate_receipt
 
-    return validate_receipt(queue, row, binding, entry)
+    receipt = validate_receipt(queue, row, binding, entry)
+    if queue["family"] == RS11_SCHEMA:
+        validate_frozen_readout_parent(receipt.get("readout_parent", {}))
+    return receipt
 
 
 DATA_HASHES = (
@@ -748,6 +804,7 @@ def expected_epochs(plan: dict) -> int:
             RS6_SCHEMA,
             RS7_SCHEMA,
             RS8_SCHEMA,
+            RS11_SCHEMA,
         ):
             family = verify_manifest(source, family_manifest)
             matching = [r for r in family["rows"] if source / r["config"] == Path(plan["config"])]

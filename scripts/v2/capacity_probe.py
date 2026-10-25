@@ -117,6 +117,8 @@ def staged_restore_fingerprint(runtime: Any, *, continuing_joint: bool) -> str:
         runtime.optimizer.state_dict(),
         runtime.generator.bit_generator.state,
     )
+    if getattr(getattr(runtime, "options", None), "training_mode", None) == "frozen_readout":
+        return state_fingerprint((full_state, validation_state(runtime)))
     if not continuing_joint:
         return state_fingerprint(full_state)
     objective = runtime.objective
@@ -523,6 +525,35 @@ def main() -> None:
             run_seed=config.training.run_seeds[0],
             device=torch.device("cuda:0"),
         ) as runtime:
+            readout_gate = runtime.options.training_mode == "frozen_readout"
+            if readout_gate:
+                from gradpert.training.v2.readout import frozen_state_proof, restore_frozen_parent
+
+                receipt["readout_parent"] = restore_frozen_parent(
+                    config,
+                    data_identity=runtime.identity,
+                    objective=runtime.objective,
+                    optimizer=runtime.optimizer,
+                )
+                readout_initial_head = state_fingerprint(
+                    runtime.objective.student.prediction.state_dict()
+                )
+                readout_initial_tensors = {
+                    name: state_fingerprint(value)
+                    for name, value in runtime.objective.student.prediction.state_dict().items()
+                }
+                readout_probe_features = torch.linspace(-1, 1, 1024, device=runtime.device).reshape(
+                    2, 512
+                )
+                with torch.no_grad():
+                    readout_initial_prediction = (
+                        torch.nn.functional.softplus(
+                            runtime.objective.student.prediction(readout_probe_features).float()
+                        )
+                        .detach()
+                        .clone()
+                    )
+                readout_restores = []
             receipt["runtime_preparation_seconds"] = time.perf_counter() - preparation_started
             if args.fused_gram:
                 from update_parity import enable_fused_gram
@@ -815,7 +846,7 @@ def main() -> None:
                         path = args.output / "resume.pt"
                         before_restore = (
                             staged_restore_fingerprint(runtime, continuing_joint=staged_joint)
-                            if staged_gate
+                            if staged_gate or readout_gate
                             else None
                         )
                         save_checkpoint(
@@ -836,11 +867,13 @@ def main() -> None:
                         if progress["step"] != step or runtime.optimizer.steps != step:
                             raise ValueError("capacity checkpoint resume progress mismatch")
                         receipt["resume_checkpoint_sha256"] = sha256_file(path)
-                        if staged_gate:
+                        if staged_gate or readout_gate:
                             same = before_restore == staged_restore_fingerprint(
                                 runtime, continuing_joint=staged_joint
                             )
                             staged_resumes.append(same)
+                            if readout_gate:
+                                readout_restores.append(same)
                             if not same:
                                 raise ValueError("PT1 stage checkpoint restore changed state")
                     if step % 8 == 0:
@@ -942,6 +975,44 @@ def main() -> None:
             receipt["end_to_end_training_cells_per_second"] = (
                 sum(cells) / receipt["training_wall_seconds"]
             )
+
+            if readout_gate:
+                proof = frozen_state_proof(runtime.objective, runtime.optimizer)
+                changed = [
+                    name
+                    for name, value in runtime.objective.student.prediction.state_dict().items()
+                    if readout_initial_tensors[name] != state_fingerprint(value)
+                ]
+                with torch.no_grad():
+                    final_prediction = torch.nn.functional.softplus(
+                        runtime.objective.student.prediction(readout_probe_features).float()
+                    )
+                proof.update(
+                    prediction_changed=not torch.equal(
+                        readout_initial_prediction, final_prediction
+                    ),
+                    changed_head_tensors=changed,
+                    all_four_head_tensors_updated=len(changed) == 4,
+                    native_softplus_preserved=runtime.objective.student.options.prediction_parameterization
+                    == "softplus",
+                    passed=True,
+                    steps=step,
+                    exact_restore=bool(readout_restores) and all(readout_restores),
+                    head_changed=readout_initial_head
+                    != state_fingerprint(runtime.objective.student.prediction.state_dict()),
+                )
+                if step != 10 or not all(
+                    proof[k]
+                    for k in (
+                        "exact_restore",
+                        "head_changed",
+                        "prediction_changed",
+                        "all_four_head_tensors_updated",
+                        "native_softplus_preserved",
+                    )
+                ):
+                    raise ValueError("R11 requires exact10 actual head updates and restore proof")
+                receipt["frozen_readout_gate"] = proof
 
             # Exercise the identical 300-control inference path on one validation
             # condition. No test truth, scientific score or hyperparameter selection.

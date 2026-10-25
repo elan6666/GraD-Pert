@@ -469,6 +469,11 @@ class V2Options:
     teacher_temperature_end: float = 0.04
     teacher_temperature_warmup_epochs: int = 0
     training_mode: str = "joint"
+    readout_parent_run_root: str = ""
+    readout_parent_checkpoint_sha256: str = ""
+    readout_parent_source_commit: str = ""
+    readout_parent_run_id: str = ""
+    readout_parent_epoch: int = 0
     ssl_pretrain_epochs: int = 0
     finetune_learning_rate: float = 2e-4
     au_alignment_weight: float = 0.0
@@ -558,6 +563,11 @@ class V2Options:
             "teacher_temperature_end",
             "teacher_temperature_warmup_epochs",
             "training_mode",
+            "readout_parent_run_root",
+            "readout_parent_checkpoint_sha256",
+            "readout_parent_source_commit",
+            "readout_parent_run_id",
+            "readout_parent_epoch",
             "ssl_pretrain_epochs",
             "finetune_learning_rate",
             "au_alignment_weight",
@@ -639,8 +649,35 @@ class V2Options:
             raise ValueError(
                 "AU requires mixed joint SSL2, row_mean, and disabled KoLeo/population loss"
             )
-        if self.training_mode not in ("joint", "ssl_then_mse", "ssl_then_joint"):
+        if self.training_mode not in ("joint", "ssl_then_mse", "ssl_then_joint", "frozen_readout"):
             raise ValueError("unknown v2 training mode")
+        parent_fields = (
+            self.readout_parent_run_root,
+            self.readout_parent_checkpoint_sha256,
+            self.readout_parent_source_commit,
+            self.readout_parent_run_id,
+        )
+        if self.training_mode == "frozen_readout":
+            if (
+                not all(parent_fields)
+                or self.readout_parent_epoch != 3
+                or len(self.readout_parent_checkpoint_sha256) != 64
+                or len(self.readout_parent_source_commit) != 40
+                or self.lambda1
+                or self.lambda2
+                or self.au_alignment_weight
+                or self.au_uniformity_weight
+                or self.cr_weight
+                or self.population_response
+                or self.auxiliary_mask_ratio
+                or self.masked_response_ratio
+                or self.validation_mode != "disabled"
+                or self.prediction_error_power != 2
+                or self.loss_reduction != "row_mean"
+            ):
+                raise ValueError("frozen readout requires a sealed R9 parent and MSE-only row mean")
+        elif any(parent_fields) or self.readout_parent_epoch:
+            raise ValueError("readout parent fields require frozen_readout mode")
         if type(self.ssl_pretrain_epochs) is not int or (
             self.ssl_pretrain_epochs < 0
             or (self.training_mode in ("ssl_then_mse", "ssl_then_joint"))

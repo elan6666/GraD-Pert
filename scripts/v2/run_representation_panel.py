@@ -128,7 +128,13 @@ def panel_parent_binding(parent, identity, queue, args):
     from generate_representation_round7 import SCHEMA as DOSE_SCHEMA
     from generate_representation_round8 import SCHEMA as CR0_SCHEMA
     from generate_representation_round9 import SCHEMA as JOINT_SCHEMA
-    from run_fgpo_medium import au_parent_binding, cr_parent_binding, staged_joint_parent_binding
+    from generate_representation_round11 import SCHEMA as READOUT_SCHEMA
+    from run_fgpo_medium import (
+        au_parent_binding,
+        cr_parent_binding,
+        frozen_readout_parent_binding,
+        staged_joint_parent_binding,
+    )
 
     rows = [
         row
@@ -156,6 +162,7 @@ def panel_parent_binding(parent, identity, queue, args):
         "R7-S1D05",
         "R8-CR0",
         "R9-SSL1J2",
+        "R11-READOUT",
     ):
         spec = queue["medium_analysis"]
         family = {
@@ -165,6 +172,7 @@ def panel_parent_binding(parent, identity, queue, args):
             "R7-S1D05": DOSE_SCHEMA,
             "R8-CR0": CR0_SCHEMA,
             "R9-SSL1J2": JOINT_SCHEMA,
+            "R11-READOUT": READOUT_SCHEMA,
         }.get(row["name"], SCHEMA)
         if (
             queue.get("family") != family
@@ -173,7 +181,9 @@ def panel_parent_binding(parent, identity, queue, args):
         ):
             raise ValueError("population auxiliary panel requires its exact original family parent")
         bind_parent = (
-            staged_joint_parent_binding
+            frozen_readout_parent_binding
+            if row["name"] == "R11-READOUT"
+            else staged_joint_parent_binding
             if row["name"] == "R9-SSL1J2"
             else cr_parent_binding
             if row["name"] in ("R4-CR", "R5-PROJ", "R6-EMA99", "R7-S1D05", "R8-CR0")
@@ -331,6 +341,14 @@ def execute(args):
         )
         obj = rt.objective
         obj.eval()
+        if endpoint["training_stage"] == "frozen_readout":
+            proof = read(args.run_root / "fit/frozen_readout_proof.json")
+            from gradpert.training.v2.readout import frozen_digest
+
+            if proof.get("frozen_equal") is not True or frozen_digest(obj) != proof.get(
+                "frozen_sha256"
+            ):
+                raise ValueError("R11 diagnostic checkpoint differs from final frozen proof")
         if getattr(obj, "training_stage", "joint") != endpoint["training_stage"]:
             raise ValueError("loaded checkpoint phase differs from its diagnostic endpoint")
         before = validation_state(rt)
@@ -484,6 +502,11 @@ def execute(args):
         panel_sha256=panel["panel_sha256"],
         panel_rows=panel["rows"],
         diagnostic_objective_scopes=diagnostic_scopes,
+        representation_training_status=(
+            "frozen_R9_backbone_and_Teacher; prediction_head_only; SSL_inactive"
+            if endpoint["training_stage"] == "frozen_readout"
+            else "native_training"
+        ),
         diagnostic_mode=(
             "truth_path_audit"
             if truth_audit is not None

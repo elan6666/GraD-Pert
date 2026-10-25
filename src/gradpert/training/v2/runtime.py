@@ -329,6 +329,17 @@ def prepare_runtime(
             )
         if allowed_expression_ids is not None and len(allowed_expression_ids) < options.query_count:
             raise ValueError("training expression partition smaller than query budget")
+        if options.training_mode == "frozen_readout" and purpose == "training":
+            steps = data.steps_per_epoch(
+                batch_size=int(config.training.train_batch_size.value),
+                max_unique_conditions=(
+                    0
+                    if options.max_conditions == 0
+                    else min(options.max_conditions, int(config.training.train_batch_size.value))
+                ),
+            )
+            if int(config.training.max_epochs.value) != 2 or steps != 150:
+                raise ValueError("frozen readout requires exactly two epochs and 300 updates")
         random.seed(run_seed)
         np.random.seed(run_seed)
         torch.manual_seed(run_seed)
@@ -364,6 +375,12 @@ def prepare_runtime(
             if staged
             else JointObjective
         )
+        if options.training_mode == "frozen_readout":
+            from .readout import FrozenReadoutObjective
+
+            if config.continuation is not None:
+                raise ValueError("frozen readout is not generic continuation")
+            objective_type = FrozenReadoutObjective
         objective = objective_type(
             student,
             lambda1=options.lambda1,
@@ -480,6 +497,15 @@ def prepare_runtime(
             "ibot": "masked_tokens_per_cell_then_valid_cell_population",
             "exceptions": ["ssl1_node", "ssl1_spread", "teacher_centers"],
         }
+        if options.training_mode == "frozen_readout":
+            identity["loss_protocol"]["frozen_readout"] = {
+                "mode": "existing_prediction_mlp_only",
+                "prediction": "native_row_mean_mse_softplus",
+                "inactive": ["ssl1", "ssl2", "alignment", "uniformity", "coding_rate"],
+                "teacher_and_centers": "frozen_no_updates",
+                "representation_mode": "eval_no_relay_randomization",
+                "optimizer": "native_head_only_fresh_moments",
+            }
         if staged:
             identity["loss_protocol"]["staged_training"] = {
                 "mode": options.training_mode,

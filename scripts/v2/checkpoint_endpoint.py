@@ -23,7 +23,14 @@ def select_checkpoint(root: Path, role: str = "last") -> tuple[dict, dict]:
             raise ValueError("invalid pretraining checkpoint boundary")
         stage = "ssl_pretrain"
     elif role == "last":
-        epoch, stage = total, "mse_finetune" if mode == "ssl_then_mse" else "joint"
+        epoch = total
+        stage = (
+            "frozen_readout"
+            if mode == "frozen_readout"
+            else "mse_finetune"
+            if mode == "ssl_then_mse"
+            else "joint"
+        )
     else:
         raise ValueError("only last and retained pretrain checkpoints are diagnostic endpoints")
     cp = journal.get(role)

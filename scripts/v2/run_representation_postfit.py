@@ -28,12 +28,15 @@ from generate_representation_round8 import SCHEMA as ROUND8_SCHEMA
 from generate_representation_round9 import ARMS as ROUND9_ARMS
 from generate_representation_round9 import ENDPOINTS as ROUND9_ENDPOINTS
 from generate_representation_round9 import SCHEMA as ROUND9_SCHEMA
+from generate_representation_round11 import ARMS as ROUND11_ARMS
+from generate_representation_round11 import SCHEMA as ROUND11_SCHEMA
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
 
 FAMILY_ARMS = {
     ROUND9_SCHEMA: ROUND9_ARMS,
+    ROUND11_SCHEMA: ROUND11_ARMS,
     SCHEMA: ARMS,
     ROUND2_SCHEMA: ROUND2_ARMS,
     ROUND3_SCHEMA: ROUND3_ARMS,
@@ -61,7 +64,7 @@ def postfit_command(queue, row, stage):
 
 def context(queue, row):
     """Recheck exact training, source, family and last checkpoint at every boundary."""
-    from run_br400_group import validate_training_contract, verify
+    from run_br400_group import validate_frozen_readout_parent, validate_training_contract, verify
 
     verify(queue)
     if row["name"] not in FAMILY_ARMS.get(queue["family"], {}) or row not in queue["rows"]:
@@ -73,6 +76,20 @@ def context(queue, row):
     if read_json(root / "resolved_config.json") != plan["resolved_config"]:
         raise ValueError("training resolved config changed")
     training = validate_training_contract(plan)
+    if queue.get("family") == ROUND11_SCHEMA:
+        proof = read_json(root / "fit/frozen_readout_proof.json")
+        identity = read_json(root / "run_manifest.json")
+        parent = identity.get("frozen_readout", {})
+        validate_frozen_readout_parent(parent)
+        if (
+            proof.get("frozen_equal") is not True
+            or proof.get("frozen_gradients_none") is not True
+            or proof.get("frozen_sha256") != parent.get("frozen_sha256")
+            or proof.get("teacher_updates") != 0
+            or proof.get("center_updates") != 0
+            or proof.get("trainable_parameters") != 131585
+        ):
+            raise ValueError("R11 final frozen-state proof differs from loaded R9 parent")
     if training["last"]["epoch"] != (3 if queue.get("family") == ROUND9_SCHEMA else 2):
         raise ValueError("research requires exact two-epoch last")
     if (root / "COMPLETE.json").exists() or (root / "fit/last-test.json").exists():
@@ -130,7 +147,7 @@ def validate_validation(queue, row):
             if (
                 type(n) is not int
                 or type(total) is not int
-                or (queue.get("family") == ROUND9_SCHEMA and total != 445)
+                or (queue.get("family") in (ROUND9_SCHEMA, ROUND11_SCHEMA) and total != 445)
                 or not 0 <= n <= total
                 or (n == 0 and value is not None)
                 or (n > 0 and (value is None or not math.isfinite(value)))
@@ -284,7 +301,12 @@ def validate_panel(queue, row, *, checkpoint_role=None):
         if role != "last":
             raise ValueError("additional panel endpoints require the sealed R9 family")
         cp = training["last"]
-        endpoint = dict(role="last", epoch=2, training_stage="joint", full_training_epochs=2)
+        endpoint = dict(
+            role="last",
+            epoch=2,
+            training_stage="frozen_readout" if queue.get("family") == ROUND11_SCHEMA else "joint",
+            full_training_epochs=2,
+        )
     root = Path(queue["output"]) / f"{row['name']}-panel"
     if queue.get("family") == ROUND9_SCHEMA:
         root = root / role
@@ -400,6 +422,16 @@ def ssl_loss_contributions(history, config):
             )
         # Preserve saved means of actual warmup-weighted contributions.
         row.update({k: terms.get(k) for k in ("au_weighted", "cr_weighted", "joint_loss")})
+        if options.training_mode == "frozen_readout":
+            row.update(
+                ssl_status="inactive",
+                ssl1_before_overall_weight=None,
+                ssl2_before_overall_weight=None,
+                ssl1_contribution=None,
+                ssl2_contribution=None,
+                au_weighted=None,
+                cr_weighted=None,
+            )
         rows.append(row)
     return rows
 
@@ -420,7 +452,7 @@ def render_medium_report(queue, row, root):
     history = read_json(Path(row["plan"]["run_root"]) / "fit/history.json")
     validation = read_json(validation_path(queue, row) / "COMPLETE.json")["result"]
     tables = {"training": [flatten(r) for r in history]}
-    if queue.get("family") in (ROUND7_SCHEMA, ROUND8_SCHEMA, ROUND9_SCHEMA):
+    if queue.get("family") in (ROUND7_SCHEMA, ROUND8_SCHEMA, ROUND9_SCHEMA, ROUND11_SCHEMA):
         tables["training_loss_contributions"] = ssl_loss_contributions(
             history, row["plan"]["config"]
         )
@@ -529,6 +561,14 @@ def render_medium_report(queue, row, root):
         )
         text.extend(
             ["## training_loss_contributions\n", table(tables["training_loss_contributions"])]
+        )
+    if queue.get("family") == ROUND11_SCHEMA:
+        text.append(
+            "R11从R9 epoch3完整warm-start，仅原prediction MLP训练300步；"
+            "Teacher、centers与backbone保持冻结。父450总步/300MSE加子300 head MSE，"
+            "总750/600；额外预算不匹配。SSL/A/U/CR/EMA停用，NA不表示损失改善。"
+            "仅最终val18；测试推迟。Teacher几何仅在冻结hash证明后引用R9，"
+            "不声称新SSL学习。\n"
         )
     if queue.get("family") == ROUND9_SCHEMA:
         text.append(

@@ -112,6 +112,18 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
                 generator=runtime.generator,
                 steps_per_epoch=runtime.steps_per_epoch,
             )
+        readout_provenance = None
+        if runtime.options.training_mode == "frozen_readout":
+            if plan.get("postfit_policy", "inline") != "deferred":
+                raise ValueError("frozen readout requires explicit deferred test access")
+            from gradpert.training.v2.readout import restore_frozen_parent
+
+            readout_provenance = restore_frozen_parent(
+                config,
+                data_identity=runtime.identity,
+                objective=runtime.objective,
+                optimizer=runtime.optimizer,
+            )
         identity = {
             "source": source.payload(),
             "environment": environment.payload(),
@@ -120,6 +132,8 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             "resolved_config_sha256": sha256_json(config.model_dump(mode="json")),
             "run_id": plan["run_id"],
         }
+        if readout_provenance is not None:
+            identity["frozen_readout"] = readout_provenance
         if continuation_provenance is not None:
             identity["continuation"] = continuation_provenance
         manifest_path = root / "run_manifest.json"
@@ -268,6 +282,13 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             bootstrap_history=bootstrap_history if not resume else None,
             bootstrap_best=bootstrap_best if not resume else None,
         )
+        if readout_provenance is not None:
+            from gradpert.training.v2.readout import frozen_state_proof
+
+            proof = frozen_state_proof(runtime.objective, runtime.optimizer)
+            if runtime.optimizer.steps != 300 or not proof["prediction_head_changed"]:
+                raise ValueError("frozen readout must complete 300 updates and change the head")
+            primary_call(lambda: atomic_json(root / "fit/frozen_readout_proof.json", proof))
         primary_call(lambda: export_curves(root / "fit"))
         if plan.get("postfit_policy", "inline") == "deferred":
             from gradpert.execution.v2_training_stage import seal_training_stage
