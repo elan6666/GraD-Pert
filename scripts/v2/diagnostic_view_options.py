@@ -30,7 +30,7 @@ def diagnostic_view_options(options, *, deep):
             changes.update(au_alignment_weight=0.0, au_uniformity_weight=0.0)
         if getattr(options, "cr_weight", 0.0):
             changes.update(cr_weight=0.0)
-        for name in ("spectral_rank_weight", "spectral_cosine_weight"):
+        for name in ("spectral_rank_weight", "spectral_cosine_weight", "spectral_amplitude_weight"):
             if hasattr(options, name):
                 changes[name] = 0.0
     return replace(options, **changes)

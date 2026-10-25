@@ -32,6 +32,8 @@ from generate_representation_round11 import ARMS as ROUND11_ARMS
 from generate_representation_round11 import SCHEMA as ROUND11_SCHEMA
 from generate_representation_round12 import ARMS as ROUND12_ARMS
 from generate_representation_round12 import SCHEMA as ROUND12_SCHEMA
+from generate_representation_round13 import ARMS as ROUND13_ARMS
+from generate_representation_round13 import SCHEMA as ROUND13_SCHEMA
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
@@ -40,6 +42,7 @@ FAMILY_ARMS = {
     ROUND9_SCHEMA: ROUND9_ARMS,
     ROUND11_SCHEMA: ROUND11_ARMS,
     ROUND12_SCHEMA: ROUND12_ARMS,
+    ROUND13_SCHEMA: ROUND13_ARMS,
     SCHEMA: ARMS,
     ROUND2_SCHEMA: ROUND2_ARMS,
     ROUND3_SCHEMA: ROUND3_ARMS,
@@ -151,7 +154,8 @@ def validate_validation(queue, row):
                 type(n) is not int
                 or type(total) is not int
                 or (
-                    queue.get("family") in (ROUND9_SCHEMA, ROUND11_SCHEMA, ROUND12_SCHEMA)
+                    queue.get("family")
+                    in (ROUND9_SCHEMA, ROUND11_SCHEMA, ROUND12_SCHEMA, ROUND13_SCHEMA)
                     and total != 445
                 )
                 or not 0 <= n <= total
@@ -449,6 +453,25 @@ def ssl_loss_contributions(history, config):
                 )
             }
         )
+        if options.spectral_amplitude_weight:
+            row.update(
+                {
+                    key: terms.get(key)
+                    for key in (
+                        "spectral_amplitude",
+                        "spectral_amplitude_weighted",
+                        "spectral_amplitude_target",
+                        "spectral_q_g0",
+                        "spectral_q_g1",
+                        "spectral_trace_g0",
+                        "spectral_trace_g1",
+                        "spectral_total_energy_g0",
+                        "spectral_total_energy_g1",
+                        "spectral_mean_energy_g0",
+                        "spectral_mean_energy_g1",
+                    )
+                }
+            )
         if options.training_mode == "frozen_readout":
             row.update(
                 ssl_status="inactive",
@@ -485,6 +508,7 @@ def render_medium_report(queue, row, root):
         ROUND9_SCHEMA,
         ROUND11_SCHEMA,
         ROUND12_SCHEMA,
+        ROUND13_SCHEMA,
     ):
         tables["training_loss_contributions"] = ssl_loss_contributions(
             history, row["plan"]["config"]
@@ -540,17 +564,25 @@ def render_medium_report(queue, row, root):
     fig.tight_layout()
     fig.savefig(report / "representation.png", dpi=150)
     plt.close(fig)
-    if queue.get("family") == ROUND12_SCHEMA:
+    if queue.get("family") in (ROUND12_SCHEMA, ROUND13_SCHEMA):
         fig, axes = plt.subplots(1, 2, figsize=(12, 4))
         contributions = tables["training_loss_contributions"]
-        for key in ("spectral_rank", "spectral_cosine"):
+        raw_keys = ("spectral_rank", "spectral_cosine") + (
+            ("spectral_amplitude",) if queue.get("family") == ROUND13_SCHEMA else ()
+        )
+        for key in raw_keys:
             axes[0].plot(
                 [r["epoch"] for r in contributions],
                 [r.get(key) for r in contributions],
                 "o-",
                 label=key,
             )
-        for key in ("spectral_rank_weighted", "spectral_cosine_weighted", "spectral_weighted"):
+        weighted_keys = (
+            "spectral_rank_weighted",
+            "spectral_cosine_weighted",
+            "spectral_weighted",
+        ) + (("spectral_amplitude_weighted",) if queue.get("family") == ROUND13_SCHEMA else ())
+        for key in weighted_keys:
             axes[1].plot(
                 [r["epoch"] for r in contributions],
                 [r.get(key) for r in contributions],
@@ -632,6 +664,28 @@ def render_medium_report(queue, row, root):
             "原始SSL/MSE与实际warmup加权rank/cos贡献分列；小探针缺完整320总体，"
             "新项保留NA。主对照复用历史R3-RI，RS-B0/RS-RI仅背景；"
             "跨版本单seed比较不保证同轨迹，无baseline重训，最终val18+MSE，test延期。\n"
+        )
+        text.extend(
+            ["## training_loss_contributions\n", table(tables["training_loss_contributions"])]
+        )
+    if queue.get("family") == ROUND13_SCHEMA:
+        from generate_representation_round13 import (
+            AMPLITUDE_WEIGHT,
+            CALIBRATION_RESULT_SHA256,
+            CALIBRATION_SOURCE,
+        )
+
+        text.append(
+            "![完整总体原始及实际warmup加权辅助损失](spectral_losses.png)\n"
+            "R13从头RI两epoch/300更新，rank target=.20/weight=.02，amp q下限=.0225；"
+            f"共用幅度系数{AMPLITUDE_WEIGHT!r}，两臂仅额外cos=.10/0不同。"
+            "warmup30成功更新，首次0；EMA .99→1，旧SSL/MSE与采样不变。"
+            "小探针缺完整320总体，新项NA；q/trace/E/mean保留真实训练聚合值。"
+            "普通medium/panel未采集训练后gamma、affine-free及fixed-row-RMS检查，当前NA；"
+            "科学验收前需独立冻结0更新补测，不能由历史校准诊断代替。"
+            f"校准源码`{CALIBRATION_SOURCE}`与结果SHA256`{CALIBRATION_RESULT_SHA256}`单独保存，"
+            "正式训练源码为本报告所列新SHA，文件兼容证明不替换历史身份。"
+            "复用历史R3-RI主参照，跨版本单seed，无baseline重训；最终val18+MSE，test延期。\n"
         )
         text.extend(
             ["## training_loss_contributions\n", table(tables["training_loss_contributions"])]

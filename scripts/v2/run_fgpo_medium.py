@@ -45,11 +45,14 @@ from generate_representation_round11 import ARMS as RS11_ARMS
 from generate_representation_round11 import SCHEMA as RS11_SCHEMA
 from generate_representation_round12 import ARMS as RS12_ARMS
 from generate_representation_round12 import SCHEMA as RS12_SCHEMA
+from generate_representation_round13 import ARMS as RS13_ARMS
+from generate_representation_round13 import SCHEMA as RS13_SCHEMA
 
 FAMILY_ARMS = {
     RS9_SCHEMA: RS9_ARMS,
     RS11_SCHEMA: RS11_ARMS,
     RS12_SCHEMA: RS12_ARMS,
+    RS13_SCHEMA: RS13_ARMS,
     RS_SCHEMA: RS_ARMS,
     RS2_SCHEMA: RS2_ARMS,
     RS3_SCHEMA: RS3_ARMS,
@@ -591,6 +594,43 @@ def spectral_pair_parent_binding(
     }
 
 
+def relative_amplitude_parent_binding(
+    parent, training_identity, *, arm, config, parent_path, parent_sha256
+):
+    """Only R13's sealed spectral protocol may differ from original physical data."""
+    import yaml
+    from generate_representation_round13 import configs, spectral_protocol
+
+    if (
+        arm not in RS13_ARMS
+        or yaml.safe_load(Path(config).read_text())
+        != configs(Path(__file__).resolve().parents[2])[arm]
+    ):
+        raise ValueError("R13 requires exact sealed amplitude/cosine configuration")
+    expected = copy.deepcopy(parent["data"])
+    if "spectral_pair" in expected["loss_protocol"]:
+        raise ValueError("R13 requires original physical parent without spectral metadata")
+    protocol = spectral_protocol(arm)
+    expected["loss_protocol"]["spectral_pair"] = protocol
+    if training_identity["data"] != expected:
+        raise ValueError("R13 medium parent differs beyond sealed amplitude spectral protocol")
+    return {
+        **copy.deepcopy(parent),
+        "data": copy.deepcopy(training_identity["data"]),
+        "training_protocol_binding": dict(
+            arm=arm,
+            original_parent_manifest=str(parent_path),
+            original_parent_sha256=parent_sha256,
+            changed_field="data.loss_protocol.spectral_pair",
+            previous_value=None,
+            training_value=protocol,
+            training_run_id=training_identity["run_id"],
+            diagnostic_population_sha256=population_identity(parent["schedule"]),
+            sampling_changed=False,
+        ),
+    }
+
+
 def staged_joint_parent_binding(
     parent, training_identity, *, arm, config, parent_path, parent_sha256
 ):
@@ -871,9 +911,13 @@ def execute(
             "R11-READOUT",
             "R12-SRBAL",
             "R12-SRAGG",
+            "R13-SRAMP",
+            "R13-SRAMPNC",
         ):
             bind_parent = (
-                spectral_pair_parent_binding
+                relative_amplitude_parent_binding
+                if arm in RS13_ARMS
+                else spectral_pair_parent_binding
                 if arm in RS12_ARMS
                 else frozen_readout_parent_binding
                 if arm == "R11-READOUT"

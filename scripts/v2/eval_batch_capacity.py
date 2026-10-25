@@ -70,6 +70,9 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     from generate_representation_round12 import ARMS as RS12_ARMS
     from generate_representation_round12 import SCHEMA as RS12_SCHEMA
     from generate_representation_round12 import verify_manifest as verify_rs12_manifest
+    from generate_representation_round13 import ARMS as RS13_ARMS
+    from generate_representation_round13 import SCHEMA as RS13_SCHEMA
+    from generate_representation_round13 import verify_manifest as verify_rs13_manifest
     from shared_gpu import DYNAMIC_SCHEMA, validate_policy
 
     from gradpert.hashing import sha256_file
@@ -99,6 +102,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             RS9_SCHEMA,
             RS11_SCHEMA,
             RS12_SCHEMA,
+            RS13_SCHEMA,
         )
         or queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA
         or queue.get("source_commit") != source_commit
@@ -156,6 +160,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         RS9_SCHEMA,
         RS11_SCHEMA,
         RS12_SCHEMA,
+        RS13_SCHEMA,
     ):
         family_schema = queue["family"]
         verifier, arms = {
@@ -170,6 +175,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             RS9_SCHEMA: (verify_rs9_manifest, RS9_ARMS),
             RS11_SCHEMA: (verify_rs11_manifest, RS11_ARMS),
             RS12_SCHEMA: (verify_rs12_manifest, RS12_ARMS),
+            RS13_SCHEMA: (verify_rs13_manifest, RS13_ARMS),
         }[family_schema]
         matrix = verifier(Path(queue["source"]), Path(queue["manifest"]))
         if family_schema == RS3_SCHEMA:

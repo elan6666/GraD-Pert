@@ -130,10 +130,12 @@ def panel_parent_binding(parent, identity, queue, args):
     from generate_representation_round9 import SCHEMA as JOINT_SCHEMA
     from generate_representation_round11 import SCHEMA as READOUT_SCHEMA
     from generate_representation_round12 import SCHEMA as SPECTRAL_SCHEMA
+    from generate_representation_round13 import SCHEMA as AMPLITUDE_SCHEMA
     from run_fgpo_medium import (
         au_parent_binding,
         cr_parent_binding,
         frozen_readout_parent_binding,
+        relative_amplitude_parent_binding,
         spectral_pair_parent_binding,
         staged_joint_parent_binding,
     )
@@ -167,6 +169,8 @@ def panel_parent_binding(parent, identity, queue, args):
         "R11-READOUT",
         "R12-SRBAL",
         "R12-SRAGG",
+        "R13-SRAMP",
+        "R13-SRAMPNC",
     ):
         spec = queue["medium_analysis"]
         family = {
@@ -179,6 +183,8 @@ def panel_parent_binding(parent, identity, queue, args):
             "R11-READOUT": READOUT_SCHEMA,
             "R12-SRBAL": SPECTRAL_SCHEMA,
             "R12-SRAGG": SPECTRAL_SCHEMA,
+            "R13-SRAMP": AMPLITUDE_SCHEMA,
+            "R13-SRAMPNC": AMPLITUDE_SCHEMA,
         }.get(row["name"], SCHEMA)
         if (
             queue.get("family") != family
@@ -187,7 +193,9 @@ def panel_parent_binding(parent, identity, queue, args):
         ):
             raise ValueError("population auxiliary panel requires its exact original family parent")
         bind_parent = (
-            spectral_pair_parent_binding
+            relative_amplitude_parent_binding
+            if row["name"] in ("R13-SRAMP", "R13-SRAMPNC")
+            else spectral_pair_parent_binding
             if row["name"] in ("R12-SRBAL", "R12-SRAGG")
             else frozen_readout_parent_binding
             if row["name"] == "R11-READOUT"

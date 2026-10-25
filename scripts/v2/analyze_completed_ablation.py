@@ -379,6 +379,18 @@ def report(data: dict) -> str:
                 "R3-RI为历史跨版本主参照，RS-B0/RS-RI为背景；单seed不保证轨迹相同。"
             ]
             if any("spectral_weighted" in h["training"] for h in data["history"])
+            and not any("spectral_amplitude" in h["training"] for h in data["history"])
+            else []
+        ),
+        *(
+            [
+                "R13使用原RI架构从头训练，完整Global ResponseCLS软秩+.0225相对幅度下限；"
+                "两臂仅额外cos=.10/0不同，幅度系数固定为训练侧校准值0.012439571837341717。"
+                "原始及实际warmup加权项和q/trace/E/mean见training.csv；部分总体探针保留NA。"
+                "校准来源933dfb5与实际训练/评估SHA分别记录；校准通过不是科学改进。"
+                "R3-RI为历史跨版本主参照，单seed，最终val18+MSE，test延期。"
+            ]
+            if any("spectral_amplitude" in h["training"] for h in data["history"])
             else []
         ),
         "## 训练损失和耗时",

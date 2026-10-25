@@ -59,6 +59,8 @@ from generate_representation_round11 import SCHEMA as RS11_SCHEMA
 from generate_representation_round11 import verify_manifest as verify_rs11_manifest
 from generate_representation_round12 import SCHEMA as RS12_SCHEMA
 from generate_representation_round12 import verify_manifest as verify_rs12_manifest
+from generate_representation_round13 import SCHEMA as RS13_SCHEMA
+from generate_representation_round13 import verify_manifest as verify_rs13_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -93,6 +95,7 @@ RESEARCH_FAMILIES = (
     RS9_SCHEMA,
     RS11_SCHEMA,
     RS12_SCHEMA,
+    RS13_SCHEMA,
 )
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
@@ -210,6 +213,7 @@ def verify_manifest(source: Path, manifest: Path) -> dict:
         RS9_SCHEMA: verify_rs9_manifest,
         RS11_SCHEMA: verify_rs11_manifest,
         RS12_SCHEMA: verify_rs12_manifest,
+        RS13_SCHEMA: verify_rs13_manifest,
         RS5_SCHEMA: verify_rs5_manifest,
         RS4_SCHEMA: verify_rs4_manifest,
         RS3_SCHEMA: verify_rs3_manifest,
@@ -277,6 +281,7 @@ def prepare(
     policy: dict,
     *,
     only_arms: list[str] | None = None,
+    preflight_only: bool = False,
 ) -> dict:
     source, manifest, runtime, output = (
         path.resolve() for path in (source, manifest, runtime, output)
@@ -284,6 +289,8 @@ def prepare(
     if output.exists() or not output.is_relative_to(SERVER_ROOT):
         raise ValueError("fresh server queue root required")
     matrix = selected_matrix(verify_manifest(source, manifest), only_arms)
+    if (matrix["schema"] == RS13_SCHEMA) != preflight_only:
+        raise ValueError("R13 engineering stage requires explicit sealed preflight-only mode")
     validate_policy(policy)
     if policy["schema"] != DYNAMIC_SCHEMA:
         raise ValueError("BR400 requires exact approved dual-GPU schema3 policy")
@@ -320,6 +327,13 @@ def prepare(
         "policy_sha256": sha256_json(policy),
         "eval_bindings": [],
     }
+    if matrix["schema"] == RS13_SCHEMA:
+        from generate_representation_round13 import validate_calibration_binding
+
+        queue["preflight_only"] = True
+        queue["relative_amplitude_binding"] = validate_calibration_binding(
+            source, read_json(runtime), formal_source_commit=queue["source_commit"]
+        )
     if only_arms is not None:
         queue["only_arms"] = list(only_arms)
     if matrix["schema"] == FFN_SCHEMA:
@@ -360,6 +374,8 @@ def verify(queue: dict) -> None:
         or output.resolve().is_relative_to(source.resolve())
     ):
         raise ValueError("BR400 queue must preserve published source")
+    if (queue["family"] == RS13_SCHEMA) != (queue.get("preflight_only") is True):
+        raise ValueError("R13 queue must seal preflight-only mode")
     validate_policy(queue["shared_gpu_policy"])
     if queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA or queue[
         "policy_sha256"
@@ -390,6 +406,13 @@ def verify(queue: dict) -> None:
         or queue.get("official_dependency") != runtime["official_dependency"]
     ):
         raise ValueError("FFN official dependency must be explicitly sealed")
+    if matrix["schema"] == RS13_SCHEMA:
+        from generate_representation_round13 import validate_calibration_binding
+
+        if queue.get("relative_amplitude_binding") != validate_calibration_binding(
+            source, runtime, formal_source_commit=queue["source_commit"]
+        ):
+            raise ValueError("R13 calibration/source compatibility binding changed")
     if Path(runtime["repository_root"]).resolve() != source.resolve():
         raise ValueError("runtime source binding changed")
     if (
@@ -572,6 +595,14 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
     ):
         raise ValueError("exact10 restore/inference/read-only joint-validation gate missing")
     if queue["family"] in LAST_ONLY_FAMILIES:
+        if queue["family"] == RS13_SCHEMA:
+            from generate_representation_round13 import validate_amplitude_gate
+
+            validate_amplitude_gate(
+                receipt.get("spectral_amplitude_gate", {}),
+                arm=row["name"],
+                resume_checkpoint_sha256=receipt.get("resume_checkpoint_sha256"),
+            )
         if queue["family"] == RS12_SCHEMA:
             spectral = receipt.get("spectral_pair_gate", {})
             required = {
@@ -720,6 +751,17 @@ DATA_HASHES = (
 
 
 def validate_common_gates(queue: dict, state: dict) -> dict:
+    if queue["family"] == RS13_SCHEMA:
+        from generate_representation_round13 import validate_calibration_binding
+
+        if queue.get("relative_amplitude_binding") != validate_calibration_binding(
+            Path(queue["source"]),
+            read_json(Path(queue["runtime"])),
+            formal_source_commit=queue["source_commit"],
+        ):
+            raise ValueError(
+                "R13 fit requires accepted original calibration and source compatibility"
+            )
     if queue["family"] == RS12_SCHEMA:
         from calibrate_spectral_pair import verify_endpoints
 
@@ -855,6 +897,7 @@ def expected_epochs(plan: dict) -> int:
             RS8_SCHEMA,
             RS11_SCHEMA,
             RS12_SCHEMA,
+            RS13_SCHEMA,
         ):
             family = verify_manifest(source, family_manifest)
             matching = [r for r in family["rows"] if source / r["config"] == Path(plan["config"])]
@@ -1040,16 +1083,74 @@ def gate_entry(path: Path) -> dict:
     return {"receipt": str(path), "sha256": sha256_file(path)}
 
 
-def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -> None:
+def validate_fit_promotion(queue, directory, state):
+    """Explicit later-stage R13 promotion; never rerun or weaken sealed preflights."""
+    if (directory / "FAILURE.json").exists():
+        raise ValueError("R13 fit promotion rejects a retained controller FAILURE")
+    if (
+        queue.get("family") != RS13_SCHEMA
+        or queue.get("preflight_only") is not True
+        or state.get("status") != "preflight_complete"
+        or state.get("phase") != "awaiting_main_acceptance"
+        or state.get("active") is not None
+        or state.get("scientific_complete") is not False
+        or state.get("completed") != {}
+        or state.get("queue_sha256") != sha256_file(directory / "queue.json")
+        or state.get("source_commit") != queue["source_commit"]
+    ):
+        raise ValueError(
+            "R13 resume-fit requires the exact successful preflight-only terminal state"
+        )
+    matrix = verify_manifest(Path(queue["source"]), Path(queue["manifest"]))
+    common = validate_common_gates(queue, state)
+    expected = dict(
+        common_identity=common,
+        queue_sha256=state["queue_sha256"],
+        source_commit=queue["source_commit"],
+        preflights=state["preflights"],
+        eval_capacity=state["eval_capacity"],
+        formal_order=matrix["priority"],
+        preflight_only=True,
+    )
+    ready = read_json(directory / "PREFLIGHT_COMPLETE.json")
+    if ready != expected or read_json(directory / "MAIN_ACCEPTANCE.json") != {
+        **expected,
+        "approved": True,
+    }:
+        raise ValueError("R13 resume-fit requires main acceptance of every exact retained gate")
+    if (directory / "FIT_PROMOTION.json").exists():
+        raise ValueError(
+            "R13 fit promotion already attempted; reconcile immutable execution evidence"
+        )
+    for row in queue["rows"]:
+        if any(Path(row["plan"][key]).exists() for key in ("run_root", "test_root")):
+            raise FileExistsError("R13 fit promotion cannot overwrite an existing run/test root")
+        if read_json(directory / f"{row['name']}.launch-plan.json") != row["plan"]:
+            raise ValueError("R13 retained formal launch plan changed")
+    return ready
+
+
+def execute(
+    queue: dict,
+    directory: Path,
+    *,
+    eval_only_row: str | None = None,
+    preflight_only: bool = False,
+    resume_fit: bool = False,
+) -> None:
     if (
         os.environ.get("CUDA_VISIBLE_DEVICES") != ""
         or os.environ.get("PYTORCH_ALLOC_CONF") != ALLOCATOR
         or Path(queue["source"]).resolve() != Path(__file__).resolve().parents[2]
         or directory.resolve() != Path(queue["output"]).resolve()
-        or (directory / "state.json").exists()
+        or ((directory / "state.json").exists() and not resume_fit)
         or read_json(directory / "queue.json") != queue
     ):
         raise ValueError("fresh CPU-only execution must match sealed source/root/queue")
+    if (preflight_only and resume_fit) or (resume_fit and queue.get("family") != RS13_SCHEMA):
+        raise ValueError("resume-fit is an explicit later R13 stage, separate from preflight-only")
+    if queue.get("preflight_only", False) is not (preflight_only or resume_fit):
+        raise ValueError("execution preflight-only flag differs from sealed queue")
     verify(queue)
     matrix = selected_matrix(
         verify_manifest(Path(queue["source"]), Path(queue["manifest"])), queue.get("only_arms")
@@ -1071,6 +1172,10 @@ def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -
         "eval_capacity": {},
         "completed": {},
     }
+    if resume_fit:
+        state = read_json(directory / "state.json")
+        promotion_state_sha256 = sha256_file(directory / "state.json")
+        validate_fit_promotion(queue, directory, state)
     if eval_only_row is not None:
         state["engineering_only_row"] = eval_only_row
 
@@ -1086,6 +1191,7 @@ def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -
     def abort(_sig, _frame):
         raise KeyboardInterrupt("BR400 controller interrupted")
 
+    promotion_started = False
     handlers = {sig: signal.signal(sig, abort) for sig in (signal.SIGINT, signal.SIGTERM)}
     try:
         with contextlib.ExitStack() as stack:
@@ -1104,59 +1210,114 @@ def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -
                 gpu_leases.enter_context(lock(LEASE_ROOT / f"v2-gpu-{gpu}.lock"))
             if any(p["owned"] for p in guard()["processes"]):
                 raise RuntimeError("other owned CUDA work exists")
-            indexed = {row["name"]: row for row in queue["rows"]}
-            priority = [eval_only_row] if eval_only_row else matrix["preflight_priority"]
-            for name in priority:
-                row = indexed[name]
-                if eval_only_row is None:
-                    command = probe(row, directory, shared=True)
-                    if queue["family"] not in LAST_ONLY_FAMILIES:
-                        command = [*command, "--joint-validation-check"]
-                    run_stage(queue, row, "preflight", command, "0,1", state, guard)
-                    entry = gate_entry(directory / f"{name}-preflight/receipt.json")
-                    validate_training_gate(queue, row, entry)
-                    state["preflights"][name] = entry
-                    atomic_json(directory / "state.json", state)
-                for binding in (b for b in queue["eval_bindings"] if b["row_name"] == name):
-                    run_stage(
-                        queue,
-                        row,
-                        f"eval-capacity-g{binding['gpu']}",
-                        eval_capacity_command(queue, row, binding),
-                        binding["gpu"],
-                        state,
-                        guard,
+            if resume_fit:
+                verify(queue)
+                disk_state = read_json(directory / "state.json")
+                if (
+                    sha256_file(directory / "state.json") != promotion_state_sha256
+                    or disk_state != state
+                ):
+                    raise ValueError(
+                        "R13 terminal state changed while waiting for controller/GPU locks"
                     )
-                    entry = gate_entry(Path(binding["output"]) / "receipt.json")
-                    validate_eval_gate(queue, row, binding, entry)
-                    state["eval_capacity"][f"{name}-g{binding['gpu']}"] = entry
-            if eval_only_row is not None:
-                state.update(status="completed", phase="engineering_eval_complete", active=None)
+                state = disk_state
+                ready = validate_fit_promotion(queue, directory, state)
+                write_promotion = dict(
+                    queue_sha256=queue_sha,
+                    source_commit=queue["source_commit"],
+                    preflight_complete_sha256=sha256_file(directory / "PREFLIGHT_COMPLETE.json"),
+                    main_acceptance_sha256=sha256_file(directory / "MAIN_ACCEPTANCE.json"),
+                    explicit_resume_fit=True,
+                    preflights_reused=True,
+                    preflight_state_sha256=promotion_state_sha256,
+                )
+                atomic_json(directory / "FIT_PROMOTION.json", write_promotion)
+                promotion_started = True
+                state.update(
+                    status="running",
+                    phase="fit_promotion",
+                    pid=os.getpid(),
+                    active=None,
+                    formal_fit_authorized=True,
+                    explicit_fit_promotion=True,
+                )
                 atomic_json(directory / "state.json", state)
-                atomic_json(directory / "EVAL_CAPACITY_COMPLETE.json", state)
-                return
-            common = validate_common_gates(queue, state)
-            ready = {
-                "common_identity": common,
-                "queue_sha256": queue_sha,
-                "source_commit": queue["source_commit"],
-                "preflights": state["preflights"],
-                "eval_capacity": state["eval_capacity"],
-                "formal_order": matrix["priority"],
-            }
-            if queue["family"] == FFN_SCHEMA:
-                ready["official_dependency"] = queue["official_dependency"]
-            atomic_json(directory / "PREFLIGHT_COMPLETE.json", ready)
-            state["phase"] = "waiting_main_acceptance"
-            atomic_json(directory / "state.json", state)
-            acceptance = directory / "MAIN_ACCEPTANCE.json"
-            while not acceptance.exists():
-                guard()
-                time.sleep(POLL_SECONDS)
-            accepted = read_json(acceptance)
-            if accepted != {**ready, "approved": True}:
-                raise ValueError("main acceptance must bind all exact gates and published source")
+            else:
+                indexed = {row["name"]: row for row in queue["rows"]}
+                priority = [eval_only_row] if eval_only_row else matrix["preflight_priority"]
+                for name in priority:
+                    row = indexed[name]
+                    if eval_only_row is None:
+                        command = probe(row, directory, shared=True)
+                        if queue["family"] not in LAST_ONLY_FAMILIES:
+                            command = [*command, "--joint-validation-check"]
+                        run_stage(queue, row, "preflight", command, "0,1", state, guard)
+                        entry = gate_entry(directory / f"{name}-preflight/receipt.json")
+                        validate_training_gate(queue, row, entry)
+                        state["preflights"][name] = entry
+                        atomic_json(directory / "state.json", state)
+                    for binding in (b for b in queue["eval_bindings"] if b["row_name"] == name):
+                        run_stage(
+                            queue,
+                            row,
+                            f"eval-capacity-g{binding['gpu']}",
+                            eval_capacity_command(queue, row, binding),
+                            binding["gpu"],
+                            state,
+                            guard,
+                        )
+                        entry = gate_entry(Path(binding["output"]) / "receipt.json")
+                        validate_eval_gate(queue, row, binding, entry)
+                        state["eval_capacity"][f"{name}-g{binding['gpu']}"] = entry
+                if eval_only_row is not None:
+                    state.update(status="completed", phase="engineering_eval_complete", active=None)
+                    atomic_json(directory / "state.json", state)
+                    atomic_json(directory / "EVAL_CAPACITY_COMPLETE.json", state)
+                    return
+                common = validate_common_gates(queue, state)
+                ready = {
+                    "common_identity": common,
+                    "queue_sha256": queue_sha,
+                    "source_commit": queue["source_commit"],
+                    "preflights": state["preflights"],
+                    "eval_capacity": state["eval_capacity"],
+                    "formal_order": matrix["priority"],
+                }
+                if queue["family"] == FFN_SCHEMA:
+                    ready["official_dependency"] = queue["official_dependency"]
+                if preflight_only:
+                    ready["preflight_only"] = True
+                atomic_json(directory / "PREFLIGHT_COMPLETE.json", ready)
+                if preflight_only:
+                    state.update(
+                        status="preflight_complete",
+                        phase="awaiting_main_acceptance",
+                        active=None,
+                        formal_fit_authorized=False,
+                    )
+                    atomic_json(directory / "state.json", state)
+                    return
+                state["phase"] = "waiting_main_acceptance"
+                atomic_json(directory / "state.json", state)
+                acceptance = directory / "MAIN_ACCEPTANCE.json"
+                while not acceptance.exists():
+                    guard()
+                    time.sleep(POLL_SECONDS)
+                accepted = read_json(acceptance)
+                if accepted != {**ready, "approved": True}:
+                    raise ValueError(
+                        "main acceptance must bind all exact gates and published source"
+                    )
             for row in queue["rows"]:
+                if resume_fit and (
+                    sha256_file(directory / "MAIN_ACCEPTANCE.json")
+                    != write_promotion["main_acceptance_sha256"]
+                    or sha256_file(directory / "PREFLIGHT_COMPLETE.json")
+                    != write_promotion["preflight_complete_sha256"]
+                ):
+                    raise ValueError(
+                        "R13 main acceptance/preflight receipt changed after promotion"
+                    )
                 verify(queue)
                 for key in ("run_root", "test_root"):
                     if Path(row["plan"][key]).exists():
@@ -1247,6 +1408,20 @@ def execute(queue: dict, directory: Path, *, eval_only_row: str | None = None) -
             atomic_json(directory / "state.json", state)
             atomic_json(directory / "COMPLETE.json", state)
     except BaseException as error:
+        if resume_fit and not promotion_started:
+            atomic_json(
+                directory / f"FIT_PROMOTION_REJECTED-{time.time_ns()}.json",
+                dict(
+                    error_type=type(error).__name__,
+                    error=str(error),
+                    pid=os.getpid(),
+                    source_commit=queue["source_commit"],
+                    queue_sha256=queue_sha,
+                    state_preserved=True,
+                    fit_started=False,
+                ),
+            )
+            raise
         state.update(
             status="failed", phase="failed", error_type=type(error).__name__, error=str(error)
         )
@@ -1263,6 +1438,8 @@ def main() -> None:
     for key in ("source", "manifest", "runtime", "output", "shared-policy", "queue"):
         parser.add_argument("--" + key, type=Path)
     parser.add_argument("--prepare", action="store_true")
+    parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument("--resume-fit", action="store_true")
     parser.add_argument("--eval-only-row", choices=("DP", "FN", "FG", "FB", "PO"))
     parser.add_argument(
         "--only-arms", nargs="+", choices=(*PENDING_FGPO_ARMS, *R3_CONTINUATION_ARMS)
@@ -1273,6 +1450,7 @@ def main() -> None:
         args.prepare
         and not args.queue
         and not args.eval_only_row
+        and not args.resume_fit
         and all(getattr(args, key) is not None for key in fields)
     ):
         prepare(
@@ -1282,6 +1460,7 @@ def main() -> None:
             args.output,
             read_json(args.shared_policy),
             only_arms=args.only_arms,
+            preflight_only=args.preflight_only,
         )
     elif (
         args.queue
@@ -1290,7 +1469,11 @@ def main() -> None:
         and all(getattr(args, key) is None for key in fields)
     ):
         execute(
-            read_json(args.queue), args.queue.resolve().parent, eval_only_row=args.eval_only_row
+            read_json(args.queue),
+            args.queue.resolve().parent,
+            eval_only_row=args.eval_only_row,
+            preflight_only=args.preflight_only,
+            resume_fit=args.resume_fit,
         )
     else:
         parser.error(

@@ -1,0 +1,237 @@
+{
+  "schema": "representation-round13-relative-amplitude-medium-1",
+  "family": "representation_round13_20261026",
+  "priority": [
+    "R13-SRAMP",
+    "R13-SRAMPNC"
+  ],
+  "preflight_priority": [
+    "R13-SRAMP",
+    "R13-SRAMPNC"
+  ],
+  "common_microbatch": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 320,
+  "epochs": 2,
+  "seed": 1,
+  "eval_batch": 128,
+  "validation": "disabled",
+  "postfit_validation": true,
+  "test_timing": "after_research_design_lock",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "initialization": "from_scratch; original RI architecture and seed1; no checkpoint warm start",
+  "analysis": "same sealed medium population plus a separate fixed-panel training probe",
+  "baseline": {
+    "config": "configs/v2/fgpo_node0_20261016_b320/B0/gradpert_v2/nadig_jurkat.yaml",
+    "sha256": "80f5ee1d6c4d826d9d2c023f304c08f1734b5a05acd28d565f7053e367117830"
+  },
+  "schedule_semantics": {
+    "lr": "unchanged endpoint warmup cosine, warmup_fraction=0.16, over two epochs",
+    "ema": "unchanged cosine 0.99 to 1.0 over two epochs",
+    "comparison": "original RI two-epoch300-update budget; historical cross-version single seed",
+    "auxiliary_warmup": "min(1, completed_successful_updates/30); first update zero"
+  },
+  "fixed_panel_diagnostics": {
+    "split": "train",
+    "conditions": 32,
+    "controls_per_condition": 4,
+    "query_genes": 1000,
+    "deep_gene_sample": 128,
+    "panel": "one fixed allowed training-expression panel shared by all arms and conditions",
+    "pairing": [
+      "same_condition_different_control",
+      "different_condition_same_control"
+    ],
+    "stratification": [
+      "cell_line",
+      "cell_type",
+      "context_id"
+    ],
+    "identity": "reuse sealed medium condition/row identities where eligible; seal the extra probe separately",
+    "independence": "deduplicate controls; report actual valid counts; do not replace missing rows silently",
+    "stages": "Response injection input, branch and actual state; self/cross/FFN; final norm",
+    "state_updates": false,
+    "persist_full_activations": false
+  },
+  "research_iteration": {
+    "round": 13,
+    "authorized_rounds": null,
+    "future_rounds": "evidence-led; no automatic extra arms or baseline rerun",
+    "design_evidence": [
+      "train",
+      "validation"
+    ],
+    "test_results_for_selection": false,
+    "success": "joint representation separation and response utility; not CE or DINO rank alone",
+    "stage_review_after_round": 13,
+    "hypothesis": "relative amplitude floor closes rank-only scale loophole; isolate extra cosine",
+    "original_design": "archived round3-design-20261022/DESIGN_V2_CN.md"
+  },
+  "rerun_old_BR_or_officials": false,
+  "reused_controls": [
+    "R3-RI",
+    "RS-B0",
+    "RS-RI"
+  ],
+  "main_reference": "R3-RI",
+  "repeat_baseline": false,
+  "scientific_complete": false,
+  "completed_optimizer_updates": 300,
+  "spectral_pair": {
+    "representation": "two Student Global Response CLS after final RMSNorm before projector",
+    "population": "complete unique effective population across devices and microbatches",
+    "covariance": "raw centered per Global; no row L2 or diagonal jitter",
+    "rho": "exp(spectral_entropy)/min(D,N-1)",
+    "rank": "mean_views(.25*softplus((log(target)-log(rho))/.25))",
+    "cosine": "mean_same_input(1-cos(Global0,Global1)); both Student branches differentiate",
+    "strengths": {
+      "R13-SRAMP": {
+        "spectral_rank_target": 0.2,
+        "spectral_rank_weight": 0.02,
+        "spectral_cosine_weight": 0.1,
+        "spectral_softness": 0.25,
+        "spectral_warmup_steps": 30,
+        "spectral_amplitude_target": 0.0225,
+        "spectral_amplitude_weight": 0.012439571837341717,
+        "au_alignment_weight": 0.0,
+        "au_uniformity_weight": 0.0,
+        "cr_weight": 0.0
+      },
+      "R13-SRAMPNC": {
+        "spectral_rank_target": 0.2,
+        "spectral_rank_weight": 0.02,
+        "spectral_cosine_weight": 0.0,
+        "spectral_softness": 0.25,
+        "spectral_warmup_steps": 30,
+        "spectral_amplitude_target": 0.0225,
+        "spectral_amplitude_weight": 0.012439571837341717,
+        "au_alignment_weight": 0.0,
+        "au_uniformity_weight": 0.0,
+        "cr_weight": 0.0
+      }
+    },
+    "negative_pairs": false,
+    "partial_diagnostics": "NA: complete effective population required",
+    "amplitude": {
+      "target_q": 0.0225,
+      "weight": 0.012439571837341717,
+      "formula": "mean_globals_relu_sqrt_target_minus_sqrt_q_plus_epsilon",
+      "epsilon_q": 1e-08,
+      "q": "centered_population_covariance_trace_over_mean_raw_squared_norm",
+      "denominator_gradients": true
+    }
+  },
+  "calibration_required": {
+    "source_commit": "933dfb5cf546adbf5561a4041fbd4737643f2020",
+    "native_result_sha256": "6a98d66d761f69e65d2f41d35665d3965702602d6ba11ec300b2bb94d721d191",
+    "endpoints": [
+      "init",
+      "ri_last",
+      "r12bal_last"
+    ],
+    "training_populations_per_endpoint": 8,
+    "effective_batch": 320,
+    "updates": 0,
+    "fitting_endpoint": "r12bal_last",
+    "fitting_group": "response",
+    "selected_weight": 0.012439571837341717,
+    "median_weighted_gradient_ratio": 0.1,
+    "no_validation_or_test": true,
+    "source_compatibility": "full math/calibration file bytes and capacity observer source segments",
+    "compatible_files_sha256": {
+      "src/gradpert/training/v2/spectral_pair.py": "e99bd77d39d31b10a9c8efca9366c1f6b063504121b3c545e8509ffa5efe7eaf",
+      "src/gradpert/training/v2/objective.py": "d4ed2ed88e3f8993d276726de6cbd84db4056ce11cc5994b2150ba0687179070",
+      "src/gradpert/training/v2/engine.py": "333b7bb01fbdd90dcafda30083583525554a2dc766ffcd62731300195afac3ba",
+      "src/gradpert/training/v2/runtime.py": "40f00de5f497e0972bdda76af0f1c573eac571100fd0bc9d9a2dd2aae59677f9",
+      "src/gradpert/training/v2/diagnostic_objective.py": "2dc92d2183a6374f43e37964254e3d81f50f0b281fc4849ff157f0691b4e679f",
+      "src/gradpert/training/v2/loss_diagnostics.py": "051cb2763377a545976ff5120a200761d510c8b84fbb48b7cc3a30f820cbbe1a",
+      "src/gradpert/config/v2.py": "ca340d8fbdfbde650009c1743be381ba5e290ead5eef342c919a31f8bd97ffe4",
+      "src/gradpert/training/v2/checkpoint.py": "aa9a7e86ebd707b12fddc04cbf3bb30f2f73c5cdcd4ee41d8358ce6510b61373",
+      "src/gradpert/training/v2/optimizer.py": "7abd45ec494456d2f2871e233ee96a0c33f1a40d98d860de117fad90ca12de57",
+      "src/gradpert/training/v2/reductions.py": "523dadb212989699cead47d60d9c35b8cf72ab166ad450837705cd0c3aa53265",
+      "src/gradpert/modeling/v2/model.py": "78e43d452b6e5a77f973eae9a08383836173adc809a0ad8d05cab2d458a2f4e9",
+      "scripts/v2/calibrate_alignment_uniformity.py": "f6a2d6487a8ea5bad5d727e6822ac602bedf4d7119c6fb7ac1bf5f80b962e9f5",
+      "scripts/v2/calibrate_relative_amplitude.py": "3ae1d5b3c8080cc09ece9ac94aa60cb220df16c88d141a5e8e5484025bf0ee3f"
+    },
+    "capacity_function_source_sha256": {
+      "state_fingerprint": "eba876e18be21f91f8cfce0b745d5fa12f120a4dbe3e5ee6dad5b7df0d088e0d",
+      "validation_state": "7d032711c9fc8d80f7e324cfd9b0bd0f77ee70446e6b8c244350b29ec1249108"
+    }
+  },
+  "comparison_limits": [
+    "historical R3-RI main reference; RS-B0/RS-RI context only; no baseline rerun",
+    "single seed, cross-version trajectories; no test-driven selection",
+    "both arms use the same accepted training-only amplitude coefficient; only extra cosine differs",
+    "geometry/teacher discrimination and validation utility jointly required; calibration is engineering only"
+  ],
+  "rows": [
+    {
+      "name": "R13-SRAMP",
+      "config": "configs/v2/representation_round13_20261026/R13-SRAMP/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "fc5a32a969d401a46b8b4ab4ecc109e8badf6ac9ed2a06c8218ccf007c8403d3",
+      "changes": {
+        "R13-SRAMP": {
+          "spectral_rank_target": 0.2,
+          "spectral_rank_weight": 0.02,
+          "spectral_cosine_weight": 0.1,
+          "spectral_softness": 0.25,
+          "spectral_warmup_steps": 30,
+          "spectral_amplitude_target": 0.0225,
+          "spectral_amplitude_weight": 0.012439571837341717,
+          "au_alignment_weight": 0.0,
+          "au_uniformity_weight": 0.0,
+          "cr_weight": 0.0
+        },
+        "R13-SRAMPNC": {
+          "spectral_rank_target": 0.2,
+          "spectral_rank_weight": 0.02,
+          "spectral_cosine_weight": 0.0,
+          "spectral_softness": 0.25,
+          "spectral_warmup_steps": 30,
+          "spectral_amplitude_target": 0.0225,
+          "spectral_amplitude_weight": 0.012439571837341717,
+          "au_alignment_weight": 0.0,
+          "au_uniformity_weight": 0.0,
+          "cr_weight": 0.0
+        }
+      }
+    },
+    {
+      "name": "R13-SRAMPNC",
+      "config": "configs/v2/representation_round13_20261026/R13-SRAMPNC/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "736ef23c680b124744758b1f21ffff60fce19f1c47bede6f63d8a7c745dd7ec3",
+      "changes": {
+        "R13-SRAMP": {
+          "spectral_rank_target": 0.2,
+          "spectral_rank_weight": 0.02,
+          "spectral_cosine_weight": 0.1,
+          "spectral_softness": 0.25,
+          "spectral_warmup_steps": 30,
+          "spectral_amplitude_target": 0.0225,
+          "spectral_amplitude_weight": 0.012439571837341717,
+          "au_alignment_weight": 0.0,
+          "au_uniformity_weight": 0.0,
+          "cr_weight": 0.0
+        },
+        "R13-SRAMPNC": {
+          "spectral_rank_target": 0.2,
+          "spectral_rank_weight": 0.02,
+          "spectral_cosine_weight": 0.0,
+          "spectral_softness": 0.25,
+          "spectral_warmup_steps": 30,
+          "spectral_amplitude_target": 0.0225,
+          "spectral_amplitude_weight": 0.012439571837341717,
+          "au_alignment_weight": 0.0,
+          "au_uniformity_weight": 0.0,
+          "cr_weight": 0.0
+        }
+      }
+    }
+  ]
+}

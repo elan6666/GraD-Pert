@@ -530,6 +530,8 @@ def main() -> None:
             spectral_gate = runtime.objective.spectral_enabled
             spectral_restores = []
             spectral_steps = []
+            amplitude_gate = bool(runtime.objective.spectral_amplitude_weight)
+            amplitude_steps = []
             if spectral_gate and (kind != "preflight_only" or args.steps != 10):
                 raise ValueError("spectral pair requires native exact10 preflight")
             readout_gate = runtime.options.training_mode == "frozen_readout"
@@ -781,6 +783,15 @@ def main() -> None:
                                 weighted=terms.get("spectral_weighted"),
                             )
                         )
+                    if amplitude_gate:
+                        from generate_representation_round13 import AMPLITUDE_STEP_FIELDS
+
+                        amplitude_steps.append(
+                            dict(
+                                completed_before=step,
+                                **{key: terms.get(key) for key in AMPLITUDE_STEP_FIELDS},
+                            )
+                        )
                     step += 1
                     if args.profile_pt1_stages and step - 1 in profiled_indices:
                         staged_profiles.append(
@@ -1020,6 +1031,23 @@ def main() -> None:
                 )
                 if not all(checks.values()):
                     raise ValueError("spectral pair exact10 full-population/warmup/restore failed")
+
+            if amplitude_gate:
+                from generate_representation_round13 import validate_amplitude_gate
+
+                amplitude_proof = dict(
+                    passed=all(checks.values()),
+                    checks={**checks, "amplitude_energy_and_contributions": True},
+                    updates=amplitude_steps,
+                    resume_checkpoint_sha256=receipt.get("resume_checkpoint_sha256"),
+                    scope="ten_native_updates_and_exact_restore_not_sustained_capacity",
+                )
+                receipt["spectral_amplitude_gate"] = amplitude_proof
+                validate_amplitude_gate(
+                    amplitude_proof,
+                    arm=args.config.parents[1].name,
+                    resume_checkpoint_sha256=receipt.get("resume_checkpoint_sha256"),
+                )
 
             if readout_gate:
                 proof = frozen_state_proof(runtime.objective, runtime.optimizer)
