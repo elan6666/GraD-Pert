@@ -11,6 +11,7 @@ from copy import deepcopy
 from dataclasses import replace
 
 from cap40_posthoc_stats import digest_json, seeded_int
+from diagnostic_view_options import diagnostic_view_options
 
 
 def assemble_control_only(runtime, records, queries, seed, *, deep):
@@ -38,25 +39,10 @@ def assemble_control_only(runtime, records, queries, seed, *, deep):
         perturbed_row_ids=tuple(r["truth_row_id"] for r in records),
         control_row_ids=tuple(r["control_row_id"] for r in records),
     )
-    options = replace(
-        runtime.options,
-        lambda1=float(deep),
-        lambda2=float(deep),
-        **(
-            {"au_alignment_weight": 0.0, "au_uniformity_weight": 0.0}
-            if not deep
-            and (
-                getattr(runtime.options, "au_alignment_weight", 0.0)
-                or getattr(runtime.options, "au_uniformity_weight", 0.0)
-            )
-            else {}
-        ),
-        **({"cr_weight": 0.0} if not deep and getattr(runtime.options, "cr_weight", 0.0) else {}),
-    )
     return assemble_batch(
         raw,
         runtime.index,
-        options,
+        diagnostic_view_options(runtime.options, deep=deep),
         np.random.default_rng(seed),
         allowed_expression_ids=np.array(queries),
     )

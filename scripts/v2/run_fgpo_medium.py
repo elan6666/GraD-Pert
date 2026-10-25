@@ -194,8 +194,23 @@ def validate_medium_complete(queue, row, *, root=None, checkpoint_role=None):
     return {"receipt": str(path), "sha256": sha(path), **COUNTS}
 
 
-def validate_report_repair(q, arm, output, report_source):
+def validate_report_repair(
+    q, arm, output, report_source, *, publication=None, publication_sha256=None
+):
     """Postfit report repair; freeze numerical code and the parent queue."""
+    if (arm, q.get("family")) == ("R11-READOUT", RS11_SCHEMA):
+        from run_readout_analysis_repair import (
+            validate_output,
+            validate_repair_publication,
+            validate_repair_source,
+        )
+
+        validate_repair_source(q, report_source)
+        validate_repair_publication(q, report_source, publication, publication_sha256)
+        from run_representation_postfit import validate_validation
+
+        validate_validation(q, q["rows"][0])
+        return validate_output(q, output)
     if (arm, q.get("family")) not in (
         ("D0", NO_SSL_SCHEMA),
         ("PT1", PT1_SCHEMA),
@@ -640,6 +655,8 @@ def execute(
     arm,
     *,
     repair_output=None,
+    repair_publication=None,
+    repair_publication_sha256=None,
     checkpoint_role="last",
     endpoint_root=None,
     shared_manifest=None,
@@ -676,8 +693,19 @@ def execute(
     report_source = Path(__file__).resolve().parents[2]
     if repair_output is None and source.resolve() != report_source:
         raise ValueError("medium worker must use the exact published queue source")
+    repair_keywords = (
+        dict(publication=repair_publication, publication_sha256=repair_publication_sha256)
+        if q.get("family") == RS11_SCHEMA
+        else {}
+    )
     if repair_output is not None:
-        validate_report_repair(q, arm, repair_output, report_source)
+        validate_report_repair(
+            q,
+            arm,
+            repair_output,
+            report_source,
+            **repair_keywords,
+        )
     parent = validate_analysis_spec(q["medium_analysis"])
     row = next(r for r in q["rows"] if r["name"] == arm)
     research = q.get("family") in RESEARCH_FAMILIES
@@ -689,7 +717,13 @@ def execute(
         Path(endpoint_root)
         if endpoint_root is not None
         else (
-            validate_report_repair(q, arm, repair_output, report_source)
+            validate_report_repair(
+                q,
+                arm,
+                repair_output,
+                report_source,
+                **repair_keywords,
+            )
             if repair_output is not None
             else Path(q["output"]) / f"{arm}-medium"
         )
@@ -955,5 +989,13 @@ if __name__ == "__main__":
     parser.add_argument("--queue", type=Path, required=True)
     parser.add_argument("--arm", choices=AUTHORIZED_ARMS, required=True)
     parser.add_argument("--repair-output", type=Path)
+    parser.add_argument("--repair-publication", type=Path)
+    parser.add_argument("--repair-publication-sha256")
     arguments = parser.parse_args()
-    execute(arguments.queue, arguments.arm, repair_output=arguments.repair_output)
+    execute(
+        arguments.queue,
+        arguments.arm,
+        repair_output=arguments.repair_output,
+        repair_publication=arguments.repair_publication,
+        repair_publication_sha256=arguments.repair_publication_sha256,
+    )

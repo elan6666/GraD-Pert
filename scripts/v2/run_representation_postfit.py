@@ -282,7 +282,13 @@ def validate_staged_joint_teacher_signal(root, receipt, panel):
         raise ValueError("R9 Teacher signal paths omit the frozen panel population")
 
 
-def validate_panel(queue, row, *, checkpoint_role=None):
+def validate_panel(queue, row, *, checkpoint_role=None, root=None):
+    if root is not None:
+        if queue.get("family") != ROUND11_SCHEMA or checkpoint_role not in (None, "last"):
+            raise ValueError("panel root override is scoped to R11 last-checkpoint repair")
+        from run_readout_analysis_repair import validate_output
+
+        root = validate_output(queue, root)
     training = context(queue, row)
     if queue.get("family") == ROUND9_SCHEMA and checkpoint_role is None:
         endpoints = {
@@ -307,7 +313,7 @@ def validate_panel(queue, row, *, checkpoint_role=None):
             training_stage="frozen_readout" if queue.get("family") == ROUND11_SCHEMA else "joint",
             full_training_epochs=2,
         )
-    root = Path(queue["output"]) / f"{row['name']}-panel"
+    root = Path(root) if root is not None else Path(queue["output"]) / f"{row['name']}-panel"
     if queue.get("family") == ROUND9_SCHEMA:
         root = root / role
     receipt = read_json(root / "COMPLETE.json")

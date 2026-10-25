@@ -2,6 +2,7 @@
 
 import copy
 import dataclasses
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -56,7 +57,17 @@ def test_report_guard_allows_only_exact_au_shallow_patch(tmp_path, monkeypatch, 
     source = tmp_path / "repair-source"
     target = source / "scripts/v2/cap40_posthoc.py"
     target.parent.mkdir(parents=True)
-    corrected = (ROOT / "scripts/v2/cap40_posthoc.py").read_text()
+    # This exercises the historical repair contract, before R11 sampling extraction.
+    corrected = subprocess.check_output(
+        [
+            "git",
+            "-C",
+            str(ROOT),
+            "show",
+            "a0f75472345d82386bbdf88056b63a4fd3bdbbb4:scripts/v2/cap40_posthoc.py",
+        ],
+        text=True,
+    )
     before = "else dataclasses.replace(runtime.options, lambda1=0.0, lambda2=0.0)"
     after = """else dataclasses.replace(
             runtime.options,

@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import copy
 import csv
-import dataclasses
 import hashlib
 import json
 import os
@@ -33,6 +32,7 @@ from cap40_posthoc_stats import (
     select_balanced,
 )
 from checkpoint_endpoint import select_checkpoint
+from diagnostic_view_options import diagnostic_view_options
 
 HEADS = ("ssl1_cls", "ssl1_node", "ssl2_cls", "ssl2_node")
 METHOD_SHA = "420d3a1ecf0ca05a88859ae2c2457fa85a126ef0"
@@ -177,29 +177,31 @@ def make_raw(runtime, records, *, dummy=False):
 def assemble(runtime, records, queries, seed, *, deep, dummy=False):
     from gradpert.training.v2.views import assemble_batch
 
-    options = (
-        dataclasses.replace(runtime.options, lambda1=1.0, lambda2=1.0)
-        if deep
-        else dataclasses.replace(
-            runtime.options,
-            lambda1=0.0,
-            lambda2=0.0,
-            **(
-                {"au_alignment_weight": 0.0, "au_uniformity_weight": 0.0}
-                if getattr(runtime.options, "au_alignment_weight", 0.0)
-                or getattr(runtime.options, "au_uniformity_weight", 0.0)
-                else {}
-            ),
-            **({"cr_weight": 0.0} if getattr(runtime.options, "cr_weight", 0.0) else {}),
-        )
-    )
     return assemble_batch(
         make_raw(runtime, records, dummy=dummy),
         runtime.index,
-        options,
+        diagnostic_view_options(runtime.options, deep=deep),
         np.random.default_rng(seed),
         allowed_expression_ids=np.array(queries),
     )
+
+
+def frozen_readout_scope(objective):
+    """Label frozen features and the unobserved Teacher without inventing SSL."""
+    if getattr(objective, "training_stage", None) != "frozen_readout":
+        return {}
+    return {
+        "representation_training_status": (
+            "frozen_R9_backbone_and_Teacher; prediction_head_only; SSL_inactive"
+        ),
+        "teacher_reference_status": (
+            "not_forwarded:inactive_ssl; R9_reference_only_with_frozen_state_digest_proof"
+        ),
+        "diagnostic_objective_scope": {
+            "joint_scope": "frozen_readout_prediction_only",
+            "unavailable_terms": {name: "disabled_in_frozen_readout" for name in ("ssl1", "ssl2")},
+        },
+    }
 
 
 def recipe(batch):
@@ -1419,6 +1421,7 @@ def run(args):
                                 {r["control_row_id"] for r in g["deep_rows"]}
                             ),
                             **diagnostic_scope,
+                            **frozen_readout_scope(obj),
                             "joint": float(loss),
                             "loss_terms": {k: float(v) for k, v in terms.items()},
                         }
@@ -1537,6 +1540,7 @@ def run(args):
             "checkpoint_epoch": cp["epoch"],
             "checkpoint_role": endpoint["role"],
             "training_stage": endpoint["training_stage"],
+            **frozen_readout_scope(obj),
             "prediction_status": (
                 "untrained_readout_diagnostic_only"
                 if endpoint["role"] == "pretrain"
