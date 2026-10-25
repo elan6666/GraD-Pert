@@ -10,12 +10,15 @@ from gradpert.hashing import sha256_json
 
 from .diagnostic_objective import diagnostic_objective
 from .objective import JointObjective, TrainingBatch
+from .readout import HEAD_SHAPES, FrozenReadoutObjective
 from .reductions import population_weights
 
 
 def evaluate_loss_diagnostics(
     objective: JointObjective, batch: TrainingBatch, *, bf16: bool
 ) -> dict[str, Any]:
+    if isinstance(objective, FrozenReadoutObjective):
+        return _evaluate_frozen_readout_diagnostics(objective, batch, bf16=bf16)
     if not objective.prediction_enabled:
         return evaluate_ssl_diagnostics(objective, batch, bf16=bf16)
     if objective.pending:
@@ -172,6 +175,91 @@ def evaluate_loss_diagnostics(
         if counter is not None:
             objective.auxiliary_rng_counter.copy_(counter)
         objective.train(was_training)
+
+
+def _evaluate_frozen_readout_diagnostics(
+    objective: FrozenReadoutObjective, batch: TrainingBatch, *, bf16: bool
+) -> dict[str, Any]:
+    """Probe native prediction gradients only on the four trainable readout tensors."""
+    from .process_diagnostics import _read_only
+
+    parameters = {name: p for name, p in objective.student.named_parameters() if p.requires_grad}
+    if {name: tuple(p.shape) for name, p in parameters.items()} != HEAD_SHAPES:
+        raise ValueError("frozen readout diagnostics require exactly the four prediction tensors")
+    with _read_only(objective, batch, 0x71A1):
+        with torch.autocast(batch.control.device.type, dtype=torch.bfloat16, enabled=bf16):
+            loss, terms = objective(batch, include_ssl1=False)
+        gradients = torch.autograd.grad(terms["prediction"], tuple(parameters.values()))
+        if not all(bool(torch.isfinite(g).all()) for g in gradients):
+            raise ValueError("frozen readout diagnostic prediction gradients must be finite")
+        tensors = [
+            {"name": name, "shape": list(p.shape), "l2": float(g.float().norm()), "finite": True}
+            for (name, p), g in zip(parameters.items(), gradients, strict=True)
+        ]
+        norm = float(torch.cat([g.float().flatten() for g in gradients]).norm())
+        components = {name: float(value.detach()) for name, value in terms.items()}
+        del loss, terms, gradients
+        # Release the differentiable head probe before reading residuals. No SSL
+        # branch, Teacher, center update, or backward accumulation is invoked.
+        with (
+            torch.no_grad(),
+            torch.autocast(batch.control.device.type, dtype=torch.bfloat16, enabled=bf16),
+        ):
+            graph, conditions = objective._batch_graph(objective.student, batch)
+            output = objective.student.encode_response(
+                objective._select_graph(graph, batch.query_positions),
+                batch.control,
+                conditions,
+                **objective.response_metadata(batch),
+            )
+            residual_matrix = (output["prediction"].float() - batch.truth.float()).abs()
+            contributions = residual_matrix.pow(objective.prediction_error_power)
+            row_weights = population_weights(
+                batch.condition_index,
+                torch.ones_like(batch.condition_index, dtype=torch.bool),
+                objective.prediction_strategy,
+            )
+            contributions = (
+                contributions * row_weights[:, None] / residual_matrix.shape[1]
+            ).flatten()
+            residual = residual_matrix.flatten()
+            tail = max(1, (len(contributions) + 99) // 100)
+            total = float(contributions.sum())
+            tail_fraction = float(contributions.topk(tail).values.sum()) / total if total else None
+            quantiles = residual.quantile(residual.new_tensor([0.5, 0.9, 0.99])).tolist()
+    copy_mse, model_mse = components["control_copy_mse"], components["prediction_mse"]
+    return {
+        "training_stage": "frozen_readout",
+        "diagnostic_objective_scope": {
+            "joint_scope": "frozen_readout_prediction_only",
+            "unavailable_terms": {name: "disabled_in_frozen_readout" for name in ("ssl1", "ssl2")},
+        },
+        "split": "train",
+        "mode": "fixed_training_batch_eval",
+        "input_sha256": sha256_json(
+            {
+                "query": batch.query_positions.cpu().tolist(),
+                "conditions": batch.condition_index.cpu().tolist(),
+                "control_sha256": sha256_json(batch.control.float().cpu().tolist()),
+                "truth_sha256": sha256_json(batch.truth.float().cpu().tolist()),
+            }
+        ),
+        "cells": len(batch.control),
+        "query_genes": batch.control.shape[1],
+        "components": components,
+        "control_copy_mse": copy_mse,
+        "prediction_mse": model_mse,
+        "mse_gain_over_copy": 1 - model_mse / copy_mse if copy_mse else None,
+        "shared_basal_weighted_gradient_l2": None,
+        "shared_basal_gradient_status": "not_applicable:frozen_readout",
+        "prediction_head_weighted_gradient_l2": {"prediction": norm, "ssl": None},
+        "prediction_head_gradient_tensors": tensors,
+        "prediction_ssl_gradient_cosine": None,
+        "prediction_ssl_gradient_cosine_status": "not_applicable:ssl_disabled",
+        "absolute_residual_quantiles": dict(zip(("p50", "p90", "p99"), quantiles, strict=True)),
+        "top_one_percent_loss_fraction": tail_fraction,
+        "selection_use": "none",
+    }
 
 
 def evaluate_ssl_diagnostics(
