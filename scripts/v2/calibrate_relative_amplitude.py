@@ -91,9 +91,15 @@ def digest(value, length=64):
 
 def batch_identity(batch):
     """Hash actual assembled tensors/RNG-independent views, exporting no raw data."""
+    import torch
     from capacity_probe import state_fingerprint
 
     def tree(value):
+        if isinstance(value, torch.Tensor):
+            # Size-one expanded axes can have zero stride while contiguous()
+            # returns the same storage. Materialize a private dense CPU leaf
+            # before the generic fingerprint reinterprets its bytes.
+            return value.detach().cpu().clone(memory_format=torch.contiguous_format)
         if dataclasses.is_dataclass(value) and not isinstance(value, type):
             return {
                 field.name: tree(getattr(value, field.name)) for field in dataclasses.fields(value)

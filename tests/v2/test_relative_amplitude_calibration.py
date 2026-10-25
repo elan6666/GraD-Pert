@@ -508,3 +508,87 @@ def test_active_hinge_does_not_require_nonzero_parameter_gradients():
     assert active["relative_amplitude"]["active"] == [True, True]
     assert active["losses"]["amplitude"] > 0
     amplitude.validate_amplitude_record(active)
+
+
+@pytest.mark.parametrize("dtype", [torch.bool, torch.long, torch.float32])
+@pytest.mark.parametrize(
+    "layout",
+    [
+        "scalar",
+        "expanded_singleton",
+        "expanded_last_singleton",
+        "expanded_matrix",
+        "transposed",
+        "sliced_last_singleton",
+    ],
+)
+def test_batch_identity_materializes_tensor_storage_without_changing_values_or_rng(dtype, layout):
+    from dataclasses import dataclass
+
+    from capacity_probe import state_fingerprint
+
+    base = torch.tensor([0, 1, 1, 0, 1, 0], dtype=dtype)
+    if layout == "scalar":
+        value = base[1].clone()
+    elif layout == "expanded_singleton":
+        value = base[1].expand(1)
+    elif layout == "expanded_last_singleton":
+        value = base[1].expand(3, 1)
+    elif layout == "expanded_matrix":
+        value = base[:3].reshape(3, 1).expand(3, 4)
+    elif layout == "transposed":
+        value = base.reshape(2, 3).T
+    else:
+        value = base.reshape(3, 2)[:, :1]
+
+    @dataclass
+    class NestedBatch:
+        views: tuple
+        metadata: dict
+
+    batch = NestedBatch((value,), {"tensor": value, "flag": True})
+    original_value = value.clone(memory_format=torch.contiguous_format)
+    original_stride, original_offset = value.stride(), value.storage_offset()
+    original_pointer, original_version = value.data_ptr(), value._version
+    state = state_fingerprint(shared.rng_capture(torch.device("cpu")))
+    actual = amplitude.batch_identity(batch)
+    expected = {"views": [original_value], "metadata": {"tensor": original_value, "flag": True}}
+    assert actual == state_fingerprint(expected)
+    assert state == state_fingerprint(shared.rng_capture(torch.device("cpu")))
+    assert value.stride() == original_stride and value.storage_offset() == original_offset
+    assert value.data_ptr() == original_pointer and value._version == original_version
+    assert value.dtype == original_value.dtype and value.shape == original_value.shape
+    assert torch.equal(value, original_value)
+    changed = original_value.logical_not() if dtype == torch.bool else original_value + 1
+    assert (
+        amplitude.batch_identity(NestedBatch((changed,), {"tensor": changed, "flag": True}))
+        != actual
+    )
+
+
+def test_batch_identity_zero_stride_long_reproducer_and_shape_dtype_sensitivity():
+    from capacity_probe import state_fingerprint
+
+    value = torch.tensor(7, dtype=torch.long).expand(1)
+    assert value.stride() == (0,) and value.contiguous().stride() == (0,)
+    with pytest.raises(RuntimeError, match="stride"):
+        state_fingerprint({"tensor": value})
+    expected = torch.tensor([7], dtype=torch.long)
+    actual = amplitude.batch_identity({"tensor": value})
+    assert actual == state_fingerprint({"tensor": expected})
+    assert actual != amplitude.batch_identity({"tensor": expected.reshape(())})
+    assert actual != amplitude.batch_identity({"tensor": expected.float()})
+    assert actual != amplitude.batch_identity({"tensor": torch.tensor([8], dtype=torch.long)})
+
+
+def test_batch_identity_preserves_autograd_tensor_and_existing_gradients():
+    value = torch.tensor([2.0], requires_grad=True)
+    value.grad = torch.tensor([3.0])
+    expanded = value.expand(1)
+    gradient = value.grad
+    version = value._version
+    first = amplitude.batch_identity({"tensor": expanded})
+    assert first == amplitude.batch_identity({"tensor": expanded.detach().clone()})
+    assert value.requires_grad and expanded.grad_fn is not None
+    assert value.grad is gradient and torch.equal(value.grad, torch.tensor([3.0]))
+    assert value._version == version
