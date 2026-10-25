@@ -30,6 +30,8 @@ from generate_representation_round9 import ENDPOINTS as ROUND9_ENDPOINTS
 from generate_representation_round9 import SCHEMA as ROUND9_SCHEMA
 from generate_representation_round11 import ARMS as ROUND11_ARMS
 from generate_representation_round11 import SCHEMA as ROUND11_SCHEMA
+from generate_representation_round12 import ARMS as ROUND12_ARMS
+from generate_representation_round12 import SCHEMA as ROUND12_SCHEMA
 
 from gradpert.data._io import atomic_json, read_json
 from gradpert.hashing import sha256_file
@@ -37,6 +39,7 @@ from gradpert.hashing import sha256_file
 FAMILY_ARMS = {
     ROUND9_SCHEMA: ROUND9_ARMS,
     ROUND11_SCHEMA: ROUND11_ARMS,
+    ROUND12_SCHEMA: ROUND12_ARMS,
     SCHEMA: ARMS,
     ROUND2_SCHEMA: ROUND2_ARMS,
     ROUND3_SCHEMA: ROUND3_ARMS,
@@ -147,7 +150,10 @@ def validate_validation(queue, row):
             if (
                 type(n) is not int
                 or type(total) is not int
-                or (queue.get("family") in (ROUND9_SCHEMA, ROUND11_SCHEMA) and total != 445)
+                or (
+                    queue.get("family") in (ROUND9_SCHEMA, ROUND11_SCHEMA, ROUND12_SCHEMA)
+                    and total != 445
+                )
                 or not 0 <= n <= total
                 or (n == 0 and value is not None)
                 or (n > 0 and (value is None or not math.isfinite(value)))
@@ -403,7 +409,7 @@ def ssl_loss_contributions(history, config):
         terms = entry.get("training", {})
         row = dict(
             epoch=entry["epoch"],
-            prediction=terms.get("prediction"),
+            prediction=terms.get("prediction_mse", terms.get("prediction")),
             training_stage=entry.get(
                 "training_stage", entry.get("staged_training", {}).get("phase")
             ),
@@ -427,7 +433,22 @@ def ssl_loss_contributions(history, config):
                 }
             )
         # Preserve saved means of actual warmup-weighted contributions.
-        row.update({k: terms.get(k) for k in ("au_weighted", "cr_weighted", "joint_loss")})
+        row.update(
+            {
+                k: terms.get(k)
+                for k in (
+                    "au_weighted",
+                    "cr_weighted",
+                    "spectral_rank",
+                    "spectral_cosine",
+                    "spectral_rank_weighted",
+                    "spectral_cosine_weighted",
+                    "spectral_weighted",
+                    "spectral_warmup",
+                    "joint_loss",
+                )
+            }
+        )
         if options.training_mode == "frozen_readout":
             row.update(
                 ssl_status="inactive",
@@ -458,7 +479,13 @@ def render_medium_report(queue, row, root):
     history = read_json(Path(row["plan"]["run_root"]) / "fit/history.json")
     validation = read_json(validation_path(queue, row) / "COMPLETE.json")["result"]
     tables = {"training": [flatten(r) for r in history]}
-    if queue.get("family") in (ROUND7_SCHEMA, ROUND8_SCHEMA, ROUND9_SCHEMA, ROUND11_SCHEMA):
+    if queue.get("family") in (
+        ROUND7_SCHEMA,
+        ROUND8_SCHEMA,
+        ROUND9_SCHEMA,
+        ROUND11_SCHEMA,
+        ROUND12_SCHEMA,
+    ):
         tables["training_loss_contributions"] = ssl_loss_contributions(
             history, row["plan"]["config"]
         )
@@ -513,6 +540,34 @@ def render_medium_report(queue, row, root):
     fig.tight_layout()
     fig.savefig(report / "representation.png", dpi=150)
     plt.close(fig)
+    if queue.get("family") == ROUND12_SCHEMA:
+        fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+        contributions = tables["training_loss_contributions"]
+        for key in ("spectral_rank", "spectral_cosine"):
+            axes[0].plot(
+                [r["epoch"] for r in contributions],
+                [r.get(key) for r in contributions],
+                "o-",
+                label=key,
+            )
+        for key in ("spectral_rank_weighted", "spectral_cosine_weighted", "spectral_weighted"):
+            axes[1].plot(
+                [r["epoch"] for r in contributions],
+                [r.get(key) for r in contributions],
+                "o-",
+                label=key,
+            )
+        for ax, title in zip(
+            axes,
+            ("Raw complete-population losses", "Actual warmup-weighted contributions"),
+            strict=True,
+        ):
+            ax.set_title(title)
+            ax.set_xlabel("Epoch")
+            ax.legend(fontsize=7)
+        fig.tight_layout()
+        fig.savefig(report / "spectral_losses.png", dpi=150)
+        plt.close(fig)
     text = [
         f"# {row['name']}：冻结端点表征研究\n",
         "仅训练侧冻结诊断及训练后验证集评估；测试推迟至研究设计锁定，不作为选型依据。\n",
@@ -564,6 +619,19 @@ def render_medium_report(queue, row, root):
             "lambda1=1、lambda2=user_locked 1、恒定EMA=.99、A=.05与瓶颈作用点均保持。"
             "不重训R6；R7不是单因素父臂。历史中未计算的CR项保留NA，不以0冒充观测。"
             "原始SSL损失与实际加权贡献分列；几何或熵的变化不能替代预测效用。\n"
+        )
+        text.extend(
+            ["## training_loss_contributions\n", table(tables["training_loss_contributions"])]
+        )
+    if queue.get("family") == ROUND12_SCHEMA:
+        text.append(
+            "![完整总体原始及实际加权谱/余弦损失](spectral_losses.png)\n"
+            "R12恢复原软秩+正对余弦设计：BAL target=.20/rank=.02/cos=.10，"
+            "AGG target=.35/rank=.04/cos=.20；tau=.25，warmup30 completed更新。"
+            "原RI架构从头2 epoch/300步，EMA .99→1，AU/CR/KoLeo关闭。"
+            "原始SSL/MSE与实际warmup加权rank/cos贡献分列；小探针缺完整320总体，"
+            "新项保留NA。主对照复用历史R3-RI，RS-B0/RS-RI仅背景；"
+            "跨版本单seed比较不保证同轨迹，无baseline重训，最终val18+MSE，test延期。\n"
         )
         text.extend(
             ["## training_loss_contributions\n", table(tables["training_loss_contributions"])]

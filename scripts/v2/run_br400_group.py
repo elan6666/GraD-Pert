@@ -57,6 +57,8 @@ from generate_representation_round9 import SCHEMA as RS9_SCHEMA
 from generate_representation_round9 import verify_manifest as verify_rs9_manifest
 from generate_representation_round11 import SCHEMA as RS11_SCHEMA
 from generate_representation_round11 import verify_manifest as verify_rs11_manifest
+from generate_representation_round12 import SCHEMA as RS12_SCHEMA
+from generate_representation_round12 import verify_manifest as verify_rs12_manifest
 from run_group import lock, validate_preflight
 from run_unified_ddp import _capture_process_identity, probe
 from run_unified_group import ALLOCATOR, LEASE_ROOT, METRICS, child_environment
@@ -90,6 +92,7 @@ RESEARCH_FAMILIES = (
     RS8_SCHEMA,
     RS9_SCHEMA,
     RS11_SCHEMA,
+    RS12_SCHEMA,
 )
 SERVER_ROOT = Path("/data/yilangliu")
 POLL_SECONDS = 5
@@ -206,6 +209,7 @@ def verify_manifest(source: Path, manifest: Path) -> dict:
         RS8_SCHEMA: verify_rs8_manifest,
         RS9_SCHEMA: verify_rs9_manifest,
         RS11_SCHEMA: verify_rs11_manifest,
+        RS12_SCHEMA: verify_rs12_manifest,
         RS5_SCHEMA: verify_rs5_manifest,
         RS4_SCHEMA: verify_rs4_manifest,
         RS3_SCHEMA: verify_rs3_manifest,
@@ -568,6 +572,36 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
     ):
         raise ValueError("exact10 restore/inference/read-only joint-validation gate missing")
     if queue["family"] in LAST_ONLY_FAMILIES:
+        if queue["family"] == RS12_SCHEMA:
+            spectral = receipt.get("spectral_pair_gate", {})
+            required = {
+                "ten_native_updates",
+                "exact_restore",
+                "complete_population",
+                "correct_warmup",
+                "first_update_zero",
+                "finite_losses",
+            }
+            if (
+                spectral.get("passed") is not True
+                or set(spectral.get("checks", {})) != required
+                or not all(v is True for v in spectral["checks"].values())
+                or len(spectral.get("updates", [])) != 10
+                or any(
+                    r.get("completed_before") != i
+                    or r.get("population") != 320
+                    or r.get("warmup") != min(1.0, i / 30)
+                    or any(
+                        not isinstance(r.get(k), (int, float)) or not math.isfinite(r[k])
+                        for k in ("rank", "cosine", "weighted")
+                    )
+                    for i, r in enumerate(spectral.get("updates", []))
+                )
+                or (spectral.get("updates") and spectral["updates"][0].get("weighted") != 0.0)
+                or spectral.get("resume_checkpoint_sha256")
+                != receipt.get("resume_checkpoint_sha256")
+            ):
+                raise ValueError("R12 exact10 native spectral/warmup/restore proof missing")
         if queue["family"] == RS11_SCHEMA:
             validate_frozen_readout_parent(receipt.get("readout_parent", {}))
             validate_frozen_readout_gate(receipt.get("frozen_readout_gate", {}))
@@ -686,6 +720,21 @@ DATA_HASHES = (
 
 
 def validate_common_gates(queue: dict, state: dict) -> dict:
+    if queue["family"] == RS12_SCHEMA:
+        from calibrate_spectral_pair import verify_endpoints
+
+        spec = read_json(Path(queue["runtime"])).get("spectral_pair_calibration", {})
+        required = {"init", "ri_last", "init_complete_sha256", "ri_last_complete_sha256"}
+        if not isinstance(spec, dict) or set(spec) != required:
+            raise ValueError("R12 fit requires both sealed zero-update calibration endpoints")
+        for endpoint in ("init", "ri_last"):
+            root = Path(spec[endpoint]).resolve()
+            if (
+                not root.is_relative_to(SERVER_ROOT)
+                or sha256_file(root / "COMPLETE.json") != spec[endpoint + "_complete_sha256"]
+            ):
+                raise ValueError("R12 calibration endpoint left server or checksum changed")
+        verify_endpoints(spec["init"], spec["ri_last"], source_commit=queue["source_commit"])
     priority = [row["name"] for row in queue["rows"]]
     if set(state["preflights"]) != set(priority) or set(state["eval_capacity"]) != {
         f"{name}-g{gpu}" for name in priority for gpu in ("0", "1")
@@ -805,6 +854,7 @@ def expected_epochs(plan: dict) -> int:
             RS7_SCHEMA,
             RS8_SCHEMA,
             RS11_SCHEMA,
+            RS12_SCHEMA,
         ):
             family = verify_manifest(source, family_manifest)
             matching = [r for r in family["rows"] if source / r["config"] == Path(plan["config"])]

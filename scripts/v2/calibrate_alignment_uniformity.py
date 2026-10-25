@@ -1,4 +1,4 @@
-"""Server-only train-population AU calibration, with zero parameter updates.
+"""Server-only train-population auxiliary calibration, with zero parameter updates.
 
 Each endpoint is an independent single-GPU observation, not distributed resume.
 Two-pass vector-Jacobian replay retains the complete effective AU population
@@ -97,6 +97,8 @@ def spectrum(values):
         relative_variance=float(energy / total) if total > 0 else None,
         covariance_trace=float(energy),
         mean_squared_norm=float(total - energy),
+        mean_sample_squared_norm=float(total),
+        per_dimension_variance=centered.square().mean(0).tolist(),
         sample_count=len(x),
         width=x.shape[1],
     )
@@ -162,6 +164,16 @@ def preserved_observer(runtime, seed):
             raise RuntimeError("calibration mutated forbidden state: " + ", ".join(changed))
 
 
+SPECTRAL_PROFILE = "spectral-pair-v1"
+SPECTRAL_SCOPE = dict(
+    joint="original MSE+weighted_SSL1+weighted_SSL2; excludes new spectral objectives",
+    rank="raw centered full unique population, separate Globals; no row normalization or jitter",
+    cosine="same-input two Global Response CLS; gradients on both branches",
+    weighted="original BAL(.20,.02,.10) and AGG(.35,.04,.20); full warmup scale1",
+    actual_first_update_weight=0.0,
+    response_scope="response.* plus learned response_cls token",
+    interpretation="raw parameter gradients; not optimizer displacement or scientific outcome",
+)
 MECHANISM_PROFILE = "mechanism-v1"
 MECHANISM_SCOPE = dict(
     joint="prediction+weighted_SSL1+weighted_SSL2; excludes active AU",
@@ -187,11 +199,15 @@ def gradient_summary(banks, names, *, profile=None, activity=None):
     result = {}
     for group in (
         ("response", "graph", "cell", "prediction", "response_cls")
-        if profile
+        if profile == MECHANISM_PROFILE
         else ("response", "graph")
     ):
         indices = [
-            i for i, name in enumerate(names) if name == group or name.startswith(group + ".")
+            i
+            for i, name in enumerate(names)
+            if name == group
+            or name.startswith(group + ".")
+            or (profile == SPECTRAL_PROFILE and group == "response" and name == "response_cls")
         ]
         if not indices and profile:
             continue
@@ -217,7 +233,7 @@ def gradient_summary(banks, names, *, profile=None, activity=None):
         result[group] = dict(
             norms={label: math.sqrt(v) for label, v in norm2.items()},
             pairs=pairs,
-            parameter_count=sum(banks["A"][i].numel() for i in indices),
+            parameter_count=sum(next(iter(banks.values()))[i].numel() for i in indices),
         )
         if profile:
             result[group]["inactive_parameters"] = {
@@ -253,8 +269,10 @@ def calibrate_batch(
     from gradpert.training.v2.engine import slice_cells
     from gradpert.training.v2.reductions import population_weights
 
-    if profile not in (None, MECHANISM_PROFILE):
+    if profile not in (None, MECHANISM_PROFILE, SPECTRAL_PROFILE):
         raise ValueError("unknown diagnostic profile")
+    mechanism = profile == MECHANISM_PROFILE
+    spectral = profile == SPECTRAL_PROFILE
     obj, device = runtime.objective, runtime.device
     if (
         obj.loss_reduction != "row_mean"
@@ -276,16 +294,21 @@ def calibrate_batch(
         if p.requires_grad
         and (
             name.startswith(("response.", "graph."))
-            or (profile and (name == "response_cls" or name.startswith(("cell.", "prediction."))))
+            or (spectral and name == "response_cls")
+            or (mechanism and (name == "response_cls" or name.startswith(("cell.", "prediction."))))
         )
     ]
     names, params = zip(*parameters, strict=True)
     banks = {
         key: [torch.zeros_like(p, device="cpu", dtype=torch.float32) for p in params]
-        for key in ("A", "U", "MSE", "joint")
+        for key in (
+            ("rank_bal", "rank_agg", "cosine", "MSE", "joint")
+            if spectral
+            else ("A", "U", "MSE", "joint")
+        )
     }
     activity = {key: [False] * len(params) for key in banks}
-    if profile:
+    if mechanism:
         banks["CR"] = [torch.zeros_like(p, device="cpu", dtype=torch.float32) for p in params]
         activity["CR"] = [False] * len(params)
     n = len(batch.control)
@@ -329,14 +352,35 @@ def calibrate_batch(
     end_forward_rng = rng_capture(device)
     z = [torch.cat([chunk[v] for chunk in chunks]).float().requires_grad_(True) for v in range(2)]
     condition, context = (torch.cat([chunk[v] for chunk in chunks]) for v in (2, 3))
-    au = alignment_uniformity(z[0], z[1], condition, context, temperature=temperature)
-    da = torch.autograd.grad(au.alignment, z, retain_graph=True)
-    du = torch.autograd.grad(au.uniformity, z)
-    if profile:
-        cr = negative_coding_rate(*z)
-        dc = torch.autograd.grad(cr, z)
-        losses["CR"] = float(cr.detach())
-    losses.update(A=float(au.alignment.detach()), U=float(au.uniformity.detach()))
+    if spectral:
+        from gradpert.training.v2.spectral_pair import spectral_pair
+
+        # Population identities are deduplicated before runtime sharding. Refuse
+        # an unexpected repeated input rather than silently reweighting it here.
+        if len(z[0]) != n:
+            raise ValueError("spectral calibration requires the complete unique population")
+        balanced = spectral_pair(*z, target=0.20)
+        aggressive = spectral_pair(*z, target=0.35)
+        scalars = dict(rank_bal=balanced.rank, rank_agg=aggressive.rank, cosine=balanced.cosine)
+        derivatives = {
+            label: torch.autograd.grad(value, z, retain_graph=True)
+            for label, value in scalars.items()
+        }
+        losses.update({label: float(value.detach()) for label, value in scalars.items()})
+        pair_count = metadata_census(condition.tolist(), list(range(n)), context.tolist())[0][
+            "pair_count"
+        ]
+    else:
+        au = alignment_uniformity(z[0], z[1], condition, context, temperature=temperature)
+        da = torch.autograd.grad(au.alignment, z, retain_graph=True)
+        du = torch.autograd.grad(au.uniformity, z)
+        derivatives = dict(A=da, U=du)
+        pair_count = au.pair_count
+        if mechanism:
+            cr = negative_coding_rate(*z)
+            derivatives["CR"] = torch.autograd.grad(cr, z)
+            losses["CR"] = float(cr.detach())
+        losses.update(A=float(au.alignment.detach()), U=float(au.uniformity.detach()))
     statistics = {f"global{v}": spectrum(z[v]) for v in range(2)}
 
     def accumulate(label, scalar, retain_graph=False):
@@ -374,22 +418,20 @@ def calibrate_batch(
             elif not torch.equal(values[v], chunks[index][v]):
                 raise ValueError("replay changed population identities")
         count = counts[index]
-        a = sum((values[v].float() * da[v][offset : offset + count]).sum() for v in range(2))
-        u = sum((values[v].float() * du[v][offset : offset + count]).sum() for v in range(2))
         accumulate("MSE", terms["prediction_mse"], True)
         accumulate("joint", joint, True)
-        accumulate("A", a, True)
-        accumulate("U", u, bool(profile))
-        if profile:
-            c = sum((values[v].float() * dc[v][offset : offset + count]).sum() for v in range(2))
-            accumulate("CR", c)
+        for label, derivative in derivatives.items():
+            proxy = sum(
+                (values[v].float() * derivative[v][offset : offset + count]).sum() for v in range(2)
+            )
+            accumulate(label, proxy, True)
         losses["MSE"] += float(terms["prediction_mse"].detach())
         losses["joint"] += float(joint.detach())
         offset += count
         obj.pending.clear()
-        del collect, values, joint, terms, a, u
+        del collect, values, joint, terms, proxy
     rng_restore(end_forward_rng, device)
-    if profile:
+    if mechanism:
         if obj.prediction_strategy != "row_mean":
             raise ValueError("mechanism decomposition requires row_mean prediction")
         banks["SSL2"] = [a - b for a, b in zip(banks["joint"], banks["MSE"], strict=True)]
@@ -410,10 +452,10 @@ def calibrate_batch(
             )
         graph_gradients = accumulate("joint", graph_loss)
         losses["joint"] += float(graph_loss.detach())
-        if profile:
+        if mechanism:
             losses["SSL1"] = float(graph_loss.detach())
     obj.pending.clear()
-    if profile:
+    if mechanism:
         banks["SSL1"] = [
             torch.zeros_like(p, device="cpu", dtype=torch.float32)
             if g is None
@@ -421,18 +463,60 @@ def calibrate_batch(
             for p, g in zip(params, graph_gradients, strict=True)
         ]
         activity["SSL1"] = [g is not None for g in graph_gradients]
+    if spectral:
+        from generate_representation_round12 import STRENGTHS
+
+        for arm, strength in STRENGTHS.items():
+            rank_name = "rank_bal" if arm == "R12-SRBAL" else "rank_agg"
+            for label, coefficients in (
+                (arm + "_rank", {rank_name: strength["rank_weight"]}),
+                (arm + "_cosine", {"cosine": strength["cosine_weight"]}),
+                (
+                    arm + "_auxiliary",
+                    {rank_name: strength["rank_weight"], "cosine": strength["cosine_weight"]},
+                ),
+                (
+                    arm + "_total",
+                    {
+                        "joint": 1.0,
+                        rank_name: strength["rank_weight"],
+                        "cosine": strength["cosine_weight"],
+                    },
+                ),
+            ):
+                banks[label] = [
+                    sum(c * banks[key][i] for key, c in coefficients.items())
+                    for i in range(len(params))
+                ]
+                activity[label] = [
+                    any(activity[key][i] for key in coefficients) for i in range(len(params))
+                ]
+                losses[label] = sum(c * losses[key] for key, c in coefficients.items())
     result = dict(
         losses=losses,
         gradients=gradient_summary(banks, names, profile=profile, activity=activity),
         spectrum=statistics,
-        pair_count=au.pair_count,
+        pair_count=pair_count,
         unique_count=len(z[0]),
         replay_max_abs_error=maximum_error,
         replay_tolerance=replay_tolerance,
         updates=0,
     )
     if profile:
-        result.update(profile=profile, loss_scope=MECHANISM_SCOPE)
+        result.update(profile=profile, loss_scope=SPECTRAL_SCOPE if spectral else MECHANISM_SCOPE)
+    if spectral:
+        result["spectral"] = dict(
+            rho=balanced.rho.detach().cpu().tolist(),
+            traces=balanced.traces.detach().cpu().tolist(),
+            input_count=balanced.input_count,
+            feature_count=balanced.feature_count,
+            max_rank=balanced.max_rank,
+            raw_rank_target_bal=0.20,
+            raw_rank_target_agg=0.35,
+            softness=0.25,
+            weighted_warmup_scale=1.0,
+            first_update_scale=0.0,
+        )
     if return_gradients:
         return result, banks
     return result
@@ -483,8 +567,27 @@ def validate_batch_receipt(record, *, index, plan_hash, census, profile=None):
     ):
         raise ValueError("batch receipt does not establish complete unchanged observation")
     expected_losses = {"A", "U", "MSE", "joint"} | ({"CR", "SSL1", "SSL2"} if profile else set())
+    if profile == SPECTRAL_PROFILE:
+        expected_losses = {"rank_bal", "rank_agg", "cosine", "MSE", "joint"} | {
+            arm + "_" + term
+            for arm in ("R12-SRBAL", "R12-SRAGG")
+            for term in ("rank", "cosine", "auxiliary", "total")
+        }
+        observed = record.get("spectral", {})
+        if (
+            observed.get("input_count") != 320
+            or observed.get("softness") != 0.25
+            or observed.get("weighted_warmup_scale") != 1.0
+            or observed.get("first_update_scale") != 0.0
+            or len(observed.get("rho", [])) != 2
+            or len(observed.get("traces", [])) != 2
+            or any(not math.isfinite(x) or x <= 0 for x in observed["rho"] + observed["traces"])
+        ):
+            raise ValueError("spectral receipt lacks full finite population/energy statistics")
     if record.get("profile") != profile or (
-        profile and record.get("loss_scope") != MECHANISM_SCOPE
+        profile
+        and record.get("loss_scope")
+        != (SPECTRAL_SCOPE if profile == SPECTRAL_PROFILE else MECHANISM_SCOPE)
     ):
         raise ValueError("batch receipt diagnostic profile differs")
     if set(record.get("losses", {})) != expected_losses:
@@ -494,7 +597,7 @@ def validate_batch_receipt(record, *, index, plan_hash, census, profile=None):
     groups = set(record.get("gradients", {}))
     expected_groups = (
         {"graph", "response", "cell", "prediction", "response_cls"}
-        if profile
+        if profile == MECHANISM_PROFILE
         else {"graph", "response"}
     )
     if groups != expected_groups or set(record.get("spectrum", {})) != {"global0", "global1"}:
@@ -613,8 +716,22 @@ def execute(args):
     )
     if source.commit != args.source_commit:
         raise ValueError("calibration source differs from planned clean published commit")
-    if not profile and any(
-        getattr(options, name) for name in ("au_alignment_weight", "au_uniformity_weight")
+    if profile == SPECTRAL_PROFILE:
+        original = load_experiment_config(
+            Path(__file__).resolve().parents[2]
+            / "configs/v2/representation_round3_20261023/R3-RI/gradpert_v2/nadig_jurkat.yaml"
+        )
+        if config.model_dump(mode="json") != original.model_dump(mode="json"):
+            raise ValueError("spectral calibration requires the exact sealed original RI config")
+    if (not profile or profile == SPECTRAL_PROFILE) and any(
+        getattr(options, name, 0)
+        for name in (
+            "au_alignment_weight",
+            "au_uniformity_weight",
+            "cr_weight",
+            "spectral_rank_weight",
+            "spectral_cosine_weight",
+        )
     ):
         raise ValueError("calibration must use sealed unmodified RI base configuration")
     checkpoint_flags = [
@@ -669,8 +786,15 @@ def execute(args):
     )
     if profile:
         plan.update(
-            schema="gradpert-mechanism-calibration-1", profile=profile, loss_scope=MECHANISM_SCOPE
+            schema="gradpert-spectral-pair-calibration-1"
+            if profile == SPECTRAL_PROFILE
+            else "gradpert-mechanism-calibration-1",
+            profile=profile,
+            loss_scope=SPECTRAL_SCOPE if profile == SPECTRAL_PROFILE else MECHANISM_SCOPE,
         )
+    if profile == SPECTRAL_PROFILE:
+        plan.pop("temperature")  # The AU temperature is irrelevant to the spectral profile.
+        plan["softness"] = 0.25
     plan_hash = sha256_json(plan)
     if args.output.exists():
         if not args.resume or read(args.output / "PLAN.json") != plan:
@@ -679,6 +803,8 @@ def execute(args):
         args.output.mkdir(parents=True)
         write(args.output / "PLAN.json", plan)
     census = _census_data(config, options, args.data_root, args.seed)
+    if profile == SPECTRAL_PROFILE and any(r["unique_count"] != 320 for r in census):
+        raise ValueError("spectral calibration requires eight complete unique populations of320")
     census_receipt = dict(
         plan_sha256=plan_hash, batches=census, complete=True, model_forward=False, updates=0
     )
@@ -863,7 +989,7 @@ def main():
         parser.add_argument("--" + name, type=Path, required=True)
     for name in ("publication-sha256", "source-commit", "run-id"):
         parser.add_argument("--" + name, required=True)
-    parser.add_argument("--profile", choices=(MECHANISM_PROFILE,))
+    parser.add_argument("--profile", choices=(MECHANISM_PROFILE, SPECTRAL_PROFILE))
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--calibration-seed", type=int, default=41239)
     parser.add_argument("--temperature", type=float, default=2.0)

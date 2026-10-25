@@ -409,6 +409,11 @@ def prepare_runtime(
             cr_epsilon_squared=options.cr_epsilon_squared,
             cr_warmup_steps=options.cr_warmup_steps,
             population_aux_space=options.population_aux_space,
+            spectral_rank_target=options.spectral_rank_target,
+            spectral_rank_weight=options.spectral_rank_weight,
+            spectral_cosine_weight=options.spectral_cosine_weight,
+            spectral_softness=options.spectral_softness,
+            spectral_warmup_steps=options.spectral_warmup_steps,
             teacher_temperature_start=options.teacher_temperature_start,
             teacher_temperature_end=options.teacher_temperature_end,
             teacher_temperature_warmup_steps=(
@@ -538,6 +543,32 @@ def prepare_runtime(
                 "auxiliary_warmup_clock": "global_successful_updates",
                 "sampler_epochs": "prefix_local_then_joint_local",
                 "view_rng": "continuous_checkpointed_not_baseline_replay",
+            }
+        if objective.spectral_enabled:
+            identity["loss_protocol"]["spectral_pair"] = {
+                "rank_target": options.spectral_rank_target,
+                "rank_weight": options.spectral_rank_weight,
+                "cosine_weight": options.spectral_cosine_weight,
+                "softness": options.spectral_softness,
+                "warmup_completed_optimizer_updates": options.spectral_warmup_steps,
+                "representation": "student_response_cls_after_final_rmsnorm_before_projector",
+                "population_scope": (
+                    "complete_effective_batch_all_microbatches_and_ranks_all_contexts"
+                ),
+                "deduplication": "control_row_id_and_condition_id_before_rank_partition",
+                "rank_formula": (
+                    "mean_globals_softness_softplus_log_target_minus_log_rho_over_softness"
+                ),
+                "rho": "exp_spectral_entropy_divided_by_min_D_Nminus1",
+                "covariance": (
+                    "separate_globals_raw_centered_population_fp64_eigvalsh_no_jitter_no_l2"
+                ),
+                "spectrum_roundoff": (
+                    "negative_tolerance_64_D_eps64_max_abs_eigenvalue_then_clamp_zero"
+                ),
+                "near_zero_trace_rejection": 1e-24,
+                "cosine": "same_input_two_globals_both_student_gradients",
+                "partial_diagnostics": "unavailable_requires_complete_global_population",
             }
         if objective.cr_enabled:
             identity["loss_protocol"]["coding_rate"] = {

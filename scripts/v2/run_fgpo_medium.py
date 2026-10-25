@@ -43,10 +43,13 @@ from generate_representation_round9 import ARMS as RS9_ARMS
 from generate_representation_round9 import SCHEMA as RS9_SCHEMA
 from generate_representation_round11 import ARMS as RS11_ARMS
 from generate_representation_round11 import SCHEMA as RS11_SCHEMA
+from generate_representation_round12 import ARMS as RS12_ARMS
+from generate_representation_round12 import SCHEMA as RS12_SCHEMA
 
 FAMILY_ARMS = {
     RS9_SCHEMA: RS9_ARMS,
     RS11_SCHEMA: RS11_ARMS,
+    RS12_SCHEMA: RS12_ARMS,
     RS_SCHEMA: RS_ARMS,
     RS2_SCHEMA: RS2_ARMS,
     RS3_SCHEMA: RS3_ARMS,
@@ -531,6 +534,63 @@ def cr_parent_binding(parent, training_identity, *, arm, config, parent_path, pa
     }
 
 
+def spectral_pair_parent_binding(
+    parent, training_identity, *, arm, config, parent_path, parent_sha256
+):
+    """Bind only the sealed R12 loss addition; preserve every physical data field."""
+    import yaml
+    from generate_representation_round12 import configs
+
+    from gradpert.config import load_experiment_config
+    from gradpert.config.v2 import V2Options
+
+    if (
+        arm not in RS12_ARMS
+        or yaml.safe_load(Path(config).read_text())
+        != configs(Path(__file__).resolve().parents[2])[arm]
+    ):
+        raise ValueError("R12 requires the original sealed soft-rank/cosine config")
+    _, options = V2Options.parse_parameters(load_experiment_config(config).model.parameters)
+    protocol = dict(
+        rank_target=options.spectral_rank_target,
+        rank_weight=options.spectral_rank_weight,
+        cosine_weight=options.spectral_cosine_weight,
+        softness=options.spectral_softness,
+        warmup_completed_optimizer_updates=options.spectral_warmup_steps,
+        representation="student_response_cls_after_final_rmsnorm_before_projector",
+        population_scope="complete_effective_batch_all_microbatches_and_ranks_all_contexts",
+        deduplication="control_row_id_and_condition_id_before_rank_partition",
+        rank_formula="mean_globals_softness_softplus_log_target_minus_log_rho_over_softness",
+        rho="exp_spectral_entropy_divided_by_min_D_Nminus1",
+        covariance="separate_globals_raw_centered_population_fp64_eigvalsh_no_jitter_no_l2",
+        spectrum_roundoff="negative_tolerance_64_D_eps64_max_abs_eigenvalue_then_clamp_zero",
+        near_zero_trace_rejection=1e-24,
+        cosine="same_input_two_globals_both_student_gradients",
+        partial_diagnostics="unavailable_requires_complete_global_population",
+    )
+    expected = copy.deepcopy(parent["data"])
+    if "spectral_pair" in expected["loss_protocol"]:
+        raise ValueError("R12 requires an original parent without spectral metadata")
+    expected["loss_protocol"]["spectral_pair"] = protocol
+    if training_identity["data"] != expected:
+        raise ValueError("R12 medium parent differs beyond the sealed spectral-pair protocol")
+    return {
+        **copy.deepcopy(parent),
+        "data": copy.deepcopy(training_identity["data"]),
+        "training_protocol_binding": dict(
+            arm=arm,
+            original_parent_manifest=str(parent_path),
+            original_parent_sha256=parent_sha256,
+            changed_field="data.loss_protocol.spectral_pair",
+            previous_value=None,
+            training_value=protocol,
+            training_run_id=training_identity["run_id"],
+            diagnostic_population_sha256=population_identity(parent["schedule"]),
+            sampling_changed=False,
+        ),
+    }
+
+
 def staged_joint_parent_binding(
     parent, training_identity, *, arm, config, parent_path, parent_sha256
 ):
@@ -809,9 +869,13 @@ def execute(
             "R8-CR0",
             "R9-SSL1J2",
             "R11-READOUT",
+            "R12-SRBAL",
+            "R12-SRAGG",
         ):
             bind_parent = (
-                frozen_readout_parent_binding
+                spectral_pair_parent_binding
+                if arm in RS12_ARMS
+                else frozen_readout_parent_binding
                 if arm == "R11-READOUT"
                 else staged_joint_parent_binding
                 if arm == "R9-SSL1J2"
@@ -843,6 +907,8 @@ def execute(
                         "R8-CR0",
                         "R9-SSL1J2",
                         "R11-READOUT",
+                        "R12-SRBAL",
+                        "R12-SRAGG",
                     )
                     else ({"arm": arm} if arm in ("U24", "MR1", "P1") else {})
                 ),

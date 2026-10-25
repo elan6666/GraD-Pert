@@ -484,6 +484,11 @@ class V2Options:
     cr_epsilon_squared: float = 0.05
     cr_warmup_steps: int = 30
     population_aux_space: str = "response_cls"
+    spectral_rank_target: float = 0.20
+    spectral_rank_weight: float = 0.0
+    spectral_cosine_weight: float = 0.0
+    spectral_softness: float = 0.25
+    spectral_warmup_steps: int = 30
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -578,6 +583,11 @@ class V2Options:
             "cr_epsilon_squared",
             "cr_warmup_steps",
             "population_aux_space",
+            "spectral_rank_target",
+            "spectral_rank_weight",
+            "spectral_cosine_weight",
+            "spectral_softness",
+            "spectral_warmup_steps",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -597,6 +607,39 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
+        for name in ("spectral_rank_weight", "spectral_cosine_weight", "spectral_rank_target"):
+            value = getattr(self, name)
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value < 0
+            ):
+                raise ValueError(f"invalid spectral parameter: {name}")
+        if (
+            not 0 < self.spectral_rank_target <= 1
+            or isinstance(self.spectral_softness, bool)
+            or self.spectral_softness != 0.25
+            or type(self.spectral_warmup_steps) is not int
+            or self.spectral_warmup_steps < 0
+        ):
+            raise ValueError("spectral target needs (0,1], softness .25, nonnegative warmup")
+        if (self.spectral_rank_weight or self.spectral_cosine_weight) and (
+            not self.lambda2
+            or self.loss_reduction != "row_mean"
+            or self.ssl2_koleo
+            or self.au_alignment_weight
+            or self.au_uniformity_weight
+            or self.cr_weight
+            or self.population_response
+            or self.population_aux_space != "response_cls"
+            or self.training_mode != "joint"
+            or self.max_conditions == 1
+        ):
+            raise ValueError(
+                "spectral pair requires joint raw Response CLS, row_mean "
+                "and disabled AU/CR/KoLeo/population loss"
+            )
         if self.population_aux_space not in ("response_cls", "ssl2_cls_bottleneck"):
             raise ValueError("unknown population auxiliary space")
         if (

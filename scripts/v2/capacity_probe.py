@@ -117,7 +117,9 @@ def staged_restore_fingerprint(runtime: Any, *, continuing_joint: bool) -> str:
         runtime.optimizer.state_dict(),
         runtime.generator.bit_generator.state,
     )
-    if getattr(getattr(runtime, "options", None), "training_mode", None) == "frozen_readout":
+    if getattr(
+        getattr(runtime, "options", None), "training_mode", None
+    ) == "frozen_readout" or getattr(runtime.objective, "spectral_enabled", False):
         return state_fingerprint((full_state, validation_state(runtime)))
     if not continuing_joint:
         return state_fingerprint(full_state)
@@ -525,6 +527,11 @@ def main() -> None:
             run_seed=config.training.run_seeds[0],
             device=torch.device("cuda:0"),
         ) as runtime:
+            spectral_gate = runtime.objective.spectral_enabled
+            spectral_restores = []
+            spectral_steps = []
+            if spectral_gate and (kind != "preflight_only" or args.steps != 10):
+                raise ValueError("spectral pair requires native exact10 preflight")
             readout_gate = runtime.options.training_mode == "frozen_readout"
             if readout_gate:
                 from gradpert.training.v2.readout import frozen_state_proof, restore_frozen_parent
@@ -763,6 +770,17 @@ def main() -> None:
                         gradient_reduction_seconds.append(
                             timings["gradient_reduction_seconds"] if world > 1 else 0.0
                         )
+                    if spectral_gate:
+                        spectral_steps.append(
+                            dict(
+                                completed_before=step,
+                                warmup=terms.get("spectral_warmup"),
+                                population=terms.get("spectral_input_count"),
+                                rank=terms.get("spectral_rank"),
+                                cosine=terms.get("spectral_cosine"),
+                                weighted=terms.get("spectral_weighted"),
+                            )
+                        )
                     step += 1
                     if args.profile_pt1_stages and step - 1 in profiled_indices:
                         staged_profiles.append(
@@ -846,7 +864,7 @@ def main() -> None:
                         path = args.output / "resume.pt"
                         before_restore = (
                             staged_restore_fingerprint(runtime, continuing_joint=staged_joint)
-                            if staged_gate or readout_gate
+                            if staged_gate or readout_gate or spectral_gate
                             else None
                         )
                         save_checkpoint(
@@ -867,13 +885,15 @@ def main() -> None:
                         if progress["step"] != step or runtime.optimizer.steps != step:
                             raise ValueError("capacity checkpoint resume progress mismatch")
                         receipt["resume_checkpoint_sha256"] = sha256_file(path)
-                        if staged_gate or readout_gate:
+                        if staged_gate or readout_gate or spectral_gate:
                             same = before_restore == staged_restore_fingerprint(
                                 runtime, continuing_joint=staged_joint
                             )
                             staged_resumes.append(same)
                             if readout_gate:
                                 readout_restores.append(same)
+                            if spectral_gate:
+                                spectral_restores.append(same)
                             if not same:
                                 raise ValueError("PT1 stage checkpoint restore changed state")
                     if step % 8 == 0:
@@ -975,6 +995,31 @@ def main() -> None:
             receipt["end_to_end_training_cells_per_second"] = (
                 sum(cells) / receipt["training_wall_seconds"]
             )
+
+            if spectral_gate:
+                checks = dict(
+                    ten_native_updates=step == 10 and runtime.optimizer.steps == 10,
+                    exact_restore=spectral_restores == [True],
+                    complete_population=all(r["population"] == 320 for r in spectral_steps),
+                    correct_warmup=all(
+                        r["warmup"] == min(1.0, r["completed_before"] / 30) for r in spectral_steps
+                    ),
+                    first_update_zero=bool(spectral_steps) and spectral_steps[0]["weighted"] == 0.0,
+                    finite_losses=all(
+                        isinstance(r[k], (int, float)) and math.isfinite(r[k])
+                        for r in spectral_steps
+                        for k in ("rank", "cosine", "weighted")
+                    ),
+                )
+                receipt["spectral_pair_gate"] = dict(
+                    checks=checks,
+                    passed=all(checks.values()),
+                    updates=spectral_steps,
+                    resume_checkpoint_sha256=receipt.get("resume_checkpoint_sha256"),
+                    scope="ten_native_updates_and_exact_restore_not_sustained_capacity",
+                )
+                if not all(checks.values()):
+                    raise ValueError("spectral pair exact10 full-population/warmup/restore failed")
 
             if readout_gate:
                 proof = frozen_state_proof(runtime.objective, runtime.optimizer)

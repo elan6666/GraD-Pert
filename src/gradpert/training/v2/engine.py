@@ -128,7 +128,11 @@ def optimizer_step(
     )
     deferred_au: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]] | None = (
         []
-        if getattr(objective, "au_enabled", False) or getattr(objective, "cr_enabled", False)
+        if (
+            getattr(objective, "au_enabled", False)
+            or getattr(objective, "cr_enabled", False)
+            or getattr(objective, "spectral_enabled", False)
+        )
         else None
     )
     au_metrics: dict[str, float] = {}
@@ -245,6 +249,39 @@ def optimizer_step(
                 cr_input_count=float(len(values[0])),
             )
             au_metrics["population_aux_weighted"] = float(weighted.detach())
+        if getattr(objective, "spectral_enabled", False):
+            from .spectral_pair import spectral_pair
+
+            result_spectral = spectral_pair(
+                values[0],
+                values[1],
+                target=objective.spectral_rank_target,
+                softness=objective.spectral_softness,
+            )
+            warmup = (
+                min(1.0, optimizer.steps / objective.spectral_warmup_steps)
+                if objective.spectral_warmup_steps
+                else 1.0
+            )
+            rank_weighted = warmup * objective.spectral_rank_weight * result_spectral.rank
+            cosine_weighted = warmup * objective.spectral_cosine_weight * result_spectral.cosine
+            weighted = weighted + rank_weighted + cosine_weighted
+            au_metrics.update(
+                spectral_rank=float(result_spectral.rank.detach()),
+                spectral_cosine=float(result_spectral.cosine.detach()),
+                spectral_rank_weighted=float(rank_weighted.detach()),
+                spectral_cosine_weighted=float(cosine_weighted.detach()),
+                spectral_weighted=float((rank_weighted + cosine_weighted).detach()),
+                spectral_warmup=warmup,
+                spectral_rho_g0=float(result_spectral.rho[0].detach()),
+                spectral_rho_g1=float(result_spectral.rho[1].detach()),
+                spectral_trace_g0=float(result_spectral.traces[0].detach()),
+                spectral_trace_g1=float(result_spectral.traces[1].detach()),
+                spectral_input_count=float(result_spectral.input_count),
+                spectral_feature_count=float(result_spectral.feature_count),
+                spectral_max_rank=float(result_spectral.max_rank),
+                population_aux_weighted=float(weighted.detach()),
+            )
         if not torch.isfinite(weighted):
             raise FloatingPointError("nonfinite full-population auxiliary objective")
         # Every rank evaluates the same complete loss. Gather backward sums its
@@ -500,7 +537,7 @@ def optimizer_step(
         if au_metrics:
             # These are replicated global scalars, not rank-local row sums.
             metrics.update(au_metrics)
-            if objective.cr_enabled:
+            if objective.cr_enabled or getattr(objective, "spectral_enabled", False):
                 metrics["joint_loss_without_population_aux"] = metrics["joint_loss"]
                 metrics["joint_loss"] += au_metrics["population_aux_weighted"]
             else:

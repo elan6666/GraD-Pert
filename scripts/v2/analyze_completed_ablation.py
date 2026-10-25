@@ -372,6 +372,15 @@ def report(data: dict) -> str:
             if last.get("training_stage") == "frozen_readout"
             else []
         ),
+        *(
+            [
+                "R12使用原RI架构从头训练，soft-rank/cos作用于完整320唯一输入的Global Response CLS；"
+                "小探针不具备完整总体，新项NA；实际训练原始与加权贡献见training.csv。"
+                "R3-RI为历史跨版本主参照，RS-B0/RS-RI为背景；单seed不保证轨迹相同。"
+            ]
+            if any("spectral_weighted" in h["training"] for h in data["history"])
+            else []
+        ),
         "## 训练损失和耗时",
         "",
         "| Epoch | 预测MSE | Joint | 训练分钟 | 诊断秒 |",

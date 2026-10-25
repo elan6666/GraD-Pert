@@ -163,6 +163,17 @@ def evaluate_loss_diagnostics(
                 "prediction_mse": model_mse,
                 "mse_gain_over_copy": 1 - model_mse / copy_mse if copy_mse else None,
                 "shared_basal_weighted_gradient_l2": norms,
+                **(
+                    {
+                        "unavailable_weighted_gradient_l2": {
+                            "spectral_rank": None,
+                            "spectral_cosine": None,
+                            "reason": "requires_complete_global_population",
+                        }
+                    }
+                    if getattr(objective, "spectral_enabled", False)
+                    else {}
+                ),
                 "prediction_ssl_gradient_cosine": cosine,
                 "absolute_residual_quantiles": dict(
                     zip(("p50", "p90", "p99"), quantiles, strict=True)
@@ -302,6 +313,17 @@ def evaluate_ssl_diagnostics(
         "query_genes": batch.control.shape[1],
         "components": components,
         "shared_basal_weighted_gradient_l2": {"ssl": norm**0.5},
+        **(
+            {
+                "unavailable_weighted_gradient_l2": {
+                    "spectral_rank": None,
+                    "spectral_cosine": None,
+                    "reason": "requires_complete_global_population",
+                }
+            }
+            if getattr(objective, "spectral_enabled", False)
+            else {}
+        ),
         "prediction_ssl_gradient_cosine": None,
         "selection_use": "none",
     }

@@ -17,6 +17,27 @@ import run_readout_analysis_repair as repair  # noqa: E402
 import run_representation_postfit as postfit  # noqa: E402
 from cap40_posthoc import read, sha, write  # noqa: E402
 
+FROZEN_ANALYSIS_SHA = "1ad4edf5a486865438e3d11e37427a4b132004d5"
+
+
+@pytest.fixture
+def frozen_repair_source(tmp_path):
+    """Restore the minimal published R11 tree consumed by its exact source gate."""
+    source = tmp_path / "frozen-reviewed-r11-source"
+    for path in (
+        "scripts/v2/diagnostic_view_options.py",
+        "scripts/v2/cap40_posthoc.py",
+        "scripts/v2/representation_panel.py",
+    ):
+        target = source / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(
+            subprocess.check_output(
+                ["git", "-C", str(ROOT), "show", FROZEN_ANALYSIS_SHA + ":" + path]
+            )
+        )
+    return source
+
 
 def queue(tmp_path):
     return {
@@ -60,21 +81,24 @@ def fake_git(monkeypatch, *, changes=None, dirty="", commit="b" * 40):
         if args[0] == "rev-parse":
             return commit
         if args[0] == "diff":
+            assert args == ("diff", "--name-status", "--no-renames", repair.TRAINING_SHA, "HEAD")
             return "\n".join(
                 status + "\t" + path
                 for path, status in (repair.ALLOWED_CHANGES if changes is None else changes).items()
             )
         assert args[0] == "show"
+        assert args[1].startswith(repair.TRAINING_SHA + ":")
         return original(args[1].split(":", 1)[1])
 
     monkeypatch.setattr(repair, "git", execute)
 
 
-def test_exact_reviewed_ast_and_helper_guard(tmp_path, monkeypatch):
-    fake_git(monkeypatch)
-    result = repair.validate_repair_source(queue(tmp_path), ROOT)
+def test_exact_reviewed_ast_and_helper_guard(tmp_path, monkeypatch, frozen_repair_source):
+    fake_git(monkeypatch, commit=FROZEN_ANALYSIS_SHA)
+    result = repair.validate_repair_source(queue(tmp_path), frozen_repair_source)
+    assert result["commit"] == FROZEN_ANALYSIS_SHA
     assert result["diff"] == repair.ALLOWED_CHANGES
-    assert sha(ROOT / "scripts/v2/diagnostic_view_options.py") == repair.HELPER_SHA
+    assert sha(frozen_repair_source / "scripts/v2/diagnostic_view_options.py") == repair.HELPER_SHA
 
 
 @pytest.mark.parametrize("kind", ["dirty", "unchanged", "source", "config", "removed", "renamed"])

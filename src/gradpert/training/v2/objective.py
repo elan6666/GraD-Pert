@@ -124,6 +124,11 @@ class JointObjective(nn.Module):
         cr_epsilon_squared: float = 0.05,
         cr_warmup_steps: int = 30,
         population_aux_space: str = "response_cls",
+        spectral_rank_target: float = 0.20,
+        spectral_rank_weight: float = 0.0,
+        spectral_cosine_weight: float = 0.0,
+        spectral_softness: float = 0.25,
+        spectral_warmup_steps: int = 30,
     ) -> None:
         super().__init__()
         if population_aux_space not in ("response_cls", "ssl2_cls_bottleneck"):
@@ -169,6 +174,45 @@ class JointObjective(nn.Module):
             not lambda2 or loss_reduction != "row_mean" or ssl2_weights[2] or population_response
         ):
             raise ValueError("AU requires joint SSL2 row_mean and disabled KoLeo/population loss")
+        for name, value in (
+            ("rank_weight", spectral_rank_weight),
+            ("cosine_weight", spectral_cosine_weight),
+            ("target", spectral_rank_target),
+        ):
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value < 0
+            ):
+                raise ValueError(f"invalid spectral {name}")
+        if (
+            not 0 < spectral_rank_target <= 1
+            or isinstance(spectral_softness, bool)
+            or spectral_softness != 0.25
+            or type(spectral_warmup_steps) is not int
+            or spectral_warmup_steps < 0
+        ):
+            raise ValueError("invalid spectral target, softness or warmup")
+        self.spectral_rank_target = spectral_rank_target
+        self.spectral_rank_weight = spectral_rank_weight
+        self.spectral_cosine_weight = spectral_cosine_weight
+        self.spectral_softness = spectral_softness
+        self.spectral_warmup_steps = spectral_warmup_steps
+        self.spectral_enabled = bool(spectral_rank_weight or spectral_cosine_weight)
+        if self.spectral_enabled and (
+            not lambda2
+            or loss_reduction != "row_mean"
+            or ssl2_weights[2]
+            or self.au_enabled
+            or self.cr_enabled
+            or population_response
+            or population_aux_space != "response_cls"
+        ):
+            raise ValueError(
+                "spectral pair requires raw Response CLS row_mean "
+                "and disabled AU/CR/KoLeo/population loss"
+            )
         self.student = student
         self.teacher = copy.deepcopy(student).requires_grad_(False).eval()
         self.prediction_enabled = True
@@ -393,7 +437,7 @@ class JointObjective(nn.Module):
         if omit_au_for_diagnostic and deferred_au is not None:
             raise ValueError("diagnostic AU omission cannot collect a partial population")
         if (
-            (self.au_enabled or self.cr_enabled)
+            (self.au_enabled or self.cr_enabled or self.spectral_enabled)
             and deferred_au is None
             and not omit_au_for_diagnostic
         ):
@@ -860,7 +904,7 @@ class JointObjective(nn.Module):
                 nodes.append(node_loss)
         zero = student_outputs[0]["response_cls"].sum() * 0
         if deferred_au is not None:
-            if (
+            if not self.spectral_enabled and (
                 batch.context_index is None
                 or batch.context_index.shape != batch.condition_index.shape
             ):
@@ -871,7 +915,8 @@ class JointObjective(nn.Module):
                 if projected_aux
                 else [o["response_cls"] for o in student_outputs[:2]]
             )
-            ids, contexts = batch.condition_index, batch.context_index
+            ids = batch.condition_index
+            contexts = torch.zeros_like(ids) if batch.context_index is None else batch.context_index
             if selected is not None:
                 values = [v[selected] for v in values]
                 ids, contexts = ids[selected], contexts[selected]

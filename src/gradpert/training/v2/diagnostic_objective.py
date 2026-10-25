@@ -22,7 +22,8 @@ def diagnostic_objective(
     koleo = bool(objective.lambda2 and objective.weights[1][2])
     au = bool(getattr(objective, "au_enabled", False))
     cr = bool(getattr(objective, "cr_enabled", False))
-    if not (koleo or au or cr):
+    spectral = bool(getattr(objective, "spectral_enabled", False))
+    if not (koleo or au or cr or spectral):
         loss, terms = objective(batch, **kwargs)
         return loss, terms, {}
     if objective.loss_reduction is None:
@@ -33,7 +34,7 @@ def diagnostic_objective(
     collection: dict[str, Any] = {}
     if koleo:
         collection["deferred_koleo"] = deferred
-    if au or cr:
+    if au or cr or spectral:
         collection["omit_au_for_diagnostic"] = True
     try:
         loss, terms = objective(batch, **collection, **kwargs)
@@ -46,7 +47,8 @@ def diagnostic_objective(
         unavailable = [key for key in unavailable if key != "au_uniformity"]
     unavailable += ["cr_negative"] if cr else []
     terms = {key: value for key, value in terms.items() if key not in unavailable}
-    suffix = "representation_terms" if au or cr else "koleo"
+    unavailable += ["spectral_rank", "spectral_cosine"] if spectral else []
+    suffix = "representation_terms" if au or cr or spectral else "koleo"
     return (
         loss,
         terms,
