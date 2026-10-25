@@ -143,6 +143,92 @@ def test_frozen_guard_detects_buffer_mutation_and_restores_rng_on_exception():
     assert torch.equal(rt.objective.ssl2_cls_center, torch.ones(3))  # mutation not concealed
 
 
+def test_real_relay_train_override_preserves_mixed_training_and_order_flags():
+    from gradpert.config.v2 import V2Architecture
+    from gradpert.modeling.v2 import GraDPertV2
+    from gradpert.modeling.v2.operators import RelayDeltaAttention
+
+    options = V2Architecture(
+        width=8,
+        heads=2,
+        latent_rank=4,
+        streams=1,
+        graph_layers=4,
+        graph_read_mode="relay",
+        attention="relay_full",
+        kda_layers=2,
+        dropout=0,
+        projector_hidden=12,
+        projector_bottleneck=4,
+        prototypes=11,
+        checkpoint_layers=False,
+    )
+    rt = runtime()
+    rt.objective.student = GraDPertV2(torch.randn(9, 8), options).train()
+    rt.objective.teacher = GraDPertV2(torch.randn(9, 8), options).eval()
+    # Native Teacher may be eval while randomized view ordering remains enabled.
+    rt.objective.teacher.set_relay_order_randomization(True)
+    attention = next(
+        m for m in rt.objective.teacher.modules() if isinstance(m, RelayDeltaAttention)
+    )
+    attention.randomize_order = None  # exact tri-state restoration, not a blanket .train(mode)
+    rt.optimizer = torch.optim.SGD(rt.objective.parameters(), lr=0.1)
+
+    def flags():
+        return {
+            name: {
+                key: getattr(module, key)
+                for key in ("training", "randomize_relay_order", "randomize_order")
+                if hasattr(module, key)
+            }
+            for name, module in rt.objective.named_modules()
+        }
+
+    original = flags()
+    assert rt.objective.student.randomize_relay_order
+    assert not rt.objective.teacher.training and rt.objective.teacher.randomize_relay_order
+    with audit.frozen_observation(rt) as proof:
+        assert not rt.objective.student.randomize_relay_order
+        assert not rt.objective.teacher.randomize_relay_order
+        assert attention.randomize_order is False
+    assert flags() == original
+    assert proof["unchanged"] and proof["before"] == proof["after"]
+    assert "transient_module_flags" in proof["before"]
+    assert proof["changed_protected_keys"] == []
+
+
+@pytest.mark.parametrize("mutated", ["parameter", "buffer"])
+def test_frozen_guard_reports_changed_keys_and_preserves_inner_error(mutated):
+    rt = runtime()
+    with (
+        pytest.raises(ValueError, match="protected keys") as caught,
+        audit.frozen_observation(rt) as proof,
+    ):
+        if mutated == "parameter":
+            rt.objective.student.response.norm.weight.add_(1)
+        else:
+            rt.objective.ssl2_cls_center.add_(1)
+        raise RuntimeError("original diagnostic failure")
+    assert isinstance(caught.value.__cause__, RuntimeError)
+    assert "original diagnostic failure" in str(caught.value)
+    expected_key = "student" if mutated == "parameter" else "centers"
+    assert proof["changed_protected_keys"] == [expected_key]
+    assert expected_key in str(caught.value)
+    if mutated == "parameter":
+        assert torch.equal(rt.objective.student.response.norm.weight, torch.full((3,), 2.0))
+    else:
+        assert torch.equal(rt.objective.ssl2_cls_center, torch.ones(3))
+
+
+def test_frozen_guard_preserves_original_failure_when_protected_state_unchanged():
+    rt = runtime()
+    original = RuntimeError("encoder failed before any protected mutation")
+    with pytest.raises(RuntimeError) as caught, audit.frozen_observation(rt) as proof:
+        raise original
+    assert caught.value is original
+    assert proof["unchanged"] and proof["changed_protected_keys"] == []
+
+
 @pytest.mark.parametrize("conditional", [False, True])
 def test_native_global_local_inputs_without_objective_backward_or_teacher_locals(
     conditional, monkeypatch

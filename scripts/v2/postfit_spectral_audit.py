@@ -246,34 +246,64 @@ def frozen_observation(runtime):
     """Restore RNG and modes; detect rather than conceal parameter/buffer changes."""
     import numpy as np
     import torch
-    from capacity_probe import validation_state
+    from capacity_probe import state_fingerprint, validation_state
 
     objective = runtime.objective
+    flag_names = ("training", "randomize_relay_order", "randomize_order")
+
+    def module_flags():
+        return {
+            name: {key: getattr(module, key) for key in flag_names if hasattr(module, key)}
+            for name, module in objective.named_modules()
+        }
+
+    flags = module_flags()
     before = validation_state(runtime)
-    modes = [(m, m.training) for m in objective.modules()]
+    before["transient_module_flags"] = state_fingerprint(flags)
+    modules = dict(objective.named_modules())
     rng = (
         random.getstate(),
         np.random.get_state(),
         copy.deepcopy(runtime.generator.bit_generator.state),
     )
     proof = {"before": before}
+    original_error = None
     try:
         with torch.random.fork_rng(devices=[0] if runtime.device.type == "cuda" else []):
             objective.eval()
             with torch.no_grad():
                 yield proof
+    except BaseException as error:
+        original_error = error
+        raise
     finally:
         random.setstate(rng[0])
         np.random.set_state(rng[1])
         runtime.generator.bit_generator.state = rng[2]
-        for module, training in modes:
-            module.training = training
+        # .eval() invokes the native .train(False) override, which also changes
+        # relay-order flags. Restore their exact values, including Teacher's
+        # eval/randomized combination and attention's None fallback, directly.
+        for name, values in flags.items():
+            for key, value in values.items():
+                setattr(modules[name], key, value)
         proof["after"] = validation_state(runtime)
+        proof["after"]["transient_module_flags"] = state_fingerprint(module_flags())
+        proof["changed_protected_keys"] = sorted(
+            key
+            for key in proof["before"].keys() | proof["after"].keys()
+            if proof["before"].get(key) != proof["after"].get(key)
+        )
         proof["unchanged"] = proof["before"] == proof["after"]
         if not proof["unchanged"]:
+            detail = ", ".join(proof["changed_protected_keys"])
+            if original_error is not None:
+                detail += (
+                    f"; original observation error: {type(original_error).__name__}: "
+                    f"{original_error}"
+                )
             raise ValueError(
-                "frozen observation changed parameters, buffers, gradients, optimizer, or state"
-            )
+                f"frozen observation changed protected keys: {detail}"
+            ) from original_error
 
 
 def observed_cls(model, forward):
