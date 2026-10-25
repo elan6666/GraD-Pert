@@ -686,3 +686,187 @@ def test_resume_fit_rechecks_disk_state_and_failure_after_waiting_for_locks(
     assert read_json(directory / "state.json")["error"] == "competing controller failure"
     assert read_json(directory / "FAILURE.json") == {"error": "competing controller failure"}
     assert list(directory.glob("FIT_PROMOTION_REJECTED-*.json"))
+
+
+@pytest.fixture
+def r13_postfit_binding_case(tmp_path):
+    from test_cr_medium_adapter import cr_case
+
+    parent, identity, queue, args, kwargs = cr_case.__wrapped__(tmp_path, family)
+    identity["data"] = copy.deepcopy(parent["data"])
+    return parent, identity, queue, args, kwargs
+
+
+def seal_r13_postfit_arm(case, arm):
+    parent, identity, queue, args, _ = case
+    args.config.write_text(yaml.safe_dump(family.configs(ROOT)[arm]))
+    identity["run_id"] = arm + "-run"
+    identity["data"]["loss_protocol"]["spectral_pair"] = family.spectral_protocol(arm)
+    row = queue["rows"][0]
+    row["name"] = arm
+    row["plan"].update(run_id=identity["run_id"], config_sha256=sha256_file(args.config))
+    return parent, identity, queue, args, row
+
+
+@pytest.mark.parametrize("arm", family.ARMS)
+@pytest.mark.parametrize(
+    "drift", [None, "physical", "config"], ids=["valid", "physical_drift", "config_drift"]
+)
+def test_medium_execute_r13_binding_assembles_exact_native_keywords(
+    r13_postfit_binding_case, monkeypatch, arm, drift
+):
+    from gradpert.data._io import atomic_json, read_json
+
+    parent, identity, queue, args, row = seal_r13_postfit_arm(r13_postfit_binding_case, arm)
+    if drift == "physical":
+        identity["data"]["canonical_sha256"] = "f" * 64
+    elif drift == "config":
+        raw = yaml.safe_load(args.config.read_text())
+        raw["model"]["parameters"]["spectral_amplitude_weight"]["value"] = 0.1
+        args.config.write_text(yaml.safe_dump(raw))
+        row["plan"]["config_sha256"] = sha256_file(args.config)
+    atomic_json(args.run_root / "run_manifest.json", identity)
+    queue_path = Path(queue["output"]) / "queue.json"
+    atomic_json(queue_path, queue)
+    original_parent = copy.deepcopy(parent)
+    original_parent_bytes = args.parent_manifest.read_bytes()
+    monkeypatch.setattr(medium, "SERVER_ROOT", args.run_root.parent)
+    monkeypatch.setattr(runner, "verify", lambda q: None)
+    monkeypatch.setattr(runner, "validate_training_contract", lambda p: None)
+    monkeypatch.setattr(medium, "validate_analysis_spec", lambda spec: parent)
+    monkeypatch.setattr(medium, "select_checkpoint", lambda *a: (dict(sha256="d" * 64), {}))
+    original_binding = medium.relative_amplitude_parent_binding
+    binding_calls, dispatches = [], []
+
+    def binding(*values, **keywords):
+        binding_calls.append(keywords)
+        return original_binding(*values, **keywords)
+
+    def native_seal(command, **keywords):
+        dispatches.append(command)
+        assert "seal-medium" in command and "--reuse-medium-schedule" in command
+        assert command[command.index("--method-sha") + 1] == args.method_sha
+        assert command[command.index("--config") + 1] == str(args.config)
+        assert keywords["env"]["PYTHONPATH"] == str(ROOT / "src")
+        bound_path = Path(command[command.index("--parent-manifest") + 1])
+        assert sha256_file(bound_path) == command[command.index("--parent-manifest-sha256") + 1]
+        bound = read_json(bound_path)
+        assert (
+            bound["data"] == identity["data"] and bound["schedule"] == original_parent["schedule"]
+        )
+        assert bound["training_protocol_binding"]["arm"] == arm
+        assert bound["training_protocol_binding"]["training_run_id"] == identity["run_id"]
+        assert bound["training_protocol_binding"]["training_value"] == family.spectral_protocol(arm)
+        raise RuntimeError("R13 native seal reached with exact binding")
+
+    monkeypatch.setattr(medium, "relative_amplitude_parent_binding", binding)
+    monkeypatch.setattr(medium.subprocess, "run", native_seal)
+    expected_error, message = (
+        (ValueError, "sealed|differs beyond")
+        if drift
+        else (RuntimeError, "R13 native seal reached with exact binding")
+    )
+    with pytest.raises(expected_error, match=message):
+        medium.execute(queue_path, arm)
+    assert len(binding_calls) == 1
+    assert binding_calls[0]["arm"] == arm and binding_calls[0]["config"] == row["plan"]["config"]
+    assert binding_calls[0]["parent_path"] == str(args.parent_manifest)
+    assert binding_calls[0]["parent_sha256"] == args.parent_manifest_sha256
+    assert bool(dispatches) == (drift is None)
+    assert parent == original_parent and args.parent_manifest.read_bytes() == original_parent_bytes
+
+
+@pytest.mark.parametrize("arm", family.ARMS)
+def test_panel_dispatch_passes_exact_r13_binding_keywords(
+    r13_postfit_binding_case, monkeypatch, arm
+):
+    import run_representation_panel as panel
+
+    parent, identity, queue, args, row = seal_r13_postfit_arm(r13_postfit_binding_case, arm)
+    original_binding = medium.relative_amplitude_parent_binding
+    observed = []
+
+    def binding(*values, **keywords):
+        observed.append(keywords)
+        return original_binding(*values, **keywords)
+
+    monkeypatch.setattr(medium, "relative_amplitude_parent_binding", binding)
+    result = panel.panel_parent_binding(parent, identity, queue, args)
+    assert result["arm"] == arm and result["training_run_id"] == identity["run_id"]
+    assert observed == [
+        dict(
+            arm=arm,
+            config=args.config,
+            parent_path=args.parent_manifest,
+            parent_sha256=args.parent_manifest_sha256,
+        )
+    ]
+    before = copy.deepcopy(observed)
+    row["plan"]["config_sha256"] = "0" * 64
+    with pytest.raises(ValueError, match="queue/run/config binding differs"):
+        panel.panel_parent_binding(parent, identity, queue, args)
+    assert observed == before
+
+
+@pytest.mark.parametrize("arm", family.ARMS)
+def test_r13_repair_delegates_exact_publication_and_selected_arm(tmp_path, monkeypatch, arm):
+    from types import SimpleNamespace
+
+    events = []
+    queue = dict(family=family.SCHEMA, rows=[dict(name=name) for name in family.ARMS])
+    source, publication, output = (
+        tmp_path / "source",
+        tmp_path / "publication.json",
+        tmp_path / "new-analysis",
+    )
+    module = SimpleNamespace(
+        validate_repair_source=lambda q, s: events.append(("source", q, s)),
+        validate_repair_publication=lambda q, s, p, h: events.append(("publication", q, s, p, h)),
+        validate_output=lambda q, p: events.append(("output", q, p)) or p,
+    )
+    monkeypatch.setitem(sys.modules, "run_relative_amplitude_analysis_repair", module)
+    monkeypatch.setattr(
+        postfit, "validate_validation", lambda q, row: events.append(("validation", q, row))
+    )
+    result = medium.validate_report_repair(
+        queue, arm, output, source, publication=publication, publication_sha256="f" * 64
+    )
+    assert result == output
+    assert events == [
+        ("source", queue, source),
+        ("publication", queue, source, publication, "f" * 64),
+        ("validation", queue, next(row for row in queue["rows"] if row["name"] == arm)),
+        ("output", queue, output),
+    ]
+
+
+@pytest.mark.parametrize("arm", family.ARMS)
+def test_medium_execute_passes_r13_repair_publication_before_any_dispatch(
+    r13_postfit_binding_case, tmp_path, monkeypatch, arm
+):
+    from gradpert.data._io import atomic_json
+
+    _, _, queue, args, _ = seal_r13_postfit_arm(r13_postfit_binding_case, arm)
+    queue_path = tmp_path / "queue.json"
+    atomic_json(queue_path, queue)
+    output, publication = tmp_path / "repair", tmp_path / "publication.json"
+    calls = []
+    monkeypatch.setattr(runner, "verify", lambda q: None)
+
+    def guard(q, name, target, source, **keywords):
+        calls.append((q, name, target, source, keywords))
+        raise ValueError("stopped at sealed independent repair guard")
+
+    monkeypatch.setattr(medium, "validate_report_repair", guard)
+    with pytest.raises(ValueError, match="sealed independent repair guard"):
+        medium.execute(
+            queue_path,
+            arm,
+            repair_output=output,
+            repair_publication=publication,
+            repair_publication_sha256="e" * 64,
+        )
+    assert len(calls) == 1 and calls[0][1] == arm
+    assert calls[0][2] == output and calls[0][3] == ROOT
+    assert calls[0][4] == dict(publication=publication, publication_sha256="e" * 64)
+    assert not output.exists() and not args.run_root.exists()

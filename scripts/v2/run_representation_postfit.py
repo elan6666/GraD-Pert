@@ -294,8 +294,12 @@ def validate_staged_joint_teacher_signal(root, receipt, panel):
 
 def validate_panel(queue, row, *, checkpoint_role=None, root=None):
     if root is not None:
-        if queue.get("family") != ROUND11_SCHEMA or checkpoint_role not in (None, "last"):
-            raise ValueError("panel root override is scoped to R11 last-checkpoint repair")
+        r13_repair = queue.get("family") == ROUND13_SCHEMA and row.get("name") == "R13-SRAMP"
+        if (queue.get("family") != ROUND11_SCHEMA and not r13_repair) or checkpoint_role not in (
+            None,
+            "last",
+        ):
+            raise ValueError("panel root override is scoped to R11 or R13 SRAMP last repair")
         from run_readout_analysis_repair import validate_output
 
         root = validate_output(queue, root)

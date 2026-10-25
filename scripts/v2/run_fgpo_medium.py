@@ -217,6 +217,21 @@ def validate_report_repair(
 
         validate_validation(q, q["rows"][0])
         return validate_output(q, output)
+    if q.get("family") == RS13_SCHEMA and arm in RS13_ARMS:
+        from run_relative_amplitude_analysis_repair import (
+            validate_output,
+            validate_repair_publication,
+            validate_repair_source,
+        )
+        from run_representation_postfit import validate_validation
+
+        validate_repair_source(q, report_source)
+        validate_repair_publication(q, report_source, publication, publication_sha256)
+        rows = [row for row in q["rows"] if row["name"] == arm]
+        if len(rows) != 1:
+            raise ValueError("R13 analysis repair requires one exact selected arm")
+        validate_validation(q, rows[0])
+        return validate_output(q, output)
     if (arm, q.get("family")) not in (
         ("D0", NO_SSL_SCHEMA),
         ("PT1", PT1_SCHEMA),
@@ -795,7 +810,7 @@ def execute(
         raise ValueError("medium worker must use the exact published queue source")
     repair_keywords = (
         dict(publication=repair_publication, publication_sha256=repair_publication_sha256)
-        if q.get("family") == RS11_SCHEMA
+        if q.get("family") in (RS11_SCHEMA, RS13_SCHEMA)
         else {}
     )
     if repair_output is not None:
@@ -953,6 +968,8 @@ def execute(
                         "R11-READOUT",
                         "R12-SRBAL",
                         "R12-SRAGG",
+                        "R13-SRAMP",
+                        "R13-SRAMPNC",
                     )
                     else ({"arm": arm} if arm in ("U24", "MR1", "P1") else {})
                 ),
