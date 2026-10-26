@@ -313,6 +313,89 @@ def test_rng_seeds_are_endpoint_free_distinct_and_preregistered():
     )
 
 
+def test_analysis_verifier_uses_isolated_analysis_source_not_model_imports(tmp_path):
+    root = tmp_path / "analysis"
+    package = root / "src/gradpert/execution"
+    package.mkdir(parents=True)
+    (package.parent / "__init__.py").write_text("")
+    (package / "__init__.py").write_text("")
+    publication = tmp_path / "publication.json"
+    publication.write_text('{"verification_method":"github_rest_live"}\n')
+    binding = dict(
+        root=str(root),
+        commit="a" * 40,
+        publication=str(publication),
+        publication_sha256=audit.sha(publication),
+    )
+    payload = dict(
+        repository_root=str(root),
+        commit=binding["commit"],
+        dirty=False,
+        formal_eligible=True,
+        publication_receipt_sha256=binding["publication_sha256"],
+    )
+    (package / "identity.py").write_text(
+        "import os\nfrom types import SimpleNamespace\n"
+        "def inspect_source_identity(root, **kwargs):\n"
+        " assert os.environ['CUDA_VISIBLE_DEVICES']==''\n"
+        f" assert kwargs['publication_receipt']=={str(publication)!r}\n"
+        " assert kwargs['expected_publication_receipt_sha256']=="
+        f"{binding['publication_sha256']!r}\n"
+        " assert kwargs['formal'] is True\n"
+        " assert kwargs['verification_method']=='github_rest_live'\n"
+        " assert kwargs['expected_repository']=='https://github.com/elan6666/GraD-Pert.git'\n"
+        f" return SimpleNamespace(payload=lambda: {payload!r})\n"
+    )
+    import gradpert.execution.identity as model_identity
+
+    existing = sys.modules["gradpert.execution.identity"]
+    assert audit.verify_analysis_source(binding) == payload
+    assert sys.modules["gradpert.execution.identity"] is existing is model_identity
+    with pytest.raises(ValueError, match="analysis source identity differs"):
+        audit.verify_analysis_source(dict(binding, commit="b" * 40))
+    with pytest.raises(ValueError, match="hash differs"):
+        audit.verify_analysis_source(dict(binding, publication_sha256="0" * 64))
+
+
+def test_isolated_analysis_verifier_rejects_child_failures(tmp_path, monkeypatch):
+    spec = fixture_spec(tmp_path)
+    binding = spec["analysis_source"]
+    Path(binding["publication"]).write_text('{"verification_method":"github_rest_live"}\n')
+    binding["publication_sha256"] = audit.sha(binding["publication"])
+
+    def timeout(*args, **kwargs):
+        raise subprocess.TimeoutExpired(args[0], kwargs["timeout"])
+
+    monkeypatch.setattr(audit.subprocess, "run", timeout)
+    with pytest.raises(subprocess.TimeoutExpired):
+        audit.verify_analysis_source(binding)
+
+    monkeypatch.setattr(
+        audit.subprocess,
+        "run",
+        lambda *a, **k: subprocess.CompletedProcess(a[0], 0, "{}", ""),
+    )
+    with pytest.raises(ValueError, match="analysis source identity differs"):
+        audit.verify_analysis_source(binding)
+
+
+def test_every_analysis_binding_uses_new_source_isolation():
+    tree = ast.parse((ROOT / "scripts/v2/postfit_stochastic_audit.py").read_text())
+    analysis_calls = []
+    training_calls = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
+            continue
+        if node.func.id not in {"verify_source", "verify_analysis_source"}:
+            continue
+        if ast.unparse(node.args[0]) == "spec['analysis_source']":
+            analysis_calls.append(node.func.id)
+        else:
+            training_calls.append(node.func.id)
+    assert analysis_calls == ["verify_analysis_source"] * 4
+    assert training_calls == ["verify_source"] * 3
+
+
 def test_no_training_objective_decoder_or_external_materialization_calls():
     tree = ast.parse((ROOT / "scripts/v2/postfit_stochastic_audit.py").read_text())
     forbidden = {

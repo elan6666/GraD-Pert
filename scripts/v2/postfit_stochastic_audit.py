@@ -134,6 +134,46 @@ def fingerprint(value):
     return state_fingerprint(concrete(value))
 
 
+def verify_analysis_source(binding):
+    """Verify analysis receipts with their own published code, not older model imports."""
+    import json
+
+    root = Path(binding["root"]).resolve(strict=True)
+    publication = checked(dict(path=binding["publication"], sha256=binding["publication_sha256"]))
+    method = read(publication).get("verification_method")
+    if method not in {"git_ls_remote_live", "github_rest_live"}:
+        raise ValueError("analysis receipt verification method is unavailable or unsupported")
+    code = (
+        "import json,sys; from gradpert.execution.identity import inspect_source_identity; "
+        "b=json.loads(sys.argv[1]); "
+        "i=inspect_source_identity(b['root'],formal=True,"
+        "expected_repository='https://github.com/elan6666/GraD-Pert.git',"
+        "publication_receipt=b['publication'],"
+        "expected_publication_receipt_sha256=b['publication_sha256'],"
+        "verification_method=sys.argv[2]); "
+        "print(json.dumps(i.payload()))"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", code, json.dumps(binding), method],
+        cwd=root,
+        env=dict(os.environ, PYTHONPATH=str(root / "src"), CUDA_VISIBLE_DEVICES=""),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=45,
+    )
+    identity = json.loads(completed.stdout)
+    if (
+        identity.get("commit") != binding["commit"]
+        or identity.get("dirty") is not False
+        or identity.get("formal_eligible") is not True
+        or Path(identity.get("repository_root", "")).resolve() != root
+        or identity.get("publication_receipt_sha256") != binding["publication_sha256"]
+    ):
+        raise ValueError("isolated published analysis source identity differs")
+    return identity
+
+
 def native_compatibility(source, analysis):
     methods = {
         "model.py": {
@@ -686,7 +726,10 @@ def endpoint_worker(spec, endpoint):
 
     from gradpert.training.v2.checkpoint import load_evaluation_checkpoint
 
-    source, analysis = verify_source(endpoint["source"]), verify_source(spec["analysis_source"])
+    source, analysis = (
+        verify_source(endpoint["source"]),
+        verify_analysis_source(spec["analysis_source"]),
+    )
     compatibility = native_compatibility(
         endpoint["source"]["root"], spec["analysis_source"]["root"]
     )
@@ -830,7 +873,7 @@ def endpoint_worker(spec, endpoint):
     if (
         sha(checkpoint) != cp["sha256"]
         or verify_source(endpoint["source"]) != source
-        or verify_source(spec["analysis_source"]) != analysis
+        or verify_analysis_source(spec["analysis_source"]) != analysis
     ):
         raise ValueError("immutable source/checkpoint drift during observation")
     result = dict(
@@ -1045,7 +1088,7 @@ def main():
             raise ValueError("worker lacks live exact coordinator/GPU lease ownership")
         endpoint_worker(spec, next(e for e in spec["endpoints"] if e["name"] == args.endpoint))
         return
-    verify_source(spec["analysis_source"])
+    verify_analysis_source(spec["analysis_source"])
     # The detached coordinator must already be adopted before its PPID is sealed.
     deadline = time.monotonic() + 10
     owner = None
@@ -1085,7 +1128,7 @@ def main():
             validate_spec(spec)
             if sha(args.spec) != args.spec_sha256:
                 raise ValueError("input specification drift before completion")
-            verify_source(spec["analysis_source"])
+            verify_analysis_source(spec["analysis_source"])
             for endpoint in spec["endpoints"]:
                 verify_source(endpoint["source"])
             result["spec_sha256"] = args.spec_sha256

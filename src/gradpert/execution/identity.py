@@ -7,11 +7,16 @@ import json
 import math
 import os
 import platform
+import re
+import ssl
 import subprocess
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+from urllib.error import URLError
+from urllib.parse import quote, urlsplit
+from urllib.request import HTTPRedirectHandler, HTTPSHandler, Request, build_opener
 
 from gradpert.data._io import atomic_json
 from gradpert.hashing import sha256_file, sha256_json
@@ -19,6 +24,9 @@ from gradpert.hashing import sha256_file, sha256_json
 _TREE_ROOTS = ("src", "benchmarks", "configs", "registry")
 _TREE_FILES = ("pyproject.toml", "uv.lock", "AGENTS.md")
 _GIT_TIMEOUT_SECONDS = 30.0
+_VERIFICATION_METHODS = frozenset(("git_ls_remote_live", "github_rest_live"))
+_GITHUB_REST_TIMEOUT_SECONDS = 30.0
+_GITHUB_REST_MAX_BYTES = 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -135,6 +143,105 @@ def _require_sha256(value: str, *, label: str) -> None:
         raise ValueError(f"{label} must be a 64-character SHA-256") from error
 
 
+def _github_rest_target(repository: str, remote_ref: str, commit: str) -> str:
+    """Only public github.com repository identities and exact branch refs qualify."""
+    parsed = urlsplit(_normalized_repository(repository))
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "github.com"
+        or parsed.query
+        or parsed.fragment
+        or re.fullmatch(r"/[A-Za-z0-9-]+/[A-Za-z0-9_.-]+", parsed.path) is None
+        or any(part in (".", "..") for part in parsed.path.split("/")[1:])
+    ):
+        raise ValueError("GitHub REST publication requires an exact github.com repository")
+    if (
+        not isinstance(remote_ref, str)
+        or not remote_ref.startswith("refs/heads/")
+        or len(remote_ref) <= len("refs/heads/")
+        or any(token in remote_ref for token in ("..", "@{", "//"))
+        or any(ord(c) <= 32 or ord(c) == 127 or c in "~^:?*[\\" for c in remote_ref)
+        or any(
+            not part or part.startswith(".") or part.endswith((".", ".lock"))
+            for part in remote_ref.split("/")
+        )
+    ):
+        raise ValueError("GitHub REST publication requires an exact refs/heads branch")
+    if not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None:
+        raise ValueError("GitHub REST publication requires a full local commit SHA")
+    return parsed.path.lstrip("/")
+
+
+class _RejectPublicationRedirects(HTTPRedirectHandler):
+    def redirect_request(
+        self, req: Request, fp: Any, code: int, msg: str, headers: Any, newurl: str
+    ) -> None:
+        # A renamed repo or redirected host must not inherit an exact source seal.
+        return None
+
+
+def _github_rest_json(url: str) -> dict[str, Any]:
+    parsed = urlsplit(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "api.github.com"
+        or not parsed.path.startswith("/repos/")
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("publication API must be HTTPS api.github.com")
+    request = Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2026-03-10",
+            "User-Agent": "gradpert-publication-verifier",
+        },
+        method="GET",
+    )
+    opener = build_opener(
+        HTTPSHandler(context=ssl.create_default_context()), _RejectPublicationRedirects()
+    )
+    try:
+        with opener.open(request, timeout=_GITHUB_REST_TIMEOUT_SECONDS) as response:
+            if response.status != 200 or response.geturl() != url:
+                raise ValueError("GitHub REST publication requires exact nonredirected HTTP200")
+            if response.headers.get_content_type() != "application/json":
+                raise ValueError("GitHub REST publication response is not JSON")
+            body = response.read(_GITHUB_REST_MAX_BYTES + 1)
+            if len(body) > _GITHUB_REST_MAX_BYTES:
+                raise ValueError("GitHub REST publication response exceeds bounded size")
+            payload = json.loads(body.decode("utf-8"))
+    except (URLError, OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise RuntimeError(
+            "GitHub REST publication request failed; no fallback permitted"
+        ) from error
+    if not isinstance(payload, dict):
+        raise ValueError("GitHub REST publication response must be one object")
+    return payload
+
+
+def _verify_github_rest_live(repository: str, remote_ref: str, commit: str) -> None:
+    name = _github_rest_target(repository, remote_ref, commit)
+    metadata = _github_rest_json(f"https://api.github.com/repos/{name}")
+    if (
+        metadata.get("full_name") != name
+        or metadata.get("private") is not False
+        or metadata.get("visibility") != "public"
+    ):
+        raise ValueError("GitHub REST publication requires the exact public repository")
+    reference_name = quote(remote_ref.removeprefix("refs/"), safe="/")
+    reference = _github_rest_json(f"https://api.github.com/repos/{name}/git/ref/{reference_name}")
+    obj = reference.get("object")
+    if (
+        reference.get("ref") != remote_ref
+        or not isinstance(obj, dict)
+        or obj.get("type") != "commit"
+        or obj.get("sha") != commit
+    ):
+        raise ValueError("GitHub REST ref is not the exact published local commit")
+
+
 def _load_publication_receipt(
     path: str | Path,
     *,
@@ -144,7 +251,10 @@ def _load_publication_receipt(
     remote_ref: str,
     commit: str,
     tree_sha256: str,
+    verification_method: str = "git_ls_remote_live",
 ) -> SourcePublicationReceipt:
+    if verification_method not in _VERIFICATION_METHODS:
+        raise ValueError("unknown publication verification method")
     _require_sha256(expected_sha256, label="publication receipt hash")
     receipt_path = Path(path).resolve(strict=True)
     if not receipt_path.is_file() or receipt_path.is_symlink():
@@ -180,7 +290,7 @@ def _load_publication_receipt(
     if (
         not all(isinstance(value, str) for value in string_fields)
         or receipt.schema_version != "source-publication-receipt-v1"
-        or receipt.verification_method != "git_ls_remote_live"
+        or receipt.verification_method != verification_method
         or not isinstance(receipt.verified_unix, (int, float))
         or isinstance(receipt.verified_unix, bool)
         or not math.isfinite(receipt.verified_unix)
@@ -195,6 +305,9 @@ def _load_publication_receipt(
         or receipt.tree_sha256 != tree_sha256
     ):
         raise ValueError("publication receipt differs from the current formal source")
+    if verification_method == "github_rest_live":
+        _github_rest_target(expected_repository, remote_ref, commit)
+        _github_rest_target(remote_url, remote_ref, commit)
     return receipt
 
 
@@ -204,6 +317,7 @@ def create_source_publication_receipt(
     expected_repository: str,
     output_path: str | Path,
     remote_ref: str = "refs/heads/main",
+    verification_method: str = "git_ls_remote_live",
 ) -> SourcePublicationReceipt:
     """Seal one live GitHub publication check for a hash-pinned formal queue."""
 
@@ -215,6 +329,7 @@ def create_source_publication_receipt(
         formal=True,
         expected_repository=expected_repository,
         remote_ref=remote_ref,
+        verification_method=verification_method,
     )
     if identity.remote_url is None or identity.published_commit is None:
         raise AssertionError("formal publication inspection returned an incomplete identity")
@@ -225,7 +340,7 @@ def create_source_publication_receipt(
         remote_ref=remote_ref,
         published_commit=identity.published_commit,
         tree_sha256=identity.tree_sha256,
-        verification_method="git_ls_remote_live",
+        verification_method=verification_method,
         verified_unix=time.time(),
     )
     atomic_json(destination, receipt.payload())
@@ -241,9 +356,14 @@ def inspect_source_identity(
     remote_ref: str = "refs/heads/main",
     publication_receipt: str | Path | None = None,
     expected_publication_receipt_sha256: str | None = None,
+    verification_method: str = "git_ls_remote_live",
 ) -> SourceIdentity:
     """Inspect a development snapshot or prove clean local/server/GitHub parity."""
 
+    if verification_method not in _VERIFICATION_METHODS:
+        raise ValueError("unknown publication verification method")
+    if not formal and verification_method != "git_ls_remote_live":
+        raise ValueError("live publication verification method requires formal execution")
     root = Path(repository_root).resolve(strict=True)
     tree_sha256 = _source_tree_sha256(root)
     git_dir = root / ".git"
@@ -289,10 +409,13 @@ def inspect_source_identity(
         raise ValueError("publication receipt path and hash must be provided together")
     receipt_sha256: str | None = None
     if publication_receipt is None:
-        published = _git(root, "ls-remote", "--exit-code", "origin", remote_ref)
-        fields = published.split()
-        if len(fields) != 2 or fields[1] != remote_ref or fields[0] != commit:
-            raise ValueError("formal source commit is not the published remote ref")
+        if verification_method == "github_rest_live":
+            _verify_github_rest_live(expected_repository, remote_ref, commit)
+        else:
+            published = _git(root, "ls-remote", "--exit-code", "origin", remote_ref)
+            fields = published.split()
+            if len(fields) != 2 or fields[1] != remote_ref or fields[0] != commit:
+                raise ValueError("formal source commit is not the published remote ref")
     else:
         assert expected_publication_receipt_sha256 is not None
         _load_publication_receipt(
@@ -303,6 +426,7 @@ def inspect_source_identity(
             remote_ref=remote_ref,
             commit=commit,
             tree_sha256=tree_sha256,
+            verification_method=verification_method,
         )
         receipt_sha256 = expected_publication_receipt_sha256
     return SourceIdentity(
