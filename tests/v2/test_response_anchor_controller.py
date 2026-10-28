@@ -237,6 +237,16 @@ def test_owned_cleanup_precedes_unlock_continues_errors_and_seals(tmp_path, monk
     else:
         command = captured[0]
         assert "--resource-owner-pid" in command and "--shared-queue" in command
+        # Native full preflight rejects benchmark-only state/scalar flags.
+        # Anchor checkpoint/RNG restore is verified by its dedicated gate.
+        assert "--record-update-state" not in command
+        assert "--metric-scalar-batch" not in command
+        assert "--benchmark-only" not in command
+        from scripts.v2.capacity_probe import validate_metric_scalar_mode
+
+        validate_metric_scalar_mode(
+            SimpleNamespace(metric_scalar_batch=False, record_update_state=False)
+        )
         queue_path = Path(command[command.index("--shared-queue") + 1])
         queue = json.loads(queue_path.read_text())
         args = SimpleNamespace(

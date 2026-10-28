@@ -184,7 +184,6 @@ def execute(spec_path: Path, digest: str) -> None:
                 spec["publication"]["sha256"],
                 "--steps",
                 "10",
-                "--record-update-state",
                 "--shared-queue",
                 str(resource_queue),
                 "--resource-owner-pid",
