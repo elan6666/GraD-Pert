@@ -382,3 +382,9 @@ Evaluation-state condition IDs may cover more populations or use a different ord
 - Prevention: completion/repair acceptance must name the next approved dependency
   and either launch it with its existing gates or record a concrete external blocker.
   Status questions do not cancel the standing execution request.
+
+## 2026-10-29：零更新探针须覆盖真实模块状态与数值相消
+
+- 梯度几乎反向时，用范数展开式求合向量会发生相消；分块直接计算合向量的平方与点积，并保留强反向梯度反例。
+- 合成模型通过不能证明原生模式恢复完整。诊断必须使用真实模块检查训练开关（包括内部随机顺序），把已确认的后端选择遥测与真正时钟分开；不修改原生模型来迁就探针。
+- 发布前用真实脚本入口核验原生包与脚本命名空间的导入路径。启动收据须核验子进程 PID、UID、父进程、原始 NUL 分隔命令哈希和启动 tick；只对存活且身份暂不可读的进程有界重查，非空不匹配或退出后身份缺失均失败。
