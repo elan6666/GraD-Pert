@@ -123,3 +123,29 @@ keeping scientific arrays server-only and outside evaluation input consumption.
 The unit-weight calibration leaf is an engineering input, not a fit permission
 or a second hyperparameter arm. Its first-eight BF16 calibration produces the
 single final loss coefficient; publish a separate immutable fit configuration.
+
+## Frozen-checkpoint analysis entry points
+
+`scripts/v2/response_anchor_postfit.py run --spec FILE --spec-sha256 SHA`
+uses the original endpoint's native evaluation package in separate GPU workers.
+The same val445/300-control forward produces the native18 metrics, allowed-axis
+own-target-masked prediction scores and block-pooled ResponseCLS. The pure NumPy
+`gradpert.evaluation.response_geometry` module implements condition-paired
+bootstrap with reranked weighted distance ties, not independent pair bootstrap.
+The original R3 training source/checkpoint and the analysis source are recorded
+separately. Private endpoint arrays and row identities remain on the server.
+
+`scripts/v2/response_anchor_medium.py seal|medium|panel|validate --spec FILE
+--spec-sha256 SHA` reuses the original medium population (1335/5317, deep128/506,
+gradient32/125) and matched128 panel, without family/queue registration. It
+installs an instance-scoped allowed-column-first reader before TRAIN diagnostic
+reads, including a guarded fallback for the original R3 package. Partial probes
+mark the complete-group anchor term unavailable. Gradient probes observe
+derivatives but never update optimizer, Teacher or centers.
+
+Parallel analysis workers must bind an exact live common dispatcher identity
+and verify ancestry before native resource admission. No foreign-job whitelist
+or memory rule changes. Local synthetic tests do not replace the first-condition
+native prediction/observer parity or the medium reference/fast parity gates.
+Analysis code is published independently of the immutable active fit checkout;
+postfit-stage completion never implies overall scientific acceptance.

@@ -1,0 +1,1425 @@
+"""Sealed, val-only native postfit collection; no training or test execution.
+
+Endpoint workers import their own original native source. The observer returns
+all native outputs unchanged and collects ResponseCLS from the existing forward.
+Scientific matrices stay in server-private NPZ; only small summaries are public.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib.util
+import inspect
+import json
+import os
+import subprocess
+import sys
+from contextlib import contextmanager
+from functools import wraps
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+SERVER_ROOT = Path("/data/yilangliu")
+SCHEMA = "response-anchor-postfit-input-1"
+ARRAY_FIELDS = {
+    "condition_ids",
+    "allowed_gene_indices",
+    "own_target_indices",
+    "prediction_delta",
+    "truth_delta",
+    "cls_means",
+}
+REPOSITORY = "https://github.com/elan6666/GraD-Pert.git"
+
+
+def digest(value: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+        ).encode()
+    ).hexdigest()
+
+
+def sha(path: str | Path) -> str:
+    with Path(path).open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+def write_new(path: Path, value: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("x") as stream:
+        json.dump(value, stream, ensure_ascii=False, indent=2, allow_nan=False)
+        stream.write("\n")
+    if path.name.startswith("PRIVATE_"):
+        path.chmod(0o600)
+
+
+def server_path(path: str | Path, *, exists: bool = True) -> Path:
+    p = Path(path)
+    result = p.resolve(strict=exists)
+    if not result.is_relative_to(SERVER_ROOT) or (exists and result != p.absolute()):
+        raise ValueError("scientific input/output must be a canonical server path")
+    return result
+
+
+def checked(binding: dict, *, server: bool = True) -> Path:
+    if set(binding) != {"path", "sha256"}:
+        raise ValueError("exact file path/hash binding required")
+    path = server_path(binding["path"]) if server else Path(binding["path"]).resolve(strict=True)
+    if not path.is_file() or sha(path) != binding["sha256"]:
+        raise ValueError("sealed file checksum mismatch")
+    return path
+
+
+def validate_spec(spec: dict, *, server: bool = True) -> None:
+    required = {
+        "schema",
+        "analysis_source",
+        "data_root",
+        "shared_policy",
+        "output",
+        "validation",
+        "endpoints",
+        "bootstrap",
+        "medium",
+    }
+    if set(spec) != required or spec["schema"] != SCHEMA:
+        raise ValueError("postfit schema differs")
+    v = spec["validation"]
+    if set(v) != {
+        "conditions",
+        "controls_per_condition",
+        "expression_genes",
+        "query_count",
+        "allowed_gene_indices",
+        "allowed_gene_ids_sha256",
+        "expression_gene_ids_sha256",
+        "control_manifest_sha256",
+        "reference_sha256",
+    }:
+        raise ValueError("complete frozen validation contract required")
+    conditions, allowed = v["conditions"], np.asarray(v["allowed_gene_indices"])
+    if (
+        len(conditions) != 445
+        or len(set(conditions)) != 445
+        or any(not isinstance(p, str) or not p for p in conditions)
+        or v["controls_per_condition"] != 300
+        or v["expression_genes"] != 5000
+        or v["query_count"] != 1000
+        or allowed.dtype.kind not in "iu"
+        or allowed.shape != (4775,)
+        or (allowed < 0).any()
+        or (allowed >= 5000).any()
+        or (np.diff(allowed) <= 0).any()
+    ):
+        raise ValueError("full val445/300control/5000output/4775allowed contract differs")
+    if spec["bootstrap"] != {"draws": 10000, "seed": 20261028}:
+        raise ValueError("paired condition bootstrap is frozen")
+    endpoints = spec["endpoints"]
+    if len(endpoints) != 2 or [e["name"] for e in endpoints] != [
+        "R3-RI",
+        "FixedResponseGroupAnchor",
+    ]:
+        raise ValueError("exact historical reference and one candidate required")
+    protected = [Path(spec["data_root"]).resolve()]
+    for e in endpoints:
+        if set(e) != {
+            "name",
+            "source",
+            "run_root",
+            "run_manifest",
+            "journal",
+            "config",
+            "checkpoint",
+        }:
+            raise ValueError("endpoint binding differs")
+        for key in ("run_manifest", "journal", "config", "checkpoint"):
+            checked(e[key], server=server)
+        root = Path(e["run_root"]).resolve(strict=True)
+        if Path(e["run_manifest"]["path"]).resolve() != root / "run_manifest.json":
+            raise ValueError("run manifest escaped endpoint")
+        if Path(e["journal"]["path"]).resolve() != root / "fit/epoch_state.json":
+            raise ValueError("journal escaped endpoint")
+        if not Path(e["checkpoint"]["path"]).resolve().is_relative_to(root / "fit"):
+            raise ValueError("checkpoint escaped endpoint fit root")
+        if (
+            not Path(e["config"]["path"])
+            .resolve()
+            .is_relative_to(Path(e["source"]["root"]).resolve() / "configs")
+        ):
+            raise ValueError("endpoint config must belong to its frozen native source")
+        protected.extend([root, Path(e["source"]["root"]).resolve()])
+        _check_source_shape(e["source"], server=server)
+        if server:
+            server_path(root)
+    if server:
+        reference = endpoints[0]
+        if (
+            reference["source"]["commit"] != "f0cb20ebb2efab749970f2bf5d205ed2f358592c"
+            or reference["checkpoint"]["sha256"]
+            != "96f6e718b4a3d2045ed4b0a5b3ba813a1fbc029aa3e1f0091d3ed68ef3f2d0d4"
+            or reference["config"]["sha256"]
+            != "65304a02704561f9fbe3addb7be335fc88a51688f9cef69941ac81d1a920a4f7"
+        ):
+            raise ValueError("historical R3-RI reference differs from frozen design")
+    _check_source_shape(spec["analysis_source"], server=server)
+    checked(spec["shared_policy"], server=server)
+    protected.append(Path(spec["analysis_source"]["root"]).resolve())
+    output = Path(spec["output"]).resolve()
+    if any(output == p or output.is_relative_to(p) or p.is_relative_to(output) for p in protected):
+        raise ValueError("postfit output overlaps protected source/data/run")
+    if server:
+        server_path(spec["data_root"])
+        server_path(output, exists=False)
+    # Metadata-only future medium binding; endpoint CLI never executes it.
+    if not isinstance(spec["medium"], dict):
+        raise ValueError("explicit medium binding/status required")
+
+
+def _check_source_shape(source: dict, *, server: bool) -> None:
+    if set(source) != {"root", "commit", "publication"}:
+        raise ValueError("source root/full commit/publication binding required")
+    if (
+        not isinstance(source["commit"], str)
+        or len(source["commit"]) != 40
+        or any(c not in "0123456789abcdef" for c in source["commit"])
+    ):
+        raise ValueError("full source commit required")
+    checked(source["publication"], server=server)
+    if server:
+        server_path(source["root"])
+
+
+class NativeValCollector:
+    """Bounded observer, exact control/chunk/block identities, no extra forward."""
+
+    def __init__(
+        self,
+        conditions,
+        targets_by_condition,
+        controls_by_condition,
+        allowed,
+        *,
+        controls=300,
+        expression_genes=5000,
+        query_count=1000,
+    ):
+        self.conditions = tuple(conditions)
+        self.targets = {p: tuple(targets_by_condition[p]) for p in self.conditions}
+        self.control_ids = {p: tuple(controls_by_condition[p]) for p in self.conditions}
+        self.target_lookup = {target: p for p, target in self.targets.items()}
+        self.allowed = np.asarray(allowed, dtype=np.int64)
+        if (
+            not self.conditions
+            or len(set(self.conditions)) != len(self.conditions)
+            or len(self.target_lookup) != len(self.conditions)
+            or any(len(ids) != controls for ids in self.control_ids.values())
+            or self.allowed.ndim != 1
+            or not len(self.allowed)
+            or (self.allowed < 0).any()
+            or (self.allowed >= expression_genes).any()
+            or (np.diff(self.allowed) <= 0).any()
+        ):
+            raise ValueError("collector axis/identity contract invalid")
+        self.controls, self.width, self.query_count = controls, expression_genes, query_count
+        self.rows = {}
+        self.active = None
+        self.block = None
+        self.last_control_ids = None
+        self.calls = {
+            "predict_controls": 0,
+            "query_blocks": 0,
+            "response_forward": 0,
+            "truth_reads": 0,
+            "control_reads": 0,
+        }
+
+    def begin(self, controls, targets):
+        targets = tuple(int(t) for t in targets)
+        if targets not in self.target_lookup:
+            raise ValueError("prediction condition outside frozen validation shard")
+        p = self.target_lookup[targets]
+        if p in self.rows or (self.active is not None and "truth" not in self.active):
+            raise ValueError("duplicate condition or preceding truth not consumed")
+        if self.last_control_ids != self.control_ids[p]:
+            raise ValueError("ordered control IDs differ from frozen draw")
+        x = np.asarray(controls)
+        if x.shape != (self.controls, self.width) or not np.isfinite(x).all():
+            raise ValueError("native validation control matrix differs")
+        self.active = dict(
+            condition=p,
+            control=x.mean(0, dtype=np.float64),
+            cls_sum=None,
+            coverage=np.zeros(self.width, dtype=np.int64),
+            next_query=0,
+            control_hash=digest(list(self.last_control_ids)),
+        )
+        self.calls["predict_controls"] += 1
+
+    def begin_block(self, queries):
+        q = np.asarray(queries, dtype=np.int64)
+        if self.active is None or self.block is not None:
+            raise ValueError("query block outside active native prediction")
+        start = self.active["next_query"]
+        expected = np.arange(start, min(start + self.query_count, self.width))
+        if not np.array_equal(q, expected):
+            raise ValueError("native ordered-disjoint query recipe changed")
+        self.block = dict(queries=q, rows=0)
+        self.calls["query_blocks"] += 1
+
+    def response_hook(self, _module, _args, output):
+        if self.block is None or self.active is None:
+            raise ValueError("Response forward outside native query block")
+        # RelayResponseEncoder returns post-final-RMSNorm [B,Q+CLS,D].
+        if not hasattr(output, "detach") or output.ndim != 3:
+            raise ValueError("native Response output is not a token tensor")
+        n, tokens = output.shape[:2]
+        if tokens != len(self.block["queries"]) + 1 or n < 1:
+            raise ValueError("native Response query/control shape differs")
+        end = self.block["rows"] + n
+        if end > self.controls:
+            raise ValueError("Response chunks exceed frozen control count")
+        z = output[:, -1].detach().double().cpu().numpy()
+        if not np.isfinite(z).all():
+            raise ValueError("nonfinite prehead ResponseCLS")
+        if self.active["cls_sum"] is None:
+            self.active["cls_sum"] = np.zeros(z.shape[1], dtype=np.float64)
+        if self.active["cls_sum"].shape != (z.shape[1],):
+            raise ValueError("ResponseCLS width changed")
+        self.active["cls_sum"] += len(self.block["queries"]) * z.sum(0, dtype=np.float64)
+        self.block["rows"] = end
+        self.calls["response_forward"] += 1
+        # None means the forward hook leaves native output untouched.
+        return None
+
+    def end_block(self):
+        if self.block is None or self.block["rows"] != self.controls:
+            raise ValueError("native query block omitted/repeated control rows")
+        self.active["coverage"][self.block["queries"]] += self.block["rows"]
+        self.active["next_query"] += len(self.block["queries"])
+        self.block = None
+
+    def end_prediction(self, prediction):
+        x = np.asarray(prediction)
+        if (
+            self.active is None
+            or self.block is not None
+            or x.shape != (self.controls, self.width)
+            or not np.isfinite(x).all()
+            or not np.all(self.active["coverage"] == self.controls)
+            or self.active["next_query"] != self.width
+        ):
+            raise ValueError("incomplete native prediction coverage")
+        self.active["prediction"] = x.mean(0, dtype=np.float64)
+        self.active["cls"] = self.active["cls_sum"] / (self.controls * self.width)
+
+    def consume_truth(self, p, truth):
+        x = np.asarray(truth.expression)
+        if (
+            self.active is None
+            or self.active["condition"] != p
+            or "prediction" not in self.active
+            or p in self.rows
+            or x.ndim != 2
+            or not len(x)
+            or x.shape[1] != self.width
+            or not np.isfinite(x).all()
+        ):
+            raise ValueError("truth outside completed native condition")
+        y = x.mean(0, dtype=np.float64)
+        self.active["truth"] = y
+        self.rows[p] = dict(
+            prediction_delta=(self.active["prediction"] - self.active["control"])[self.allowed],
+            truth_delta=(y - self.active["control"])[self.allowed],
+            cls_means=self.active["cls"],
+            control_sha256=self.active["control_hash"],
+            truth_sha256=digest(list(truth.ordered_row_ids)),
+        )
+        self.calls["truth_reads"] += 1
+
+    def arrays(self):
+        if set(self.rows) != set(self.conditions) or self.block is not None:
+            raise ValueError("incomplete frozen condition coverage")
+        k = max(map(len, self.targets.values()))
+        own = np.full((len(self.conditions), k), -1, dtype=np.int64)
+        for i, p in enumerate(self.conditions):
+            own[i, : len(self.targets[p])] = self.targets[p]
+        return dict(
+            condition_ids=np.asarray(self.conditions, dtype=str),
+            allowed_gene_indices=self.allowed,
+            own_target_indices=own,
+            **{
+                name: np.stack([self.rows[p][name] for p in self.conditions])
+                for name in ("prediction_delta", "truth_delta", "cls_means")
+            },
+        )
+
+    @contextmanager
+    def observe(self, native, model, data):
+        """Restore every method/global/hook, including all exception paths."""
+        original_controls, original_query = native.predict_controls, native.predict_query_set
+        originals = {
+            name: (name in vars(data), vars(data).get(name), getattr(data, name))
+            for name in ("load_control_rows", "load_truth_rows")
+        }
+
+        @wraps(original_controls)
+        def predict(*args, **kwargs):
+            bound = inspect.signature(original_controls).bind(*args, **kwargs)
+            self.begin(bound.arguments["controls"], bound.arguments["targets"])
+            result = original_controls(*args, **kwargs)
+            self.end_prediction(result)
+            return result
+
+        @wraps(original_query)
+        def query(*args, **kwargs):
+            bound = inspect.signature(original_query).bind(*args, **kwargs)
+            self.begin_block(bound.arguments["queries"])
+            result = original_query(*args, **kwargs)
+            self.end_block()
+            return result
+
+        def controls(ids):
+            result = originals["load_control_rows"][2](ids)
+            if tuple(result.ordered_row_ids) != tuple(ids):
+                raise ValueError("native loader changed control order")
+            self.last_control_ids = tuple(ids)
+            self.calls["control_reads"] += 1
+            return result
+
+        def truth(p):
+            result = originals["load_truth_rows"][2](p)
+            self.consume_truth(p, result)
+            return result
+
+        handle = model.response.register_forward_hook(self.response_hook)
+        native.predict_controls, native.predict_query_set = predict, query
+        data.load_control_rows, data.load_truth_rows = controls, truth
+        try:
+            yield self
+        finally:
+            handle.remove()
+            native.predict_controls, native.predict_query_set = original_controls, original_query
+            for name, (owned, value, _) in originals.items():
+                if owned:
+                    setattr(data, name, value)
+                else:
+                    delattr(data, name)
+
+
+def validate_native_result(result, collector):
+    expected_metrics = {
+        "txpert_macro_pearson_delta_all",
+        "txpert_macro_pearson_delta_deg",
+        "trishift_pearson_delta_all",
+        "trishift_pearson_delta_deg",
+        "systema_pearson_all",
+        "systema_pearson_deg",
+    }
+    if (
+        result["split"] != "val"
+        or len(result["conditions"]) != len(collector.conditions)
+        or set(result["metric_gene_groups"]) != {"seen_expression", "unseen_expression"}
+    ):
+        raise ValueError("native result lacks complete val18 population")
+    groups = [result["metrics"]] + [v["metrics"] for v in result["metric_gene_groups"].values()]
+    for values in groups:
+        if len(values) != 6 or {v["metric_id"] for v in values} != expected_metrics:
+            raise ValueError("native metric18 identities differ")
+        for metric in values:
+            if metric["total_condition_count"] != len(collector.conditions) or not 0 <= metric[
+                "finite_condition_count"
+            ] <= len(collector.conditions):
+                raise ValueError("native finite counts differ")
+    if not np.isfinite(result["prediction_loss"]):
+        raise ValueError("nonfinite native validation loss")
+    for row, p in zip(result["conditions"], collector.conditions, strict=True):
+        if (
+            row["condition_id"] != p
+            or row["control_row_ids_sha256"] != collector.rows[p]["control_sha256"]
+            or row["truth_row_ids_sha256"] != collector.rows[p]["truth_sha256"]
+        ):
+            raise ValueError("native/observer ordered row identity differs")
+
+
+def native_point_gates(reference, candidate):
+    metrics = (
+        "txpert_macro_pearson_delta_all",
+        "trishift_pearson_delta_all",
+        "systema_pearson_all",
+    )
+    rows = {}
+    for name in metrics:
+        values = []
+        for result in (reference, candidate):
+            items = result["metric_gene_groups"]["seen_expression"]["metrics"]
+            values.append(next(v for v in items if v["metric_id"] == name))
+        r, c = values
+        finite = (
+            r["finite_condition_count"] == c["finite_condition_count"] == 445
+            and r["macro_mean"] is not None
+            and c["macro_mean"] is not None
+            and np.isfinite([r["macro_mean"], c["macro_mean"]]).all()
+        )
+        delta = c["macro_mean"] - r["macro_mean"] if finite else None
+        rows[name] = dict(candidate_minus_reference=delta, passed=bool(finite and delta >= 0))
+    loss_delta = candidate["prediction_loss"] - reference["prediction_loss"]
+    loss_passed = bool(np.isfinite(loss_delta) and loss_delta <= 0)
+    return dict(
+        seen_expression_all=rows,
+        native_prediction_loss_delta=loss_delta,
+        native_loss_passed=loss_passed,
+        passed=loss_passed and all(row["passed"] for row in rows.values()),
+    )
+
+
+@contextmanager
+def forbid_updates(runtime):
+    """Count and forbid accidental Teacher/optimizer/commit/backward entry."""
+    import torch
+
+    counts = dict(
+        teacher_forward=0, optimizer_step=0, statistics_commit=0, backward=0, autograd_grad=0
+    )
+
+    def forbidden(name):
+        def fail(*args, **kwargs):
+            counts[name] += 1
+            raise ValueError("forbidden postfit path: " + name)
+
+        return fail
+
+    originals = []
+
+    def patch(owner, name, value):
+        owned = name in vars(owner)
+        originals.append((owner, name, owned, vars(owner).get(name), getattr(owner, name)))
+        setattr(owner, name, value)
+
+    handles = [
+        module.register_forward_pre_hook(forbidden("teacher_forward"))
+        for module in runtime.objective.teacher.modules()
+    ]
+    patch(runtime.optimizer, "step", forbidden("optimizer_step"))
+    patch(runtime.objective, "commit_statistics", forbidden("statistics_commit"))
+    patch(torch.Tensor, "backward", forbidden("backward"))
+    patch(torch.autograd, "grad", forbidden("autograd_grad"))
+    try:
+        yield counts
+    finally:
+        for handle in handles:
+            handle.remove()
+        for owner, name, owned, own_value, _ in reversed(originals):
+            if owned:
+                setattr(owner, name, own_value)
+            else:
+                delattr(owner, name)
+
+
+def geometry_module(analysis_root: Path):
+    path = analysis_root / "src/gradpert/evaluation/response_geometry.py"
+    spec = importlib.util.spec_from_file_location("_sealed_response_geometry", path)
+    if spec is None or spec.loader is None:
+        raise ValueError("published analysis statistics module missing")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def save_arrays(path: Path, arrays: dict, *, server: bool = True):
+    if server:
+        server_path(path, exists=False)
+    if set(arrays) != ARRAY_FIELDS or path.exists():
+        raise ValueError("fresh exact-six-field scientific NPZ required")
+    # A file handle avoids NumPy silently appending a different filename.
+    with path.open("xb") as stream:
+        np.savez(stream, **arrays)
+    path.chmod(0o600)
+    return {"path": str(path), "sha256": sha(path)}
+
+
+def load_arrays(binding: dict, *, server: bool = True):
+    path = checked(binding, server=server)
+    with np.load(path, allow_pickle=False) as archive:
+        if set(archive.files) != ARRAY_FIELDS or len(archive.files) != len(ARRAY_FIELDS):
+            raise ValueError("scientific NPZ schema differs")
+        return {name: archive[name] for name in ARRAY_FIELDS}
+
+
+def preimport_source(binding):
+    """Check clean commit before importing any endpoint model/CUDA module."""
+    checked(binding["publication"])
+    root = server_path(binding["root"])
+    commit = subprocess.check_output(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
+    ).strip()
+    status = subprocess.check_output(["git", "-C", str(root), "status", "--porcelain"], text=True)
+    if commit != binding["commit"] or status.strip():
+        raise ValueError("native/analysis source is dirty or differs before import")
+
+
+def _source(binding):
+    from gradpert.execution.identity import inspect_source_identity
+
+    result = inspect_source_identity(
+        binding["root"],
+        formal=True,
+        expected_repository=REPOSITORY,
+        publication_receipt=binding["publication"]["path"],
+        expected_publication_receipt_sha256=binding["publication"]["sha256"],
+    ).payload()
+    if result["commit"] != binding["commit"] or result["dirty"]:
+        raise ValueError("native/analysis source differs from clean publication")
+    return result
+
+
+def _bind_checkpoint(endpoint, config):
+    identity = json.loads(checked(endpoint["run_manifest"]).read_text())
+    journal = json.loads(checked(endpoint["journal"]).read_text())
+    last = journal["last"]
+    cp = checked(endpoint["checkpoint"])
+    if (
+        journal["identity"] != identity
+        or last["epoch"] != 2
+        or last["sha256"] != endpoint["checkpoint"]["sha256"]
+        or cp != Path(endpoint["run_root"]).resolve() / "fit" / last["file"]
+        or identity["source"]["commit"] != endpoint["source"]["commit"]
+    ):
+        raise ValueError("exact original epoch2 last/source required")
+    if digest(config.model_dump(mode="json")) != identity["resolved_config_sha256"]:
+        raise ValueError("native config differs from training checkpoint identity")
+    return identity
+
+
+def _command_arguments(command: bytes):
+    if not isinstance(command, bytes) or not command or command[-1:] != b"\0":
+        raise ValueError("live raw NUL command bytes required")
+    return [part.decode("utf-8") for part in command.split(b"\0") if part]
+
+
+def _flag_value(arguments, flag):
+    values = []
+    for i, arg in enumerate(arguments):
+        if arg == flag:
+            if i + 1 >= len(arguments):
+                raise ValueError("dispatcher command flag lacks a value")
+            values.append(arguments[i + 1])
+        elif arg.startswith(flag + "="):
+            values.append(arg[len(flag) + 1 :])
+    if len(values) != 1:
+        raise ValueError("dispatcher command flag missing or repeated")
+    return values[0]
+
+
+def _raw_command(pid):
+    return Path(f"/proc/{pid}/cmdline").read_bytes()
+
+
+def make_dispatcher_owner(
+    spec, endpoint, spec_file, *, lookup, pid=None, uid=None, command_reader=_raw_command
+):
+    """Seal our exact live dispatcher, never a foreign-job whitelist entry."""
+    pid = os.getpid() if pid is None else pid
+    uid = os.getuid() if uid is None else uid
+    actual = lookup(pid)
+    raw = command_reader(pid)
+    arguments = _command_arguments(raw)
+    scripts = [(i, arg) for i, arg in enumerate(arguments) if arg.endswith(".py")]
+    script = str(
+        Path(spec["analysis_source"]["root"]).resolve() / "scripts/v2/response_anchor_postfit.py"
+    )
+    if (
+        len(scripts) != 1
+        or Path(scripts[0][1]).resolve() != Path(script)
+        or scripts[0][0] + 1 >= len(arguments)
+        or arguments[scripts[0][0] + 1] != "run"
+        or actual is None
+        or actual.get("pid") != pid
+        or actual.get("uid") != uid
+        or actual.get("script_basename") != "response_anchor_postfit.py"
+        or actual.get("command_sha256") != hashlib.sha256(raw).hexdigest()
+        or not isinstance(actual.get("start_ticks"), str)
+        or not actual["start_ticks"].isdigit()
+    ):
+        raise ValueError("owner is not our live sealed postfit dispatcher")
+    spec_argument = _flag_value(arguments, "--spec")
+    if (
+        Path(spec_argument).resolve() != Path(spec_file["path"]).resolve()
+        or _flag_value(arguments, "--spec-sha256") != spec_file["sha256"]
+    ):
+        raise ValueError("dispatcher command does not bind this POSTFIT_SPEC")
+    command_contract = dict(
+        script_path=script,
+        script_argument=scripts[0][1],
+        spec_path=str(Path(spec_file["path"]).resolve()),
+        spec_argument=spec_argument,
+        spec_file_sha256=spec_file["sha256"],
+    )
+    return dict(
+        schema="response-anchor-postfit-dispatch-owner-1",
+        uid=uid,
+        process={
+            key: actual[key]
+            for key in ("pid", "uid", "start_ticks", "command_sha256", "script_basename")
+        },
+        command_contract=command_contract,
+        spec_file=dict(path=command_contract["spec_path"], sha256=spec_file["sha256"]),
+        spec_sha256=digest(spec),
+        endpoint=endpoint["name"],
+        endpoint_spec_sha256=digest(endpoint),
+        output_root=str(Path(spec["output"]).resolve()),
+        analysis_source_commit=spec["analysis_source"]["commit"],
+    )
+
+
+def verified_dispatcher_owner(
+    receipt,
+    spec,
+    endpoint,
+    spec_file,
+    *,
+    lookup,
+    parents,
+    descendant,
+    worker_pid=None,
+    uid=None,
+    command_reader=_raw_command,
+):
+    """Reject PID reuse, exec, nonancestor and another-run receipts before snapshot."""
+    worker_pid = os.getpid() if worker_pid is None else worker_pid
+    uid = os.getuid() if uid is None else uid
+    expected_keys = {
+        "schema",
+        "uid",
+        "process",
+        "command_contract",
+        "spec_file",
+        "spec_sha256",
+        "endpoint",
+        "endpoint_spec_sha256",
+        "output_root",
+        "analysis_source_commit",
+    }
+    expected = receipt.get("process", {})
+    pid = expected.get("pid")
+    if (
+        set(receipt) != expected_keys
+        or receipt.get("schema") != "response-anchor-postfit-dispatch-owner-1"
+        or type(pid) is not int
+        or pid <= 0
+        or pid == worker_pid
+        or receipt["uid"] != uid
+        or expected.get("uid") != uid
+        or receipt["spec_sha256"] != digest(spec)
+        or receipt["endpoint"] != endpoint["name"]
+        or receipt["endpoint_spec_sha256"] != digest(endpoint)
+        or receipt["output_root"] != str(Path(spec["output"]).resolve())
+        or receipt["analysis_source_commit"] != spec["analysis_source"]["commit"]
+        or receipt["spec_file"]
+        != dict(path=str(Path(spec_file["path"]).resolve()), sha256=spec_file["sha256"])
+        or not descendant(worker_pid, pid, parents)
+    ):
+        raise ValueError("dispatcher owner is not a same-run ancestor")
+    actual = lookup(pid)
+    if (
+        actual is None
+        or any(
+            actual.get(k) != expected.get(k)
+            for k in ("pid", "uid", "start_ticks", "command_sha256", "script_basename")
+        )
+        or actual.get("script_basename") != "response_anchor_postfit.py"
+    ):
+        raise ValueError("dispatcher PID/start ticks/raw command identity changed")
+    raw = command_reader(pid)
+    if hashlib.sha256(raw).hexdigest() != expected["command_sha256"]:
+        raise ValueError("dispatcher raw NUL command changed")
+    arguments = _command_arguments(raw)
+    contract = receipt["command_contract"]
+    script = str(
+        Path(spec["analysis_source"]["root"]).resolve() / "scripts/v2/response_anchor_postfit.py"
+    )
+    positions = [i for i, arg in enumerate(arguments) if arg == contract["script_argument"]]
+    if (
+        contract["script_path"] != script
+        or contract["spec_path"] != receipt["spec_file"]["path"]
+        or contract["spec_file_sha256"] != spec_file["sha256"]
+        or len(positions) != 1
+        or positions[0] + 1 >= len(arguments)
+        or arguments[positions[0] + 1] != "run"
+        or _flag_value(arguments, "--spec") != contract["spec_argument"]
+        or _flag_value(arguments, "--spec-sha256") != spec_file["sha256"]
+    ):
+        raise ValueError("live dispatcher command differs from same-run contract")
+    return pid
+
+
+class DispatcherAdmission:
+    """Fresh native ownership/admission check at entry and each native condition callback."""
+
+    def __init__(
+        self,
+        receipt,
+        spec,
+        endpoint,
+        spec_file,
+        policy,
+        *,
+        lookup,
+        parent_lookup,
+        descendant,
+        snapshot,
+        admit,
+        worker_pid=None,
+        uid=None,
+        worker_index=None,
+        command_reader=_raw_command,
+    ):
+        self.worker_index = worker_index
+        self.receipt, self.spec, self.endpoint, self.spec_file = receipt, spec, endpoint, spec_file
+        self.policy, self.lookup, self.parent_lookup = policy, lookup, parent_lookup
+        self.descendant, self.snapshot, self.admit = descendant, snapshot, admit
+        self.worker_pid, self.uid, self.command_reader = worker_pid, uid, command_reader
+        self.calls, self.conditions_checked = 0, 0
+        self.last_snapshot_sha256 = None
+
+    def check(self):
+        owner = verified_dispatcher_owner(
+            self.receipt,
+            self.spec,
+            self.endpoint,
+            self.spec_file,
+            lookup=self.lookup,
+            parents=self.parent_lookup(),
+            descendant=self.descendant,
+            worker_pid=self.worker_pid,
+            uid=self.uid,
+            command_reader=self.command_reader,
+        )
+        observed = self.snapshot(owner)
+        # Original admit sees all dispatcher descendants as owned. No telemetry
+        # edits, peer exceptions, foreign whitelist changes or increased budgets.
+        self.admit(self.policy, observed)
+        self.calls += 1
+        self.last_snapshot_sha256 = digest(observed)
+        return observed
+
+    def on_condition_complete(self, done, total, condition):
+        if self.worker_index not in (0, 1):
+            raise ValueError("native admission callback requires worker index0/1")
+        expected = self.spec["validation"]["conditions"][self.worker_index :: 2]
+        if (
+            done != self.conditions_checked + 1
+            or total != len(expected)
+            or not 1 <= done <= len(expected)
+            or condition != expected[done - 1]
+        ):
+            raise ValueError("native admission callback condition order differs")
+        self.check()
+        self.conditions_checked = done
+
+
+def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
+    """Formal server-only worker. Synthetic tests never call this entry point."""
+    validate_spec(spec)
+    if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
+        raise ValueError("native CUDA allocator contract missing")
+    endpoints = {e["name"]: e for e in spec["endpoints"]}
+    endpoint = endpoints[name]
+    policy_document = json.loads(checked(spec["shared_policy"]).read_text())
+    policy = policy_document.get("shared_gpu_policy", policy_document)
+    gpu = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+    if gpu not in ("0", "1") or worker_index not in (0, 1) or gpu != str(worker_index):
+        raise ValueError("one isolated physical GPU and worker index0/1 required")
+    analysis_script = (
+        Path(spec["analysis_source"]["root"]) / "scripts/v2/response_anchor_postfit.py"
+    )
+    if Path(__file__).resolve() != analysis_script.resolve():
+        raise ValueError("worker is not the sealed analysis script")
+    native_root = Path(endpoint["source"]["root"]).resolve()
+    preimport_source(endpoint["source"])
+    preimport_source(spec["analysis_source"])
+    # Child is a fresh interpreter; pin native imports before importing torch/model code.
+    sys.path[:0] = [str(native_root / "src"), str(native_root)]
+    import torch
+
+    import gradpert
+
+    if not Path(gradpert.__file__).resolve().is_relative_to(native_root / "src"):
+        raise ValueError("mixed native source imports")
+    from gradpert.config import load_experiment_config
+    from gradpert.evaluation.data import CanonicalEvaluationData
+    from gradpert.evaluation.state import EvaluationStateLayout, load_evaluation_state
+    from gradpert.execution.identity import inspect_environment
+    from gradpert.training.v2 import evaluation as native
+    from gradpert.training.v2.checkpoint import load_evaluation_checkpoint
+    from gradpert.training.v2.exposure import checkpoint_expression_groups
+    from gradpert.training.v2.runtime import prepare_runtime
+    from scripts.v2.capacity_probe import state_fingerprint, validation_state
+    from scripts.v2.run_group import lock
+    from scripts.v2.shared_gpu import admit, descendant, parent_map, process_info, snapshot
+
+    if not torch.cuda.is_available() or torch.cuda.device_count() != 1:
+        raise ValueError("formal postfit needs one visible CUDA device per worker")
+    native_source, analysis_source = _source(endpoint["source"]), _source(spec["analysis_source"])
+    config = load_experiment_config(checked(endpoint["config"]))
+    identity = _bind_checkpoint(endpoint, config)
+    owner_path = checked(resource_owner)
+    expected_owner_path = Path(spec["output"]).resolve() / name / "DISPATCH_OWNER.json"
+    if owner_path != expected_owner_path:
+        raise ValueError("resource owner receipt belongs to another endpoint")
+    owner_receipt = json.loads(owner_path.read_text())
+    admission_guard = DispatcherAdmission(
+        owner_receipt,
+        spec,
+        endpoint,
+        spec_file,
+        policy,
+        lookup=process_info,
+        parent_lookup=parent_map,
+        descendant=descendant,
+        snapshot=snapshot,
+        admit=admit,
+        worker_index=worker_index,
+    )
+    file_bindings = [
+        spec["shared_policy"],
+        resource_owner,
+        spec_file,
+        endpoint["run_manifest"],
+        endpoint["journal"],
+        endpoint["config"],
+        endpoint["checkpoint"],
+        endpoint["source"]["publication"],
+        spec["analysis_source"]["publication"],
+    ]
+    before_files = {str(checked(b)): b["sha256"] for b in file_bindings}
+    root = server_path(Path(spec["output"]) / name / f"worker-{worker_index}", exists=False)
+    if root.exists():
+        raise ValueError("fresh immutable postfit worker output required")
+    root.mkdir(parents=True)
+    device = torch.device("cuda:0")
+    try:
+        with lock(Path("/data/yilangliu/GraD-Pert/runtime") / f"v2-gpu-{gpu}.lock"):
+            admission = admission_guard.check()
+            torch.cuda.set_per_process_memory_fraction(policy["max_own_memory_fraction"], device)
+            torch.set_num_threads(1)
+            common = dict(
+                dataset_id=config.dataset_id,
+                protocol_id=config.data.protocol_id,
+                data_root=Path(spec["data_root"]),
+            )
+            with prepare_runtime(
+                config,
+                data_root=common["data_root"],
+                run_seed=int(identity["data"]["run_seed"]),
+                device=torch.device("cpu"),
+                purpose="evaluation",
+            ) as runtime:
+                enabled = bool(getattr(runtime.options, "response_anchor_weight", 0))
+                if enabled != (name == "FixedResponseGroupAnchor"):
+                    raise ValueError("candidate/reference anchor mechanism differs")
+                if runtime.identity != identity["data"]:
+                    raise ValueError("native evaluation identity differs from training data")
+                if runtime.options.eval_query_count != spec["validation"]["query_count"]:
+                    raise ValueError("native query count changed")
+                progress = load_evaluation_checkpoint(
+                    checked(endpoint["checkpoint"]),
+                    runtime.objective,
+                    training_identity=identity,
+                    checkpoint_sha256=endpoint["checkpoint"]["sha256"],
+                )
+                runtime.objective.student.to(device)
+                runtime.objective.eval()
+                if runtime.objective.pending:
+                    raise ValueError("evaluation checkpoint has pending Teacher statistics")
+                state_layout = EvaluationStateLayout(
+                    common["data_root"], common["dataset_id"], common["protocol_id"], True, "v2"
+                )
+                reference = load_evaluation_state(
+                    **common, validation_only=True, evaluation_protocol="v2"
+                )
+                with CanonicalEvaluationData(**common, split_name="val") as data:
+                    v = spec["validation"]
+                    metadata_paths = [
+                        data.layout.manifests / "canonical.json",
+                        data.layout.manifests / "split.json",
+                        data.layout.manifests / "evaluation_controls.val.json",
+                        state_layout.manifest,
+                        state_layout.arrays,
+                    ]
+                    before_files.update(
+                        {str(server_path(path)): sha(path) for path in metadata_paths}
+                    )
+                    ordered = tuple(draw.condition_id for draw in data.control_manifest.draws)
+                    if (
+                        ordered != tuple(v["conditions"])
+                        or data.control_manifest_file_sha256 != v["control_manifest_sha256"]
+                        or reference.manifest_file_sha256 != v["reference_sha256"]
+                        or digest(list(data.expression_gene_ids)) != v["expression_gene_ids_sha256"]
+                    ):
+                        raise ValueError("val population/reference/axis differs")
+                    allowed = np.asarray(v["allowed_gene_indices"], dtype=np.int64)
+                    if (
+                        not np.array_equal(allowed, runtime.allowed_expression_ids)
+                        or digest([data.expression_gene_ids[i] for i in allowed])
+                        != v["allowed_gene_ids_sha256"]
+                    ):
+                        raise ValueError("training allowed gene axis differs")
+                    selected = ordered[worker_index::2]
+                    gene_index = {g: i for i, g in enumerate(runtime.index.gene_ids)}
+                    targets = {
+                        p: tuple(
+                            gene_index[g]
+                            for g in p.split("+")
+                            if g != data.split.control_condition_id
+                        )
+                        for p in selected
+                    }
+                    controls = {
+                        d.condition_id: tuple(d.ordered_row_ids)
+                        for d in data.control_manifest.draws
+                        if d.condition_id in selected
+                    }
+                    groups, exposure = checkpoint_expression_groups(
+                        progress["history"],
+                        checkpoint_epoch=2,
+                        expression_gene_ids=data.expression_gene_ids,
+                        allowed_gene_indices=tuple(int(i) for i in allowed),
+                    )
+                    if tuple(groups["seen_expression"]) != tuple(allowed):
+                        raise ValueError("native seen-expression axis is not the frozen4775")
+                    data_binding = dict(
+                        canonical_adata_declared_sha256=data.manifest.canonical_adata_sha256,
+                        observation_order_sha256=data.manifest.observation_order_sha256,
+                        split_content_sha256=data.split.split_content_sha256,
+                    )
+                    collector = NativeValCollector(selected, targets, controls, allowed)
+                    before = validation_state(runtime)
+                    cuda_before = state_fingerprint(torch.cuda.get_rng_state_all())
+                    adata_path = data.layout.canonical_adata
+                    data_stat = (adata_path.stat().st_size, adata_path.stat().st_mtime_ns)
+                    with (
+                        forbid_updates(runtime) as forbidden_counts,
+                        collector.observe(native, runtime.objective.student, data),
+                    ):
+                        result = native.evaluate(
+                            runtime.objective.student,
+                            runtime.index,
+                            data,
+                            reference,
+                            expected_split="val",
+                            device=device,
+                            cell_batch=int(config.training.eval_batch_size.value),
+                            query_count=runtime.options.eval_query_count,
+                            metric_gene_groups=groups,
+                            condition_ids=selected,
+                            on_condition_complete=admission_guard.on_condition_complete,
+                        )
+                    if (
+                        validation_state(runtime) != before
+                        or state_fingerprint(torch.cuda.get_rng_state_all()) != cuda_before
+                        or data_stat != (adata_path.stat().st_size, adata_path.stat().st_mtime_ns)
+                    ):
+                        raise ValueError("evaluation mutated protected state/RNG/data file")
+                    if admission_guard.conditions_checked != len(selected):
+                        raise ValueError("native admission callbacks did not cover all conditions")
+                    arrays = collector.arrays()
+                    if arrays["cls_means"].shape != (len(selected), 256):
+                        raise ValueError("formal ResponseCLS must have frozen width256")
+                    validate_native_result(result, collector)
+                    arrays_binding = save_arrays(root / "PRIVATE_ENDPOINT.npz", arrays)
+                    result["expression_exposure"] = exposure
+                    write_new(root / "PRIVATE_NATIVE_RESULT.json", result)
+                    geo = geometry_module(Path(spec["analysis_source"]["root"]))
+                    summary = geo.summarize_endpoint(**arrays)
+                    # Row IDs remain in server-private native results, never the public summary.
+                    write_new(root / "SUMMARY.json", summary)
+                    rows_identity = digest(
+                        [
+                            dict(
+                                condition=p,
+                                control=collector.rows[p]["control_sha256"],
+                                truth=collector.rows[p]["truth_sha256"],
+                            )
+                            for p in selected
+                        ]
+                    )
+            admission_guard.check()
+            if (
+                any(sha(p) != h for p, h in before_files.items())
+                or _source(endpoint["source"]) != native_source
+                or _source(spec["analysis_source"]) != analysis_source
+            ):
+                raise ValueError("postfit immutable source/input closure failed")
+            if list(root.rglob("*.pkl")):
+                raise ValueError("postfit requires zero PKL")
+            complete = dict(
+                schema="response-anchor-postfit-endpoint-worker-1",
+                status="completed",
+                endpoint=name,
+                worker_index=worker_index,
+                source=native_source,
+                analysis_source=analysis_source,
+                postfit_spec_sha256=digest(spec),
+                endpoint_spec_sha256=digest(endpoint),
+                validation_spec_sha256=digest(v),
+                checkpoint_sha256=endpoint["checkpoint"]["sha256"],
+                epoch=2,
+                role="last",
+                split="val",
+                conditions=list(selected),
+                arrays=arrays_binding,
+                summary_sha256=sha(root / "SUMMARY.json"),
+                calls=collector.calls,
+                forbidden_calls=forbidden_counts,
+                data_binding=data_binding,
+                canonical_adata_stat_before=list(data_stat),
+                native_result={
+                    "path": str(root / "PRIVATE_NATIVE_RESULT.json"),
+                    "sha256": sha(root / "PRIVATE_NATIVE_RESULT.json"),
+                },
+                row_identity_sha256=rows_identity,
+                control_manifest_sha256=v["control_manifest_sha256"],
+                reference_sha256=v["reference_sha256"],
+                input_files_sha256=before_files,
+                state_before=before,
+                state_unchanged=True,
+                cuda_rng_unchanged=True,
+                updates=0,
+                teacher_updates=0,
+                center_updates=0,
+                zero_pkl=True,
+                resource_admission=admission,
+                resource_owner=resource_owner,
+                dispatcher_process=owner_receipt["process"],
+                resource_checks=dict(
+                    calls=admission_guard.calls,
+                    conditions_checked=admission_guard.conditions_checked,
+                    last_snapshot_sha256=admission_guard.last_snapshot_sha256,
+                ),
+                environment=inspect_environment(native_root, device_name="cuda:0").payload(),
+                scientific_complete=False,
+            )
+            write_new(root / "COMPLETE.json", complete)
+            return complete
+    except BaseException as error:
+        write_new(
+            root / "FAILURE.json",
+            dict(
+                status="failed",
+                error_type=type(error).__name__,
+                scientific_complete=False,
+                updates=0,
+            ),
+        )
+        raise
+
+
+def merge_endpoint(spec, name):
+    """CPU aggregate merge; scientific matrices never leave the server."""
+    from gradpert.training.v2.evaluation import merge_evaluation_shards
+
+    root = server_path(Path(spec["output"]) / name)
+    receipts = [json.loads((root / f"worker-{i}/COMPLETE.json").read_text()) for i in range(2)]
+    endpoint = next(e for e in spec["endpoints"] if e["name"] == name)
+    if receipts[0]["resource_owner"] != receipts[1]["resource_owner"]:
+        raise ValueError("endpoint workers did not share a sealed dispatcher owner")
+    native = []
+    by_condition = {}
+    first = None
+    for i, r in enumerate(receipts):
+        if (
+            r["status"] != "completed"
+            or r["endpoint"] != name
+            or r["worker_index"] != i
+            or r["postfit_spec_sha256"] != digest(spec)
+            or r["endpoint_spec_sha256"] != digest(endpoint)
+            or r["validation_spec_sha256"] != digest(spec["validation"])
+            or r["conditions"] != spec["validation"]["conditions"][i::2]
+            or not r["state_unchanged"]
+            or not r["cuda_rng_unchanged"]
+            or not r["zero_pkl"]
+            or any(r[k] != 0 for k in ("updates", "teacher_updates", "center_updates"))
+            or (root / f"worker-{i}/FAILURE.json").exists()
+        ):
+            raise ValueError("endpoint worker acceptance differs")
+        if (
+            r["source"]["commit"] != endpoint["source"]["commit"]
+            or r["analysis_source"]["commit"] != spec["analysis_source"]["commit"]
+            or r["summary_sha256"] != sha(root / f"worker-{i}/SUMMARY.json")
+            or r["resource_checks"]["conditions_checked"] != len(r["conditions"])
+            or r["resource_checks"]["calls"] != len(r["conditions"]) + 2
+            or any(r["forbidden_calls"].values())
+            or any(sha(path) != h for path, h in r["input_files_sha256"].items())
+        ):
+            raise ValueError("worker source/input/forbidden-call closure changed")
+        a = load_arrays(r["arrays"])
+        if a["condition_ids"].tolist() != r["conditions"]:
+            raise ValueError("array condition order differs from receipt")
+        if first is None:
+            first = a
+        elif not np.array_equal(a["allowed_gene_indices"], first["allowed_gene_indices"]):
+            raise ValueError("worker allowed axes differ")
+        for row, p in enumerate(a["condition_ids"].tolist()):
+            if p in by_condition:
+                raise ValueError("condition duplicated across shards")
+            by_condition[p] = {
+                k: a[k][row] for k in ARRAY_FIELDS - {"condition_ids", "allowed_gene_indices"}
+            }
+        native.append(json.loads(checked(r["native_result"]).read_text()))
+    ordered = spec["validation"]["conditions"]
+    if set(by_condition) != set(ordered):
+        raise ValueError("not full val445")
+    arrays = dict(
+        condition_ids=np.asarray(ordered, dtype=str),
+        allowed_gene_indices=first["allowed_gene_indices"],
+        **{
+            k: np.stack([by_condition[p][k] for p in ordered])
+            for k in ARRAY_FIELDS - {"condition_ids", "allowed_gene_indices"}
+        },
+    )
+    geo = geometry_module(Path(spec["analysis_source"]["root"]))
+    native_merged = merge_evaluation_shards(native, ordered_conditions=tuple(ordered))
+    if len(native_merged["conditions"]) != 445:
+        raise ValueError("native val coverage differs")
+    binding = save_arrays(root / "PRIVATE_ENDPOINT.npz", arrays)
+    write_new(root / "PRIVATE_NATIVE_RESULT.json", native_merged)
+    write_new(
+        root / "SUMMARY.json",
+        dict(
+            native={k: v for k, v in native_merged.items() if k != "conditions"},
+            geometry=geo.summarize_endpoint(**arrays),
+            scientific_complete=False,
+        ),
+    )
+    write_new(
+        root / "COMPLETE.json",
+        dict(
+            status="completed",
+            endpoint=name,
+            arrays=binding,
+            native_result_sha256=sha(root / "PRIVATE_NATIVE_RESULT.json"),
+            summary_sha256=sha(root / "SUMMARY.json"),
+            worker_receipts_sha256=[sha(root / f"worker-{i}/COMPLETE.json") for i in range(2)],
+            validation_spec_sha256=digest(spec["validation"]),
+            conditions=445,
+            updates=0,
+            zero_pkl=not list(root.rglob("*.pkl")),
+            scientific_complete=False,
+        ),
+    )
+    return arrays, native_merged
+
+
+def compare(spec):
+    validate_spec(spec)
+    _source(spec["analysis_source"])
+    root = server_path(spec["output"])
+    if (root / "FAILURE.json").exists():
+        raise ValueError("failed postfit output cannot be promoted")
+    geo = geometry_module(Path(spec["analysis_source"]["root"]))
+    ref, refnative = merge_endpoint(spec, "R3-RI")
+    candidate, candidate_native = merge_endpoint(spec, "FixedResponseGroupAnchor")
+    # Exact per-condition control/truth hashes, not merely equal macro counts/seeds.
+    for a, b in zip(refnative["conditions"], candidate_native["conditions"], strict=True):
+        for key in ("condition_id", "control_row_ids_sha256", "truth_row_ids_sha256"):
+            if a[key] != b[key]:
+                raise ValueError("endpoint frozen row identities differ")
+    if not np.array_equal(ref["truth_delta"], candidate["truth_delta"]) or not np.array_equal(
+        ref["own_target_indices"], candidate["own_target_indices"]
+    ):
+        raise ValueError("endpoint raw truth/target axes differ")
+    result = geo.compare_endpoints(ref, candidate, **spec["bootstrap"])
+    result["native_point_gates"] = native_point_gates(refnative, candidate_native)
+
+    def positive_ci(name):
+        ci = result[name]["CI95"]
+        return ci is not None and ci[0] > 0
+
+    result["single_candidate_supported"] = bool(
+        all(result["full_axis_finite"].values())
+        and result["candidate_new_Pearson_NA"] == 0
+        and positive_ci("ownmask_Pearson_delta")
+        and positive_ci("RSA_delta")
+        and result["ownmask_MSE_delta"]["candidate_minus_reference"] is not None
+        and result["ownmask_MSE_delta"]["candidate_minus_reference"] <= 0
+        and result["native_point_gates"]["passed"]
+    )
+    result["scientific_complete"] = False
+    if list(root.rglob("*.pkl")):
+        raise ValueError("postfit requires zero PKL across full output")
+    write_new(root / "COMPARISON.json", result)
+    write_new(
+        root / "COMPLETE.json",
+        dict(
+            schema="response-anchor-val-postfit-complete-1",
+            stage="validation_and_response_geometry",
+            postfit_complete=False,
+            status="completed",
+            spec_sha256=digest(spec),
+            comparison_sha256=sha(root / "COMPARISON.json"),
+            endpoint_receipts={
+                n: sha(root / n / "COMPLETE.json") for n in ("R3-RI", "FixedResponseGroupAnchor")
+            },
+            medium_status="not_executed_by_val_worker",
+            test_status="deferred",
+            updates=0,
+            scientific_complete=False,
+            zero_pkl=not list(root.rglob("*.pkl")),
+        ),
+    )
+    return result
+
+
+def dispatch(spec_path: Path, expected_sha: str):
+    spec_path = checked(dict(path=str(spec_path), sha256=expected_sha))
+    spec = json.loads(spec_path.read_text())
+    validate_spec(spec)
+    root = server_path(spec["output"], exists=False)
+    analysis = Path(spec["analysis_source"]["root"])
+    script = analysis / "scripts/v2/response_anchor_postfit.py"
+    if Path(__file__).resolve() != script.resolve():
+        raise ValueError("dispatcher is not sealed analysis script")
+    preimport_source(spec["analysis_source"])
+    sys.path.insert(0, str(analysis.resolve()))
+    root.mkdir(parents=True, exist_ok=False)
+    write_new(root / "SPEC.json", spec)
+    try:
+        from scripts.v2.shared_gpu import process_info
+
+        for endpoint in spec["endpoints"]:
+            owner = make_dispatcher_owner(
+                spec, endpoint, dict(path=str(spec_path), sha256=expected_sha), lookup=process_info
+            )
+            owner_path = root / endpoint["name"] / "DISPATCH_OWNER.json"
+            write_new(owner_path, owner)
+            owner_sha256 = sha(owner_path)
+            processes = []
+            try:
+                for i, gpu in enumerate(("0", "1")):
+                    env = dict(
+                        os.environ,
+                        CUDA_VISIBLE_DEVICES=gpu,
+                        PYTORCH_ALLOC_CONF="expandable_segments:True",
+                        OMP_NUM_THREADS="1",
+                        OPENBLAS_NUM_THREADS="1",
+                        MKL_NUM_THREADS="1",
+                    )
+                    env["PYTHONPATH"] = os.pathsep.join(
+                        [str(Path(endpoint["source"]["root"]) / "src"), endpoint["source"]["root"]]
+                    )
+                    with (root / f"{endpoint['name']}-worker-{i}.log").open("x") as log:
+                        processes.append(
+                            subprocess.Popen(
+                                [
+                                    sys.executable,
+                                    str(script),
+                                    "worker",
+                                    "--spec",
+                                    str(spec_path),
+                                    "--spec-sha256",
+                                    expected_sha,
+                                    "--endpoint",
+                                    endpoint["name"],
+                                    "--worker-index",
+                                    str(i),
+                                    "--resource-owner",
+                                    str(owner_path),
+                                    "--resource-owner-sha256",
+                                    owner_sha256,
+                                ],
+                                cwd=endpoint["source"]["root"],
+                                env=env,
+                                stdout=log,
+                                stderr=subprocess.STDOUT,
+                            )
+                        )
+                if any(p.wait() != 0 for p in processes):
+                    raise RuntimeError("native endpoint worker failed")
+            finally:
+                for p in processes:
+                    if p.poll() is None:
+                        p.terminate()
+                        p.wait()
+        # Aggregation is launched in the analysis source, not an original model process.
+        env = dict(
+            os.environ,
+            PYTHONPATH=os.pathsep.join([str(analysis / "src"), str(analysis)]),
+            CUDA_VISIBLE_DEVICES="",
+        )
+        subprocess.run(
+            [
+                sys.executable,
+                str(script),
+                "compare",
+                "--spec",
+                str(spec_path),
+                "--spec-sha256",
+                expected_sha,
+            ],
+            cwd=analysis,
+            env=env,
+            check=True,
+        )
+    except BaseException as error:
+        write_new(
+            root / "FAILURE.json",
+            dict(
+                status="failed",
+                error_type=type(error).__name__,
+                scientific_complete=False,
+                updates=0,
+            ),
+        )
+        raise
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("mode", choices=("run", "worker", "compare", "validate"))
+    p.add_argument("--spec", type=Path, required=True)
+    p.add_argument("--spec-sha256", required=True)
+    p.add_argument("--endpoint", choices=("R3-RI", "FixedResponseGroupAnchor"))
+    p.add_argument("--worker-index", type=int, choices=(0, 1))
+    p.add_argument("--resource-owner", type=Path)
+    p.add_argument("--resource-owner-sha256")
+    args = p.parse_args()
+    spec = json.loads(checked(dict(path=str(args.spec), sha256=args.spec_sha256)).read_text())
+    validate_spec(spec)
+    if args.mode == "run":
+        dispatch(args.spec, args.spec_sha256)
+    elif args.mode == "worker":
+        if (
+            args.endpoint is None
+            or args.worker_index is None
+            or args.resource_owner is None
+            or args.resource_owner_sha256 is None
+        ):
+            p.error("worker endpoint/index and sealed dispatcher owner required")
+        run_endpoint(
+            spec,
+            args.endpoint,
+            args.worker_index,
+            spec_file=dict(path=str(args.spec.resolve()), sha256=args.spec_sha256),
+            resource_owner=dict(path=str(args.resource_owner), sha256=args.resource_owner_sha256),
+        )
+    elif args.mode == "compare":
+        compare(spec)
+    else:
+        print(
+            json.dumps(
+                dict(
+                    status="validated_metadata_only",
+                    spec_sha256=digest(spec),
+                    scientific_complete=False,
+                )
+            )
+        )
+
+
+if __name__ == "__main__":
+    main()
