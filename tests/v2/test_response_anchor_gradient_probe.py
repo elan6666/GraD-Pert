@@ -141,7 +141,7 @@ def toy_runtime():
     return runtime, bank, batch
 
 
-def test_actual_native_helpers_two_inputs_gradients_and_state():
+def test_actual_native_helpers_two_inputs_gradients_and_state(tmp_path):
     import calibrate_response_anchor as native
 
     rt, bank, batch = toy_runtime()
@@ -166,6 +166,8 @@ def test_actual_native_helpers_two_inputs_gradients_and_state():
                 256 * block["coordinate_mean_square"], rel=2e-6
             )
         assert calls == {"autograd_grad": 3}
+        probe.persist_case_scalar(tmp_path, 1, row, "synthetic-spec")
+        assert probe.read(tmp_path / probe.case_scalar_path(1))["row"] == row
     assert probe.constant_state(rt) == state
     assert torch.equal(torch.get_rng_state(), cpu_rng)
     assert np.array_equal(np.random.get_state()[1], np_rng[1])
@@ -519,6 +521,8 @@ def test_terminal_exact_file_closure_and_missing_required_fields(tmp_path, monke
         for i, e in probe.case_plan(metadata)
     ]
     (tmp_path / "cases.json").write_text(probe.json.dumps(rows))
+    for number, row in enumerate(rows, 1):
+        probe.persist_case_scalar(tmp_path, number, row, probe.digest(document))
     parity = dict(
         passed=True,
         atol=2e-6,
@@ -551,7 +555,7 @@ def test_terminal_exact_file_closure_and_missing_required_fields(tmp_path, monke
             formal_cases_each_branch=48,
             extra_pilot_original_each_branch=2,
         ),
-        output_sha256={name: probe.sha(tmp_path / name) for name in probe.REQUIRED_OUTPUTS},
+        output_sha256={name: probe.sha(tmp_path / name) for name in probe.expected_outputs()},
     )
     probe.write_new(tmp_path / "COMPLETE.json", result)
     assert probe.validate_result(document)["status"] == "validated"
@@ -559,6 +563,23 @@ def test_terminal_exact_file_closure_and_missing_required_fields(tmp_path, monke
     with pytest.raises(ValueError, match="closure"):
         probe.validate_result(document)
     (tmp_path / "extra.json").unlink()
+    case_path = tmp_path / probe.case_scalar_path(1)
+    original_case = case_path.read_text()
+    original_hash = result["output_sha256"][probe.case_scalar_path(1)]
+    altered = probe.read(case_path)
+    altered["row"]["prediction_loss"] = 999.0
+    case_path.write_text(probe.json.dumps(altered))
+    result["output_sha256"][probe.case_scalar_path(1)] = probe.sha(case_path)
+    (tmp_path / "COMPLETE.json").write_text(probe.json.dumps(result))
+    with pytest.raises(ValueError, match="exact aggregate row"):
+        probe.validate_result(document)
+    case_path.write_text(original_case)
+    result["output_sha256"][probe.case_scalar_path(1)] = original_hash
+    (tmp_path / "COMPLETE.json").write_text(probe.json.dumps(result))
+    case_path.unlink()
+    with pytest.raises(ValueError, match="closure"):
+        probe.validate_result(document)
+    case_path.write_text(original_case)
     changed = dict(result)
     changed.pop("state_unchanged")
     (tmp_path / "COMPLETE.json").write_text(probe.json.dumps(changed))
@@ -605,6 +626,7 @@ def test_dispatch_actual_synthetic_subprocess_owner_race_and_external_logs(
     )
     monkeypatch.setattr(probe, "validate_sealed", lambda _s: ({}, {}))
     monkeypatch.setattr(probe, "verify_sources", lambda _s: dict(verified=True))
+    monkeypatch.setattr(probe, "preload_analysis_dependencies", lambda _s: {})
     monkeypatch.setattr(probe, "validate_result", lambda _s: dict(status="validated"))
     monkeypatch.setattr(probe, "SERVER_PYTHON", sys.executable)
     lookups = {}
@@ -742,3 +764,120 @@ def test_actual_relay_randomize_order_restored_beyond_native_context():
         probe.preserved_probe(rt, native.preserved_calibration),
     ):
         rt.objective.student.unknown_clock += 1
+
+
+def test_isolated_original_native_without_geometry_runs_analysis_geometry(tmp_path):
+    native_src = tmp_path / "native" / "src"
+    evaluation = native_src / "gradpert/evaluation"
+    evaluation.mkdir(parents=True)
+    (evaluation.parent / "__init__.py").write_text("IDENTITY = 'frozen-original'\n")
+    (evaluation / "__init__.py").write_text("")
+    code = """
+import importlib.util, pathlib, sys
+import numpy as np
+import gradpert, gradpert.evaluation
+assert gradpert.IDENTITY == 'frozen-original'
+assert importlib.util.find_spec('gradpert.evaluation.response_geometry') is None
+native_file, native_path = gradpert.__file__, list(gradpert.__path__)
+native_modules = {k: getattr(v, '__file__', None) for k, v in sys.modules.items()
+                  if k == 'gradpert' or k.startswith('gradpert.')}
+worker = pathlib.Path(sys.argv[1])
+spec = importlib.util.spec_from_file_location('isolated_train40_worker', worker)
+probe = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = probe
+spec.loader.exec_module(probe)
+binding = {'analysis_source': {'root': str(worker.parents[2])}}
+preloaded = probe.preload_analysis_dependencies(binding)
+expected_helper = worker.parents[2] / 'src/gradpert/evaluation/response_geometry.py'
+assert pathlib.Path(preloaded['response_geometry']['path']) == expected_helper
+helper = probe.geometry_module()
+assert helper.WeightedRanks.__module__ == helper.__name__
+assert sys.modules[helper.__name__] is helper
+probe.PROTOCOL = dict(probe.PROTOCOL, bootstrap_draws=2)
+metadata = {'groups': [{'condition_id': f'g{i}', 'anchor_gene_index': i+100} for i in range(16)],
+            'query_indices': [0, 1, 2]}
+rng = np.random.default_rng(7)
+truth, cls = rng.normal(size=(16, 3)), rng.normal(size=(16, 4))
+arrays = {(i, e): dict(truth_delta=truth[i], prediction_delta=truth[i]+.01,
+                       aux_cls=cls[i], pred_cls=cls[i]+.1, readout=cls[i]-.1)
+          for i in range(16) for e in (0, 1, 2)}
+result = probe.small_geometry(metadata, arrays)
+assert set(result) == {'0', '1', '2'}
+assert result['0']['response_RSA']['finite_pairs'] == 120
+assert result['0']['amplitude_sensitivity']['condition_N'] == 16
+assert result['0']['amplitude_sensitivity']['bootstrap_draws'] == 2
+assert gradpert.__file__ == native_file and list(gradpert.__path__) == native_path
+assert {k: getattr(v, '__file__', None) for k, v in sys.modules.items()
+        if k == 'gradpert' or k.startswith('gradpert.')} == native_modules
+assert 'gradpert.evaluation.response_geometry' not in sys.modules
+print('isolated-analysis-geometry-and-native-namespace-ok')
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", code, str(SCRIPTS / "response_anchor_gradient_probe.py")],
+        cwd=tmp_path,
+        env=dict(probe.os.environ, PYTHONPATH=str(native_src)),
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=30,
+    )
+    assert completed.stdout.strip() == "isolated-analysis-geometry-and-native-namespace-ok"
+
+
+def test_geometry_failure_keeps_scalar_cases_without_latent_resume_cache(tmp_path, monkeypatch):
+    rows = [
+        dict(
+            condition_id=f"g{i}",
+            bank_condition_index=i,
+            aux_rng_epoch_label=0,
+            prediction_loss=0.1 + i,
+            auxiliary_loss=0.2 + i,
+        )
+        for i in range(2)
+    ]
+    for number, row in enumerate(rows, 1):
+        probe.persist_case_scalar(tmp_path, number, row, "synthetic-spec")
+
+    def failed_geometry(*_args):
+        raise ImportError("synthetic late geometry failure")
+
+    monkeypatch.setattr(probe, "small_geometry", failed_geometry)
+    with pytest.raises(ImportError, match="late geometry"):
+        probe.geometry_after_scalar_aggregate(tmp_path, rows, {}, {})
+    assert probe.read(tmp_path / "cases.json") == rows
+    assert [probe.read(tmp_path / probe.case_scalar_path(i))["row"] for i in (1, 2)] == rows
+    assert not (tmp_path / "COMPLETE.json").exists()
+    assert not list(tmp_path.rglob("*.npz")) and not list(tmp_path.rglob("*.pkl"))
+    with pytest.raises(ValueError, match="fields"):
+        probe.persist_case_scalar(tmp_path, 3, dict(rows[0], raw_latent=[[1, 2]]), "spec")
+    with pytest.raises(ValueError, match="arrays"):
+        probe.persist_case_scalar(tmp_path, 3, dict(rows[0], gradient=np.ones((2, 2))), "spec")
+    with pytest.raises(ValueError, match="arrays"):
+        probe.persist_case_scalar(tmp_path, 3, dict(rows[0], gradient=[[1, 2], [3, 4]]), "spec")
+
+
+@pytest.mark.parametrize("mode", ["seal", "run", "dispatch"])
+def test_dependency_preload_fails_before_model_or_gpu_or_child(tmp_path, monkeypatch, mode):
+    from gradpert.training.v2 import runtime as native_runtime
+
+    def fail_if_used(*_args, **_kwargs):
+        raise AssertionError("GPU/model/subprocess must not start before dependency check")
+
+    def missing_dependency(_spec):
+        raise ImportError("missing analysis geometry")
+
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "")
+    monkeypatch.setattr(probe, "validate_spec", lambda _s: None)
+    monkeypatch.setattr(probe, "validate_sealed", lambda _s: ({}, {}))
+    monkeypatch.setattr(probe, "verify_sources", lambda _s: {})
+    monkeypatch.setattr(probe, "preload_analysis_dependencies", missing_dependency)
+    monkeypatch.setattr(native_runtime, "prepare_runtime", fail_if_used)
+    monkeypatch.setattr(torch.cuda, "is_available", fail_if_used)
+    monkeypatch.setattr(probe.subprocess, "Popen", fail_if_used)
+    with pytest.raises(ImportError, match="analysis geometry"):
+        if mode == "seal":
+            probe.seal({}, spec_file={})
+        elif mode == "run":
+            probe.run({}, owner_binding={})
+        else:
+            probe.dispatch({}, spec_file={}, gpu="0")

@@ -68,6 +68,27 @@ REQUIRED_OUTPUTS = {
     "READ_SCOPE.json",
 }
 SERVER_PYTHON = "/data/yilangliu/GraD-Pert/source/.venv/bin/python"
+CASE_SCALAR_DIR = "server-only/case-scalars"
+CASE_ROW_FIELDS = {
+    "condition_id",
+    "bank_condition_index",
+    "aux_rng_epoch_label",
+    "pairing_epoch",
+    "prediction_loss",
+    "auxiliary_loss",
+    "gradient",
+    "support_parameter_indices",
+    "modules",
+    "decoder",
+    "calls",
+    "input_branches_differ",
+    "historical_update_replay",
+    "ssl_terms",
+    "gradient_scaling",
+    "timings",
+    "derived_telemetry",
+    "pilot_original_scalar_parity",
+}
 
 
 def digest(value):
@@ -121,6 +142,88 @@ def analysis_module(name):
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
     return sys.modules[module_name]
+
+
+def geometry_module(root=None):
+    """Load NumPy analysis code without extending/replacing native gradpert."""
+    analysis_root = Path(__file__).resolve().parents[2]
+    if root is not None and Path(root).resolve() != analysis_root:
+        raise ValueError("geometry dependency must belong to the exact analysis checkout")
+    path = (analysis_root / "src/gradpert/evaluation/response_geometry.py").resolve(strict=True)
+    if not path.is_relative_to(analysis_root):
+        raise ValueError("geometry dependency escaped the exact analysis checkout")
+    name = "train40_analysis_geometry_" + hashlib.sha256(str(path).encode()).hexdigest()[:16]
+    if name not in sys.modules:
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        # dataclass resolves its defining module through sys.modules during exec.
+        sys.modules[name] = module
+        try:
+            spec.loader.exec_module(module)
+        except BaseException:
+            del sys.modules[name]
+            raise
+    module = sys.modules[name]
+    if Path(module.__file__).resolve() != path or any(
+        not callable(getattr(module, key, None))
+        for key in ("WeightedRanks", "weighted_spearman", "_geometry", "_rsa")
+    ):
+        raise ImportError("analysis geometry dependency path/API differs")
+    return module
+
+
+def preload_analysis_dependencies(spec):
+    module = geometry_module(spec["analysis_source"]["root"])
+    return dict(
+        response_geometry=dict(
+            path=str(Path(module.__file__).resolve()), sha256=sha(module.__file__)
+        )
+    )
+
+
+def case_scalar_path(number):
+    if type(number) is not int or not 1 <= number <= 48:
+        raise ValueError("case number must be in the sealed1..48 population")
+    return f"{CASE_SCALAR_DIR}/{number:04d}.json"
+
+
+def expected_outputs():
+    return REQUIRED_OUTPUTS | {case_scalar_path(i) for i in range(1, 49)}
+
+
+def persist_case_scalar(output, number, row, spec_digest):
+    """Durable scalar-only case journal; never an activation/gradient resume cache."""
+    if not isinstance(row, dict) or not set(row) <= CASE_ROW_FIELDS:
+        raise ValueError("only declared scalar case-summary fields may be persisted")
+
+    def scalar_tree(value):
+        if isinstance(value, dict):
+            return all(isinstance(k, str) and scalar_tree(v) for k, v in value.items())
+        if isinstance(value, (list, tuple)):
+            return all(v is None or isinstance(v, (bool, int, float, str)) for v in value)
+        return value is None or isinstance(value, (bool, int, float, str))
+
+    if not scalar_tree(row):
+        raise ValueError("raw/latent/gradient arrays are forbidden in case scalar reports")
+    record = dict(
+        schema="response-anchor-train40-case-scalars-1",
+        case_number=number,
+        spec_digest=spec_digest,
+        row=row,
+    )
+    serialized = json.dumps(record, indent=2, allow_nan=False) + "\n"
+    path = Path(output) / case_scalar_path(number)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("x") as stream:
+        stream.write(serialized)
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def geometry_after_scalar_aggregate(output, rows, metadata, arrays):
+    """Geometry failure must not erase completed allowed scalar observations."""
+    write_new(Path(output) / "cases.json", rows)
+    return small_geometry(metadata, arrays)
 
 
 def native_script(relative, root):
@@ -989,7 +1092,8 @@ def resource_gate(metrics, budgets, *, total_cases=48):
 
 def amplitude_rsa(truth, cls, queries, own, *, draws=1000):
     """Mask original genes first; report effect-size sensitivity, never a new target."""
-    from gradpert.evaluation.response_geometry import WeightedRanks, weighted_spearman
+    helper = geometry_module()
+    WeightedRanks, weighted_spearman = helper.WeightedRanks, helper.weighted_spearman
 
     truth, cls = np.asarray(truth, float), np.asarray(cls, float)
     ii, jj = np.triu_indices(len(truth), 1)
@@ -1072,7 +1176,8 @@ def amplitude_rsa(truth, cls, queries, own, *, draws=1000):
 
 def small_geometry(metadata, arrays):
     """Same query axes, pair-union masks; condition pairs are not IID samples."""
-    from gradpert.evaluation.response_geometry import _geometry, _rsa
+    helper = geometry_module()
+    _geometry, _rsa = helper._geometry, helper._rsa
 
     output = {}
     ids = [g["condition_id"] for g in metadata["groups"]]
@@ -1117,6 +1222,7 @@ def seal(spec, *, spec_file):
         raise ValueError("metadata sealing must be explicitly CPU-only")
     validate_spec(spec)
     sources = verify_sources(spec)
+    dependencies = preload_analysis_dependencies(spec)
     config, identity = load_config_identity(spec)
     output = Path(spec["output"])
     if output.exists():
@@ -1146,6 +1252,7 @@ def seal(spec, *, spec_file):
         spec_digest=digest(spec),
         metadata_sha256=sha(output / "METADATA.json"),
         sources=sources,
+        analysis_dependencies=dependencies,
         numerical_h5ad_reads=0,
         updates=0,
         scientific_complete=False,
@@ -1169,6 +1276,9 @@ def validate_sealed(spec):
 
 def run(spec, *, owner_binding):
     started = time.monotonic()
+    sealed, metadata = validate_sealed(spec)
+    sources = verify_sources(spec)
+    preload_analysis_dependencies(spec)
     import torch
     from run_group import lock
     from shared_gpu import admit, snapshot
@@ -1181,13 +1291,11 @@ def run(spec, *, owner_binding):
     gpu = os.environ.get("CUDA_VISIBLE_DEVICES", "")
     if gpu not in ("0", "1") or not torch.cuda.is_available() or torch.cuda.device_count() != 1:
         raise ValueError("one isolated visible native GPU required")
-    sealed, metadata = validate_sealed(spec)
     if any(
         (Path(spec["output"]) / name).exists()
         for name in ("PILOT.json", "COMPLETE.json", "FAILURE.json")
     ):
         raise ValueError("terminal or already-started probe cannot be silently rerun")
-    sources = verify_sources(spec)
     if sources != sealed["sources"]:
         raise ValueError("published sources changed after seal")
     medium = analysis_module("response_anchor_medium")
@@ -1342,6 +1450,7 @@ def run(spec, *, owner_binding):
                                 time.monotonic() - loop_started - reference_seconds
                             )
                             row["timings"]["pilot_reference_seconds"] = reference_seconds
+                            persist_case_scalar(output, number, row, digest(spec))
                             metrics = dict(
                                 completed_cases=number,
                                 elapsed_seconds=time.monotonic() - started,
@@ -1374,7 +1483,7 @@ def run(spec, *, owner_binding):
                                 )
                         if len(rows) != 48 or len(arrays) != 48:
                             raise RuntimeError("full sealed case coverage incomplete")
-                        geometry = small_geometry(metadata, arrays)
+                        geometry = geometry_after_scalar_aggregate(output, rows, metadata, arrays)
                     if constant_state(runtime) != state0:
                         raise RuntimeError("protected scientific state changed")
                     if canonical_stat != (canonical.stat().st_size, canonical.stat().st_mtime_ns):
@@ -1389,7 +1498,6 @@ def run(spec, *, owner_binding):
             checked(owner_binding)
             if list(output.rglob("*.pkl")):
                 raise ValueError("whole probe root must remain zero-PKL")
-            write_new(output / "cases.json", rows)
             write_new(output / "geometry.json", geometry)
             write_new(output / "READ_SCOPE.json", final_read)
             result = dict(
@@ -1423,8 +1531,10 @@ def run(spec, *, owner_binding):
                     "Different native inputs at one checkpoint; no historical optimizer replay."
                 ),
             )
-            result["output_sha256"] = {p.name: sha(p) for p in output.iterdir() if p.is_file()}
-            if set(result["output_sha256"]) != REQUIRED_OUTPUTS:
+            result["output_sha256"] = {
+                str(p.relative_to(output)): sha(p) for p in output.rglob("*") if p.is_file()
+            }
+            if set(result["output_sha256"]) != expected_outputs():
                 raise ValueError("unexpected/missing successful output closure")
             write_new(output / "COMPLETE.json", result)
             return result
@@ -1437,6 +1547,10 @@ def run(spec, *, owner_binding):
                     error_type=type(error).__name__,
                     message=str(error),
                     completed_cases=len(rows),
+                    persisted_scalar_case_files=sorted(
+                        str(p.relative_to(output))
+                        for p in (output / CASE_SCALAR_DIR).glob("*.json")
+                    ),
                     updates=0,
                     scientific_complete=False,
                 ),
@@ -1452,13 +1566,23 @@ def validate_result(spec):
     rows = read(output / "cases.json")
     actual_files = {str(p.relative_to(output)) for p in output.rglob("*") if p.is_file()}
     if actual_files - {"COMPLETE.json"} != set(result.get("output_sha256", {})) or (
-        set(result.get("output_sha256", {})) != REQUIRED_OUTPUTS
+        set(result.get("output_sha256", {})) != expected_outputs()
     ):
         raise ValueError("complete output file set differs from exact required hash closure")
     expected = [(metadata["groups"][i]["condition_id"], e) for i, e in case_plan(metadata)]
     actual = [(r["condition_id"], r["aux_rng_epoch_label"]) for r in rows]
     if actual != expected or len(set(actual)) != 48 or pilot.get("status") != "passed":
         raise ValueError("sealed pilot/full ordered coverage differs")
+    for number, row in enumerate(rows, 1):
+        record = read(output / case_scalar_path(number))
+        if (
+            set(record) != {"schema", "case_number", "spec_digest", "row"}
+            or record["schema"] != "response-anchor-train40-case-scalars-1"
+            or record["case_number"] != number
+            or record["spec_digest"] != digest(spec)
+            or record["row"] != row
+        ):
+            raise ValueError("per-case scalar report differs from its exact aggregate row")
     if (
         pilot.get("complete_groups"),
         pilot.get("rows_per_group"),
@@ -1502,7 +1626,7 @@ def validate_result(spec):
     if (output / "FAILURE.json").exists() or list(output.rglob("*.pkl")):
         raise ValueError("failure marker or PKL in successful probe root")
     for name, value in result["output_sha256"].items():
-        if Path(name).name != name or sha(output / name) != value:
+        if name not in expected_outputs() or sha(output / name) != value:
             raise ValueError("terminal output bytes changed")
     return dict(status="validated", cases=48, updates=0, scientific_complete=False)
 
@@ -1511,6 +1635,7 @@ def dispatch(spec, *, spec_file, gpu):
     """One long-lived native owner, one child, external logs; never retries/kills."""
     validate_sealed(spec)
     sources = verify_sources(spec)
+    preload_analysis_dependencies(spec)
     if gpu not in ("0", "1") or os.path.abspath(sys.executable) != SERVER_PYTHON:
         raise ValueError("dispatch requires the original server Python and one explicit GPU")
     output = Path(spec["output"])
