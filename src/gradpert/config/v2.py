@@ -493,6 +493,7 @@ class V2Options:
     spectral_amplitude_weight: float = 0.0
     response_anchor_path: str = ""
     response_anchor_sha256: str = ""
+    response_anchor_arrays_sha256: str = ""
     response_anchor_weight: float = 0.0
     response_anchor_seed: int = 20261028
 
@@ -598,6 +599,7 @@ class V2Options:
             "spectral_amplitude_weight",
             "response_anchor_path",
             "response_anchor_sha256",
+            "response_anchor_arrays_sha256",
             "response_anchor_weight",
             "response_anchor_seed",
         }
@@ -628,12 +630,15 @@ class V2Options:
             or type(self.response_anchor_seed) is not int
             or not 0 <= self.response_anchor_seed < 2**63
             or bool(self.response_anchor_path) != bool(self.response_anchor_sha256)
+            or bool(self.response_anchor_path) != bool(self.response_anchor_arrays_sha256)
             or bool(weight) != bool(self.response_anchor_path)
         ):
             raise ValueError("response anchor needs a sealed bank and finite weight in (0,1]")
         if weight and (
             len(self.response_anchor_sha256) != 64
             or any(c not in "0123456789abcdef" for c in self.response_anchor_sha256)
+            or len(self.response_anchor_arrays_sha256) != 64
+            or any(c not in "0123456789abcdef" for c in self.response_anchor_arrays_sha256)
             or not self.response_anchor_path.startswith("/data/yilangliu/")
             or self.training_mode != "joint"
             or self.loss_reduction != "row_mean"

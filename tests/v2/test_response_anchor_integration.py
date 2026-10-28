@@ -217,3 +217,44 @@ def test_config_rejects_unsealed_or_local_bank(change):
     assert options.response_anchor_weight == 0 and not options.response_anchor_path
     with pytest.raises(ValueError):
         replace(options, **change)
+
+
+def test_enabled_config_binds_manifest_and_arrays_for_value_free_evaluation():
+    config = load_experiment_config(
+        Path(__file__).parents[2]
+        / "configs/v2/representation_round3_20261023/R3-RI/gradpert_v2/nadig_jurkat.yaml"
+    )
+    _, options = V2Options.parse_parameters(config.model.parameters)
+    enabled = replace(
+        options,
+        response_anchor_weight=0.1,
+        response_anchor_path="/data/yilangliu/bank/manifest.json",
+        response_anchor_sha256="a" * 64,
+        response_anchor_arrays_sha256="b" * 64,
+    )
+    assert enabled.response_anchor_arrays_sha256 == "b" * 64
+    with pytest.raises(ValueError):
+        replace(enabled, response_anchor_arrays_sha256="")
+
+
+def test_generated_recipe_changes_only_anchor_and_retains_original_two_epoch_ri():
+    import yaml
+
+    from scripts.v2.generate_response_anchor import PARENT, configuration
+
+    root = Path(__file__).parents[2]
+    actual = configuration(
+        root,
+        bank_path="/data/yilangliu/bank/manifest.json",
+        manifest_sha256="a" * 64,
+        arrays_sha256="b" * 64,
+        weight=0.12,
+    )
+    parameters = actual["model"]["parameters"]
+    assert parameters["response_injection_residual"]["value"] is True
+    assert actual["training"]["max_epochs"]["value"] == 2
+    assert actual["training"]["train_batch_size"]["value"] == 320
+    for key in list(parameters):
+        if key.startswith("response_anchor_"):
+            del parameters[key]
+    assert actual == yaml.safe_load((root / PARENT).read_text())

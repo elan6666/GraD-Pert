@@ -749,6 +749,7 @@ def prepare_runtime(
             objective.response_anchor_enabled = True
             identity["response_anchor"] = {
                 "manifest_sha256": options.response_anchor_sha256,
+                "arrays_sha256": options.response_anchor_arrays_sha256,
                 "weight": options.response_anchor_weight,
                 "seed": options.response_anchor_seed,
                 "head": "Linear256_256_default_random_bias_true_private_rng",
@@ -770,7 +771,8 @@ def prepare_runtime(
                 )
                 if bank.identity.get("data_manifest") != manifest_digest:
                     raise ValueError("response anchor canonical manifest identity differs")
+                if bank.arrays_sha256 != options.response_anchor_arrays_sha256:
+                    raise ValueError("response anchor array identity differs from configuration")
                 controller = ResponseAnchorController(runtime, bank)
                 objective.response_anchor_backward = controller.backward
-                identity["response_anchor"]["arrays_sha256"] = bank.arrays_sha256
         yield runtime

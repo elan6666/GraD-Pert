@@ -104,3 +104,22 @@ Report actual training/evaluation SHA, target-bank preparation SHA and hashes,
 configuration, checkpoint, populations, extra compute and cross-version limits.
 The overall scientific problem remains open until joint task-relevant gains are
 demonstrated. Failed hypotheses trigger evidence-led redesign, not success claims.
+
+## Endpoint and identity clarification before fitting
+
+For primary val RSA, collect the pre-readout, post-final-RMSNorm ResponseCLS from
+the native prediction query blocks. Weight each block by its actual gene count
+divided by the full5,000 output-gene count, then average across the same300
+controls. Here there are five1,000-gene blocks with equal1/5 weights. Apply no
+additional normalization. This block-pooled endpoint is distinct from a medium
+probe's single1,000-query CLS; do not combine their rank/variance statistics.
+Use identical definitions for the retained R3 checkpoint and the candidate.
+
+The self-contained configuration seals both bank-manifest and bank-array SHA256.
+Training verifies the array bytes. Evaluation reconstructs the same identity and
+readout architecture from configuration, without loading TRAIN target/cache
+arrays. This avoids an identity mismatch between training and evaluation while
+keeping scientific arrays server-only and outside evaluation input consumption.
+The unit-weight calibration leaf is an engineering input, not a fit permission
+or a second hyperparameter arm. Its first-eight BF16 calibration produces the
+single final loss coefficient; publish a separate immutable fit configuration.
