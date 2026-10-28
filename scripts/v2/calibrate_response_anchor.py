@@ -14,15 +14,40 @@ import math
 import os
 import random
 import statistics
+import sys
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-import torch
-from torch import Tensor
+
+def bootstrap_worker_visibility(argv: Sequence[str], environ: dict[str, str]) -> None:
+    """Select the physical device before imports can initialize/cache CUDA."""
+    if "LOCAL_RANK" not in environ:
+        return
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--gpu", default="0")
+    early, _ = parser.parse_known_args(argv)
+    devices = early.gpu.split(",")
+    rank, world = int(environ["LOCAL_RANK"]), int(environ.get("WORLD_SIZE", "1"))
+    if (
+        len(devices) != world
+        or len(set(devices)) != world
+        or not set(devices) <= {"0", "1"}
+        or not 0 <= rank < world
+    ):
+        raise ValueError("GPU list must exactly match torchrun world before CUDA imports")
+    environ["CUDA_VISIBLE_DEVICES"] = devices[rank]
+
+
+if __name__ == "__main__":
+    bootstrap_worker_visibility(sys.argv[1:], os.environ)
+
+# CUDA visibility must be frozen before importing the numerical stack.
+import numpy as np  # noqa: E402
+import torch  # noqa: E402
+from torch import Tensor  # noqa: E402
 
 _BATCHES = 8
 

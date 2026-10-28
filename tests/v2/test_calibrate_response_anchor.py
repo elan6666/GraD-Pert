@@ -20,6 +20,16 @@ from scripts.v2.calibrate_response_anchor import (
 from scripts.v2.capacity_probe import validation_state
 
 
+def test_bootstrap_masks_cuda_before_native_imports():
+    from scripts.v2.calibrate_response_anchor import bootstrap_worker_visibility
+
+    environment = {"LOCAL_RANK": "1", "WORLD_SIZE": "2", "CUDA_VISIBLE_DEVICES": "0,1"}
+    bootstrap_worker_visibility(["--gpu", "0,1", "--bf16"], environment)
+    assert environment["CUDA_VISIBLE_DEVICES"] == "1"
+    with pytest.raises(ValueError, match="before CUDA imports"):
+        bootstrap_worker_visibility(["--gpu", "0"], environment)
+
+
 def _metadata():
     return [dict(step=i, ordered_identity_sha256=f"{i:064x}") for i in range(8)]
 
