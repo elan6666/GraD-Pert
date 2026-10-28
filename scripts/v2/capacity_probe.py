@@ -117,9 +117,11 @@ def staged_restore_fingerprint(runtime: Any, *, continuing_joint: bool) -> str:
         runtime.optimizer.state_dict(),
         runtime.generator.bit_generator.state,
     )
-    if getattr(
-        getattr(runtime, "options", None), "training_mode", None
-    ) == "frozen_readout" or getattr(runtime.objective, "spectral_enabled", False):
+    if (
+        getattr(getattr(runtime, "options", None), "training_mode", None) == "frozen_readout"
+        or getattr(runtime.objective, "spectral_enabled", False)
+        or getattr(runtime.objective, "response_anchor_enabled", False)
+    ):
         return state_fingerprint((full_state, validation_state(runtime)))
     if not continuing_joint:
         return state_fingerprint(full_state)
@@ -527,6 +529,10 @@ def main() -> None:
             run_seed=config.training.run_seeds[0],
             device=torch.device("cuda:0"),
         ) as runtime:
+            anchor_gate = bool(getattr(runtime.options, "response_anchor_weight", 0))
+            anchor_restores = []
+            if anchor_gate and (kind != "preflight_only" or args.steps != 10):
+                raise ValueError("response anchor requires native exact10 preflight")
             spectral_gate = runtime.objective.spectral_enabled
             spectral_restores = []
             spectral_steps = []
@@ -875,7 +881,7 @@ def main() -> None:
                         path = args.output / "resume.pt"
                         before_restore = (
                             staged_restore_fingerprint(runtime, continuing_joint=staged_joint)
-                            if staged_gate or readout_gate or spectral_gate
+                            if staged_gate or readout_gate or spectral_gate or anchor_gate
                             else None
                         )
                         save_checkpoint(
@@ -896,7 +902,7 @@ def main() -> None:
                         if progress["step"] != step or runtime.optimizer.steps != step:
                             raise ValueError("capacity checkpoint resume progress mismatch")
                         receipt["resume_checkpoint_sha256"] = sha256_file(path)
-                        if staged_gate or readout_gate or spectral_gate:
+                        if staged_gate or readout_gate or spectral_gate or anchor_gate:
                             same = before_restore == staged_restore_fingerprint(
                                 runtime, continuing_joint=staged_joint
                             )
@@ -905,6 +911,8 @@ def main() -> None:
                                 readout_restores.append(same)
                             if spectral_gate:
                                 spectral_restores.append(same)
+                            if anchor_gate:
+                                anchor_restores.append(same)
                             if not same:
                                 raise ValueError("PT1 stage checkpoint restore changed state")
                     if step % 8 == 0:
@@ -1086,6 +1094,22 @@ def main() -> None:
                 ):
                     raise ValueError("R11 requires exact10 actual head updates and restore proof")
                 receipt["frozen_readout_gate"] = proof
+
+            if anchor_gate:
+                checks = {
+                    "ten_updates": step == 10,
+                    "exact_full_state_rng_restore": bool(anchor_restores) and all(anchor_restores),
+                    "complete40_group_with_main_gradients": terms.get(
+                        "response_anchor_complete40_groups", 0
+                    )
+                    > 0,
+                    "finite_anchor_loss": math.isfinite(
+                        terms.get("response_anchor_loss", float("nan"))
+                    ),
+                }
+                receipt["response_anchor_gate"] = {"checks": checks, "passed": all(checks.values())}
+                if not all(checks.values()):
+                    raise ValueError("response anchor native capacity/restore gate failed")
 
             # Exercise the identical 300-control inference path on one validation
             # condition. No test truth, scientific score or hyperparameter selection.

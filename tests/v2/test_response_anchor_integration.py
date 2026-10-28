@@ -125,6 +125,21 @@ def test_native_step_once_and_checkpoint_resume_keeps_anchor_clock(tmp_path):
         torch.testing.assert_close(value, other.state_dict()[key], rtol=0, atol=0)
 
 
+def test_anchor_capacity_restore_fingerprint_includes_main_rng():
+    from scripts.v2.capacity_probe import staged_restore_fingerprint
+
+    objective, _, _, controller = integrated()
+    objective.response_anchor_enabled = True
+    runtime = controller.runtime
+    runtime.generator = np.random.default_rng(44)
+    saved = torch.get_rng_state()
+    before = staged_restore_fingerprint(runtime, continuing_joint=False)
+    torch.rand(1)
+    assert staged_restore_fingerprint(runtime, continuing_joint=False) != before
+    torch.set_rng_state(saved)
+    assert staged_restore_fingerprint(runtime, continuing_joint=False) == before
+
+
 def _distributed_anchor_gradient(rank, rendezvous):
     from datetime import timedelta
 
