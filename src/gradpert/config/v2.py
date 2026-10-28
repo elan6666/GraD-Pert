@@ -491,6 +491,10 @@ class V2Options:
     spectral_warmup_steps: int = 30
     spectral_amplitude_target: float = 0.0225
     spectral_amplitude_weight: float = 0.0
+    response_anchor_path: str = ""
+    response_anchor_sha256: str = ""
+    response_anchor_weight: float = 0.0
+    response_anchor_seed: int = 20261028
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -592,6 +596,10 @@ class V2Options:
             "spectral_warmup_steps",
             "spectral_amplitude_target",
             "spectral_amplitude_weight",
+            "response_anchor_path",
+            "response_anchor_sha256",
+            "response_anchor_weight",
+            "response_anchor_seed",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -611,6 +619,36 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
+        weight = self.response_anchor_weight
+        if (
+            isinstance(weight, bool)
+            or not isinstance(weight, (int, float))
+            or not math.isfinite(weight)
+            or not 0 <= weight <= 1
+            or type(self.response_anchor_seed) is not int
+            or not 0 <= self.response_anchor_seed < 2**63
+            or bool(self.response_anchor_path) != bool(self.response_anchor_sha256)
+            or bool(weight) != bool(self.response_anchor_path)
+        ):
+            raise ValueError("response anchor needs a sealed bank and finite weight in (0,1]")
+        if weight and (
+            len(self.response_anchor_sha256) != 64
+            or any(c not in "0123456789abcdef" for c in self.response_anchor_sha256)
+            or not self.response_anchor_path.startswith("/data/yilangliu/")
+            or self.training_mode != "joint"
+            or self.loss_reduction != "row_mean"
+            or self.population_response
+            or self.au_alignment_weight
+            or self.au_uniformity_weight
+            or self.cr_weight
+            or self.spectral_rank_weight
+            or self.spectral_cosine_weight
+            or self.spectral_amplitude_weight
+            or self.ssl2_koleo
+        ):
+            raise ValueError(
+                "response anchor is an isolated TRAIN group loss on the native joint path"
+            )
         for name in (
             "spectral_rank_weight",
             "spectral_cosine_weight",

@@ -510,6 +510,9 @@ def optimizer_step(
             metrics.update(
                 {f"ssl1_{name}": float(value.detach()) for name, value in graph_terms.items()}
             )
+        anchor_backward = getattr(objective, "response_anchor_backward", None)
+        if anchor_backward is not None:
+            metrics.update(anchor_backward(batch, optimizer.steps, bf16=bf16))
         if distributed:
             from .distributed import average_gradients
 
@@ -528,7 +531,14 @@ def optimizer_step(
             names = sorted(metrics)
             values = torch.tensor(
                 [
-                    metrics[name] * (1.0 if name.startswith("ssl1_") else population_factor)
+                    metrics[name]
+                    * (
+                        torch.distributed.get_world_size()
+                        if name.startswith("response_anchor_")
+                        else 1.0
+                        if name.startswith("ssl1_")
+                        else population_factor
+                    )
                     for name in names
                 ],
                 device=batch.control.device,
@@ -560,6 +570,7 @@ def optimizer_step(
         metrics["joint_loss"] += objective.lambda_masked_response * metrics.get(
             "masked_response", 0.0
         )
+        metrics["joint_loss"] += metrics.get("response_anchor_weighted", 0.0)
         if au_metrics:
             # These are replicated global scalars, not rank-local row sums.
             metrics.update(au_metrics)

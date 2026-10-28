@@ -404,6 +404,33 @@ class CanonicalTrainingData:
         if split_policy != self.split.policy_id:
             raise ValueError("experiment config split policy differs from canonical split")
 
+    def configure_training_expression_columns(self, allowed: Sequence[int]) -> None:
+        """Restrict this training instance's numerical reads before caches/iteration.
+
+        The full global expression axis is retained with zero-filled excluded
+        columns. This is instance scoped: evaluation must use a separate,
+        unconfigured instance when full-axis expression is required.
+        """
+        if (
+            getattr(self, "_training_expression_read_started", False)
+            or getattr(self, "_training_expression_columns", None) is not None
+            or self.pipeline_stats.yielded_batches
+            or self.pipeline_stats.control_cache_requested
+            or self._control_expression_cache is not None
+        ):
+            raise RuntimeError("training expression columns must be configured before reads/cache")
+        columns = np.asarray(allowed)
+        if (
+            columns.ndim != 1
+            or columns.dtype.kind not in "iu"
+            or not len(columns)
+            or np.any(columns < 0)
+            or np.any(columns >= self.manifest.n_expression_genes)
+            or np.any(np.diff(columns.astype(np.int64)) <= 0)
+        ):
+            raise ValueError("training expression columns must be sorted unique in-axis integers")
+        self._training_expression_columns = tuple(int(i) for i in columns)
+
     def _read_expression_indices(self, indices: Sequence[int]) -> np.ndarray[Any, Any]:
         if not indices:
             raise ValueError("expression row request must be non-empty")
@@ -411,6 +438,36 @@ class CanonicalTrainingData:
         if int(values.min()) < 0 or int(values.max()) >= len(self.row_ids):
             raise ValueError("expression row index is outside canonical data")
         unique_sorted, inverse = np.unique(values, return_inverse=True)
+        self._training_expression_read_started = True
+        columns = getattr(self, "_training_expression_columns", None)
+        if columns is not None:
+            # AnnData backed reads use only one fancy axis: consecutive authorized
+            # row slices and allowed columns before numerical .X exposure.
+            dense_allowed = np.empty((len(unique_sorted), len(columns)), dtype=np.float32)
+            start = 0
+            while start < len(unique_sorted):
+                stop = start + 1
+                while (
+                    stop < len(unique_sorted)
+                    and unique_sorted[stop] == unique_sorted[stop - 1] + 1
+                    and stop - start < 2048
+                ):
+                    stop += 1
+                selection = self._adata[
+                    slice(int(unique_sorted[start]), int(unique_sorted[stop - 1]) + 1),
+                    np.asarray(columns, dtype=np.int64),
+                ]
+                matrix = selection.X
+                block = matrix.toarray() if hasattr(matrix, "toarray") else np.asarray(matrix)
+                if block.shape != (stop - start, len(columns)) or not np.isfinite(block).all():
+                    raise ValueError("allowed canonical expression block has invalid shape/values")
+                dense_allowed[start:stop] = block
+                start = stop
+            restored = np.zeros((len(indices), self.manifest.n_expression_genes), dtype=np.float32)
+            restored[:, list(columns)] = dense_allowed[inverse]
+            if not np.isfinite(restored).all():
+                raise ValueError("allowed canonical expression float32 conversion is non-finite")
+            return np.ascontiguousarray(restored)
         matrix = self._adata[unique_sorted, : self.manifest.n_expression_genes].X
         dense = matrix.toarray() if hasattr(matrix, "toarray") else np.asarray(matrix)
         restored = np.asarray(dense, dtype=np.float32)[inverse]

@@ -23,7 +23,8 @@ def diagnostic_objective(
     au = bool(getattr(objective, "au_enabled", False))
     cr = bool(getattr(objective, "cr_enabled", False))
     spectral = bool(getattr(objective, "spectral_enabled", False))
-    if not (koleo or au or cr or spectral):
+    anchor = bool(getattr(objective, "response_anchor_enabled", False))
+    if not (koleo or au or cr or spectral or anchor):
         loss, terms = objective(batch, **kwargs)
         return loss, terms, {}
     if objective.loss_reduction is None:
@@ -50,14 +51,19 @@ def diagnostic_objective(
     unavailable += ["spectral_rank", "spectral_cosine"] if spectral else []
     if getattr(objective, "spectral_amplitude_weight", 0):
         unavailable.append("spectral_amplitude")
-    suffix = "representation_terms" if au or cr or spectral else "koleo"
+    suffix = "representation_terms" if au or cr or spectral or anchor else "koleo"
     return (
         loss,
         terms,
         {
             "diagnostic_objective_scope": {
                 "unavailable_terms": {
-                    key: "requires_complete_global_population" for key in unavailable
+                    **{key: "requires_complete_global_population" for key in unavailable},
+                    **(
+                        {"response_anchor": "requires_complete_train_condition_bank"}
+                        if anchor
+                        else {}
+                    ),
                 },
                 "joint_scope": f"prediction_and_ssl_excluding_unavailable_{suffix}",
                 "ssl2_gradient_scope": f"dino_and_ibot_excluding_unavailable_{suffix}",

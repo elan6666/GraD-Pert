@@ -329,6 +329,10 @@ def prepare_runtime(
             )
         if allowed_expression_ids is not None and len(allowed_expression_ids) < options.query_count:
             raise ValueError("training expression partition smaller than query budget")
+        if options.response_anchor_weight and purpose == "training":
+            if allowed_expression_ids is None:
+                raise ValueError("response anchor requires expression-column holdout")
+            data.configure_training_expression_columns(allowed_expression_ids)
         if options.training_mode == "frozen_readout" and purpose == "training":
             steps = data.steps_per_epoch(
                 batch_size=int(config.training.train_batch_size.value),
@@ -349,6 +353,12 @@ def prepare_runtime(
         if options.gene_initialization == "random":
             seed = torch.randn_like(seed) * 0.02
         student = GraDPertV2(seed, arch).to(device)
+        if options.response_anchor_weight:
+            from .response_anchor import attach_anchor_readout
+
+            if arch.width != 256 or config.continuation is not None:
+                raise ValueError("response anchor requires a fresh native width256 model")
+            attach_anchor_readout(student, arch.width, options.response_anchor_seed)
         if config.continuation is not None and config.continuation.mode == "lora":
             from gradpert.modeling.v2.lora import insert_lora
 
@@ -713,7 +723,7 @@ def prepare_runtime(
             )
         if options.expression_holdout_path:
             identity["expression_holdout_sha256"] = options.expression_holdout_sha256
-        yield Runtime(
+        runtime = Runtime(
             data,
             options,
             NeighborhoodIndex(
@@ -733,3 +743,34 @@ def prepare_runtime(
             allowed_expression_ids,
             purpose,
         )
+        if options.response_anchor_weight:
+            from .response_anchor_runtime import ResponseAnchorController, load_response_bank
+
+            objective.response_anchor_enabled = True
+            identity["response_anchor"] = {
+                "manifest_sha256": options.response_anchor_sha256,
+                "weight": options.response_anchor_weight,
+                "seed": options.response_anchor_seed,
+                "head": "Linear256_256_default_random_bias_true_private_rng",
+                "teacher_readout": "unused_ema_mirror_no_forward_or_target_values",
+                "schedule": "hash_permutation_step_i_mod_T_rank_floor_i_div_T_mod_world",
+            }
+            if purpose == "training":
+                if allowed_expression_ids is None:
+                    raise ValueError("response anchor requires the frozen expression holdout")
+                bank = load_response_bank(
+                    options.response_anchor_path,
+                    options.response_anchor_sha256,
+                    allowed_expression_ids,
+                )
+                manifest_digest = (
+                    sha256_json(data.manifest.payload())
+                    if hasattr(data.manifest, "payload")
+                    else sha256_file(data.layout.canonical_manifest)
+                )
+                if bank.identity.get("data_manifest") != manifest_digest:
+                    raise ValueError("response anchor canonical manifest identity differs")
+                controller = ResponseAnchorController(runtime, bank)
+                objective.response_anchor_backward = controller.backward
+                identity["response_anchor"]["arrays_sha256"] = bank.arrays_sha256
+        yield runtime
