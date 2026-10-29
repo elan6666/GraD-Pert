@@ -50,6 +50,20 @@ def load_response_bank(path: str, digest: str, allowed: np.ndarray) -> FixedResp
     return FixedResponseBank.from_files(manifest, digest, allowed)
 
 
+def population_prediction_loss(prediction: Tensor, target: Tensor) -> Tensor:
+    """Compare the complete native prediction population mean in FP32."""
+    if (
+        prediction.ndim != 2
+        or not prediction.shape[0]
+        or target.shape != prediction.shape[1:]
+        or target.requires_grad
+    ):
+        raise ValueError("population loss requires complete cells and a fixed query target")
+    if not torch.isfinite(prediction).all() or not torch.isfinite(target).all():
+        raise ValueError("nonfinite population prediction or target")
+    return (prediction.float().mean(dim=0) - target.detach().float()).square().mean()
+
+
 class ResponseAnchorController:
     """External bank/cursor-free schedule; no target arrays enter state_dict."""
 
@@ -77,8 +91,17 @@ class ResponseAnchorController:
         ):
             raise ValueError("response anchor single-target identity is not the native graph gene")
         mode = getattr(runtime.options, "response_anchor_loss", "mse")
-        if mode not in ("mse", "cosine_direction"):
-            raise ValueError("response anchor loss must be mse or cosine_direction")
+        if mode not in ("mse", "cosine_direction", "population_prediction"):
+            raise ValueError("unknown response anchor loss")
+        if mode == "population_prediction":
+            from .population_anchor import load_population_targets
+
+            self.population_targets = load_population_targets(
+                runtime.options.response_anchor_population_path,
+                runtime.options.response_anchor_population_sha256,
+                runtime.options.response_anchor_population_arrays_sha256,
+                bank,
+            )
         if mode == "cosine_direction":
             norms = torch.linalg.vector_norm(
                 torch.from_numpy(bank.condition_targets.copy()).float(), dim=1
@@ -134,7 +157,7 @@ class ResponseAnchorController:
     def group_loss(
         self, batch: TrainingBatch, condition: int, epoch: int, *, bf16: bool = False
     ) -> Tensor:
-        """One <=40-row differentiable population mean, with decoder/Teacher unused."""
+        """One complete <=40-row group; Teacher receives no extra forward."""
         runtime, bank = self.runtime, self.bank
         if not runtime.objective.student.training:
             raise ValueError("response anchor is a TRAIN-only auxiliary path")
@@ -147,7 +170,15 @@ class ResponseAnchorController:
         control = torch.from_numpy(bank.control_for_condition(condition)[:, positions].copy()).to(
             runtime.device
         )
-        target = torch.from_numpy(bank.condition_targets[condition].copy()).to(runtime.device)
+        population = (
+            getattr(runtime.options, "response_anchor_loss", "mse") == "population_prediction"
+        )
+        target_values = (
+            self.population_targets[condition, positions]
+            if population
+            else bank.condition_targets[condition]
+        )
+        target = torch.from_numpy(target_values.copy()).to(runtime.device)
         anchor = int(bank.condition_anchor_gene_indices[condition])
         ids = np.union1d(queries, [anchor])
         # Private streams include graph construction and stochastic forward. Main
@@ -179,16 +210,19 @@ class ResponseAnchorController:
                     runtime.objective._select_graph(gene, auxiliary.query_positions),
                     control,
                     perturbation,
-                    decode=False,
+                    decode=population,
                     **runtime.objective.response_metadata(auxiliary),
                 )
-                loss = group_mean_loss(
-                    outputs["response_cls"],
-                    target,
-                    runtime.objective.student.response_anchor_readout,
-                    getattr(runtime.options, "response_anchor_loss", "mse"),
-                    diagnostics=getattr(self, "_direction_diagnostics", None),
-                )
+                if population:
+                    loss = population_prediction_loss(outputs["prediction"], target)
+                else:
+                    loss = group_mean_loss(
+                        outputs["response_cls"],
+                        target,
+                        runtime.objective.student.response_anchor_readout,
+                        getattr(runtime.options, "response_anchor_loss", "mse"),
+                        diagnostics=getattr(self, "_direction_diagnostics", None),
+                    )
         if not torch.isfinite(loss):
             raise FloatingPointError("nonfinite response anchor group loss")
         return loss

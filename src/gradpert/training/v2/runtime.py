@@ -358,7 +358,11 @@ def prepare_runtime(
 
             if arch.width != 256 or config.continuation is not None:
                 raise ValueError("response anchor requires a fresh native width256 model")
-            attach_anchor_readout(student, arch.width, options.response_anchor_seed)
+            if options.response_anchor_loss == "population_prediction":
+                if arch.prediction_parameterization != "softplus":
+                    raise ValueError("population prediction requires native Softplus outputs")
+            else:
+                attach_anchor_readout(student, arch.width, options.response_anchor_seed)
         if config.continuation is not None and config.continuation.mode == "lora":
             from gradpert.modeling.v2.lora import insert_lora
 
@@ -770,6 +774,15 @@ def _configure_response_anchor(runtime: Runtime) -> None:
                 loss="cosine_direction",
                 direction_epsilon=1e-6,
                 direction_formula="1-dot(normalize_fp32(Linear(mean_group_cls)),normalize_fp32_fixed_target)",
+            )
+        if options.response_anchor_loss == "population_prediction":
+            identity["response_anchor"].update(
+                loss="population_prediction",
+                head="existing_native_prediction_softplus",
+                teacher_readout="absent_no_additional_forward",
+                population_manifest_sha256=options.response_anchor_population_sha256,
+                population_arrays_sha256=options.response_anchor_population_arrays_sha256,
+                formula="mean_gene(square(mean_cell_fp32(native_prediction)-fixed_train_mean))",
             )
         if purpose == "training":
             if allowed_expression_ids is None:

@@ -25,9 +25,16 @@ def configuration(
     arrays_sha256: str,
     weight: float,
     loss_mode: str = "mse",
+    population_path: str = "",
+    population_sha256: str = "",
+    population_arrays_sha256: str = "",
 ) -> dict:
-    if loss_mode not in {"mse", "cosine_direction"}:
+    if loss_mode not in {"mse", "cosine_direction", "population_prediction"}:
         raise ValueError("unknown response anchor objective")
+    if loss_mode != "population_prediction" and any(
+        (population_path, population_sha256, population_arrays_sha256)
+    ):
+        raise ValueError("population fields require population_prediction")
     parent = root / PARENT
     if sha256_file(parent) != PARENT_SHA256:
         raise ValueError("R3-RI reference recipe changed")
@@ -50,6 +57,18 @@ def configuration(
             "source": "project_preregistered",
             "reference": DIRECTION_REFERENCE,
         }
+    if loss_mode == "population_prediction":
+        for key, item in {
+            "response_anchor_loss": loss_mode,
+            "response_anchor_population_path": population_path,
+            "response_anchor_population_sha256": population_sha256,
+            "response_anchor_population_arrays_sha256": population_arrays_sha256,
+        }.items():
+            value["model"]["parameters"][key] = {
+                "value": item,
+                "source": "project_preregistered",
+                "reference": "docs/experiments/RESPONSE_POPULATION_PREDICTION_20261029.md",
+            }
     return value
 
 
@@ -59,7 +78,12 @@ def main() -> None:
     parser.add_argument("--manifest-sha256", required=True)
     parser.add_argument("--arrays-sha256", required=True)
     parser.add_argument("--weight", required=True, type=float)
-    parser.add_argument("--loss-mode", choices=("mse", "cosine_direction"), default="mse")
+    parser.add_argument(
+        "--loss-mode", choices=("mse", "cosine_direction", "population_prediction"), default="mse"
+    )
+    parser.add_argument("--population-path", default="")
+    parser.add_argument("--population-sha256", default="")
+    parser.add_argument("--population-arrays-sha256", default="")
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     if args.output.exists():
@@ -71,6 +95,9 @@ def main() -> None:
         arrays_sha256=args.arrays_sha256,
         weight=args.weight,
         loss_mode=args.loss_mode,
+        population_path=args.population_path,
+        population_sha256=args.population_sha256,
+        population_arrays_sha256=args.population_arrays_sha256,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("x") as stream:

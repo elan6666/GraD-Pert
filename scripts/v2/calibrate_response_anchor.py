@@ -280,10 +280,8 @@ def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) 
     world = torch.distributed.get_world_size() if distributed else 1
     rank = torch.distributed.get_rank() if distributed else 0
     params = tuple(runtime.objective.student.response.parameters())
-    if any(
-        id(p) in {id(q) for q in runtime.objective.student.response_anchor_readout.parameters()}
-        for p in params
-    ):
+    readout = getattr(runtime.objective.student, "response_anchor_readout", None)
+    if readout is not None and any(id(p) in {id(q) for q in readout.parameters()} for p in params):
         raise ValueError("readout overlaps shared response parameters")
 
     def reduce_mean(value: Tensor) -> Tensor:
@@ -357,6 +355,12 @@ def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) 
     result["rank"] = rank
     result["forward_precision"] = "bfloat16_autocast" if bf16 else "float32"
     result["ordered_batch_metadata_sha256"] = sha256_json(metadata)
+    if getattr(runtime.options, "response_anchor_loss", "mse") == "population_prediction":
+        result["response_anchor_loss"] = "population_prediction"
+        result["population_manifest_sha256"] = runtime.options.response_anchor_population_sha256
+        result["population_arrays_sha256"] = (
+            runtime.options.response_anchor_population_arrays_sha256
+        )
     if getattr(runtime.options, "response_anchor_loss", "mse") == "cosine_direction":
         result["response_anchor_loss"] = "cosine_direction"
         result["direction_diagnostics"] = controller.direction_summary()
@@ -459,6 +463,15 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
                         str(bank.arrays_path): bank.arrays_sha256,
                     }
                 )
+                if runtime.options.response_anchor_loss == "population_prediction":
+                    population_path = Path(runtime.options.response_anchor_population_path)
+                    population_doc = json.loads(population_path.read_text())
+                    before_files[str(population_path)] = (
+                        runtime.options.response_anchor_population_sha256
+                    )
+                    before_files[str(population_path.parent / population_doc["arrays"]["path"])] = (
+                        runtime.options.response_anchor_population_arrays_sha256
+                    )
                 result = calibrate_first_eight(runtime, controller, bf16=args.bf16)
                 result.update(
                     run_id=args.run_id,

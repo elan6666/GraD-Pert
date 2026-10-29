@@ -497,6 +497,9 @@ class V2Options:
     response_anchor_weight: float = 0.0
     response_anchor_seed: int = 20261028
     response_anchor_loss: str = "mse"
+    response_anchor_population_path: str = ""
+    response_anchor_population_sha256: str = ""
+    response_anchor_population_arrays_sha256: str = ""
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -604,6 +607,9 @@ class V2Options:
             "response_anchor_weight",
             "response_anchor_seed",
             "response_anchor_loss",
+            "response_anchor_population_path",
+            "response_anchor_population_sha256",
+            "response_anchor_population_arrays_sha256",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -623,8 +629,25 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
-        if self.response_anchor_loss not in ("mse", "cosine_direction"):
-            raise ValueError("response_anchor_loss must be mse or cosine_direction")
+        if self.response_anchor_loss not in ("mse", "cosine_direction", "population_prediction"):
+            raise ValueError(
+                "response_anchor_loss must be mse or cosine_direction, or population_prediction"
+            )
+        population_fields = (
+            self.response_anchor_population_path,
+            self.response_anchor_population_sha256,
+            self.response_anchor_population_arrays_sha256,
+        )
+        if self.response_anchor_loss == "population_prediction":
+            if not self.response_anchor_weight or not all(population_fields):
+                raise ValueError("population prediction requires enabled sealed targets")
+            if not self.response_anchor_population_path.startswith("/data/yilangliu/") or any(
+                len(h) != 64 or any(c not in "0123456789abcdef" for c in h)
+                for h in population_fields[1:]
+            ):
+                raise ValueError("invalid population target path or hashes")
+        elif any(population_fields):
+            raise ValueError("population target fields require population_prediction")
         weight = self.response_anchor_weight
         if (
             isinstance(weight, bool)

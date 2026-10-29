@@ -7,6 +7,7 @@ import contextlib
 import json
 import math
 import os
+import statistics
 import subprocess
 import sys
 import time
@@ -45,6 +46,7 @@ def recipe(root: Path, arm: str) -> tuple[Path, Path, str]:
     families = {
         "R14-FRGA": ("response_anchor_20261028", "mse"),
         "R15-DIR": ("response_anchor_direction_20261029", "cosine_direction"),
+        "R16-GPM": ("response_population_prediction_20261029", "population_prediction"),
     }
     if arm not in families:
         raise ValueError("unknown fixed response anchor arm")
@@ -80,6 +82,165 @@ def validate_direction_diagnostics(diagnostic: dict) -> None:
         raise ValueError("invalid direction objective norm audit")
 
 
+def _digest(value: object, length: int = 64) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == length
+        and all(character in "0123456789abcdef" for character in value)
+    )
+
+
+def _positive_finite(value: object) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and value > 0
+    )
+
+
+def validate_population_calibration(
+    config_path: Path, parameters: dict, calibration: dict, decision: dict
+) -> dict[str, str]:
+    """Bind R16's own initialization, selected rule and server-only target identities.
+
+    This reads scalar receipts only. The native loader separately validates the
+    sidecar manifest/arrays and read boundaries; this gate never opens an NPZ.
+    """
+    population = {
+        key: parameters.get("response_anchor_" + key, {}).get("value")
+        for key in ("population_path", "population_sha256", "population_arrays_sha256")
+    }
+    path = population["population_path"]
+    if (
+        not isinstance(path, str)
+        or not Path(path).is_absolute()
+        or ".." in Path(path).parts
+        or not Path(path).is_relative_to("/data/yilangliu")
+        or not _digest(population["population_sha256"])
+        or not _digest(population["population_arrays_sha256"])
+    ):
+        raise ValueError("population fit requires all three sealed sidecar configuration fields")
+    binding = calibration.get("identity", {}).get("response_anchor", {})
+    files = calibration.get("input_files_sha256", {})
+    source = calibration.get("source", {})
+    weight = calibration.get("selected_weight")
+    if (
+        calibration.get("response_anchor_loss") != "population_prediction"
+        or decision.get("arm") != "R16-GPM"
+        or decision.get("response_anchor_loss") != "population_prediction"
+        or source.get("formal_eligible") is not True
+        or source.get("published_commit") != source.get("commit")
+        or not _digest(source.get("commit"), 40)
+        or calibration.get("calibration_complete") is not True
+        or calibration.get("state_restored") is not True
+        or type(calibration.get("epoch")) is not int
+        or calibration.get("epoch") != 0
+        or type(calibration.get("rank")) is not int
+        or calibration.get("rank") != 0
+        or type(calibration.get("identity", {}).get("run_seed")) is not int
+        or calibration.get("identity", {}).get("run_seed") != 1
+        or any(
+            type(calibration.get(key)) is not int or calibration[key] != 0
+            for key in ("optimizer_updates", "teacher_updates", "center_updates")
+        )
+        or calibration.get("parameter_scope")
+        != "student.response.parameters; excludes response_anchor_readout"
+        or calibration.get("gradient_bank_dtype") != "float32"
+        or calibration.get("norm_accumulation_dtype") != "float64"
+        or calibration.get("rule") != "min(1,0.1*median(Gpred)/median(Ganchor))"
+        or decision.get("rule") != calibration.get("rule")
+        or decision.get("calibration_forward_precision") != "bfloat16_autocast"
+        or not _digest(decision.get("calibration_complete_sha256"))
+        or decision.get("fit_config_sha256") != sha256_file(config_path)
+        or decision.get("training_epochs") != 2
+        or decision.get("optimizer_updates") != 300
+        or decision.get("global_batch") != 320
+        or not _positive_finite(weight)
+        or weight > 1
+        or decision.get("selected_weight") != weight
+        or binding.get("loss") != "population_prediction"
+        or binding.get("head") != "existing_native_prediction_softplus"
+        or binding.get("teacher_readout") != "absent_no_additional_forward"
+        or binding.get("weight") != 1.0
+        or binding.get("seed") != 20261028
+        or not isinstance(files, dict)
+        or files.get(path) != population["population_sha256"]
+        or not any(
+            isinstance(filename, str)
+            and ".." not in Path(filename).parts
+            and Path(filename).is_relative_to(Path(path).parent)
+            and Path(filename).suffix == ".npz"
+            and digest == population["population_arrays_sha256"]
+            for filename, digest in files.items()
+        )
+    ):
+        raise ValueError("population fit requires its own complete initialization calibration")
+    for key, expected in (
+        ("manifest_sha256", parameters["response_anchor_sha256"]["value"]),
+        ("arrays_sha256", parameters["response_anchor_arrays_sha256"]["value"]),
+        ("population_manifest_sha256", population["population_sha256"]),
+        ("population_arrays_sha256", population["population_arrays_sha256"]),
+    ):
+        top = key if key.startswith("population_") else "bank_" + key
+        if (
+            not _digest(expected)
+            or binding.get(key) != expected
+            or calibration.get(top) != expected
+            or decision.get(top) != expected
+        ):
+            raise ValueError(
+                "population calibration/decision sidecar and sampling bank hashes differ"
+            )
+    batches = calibration.get("batches")
+    if (
+        not isinstance(batches, list)
+        or len(batches) != 8
+        or any(not isinstance(row, dict) for row in batches)
+        or any(type(row.get("step")) is not int for row in batches)
+        or [row.get("step") for row in batches] != list(range(8))
+        or len({row.get("ordered_identity_sha256") for row in batches}) != 8
+        or any(
+            any(
+                not _digest(row.get(key))
+                for key in (
+                    "ordered_identity_sha256",
+                    "query_ids_sha256",
+                    "local_group_indices_sha256",
+                )
+            )
+            or row.get("global_rows") != 320
+            or type(row.get("local_group_count")) is not int
+            or row["local_group_count"] < 1
+            or not _positive_finite(row.get("prediction_gradient_norm"))
+            or not _positive_finite(row.get("unit_anchor_gradient_norm"))
+            for row in batches
+        )
+    ):
+        raise ValueError("population calibration requires the exact ordered first eight batches")
+    metadata = [
+        {
+            key: value
+            for key, value in row.items()
+            if key not in {"prediction_gradient_norm", "unit_anchor_gradient_norm"}
+        }
+        for row in batches
+    ]
+    gp = statistics.median(row["prediction_gradient_norm"] for row in batches)
+    ga = statistics.median(row["unit_anchor_gradient_norm"] for row in batches)
+    if (
+        calibration.get("ordered_batch_metadata_sha256") != sha256_json(metadata)
+        or calibration.get("median_prediction_gradient_norm") != gp
+        or calibration.get("median_unit_anchor_gradient_norm") != ga
+        or decision.get("median_prediction_gradient_norm") != gp
+        or decision.get("median_unit_anchor_gradient_norm") != ga
+        or weight != min(1.0, 0.1 * gp / ga)
+        or calibration.get("anchor_coefficient") != 2 * 150 / 1322
+    ):
+        raise ValueError("population calibration first-eight gradient rule/identity differs")
+    return population
+
+
 def validate_calibration(config_path: Path, calibration: dict, arm: str = "R14-FRGA") -> None:
     root = Path(__file__).resolve().parents[2]
     probe_path, decision_path, mode = recipe(root, arm)
@@ -89,6 +250,19 @@ def validate_calibration(config_path: Path, calibration: dict, arm: str = "R14-F
     actual_mode = p.get("response_anchor_loss", {"value": "mse"})["value"]
     if actual_mode != mode:
         raise ValueError("execution arm differs from the configured objective")
+    population = {}
+    if mode == "population_prediction":
+        population = validate_population_calibration(config_path, p, calibration, decision)
+        if yaml.safe_load(probe_path.read_text()) != configuration(
+            root,
+            bank_path=p["response_anchor_path"]["value"],
+            manifest_sha256=p["response_anchor_sha256"]["value"],
+            arrays_sha256=p["response_anchor_arrays_sha256"]["value"],
+            weight=1.0,
+            loss_mode=mode,
+            **population,
+        ):
+            raise ValueError("population calibration must use the unit-weight native probe recipe")
     if mode == "cosine_direction":
         diagnostic = calibration.get("direction_diagnostics", {})
         validate_direction_diagnostics(diagnostic)
@@ -124,6 +298,7 @@ def validate_calibration(config_path: Path, calibration: dict, arm: str = "R14-F
             arrays_sha256=p["response_anchor_arrays_sha256"]["value"],
             weight=calibration["selected_weight"],
             loss_mode=mode,
+            **population,
         )
     ):
         raise ValueError("fit config must equal the single calibrated RI+anchor recipe")
