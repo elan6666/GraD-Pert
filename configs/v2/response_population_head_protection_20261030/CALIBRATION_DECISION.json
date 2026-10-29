@@ -1,0 +1,32 @@
+{
+  "schema": "population-prediction-calibration-decision-v1",
+  "arm": "R17-GPM-HG0",
+  "reference_arm": "R3-RI",
+  "mechanism_parent_arms": [
+    "R16-GPM"
+  ],
+  "reference_retraining": false,
+  "response_anchor_loss": "population_prediction",
+  "prediction_head_grad": false,
+  "gradient_routing": "gpm_head_parameters_detached_preserve_input_jacobian",
+  "calibration_source": "aada99e3ec15676b58ebe57c9bf880b46837b162",
+  "calibration_complete_path": "/data/yilangliu/GraD-Pert/development/response-population-head-calibration-aada99e-20261030-a4/calibration/COMPLETE.json",
+  "calibration_complete_sha256": "5fea984f005876003f3a783ca5c7e572d5a141bd19538402056eafb4b806f0f2",
+  "calibration_forward_precision": "bfloat16_autocast",
+  "rule": "min(1,0.1*median(Gpred)/median(Ganchor))",
+  "selected_weight": 0.09344596523467667,
+  "median_prediction_gradient_norm": 1.143464442548644,
+  "median_unit_anchor_gradient_norm": 1.2236637929492091,
+  "bank_manifest_sha256": "86901e2829d7964f41d39bc958d81f1b150584810861d98fa6fb1b4c5eaf012a",
+  "bank_arrays_sha256": "28bc66a2b02f5435ee7fdec46be808461e1a33cd13fd9be35dd3d6a7bd21ff6d",
+  "population_path": "/data/yilangliu/GraD-Pert/development/response-population-release-5b7a4c1-20261029-a2/targets/server-only/manifest.json",
+  "population_manifest_sha256": "ad2e3171b17bc851d77f43dc17884a0224a802f153e2656b5d118144a794279a",
+  "population_arrays_sha256": "9b8d854b7836eb3fa54e2d9ece55acaa78f4cd28fa1fa97bf156c8361a784b95",
+  "training_epochs": 2,
+  "optimizer_updates": 300,
+  "global_batch": 320,
+  "fit_config": "configs/v2/response_population_head_protection_20261030/R17-GPM-HG0/gradpert_v2/nadig_jurkat.yaml",
+  "fit_config_sha256": "fb95eb165b9f53ede6ce6c7cd3929036070dec53cbb69092df6574d797de2d04",
+  "deterministic_execution": "audit_only; settings restored before native first8 norms; no deterministic fit setting introduced",
+  "scientific_complete": false
+}

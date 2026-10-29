@@ -145,7 +145,11 @@ def test_group_loss_routing_preserves_teacher_rng_and_main_accumulation():
 
 
 def test_config_is_unit_calibration_and_strict_opt_in():
-    config = load_experiment_config(RECIPE)
+    config = load_experiment_config(
+        ROOT
+        / "configs/v2/response_population_head_protection_20261030/calibration"
+        / "gradpert_v2/nadig_jurkat.yaml"
+    )
     _, options = V2Options.parse_parameters(config.model.parameters)
     assert options.response_anchor_weight == 1.0
     assert options.response_anchor_prediction_head_grad is False

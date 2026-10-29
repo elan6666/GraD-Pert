@@ -342,7 +342,7 @@ model:
       source: project_preregistered
       reference: docs/experiments/RESPONSE_GROUP_ANCHOR_20261028.md
     response_anchor_weight:
-      value: 1.0
+      value: 0.09344596523467667
       source: project_preregistered
       reference: docs/experiments/RESPONSE_POPULATION_HEAD_PROTECTION_20261030.md#first8-calibration-only
     response_anchor_seed:
