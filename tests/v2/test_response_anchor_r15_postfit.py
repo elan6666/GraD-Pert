@@ -137,7 +137,7 @@ def full_native(ids, validation):
     return merge_evaluation_shards([value], ordered_conditions=tuple(ids))
 
 
-def real_retained_fixture(tmp_path, name="R3-RI"):
+def real_retained_fixture(tmp_path, name="R3-RI", *, own_target=6505):
     old, references = retained_fixture(tmp_path)
     b = references[name]
     endpoint = old["endpoints"][0 if name == "R3-RI" else 1]
@@ -147,7 +147,7 @@ def real_retained_fixture(tmp_path, name="R3-RI"):
     arrays = dict(
         condition_ids=np.array(ids),
         allowed_gene_indices=np.arange(4775),
-        own_target_indices=np.zeros((445, 1), np.int64),
+        own_target_indices=np.full((445, 1), own_target),
         prediction_delta=np.zeros((445, 4775), np.float32),
         truth_delta=np.zeros((445, 4775), np.float32),
         cls_means=np.zeros((445, 256), np.float32),
@@ -245,6 +245,20 @@ def test_real_retained_loader_is_read_only_and_checks_worker_array_closure(tmp_p
     arrays, native = m.load_retained_reference(b, "R3-RI", old["validation"], server=False)
     assert arrays["truth_delta"].shape == (445, 4775) and len(native["conditions"]) == 445
     assert before == {str(p): m.sha(p) for p in root.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("target", [-1, 4999, 5000, 6505])
+def test_retained_own_targets_use_full_graph_ids_not_expression_column_ids(tmp_path, target):
+    old, b, _ = real_retained_fixture(tmp_path, own_target=target)
+    arrays, _ = m.load_retained_reference(b, "R3-RI", old["validation"], server=False)
+    assert (arrays["own_target_indices"] == target).all()
+
+
+@pytest.mark.parametrize("target", [-2, 6506, 6505.0])
+def test_retained_own_targets_still_reject_out_of_graph_or_nonintegral_ids(tmp_path, target):
+    old, b, _ = real_retained_fixture(tmp_path, own_target=target)
+    with pytest.raises(ValueError, match="invalid own-target IDs"):
+        m.load_retained_reference(b, "R3-RI", old["validation"], server=False)
 
 
 @pytest.mark.parametrize(

@@ -29,6 +29,8 @@ R15_SCHEMA = "response-anchor-postfit-r15-input-1"
 R15_SOURCE = "aa65a42554d2f971adf0419bc1421e43c5a335d6"
 R15_CONFIG_SHA256 = "4f50d4848d9f4ac2f19f81b5b44ab33d5371e1c327b2911023ba64f61c9519e7"
 R15_WEIGHT = 0.04871788142525519
+# Frozen Jurkat graph IDs include non-expression targets after the 5,000-gene prefix.
+FROZEN_GRAPH_GENES = 6506
 ARRAY_FIELDS = {
     "condition_ids",
     "allowed_gene_indices",
@@ -1600,7 +1602,7 @@ def load_completed_endpoint(old, endpoint, complete_binding, spec_binding, *, se
     if (
         arrays["own_target_indices"].dtype.kind not in "iu"
         or (arrays["own_target_indices"] < -1).any()
-        or (arrays["own_target_indices"] >= 5000).any()
+        or (arrays["own_target_indices"] >= FROZEN_GRAPH_GENES).any()
         or any(
             not np.isfinite(arrays[k]).all()
             for k in ("prediction_delta", "truth_delta", "cls_means")
