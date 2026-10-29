@@ -1108,6 +1108,17 @@ def main() -> None:
                     ),
                 }
                 receipt["response_anchor_gate"] = {"checks": checks, "passed": all(checks.values())}
+                if getattr(runtime.options, "response_anchor_loss", "mse") == "cosine_direction":
+                    controller = runtime.objective.response_anchor_backward.__self__
+                    diagnostic = controller.direction_summary()
+                    checks["defined_direction_targets"] = (
+                        diagnostic["target_count"] == 1322
+                        and diagnostic["target_clamped_count"] == 0
+                        and diagnostic["head_observation_count"] > 0
+                        and diagnostic["eps"] == 1e-6
+                    )
+                    receipt["response_anchor_gate"]["direction_diagnostics"] = diagnostic
+                    receipt["response_anchor_gate"]["passed"] = all(checks.values())
                 if not all(checks.values()):
                     raise ValueError("response anchor native capacity/restore gate failed")
 

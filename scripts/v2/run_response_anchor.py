@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import math
 import os
 import subprocess
 import sys
@@ -39,16 +40,64 @@ def checked(binding: dict) -> Path:
     return path
 
 
-def validate_calibration(config_path: Path, calibration: dict) -> None:
+def recipe(root: Path, arm: str) -> tuple[Path, Path, str]:
+    """Explicit recipe selection; historical MSE keeps its original sealed paths."""
+    families = {
+        "R14-FRGA": ("response_anchor_20261028", "mse"),
+        "R15-DIR": ("response_anchor_direction_20261029", "cosine_direction"),
+    }
+    if arm not in families:
+        raise ValueError("unknown fixed response anchor arm")
+    family, mode = families[arm]
+    base = root / "configs/v2" / family
+    return (
+        base / "calibration/gradpert_v2/nadig_jurkat.yaml",
+        base / "CALIBRATION_DECISION.json",
+        mode,
+    )
+
+
+def validate_direction_diagnostics(diagnostic: dict) -> None:
+    """Reject undefined frozen targets and unobserved/nonfinite readout summaries."""
+    if (
+        diagnostic.get("response_anchor_loss") != "cosine_direction"
+        or diagnostic.get("eps") != 1e-6
+        or diagnostic.get("target_count") != 1322
+        or diagnostic.get("target_clamped_count") != 0
+        or type(diagnostic.get("head_observation_count")) is not int
+        or diagnostic["head_observation_count"] < 1
+        or type(diagnostic.get("head_clamped_count")) is not int
+        or not 0 <= diagnostic["head_clamped_count"] <= diagnostic["head_observation_count"]
+        or any(
+            not isinstance(diagnostic.get(key), (int, float))
+            or isinstance(diagnostic.get(key), bool)
+            or not math.isfinite(diagnostic[key])
+            for key in ("target_norm_min", "target_norm_max", "head_norm_min", "head_norm_max")
+        )
+        or not 1e-6 < diagnostic["target_norm_min"] <= diagnostic["target_norm_max"]
+        or not 0 <= diagnostic["head_norm_min"] <= diagnostic["head_norm_max"]
+    ):
+        raise ValueError("invalid direction objective norm audit")
+
+
+def validate_calibration(config_path: Path, calibration: dict, arm: str = "R14-FRGA") -> None:
     root = Path(__file__).resolve().parents[2]
-    probe_path = (
-        root / "configs/v2/response_anchor_20261028/calibration/gradpert_v2/nadig_jurkat.yaml"
-    )
-    decision = json.loads(
-        (root / "configs/v2/response_anchor_20261028/CALIBRATION_DECISION.json").read_text()
-    )
+    probe_path, decision_path, mode = recipe(root, arm)
+    decision = json.loads(decision_path.read_text())
     raw = yaml.safe_load(config_path.read_text())
     p = raw["model"]["parameters"]
+    actual_mode = p.get("response_anchor_loss", {"value": "mse"})["value"]
+    if actual_mode != mode:
+        raise ValueError("execution arm differs from the configured objective")
+    if mode == "cosine_direction":
+        diagnostic = calibration.get("direction_diagnostics", {})
+        validate_direction_diagnostics(diagnostic)
+        if (
+            decision.get("arm") != arm
+            or decision.get("response_anchor_loss") != mode
+            or calibration.get("response_anchor_loss") != mode
+        ):
+            raise ValueError("direction fit requires its own complete initialization calibration")
     if (
         not calibration.get("calibration_complete")
         or not calibration.get("state_restored")
@@ -74,6 +123,7 @@ def validate_calibration(config_path: Path, calibration: dict) -> None:
             manifest_sha256=p["response_anchor_sha256"]["value"],
             arrays_sha256=p["response_anchor_arrays_sha256"]["value"],
             weight=calibration["selected_weight"],
+            loss_mode=mode,
         )
     ):
         raise ValueError("fit config must equal the single calibrated RI+anchor recipe")
@@ -104,10 +154,10 @@ def execute(spec_path: Path, digest: str) -> None:
     if source.commit != spec["source_commit"] or spec["gpu"] != "0,1":
         raise ValueError("anchor source/world differs")
     calibration = json.loads(calibration_path.read_text())
-    validate_calibration(config_path, calibration)
-    decision = json.loads(
-        (root / "configs/v2/response_anchor_20261028/CALIBRATION_DECISION.json").read_text()
-    )
+    arm = spec.get("arm", "R14-FRGA")
+    validate_calibration(config_path, calibration, arm)
+    _, decision_path, mode = recipe(root, arm)
+    decision = json.loads(decision_path.read_text())
     if spec["calibration"]["sha256"] != decision["calibration_complete_sha256"]:
         raise ValueError("execution requires the exact frozen calibration endpoint")
     if calibration["resource_policy_sha256"] != spec["policy"]["sha256"]:
@@ -150,7 +200,7 @@ def execute(spec_path: Path, digest: str) -> None:
                     "shared_gpu_policy": policy,
                     "rows": [
                         {
-                            "name": "R14-FRGA",
+                            "name": arm,
                             "plan": {
                                 "config": str(config_path),
                                 "config_sha256": spec["config"]["sha256"],
@@ -175,7 +225,7 @@ def execute(spec_path: Path, digest: str) -> None:
                 "--data-root",
                 spec["data_root"],
                 "--output",
-                str(output / "R14-FRGA-preflight"),
+                str(output / f"{arm}-preflight"),
                 "--gpu",
                 "0,1",
                 "--publication",
@@ -214,6 +264,10 @@ def execute(spec_path: Path, digest: str) -> None:
             probe = json.loads(Path(spec["preflight"]["path"]).read_text())
             if not probe.get("response_anchor_gate", {}).get("passed"):
                 raise ValueError("fit requires the native complete40/full-state anchor preflight")
+            if mode == "cosine_direction":
+                validate_direction_diagnostics(
+                    probe["response_anchor_gate"].get("direction_diagnostics", {})
+                )
             command = [
                 sys.executable,
                 "-m",
@@ -286,7 +340,7 @@ def execute(spec_path: Path, digest: str) -> None:
             expected_publication_receipt_sha256=spec["publication"]["sha256"],
         )
         native = (
-            (output / "R14-FRGA-preflight/receipt.json")
+            (output / f"{arm}-preflight/receipt.json")
             if spec["stage"] == "preflight"
             else (Path(plan["run_root"]) / "TRAIN_COMPLETE.json")
         )

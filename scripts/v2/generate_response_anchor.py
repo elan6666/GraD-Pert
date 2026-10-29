@@ -14,11 +14,20 @@ from gradpert.hashing import sha256_file
 PARENT = "configs/v2/representation_round3_20261023/R3-RI/gradpert_v2/nadig_jurkat.yaml"
 PARENT_SHA256 = "65304a02704561f9fbe3addb7be335fc88a51688f9cef69941ac81d1a920a4f7"
 REFERENCE = "docs/experiments/RESPONSE_GROUP_ANCHOR_20261028.md"
+DIRECTION_REFERENCE = "docs/experiments/RESPONSE_ANCHOR_DIRECTION_20261029.md"
 
 
 def configuration(
-    root: Path, *, bank_path: str, manifest_sha256: str, arrays_sha256: str, weight: float
+    root: Path,
+    *,
+    bank_path: str,
+    manifest_sha256: str,
+    arrays_sha256: str,
+    weight: float,
+    loss_mode: str = "mse",
 ) -> dict:
+    if loss_mode not in {"mse", "cosine_direction"}:
+        raise ValueError("unknown response anchor objective")
     parent = root / PARENT
     if sha256_file(parent) != PARENT_SHA256:
         raise ValueError("R3-RI reference recipe changed")
@@ -35,6 +44,12 @@ def configuration(
             "source": "project_preregistered",
             "reference": REFERENCE,
         }
+    if loss_mode == "cosine_direction":
+        value["model"]["parameters"]["response_anchor_loss"] = {
+            "value": loss_mode,
+            "source": "project_preregistered",
+            "reference": DIRECTION_REFERENCE,
+        }
     return value
 
 
@@ -44,6 +59,7 @@ def main() -> None:
     parser.add_argument("--manifest-sha256", required=True)
     parser.add_argument("--arrays-sha256", required=True)
     parser.add_argument("--weight", required=True, type=float)
+    parser.add_argument("--loss-mode", choices=("mse", "cosine_direction"), default="mse")
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     if args.output.exists():
@@ -54,6 +70,7 @@ def main() -> None:
         manifest_sha256=args.manifest_sha256,
         arrays_sha256=args.arrays_sha256,
         weight=args.weight,
+        loss_mode=args.loss_mode,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("x") as stream:

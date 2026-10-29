@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import importlib.util
 import random
@@ -751,10 +752,12 @@ def test_actual_relay_randomize_order_restored_beyond_native_context():
     attention.randomize_order = False
     with native.preserved_calibration(rt):
         attention.randomize_order = True
-    assert attention.randomize_order is True
+    # Current calibration now preserves this flag too. Frozen R14 native code
+    # did not; the analysis wrapper must still tolerate that historical context.
+    assert attention.randomize_order is False
     attention.randomize_order = False
     before = probe.constant_state(rt)
-    with probe.preserved_probe(rt, native.preserved_calibration):
+    with probe.preserved_probe(rt, lambda runtime: contextlib.nullcontext()):
         attention.randomize_order = True
     assert attention.randomize_order is False
     assert probe.constant_state(rt) == before

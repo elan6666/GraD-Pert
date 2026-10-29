@@ -76,8 +76,39 @@ class ResponseAnchorController:
             )
         ):
             raise ValueError("response anchor single-target identity is not the native graph gene")
+        mode = getattr(runtime.options, "response_anchor_loss", "mse")
+        if mode not in ("mse", "cosine_direction"):
+            raise ValueError("response anchor loss must be mse or cosine_direction")
+        if mode == "cosine_direction":
+            norms = torch.linalg.vector_norm(
+                torch.from_numpy(bank.condition_targets.copy()).float(), dim=1
+            )
+            if not torch.isfinite(norms).all() or bool((norms <= 1e-6).any()):
+                raise ValueError("cosine direction bank target norms must be finite and >1e-6")
+            self._direction_targets = {
+                "response_anchor_loss": mode,
+                "eps": 1e-6,
+                "target_count": len(norms),
+                "target_norm_min": float(norms.min()),
+                "target_norm_max": float(norms.max()),
+                "target_clamped_count": int((norms <= 1e-6).sum()),
+            }
+            self._direction_diagnostics: dict[str, float] = {}
         self.world = torch.distributed.get_world_size() if torch.distributed.is_initialized() else 1
         self.rank = torch.distributed.get_rank() if torch.distributed.is_initialized() else 0
+
+    def direction_summary(self) -> dict[str, str | float | int | None]:
+        """Return local scalar observations only; they never control loss or sampling."""
+        if not hasattr(self, "_direction_targets"):
+            return {}
+        return {
+            **self._direction_targets,
+            "head_observation_count": 0,
+            "head_norm_min": None,
+            "head_norm_max": None,
+            "head_clamped_count": 0,
+            **self._direction_diagnostics,
+        }
 
     def groups(self, step: int) -> tuple[int, ...]:
         if type(step) is not int or step < 0:
@@ -155,6 +186,8 @@ class ResponseAnchorController:
                     outputs["response_cls"],
                     target,
                     runtime.objective.student.response_anchor_readout,
+                    getattr(runtime.options, "response_anchor_loss", "mse"),
+                    diagnostics=getattr(self, "_direction_diagnostics", None),
                 )
         if not torch.isfinite(loss):
             raise FloatingPointError("nonfinite response anchor group loss")

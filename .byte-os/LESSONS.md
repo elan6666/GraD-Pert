@@ -249,6 +249,11 @@ Confirmed 2026-10-02/03: training/CLI/schema accepted v2_fixed_6, but result col
   scheduled run sees the current stage instead of an older status snapshot.
   Stop only at a genuine external wait, unresolved blocker, or completed
   overall outcome.
+- A stale per-run heartbeat is not an overall pause: reject its obsolete scope,
+  then resume the current main-owned ready dependency. On 2026-10-29, answering
+  only that the old R14 reminder was paused left the authorized representation
+  loop idle. The continuation check must run before yielding an unfinished
+  iteration; recording an active next action is not execution.
 - Status: active
 # Ratio descriptions must name their scope
 

@@ -743,36 +743,50 @@ def prepare_runtime(
             allowed_expression_ids,
             purpose,
         )
-        if options.response_anchor_weight:
-            from .response_anchor_runtime import ResponseAnchorController, load_response_bank
-
-            objective.response_anchor_enabled = True
-            identity["response_anchor"] = {
-                "manifest_sha256": options.response_anchor_sha256,
-                "arrays_sha256": options.response_anchor_arrays_sha256,
-                "weight": options.response_anchor_weight,
-                "seed": options.response_anchor_seed,
-                "head": "Linear256_256_default_random_bias_true_private_rng",
-                "teacher_readout": "unused_ema_mirror_no_forward_or_target_values",
-                "schedule": "hash_permutation_step_i_mod_T_rank_floor_i_div_T_mod_world",
-            }
-            if purpose == "training":
-                if allowed_expression_ids is None:
-                    raise ValueError("response anchor requires the frozen expression holdout")
-                bank = load_response_bank(
-                    options.response_anchor_path,
-                    options.response_anchor_sha256,
-                    allowed_expression_ids,
-                )
-                manifest_digest = (
-                    sha256_json(data.manifest.payload())
-                    if hasattr(data.manifest, "payload")
-                    else sha256_file(data.layout.canonical_manifest)
-                )
-                if bank.identity.get("data_manifest") != manifest_digest:
-                    raise ValueError("response anchor canonical manifest identity differs")
-                if bank.arrays_sha256 != options.response_anchor_arrays_sha256:
-                    raise ValueError("response anchor array identity differs from configuration")
-                controller = ResponseAnchorController(runtime, bank)
-                objective.response_anchor_backward = controller.backward
+        _configure_response_anchor(runtime)
         yield runtime
+
+
+def _configure_response_anchor(runtime: Runtime) -> None:
+    """Bind the optional native branch without reading the TRAIN bank in evaluation."""
+    options, objective, identity = runtime.options, runtime.objective, runtime.identity
+    data, purpose = runtime.data, runtime.purpose
+    allowed_expression_ids = runtime.allowed_expression_ids
+    if options.response_anchor_weight:
+        from .response_anchor_runtime import ResponseAnchorController, load_response_bank
+
+        objective.response_anchor_enabled = True
+        identity["response_anchor"] = {
+            "manifest_sha256": options.response_anchor_sha256,
+            "arrays_sha256": options.response_anchor_arrays_sha256,
+            "weight": options.response_anchor_weight,
+            "seed": options.response_anchor_seed,
+            "head": "Linear256_256_default_random_bias_true_private_rng",
+            "teacher_readout": "unused_ema_mirror_no_forward_or_target_values",
+            "schedule": "hash_permutation_step_i_mod_T_rank_floor_i_div_T_mod_world",
+        }
+        if options.response_anchor_loss == "cosine_direction":
+            identity["response_anchor"].update(
+                loss="cosine_direction",
+                direction_epsilon=1e-6,
+                direction_formula="1-dot(normalize_fp32(Linear(mean_group_cls)),normalize_fp32_fixed_target)",
+            )
+        if purpose == "training":
+            if allowed_expression_ids is None:
+                raise ValueError("response anchor requires the frozen expression holdout")
+            bank = load_response_bank(
+                options.response_anchor_path,
+                options.response_anchor_sha256,
+                allowed_expression_ids,
+            )
+            manifest_digest = (
+                sha256_json(data.manifest.payload())
+                if hasattr(data.manifest, "payload")
+                else sha256_file(data.layout.canonical_manifest)
+            )
+            if bank.identity.get("data_manifest") != manifest_digest:
+                raise ValueError("response anchor canonical manifest identity differs")
+            if bank.arrays_sha256 != options.response_anchor_arrays_sha256:
+                raise ValueError("response anchor array identity differs from configuration")
+            controller = ResponseAnchorController(runtime, bank)
+            objective.response_anchor_backward = controller.backward

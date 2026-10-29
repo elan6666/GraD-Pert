@@ -496,6 +496,7 @@ class V2Options:
     response_anchor_arrays_sha256: str = ""
     response_anchor_weight: float = 0.0
     response_anchor_seed: int = 20261028
+    response_anchor_loss: str = "mse"
 
     @classmethod
     def parse_parameters(cls, values: dict[str, Any]) -> tuple[V2Architecture, V2Options]:
@@ -602,6 +603,7 @@ class V2Options:
             "response_anchor_arrays_sha256",
             "response_anchor_weight",
             "response_anchor_seed",
+            "response_anchor_loss",
         }
         required = (arch_names | names) - optional
         if not required <= set(values) or set(values) - (arch_names | names):
@@ -621,6 +623,8 @@ class V2Options:
         return arch, options
 
     def __post_init__(self) -> None:
+        if self.response_anchor_loss not in ("mse", "cosine_direction"):
+            raise ValueError("response_anchor_loss must be mse or cosine_direction")
         weight = self.response_anchor_weight
         if (
             isinstance(weight, bool)

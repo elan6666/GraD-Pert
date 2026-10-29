@@ -327,6 +327,24 @@ def test_pending_buffers_modes_rng_and_existing_gradients_restored_on_error(fail
     assert validation_state(runtime) == before
 
 
+@pytest.mark.parametrize("failure", [False, True])
+def test_calibration_restores_actual_and_legacy_relay_order_flags(failure):
+    runtime, _, _ = _runtime()
+    module = runtime.objective.student.response
+    module.randomize_order = False
+    module.randomize_relay_order = True
+    try:
+        with preserved_calibration(runtime):
+            module.randomize_order = True
+            module.randomize_relay_order = False
+            if failure:
+                raise LookupError("interrupted calibration")
+    except LookupError:
+        assert failure
+    assert module.randomize_order is False
+    assert module.randomize_relay_order is True
+
+
 def test_short_epoch_and_existing_optimizer_step_rejected():
     runtime, controller, _ = _runtime(count=7)
     with pytest.raises(ValueError):

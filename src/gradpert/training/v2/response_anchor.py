@@ -289,8 +289,17 @@ def group_loss_coefficient(
     return result
 
 
-def group_mean_loss(z: Tensor, target: Tensor, head: nn.Linear) -> Tensor:
-    """MSE after the complete group mean; the fixed target is stop-gradient."""
+def group_mean_loss(
+    z: Tensor,
+    target: Tensor,
+    head: nn.Linear,
+    loss_mode: str = "mse",
+    *,
+    diagnostics: dict[str, float] | None = None,
+) -> Tensor:
+    """Read out the complete group mean once; the fixed target is stop-gradient."""
+    if loss_mode not in ("mse", "cosine_direction"):
+        raise ValueError("response anchor loss must be mse or cosine_direction")
     if (
         z.ndim != 2
         or not 4 <= z.shape[0] <= 40
@@ -307,7 +316,32 @@ def group_mean_loss(z: Tensor, target: Tensor, head: nn.Linear) -> Tensor:
         or head.weight.device != z.device
     ):
         raise ValueError("loss requires finite aligned complete [4..40,D] group and linear head")
-    loss = F.mse_loss(head(z.mean(0)), target.detach())
+    if loss_mode == "mse":
+        loss = F.mse_loss(head(z.mean(0)), target.detach())
+    else:
+        # Keep the original mean and Linear autocast precision. Only direction
+        # normalization and the dot product use FP32, after the single readout.
+        output = head(z.mean(0))
+        with torch.autocast(z.device.type, enabled=False):
+            fixed = target.detach().float()
+            target_norm = torch.linalg.vector_norm(fixed)
+            if not torch.isfinite(target_norm) or target_norm <= 1e-6:
+                raise ValueError("cosine direction target norm must be finite and >1e-6")
+            output = output.float()
+            output_norm = torch.linalg.vector_norm(output)
+            if not torch.isfinite(output_norm):
+                raise ValueError("nonfinite cosine direction head output norm")
+            loss = 1 - torch.dot(
+                output / output_norm.clamp_min(1e-6), fixed / target_norm.clamp_min(1e-6)
+            )
+        if diagnostics is not None:
+            value = float(output_norm.detach())
+            diagnostics["head_observation_count"] = diagnostics.get("head_observation_count", 0) + 1
+            diagnostics["head_norm_min"] = min(diagnostics.get("head_norm_min", value), value)
+            diagnostics["head_norm_max"] = max(diagnostics.get("head_norm_max", value), value)
+            diagnostics["head_clamped_count"] = diagnostics.get("head_clamped_count", 0) + int(
+                value < 1e-6
+            )
     if not torch.isfinite(loss):
         raise ValueError("nonfinite group mean loss")
     return loss

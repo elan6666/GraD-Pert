@@ -180,7 +180,16 @@ def preserved_calibration(runtime: Any) -> Iterator[None]:
     generator = copy.deepcopy(runtime.generator.bit_generator.state)
     pending = copy.deepcopy(objective.pending)
     modes = [
-        (m, m.training, getattr(m, "randomize_relay_order", None)) for m in objective.modules()
+        (
+            m,
+            m.training,
+            {
+                key: getattr(m, key)
+                for key in ("randomize_relay_order", "randomize_order")
+                if hasattr(m, key)
+            },
+        )
+        for m in objective.modules()
     ]
     buffers = [(buffer, buffer.detach().clone()) for buffer in objective.buffers()]
     grads = [
@@ -209,10 +218,10 @@ def preserved_calibration(runtime: Any) -> Iterator[None]:
         torch.set_rng_state(rng[2])
         if rng[3] is not None:
             torch.cuda.set_rng_state_all(rng[3])
-        for module, mode, order in modes:
+        for module, mode, orders in modes:
             module.training = mode
-            if order is not None:
-                module.randomize_relay_order = order
+            for key, value in orders.items():
+                setattr(module, key, value)
         for name in ("control_only_training",):
             if name in flags:
                 setattr(runtime.data, name, flags[name])
@@ -348,6 +357,10 @@ def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) 
     result["rank"] = rank
     result["forward_precision"] = "bfloat16_autocast" if bf16 else "float32"
     result["ordered_batch_metadata_sha256"] = sha256_json(metadata)
+    if getattr(runtime.options, "response_anchor_loss", "mse") == "cosine_direction":
+        result["response_anchor_loss"] = "cosine_direction"
+        result["direction_diagnostics"] = controller.direction_summary()
+        result["direction_diagnostics_scope"] = "this_rank_controller_lifetime_not_rank_sum"
     return result
 
 
