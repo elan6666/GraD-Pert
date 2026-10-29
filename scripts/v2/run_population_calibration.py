@@ -9,6 +9,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 from gradpert.config import load_experiment_config
 from gradpert.config.v2 import V2Options
@@ -72,12 +73,53 @@ IDENTITY_FIELDS = ("pid", "uid", "start_ticks", "command_sha256")
 DRAIN_SECONDS = 30.0
 
 
+def require_deterministic_route_audit(audit: dict[str, Any]) -> None:
+    metadata = audit.get("deterministic_audit", {})
+    if (
+        metadata.get("scope") != "route_audit_only_not_norms_or_fit"
+        or metadata.get("cuda") is not True
+        or metadata.get("cublas_workspace_config") not in (":4096:8", ":16:8")
+        or metadata.get("inside") != {"enabled": True, "warn_only": False}
+        or set(metadata.get("before", {})) != {"enabled", "warn_only"}
+        or any(type(v) is not bool for v in metadata.get("before", {}).values())
+        or metadata.get("restored") != metadata.get("before")
+        or metadata.get("settings_restored") is not True
+        or "failure" in metadata
+        or audit.get("additional_audit_replays") != 2
+        or audit.get("group_replays") != 5
+        or audit.get("replay_norms_included_in_first_eight") is not False
+    ):
+        raise ValueError("protected population deterministic audit metadata differs")
+    repeats = audit.get("repeatability_comparisons", {})
+    if set(repeats) != {"true_true", "false_false"}:
+        raise ValueError("protected population repeatability routes differ")
+    for reports in repeats.values():
+        if set(reports) != {"input", "response"}:
+            raise ValueError("protected population repeatability scopes differ")
+        for report in reports.values():
+            if (
+                report.get("atol") != 2e-6
+                or report.get("rtol") != 0
+                or report.get("tensor_count", 0) <= 0
+                or any(
+                    report.get(k) != 0
+                    for k in ("missing_mismatch", "shape_mismatch", "nonfinite_tensors")
+                )
+                or not math.isfinite(report.get("max_abs", math.inf))
+                or not 0 <= report["max_abs"] <= 2e-6
+            ):
+                raise ValueError("protected population repeatability gradient gate differs")
+
+
 def require_head_route_audit(result, options):
     """Historical default receipts stay valid; protected heads require all-rank proof."""
     if getattr(options, "response_anchor_prediction_head_grad", True) is not False:
         return
     route = "gpm_head_parameters_detached_preserve_input_jacobian"
     audits = result.get("population_head_route_audit_ranks")
+    if isinstance(audits, list):
+        for audit in audits:
+            require_deterministic_route_audit(audit)
     if (
         result.get("response_anchor_prediction_head_grad") is not False
         or result.get("gradient_routing") != route

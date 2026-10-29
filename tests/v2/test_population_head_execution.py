@@ -31,6 +31,22 @@ def audit():
     # Synthetic server receipt shape; native CPU comparisons above were exact.
     for row in result["gradient_comparisons"].values():
         row["atol"] = 2e-6
+    # Contract fixture only: actual CUDA execution is a separate native gate.
+    result["deterministic_audit"] = dict(
+        scope="route_audit_only_not_norms_or_fit",
+        cuda=True,
+        cublas_workspace_config=":4096:8",
+        before=dict(enabled=False, warn_only=False),
+        inside=dict(enabled=True, warn_only=False),
+        restored=dict(enabled=False, warn_only=False),
+        settings_restored=True,
+    )
+    result["group_replays"] = 5
+    result["additional_audit_replays"] = 2
+    result["repeatability_comparisons"] = {
+        route: copy.deepcopy(result["gradient_comparisons"])
+        for route in ("true_true", "false_false")
+    }
     return result
 
 

@@ -214,6 +214,22 @@ def test_launcher_requires_protected_audit_from_both_ranks_only():
     # actual CPU audit above continues to require exact equality.
     audit["gradient_comparisons"]["response"]["atol"] = 2e-6
     audit["gradient_comparisons"]["input"]["atol"] = 2e-6
+    # Synthetic CUDA contract fixture only; this does not execute CUDA.
+    audit["deterministic_audit"] = dict(
+        scope="route_audit_only_not_norms_or_fit",
+        cuda=True,
+        cublas_workspace_config=":4096:8",
+        before=dict(enabled=False, warn_only=False),
+        inside=dict(enabled=True, warn_only=False),
+        restored=dict(enabled=False, warn_only=False),
+        settings_restored=True,
+    )
+    audit["group_replays"] = 5
+    audit["additional_audit_replays"] = 2
+    audit["repeatability_comparisons"] = {
+        route: copy.deepcopy(audit["gradient_comparisons"])
+        for route in ("true_true", "false_false")
+    }
     result = dict(
         response_anchor_prediction_head_grad=False,
         gradient_routing=audit["gradient_routing"],
@@ -221,6 +237,10 @@ def test_launcher_requires_protected_audit_from_both_ranks_only():
     )
     require_head_route_audit({}, SimpleNamespace(response_anchor_prediction_head_grad=True))
     require_head_route_audit(result, runtime.options)
+    missing = copy.deepcopy(result)
+    del missing["population_head_route_audit_ranks"][0]["deterministic_audit"]
+    with pytest.raises(ValueError):
+        require_head_route_audit(missing, runtime.options)
     for field in ("complete", "input_gradient_equal", "primary_head_gradient_preserved"):
         bad = copy.deepcopy(result)
         bad["population_head_route_audit_ranks"][1][field] = False

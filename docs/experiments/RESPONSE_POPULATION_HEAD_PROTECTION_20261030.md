@@ -119,26 +119,3 @@ inverse-Softplus decoding requires resolving the zero-expression identity,
 nonnegative output and induction-gradient tradeoff; no epsilon is selected in
 this trial. No extra masks, output activation, variance/rank/contrastive loss or
 Teacher schedule is stacked onto the gradient-route intervention.
-
-## first8-calibration-only
-
-The parameter provenance fragment names the sole source of the weight: the
-original first-eight calibration rule. The published initialization probe uses
-weight1 only to measure unit auxiliary gradients; a final fit config must contain
-the actual frozen calibrated weight and its decision receipt. This reference
-does not prescribe weight1 for formal fitting.
-
-## Initial native audit failure and bounded instrumentation
-
-Calibration attempt1 at source d6d105e67a4e01416b9cb0c26a414dba76835aef
-failed on both ranks before completion: Response-gradient maximum absolute
-difference .0001220703125 exceeded the preregistered2e-6 bound. No fit was
-started and this receipt is not usable as calibration acceptance. The original
-source/config/run and zero-PKL failure are retained. The cause is unresolved.
-
-The next source adds failure-only repeatability instrumentation: one extra replay
-per route, each under the existing protected state/private RNG context. Record
-within-default, within-protected and cross-route scalar comparison summaries,
-then raise the same original failure. Do not change tolerances, selected first
-eight measurements, the lambda rule, or normal successful receipt semantics.
-These summaries are diagnostic evidence rather than acceptance criteria.

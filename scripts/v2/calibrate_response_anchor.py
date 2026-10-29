@@ -15,6 +15,7 @@ import os
 import random
 import statistics
 import sys
+import traceback
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, is_dataclass, replace
@@ -187,10 +188,62 @@ def _calibration_failure_payload(error: Exception, run_id: str) -> dict[str, Any
     )
     if hasattr(error, "population_head_route_diagnostic"):
         result["population_head_route_diagnostic"] = error.population_head_route_diagnostic
+    if hasattr(error, "population_head_route_deterministic_audit"):
+        result["population_head_route_deterministic_audit"] = (
+            error.population_head_route_deterministic_audit
+        )
     return result
 
 
-def audit_population_head_route(
+@contextmanager
+def head_route_deterministic_context(device: Any) -> Iterator[dict[str, Any]]:
+    """Strict CUDA audit only; restore both process settings even on kernel failure."""
+
+    def state() -> dict[str, bool]:
+        return dict(
+            enabled=torch.are_deterministic_algorithms_enabled(),
+            warn_only=torch.is_deterministic_algorithms_warn_only_enabled(),
+        )
+
+    before = state()
+    cuda = device.type == "cuda"
+    metadata: dict[str, Any] = dict(
+        scope="route_audit_only_not_norms_or_fit",
+        cuda=cuda,
+        cublas_workspace_config=os.environ.get("CUBLAS_WORKSPACE_CONFIG"),
+        before=before,
+    )
+    try:
+        if cuda:
+            if metadata["cublas_workspace_config"] not in (":4096:8", ":16:8"):
+                raise ValueError("CUDA route audit requires legal CUBLAS_WORKSPACE_CONFIG")
+            torch.use_deterministic_algorithms(True, warn_only=False)
+        metadata["inside"] = state()
+        yield metadata
+    except BaseException as error:
+        metadata["failure"] = dict(
+            error_type=type(error).__name__,
+            error=str(error),
+            original_traceback=traceback.format_exc(),
+            first_reported_operation=str(error),
+        )
+        error.__dict__["population_head_route_deterministic_audit"] = metadata
+        raise
+    finally:
+        if cuda:
+            torch.use_deterministic_algorithms(before["enabled"], warn_only=before["warn_only"])
+        metadata["restored"] = state()
+        metadata["settings_restored"] = metadata["restored"] == before
+
+
+def audit_population_head_route(runtime: Any, *args: Any, **kwargs: Any) -> dict[str, Any]:
+    with head_route_deterministic_context(runtime.device) as metadata:
+        result = _audit_population_head_route(runtime, *args, **kwargs)
+    result["deterministic_audit"] = metadata
+    return result
+
+
+def _audit_population_head_route(
     runtime: Any,
     controller: Any,
     batch: Any,
@@ -324,6 +377,26 @@ def audit_population_head_route(
             "population_head_route_diagnostic=" + json.dumps(diagnostic, sort_keys=True)
         )
         raise
+    repeatability: dict[str, Any] = {}
+    replay_cases = (
+        (("false_false", protected, True), ("true_true", reference, False))
+        if runtime.device.type == "cuda"
+        else ()
+    )
+    for label, baseline, route in replay_cases:
+        repeated = replay(route)
+        if any(not torch.equal(baseline[name], repeated[name]) for name in ("score", "loss")):
+            raise ValueError(f"{label} native head score/loss replay differs")
+        repeatability[label] = {}
+        for scope in ("input", "response"):
+            left = (baseline[scope],) if scope == "input" else baseline[scope]
+            right = (repeated[scope],) if scope == "input" else repeated[scope]
+            repeatability[label][scope] = compare_head_audit_gradients(
+                left,
+                right,
+                atol=_CUDA_RESPONSE_GRADIENT_ATOL if runtime.device.type == "cuda" else 0.0,
+            )
+        del repeated
     if any(
         g is not None and (not torch.isfinite(g).all() or torch.count_nonzero(g))
         for g in protected["head"]
@@ -355,7 +428,10 @@ def audit_population_head_route(
         gradient_routing=_PROTECTED_ROUTE,
         condition_index=condition,
         epoch=0,
-        group_replays=3,
+        group_replays=3 + len(replay_cases),
+        additional_audit_replays=len(replay_cases),
+        replay_norms_included_in_first_eight=False,
+        repeatability_comparisons=repeatability,
         head_score_and_loss_equal=True,
         input_gradient_equal=True,
         response_gradient_equal=True,
