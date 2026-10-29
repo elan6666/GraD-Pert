@@ -1,8 +1,8 @@
-## 2026-10-29：R15-DIR 单项方向目标实现，正在发布与原生校准
+## 2026-10-29：R15-DIR 原生零更新校准通过，正在发布最终配方与预检
 
 总体目标仍为任务相关表征与真实预测共同改善，尚未解决。R14 的完整 TRAIN40 A2 零更新诊断已原生验收并追加到实验平台；旧失败记录、val445、medium/crossed 与原 checkpoint 不变。方向/幅值控制后 RSA 不保持，且没有普遍强梯度对冲证据，因此本轮仅替换群体辅助 MSE 为原读出后的 cosine direction；不预称消除 CLS 幅度信息。
 
-新候选 `R15-DIR` 保留原 fixed bank、1322 条件、4775 表达列、RI 架构/主预测/蒸馏/随机流/组调度与两轮300更新/global320；原 R3-RI、R14 checkpoint 直接复用，不重训基线。新 loss 的 λ 必须按同 first-eight 初始化规则重新零更新校准，单独封存并发布最终自包含配置后，才可通过原生10步/恢复门再启动训练。当前 unit-weight config 只用于校准，尚非可训练完成的结果。详见 `docs/experiments/RESPONSE_ANCHOR_DIRECTION_20261029.md`。精确执行状态仍由 v2-gene-exposure-eval 工作树的 `.byte-os/coordination/state.json` 管理；旧消融暂停，不读取 test 调参。
+新候选 `R15-DIR` 保留原 fixed bank、1322 条件、4775 表达列、RI 架构/主预测/蒸馏/随机流/组调度与两轮300更新/global320；原 R3-RI、R14 checkpoint 直接复用，不重训基线。新 loss 的 λ 必须按同 first-eight 初始化规则重新零更新校准，单独封存并发布最终自包含配置后，才可通过原生10步/恢复门再启动训练。unit-weight config只用于校准。双rank原生first8零更新校准attempt2已主核验；新λ=0.04871788142525519，原生COMPLETE SHA1cf9a081e1cdb51c7e4ce0a92c3458b1cb342591239bcb1a4dcae7c19879ef6b；全部1322targets有效，两rank head观测40/32均无clamp。新最终自包含配方及决策已封存，仍须新匹配源码与原生10步/恢复门后才可fit。attempt1发布凭据方法不匹配的启动失败保留。详见 `docs/experiments/RESPONSE_ANCHOR_DIRECTION_20261029.md`。精确执行状态仍由 v2-gene-exposure-eval 工作树的 `.byte-os/coordination/state.json` 管理；旧消融暂停，不读取 test 调参。
 
 ## 2026-10-17：性能原生复测与PT2预检通过，2+4正式训练已启动
 
