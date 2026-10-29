@@ -1,0 +1,138 @@
+{
+  "schema": "r15-medium-frozen-metadata-registry-1",
+  "job": "/data/yilangliu/GraD-Pert/development/response-direction-medium-d3f3122-20261029-a1",
+  "python": "/data/yilangliu/GraD-Pert/source/.venv/bin/python",
+  "spec": {
+    "schema": "response-anchor-direct-medium-r15-spec-v1",
+    "name": "R15-DIR",
+    "analysis_source": {
+      "root": "/data/yilangliu/GraD-Pert/development/source-response-direction-postfit-d3f3122-20261029-a3",
+      "commit": "d3f31221cdcba04f9d179f782cb6f15f3589188c",
+      "publication": "/data/yilangliu/GraD-Pert/development/response-direction-postfit-readiness-d3f3122-20261029-a3/SOURCE_PUBLICATION.json",
+      "publication_sha256": "ee27152742de9e81ab8027233bd1120a1d57e5fe7092ef3374b52c71aed2000c"
+    },
+    "native_source": {
+      "root": "/data/yilangliu/GraD-Pert/development/source-response-anchor-direction-aa65a42-20261029-a1",
+      "commit": "aa65a42554d2f971adf0419bc1421e43c5a335d6",
+      "publication": "/data/yilangliu/GraD-Pert/development/response-anchor-direction-preflight-aa65a42-20261029-a1/PUBLICATION.json",
+      "publication_sha256": "0beaaa477ceb49dc84ca94eee2d7fe5497db1d564a1429bd4d2e0b90ab64a352"
+    },
+    "run_root": "/data/yilangliu/GraD-Pert/development/response-anchor-direction-fit-aa65a42-20261029-a1/runs/nadig_jurkat-seed1-20261029T060845Z-dfd3b38f8dd54930807c0063d9c0ebf0",
+    "run_manifest": {
+      "path": "/data/yilangliu/GraD-Pert/development/response-anchor-direction-fit-aa65a42-20261029-a1/runs/nadig_jurkat-seed1-20261029T060845Z-dfd3b38f8dd54930807c0063d9c0ebf0/run_manifest.json",
+      "sha256": "920767722f6392e2a2caba16b40a0784ece45fac2e3e27c3a5ef22ebfde7006a"
+    },
+    "resolved_config": {
+      "path": "/data/yilangliu/GraD-Pert/development/response-anchor-direction-fit-aa65a42-20261029-a1/runs/nadig_jurkat-seed1-20261029T060845Z-dfd3b38f8dd54930807c0063d9c0ebf0/resolved_config.json",
+      "sha256": "deea2638b4fb6a28bbd3106eee3db12e3b338f707e2a9855caac42e3be52166b"
+    },
+    "config": {
+      "path": "/data/yilangliu/GraD-Pert/development/source-response-anchor-direction-aa65a42-20261029-a1/configs/v2/response_anchor_direction_20261029/R15-DIR/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "4f50d4848d9f4ac2f19f81b5b44ab33d5371e1c327b2911023ba64f61c9519e7"
+    },
+    "journal": {
+      "path": "/data/yilangliu/GraD-Pert/development/response-anchor-direction-fit-aa65a42-20261029-a1/runs/nadig_jurkat-seed1-20261029T060845Z-dfd3b38f8dd54930807c0063d9c0ebf0/fit/epoch_state.json",
+      "sha256": "f44343c80a4d14374606a059126967f183f1113c4e1ed0db1b9a7e1e39e674b4"
+    },
+    "checkpoint": {
+      "role": "last",
+      "epoch": 2,
+      "sha256": "86c25a83f43fbe6f7fba72c02ab743804b93124adcfa85fd78d13ed2be70e142"
+    },
+    "data_root": "/data/yilangliu/GraD-Pert/data-vnext-a942114",
+    "medium": {
+      "parent": {
+        "path": "/data/yilangliu/GraD-Pert/development/cap40-medium-47c0ba1-20261015/manifest/manifest.json",
+        "sha256": "19c814aac4642ae74b6d9d3d8830d0ca24a2725c8ecd112c7165f6d8fb87b1d8"
+      },
+      "performance": {
+        "path": "/data/yilangliu/GraD-Pert/development/medium-observer-c9efc24-20261015/COMPLETE.json",
+        "sha256": "aeccac2f41c3d112d5a5b9917c8d399bcc688d1c5ffed4ed98fb0854d47b2460"
+      },
+      "population_sha256": "afa9c95fa26dc19167e9919bc09c86a8d99f9446466de95a1efd613b1f93bd86",
+      "identity_changes": [
+        {
+          "path": "/response_anchor",
+          "before": {
+            "present": false
+          },
+          "after": {
+            "present": true,
+            "value": {
+              "manifest_sha256": "86901e2829d7964f41d39bc958d81f1b150584810861d98fa6fb1b4c5eaf012a",
+              "arrays_sha256": "28bc66a2b02f5435ee7fdec46be808461e1a33cd13fd9be35dd3d6a7bd21ff6d",
+              "weight": 0.04871788142525519,
+              "seed": 20261028,
+              "head": "Linear256_256_default_random_bias_true_private_rng",
+              "teacher_readout": "unused_ema_mirror_no_forward_or_target_values",
+              "schedule": "hash_permutation_step_i_mod_T_rank_floor_i_div_T_mod_world",
+              "loss": "cosine_direction",
+              "direction_epsilon": 1e-06,
+              "direction_formula": "1-dot(normalize_fp32(Linear(mean_group_cls)),normalize_fp32_fixed_target)"
+            }
+          }
+        }
+      ]
+    },
+    "panel": {
+      "population": {
+        "path": "/data/yilangliu/GraD-Pert/development/representation-round3-au-f0cb20e-20261023-a2/queue/R3-RI-panel/panel.json",
+        "sha256": "d4455c25a767218513f6967d744eb1867ad7f4161762473f3ea806ba5fc76c31"
+      },
+      "matched_views": {
+        "path": "/data/yilangliu/GraD-Pert/development/representation-round3-au-f0cb20e-20261023-a2/queue/R3-RI-panel/matched_expression_views.json",
+        "sha256": "a76b57ca79fb9855a41bb1f3c9dabb989631bd24cbcf97fafb106b84d2dccb6f"
+      }
+    },
+    "allowed_axis": {
+      "count": 4775,
+      "sha256": "50a508fcd24f37084cb51e71acf1b1db1756d3dbbe5301bd40a2c1b98c1b7b0f"
+    },
+    "resource_policy": {
+      "path": "/data/yilangliu/GraD-Pert/development/response-anchor-preflight-dc5233e-20261028-a2/RESOURCE_POLICY.json",
+      "sha256": "2a2adb50c25df9285ae7cba4b48856b671920175d4dad54014eec094b3ebaea2"
+    },
+    "resource_owner": null,
+    "output": "/data/yilangliu/GraD-Pert/development/response-direction-medium-d3f3122-20261029-a1/execution/R15-DIR",
+    "gpu": "0"
+  },
+  "metadata": {
+    "/data/yilangliu/GraD-Pert/development/response-anchor-preflight-dc5233e-20261028-a2/RESOURCE_POLICY.json": "2a2adb50c25df9285ae7cba4b48856b671920175d4dad54014eec094b3ebaea2",
+    "/data/yilangliu/GraD-Pert/development/representation-round3-au-f0cb20e-20261023-a2/queue/queue.json": "1d15fa1c24d77b9ed77d88c67da6caac1090f289626550138d96605bf3ec3d44",
+    "/data/yilangliu/GraD-Pert/development/cap40-medium-47c0ba1-20261015/manifest/manifest.json": "19c814aac4642ae74b6d9d3d8830d0ca24a2725c8ecd112c7165f6d8fb87b1d8",
+    "/data/yilangliu/GraD-Pert/development/medium-observer-c9efc24-20261015/COMPLETE.json": "aeccac2f41c3d112d5a5b9917c8d399bcc688d1c5ffed4ed98fb0854d47b2460",
+    "/data/yilangliu/GraD-Pert/development/representation-round3-au-f0cb20e-20261023-a2/queue/R3-RI-panel/panel.json": "d4455c25a767218513f6967d744eb1867ad7f4161762473f3ea806ba5fc76c31",
+    "/data/yilangliu/GraD-Pert/development/representation-round3-au-f0cb20e-20261023-a2/queue/R3-RI-panel/matched_expression_views.json": "a76b57ca79fb9855a41bb1f3c9dabb989631bd24cbcf97fafb106b84d2dccb6f",
+    "/data/yilangliu/GraD-Pert/development/response-anchor-postfit-7ae8824-20261028-a1/metadata-a1/SPEC.json": "8e69e4ff75a677b7aa0838499a1475b3fa8ebbd826ea0e32ee5887d34c7d07b0",
+    "/data/yilangliu/GraD-Pert/development/response-direction-postfit-readiness-d3f3122-20261029-a3/SOURCE_PUBLICATION.json": "ee27152742de9e81ab8027233bd1120a1d57e5fe7092ef3374b52c71aed2000c",
+    "/data/yilangliu/GraD-Pert/development/response-anchor-direction-preflight-aa65a42-20261029-a1/PUBLICATION.json": "0beaaa477ceb49dc84ca94eee2d7fe5497db1d564a1429bd4d2e0b90ab64a352",
+    "/data/yilangliu/GraD-Pert/development/response-anchor-direction-fit-aa65a42-20261029-a1/runs/nadig_jurkat-seed1-20261029T060845Z-dfd3b38f8dd54930807c0063d9c0ebf0/run_manifest.json": "920767722f6392e2a2caba16b40a0784ece45fac2e3e27c3a5ef22ebfde7006a",
+    "/data/yilangliu/GraD-Pert/development/response-anchor-direction-fit-aa65a42-20261029-a1/runs/nadig_jurkat-seed1-20261029T060845Z-dfd3b38f8dd54930807c0063d9c0ebf0/fit/epoch_state.json": "f44343c80a4d14374606a059126967f183f1113c4e1ed0db1b9a7e1e39e674b4",
+    "/data/yilangliu/GraD-Pert/development/source-response-anchor-direction-aa65a42-20261029-a1/configs/v2/response_anchor_direction_20261029/R15-DIR/gradpert_v2/nadig_jurkat.yaml": "4f50d4848d9f4ac2f19f81b5b44ab33d5371e1c327b2911023ba64f61c9519e7",
+    "/data/yilangliu/GraD-Pert/development/response-anchor-direction-fit-aa65a42-20261029-a1/runs/nadig_jurkat-seed1-20261029T060845Z-dfd3b38f8dd54930807c0063d9c0ebf0/resolved_config.json": "deea2638b4fb6a28bbd3106eee3db12e3b338f707e2a9855caac42e3be52166b"
+  },
+  "source_artifacts": {
+    "/data/yilangliu/GraD-Pert/development/source-response-direction-postfit-d3f3122-20261029-a3/scripts/v2/response_anchor_medium.py": "57ce27ce5fd8a648ba21456f6eb77e3f162d5bc3e5c3561ee7a035c68ea53435",
+    "/data/yilangliu/GraD-Pert/development/source-response-direction-postfit-d3f3122-20261029-a3/scripts/v2/response_anchor_postfit.py": "7585f80fb43bbef7505824a1a47e53c4c613188a5eca938622cfae4cd52b3ff8",
+    "/data/yilangliu/GraD-Pert/development/source-response-direction-postfit-d3f3122-20261029-a3/scripts/v2/shared_gpu.py": "4ae721777c941c8b60d93d4aa9569fc2896d28dfd944de3718d156b72827bae9",
+    "/data/yilangliu/GraD-Pert/development/source-response-direction-postfit-d3f3122-20261029-a3/scripts/v2/jobs/response_anchor_medium_20261029_a2/controller.py": "b5afedd39d90e7c8877aaa41d703c7ffa52dbcca2d117780d95a3dac831458b1"
+  },
+  "old_postfit": {
+    "path": "/data/yilangliu/GraD-Pert/development/response-anchor-postfit-7ae8824-20261028-a1/metadata-a1/SPEC.json",
+    "sha256": "8e69e4ff75a677b7aa0838499a1475b3fa8ebbd826ea0e32ee5887d34c7d07b0"
+  },
+  "queue": {
+    "path": "/data/yilangliu/GraD-Pert/development/representation-round3-au-f0cb20e-20261023-a2/queue/queue.json",
+    "sha256": "1d15fa1c24d77b9ed77d88c67da6caac1090f289626550138d96605bf3ec3d44"
+  },
+  "counts": {
+    "conditions": 1335,
+    "rows": 5317,
+    "deep_conditions": 128,
+    "deep_rows": 506,
+    "gradient_conditions": 32,
+    "gradient_rows": 125
+  },
+  "checkpoint_path": "/data/yilangliu/GraD-Pert/development/response-anchor-direction-fit-aa65a42-20261029-a1/runs/nadig_jurkat-seed1-20261029T060845Z-dfd3b38f8dd54930807c0063d9c0ebf0/fit/epoch-0002.pt",
+  "resolved_semantic_sha256": "52bc1682d722b25d17216eaac8d82a31945165bb73042dff12dcc67f7b21b6aa"
+}
