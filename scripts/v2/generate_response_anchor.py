@@ -15,6 +15,7 @@ PARENT = "configs/v2/representation_round3_20261023/R3-RI/gradpert_v2/nadig_jurk
 PARENT_SHA256 = "65304a02704561f9fbe3addb7be335fc88a51688f9cef69941ac81d1a920a4f7"
 REFERENCE = "docs/experiments/RESPONSE_GROUP_ANCHOR_20261028.md"
 DIRECTION_REFERENCE = "docs/experiments/RESPONSE_ANCHOR_DIRECTION_20261029.md"
+HEAD_PROTECTION_REFERENCE = "docs/experiments/RESPONSE_POPULATION_HEAD_PROTECTION_20261030.md"
 
 
 def configuration(
@@ -28,9 +29,16 @@ def configuration(
     population_path: str = "",
     population_sha256: str = "",
     population_arrays_sha256: str = "",
+    prediction_head_grad: bool = True,
 ) -> dict:
     if loss_mode not in {"mse", "cosine_direction", "population_prediction"}:
         raise ValueError("unknown response anchor objective")
+    if type(prediction_head_grad) is not bool or (
+        not prediction_head_grad and loss_mode != "population_prediction"
+    ):
+        raise ValueError(
+            "prediction_head_grad must be boolean; False requires population_prediction"
+        )
     if loss_mode != "population_prediction" and any(
         (population_path, population_sha256, population_arrays_sha256)
     ):
@@ -69,6 +77,15 @@ def configuration(
                 "source": "project_preregistered",
                 "reference": "docs/experiments/RESPONSE_POPULATION_PREDICTION_20261029.md",
             }
+        if not prediction_head_grad:
+            value["model"]["parameters"]["response_anchor_weight"]["reference"] = (
+                HEAD_PROTECTION_REFERENCE + "#first8-calibration-only"
+            )
+            value["model"]["parameters"]["response_anchor_prediction_head_grad"] = {
+                "value": False,
+                "source": "project_preregistered",
+                "reference": HEAD_PROTECTION_REFERENCE,
+            }
     return value
 
 
@@ -84,6 +101,9 @@ def main() -> None:
     parser.add_argument("--population-path", default="")
     parser.add_argument("--population-sha256", default="")
     parser.add_argument("--population-arrays-sha256", default="")
+    parser.add_argument(
+        "--no-prediction-head-grad", action="store_false", dest="prediction_head_grad"
+    )
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     if args.output.exists():
@@ -98,6 +118,7 @@ def main() -> None:
         population_path=args.population_path,
         population_sha256=args.population_sha256,
         population_arrays_sha256=args.population_arrays_sha256,
+        prediction_head_grad=args.prediction_head_grad,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("x") as stream:

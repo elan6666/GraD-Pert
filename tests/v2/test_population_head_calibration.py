@@ -1,6 +1,7 @@
 """Fixed native synthetic head-route audit; no server data or fitted weights."""
 
 import copy
+import json
 import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -17,6 +18,8 @@ from gradpert.config.v2 import V2Options
 from gradpert.modeling.v2 import GraDPertV2
 from gradpert.training.v2.objective import JointObjective
 from scripts.v2.calibrate_response_anchor import (
+    _audit_tensor_summary,
+    _calibration_failure_payload,
     audit_population_head_route,
     calibrate_first_eight,
     compare_head_audit_gradients,
@@ -233,3 +236,105 @@ def test_launcher_requires_protected_audit_from_both_ranks_only():
     result["population_head_route_audit_ranks"].pop()
     with pytest.raises(ValueError, match="audit differs"):
         require_head_route_audit(result, runtime.options)
+
+
+@pytest.mark.parametrize("diagnostic_failure", [False, True])
+def test_route_gradient_failure_adds_bounded_repeatability_evidence_and_still_fails(
+    monkeypatch,
+    diagnostic_failure,
+):
+    runtime, controller, batch = native(checkpoint=True)
+    parameter = next(runtime.objective.student.response.parameters())
+    parameter.register_hook(
+        lambda gradient: (
+            gradient + 0.01
+            if (runtime.options.response_anchor_prediction_head_grad is False)
+            else gradient
+        )
+    )
+    original = controller.group_loss
+    calls = []
+
+    def observed(*args, **kwargs):
+        calls.append(runtime.options.response_anchor_prediction_head_grad)
+        if diagnostic_failure and len(calls) == 3:
+            raise RuntimeError("synthetic diagnostic replay failure")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(controller, "group_loss", observed)
+    before = validation_state(runtime)
+    with pytest.raises(ValueError, match="population gradient audit differs") as caught:
+        audit_population_head_route(
+            runtime,
+            controller,
+            batch,
+            0,
+            bf16=False,
+            world=1,
+            global_rows=len(batch.control),
+        )
+    assert validation_state(runtime) == before
+    assert runtime.options.response_anchor_prediction_head_grad is False
+    error = caught.value
+    diagnostic = error.population_head_route_diagnostic
+    assert diagnostic["original_failure"] == str(error)
+    assert diagnostic["acceptance_gate_unchanged"] is True
+    assert diagnostic["additional_replay_limit_per_route"] == 1
+    assert any("population_head_route_diagnostic=" in note for note in error.__notes__)
+    cross = diagnostic["comparisons"]["true_false"]
+    assert cross["score"]["max_abs"] == cross["loss"]["max_abs"] == 0
+    assert cross["input"]["max_abs"] == 0
+    assert cross["response"]["max_abs"] > 2e-6
+    worst = cross["response"]["worst_tensors"][0]
+    assert worst["name"].startswith("student.response.")
+    assert worst["actual_dtype"] == "torch.float32"
+    assert isinstance(worst["actual_shape"], list)
+    assert worst["relative_l2"] > 0
+    if diagnostic_failure:
+        assert calls == [False, True, False]
+        assert diagnostic["repeatability_diagnostic_complete"] is False
+        assert diagnostic["diagnostic_error"] == "synthetic diagnostic replay failure"
+    else:
+        assert calls == [False, True, False, True]
+        assert diagnostic["additional_replays_started"] == 2
+        assert diagnostic["repeatability_diagnostic_complete"] is True
+        for pair in ("true_true", "false_false"):
+            for row in diagnostic["comparisons"][pair].values():
+                assert row["max_abs"] == row["relative_l2"] == 0
+    payload = _calibration_failure_payload(error, "synthetic-failure")
+    assert payload["calibration_complete"] is False
+    assert payload["population_head_route_diagnostic"] == diagnostic
+    assert len(json.dumps(payload, allow_nan=False)) < 30_000
+    with pytest.raises(ValueError, match="audit differs"):
+        require_head_route_audit(payload, runtime.options)
+
+
+def test_success_has_original_three_replays_and_no_failure_diagnostic(monkeypatch):
+    runtime, controller, batch = native()
+    original, calls = controller.group_loss, []
+
+    def observed(*args, **kwargs):
+        calls.append(runtime.options.response_anchor_prediction_head_grad)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(controller, "group_loss", observed)
+    result = audit_population_head_route(
+        runtime, controller, batch, 0, bf16=False, world=1, global_rows=len(batch.control)
+    )
+    assert calls == [False, True, False]
+    assert result["group_replays"] == 3
+    assert not any("diagnostic" in key for key in result)
+    assert "population_head_route_diagnostic" not in _calibration_failure_payload(
+        ValueError("x"), "y"
+    )
+
+
+def test_diagnostic_summary_accounts_missing_shape_dtype_and_nonfinite():
+    summary = _audit_tensor_summary(
+        [None, torch.ones(2), torch.ones(1), torch.tensor([float("nan")])],
+        [torch.ones(1), torch.ones(1), torch.ones(1, dtype=torch.float64), torch.ones(1)],
+        ["missing", "shape", "dtype", "nonfinite"],
+    )
+    assert summary["missing_mismatch"] == summary["shape_mismatch"] == 1
+    assert summary["dtype_mismatch"] == summary["nonfinite_tensors"] == 1
+    json.dumps(summary, allow_nan=False)

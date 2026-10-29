@@ -54,6 +54,88 @@ _PROTECTED_ROUTE = "gpm_head_parameters_detached_preserve_input_jacobian"
 _CUDA_RESPONSE_GRADIENT_ATOL = 2e-6
 
 
+def _audit_tensor_summary(
+    actual: Sequence[Tensor | None], expected: Sequence[Tensor | None], names: Sequence[str]
+) -> dict[str, Any]:
+    """Diagnostic scalars only; never an acceptance check or exported gradient."""
+    if len(actual) != len(expected) or len(actual) != len(names):
+        raise ValueError("diagnostic tensor/name counts differ")
+    report: dict[str, Any] = dict(
+        tensor_count=0,
+        missing_both=0,
+        missing_mismatch=0,
+        shape_mismatch=0,
+        dtype_mismatch=0,
+        nonfinite_tensors=0,
+        max_abs=0.0,
+    )
+    rows, delta_squared, reference_squared = [], 0.0, 0.0
+    for name, left, right in zip(names, actual, expected, strict=True):
+        row = dict(
+            name=name,
+            actual_shape=None if left is None else list(left.shape),
+            expected_shape=None if right is None else list(right.shape),
+            actual_dtype=None if left is None else str(left.dtype),
+            expected_dtype=None if right is None else str(right.dtype),
+            missing=left is None or right is None,
+            nonfinite=False,
+            max_abs=None,
+            relative_l2=None,
+        )
+        if row["missing"]:
+            report["missing_both" if left is None and right is None else "missing_mismatch"] += 1
+        else:
+            report["tensor_count"] += 1
+            report["dtype_mismatch"] += int(left.dtype != right.dtype)
+            if left.shape != right.shape:
+                report["shape_mismatch"] += 1
+            elif not torch.isfinite(left).all() or not torch.isfinite(right).all():
+                row["nonfinite"] = True
+                report["nonfinite_tensors"] += 1
+            else:
+                delta = left.detach().float() - right.detach().float()
+                if not torch.isfinite(delta).all():
+                    row["nonfinite"] = True
+                    report["nonfinite_tensors"] += 1
+                    rows.append(row)
+                    continue
+                d2 = float(torch.linalg.vector_norm(delta, dtype=torch.float64)) ** 2
+                r2 = float(torch.linalg.vector_norm(right.detach(), dtype=torch.float64)) ** 2
+                row["max_abs"] = float(delta.abs().max())
+                row["relative_l2"] = math.sqrt(d2 / r2) if r2 > 0 else (0.0 if d2 == 0 else None)
+                delta_squared += d2
+                reference_squared += r2
+                report["max_abs"] = max(report["max_abs"], row["max_abs"])
+        rows.append(row)
+    report["relative_l2"] = (
+        math.sqrt(delta_squared / reference_squared)
+        if reference_squared > 0
+        else (0.0 if delta_squared == 0 else None)
+    )
+    report["relative_l2_reference"] = "expected; null when zero denominator and nonzero difference"
+    report["worst_tensors"] = sorted(
+        rows,
+        key=lambda row: (
+            row["nonfinite"] or row["actual_shape"] != row["expected_shape"],
+            row["max_abs"] if row["max_abs"] is not None else -1.0,
+        ),
+        reverse=True,
+    )[:5]
+    return report
+
+
+def _audit_replay_summary(
+    actual: dict[str, Any], expected: dict[str, Any], response_names: Sequence[str]
+) -> dict[str, Any]:
+    return {
+        **{
+            name: _audit_tensor_summary((actual[name],), (expected[name],), (name,))
+            for name in ("score", "loss", "input")
+        },
+        "response": _audit_tensor_summary(actual["response"], expected["response"], response_names),
+    }
+
+
 def compare_head_audit_gradients(
     actual: Sequence[Tensor | None], expected: Sequence[Tensor | None], *, atol: float
 ) -> dict[str, Any]:
@@ -92,6 +174,20 @@ def compare_head_audit_gradients(
     ):
         raise ValueError(f"population gradient audit differs: {json.dumps(report, sort_keys=True)}")
     return report
+
+
+def _calibration_failure_payload(error: Exception, run_id: str) -> dict[str, Any]:
+    result = dict(
+        run_id=run_id,
+        calibration_complete=False,
+        scientific_complete=False,
+        error_type=type(error).__name__,
+        error=str(error),
+        optimizer_updates=0,
+    )
+    if hasattr(error, "population_head_route_diagnostic"):
+        result["population_head_route_diagnostic"] = error.population_head_route_diagnostic
+    return result
 
 
 def audit_population_head_route(
@@ -174,16 +270,60 @@ def audit_population_head_route(
 
     protected = replay(True)
     reference = replay(False)
-    for name in ("score", "loss"):
-        if not torch.equal(protected[name], reference[name]):
-            raise ValueError(f"protected native head {name} differs from default route")
-    comparisons = {}
-    for scope in ("input", "response"):
-        left = (protected[scope],) if scope == "input" else protected[scope]
-        right = (reference[scope],) if scope == "input" else reference[scope]
-        nonzero_norm(left, scope)
-        atol = _CUDA_RESPONSE_GRADIENT_ATOL if runtime.device.type == "cuda" else 0.0
-        comparisons[scope] = compare_head_audit_gradients(left, right, atol=atol)
+    try:
+        for name in ("score", "loss"):
+            if not torch.equal(protected[name], reference[name]):
+                raise ValueError(f"protected native head {name} differs from default route")
+        comparisons = {}
+        for scope in ("input", "response"):
+            left = (protected[scope],) if scope == "input" else protected[scope]
+            right = (reference[scope],) if scope == "input" else reference[scope]
+            nonzero_norm(left, scope)
+            atol = _CUDA_RESPONSE_GRADIENT_ATOL if runtime.device.type == "cuda" else 0.0
+            comparisons[scope] = compare_head_audit_gradients(left, right, atol=atol)
+    except ValueError as original_error:
+        diagnostic: dict[str, Any] = dict(
+            schema="population-head-route-failure-diagnostic-v1",
+            diagnostic_only=True,
+            original_failure=str(original_error),
+            condition_index=condition,
+            epoch=0,
+            gradient_routing=_PROTECTED_ROUTE,
+            acceptance_gate_unchanged=True,
+            additional_replay_limit_per_route=1,
+            additional_replays_started=0,
+            route_labels="True/False denote prediction_head_grad",
+            comparisons={},
+        )
+        try:
+            names = tuple(
+                "student.response." + name for name, _ in model.response.named_parameters()
+            )
+            diagnostic["comparisons"]["true_false"] = _audit_replay_summary(
+                reference, protected, names
+            )
+            diagnostic["additional_replays_started"] += 1
+            repeated = replay(True)
+            diagnostic["comparisons"]["false_false"] = _audit_replay_summary(
+                protected, repeated, names
+            )
+            del repeated
+            diagnostic["additional_replays_started"] += 1
+            repeated = replay(False)
+            diagnostic["comparisons"]["true_true"] = _audit_replay_summary(
+                reference, repeated, names
+            )
+            del repeated
+            diagnostic["repeatability_diagnostic_complete"] = True
+        except BaseException as diagnostic_error:
+            diagnostic["repeatability_diagnostic_complete"] = False
+            diagnostic["diagnostic_error_type"] = type(diagnostic_error).__name__
+            diagnostic["diagnostic_error"] = str(diagnostic_error)
+        original_error.population_head_route_diagnostic = diagnostic
+        original_error.add_note(
+            "population_head_route_diagnostic=" + json.dumps(diagnostic, sort_keys=True)
+        )
+        raise
     if any(
         g is not None and (not torch.isfinite(g).all() or torch.count_nonzero(g))
         for g in protected["head"]
@@ -741,14 +881,7 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
         if owned_output:
             atomic_json(
                 args.output / "FAILURE.json",
-                dict(
-                    run_id=args.run_id,
-                    calibration_complete=False,
-                    scientific_complete=False,
-                    error_type=type(error).__name__,
-                    error=str(error),
-                    optimizer_updates=0,
-                ),
+                _calibration_failure_payload(error, args.run_id),
             )
         raise
     finally:

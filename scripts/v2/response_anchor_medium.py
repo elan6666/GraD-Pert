@@ -33,6 +33,7 @@ COUNTS = dict(
 )
 SCHEMA = "response-anchor-direct-medium-spec-v1"
 R16_SCHEMA = "response-population-direct-medium-r16-spec-v1"
+R17_SCHEMA = "response-population-head-direct-medium-r17-spec-v1"
 R15_SCHEMA = "response-anchor-direct-medium-r15-spec-v1"
 
 
@@ -459,7 +460,7 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
         "resource_owner",
         "output",
         "gpu",
-    } or spec["schema"] not in (SCHEMA, R15_SCHEMA, R16_SCHEMA):
+    } or spec["schema"] not in (SCHEMA, R15_SCHEMA, R16_SCHEMA, R17_SCHEMA):
         raise ValueError("exact sealed medium SPEC schema required")
     for key, fields in (
         ("medium", {"parent", "performance", "population_sha256", "identity_changes"}),
@@ -472,7 +473,9 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
         if not isinstance(spec[key], dict) or set(spec[key]) != fields:
             raise ValueError("unexpected or missing sealed binding fields: " + key)
     names = (
-        ("R16-GPM",)
+        ("R17-GPM-HG0",)
+        if spec["schema"] == R17_SCHEMA
+        else ("R16-GPM",)
         if spec["schema"] == R16_SCHEMA
         else (("R15-DIR",) if spec["schema"] == R15_SCHEMA else ("R14-FRGA", "R3-RI"))
     )
@@ -524,8 +527,8 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
         raise ValueError("R14-FRGA must bind its enabled training anchor descriptor")
     if spec["schema"] == R15_SCHEMA:
         validate_r15_medium_identity(spec, server=server)
-    elif spec["schema"] == R16_SCHEMA:
-        validate_r16_medium_identity(spec, server=server)
+    elif spec["schema"] in (R16_SCHEMA, R17_SCHEMA):
+        validate_population_medium_identity(spec, server=server)
     bound = bind_parent(parent, identity, spec["medium"]["identity_changes"])
     from gradpert.hashing import sha256_json
 
@@ -581,7 +584,7 @@ def validate_r15_medium_identity(spec: dict, *, server: bool = True) -> None:
     )
 
 
-def validate_r16_medium_identity(spec: dict, *, server: bool = True) -> None:
+def validate_population_medium_identity(spec: dict, *, server: bool = True) -> None:
     import importlib.util
     import sys
 
@@ -592,7 +595,12 @@ def validate_r16_medium_identity(spec: dict, *, server: bool = True) -> None:
     module = importlib.util.module_from_spec(module_spec)
     sys.modules[module_spec.name] = module
     module_spec.loader.exec_module(module)
-    module.validate_r16_identity(
+    validator = (
+        module.validate_r17_identity
+        if spec.get("schema") == R17_SCHEMA
+        else module.validate_r16_identity
+    )
+    validator(
         {
             "source": spec["native_source"],
             "config": spec["config"],
@@ -600,6 +608,18 @@ def validate_r16_medium_identity(spec: dict, *, server: bool = True) -> None:
         },
         server=server,
     )
+
+
+def validate_r16_medium_identity(spec: dict, *, server: bool = True) -> None:
+    if spec.get("schema", R16_SCHEMA) != R16_SCHEMA:
+        raise ValueError("R16 medium validator cannot relabel another profile")
+    return validate_population_medium_identity(spec, server=server)
+
+
+def validate_r17_medium_identity(spec: dict, *, server: bool = True) -> None:
+    if spec.get("schema") != R17_SCHEMA:
+        raise ValueError("R17 medium validator requires its explicit profile")
+    return validate_population_medium_identity(spec, server=server)
 
 
 def export_tables(analysis: Path, output: Path) -> None:

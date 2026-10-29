@@ -47,6 +47,7 @@ def recipe(root: Path, arm: str) -> tuple[Path, Path, str]:
         "R14-FRGA": ("response_anchor_20261028", "mse"),
         "R15-DIR": ("response_anchor_direction_20261029", "cosine_direction"),
         "R16-GPM": ("response_population_prediction_20261029", "population_prediction"),
+        "R17-GPM-HG0": ("response_population_head_protection_20261030", "population_prediction"),
     }
     if arm not in families:
         raise ValueError("unknown fixed response anchor arm")
@@ -100,13 +101,22 @@ def _positive_finite(value: object) -> bool:
 
 
 def validate_population_calibration(
-    config_path: Path, parameters: dict, calibration: dict, decision: dict
-) -> dict[str, str]:
-    """Bind R16's own initialization, selected rule and server-only target identities.
+    config_path: Path,
+    parameters: dict,
+    calibration: dict,
+    decision: dict,
+    *,
+    arm: str = "R16-GPM",
+) -> dict[str, str | bool]:
+    """Bind the arm's initialization, selected rule and server-only target identities.
 
     This reads scalar receipts only. The native loader separately validates the
     sidecar manifest/arrays and read boundaries; this gate never opens an NPZ.
     """
+    head_grad = parameters.get("response_anchor_prediction_head_grad", {"value": True}).get("value")
+    expected_arm = "R16-GPM" if head_grad else "R17-GPM-HG0"
+    if type(head_grad) is not bool or arm != expected_arm or decision.get("arm") != arm:
+        raise ValueError("population arm differs from its prediction head gradient route")
     population = {
         key: parameters.get("response_anchor_" + key, {}).get("value")
         for key in ("population_path", "population_sha256", "population_arrays_sha256")
@@ -127,7 +137,7 @@ def validate_population_calibration(
     weight = calibration.get("selected_weight")
     if (
         calibration.get("response_anchor_loss") != "population_prediction"
-        or decision.get("arm") != "R16-GPM"
+        or decision.get("arm") != arm
         or decision.get("response_anchor_loss") != "population_prediction"
         or source.get("formal_eligible") is not True
         or source.get("published_commit") != source.get("commit")
@@ -238,6 +248,30 @@ def validate_population_calibration(
         or calibration.get("anchor_coefficient") != 2 * 150 / 1322
     ):
         raise ValueError("population calibration first-eight gradient rule/identity differs")
+    if not head_grad:
+        # Deferred import avoids the resource launcher's existing checked() import
+        # cycle; the shared scalar receipt guard remains the single route gate.
+        from scripts.v2.run_population_calibration import require_head_route_audit
+
+        if (
+            binding.get("prediction_head_grad") is not False
+            or binding.get("gradient_routing")
+            != "gpm_head_parameters_detached_preserve_input_jacobian"
+        ):
+            raise ValueError("protected population calibration native identity route differs")
+        require_head_route_audit(
+            calibration, argparse.Namespace(response_anchor_prediction_head_grad=False)
+        )
+        population["prediction_head_grad"] = False
+    elif (
+        binding.get("prediction_head_grad", True) is not True
+        or "gradient_routing" in binding
+        or calibration.get("response_anchor_prediction_head_grad", True) is not True
+        or "gradient_routing" in calibration
+        or "population_head_route_audit" in calibration
+        or "population_head_route_audit_ranks" in calibration
+    ):
+        raise ValueError("default population arm cannot reuse a protected head calibration")
     return population
 
 
@@ -252,7 +286,7 @@ def validate_calibration(config_path: Path, calibration: dict, arm: str = "R14-F
         raise ValueError("execution arm differs from the configured objective")
     population = {}
     if mode == "population_prediction":
-        population = validate_population_calibration(config_path, p, calibration, decision)
+        population = validate_population_calibration(config_path, p, calibration, decision, arm=arm)
         if yaml.safe_load(probe_path.read_text()) != configuration(
             root,
             bank_path=p["response_anchor_path"]["value"],

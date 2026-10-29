@@ -235,7 +235,7 @@ def execute(spec, endpoint_name, *, spec_file, output):
         raise ValueError("pilot must belong to the sealed analysis source")
     postfit.preimport_source(endpoint["source"])
     postfit.preimport_source(spec["analysis_source"])
-    if spec["schema"] in (postfit.R15_SCHEMA, postfit.R16_SCHEMA):
+    if spec["schema"] in (postfit.R15_SCHEMA, *postfit.POPULATION_SCHEMAS):
         postfit.geometry_module(Path(spec["analysis_source"]["root"]))
     native_root = Path(endpoint["source"]["root"])
     sys.path[:0] = [str(native_root / "src"), str(native_root)]
@@ -301,7 +301,7 @@ def execute(spec, endpoint_name, *, spec_file, output):
             )
             with (
                 postfit.population_no_training_reads(config)
-                if spec["schema"] == postfit.R16_SCHEMA
+                if spec["schema"] in postfit.POPULATION_SCHEMAS
                 else nullcontext(),
                 prepare_runtime(
                     config,
@@ -311,11 +311,14 @@ def execute(spec, endpoint_name, *, spec_file, output):
                     purpose="evaluation",
                 ) as runtime,
             ):
-                if spec["schema"] == postfit.R16_SCHEMA:
+                if spec["schema"] in postfit.POPULATION_SCHEMAS:
                     postfit.assert_population_headless(runtime)
                 if (
                     bool(getattr(runtime.options, "response_anchor_weight", 0))
-                    != (endpoint_name in ("FixedResponseGroupAnchor", "R15-DIR", "R16-GPM"))
+                    != (
+                        endpoint_name
+                        in ("FixedResponseGroupAnchor", "R15-DIR", "R16-GPM", "R17-GPM-HG0")
+                    )
                     or runtime.identity != identity["data"]
                 ):
                     raise ValueError("native evaluation identity/anchor differs")
@@ -413,7 +416,9 @@ def execute(spec, endpoint_name, *, spec_file, output):
                         ),
                         state,
                         admission,
-                        population_config=config if spec["schema"] == postfit.R16_SCHEMA else None,
+                        population_config=config
+                        if spec["schema"] in postfit.POPULATION_SCHEMAS
+                        else None,
                     )
                     if arrays["cls_means"].shape != (1, 256) or original_stat != (
                         adata.stat().st_size,
@@ -479,7 +484,7 @@ def main():
     parser.add_argument("--spec-sha256", required=True)
     parser.add_argument(
         "--endpoint",
-        choices=("R3-RI", "FixedResponseGroupAnchor", "R15-DIR", "R16-GPM"),
+        choices=("R3-RI", "FixedResponseGroupAnchor", "R15-DIR", "R16-GPM", "R17-GPM-HG0"),
         required=True,
     )
     parser.add_argument("--output", type=Path, required=True)
