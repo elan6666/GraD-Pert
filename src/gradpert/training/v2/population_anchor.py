@@ -193,7 +193,7 @@ def validate_manifest(metadata: dict, bank: FixedResponseBank, arrays_sha256: st
         repeat.get("closure_verified") is not True
         or repeat.get("zero_PKL_within_output") is not True
         or repeat.get("source", {}).get("commit") != REPEAT_SOURCE
-        or repeat.get("outputs_sha256", {}).get("server-only/memberships.json")
+        or repeat.get("output_sha256", {}).get("server-only/memberships.json")
         != provenance["memberships"]["sha256"]
         or Path(provenance["memberships"]["path"])
         != Path(provenance["repeatability_complete"]["path"]).parent

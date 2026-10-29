@@ -32,6 +32,7 @@ COUNTS = dict(
     gradient_rows=125,
 )
 SCHEMA = "response-anchor-direct-medium-spec-v1"
+R16_SCHEMA = "response-population-direct-medium-r16-spec-v1"
 R15_SCHEMA = "response-anchor-direct-medium-r15-spec-v1"
 
 
@@ -275,7 +276,26 @@ def diagnostic_adapter(
         def guarded_prepare(*a, **kw):
             if kw.get("purpose") != "evaluation":
                 raise ValueError("medium worker must use evaluation runtime")
-            with prepare(*a, **kw) as runtime:
+            population = getattr(getattr(config, "model", None), "parameters", {}).get(
+                "response_anchor_loss"
+            )
+            population = population is not None and population.value == "population_prediction"
+            helper = None
+            if population:
+                path = Path(__file__).with_name("response_anchor_postfit.py")
+                import importlib.util
+
+                ms = importlib.util.spec_from_file_location("_r16_medium_guard", path)
+                helper = importlib.util.module_from_spec(ms)
+                ms.loader.exec_module(helper)
+            from contextlib import nullcontext
+
+            with (
+                helper.population_no_training_reads(config) if population else nullcontext(),
+                prepare(*a, **kw) as runtime,
+            ):
+                if population:
+                    helper.assert_population_headless(runtime)
                 axis = np.asarray(runtime.allowed_expression_ids)
                 if expected_axis is not None and (
                     len(axis) != expected_axis["count"]
@@ -283,8 +303,13 @@ def diagnostic_adapter(
                 ):
                     raise ValueError("actual allowed axis differs before any numerical read")
                 receipt = {}
-                with allowed_train_reads(
-                    runtime, records, controls_only=controls_only, receipt=receipt
+                with (
+                    helper.population_no_training_reads(config, runtime)
+                    if population
+                    else nullcontext(),
+                    allowed_train_reads(
+                        runtime, records, controls_only=controls_only, receipt=receipt
+                    ),
                 ):
                     yield runtime
                 read_receipts.append(receipt)
@@ -434,7 +459,7 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
         "resource_owner",
         "output",
         "gpu",
-    } or spec["schema"] not in (SCHEMA, R15_SCHEMA):
+    } or spec["schema"] not in (SCHEMA, R15_SCHEMA, R16_SCHEMA):
         raise ValueError("exact sealed medium SPEC schema required")
     for key, fields in (
         ("medium", {"parent", "performance", "population_sha256", "identity_changes"}),
@@ -446,7 +471,11 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
     ):
         if not isinstance(spec[key], dict) or set(spec[key]) != fields:
             raise ValueError("unexpected or missing sealed binding fields: " + key)
-    names = ("R15-DIR",) if spec["schema"] == R15_SCHEMA else ("R14-FRGA", "R3-RI")
+    names = (
+        ("R16-GPM",)
+        if spec["schema"] == R16_SCHEMA
+        else (("R15-DIR",) if spec["schema"] == R15_SCHEMA else ("R14-FRGA", "R3-RI"))
+    )
     if spec["name"] not in names or spec["gpu"] not in ("0", "1"):
         raise ValueError("unknown endpoint/GPU")
     if spec["checkpoint"].get("role") != "last" or spec["checkpoint"].get("epoch") != 2:
@@ -495,6 +524,8 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
         raise ValueError("R14-FRGA must bind its enabled training anchor descriptor")
     if spec["schema"] == R15_SCHEMA:
         validate_r15_medium_identity(spec, server=server)
+    elif spec["schema"] == R16_SCHEMA:
+        validate_r16_medium_identity(spec, server=server)
     bound = bind_parent(parent, identity, spec["medium"]["identity_changes"])
     from gradpert.hashing import sha256_json
 
@@ -541,6 +572,27 @@ def validate_r15_medium_identity(spec: dict, *, server: bool = True) -> None:
     sys.modules[module_spec.name] = module
     module_spec.loader.exec_module(module)
     module.validate_r15_identity(
+        {
+            "source": spec["native_source"],
+            "config": spec["config"],
+            "run_manifest": spec["run_manifest"],
+        },
+        server=server,
+    )
+
+
+def validate_r16_medium_identity(spec: dict, *, server: bool = True) -> None:
+    import importlib.util
+    import sys
+
+    path = Path(__file__).with_name("response_anchor_postfit.py")
+    module_spec = importlib.util.spec_from_file_location("_r16_medium_postfit_identity", path)
+    if module_spec is None or module_spec.loader is None:
+        raise ValueError("sealed R16 analysis identity helper missing")
+    module = importlib.util.module_from_spec(module_spec)
+    sys.modules[module_spec.name] = module
+    module_spec.loader.exec_module(module)
+    module.validate_r16_identity(
         {
             "source": spec["native_source"],
             "config": spec["config"],

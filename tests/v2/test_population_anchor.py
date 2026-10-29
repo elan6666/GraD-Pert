@@ -83,7 +83,7 @@ def sidecar(tmp_path, monkeypatch):
             source=dict(commit=pa.REPEAT_SOURCE),
             closure_verified=True,
             zero_PKL_within_output=True,
-            outputs_sha256={"server-only/memberships.json": membership_seal["sha256"]},
+            output_sha256={"server-only/memberships.json": membership_seal["sha256"]},
         ),
     )
     census = dump(tmp_path / "census.json", {})
@@ -304,7 +304,7 @@ def test_resealed_alternative_membership_lineage_is_not_accepted(sidecar):
     provenance["memberships"].update(dump(member_path, members))
     repeat_path = pa.Path(provenance["repeatability_complete"]["path"])
     repeat = json.loads(repeat_path.read_text())
-    repeat["outputs_sha256"]["server-only/memberships.json"] = provenance["memberships"]["sha256"]
+    repeat["output_sha256"]["server-only/memberships.json"] = provenance["memberships"]["sha256"]
     provenance["repeatability_complete"].update(dump(repeat_path, repeat))
     spec_path = pa.Path(provenance["spec"]["path"])
     spec = json.loads(spec_path.read_text())

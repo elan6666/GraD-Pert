@@ -407,3 +407,8 @@ Evaluation-state condition IDs may cover more populations or use a different ord
 ## 2026-10-29：负结果回交后要执行下一项研究依赖
 
 已授权持续研究时，主验收报告与写入 next_action 不能替代执行。R15 回交后曾停在 evaluate，即使同一个20分钟监督仍 ACTIVE，也没有自动完成下一候选。修正：独立核验→实际报告/平台→负结果进入 diagnose/literature/design→实质实现与测试；只有已核验的受监督后台等待、用户暂停或具体外部阻塞才可结束当前工作。保持四项科学目标，不把几何改善、训练完成或平台上传当作问题解决。定时器是续接提醒，不宣称可在主会话外强制执行推理。
+
+
+## 2026-10-29：跨阶段回执字段要以真实冻结产物为准
+
+R16 CPU目标构建a1在读取表达值前失败：repeatability终态使用`output_sha256`，census使用`outputs_sha256`；合成fixture错误地统一为后者，导致本地闭环测试也未覆盖真实接口。修复分别保留原producer schema，先核原生小型COMPLETE的字段和源函数，再用相同结构验证。失败source/job/日志保留，改动另行发布并用新attempt；不能为适配静默改原历史回执，也不能把单元通过当成原生预检成功。

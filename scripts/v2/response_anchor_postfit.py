@@ -16,7 +16,7 @@ import math
 import os
 import subprocess
 import sys
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from functools import wraps
 from pathlib import Path
 from typing import Any
@@ -26,6 +26,7 @@ import numpy as np
 SERVER_ROOT = Path("/data/yilangliu")
 SCHEMA = "response-anchor-postfit-input-1"
 R15_SCHEMA = "response-anchor-postfit-r15-input-1"
+R16_SCHEMA = "response-population-postfit-r16-input-1"
 R15_SOURCE = "aa65a42554d2f971adf0419bc1421e43c5a335d6"
 R15_CONFIG_SHA256 = "4f50d4848d9f4ac2f19f81b5b44ab33d5371e1c327b2911023ba64f61c9519e7"
 R15_WEIGHT = 0.04871788142525519
@@ -94,9 +95,10 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
         "medium",
     }
     r15 = spec.get("schema") == R15_SCHEMA
-    if r15:
+    r16 = spec.get("schema") == R16_SCHEMA
+    if r15 or r16:
         required |= {"retained_references", "observer_parity"}
-    if set(spec) != required or spec["schema"] not in (SCHEMA, R15_SCHEMA):
+    if set(spec) != required or spec["schema"] not in (SCHEMA, R15_SCHEMA, R16_SCHEMA):
         raise ValueError("postfit schema differs")
     v = spec["validation"]
     if set(v) != {
@@ -129,7 +131,7 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
     if spec["bootstrap"] != {"draws": 10000, "seed": 20261028}:
         raise ValueError("paired condition bootstrap is frozen")
     endpoints = spec["endpoints"]
-    names = ["R15-DIR"] if r15 else ["R3-RI", "FixedResponseGroupAnchor"]
+    names = ["R16-GPM"] if r16 else (["R15-DIR"] if r15 else ["R3-RI", "FixedResponseGroupAnchor"])
     if [e["name"] for e in endpoints] != names:
         raise ValueError("exact historical reference and one candidate required")
     protected = [Path(spec["data_root"]).resolve()]
@@ -163,7 +165,7 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
         _check_source_shape(e["source"], server=server)
         if server:
             server_path(root)
-    if server and not r15:
+    if server and not (r15 or r16):
         reference = endpoints[0]
         if (
             reference["source"]["commit"] != "f0cb20ebb2efab749970f2bf5d205ed2f358592c"
@@ -187,6 +189,8 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
         raise ValueError("explicit medium binding/status required")
     if r15:
         validate_r15_payload(spec, server=server)
+    if r16:
+        validate_r16_payload(spec, server=server)
 
 
 def _check_source_shape(source: dict, *, server: bool) -> None:
@@ -848,8 +852,8 @@ class DispatcherAdmission:
 def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
     """Formal server-only worker. Synthetic tests never call this entry point."""
     validate_spec(spec)
-    if spec["schema"] == R15_SCHEMA:
-        validate_observer_parity(spec)
+    if spec["schema"] in (R15_SCHEMA, R16_SCHEMA):
+        validate_candidate_parity(spec)
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         raise ValueError("native CUDA allocator contract missing")
     endpoints = {e["name"]: e for e in spec["endpoints"]}
@@ -867,7 +871,7 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
     native_root = Path(endpoint["source"]["root"]).resolve()
     preimport_source(endpoint["source"])
     preimport_source(spec["analysis_source"])
-    if spec["schema"] == R15_SCHEMA:
+    if spec["schema"] in (R15_SCHEMA, R16_SCHEMA):
         geometry_module(Path(spec["analysis_source"]["root"]))
     # Child is a fresh interpreter; pin native imports before importing torch/model code.
     sys.path[:0] = [str(native_root / "src"), str(native_root)]
@@ -939,15 +943,22 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                 protocol_id=config.data.protocol_id,
                 data_root=Path(spec["data_root"]),
             )
-            with prepare_runtime(
-                config,
-                data_root=common["data_root"],
-                run_seed=int(identity["data"]["run_seed"]),
-                device=torch.device("cpu"),
-                purpose="evaluation",
-            ) as runtime:
+            with (
+                population_no_training_reads(config)
+                if spec["schema"] == R16_SCHEMA
+                else nullcontext(),
+                prepare_runtime(
+                    config,
+                    data_root=common["data_root"],
+                    run_seed=int(identity["data"]["run_seed"]),
+                    device=torch.device("cpu"),
+                    purpose="evaluation",
+                ) as runtime,
+            ):
+                if spec["schema"] == R16_SCHEMA:
+                    assert_population_headless(runtime)
                 enabled = bool(getattr(runtime.options, "response_anchor_weight", 0))
-                if enabled != (name in ("FixedResponseGroupAnchor", "R15-DIR")):
+                if enabled != (name in ("FixedResponseGroupAnchor", "R15-DIR", "R16-GPM")):
                     raise ValueError("candidate/reference anchor mechanism differs")
                 if runtime.identity != identity["data"]:
                     raise ValueError("native evaluation identity differs from training data")
@@ -1025,11 +1036,18 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                         split_content_sha256=data.split.split_content_sha256,
                     )
                     collector = NativeValCollector(selected, targets, controls, allowed)
-                    before = validation_state(runtime)
+                    before = (
+                        population_protected_state(runtime, validation_state, state_fingerprint)
+                        if spec["schema"] == R16_SCHEMA
+                        else validation_state(runtime)
+                    )
                     cuda_before = state_fingerprint(torch.cuda.get_rng_state_all())
                     adata_path = data.layout.canonical_adata
                     data_stat = (adata_path.stat().st_size, adata_path.stat().st_mtime_ns)
                     with (
+                        population_no_training_reads(config, runtime)
+                        if spec["schema"] == R16_SCHEMA
+                        else nullcontext() as population_counts,
                         forbid_updates(
                             runtime, forbid_anchor=spec["schema"] == R15_SCHEMA
                         ) as forbidden_counts,
@@ -1049,13 +1067,20 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                             on_condition_complete=admission_guard.on_condition_complete,
                         )
                     if (
-                        validation_state(runtime) != before
+                        (
+                            population_protected_state(runtime, validation_state, state_fingerprint)
+                            if spec["schema"] == R16_SCHEMA
+                            else validation_state(runtime)
+                        )
+                        != before
                         or state_fingerprint(torch.cuda.get_rng_state_all()) != cuda_before
                         or data_stat != (adata_path.stat().st_size, adata_path.stat().st_mtime_ns)
                     ):
                         raise ValueError("evaluation mutated protected state/RNG/data file")
                     if admission_guard.conditions_checked != len(selected):
                         raise ValueError("native admission callbacks did not cover all conditions")
+                    if spec["schema"] == R16_SCHEMA:
+                        forbidden_counts.update(population_counts)
                     arrays = collector.arrays()
                     if arrays["cls_means"].shape != (len(selected), 256):
                         raise ValueError("formal ResponseCLS must have frozen width256")
@@ -1251,6 +1276,8 @@ def compare(spec, *, spec_file=None):
     if (root / "FAILURE.json").exists():
         raise ValueError("failed postfit output cannot be promoted")
     geo = geometry_module(Path(spec["analysis_source"]["root"]))
+    if spec["schema"] == R16_SCHEMA:
+        return compare_r16(spec, geo, spec_file=spec_file)
     if spec["schema"] == R15_SCHEMA:
         return compare_r15(spec, geo, spec_file=spec_file)
     ref, refnative = merge_endpoint(spec, "R3-RI")
@@ -1310,8 +1337,8 @@ def dispatch(spec_path: Path, expected_sha: str):
     spec_path = checked(dict(path=str(spec_path), sha256=expected_sha))
     spec = json.loads(spec_path.read_text())
     validate_spec(spec)
-    if spec["schema"] == R15_SCHEMA:
-        validate_observer_parity(spec)
+    if spec["schema"] in (R15_SCHEMA, R16_SCHEMA):
+        validate_candidate_parity(spec)
     root = server_path(spec["output"], exists=False)
     analysis = Path(spec["analysis_source"]["root"])
     script = analysis / "scripts/v2/response_anchor_postfit.py"
@@ -1416,7 +1443,9 @@ def main():
     p.add_argument("mode", choices=("run", "worker", "compare", "validate"))
     p.add_argument("--spec", type=Path, required=True)
     p.add_argument("--spec-sha256", required=True)
-    p.add_argument("--endpoint", choices=("R3-RI", "FixedResponseGroupAnchor", "R15-DIR"))
+    p.add_argument(
+        "--endpoint", choices=("R3-RI", "FixedResponseGroupAnchor", "R15-DIR", "R16-GPM")
+    )
     p.add_argument("--worker-index", type=int, choices=(0, 1))
     p.add_argument("--resource-owner", type=Path)
     p.add_argument("--resource-owner-sha256")
@@ -1442,6 +1471,14 @@ def main():
         )
     elif args.mode == "compare":
         compare(spec, spec_file=dict(path=str(args.spec.resolve()), sha256=args.spec_sha256))
+    elif spec["schema"] == R16_SCHEMA:
+        print(
+            json.dumps(
+                validate_r16_result(
+                    spec, spec_file=dict(path=str(args.spec.resolve()), sha256=args.spec_sha256)
+                )
+            )
+        )
     elif spec["schema"] == R15_SCHEMA:
         print(
             json.dumps(
@@ -1661,6 +1698,8 @@ def load_completed_endpoint(old, endpoint, complete_binding, spec_binding, *, se
         }
         if old["schema"] == R15_SCHEMA:
             counter_keys.add("anchor_forward")
+        elif old["schema"] == R16_SCHEMA:
+            counter_keys.update(POPULATION_COUNTERS)
         if (
             set(receipt["forbidden_calls"]) != counter_keys
             or any(type(v) is not int or v != 0 for v in receipt["forbidden_calls"].values())
@@ -2106,6 +2145,438 @@ def validate_r15_result(spec, *, spec_file, server=True):
         or set(comparison["comparisons"]) != {"primary_vs_RI", "secondary_vs_R14"}
     ):
         raise ValueError("R15 COMPARISON roles/schema differ")
+    for name, label in (("R3-RI", "primary_vs_RI"), ("R14-FRGA", "secondary_vs_R14")):
+        reference, original = load_retained_reference(
+            spec["retained_references"][name], name, spec["validation"], server=server
+        )
+        assert_paired_identity(reference, candidate, original, native)
+        validate_comparison_contract(comparison["comparisons"][label], spec, original, native)
+    return dict(
+        status="validated_completed_result",
+        spec_sha256=digest(spec),
+        comparison_sha256=complete["comparison_sha256"],
+        conditions=445,
+        updates=0,
+        zero_pkl=True,
+        scientific_complete=False,
+    )
+
+
+POPULATION_COUNTERS = {
+    "population_loader",
+    "bank_loader",
+    "auxiliary_callback",
+    "training_file_read",
+}
+
+
+def validate_candidate_parity(spec, *, server=True):
+    if spec["schema"] == R16_SCHEMA:
+        return validate_r16_observer_parity(spec, server=server)
+    return validate_observer_parity(spec, server=server)
+
+
+def population_options(config):
+    from gradpert.config.v2 import V2Options
+
+    arch, options = V2Options.parse_parameters(config.model.parameters)
+    if (
+        options.response_anchor_loss != "population_prediction"
+        or arch.prediction_parameterization != "softplus"
+    ):
+        raise ValueError("R16 requires its explicit population native Softplus recipe")
+    return options
+
+
+def population_descriptor(options):
+    return dict(
+        manifest_sha256=options.response_anchor_sha256,
+        arrays_sha256=options.response_anchor_arrays_sha256,
+        weight=options.response_anchor_weight,
+        seed=options.response_anchor_seed,
+        head="existing_native_prediction_softplus",
+        teacher_readout="absent_no_additional_forward",
+        schedule="hash_permutation_step_i_mod_T_rank_floor_i_div_T_mod_world",
+        loss="population_prediction",
+        population_manifest_sha256=options.response_anchor_population_sha256,
+        population_arrays_sha256=options.response_anchor_population_arrays_sha256,
+        formula="mean_gene(square(mean_cell_fp32(native_prediction)-fixed_train_mean))",
+    )
+
+
+def validate_r16_identity(endpoint, *, server=True):
+    from gradpert.config import load_experiment_config
+
+    identity = json.loads(checked(endpoint["run_manifest"], server=server).read_text())
+    config = load_experiment_config(checked(endpoint["config"], server=server))
+    options = population_options(config)
+    if (
+        not valid_sha256(endpoint["config"]["sha256"])
+        or not isinstance(endpoint["source"]["commit"], str)
+        or len(endpoint["source"]["commit"]) != 40
+        or any(c not in "0123456789abcdef" for c in endpoint["source"]["commit"])
+        or identity["source"]["commit"] != endpoint["source"]["commit"]
+        or identity["source"].get("dirty") is not False
+        or identity.get("config_sha256") != endpoint["config"]["sha256"]
+        or identity.get("resolved_config_sha256") != digest(config.model_dump(mode="json"))
+        or identity["data"].get("response_anchor") != population_descriptor(options)
+        or options.response_anchor_seed != 20261028
+    ):
+        raise ValueError("R16 requires its own clean source/config/population descriptor")
+    # Metadata-only checks: never open bank manifests, sidecars, or their arrays.
+    return identity
+
+
+def validate_r16_payload(spec, *, server=True):
+    validate_r16_identity(spec["endpoints"][0], server=server)
+    if set(spec["retained_references"]) != {"R3-RI", "R14-FRGA"}:
+        raise ValueError("R16 requires retained RI primary and R14 mechanism reference")
+    for name, binding in spec["retained_references"].items():
+        old, _ = retained_metadata(binding, name, spec["validation"], server=server)
+        output, retained = Path(spec["output"]).resolve(), Path(old["output"]).resolve()
+        if output.is_relative_to(retained) or retained.is_relative_to(output):
+            raise ValueError("R16 output overlaps retained historical output")
+    if spec["observer_parity"] is not None:
+        checked(spec["observer_parity"], server=server)
+
+
+def assert_population_headless(runtime):
+    for model in (runtime.objective.student, runtime.objective.teacher):
+        if hasattr(model, "response_anchor_readout") or any(
+            "response_anchor_readout" in key for key in model.state_dict()
+        ):
+            raise ValueError("R16 forbids an auxiliary Student or Teacher head")
+    if getattr(runtime.objective, "response_anchor_backward", None) is not None:
+        raise ValueError("R16 evaluation forbids a TRAIN auxiliary controller")
+
+
+def population_protected_state(runtime, validation_state, fingerprint):
+    objective = runtime.objective
+    result = validation_state(runtime)
+    return dict(
+        result,
+        objective_state=fingerprint(objective.state_dict()),
+        objective_buffers=fingerprint(dict(objective.named_buffers())),
+        objective_scalar_clocks=fingerprint(
+            {
+                k: v
+                for k, v in vars(objective).items()
+                if v is None or isinstance(v, (bool, int, float, str))
+            }
+        ),
+    )
+
+
+@contextmanager
+def population_no_training_reads(config, runtime=None):
+    """Reject all auxiliary loaders and filesystem reads in the TRAIN bank trees."""
+    import builtins
+    import io
+
+    from gradpert.training.v2 import population_anchor, response_anchor_runtime
+
+    options = population_options(config)
+    if runtime is not None:
+        assert_population_headless(runtime)
+    roots = tuple(
+        os.path.abspath(str(Path(p).parent))
+        for p in (options.response_anchor_path, options.response_anchor_population_path)
+    )
+    counts = dict.fromkeys(POPULATION_COUNTERS, 0)
+    originals = []
+
+    def patch(owner, name, value):
+        originals.append((owner, name, getattr(owner, name)))
+        setattr(owner, name, value)
+
+    def fail(name):
+        def reject(*args, **kwargs):
+            counts[name] += 1
+            raise ValueError("R16 forbidden evaluation path: " + name)
+
+        return reject
+
+    def guard(original):
+        @wraps(original)
+        def checked_read(file, *args, **kwargs):
+            if isinstance(file, (str, bytes, os.PathLike)):
+                value = os.path.abspath(os.fsdecode(file))
+                if any(value == root or value.startswith(root + os.sep) for root in roots):
+                    return fail("training_file_read")()
+            return original(file, *args, **kwargs)
+
+        return checked_read
+
+    patch(response_anchor_runtime, "load_response_bank", fail("bank_loader"))
+    patch(population_anchor, "load_population_targets", fail("population_loader"))
+    if runtime is not None:
+        # Headless evaluation has no callback, so this catches an accidental call as well.
+        owned = "response_anchor_backward" in vars(runtime.objective)
+        previous = getattr(runtime.objective, "response_anchor_backward", None)
+        runtime.objective.response_anchor_backward = fail("auxiliary_callback")
+    for owner, name in ((builtins, "open"), (io, "open"), (os, "open"), (np, "load")):
+        patch(owner, name, guard(getattr(owner, name)))
+    try:
+        yield counts
+    finally:
+        for owner, name, original in reversed(originals):
+            setattr(owner, name, original)
+        if runtime is not None:
+            if owned:
+                runtime.objective.response_anchor_backward = previous
+            else:
+                del runtime.objective.response_anchor_backward
+
+
+def validate_r16_observer_parity(spec, *, server=True):
+    if spec["schema"] != R16_SCHEMA:
+        return
+    if spec["observer_parity"] is None:
+        raise ValueError("R16 execution requires its native first-condition off/on parity receipt")
+    receipt = json.loads(checked(spec["observer_parity"], server=server).read_text())
+    pilot = json.loads(checked(receipt["spec"], server=server).read_text())
+    expected_pilot = dict(spec, observer_parity=None)
+    parity = receipt.get("parity", {})
+    endpoint = spec["endpoints"][0]
+    if (
+        pilot != expected_pilot
+        or receipt["spec_digest"] != digest(pilot)
+        or receipt["status"] != "completed"
+        or receipt["endpoint"] != "R16-GPM"
+        or receipt["endpoint_digest"] != digest(endpoint)
+        or receipt["source"]["commit"] != endpoint["source"]["commit"]
+        or receipt["analysis_source"]["commit"] != spec["analysis_source"]["commit"]
+        or receipt["checkpoint"] != endpoint["checkpoint"]
+        or receipt["condition"] != spec["validation"]["conditions"][0]
+        or (
+            receipt["full_validation_conditions"],
+            receipt["executed_conditions"],
+            receipt["controls"],
+            receipt["expression_genes"],
+            receipt["query_count"],
+        )
+        != (445, 1, 300, 5000, 1000)
+        or (receipt["epoch"], receipt["role"], receipt["split"]) != (2, "last", "val")
+        or any(receipt[k] != 0 for k in ("updates", "teacher_updates", "center_updates"))
+        or receipt.get("zero_pkl") is not True
+        or parity.get("passed") is not True
+        or parity.get("atol") != 0
+        or parity.get("rtol") != 0
+        or parity.get("max_abs") != 0
+        or parity.get("state_unchanged") is not True
+        or parity.get("state_before") != parity.get("state_after")
+        or parity.get("callback_counts") != [1, 1]
+        or parity.get("prediction_shape") != [300, 5000]
+        or len(parity.get("forbidden_calls", [])) != 2
+        or len(parity.get("prediction_sha256", [])) != 2
+        or len(set(parity.get("prediction_sha256", []))) != 1
+        or len(parity.get("native_result_sha256", [])) != 2
+        or len(set(parity.get("native_result_sha256", []))) != 1
+        or any(any(row.values()) for row in parity["forbidden_calls"])
+    ):
+        raise ValueError("R16 observer parity source/CP/coverage/state proof differs")
+    required_bindings = [
+        receipt["spec"],
+        spec["shared_policy"],
+        spec["analysis_source"]["publication"],
+        endpoint["source"]["publication"],
+        *[endpoint[k] for k in ("run_manifest", "journal", "config", "checkpoint")],
+    ]
+    inputs = receipt.get("input_files_sha256")
+    if not isinstance(inputs, dict) or any(
+        inputs.get(str(Path(b["path"]).resolve())) != b["sha256"] for b in required_bindings
+    ):
+        raise ValueError("R16 observer parity omitted required immutable input bindings")
+    counters = {
+        "teacher_forward",
+        "optimizer_step",
+        "statistics_commit",
+        "backward",
+        "autograd_grad",
+        *POPULATION_COUNTERS,
+    }
+    if any(
+        set(row) != counters or any(type(v) is not int or v != 0 for v in row.values())
+        for row in parity["forbidden_calls"]
+    ):
+        raise ValueError("R16 observer parity counter proof missing or nonzero")
+    if not valid_parity_state(parity.get("state_before")) or not valid_parity_state(
+        parity.get("state_after")
+    ):
+        raise ValueError("R16 observer parity state proof missing or malformed")
+    if any(
+        not valid_sha256(v)
+        for key in ("prediction_sha256", "native_result_sha256")
+        for v in parity[key]
+    ):
+        raise ValueError("R16 observer parity prediction/result fingerprints invalid")
+    from gradpert.config import load_experiment_config
+
+    cell_batch = int(
+        load_experiment_config(
+            checked(endpoint["config"], server=server)
+        ).training.eval_batch_size.value
+    )
+    expected_calls = dict(
+        predict_controls=1,
+        query_blocks=5,
+        response_forward=5 * math.ceil(300 / cell_batch),
+        truth_reads=1,
+        control_reads=1,
+    )
+    if parity.get("observer_calls") != expected_calls:
+        raise ValueError("R16 observer parity actual forward/read coverage differs")
+    for file, value in receipt["input_files_sha256"].items():
+        checked(dict(path=file, sha256=value), server=server)
+    checked(receipt["arrays"], server=server)
+    checked(
+        dict(
+            path=str(Path(spec["observer_parity"]["path"]).parent / "PRIVATE_NATIVE_RESULT.json"),
+            sha256=receipt["native_result_sha256"],
+        ),
+        server=server,
+    )
+
+
+def compare_r16(spec, geometry, *, spec_file):
+    validate_r16_observer_parity(spec)
+    if json.loads(checked(spec_file).read_text()) != spec:
+        raise ValueError("R16 input SPEC binding differs")
+    root = server_path(spec["output"])
+    candidate, native = merge_endpoint(spec, "R16-GPM")
+    comparisons = {}
+    for name, label in (("R3-RI", "primary_vs_RI"), ("R14-FRGA", "secondary_vs_R14")):
+        reference, original = load_retained_reference(
+            spec["retained_references"][name], name, spec["validation"]
+        )
+        comparisons[label] = paired_comparison(
+            reference, candidate, original, native, geometry, spec["bootstrap"]
+        )
+    result = dict(
+        schema="response-anchor-r16-paired-comparison-1",
+        candidate="R16-GPM",
+        comparisons=comparisons,
+        scientific_complete=False,
+    )
+    write_new(root / "COMPARISON.json", result)
+    if list(root.rglob("*.pkl")):
+        raise ValueError("R16 postfit requires whole-output zero PKL")
+    write_new(
+        root / "COMPLETE.json",
+        dict(
+            schema="response-anchor-r16-val-postfit-complete-1",
+            status="completed",
+            spec_sha256=digest(spec),
+            input_spec=spec_file,
+            comparison_sha256=sha(root / "COMPARISON.json"),
+            endpoint_receipts={"R16-GPM": sha(root / "R16-GPM/COMPLETE.json")},
+            retained_references=spec["retained_references"],
+            observer_parity=spec["observer_parity"],
+            outputs={
+                str(p.relative_to(root)): sha(p) for p in sorted(root.rglob("*")) if p.is_file()
+            },
+            updates=0,
+            zero_pkl=True,
+            scientific_complete=False,
+            postfit_complete=False,
+            medium_status="not_executed_by_val_worker",
+            test_status="deferred",
+        ),
+    )
+    return result
+
+
+def validate_r16_result(spec, *, spec_file, server=True):
+    """Verify terminal receipts and exact closure only; never merge, write or fit."""
+    validate_spec(spec, server=server)
+    if server:
+        _source(spec["analysis_source"])
+    if spec["schema"] != R16_SCHEMA:
+        raise ValueError("R16 result validator cannot relabel an old profile")
+    if json.loads(checked(spec_file, server=server).read_text()) != spec:
+        raise ValueError("R16 terminal input SPEC differs")
+    validate_r16_observer_parity(spec, server=server)
+    root = server_path(spec["output"]) if server else Path(spec["output"]).resolve()
+    if (root / "FAILURE.json").exists() or list(root.rglob("*.pkl")):
+        raise ValueError("failed or nonzero-PKL R16 result cannot validate")
+    complete = json.loads((root / "COMPLETE.json").read_text())
+    required = {
+        "schema",
+        "status",
+        "spec_sha256",
+        "input_spec",
+        "comparison_sha256",
+        "endpoint_receipts",
+        "retained_references",
+        "observer_parity",
+        "outputs",
+        "updates",
+        "zero_pkl",
+        "scientific_complete",
+        "postfit_complete",
+        "medium_status",
+        "test_status",
+    }
+    if (
+        set(complete) != required
+        or complete["schema"] != "response-anchor-r16-val-postfit-complete-1"
+        or complete["status"] != "completed"
+        or complete["spec_sha256"] != digest(spec)
+        or complete["input_spec"] != spec_file
+        or complete["retained_references"] != spec["retained_references"]
+        or complete["observer_parity"] != spec["observer_parity"]
+        or complete["updates"] != 0
+        or complete["zero_pkl"] is not True
+        or complete["scientific_complete"] is not False
+        or complete["postfit_complete"] is not False
+        or complete["medium_status"] != "not_executed_by_val_worker"
+        or complete["test_status"] != "deferred"
+        or set(complete["endpoint_receipts"]) != {"R16-GPM"}
+    ):
+        raise ValueError("R16 terminal COMPLETE protocol differs")
+    if json.loads((root / "SPEC.json").read_text()) != spec:
+        raise ValueError("R16 output SPEC snapshot differs")
+    endpoint = spec["endpoints"][0]
+    candidate_root = root / "R16-GPM"
+    cp = dict(
+        path=str(candidate_root / "COMPLETE.json"), sha256=complete["endpoint_receipts"]["R16-GPM"]
+    )
+    candidate, native = load_completed_endpoint(spec, endpoint, cp, spec_file, server=server)
+    expected = {"SPEC.json", "COMPARISON.json", "R16-GPM-worker-0.log", "R16-GPM-worker-1.log"}
+    expected |= {
+        "R16-GPM/" + str(p.relative_to(candidate_root))
+        for p in candidate_root.rglob("*")
+        if p.is_file()
+    }
+    actual = {
+        str(p.relative_to(root))
+        for p in root.rglob("*")
+        if p.is_file() and p != root / "COMPLETE.json"
+    }
+    if (
+        actual != expected
+        or set(complete["outputs"]) != actual
+        or any(p.is_symlink() for p in root.rglob("*"))
+    ):
+        raise ValueError("R16 recursive closure missing or extra output")
+    for relative, value in complete["outputs"].items():
+        path = (root / relative).resolve()
+        if not path.is_relative_to(root) or not valid_sha256(value):
+            raise ValueError("R16 output escaped closure or has invalid hash")
+        checked(dict(path=str(path), sha256=value), server=server)
+    comparison_path = checked(
+        dict(path=str(root / "COMPARISON.json"), sha256=complete["comparison_sha256"]),
+        server=server,
+    )
+    comparison = json.loads(comparison_path.read_text())
+    if (
+        set(comparison) != {"schema", "candidate", "comparisons", "scientific_complete"}
+        or comparison["schema"] != "response-anchor-r16-paired-comparison-1"
+        or comparison["candidate"] != "R16-GPM"
+        or comparison["scientific_complete"] is not False
+        or set(comparison["comparisons"]) != {"primary_vs_RI", "secondary_vs_R14"}
+    ):
+        raise ValueError("R16 COMPARISON roles/schema differ")
     for name, label in (("R3-RI", "primary_vs_RI"), ("R14-FRGA", "secondary_vs_R14")):
         reference, original = load_retained_reference(
             spec["retained_references"][name], name, spec["validation"], server=server

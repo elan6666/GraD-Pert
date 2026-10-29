@@ -294,7 +294,7 @@ def preparation(tmp_path, monkeypatch):
             closure_verified=True,
             zero_PKL_within_output=True,
             input_seals=[],
-            outputs_sha256={"server-only/memberships.json": membership["sha256"]},
+            output_sha256={"server-only/memberships.json": membership["sha256"]},
         ),
     )
     preprocessing = write(

@@ -247,7 +247,7 @@ def run(spec_path: Path, spec_sha: str):
         path=str(
             Path(spec["repeatability_complete"]["path"]).parent / "server-only/memberships.json"
         ),
-        sha256=repeat["outputs_sha256"]["server-only/memberships.json"],
+        sha256=repeat["output_sha256"]["server-only/memberships.json"],
     )
     accepted_membership = json.loads(checked_seal(membership_seal).read_text())
     old_spec = json.loads(checked_seal(original["input_seals"][0]).read_text())
