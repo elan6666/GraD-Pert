@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 import time
@@ -69,6 +70,76 @@ def calibration_command(spec, root, owner):
 
 IDENTITY_FIELDS = ("pid", "uid", "start_ticks", "command_sha256")
 DRAIN_SECONDS = 30.0
+
+
+def require_head_route_audit(result, options):
+    """Historical default receipts stay valid; protected heads require all-rank proof."""
+    if getattr(options, "response_anchor_prediction_head_grad", True) is not False:
+        return
+    route = "gpm_head_parameters_detached_preserve_input_jacobian"
+    audits = result.get("population_head_route_audit_ranks")
+    if (
+        result.get("response_anchor_prediction_head_grad") is not False
+        or result.get("gradient_routing") != route
+        or not isinstance(audits, list)
+        or len(audits) != 2
+        or any(
+            audit.get("schema") != "population-head-route-audit-v1"
+            or audit.get("gradient_routing") != route
+            or any(
+                audit.get(field) != 0
+                for field in (
+                    "score_atol",
+                    "score_rtol",
+                    "loss_atol",
+                    "loss_rtol",
+                    "cuda_response_gradient_rtol",
+                    "cuda_input_gradient_rtol",
+                )
+            )
+            or audit.get("cuda_response_gradient_atol") != 2e-6
+            or audit.get("cuda_input_gradient_atol") != 2e-6
+            or any(
+                not isinstance(audit.get("gradient_comparisons", {}).get(scope), dict)
+                or audit["gradient_comparisons"][scope].get("atol") != tolerance
+                or audit["gradient_comparisons"][scope].get("rtol") != 0
+                or audit["gradient_comparisons"][scope].get("tensor_count", 0) <= 0
+                or any(
+                    audit["gradient_comparisons"][scope].get(field) != 0
+                    for field in (
+                        "missing_mismatch",
+                        "shape_mismatch",
+                        "nonfinite_tensors",
+                    )
+                )
+                or not math.isfinite(audit["gradient_comparisons"][scope].get("max_abs", math.inf))
+                or not 0 <= audit["gradient_comparisons"][scope]["max_abs"] <= tolerance
+                for scope, tolerance in (("input", 2e-6), ("response", 2e-6))
+            )
+            or any(
+                audit.get(field) is not True
+                for field in (
+                    "complete",
+                    "head_score_and_loss_equal",
+                    "input_gradient_equal",
+                    "response_gradient_equal",
+                    "auxiliary_head_gradient_zero",
+                    "primary_head_gradient_preserved",
+                    "state_restored",
+                )
+            )
+            or any(
+                audit.get(field) != 0
+                for field in (
+                    "optimizer_updates",
+                    "teacher_updates",
+                    "center_updates",
+                )
+            )
+            for audit in audits
+        )
+    ):
+        raise ValueError("protected population head calibration audit differs")
 
 
 def same_process(current, expected):
@@ -226,6 +297,7 @@ def execute(path, digest):
             or list(output.rglob("*.pkl"))
         ):
             raise ValueError("native population calibration closure differs")
+        require_head_route_audit(result, options)
         guard()
         if (
             inspect_source_identity(

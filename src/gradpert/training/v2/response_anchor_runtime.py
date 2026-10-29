@@ -7,7 +7,7 @@ import json
 import math
 from contextlib import AbstractContextManager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -206,11 +206,17 @@ class ResponseAnchorController:
                 gene, perturbation = runtime.objective._batch_graph(
                     runtime.objective.student, auxiliary
                 )
+                decoder_options: dict[str, Any] = {}
+                if population and not getattr(
+                    runtime.options, "response_anchor_prediction_head_grad", True
+                ):
+                    decoder_options["prediction_head_grad"] = False
                 outputs = runtime.objective.student.encode_response(
                     runtime.objective._select_graph(gene, auxiliary.query_positions),
                     control,
                     perturbation,
                     decode=population,
+                    **decoder_options,
                     **runtime.objective.response_metadata(auxiliary),
                 )
                 if population:

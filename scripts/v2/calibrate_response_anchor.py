@@ -17,7 +17,7 @@ import statistics
 import sys
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from contextlib import contextmanager
-from dataclasses import asdict
+from dataclasses import asdict, is_dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -50,6 +50,195 @@ import torch  # noqa: E402
 from torch import Tensor  # noqa: E402
 
 _BATCHES = 8
+_PROTECTED_ROUTE = "gpm_head_parameters_detached_preserve_input_jacobian"
+_CUDA_RESPONSE_GRADIENT_ATOL = 2e-6
+
+
+def compare_head_audit_gradients(
+    actual: Sequence[Tensor | None], expected: Sequence[Tensor | None], *, atol: float
+) -> dict[str, Any]:
+    """Fixed absolute comparison with explicit missing/shape/nonfinite accounting."""
+    report = dict(
+        tensor_count=0,
+        missing_both=0,
+        missing_mismatch=0,
+        shape_mismatch=0,
+        nonfinite_tensors=0,
+        max_abs=0.0,
+        atol=atol,
+        rtol=0.0,
+    )
+    if len(actual) != len(expected):
+        raise ValueError("gradient audit parameter counts differ")
+    for left, right in zip(actual, expected, strict=True):
+        if left is None or right is None:
+            report["missing_both" if left is None and right is None else "missing_mismatch"] += 1
+            continue
+        report["tensor_count"] += 1
+        if left.shape != right.shape:
+            report["shape_mismatch"] += 1
+            continue
+        if not torch.isfinite(left).all() or not torch.isfinite(right).all():
+            report["nonfinite_tensors"] += 1
+            continue
+        report["max_abs"] = max(
+            report["max_abs"], float((left.detach().float() - right.detach().float()).abs().max())
+        )
+    if (
+        report["missing_mismatch"]
+        or report["shape_mismatch"]
+        or report["nonfinite_tensors"]
+        or report["max_abs"] > atol
+    ):
+        raise ValueError(f"population gradient audit differs: {json.dumps(report, sort_keys=True)}")
+    return report
+
+
+def audit_population_head_route(
+    runtime: Any,
+    controller: Any,
+    batch: Any,
+    condition: int,
+    *,
+    bf16: bool,
+    world: int,
+    global_rows: int,
+) -> dict[str, Any]:
+    """Replay one already selected group; never contribute to calibration norms.
+
+    Each replay starts at identical model/RNG state. Only scalar observations
+    leave this function; transient scores and gradients are compared in memory.
+    """
+    if (
+        runtime.options.response_anchor_loss != "population_prediction"
+        or runtime.options.response_anchor_prediction_head_grad is not False
+    ):
+        raise ValueError("head-route audit requires protected population prediction")
+    model = runtime.objective.student
+    head = tuple(model.prediction.parameters())
+    response = tuple(model.response.parameters())
+    if not head or not response or set(map(id, head)) & set(map(id, response)):
+        raise ValueError("disjoint native prediction head and Response parameters required")
+    flags = tuple(p.requires_grad for p in runtime.objective.parameters())
+
+    def nonzero_norm(grads: Sequence[Tensor | None], scope: str) -> float:
+        values = [g.detach() for g in grads if g is not None]
+        if any(not torch.isfinite(g).all() for g in values):
+            raise ValueError(f"nonfinite {scope} audit gradient")
+        norm = math.sqrt(sum(float(g.double().square().sum()) for g in values))
+        if not math.isfinite(norm) or norm <= 0:
+            raise ValueError(f"zero or nonfinite {scope} audit gradient")
+        return norm
+
+    def replay(protected: bool) -> dict[str, Any]:
+        original = runtime.options
+        options = (
+            replace(original, response_anchor_prediction_head_grad=not protected)
+            if is_dataclass(original)
+            else copy.copy(original)
+        )
+        if not is_dataclass(original):
+            options.response_anchor_prediction_head_grad = not protected
+        captured: dict[str, Tensor] = {}
+
+        def pre_hook(module: Any, args: tuple[Tensor, ...]) -> None:
+            captured["input"] = args[0]
+
+        def post_hook(module: Any, args: Any, output: Tensor) -> None:
+            captured["score"] = output
+
+        try:
+            runtime.options = options
+            with preserved_calibration(runtime), controller.group_rng(condition, 0):
+                before = model.prediction.register_forward_pre_hook(pre_hook)
+                after = model.prediction.register_forward_hook(post_hook)
+                try:
+                    loss = controller.group_loss(batch, condition, 0, bf16=bf16)
+                    if set(captured) != {"input", "score"}:
+                        raise ValueError("native population head was not observed")
+                    grads = torch.autograd.grad(
+                        loss, (captured["input"], *response, *head), allow_unused=True
+                    )
+                finally:
+                    before.remove()
+                    after.remove()
+                return dict(
+                    loss=loss.detach().clone(),
+                    score=captured["score"].detach().clone(),
+                    input=grads[0],
+                    response=grads[1 : 1 + len(response)],
+                    head=grads[1 + len(response) :],
+                )
+        finally:
+            runtime.options = original
+
+    protected = replay(True)
+    reference = replay(False)
+    for name in ("score", "loss"):
+        if not torch.equal(protected[name], reference[name]):
+            raise ValueError(f"protected native head {name} differs from default route")
+    comparisons = {}
+    for scope in ("input", "response"):
+        left = (protected[scope],) if scope == "input" else protected[scope]
+        right = (reference[scope],) if scope == "input" else reference[scope]
+        nonzero_norm(left, scope)
+        atol = _CUDA_RESPONSE_GRADIENT_ATOL if runtime.device.type == "cuda" else 0.0
+        comparisons[scope] = compare_head_audit_gradients(left, right, atol=atol)
+    if any(
+        g is not None and (not torch.isfinite(g).all() or torch.count_nonzero(g))
+        for g in protected["head"]
+    ):
+        raise ValueError("protected population head received an auxiliary gradient")
+    reference_head_norm = nonzero_norm(reference["head"], "reference head")
+
+    with preserved_calibration(runtime):
+        for parameter in head:
+            parameter.grad = None
+        for loss in prediction_losses(
+            runtime, batch, bf16=bf16, world=world, global_rows=global_rows
+        ):
+            loss.backward(inputs=head)
+        primary = tuple(None if p.grad is None else p.grad.clone() for p in head)
+        primary_head_norm = nonzero_norm(primary, "primary head")
+        with controller.group_rng(condition, 0):
+            controller.group_loss(batch, condition, 0, bf16=bf16).backward()
+        if any(
+            (p.grad is None) != (g is None) or (g is not None and not torch.equal(p.grad, g))
+            for p, g in zip(head, primary, strict=True)
+        ):
+            raise ValueError("population auxiliary changed accumulated primary head gradients")
+    if flags != tuple(p.requires_grad for p in runtime.objective.parameters()):
+        raise ValueError("population audit changed parameter requires_grad flags")
+    return dict(
+        schema="population-head-route-audit-v1",
+        complete=True,
+        gradient_routing=_PROTECTED_ROUTE,
+        condition_index=condition,
+        epoch=0,
+        group_replays=3,
+        head_score_and_loss_equal=True,
+        input_gradient_equal=True,
+        response_gradient_equal=True,
+        gradient_comparisons=comparisons,
+        score_atol=0.0,
+        score_rtol=0.0,
+        loss_atol=0.0,
+        loss_rtol=0.0,
+        cuda_response_gradient_atol=_CUDA_RESPONSE_GRADIENT_ATOL,
+        cuda_response_gradient_rtol=0.0,
+        cuda_input_gradient_atol=_CUDA_RESPONSE_GRADIENT_ATOL,
+        cuda_input_gradient_rtol=0.0,
+        auxiliary_head_gradient_zero=True,
+        primary_head_gradient_preserved=True,
+        state_restored=True,
+        input_gradient_norm=nonzero_norm((protected["input"],), "input"),
+        response_gradient_norm=nonzero_norm(protected["response"], "Response"),
+        reference_head_gradient_norm=reference_head_norm,
+        primary_head_gradient_norm=primary_head_norm,
+        optimizer_updates=0,
+        teacher_updates=0,
+        center_updates=0,
+    )
 
 
 def calibrate_gradients(
@@ -279,6 +468,8 @@ def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) 
     distributed = torch.distributed.is_initialized()
     world = torch.distributed.get_world_size() if distributed else 1
     rank = torch.distributed.get_rank() if distributed else 0
+    protected_head = getattr(runtime.options, "response_anchor_prediction_head_grad", True) is False
+    head_audit = None
     params = tuple(runtime.objective.student.response.parameters())
     readout = getattr(runtime.objective.student, "response_anchor_readout", None)
     if readout is not None and any(id(p) in {id(q) for q in readout.parameters()} for p in params):
@@ -331,11 +522,29 @@ def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) 
                 )
 
             def anchor(step: int) -> Iterable[Tensor]:
+                nonlocal head_audit
                 groups = controller.groups(step)
                 metadata[step]["local_group_indices_sha256"] = sha256_json(list(groups))
                 metadata[step]["local_group_count"] = len(groups)
                 for condition in groups:
-                    yield controller.group_loss(current["batch"], condition, 0, bf16=bf16)
+                    if protected_head:
+                        if head_audit is None:
+                            head_audit = audit_population_head_route(
+                                runtime,
+                                controller,
+                                current["batch"],
+                                condition,
+                                bf16=bf16,
+                                world=world,
+                                global_rows=metadata[step]["global_rows"],
+                            )
+                            head_audit["calibration_step"] = step
+                        # Match the native auxiliary backward's private RNG scope,
+                        # including activation-checkpoint recomputation.
+                        with controller.group_rng(condition, 0):
+                            yield controller.group_loss(current["batch"], condition, 0, bf16=bf16)
+                    else:
+                        yield controller.group_loss(current["batch"], condition, 0, bf16=bf16)
 
             result = calibrate_gradients(
                 params,
@@ -355,6 +564,12 @@ def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) 
     result["rank"] = rank
     result["forward_precision"] = "bfloat16_autocast" if bf16 else "float32"
     result["ordered_batch_metadata_sha256"] = sha256_json(metadata)
+    if protected_head:
+        if head_audit is None:
+            raise ValueError("protected head calibration did not audit a selected complete group")
+        result["response_anchor_prediction_head_grad"] = False
+        result["gradient_routing"] = _PROTECTED_ROUTE
+        result["population_head_route_audit"] = head_audit
     if getattr(runtime.options, "response_anchor_loss", "mse") == "population_prediction":
         result["response_anchor_loss"] = "population_prediction"
         result["population_manifest_sha256"] = runtime.options.response_anchor_population_sha256
@@ -506,6 +721,17 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
                 ]
                 if len({row["selected_weight"] for row in ranks}) != 1:
                     raise ValueError("rank calibration weights disagree")
+                if getattr(runtime.options, "response_anchor_prediction_head_grad", True) is False:
+                    if any(
+                        row.get("response_anchor_prediction_head_grad") is not False
+                        or row.get("gradient_routing") != _PROTECTED_ROUTE
+                        or row.get("population_head_route_audit", {}).get("complete") is not True
+                        for row in ranks
+                    ):
+                        raise ValueError("protected population head audit missing on a rank")
+                    result["population_head_route_audit_ranks"] = [
+                        row["population_head_route_audit"] for row in ranks
+                    ]
                 if list(args.output.rglob("*.pkl")):
                     raise ValueError("calibration must remain zero-PKL")
                 result["input_files_sha256"] = before_files

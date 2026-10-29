@@ -755,8 +755,17 @@ class GraDPertV2(nn.Module):
         *,
         query_gene_ids: Tensor | None = None,
         target_mask: Tensor | None = None,
+        prediction_head_grad: bool = True,
     ) -> Tensor:
         """Raw task score; residual in BR, unconstrained expression score in PO."""
+        if type(prediction_head_grad) is not bool:
+            raise ValueError("prediction_head_grad must be boolean")
+        if not prediction_head_grad and (
+            self.options.attention != "relay_full"
+            or self.options.prediction_parameterization != "softplus"
+            or self.prior_readout is not None
+        ):
+            raise ValueError("protected head requires native relay Softplus decoder")
         if self.options.direct_target_flag:
             if (
                 target_mask is None
@@ -765,6 +774,17 @@ class GraDPertV2(nn.Module):
             ):
                 raise ValueError("direct-target readout requires an aligned boolean target mask")
             joint = torch.cat((joint, target_mask.to(joint.dtype).unsqueeze(-1)), -1)
+        if not prediction_head_grad:
+            # Only this call treats head parameters as constants. Input Jacobians,
+            # existing accumulated gradients and the live module state are retained.
+            state = {name: value.detach() for name, value in self.prediction.named_parameters()}
+            state.update({name: value.detach() for name, value in self.prediction.named_buffers()})
+            return cast(
+                Tensor,
+                torch.func.functional_call(self.prediction, state, (joint,), strict=True).squeeze(
+                    -1
+                ),
+            )
         if self.prior_readout is None:
             return cast(Tensor, self.prediction(joint).squeeze(-1))
         if (
@@ -885,7 +905,12 @@ class GraDPertV2(nn.Module):
         query_gene_ids: Tensor | None = None,
         target_mask: Tensor | None = None,
         decode: bool = True,
+        prediction_head_grad: bool = True,
     ) -> dict[str, Tensor]:
+        if type(prediction_head_grad) is not bool:
+            raise ValueError("prediction_head_grad must be boolean")
+        if not prediction_head_grad and (not decode or self.options.attention != "relay_full"):
+            raise ValueError("protected head requires decoded native relay predictions")
         basal, control_cls, order = self.encode_control(
             gene, control, expression_mask, query_gene_ids=query_gene_ids
         )
@@ -912,7 +937,10 @@ class GraDPertV2(nn.Module):
                     (response[:, :-1], condition[:, None, :].expand_as(basal)), dim=-1
                 )
                 score = self.decode_score(
-                    joint, query_gene_ids=query_gene_ids, target_mask=target_mask
+                    joint,
+                    query_gene_ids=query_gene_ids,
+                    target_mask=target_mask,
+                    prediction_head_grad=prediction_head_grad,
                 )
                 prediction, delta = self.prediction_outputs(score, control)
                 output.update(prediction=prediction, delta=delta)

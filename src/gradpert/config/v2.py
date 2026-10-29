@@ -497,6 +497,7 @@ class V2Options:
     response_anchor_weight: float = 0.0
     response_anchor_seed: int = 20261028
     response_anchor_loss: str = "mse"
+    response_anchor_prediction_head_grad: bool = True
     response_anchor_population_path: str = ""
     response_anchor_population_sha256: str = ""
     response_anchor_population_arrays_sha256: str = ""
@@ -607,6 +608,7 @@ class V2Options:
             "response_anchor_weight",
             "response_anchor_seed",
             "response_anchor_loss",
+            "response_anchor_prediction_head_grad",
             "response_anchor_population_path",
             "response_anchor_population_sha256",
             "response_anchor_population_arrays_sha256",
@@ -626,9 +628,23 @@ class V2Options:
             or arch.learned_genept_projection
         ) and (options.gene_initialization != "genept"):
             raise ValueError("prior mechanisms require GenePT initialization")
+        if not options.response_anchor_prediction_head_grad and (
+            arch.attention != "relay_full"
+            or arch.prediction_parameterization != "softplus"
+            or arch.gene_conditioned_readout
+        ):
+            raise ValueError("protected population head requires native relay Softplus decoder")
         return arch, options
 
     def __post_init__(self) -> None:
+        if type(self.response_anchor_prediction_head_grad) is not bool or (
+            not self.response_anchor_prediction_head_grad
+            and (
+                self.response_anchor_loss != "population_prediction"
+                or not self.response_anchor_weight
+            )
+        ):
+            raise ValueError("prediction head gradient flag requires active population_prediction")
         if self.response_anchor_loss not in ("mse", "cosine_direction", "population_prediction"):
             raise ValueError(
                 "response_anchor_loss must be mse or cosine_direction, or population_prediction"

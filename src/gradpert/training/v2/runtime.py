@@ -784,6 +784,11 @@ def _configure_response_anchor(runtime: Runtime) -> None:
                 population_arrays_sha256=options.response_anchor_population_arrays_sha256,
                 formula="mean_gene(square(mean_cell_fp32(native_prediction)-fixed_train_mean))",
             )
+        if not getattr(options, "response_anchor_prediction_head_grad", True):
+            identity["response_anchor"].update(
+                prediction_head_grad=False,
+                gradient_routing="gpm_head_parameters_detached_preserve_input_jacobian",
+            )
         if purpose == "training":
             if allowed_expression_ids is None:
                 raise ValueError("response anchor requires the frozen expression holdout")
