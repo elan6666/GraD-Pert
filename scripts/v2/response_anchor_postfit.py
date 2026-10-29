@@ -583,12 +583,17 @@ def preimport_source(binding):
 def _source(binding):
     from gradpert.execution.identity import inspect_source_identity
 
+    publication = checked(binding["publication"])
+    method = json.loads(publication.read_text()).get("verification_method")
+    if method not in {"git_ls_remote_live", "github_rest_live"}:
+        raise ValueError("unsupported sealed source publication verification method")
     result = inspect_source_identity(
         binding["root"],
         formal=True,
         expected_repository=REPOSITORY,
         publication_receipt=binding["publication"]["path"],
         expected_publication_receipt_sha256=binding["publication"]["sha256"],
+        verification_method=method,
     ).payload()
     if result["commit"] != binding["commit"] or result["dirty"]:
         raise ValueError("native/analysis source differs from clean publication")

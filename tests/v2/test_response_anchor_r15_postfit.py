@@ -20,6 +20,48 @@ def write(path, value):
     return binding(path)
 
 
+@pytest.mark.parametrize("method", ["git_ls_remote_live", "github_rest_live", "offline"])
+def test_source_verifier_uses_exact_sealed_supported_publication_method(
+    tmp_path, monkeypatch, method
+):
+    from types import SimpleNamespace
+
+    import gradpert.execution.identity as identity
+
+    publication = write(tmp_path / "publication.json", dict(verification_method=method))
+    source = dict(root=str(tmp_path), commit="a" * 40, publication=publication)
+    original_checked, calls = m.checked, []
+    monkeypatch.setattr(m, "checked", lambda b: original_checked(b, server=False))
+
+    def inspect(root, **kwargs):
+        calls.append((root, kwargs))
+        return SimpleNamespace(payload=lambda: dict(commit=source["commit"], dirty=False))
+
+    monkeypatch.setattr(identity, "inspect_source_identity", inspect)
+    if method == "offline":
+        with pytest.raises(ValueError, match="unsupported sealed source"):
+            m._source(source)
+        assert calls == []
+    else:
+        assert m._source(source) == dict(commit="a" * 40, dirty=False)
+        assert calls == [
+            (
+                str(tmp_path),
+                dict(
+                    formal=True,
+                    expected_repository=m.REPOSITORY,
+                    publication_receipt=publication["path"],
+                    expected_publication_receipt_sha256=publication["sha256"],
+                    verification_method=method,
+                ),
+            )
+        ]
+        Path(publication["path"]).write_text("tampered")
+        with pytest.raises(ValueError):
+            m._source(source)
+        assert len(calls) == 1
+
+
 def retained_fixture(tmp_path):
     tmp_path.mkdir(parents=True, exist_ok=True)
     old = spec_fixture(tmp_path / "old")
