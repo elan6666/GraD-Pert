@@ -226,6 +226,8 @@ def execute(spec, endpoint_name, *, spec_file, output):
         raise ValueError("pilot must belong to the sealed analysis source")
     postfit.preimport_source(endpoint["source"])
     postfit.preimport_source(spec["analysis_source"])
+    if spec["schema"] == postfit.R15_SCHEMA:
+        postfit.geometry_module(Path(spec["analysis_source"]["root"]))
     native_root = Path(endpoint["source"]["root"])
     sys.path[:0] = [str(native_root / "src"), str(native_root)]
     import torch
@@ -297,7 +299,7 @@ def execute(spec, endpoint_name, *, spec_file, output):
             ) as runtime:
                 if (
                     bool(getattr(runtime.options, "response_anchor_weight", 0))
-                    != (endpoint_name == "FixedResponseGroupAnchor")
+                    != (endpoint_name in ("FixedResponseGroupAnchor", "R15-DIR"))
                     or runtime.identity != identity["data"]
                 ):
                     raise ValueError("native evaluation identity/anchor differs")
@@ -458,7 +460,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--spec", type=Path, required=True)
     parser.add_argument("--spec-sha256", required=True)
-    parser.add_argument("--endpoint", choices=("R3-RI", "FixedResponseGroupAnchor"), required=True)
+    parser.add_argument(
+        "--endpoint", choices=("R3-RI", "FixedResponseGroupAnchor", "R15-DIR"), required=True
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     spec_file = dict(path=str(args.spec.resolve()), sha256=args.spec_sha256)

@@ -32,6 +32,7 @@ COUNTS = dict(
     gradient_rows=125,
 )
 SCHEMA = "response-anchor-direct-medium-spec-v1"
+R15_SCHEMA = "response-anchor-direct-medium-r15-spec-v1"
 
 
 def digest(value: Any) -> str:
@@ -414,30 +415,26 @@ def validate_scopes(deep: list[dict], *, anchor: bool) -> None:
 
 
 def validate_spec(spec: dict, *, server: bool = True) -> dict:
-    if (
-        set(spec)
-        != {
-            "schema",
-            "name",
-            "analysis_source",
-            "native_source",
-            "run_root",
-            "run_manifest",
-            "resolved_config",
-            "config",
-            "journal",
-            "checkpoint",
-            "data_root",
-            "medium",
-            "panel",
-            "allowed_axis",
-            "resource_policy",
-            "resource_owner",
-            "output",
-            "gpu",
-        }
-        or spec["schema"] != SCHEMA
-    ):
+    if set(spec) != {
+        "schema",
+        "name",
+        "analysis_source",
+        "native_source",
+        "run_root",
+        "run_manifest",
+        "resolved_config",
+        "config",
+        "journal",
+        "checkpoint",
+        "data_root",
+        "medium",
+        "panel",
+        "allowed_axis",
+        "resource_policy",
+        "resource_owner",
+        "output",
+        "gpu",
+    } or spec["schema"] not in (SCHEMA, R15_SCHEMA):
         raise ValueError("exact sealed medium SPEC schema required")
     for key, fields in (
         ("medium", {"parent", "performance", "population_sha256", "identity_changes"}),
@@ -449,7 +446,8 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
     ):
         if not isinstance(spec[key], dict) or set(spec[key]) != fields:
             raise ValueError("unexpected or missing sealed binding fields: " + key)
-    if spec["name"] not in ("R14-FRGA", "R3-RI") or spec["gpu"] not in ("0", "1"):
+    names = ("R15-DIR",) if spec["schema"] == R15_SCHEMA else ("R14-FRGA", "R3-RI")
+    if spec["name"] not in names or spec["gpu"] not in ("0", "1"):
         raise ValueError("unknown endpoint/GPU")
     if spec["checkpoint"].get("role") != "last" or spec["checkpoint"].get("epoch") != 2:
         raise ValueError("only retained epoch2 last is authorized")
@@ -495,6 +493,8 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
             raise ValueError("R3-RI must be the exact original retained source/config/epoch2 CP")
     elif "response_anchor" not in identity["data"]:
         raise ValueError("R14-FRGA must bind its enabled training anchor descriptor")
+    if spec["schema"] == R15_SCHEMA:
+        validate_r15_medium_identity(spec, server=server)
     bound = bind_parent(parent, identity, spec["medium"]["identity_changes"])
     from gradpert.hashing import sha256_json
 
@@ -527,6 +527,27 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
     if spec["allowed_axis"].get("count") != 4775:
         raise ValueError("fixed4775 allowed expression boundary required")
     return bound
+
+
+def validate_r15_medium_identity(spec: dict, *, server: bool = True) -> None:
+    import importlib.util
+    import sys
+
+    path = Path(__file__).with_name("response_anchor_postfit.py")
+    module_spec = importlib.util.spec_from_file_location("_r15_medium_postfit_identity", path)
+    if module_spec is None or module_spec.loader is None:
+        raise ValueError("sealed R15 analysis identity helper missing")
+    module = importlib.util.module_from_spec(module_spec)
+    sys.modules[module_spec.name] = module
+    module_spec.loader.exec_module(module)
+    module.validate_r15_identity(
+        {
+            "source": spec["native_source"],
+            "config": spec["config"],
+            "run_manifest": spec["run_manifest"],
+        },
+        server=server,
+    )
 
 
 def export_tables(analysis: Path, output: Path) -> None:

@@ -12,6 +12,7 @@ import hashlib
 import importlib.util
 import inspect
 import json
+import math
 import os
 import subprocess
 import sys
@@ -24,6 +25,10 @@ import numpy as np
 
 SERVER_ROOT = Path("/data/yilangliu")
 SCHEMA = "response-anchor-postfit-input-1"
+R15_SCHEMA = "response-anchor-postfit-r15-input-1"
+R15_SOURCE = "aa65a42554d2f971adf0419bc1421e43c5a335d6"
+R15_CONFIG_SHA256 = "4f50d4848d9f4ac2f19f81b5b44ab33d5371e1c327b2911023ba64f61c9519e7"
+R15_WEIGHT = 0.04871788142525519
 ARRAY_FIELDS = {
     "condition_ids",
     "allowed_gene_indices",
@@ -86,7 +91,10 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
         "bootstrap",
         "medium",
     }
-    if set(spec) != required or spec["schema"] != SCHEMA:
+    r15 = spec.get("schema") == R15_SCHEMA
+    if r15:
+        required |= {"retained_references", "observer_parity"}
+    if set(spec) != required or spec["schema"] not in (SCHEMA, R15_SCHEMA):
         raise ValueError("postfit schema differs")
     v = spec["validation"]
     if set(v) != {
@@ -119,10 +127,8 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
     if spec["bootstrap"] != {"draws": 10000, "seed": 20261028}:
         raise ValueError("paired condition bootstrap is frozen")
     endpoints = spec["endpoints"]
-    if len(endpoints) != 2 or [e["name"] for e in endpoints] != [
-        "R3-RI",
-        "FixedResponseGroupAnchor",
-    ]:
+    names = ["R15-DIR"] if r15 else ["R3-RI", "FixedResponseGroupAnchor"]
+    if [e["name"] for e in endpoints] != names:
         raise ValueError("exact historical reference and one candidate required")
     protected = [Path(spec["data_root"]).resolve()]
     for e in endpoints:
@@ -155,7 +161,7 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
         _check_source_shape(e["source"], server=server)
         if server:
             server_path(root)
-    if server:
+    if server and not r15:
         reference = endpoints[0]
         if (
             reference["source"]["commit"] != "f0cb20ebb2efab749970f2bf5d205ed2f358592c"
@@ -177,6 +183,8 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
     # Metadata-only future medium binding; endpoint CLI never executes it.
     if not isinstance(spec["medium"], dict):
         raise ValueError("explicit medium binding/status required")
+    if r15:
+        validate_r15_payload(spec, server=server)
 
 
 def _check_source_shape(source: dict, *, server: bool) -> None:
@@ -477,7 +485,7 @@ def native_point_gates(reference, candidate):
 
 
 @contextmanager
-def forbid_updates(runtime):
+def forbid_updates(runtime, *, forbid_anchor=False):
     """Count and forbid accidental Teacher/optimizer/commit/backward entry."""
     import torch
 
@@ -499,10 +507,18 @@ def forbid_updates(runtime):
         originals.append((owner, name, owned, vars(owner).get(name), getattr(owner, name)))
         setattr(owner, name, value)
 
+    readout = None
+    if forbid_anchor:
+        readout = getattr(runtime.objective.student, "response_anchor_readout", None)
+        if readout is None:
+            raise ValueError("R15 inference requires its retained anchor head")
     handles = [
         module.register_forward_pre_hook(forbidden("teacher_forward"))
         for module in runtime.objective.teacher.modules()
     ]
+    if forbid_anchor:
+        counts["anchor_forward"] = 0
+        handles.append(readout.register_forward_pre_hook(forbidden("anchor_forward")))
     patch(runtime.optimizer, "step", forbidden("optimizer_step"))
     patch(runtime.objective, "commit_statistics", forbidden("statistics_commit"))
     patch(torch.Tensor, "backward", forbidden("backward"))
@@ -825,6 +841,8 @@ class DispatcherAdmission:
 def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
     """Formal server-only worker. Synthetic tests never call this entry point."""
     validate_spec(spec)
+    if spec["schema"] == R15_SCHEMA:
+        validate_observer_parity(spec)
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         raise ValueError("native CUDA allocator contract missing")
     endpoints = {e["name"]: e for e in spec["endpoints"]}
@@ -842,6 +860,8 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
     native_root = Path(endpoint["source"]["root"]).resolve()
     preimport_source(endpoint["source"])
     preimport_source(spec["analysis_source"])
+    if spec["schema"] == R15_SCHEMA:
+        geometry_module(Path(spec["analysis_source"]["root"]))
     # Child is a fresh interpreter; pin native imports before importing torch/model code.
     sys.path[:0] = [str(native_root / "src"), str(native_root)]
     import torch
@@ -920,7 +940,7 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                 purpose="evaluation",
             ) as runtime:
                 enabled = bool(getattr(runtime.options, "response_anchor_weight", 0))
-                if enabled != (name == "FixedResponseGroupAnchor"):
+                if enabled != (name in ("FixedResponseGroupAnchor", "R15-DIR")):
                     raise ValueError("candidate/reference anchor mechanism differs")
                 if runtime.identity != identity["data"]:
                     raise ValueError("native evaluation identity differs from training data")
@@ -1003,7 +1023,9 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                     adata_path = data.layout.canonical_adata
                     data_stat = (adata_path.stat().st_size, adata_path.stat().st_mtime_ns)
                     with (
-                        forbid_updates(runtime) as forbidden_counts,
+                        forbid_updates(
+                            runtime, forbid_anchor=spec["schema"] == R15_SCHEMA
+                        ) as forbidden_counts,
                         collector.observe(native, runtime.objective.student, data),
                     ):
                         result = native.evaluate(
@@ -1215,13 +1237,15 @@ def merge_endpoint(spec, name):
     return arrays, native_merged
 
 
-def compare(spec):
+def compare(spec, *, spec_file=None):
     validate_spec(spec)
     _source(spec["analysis_source"])
     root = server_path(spec["output"])
     if (root / "FAILURE.json").exists():
         raise ValueError("failed postfit output cannot be promoted")
     geo = geometry_module(Path(spec["analysis_source"]["root"]))
+    if spec["schema"] == R15_SCHEMA:
+        return compare_r15(spec, geo, spec_file=spec_file)
     ref, refnative = merge_endpoint(spec, "R3-RI")
     candidate, candidate_native = merge_endpoint(spec, "FixedResponseGroupAnchor")
     # Exact per-condition control/truth hashes, not merely equal macro counts/seeds.
@@ -1279,6 +1303,8 @@ def dispatch(spec_path: Path, expected_sha: str):
     spec_path = checked(dict(path=str(spec_path), sha256=expected_sha))
     spec = json.loads(spec_path.read_text())
     validate_spec(spec)
+    if spec["schema"] == R15_SCHEMA:
+        validate_observer_parity(spec)
     root = server_path(spec["output"], exists=False)
     analysis = Path(spec["analysis_source"]["root"])
     script = analysis / "scripts/v2/response_anchor_postfit.py"
@@ -1383,7 +1409,7 @@ def main():
     p.add_argument("mode", choices=("run", "worker", "compare", "validate"))
     p.add_argument("--spec", type=Path, required=True)
     p.add_argument("--spec-sha256", required=True)
-    p.add_argument("--endpoint", choices=("R3-RI", "FixedResponseGroupAnchor"))
+    p.add_argument("--endpoint", choices=("R3-RI", "FixedResponseGroupAnchor", "R15-DIR"))
     p.add_argument("--worker-index", type=int, choices=(0, 1))
     p.add_argument("--resource-owner", type=Path)
     p.add_argument("--resource-owner-sha256")
@@ -1408,7 +1434,15 @@ def main():
             resource_owner=dict(path=str(args.resource_owner), sha256=args.resource_owner_sha256),
         )
     elif args.mode == "compare":
-        compare(spec)
+        compare(spec, spec_file=dict(path=str(args.spec.resolve()), sha256=args.spec_sha256))
+    elif spec["schema"] == R15_SCHEMA:
+        print(
+            json.dumps(
+                validate_r15_result(
+                    spec, spec_file=dict(path=str(args.spec.resolve()), sha256=args.spec_sha256)
+                )
+            )
+        )
     else:
         print(
             json.dumps(
@@ -1419,6 +1453,667 @@ def main():
                 )
             )
         )
+
+
+def r15_descriptor():
+    return dict(
+        manifest_sha256="86901e2829d7964f41d39bc958d81f1b150584810861d98fa6fb1b4c5eaf012a",
+        arrays_sha256="28bc66a2b02f5435ee7fdec46be808461e1a33cd13fd9be35dd3d6a7bd21ff6d",
+        weight=R15_WEIGHT,
+        seed=20261028,
+        head="Linear256_256_default_random_bias_true_private_rng",
+        teacher_readout="unused_ema_mirror_no_forward_or_target_values",
+        schedule="hash_permutation_step_i_mod_T_rank_floor_i_div_T_mod_world",
+        loss="cosine_direction",
+        direction_epsilon=1e-6,
+        direction_formula="1-dot(normalize_fp32(Linear(mean_group_cls)),normalize_fp32_fixed_target)",
+    )
+
+
+def validate_r15_identity(endpoint, *, server=True):
+    identity = json.loads(checked(endpoint["run_manifest"], server=server).read_text())
+    if (
+        endpoint["source"]["commit"] != R15_SOURCE
+        or identity["source"]["commit"] != R15_SOURCE
+        or identity["source"].get("dirty") is not False
+        or endpoint["config"]["sha256"] != R15_CONFIG_SHA256
+        or identity.get("config_sha256") != R15_CONFIG_SHA256
+        or identity["data"].get("response_anchor") != r15_descriptor()
+    ):
+        raise ValueError("R15 requires its exact final training source/config/direction descriptor")
+    checked(endpoint["config"], server=server)
+
+
+def validate_r15_payload(spec, *, server=True):
+    validate_r15_identity(spec["endpoints"][0], server=server)
+    if set(spec["retained_references"]) != {"R3-RI", "R14-FRGA"}:
+        raise ValueError("R15 requires explicitly retained RI primary and R14 secondary")
+    for name, binding in spec["retained_references"].items():
+        old, _ = retained_metadata(binding, name, spec["validation"], server=server)
+        output, retained = Path(spec["output"]).resolve(), Path(old["output"]).resolve()
+        if output.is_relative_to(retained) or retained.is_relative_to(output):
+            raise ValueError("new R15 output overlaps retained historical output")
+    if spec["observer_parity"] is not None:
+        checked(spec["observer_parity"], server=server)
+
+
+def retained_metadata(binding, name, validation, *, server=True):
+    if set(binding) != {"postfit_spec", "endpoint_name", "complete"}:
+        raise ValueError("exact retained spec/endpoint/COMPLETE binding required")
+    expected = {"R3-RI": "R3-RI", "R14-FRGA": "FixedResponseGroupAnchor"}
+    if name not in expected or binding["endpoint_name"] != expected[name]:
+        raise ValueError("retained historical endpoint role changed")
+    old = json.loads(checked(binding["postfit_spec"], server=server).read_text())
+    if old.get("schema") != SCHEMA:
+        raise ValueError("retained reference must use its original v1 spec")
+    validate_spec(old, server=server)
+    if old["validation"] != validation:
+        raise ValueError("retained validation/control/query/allowed axes differ")
+    endpoint = next(e for e in old["endpoints"] if e["name"] == expected[name])
+    native = {
+        "R3-RI": "f0cb20ebb2efab749970f2bf5d205ed2f358592c",
+        "R14-FRGA": "dc5233ef1a243b2144107e5441a5a8db4f800fc6",
+    }
+    if endpoint["source"]["commit"] != native[name]:
+        raise ValueError("retained original native source changed")
+    complete = checked(binding["complete"], server=server)
+    if complete.resolve() != (Path(old["output"]) / expected[name] / "COMPLETE.json").resolve():
+        raise ValueError("retained COMPLETE escaped its original endpoint")
+    return old, endpoint
+
+
+def load_retained_reference(binding, name, validation, *, server=True):
+    """Read and verify original aggregate and both worker closures, without writes."""
+    old, endpoint = retained_metadata(binding, name, validation, server=server)
+    return load_completed_endpoint(
+        old, endpoint, binding["complete"], binding["postfit_spec"], server=server
+    )
+
+
+def load_completed_endpoint(old, endpoint, complete_binding, spec_binding, *, server=True):
+    """Independently read an already completed endpoint; never merge or rewrite."""
+    validation = old["validation"]
+    root = Path(complete_binding["path"]).resolve().parent
+    top = root.parent
+    if (top / "FAILURE.json").exists() or list(top.rglob("*.pkl")):
+        raise ValueError("failed or nonzero-PKL retained output")
+    complete = json.loads(checked(complete_binding, server=server).read_text())
+    if set(complete) != {
+        "status",
+        "endpoint",
+        "arrays",
+        "native_result_sha256",
+        "summary_sha256",
+        "worker_receipts_sha256",
+        "validation_spec_sha256",
+        "conditions",
+        "updates",
+        "zero_pkl",
+        "scientific_complete",
+    } or (
+        complete["status"] != "completed"
+        or complete["endpoint"] != endpoint["name"]
+        or complete["conditions"] != 445
+        or complete["updates"] != 0
+        or complete["zero_pkl"] is not True
+        or complete["scientific_complete"] is not False
+        or complete["validation_spec_sha256"] != digest(validation)
+        or len(complete["worker_receipts_sha256"]) != 2
+    ):
+        raise ValueError("retained aggregate receipt differs")
+    expected = {
+        "COMPLETE.json",
+        "PRIVATE_ENDPOINT.npz",
+        "PRIVATE_NATIVE_RESULT.json",
+        "SUMMARY.json",
+        "DISPATCH_OWNER.json",
+    }
+    expected |= {
+        f"worker-{i}/{n}"
+        for i in (0, 1)
+        for n in (
+            "COMPLETE.json",
+            "PRIVATE_ENDPOINT.npz",
+            "PRIVATE_NATIVE_RESULT.json",
+            "SUMMARY.json",
+        )
+    }
+    actual = {str(p.relative_to(root)) for p in root.rglob("*") if p.is_file()}
+    if actual != expected or any(p.is_symlink() for p in root.rglob("*")):
+        raise ValueError("retained recursive closure has missing or extra files")
+    for file, digest_value in [
+        ("PRIVATE_NATIVE_RESULT.json", complete["native_result_sha256"]),
+        ("SUMMARY.json", complete["summary_sha256"]),
+    ]:
+        checked(dict(path=str(root / file), sha256=digest_value), server=server)
+    if Path(complete["arrays"]["path"]).resolve() != root / "PRIVATE_ENDPOINT.npz":
+        raise ValueError("retained aggregate array escaped endpoint")
+    arrays = load_arrays(complete["arrays"], server=server)
+    ordered = validation["conditions"]
+    if (
+        arrays["prediction_delta"].shape != (445, 4775)
+        or arrays["truth_delta"].shape != (445, 4775)
+        or arrays["cls_means"].shape != (445, 256)
+        or arrays["own_target_indices"].shape != (445, 1)
+    ):
+        raise ValueError("retained aggregate array shapes differ from frozen Jurkat axes")
+    if (
+        arrays["own_target_indices"].dtype.kind not in "iu"
+        or (arrays["own_target_indices"] < -1).any()
+        or (arrays["own_target_indices"] >= 5000).any()
+        or any(
+            not np.isfinite(arrays[k]).all()
+            for k in ("prediction_delta", "truth_delta", "cls_means")
+        )
+    ):
+        raise ValueError("completed endpoint contains nonfinite arrays or invalid own-target IDs")
+    if arrays["condition_ids"].tolist() != ordered or not np.array_equal(
+        arrays["allowed_gene_indices"], validation["allowed_gene_indices"]
+    ):
+        raise ValueError("retained aggregate condition/allowed axes changed")
+    native = json.loads((root / "PRIVATE_NATIVE_RESULT.json").read_text())
+    if [r["condition_id"] for r in native["conditions"]] != ordered:
+        raise ValueError("retained native condition axis differs")
+    owners = []
+    for i in (0, 1):
+        worker = root / f"worker-{i}"
+        path = checked(
+            dict(path=str(worker / "COMPLETE.json"), sha256=complete["worker_receipts_sha256"][i]),
+            server=server,
+        )
+        receipt = json.loads(path.read_text())
+        if (
+            receipt["status"] != "completed"
+            or receipt["endpoint"] != endpoint["name"]
+            or receipt["worker_index"] != i
+            or receipt["postfit_spec_sha256"] != digest(old)
+            or receipt["endpoint_spec_sha256"] != digest(endpoint)
+            or receipt["validation_spec_sha256"] != digest(validation)
+            or receipt["conditions"] != ordered[i::2]
+            or receipt["source"]["commit"] != endpoint["source"]["commit"]
+            or receipt["analysis_source"]["commit"] != old["analysis_source"]["commit"]
+            or receipt["checkpoint_sha256"] != endpoint["checkpoint"]["sha256"]
+            or receipt["control_manifest_sha256"] != validation["control_manifest_sha256"]
+            or receipt["reference_sha256"] != validation["reference_sha256"]
+            or (receipt["epoch"], receipt["role"], receipt["split"]) != (2, "last", "val")
+            or not receipt["state_unchanged"]
+            or not receipt["cuda_rng_unchanged"]
+            or not receipt["zero_pkl"]
+            or any(receipt[k] != 0 for k in ("updates", "teacher_updates", "center_updates"))
+            or any(receipt["forbidden_calls"].values())
+            or receipt["resource_checks"]["conditions_checked"] != len(ordered[i::2])
+            or receipt["resource_checks"]["calls"] != len(ordered[i::2]) + 2
+        ):
+            raise ValueError("retained worker source/state/CP/spec/coverage differs")
+        counter_keys = {
+            "teacher_forward",
+            "optimizer_step",
+            "statistics_commit",
+            "backward",
+            "autograd_grad",
+        }
+        if old["schema"] == R15_SCHEMA:
+            counter_keys.add("anchor_forward")
+        if (
+            set(receipt["forbidden_calls"]) != counter_keys
+            or any(type(v) is not int or v != 0 for v in receipt["forbidden_calls"].values())
+            or receipt["source"].get("dirty") is not False
+            or receipt["analysis_source"].get("dirty") is not False
+            or not isinstance(receipt.get("state_before"), dict)
+            or not receipt["state_before"]
+            or not all(valid_sha256(v) for v in receipt["state_before"].values())
+        ):
+            raise ValueError("completed worker missing clean-source/state/counter proof")
+        if Path(receipt["resource_owner"]["path"]).resolve() != root / "DISPATCH_OWNER.json":
+            raise ValueError("retained dispatcher owner escaped endpoint")
+        checked(receipt["resource_owner"], server=server)
+        owners.append(receipt["resource_owner"])
+        for filename, declared in (
+            ("PRIVATE_ENDPOINT.npz", receipt["arrays"]),
+            ("PRIVATE_NATIVE_RESULT.json", receipt["native_result"]),
+        ):
+            if Path(declared["path"]).resolve() != worker / filename:
+                raise ValueError("retained worker output escaped its closure")
+            checked(declared, server=server)
+        checked(
+            dict(path=str(worker / "SUMMARY.json"), sha256=receipt["summary_sha256"]), server=server
+        )
+        required_bindings = [
+            spec_binding,
+            old["shared_policy"],
+            old["analysis_source"]["publication"],
+            endpoint["source"]["publication"],
+            receipt["resource_owner"],
+            *[endpoint[k] for k in ("run_manifest", "journal", "config", "checkpoint")],
+        ]
+        if any(
+            receipt["input_files_sha256"].get(str(Path(b["path"]).resolve())) != b["sha256"]
+            for b in required_bindings
+        ):
+            raise ValueError("retained worker omitted required immutable input bindings")
+        for file, value in receipt["input_files_sha256"].items():
+            checked(dict(path=file, sha256=value), server=server)
+        shard = load_arrays(receipt["arrays"], server=server)
+        if not np.array_equal(shard["allowed_gene_indices"], arrays["allowed_gene_indices"]):
+            raise ValueError("retained worker allowed axis differs")
+        for field in ARRAY_FIELDS - {"allowed_gene_indices"}:
+            if not np.array_equal(shard[field], arrays[field][i::2]):
+                raise ValueError("retained worker and aggregate arrays differ")
+        shard_native = json.loads((worker / "PRIVATE_NATIVE_RESULT.json").read_text())
+        if shard_native["conditions"] != native["conditions"][i::2]:
+            raise ValueError("retained worker and aggregate native conditions differ")
+    if owners[0] != owners[1]:
+        raise ValueError("retained workers used different dispatcher owners")
+    return arrays, native
+
+
+def paired_comparison(
+    reference, candidate, reference_native, candidate_native, geometry, bootstrap
+):
+    """Same primitive for RI-primary and R14-secondary; no baseline model forward."""
+    assert_paired_identity(reference, candidate, reference_native, candidate_native)
+    result = geometry.compare_endpoints(reference, candidate, **bootstrap)
+    result["native_point_gates"] = native_point_gates(reference_native, candidate_native)
+    result["scientific_complete"] = False
+    return result
+
+
+def assert_paired_identity(reference, candidate, reference_native, candidate_native):
+    for field in ("condition_ids", "allowed_gene_indices", "own_target_indices", "truth_delta"):
+        if not np.array_equal(reference[field], candidate[field]):
+            raise ValueError("paired reference/candidate truth or axes differ")
+    a, b = reference_native["conditions"], candidate_native["conditions"]
+    if len(a) != len(b):
+        raise ValueError("paired native condition counts differ")
+    for before, after in zip(a, b, strict=True):
+        if any(
+            before[k] != after[k]
+            for k in ("condition_id", "control_row_ids_sha256", "truth_row_ids_sha256")
+        ):
+            raise ValueError("paired native ordered control/truth identities differ")
+
+
+def validate_observer_parity(spec, *, server=True):
+    if spec["schema"] != R15_SCHEMA:
+        return
+    if spec["observer_parity"] is None:
+        raise ValueError("R15 execution requires its native first-condition off/on parity receipt")
+    receipt = json.loads(checked(spec["observer_parity"], server=server).read_text())
+    pilot = json.loads(checked(receipt["spec"], server=server).read_text())
+    expected_pilot = dict(spec, observer_parity=None)
+    parity = receipt.get("parity", {})
+    endpoint = spec["endpoints"][0]
+    if (
+        pilot != expected_pilot
+        or receipt["spec_digest"] != digest(pilot)
+        or receipt["status"] != "completed"
+        or receipt["endpoint"] != "R15-DIR"
+        or receipt["endpoint_digest"] != digest(endpoint)
+        or receipt["source"]["commit"] != R15_SOURCE
+        or receipt["analysis_source"]["commit"] != spec["analysis_source"]["commit"]
+        or receipt["checkpoint"] != endpoint["checkpoint"]
+        or receipt["condition"] != spec["validation"]["conditions"][0]
+        or (
+            receipt["full_validation_conditions"],
+            receipt["executed_conditions"],
+            receipt["controls"],
+            receipt["expression_genes"],
+            receipt["query_count"],
+        )
+        != (445, 1, 300, 5000, 1000)
+        or (receipt["epoch"], receipt["role"], receipt["split"]) != (2, "last", "val")
+        or any(receipt[k] != 0 for k in ("updates", "teacher_updates", "center_updates"))
+        or receipt.get("zero_pkl") is not True
+        or parity.get("passed") is not True
+        or parity.get("atol") != 0
+        or parity.get("rtol") != 0
+        or parity.get("max_abs") != 0
+        or parity.get("state_unchanged") is not True
+        or parity.get("state_before") != parity.get("state_after")
+        or parity.get("callback_counts") != [1, 1]
+        or parity.get("prediction_shape") != [300, 5000]
+        or len(parity.get("forbidden_calls", [])) != 2
+        or len(parity.get("prediction_sha256", [])) != 2
+        or len(set(parity.get("prediction_sha256", []))) != 1
+        or len(parity.get("native_result_sha256", [])) != 2
+        or len(set(parity.get("native_result_sha256", []))) != 1
+        or any(any(row.values()) for row in parity["forbidden_calls"])
+    ):
+        raise ValueError("R15 observer parity source/CP/coverage/state proof differs")
+    required_bindings = [
+        receipt["spec"],
+        spec["shared_policy"],
+        spec["analysis_source"]["publication"],
+        endpoint["source"]["publication"],
+        *[endpoint[k] for k in ("run_manifest", "journal", "config", "checkpoint")],
+    ]
+    inputs = receipt.get("input_files_sha256")
+    if not isinstance(inputs, dict) or any(
+        inputs.get(str(Path(b["path"]).resolve())) != b["sha256"] for b in required_bindings
+    ):
+        raise ValueError("R15 observer parity omitted required immutable input bindings")
+    counters = {
+        "teacher_forward",
+        "optimizer_step",
+        "statistics_commit",
+        "backward",
+        "autograd_grad",
+        "anchor_forward",
+    }
+    if any(
+        set(row) != counters or any(type(v) is not int or v != 0 for v in row.values())
+        for row in parity["forbidden_calls"]
+    ):
+        raise ValueError("R15 observer parity counter proof missing or nonzero")
+    if not valid_parity_state(parity.get("state_before")) or not valid_parity_state(
+        parity.get("state_after")
+    ):
+        raise ValueError("R15 observer parity state proof missing or malformed")
+    if any(
+        not valid_sha256(v)
+        for key in ("prediction_sha256", "native_result_sha256")
+        for v in parity[key]
+    ):
+        raise ValueError("R15 observer parity prediction/result fingerprints invalid")
+    from gradpert.config import load_experiment_config
+
+    cell_batch = int(
+        load_experiment_config(
+            checked(endpoint["config"], server=server)
+        ).training.eval_batch_size.value
+    )
+    expected_calls = dict(
+        predict_controls=1,
+        query_blocks=5,
+        response_forward=5 * math.ceil(300 / cell_batch),
+        truth_reads=1,
+        control_reads=1,
+    )
+    if parity.get("observer_calls") != expected_calls:
+        raise ValueError("R15 observer parity actual forward/read coverage differs")
+    for file, value in receipt["input_files_sha256"].items():
+        checked(dict(path=file, sha256=value), server=server)
+    checked(receipt["arrays"], server=server)
+    checked(
+        dict(
+            path=str(Path(spec["observer_parity"]["path"]).parent / "PRIVATE_NATIVE_RESULT.json"),
+            sha256=receipt["native_result_sha256"],
+        ),
+        server=server,
+    )
+
+
+def valid_sha256(value):
+    return (
+        isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
+    )
+
+
+def valid_parity_state(value):
+    native_keys = {
+        "student",
+        "teacher",
+        "centers",
+        "optimizer",
+        "gradients",
+        "numpy_rng",
+        "python_rng",
+        "torch_rng",
+        "pending_statistics",
+        "auxiliary_statistics",
+        "module_modes",
+    }
+    if not isinstance(value, dict) or set(value) != {"protected", "cuda_rng", "canonical_stat"}:
+        return False
+    protected = value["protected"]
+    if not isinstance(protected, dict) or set(protected) != {
+        "native",
+        "objective_state",
+        "objective_buffers",
+        "objective_scalar_clocks",
+    }:
+        return False
+    native = protected["native"]
+    stat = value["canonical_stat"]
+    return (
+        isinstance(native, dict)
+        and set(native) == native_keys
+        and all(valid_sha256(v) for v in native.values())
+        and all(valid_sha256(protected[k]) for k in protected if k != "native")
+        and valid_sha256(value["cuda_rng"])
+        and isinstance(stat, list)
+        and len(stat) == 2
+        and all(type(v) is int and v > 0 for v in stat)
+    )
+
+
+def compare_r15(spec, geometry, *, spec_file):
+    validate_observer_parity(spec)
+    if json.loads(checked(spec_file).read_text()) != spec:
+        raise ValueError("R15 input SPEC binding differs")
+    root = server_path(spec["output"])
+    candidate, native = merge_endpoint(spec, "R15-DIR")
+    comparisons = {}
+    for name, label in (("R3-RI", "primary_vs_RI"), ("R14-FRGA", "secondary_vs_R14")):
+        reference, original = load_retained_reference(
+            spec["retained_references"][name], name, spec["validation"]
+        )
+        comparisons[label] = paired_comparison(
+            reference, candidate, original, native, geometry, spec["bootstrap"]
+        )
+    result = dict(
+        schema="response-anchor-r15-paired-comparison-1",
+        candidate="R15-DIR",
+        comparisons=comparisons,
+        scientific_complete=False,
+    )
+    write_new(root / "COMPARISON.json", result)
+    if list(root.rglob("*.pkl")):
+        raise ValueError("R15 postfit requires whole-output zero PKL")
+    write_new(
+        root / "COMPLETE.json",
+        dict(
+            schema="response-anchor-r15-val-postfit-complete-1",
+            status="completed",
+            spec_sha256=digest(spec),
+            input_spec=spec_file,
+            comparison_sha256=sha(root / "COMPARISON.json"),
+            endpoint_receipts={"R15-DIR": sha(root / "R15-DIR/COMPLETE.json")},
+            retained_references=spec["retained_references"],
+            observer_parity=spec["observer_parity"],
+            outputs={
+                str(p.relative_to(root)): sha(p) for p in sorted(root.rglob("*")) if p.is_file()
+            },
+            updates=0,
+            zero_pkl=True,
+            scientific_complete=False,
+            postfit_complete=False,
+            medium_status="not_executed_by_val_worker",
+            test_status="deferred",
+        ),
+    )
+    return result
+
+
+def validate_comparison_contract(result, spec, reference_native, candidate_native):
+    expected = {
+        "schema",
+        "draws",
+        "seed",
+        "condition_N",
+        "resampling_unit",
+        "ownmask_Pearson_delta",
+        "ownmask_MSE_delta",
+        "RSA_delta",
+        "full_axis_finite",
+        "candidate_new_Pearson_NA",
+        "conditioned_on_fixed_truth_control_bank",
+        "scientific_complete",
+        "native_point_gates",
+    }
+    if (
+        set(result) != expected
+        or result["schema"] != "paired-condition-response-geometry-v1"
+        or result["draws"] != spec["bootstrap"]["draws"]
+        or result["seed"] != spec["bootstrap"]["seed"]
+        or result["condition_N"] != 445
+        or result["resampling_unit"]
+        != "original condition; pair multiplicity ci*cj; same-original-ID pairs excluded"
+        or result["conditioned_on_fixed_truth_control_bank"] is not True
+        or result["scientific_complete"] is not False
+        or set(result["full_axis_finite"]) != {"Pearson", "MSE", "RSA"}
+        or any(type(v) is not bool for v in result["full_axis_finite"].values())
+        or type(result["candidate_new_Pearson_NA"]) is not int
+        or not 0 <= result["candidate_new_Pearson_NA"] <= 445
+        or result["native_point_gates"] != native_point_gates(reference_native, candidate_native)
+    ):
+        raise ValueError("R15 paired comparison protocol or native point gates differ")
+    for key in ("ownmask_Pearson_delta", "ownmask_MSE_delta", "RSA_delta"):
+        row = result[key]
+        if set(row) != {"candidate_minus_reference", "CI95", "valid_draws", "invalid_draws"}:
+            raise ValueError("R15 comparison missing interval fields")
+        a, b, point, ci = (
+            row["valid_draws"],
+            row["invalid_draws"],
+            row["candidate_minus_reference"],
+            row["CI95"],
+        )
+        if (
+            type(a) is not int
+            or type(b) is not int
+            or min(a, b) < 0
+            or a + b != result["draws"]
+            or (
+                point is not None
+                and (
+                    isinstance(point, bool)
+                    or not isinstance(point, (int, float))
+                    or not math.isfinite(point)
+                )
+            )
+            or (a == 0 and ci is not None)
+            or (
+                a > 0
+                and (
+                    not isinstance(ci, list)
+                    or len(ci) != 2
+                    or not all(
+                        isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+                        for v in ci
+                    )
+                    or ci[0] > ci[1]
+                )
+            )
+        ):
+            raise ValueError("R15 comparison invalid finite-count/CI proof")
+
+
+def validate_r15_result(spec, *, spec_file, server=True):
+    """Verify terminal receipts and exact closure only; never merge, write or fit."""
+    validate_spec(spec, server=server)
+    if server:
+        _source(spec["analysis_source"])
+    if spec["schema"] != R15_SCHEMA:
+        raise ValueError("R15 result validator cannot relabel an old profile")
+    if json.loads(checked(spec_file, server=server).read_text()) != spec:
+        raise ValueError("R15 terminal input SPEC differs")
+    validate_observer_parity(spec, server=server)
+    root = server_path(spec["output"]) if server else Path(spec["output"]).resolve()
+    if (root / "FAILURE.json").exists() or list(root.rglob("*.pkl")):
+        raise ValueError("failed or nonzero-PKL R15 result cannot validate")
+    complete = json.loads((root / "COMPLETE.json").read_text())
+    required = {
+        "schema",
+        "status",
+        "spec_sha256",
+        "input_spec",
+        "comparison_sha256",
+        "endpoint_receipts",
+        "retained_references",
+        "observer_parity",
+        "outputs",
+        "updates",
+        "zero_pkl",
+        "scientific_complete",
+        "postfit_complete",
+        "medium_status",
+        "test_status",
+    }
+    if (
+        set(complete) != required
+        or complete["schema"] != "response-anchor-r15-val-postfit-complete-1"
+        or complete["status"] != "completed"
+        or complete["spec_sha256"] != digest(spec)
+        or complete["input_spec"] != spec_file
+        or complete["retained_references"] != spec["retained_references"]
+        or complete["observer_parity"] != spec["observer_parity"]
+        or complete["updates"] != 0
+        or complete["zero_pkl"] is not True
+        or complete["scientific_complete"] is not False
+        or complete["postfit_complete"] is not False
+        or complete["medium_status"] != "not_executed_by_val_worker"
+        or complete["test_status"] != "deferred"
+        or set(complete["endpoint_receipts"]) != {"R15-DIR"}
+    ):
+        raise ValueError("R15 terminal COMPLETE protocol differs")
+    if json.loads((root / "SPEC.json").read_text()) != spec:
+        raise ValueError("R15 output SPEC snapshot differs")
+    endpoint = spec["endpoints"][0]
+    candidate_root = root / "R15-DIR"
+    cp = dict(
+        path=str(candidate_root / "COMPLETE.json"), sha256=complete["endpoint_receipts"]["R15-DIR"]
+    )
+    candidate, native = load_completed_endpoint(spec, endpoint, cp, spec_file, server=server)
+    expected = {"SPEC.json", "COMPARISON.json", "R15-DIR-worker-0.log", "R15-DIR-worker-1.log"}
+    expected |= {
+        "R15-DIR/" + str(p.relative_to(candidate_root))
+        for p in candidate_root.rglob("*")
+        if p.is_file()
+    }
+    actual = {
+        str(p.relative_to(root))
+        for p in root.rglob("*")
+        if p.is_file() and p != root / "COMPLETE.json"
+    }
+    if (
+        actual != expected
+        or set(complete["outputs"]) != actual
+        or any(p.is_symlink() for p in root.rglob("*"))
+    ):
+        raise ValueError("R15 recursive closure missing or extra output")
+    for relative, value in complete["outputs"].items():
+        path = (root / relative).resolve()
+        if not path.is_relative_to(root) or not valid_sha256(value):
+            raise ValueError("R15 output escaped closure or has invalid hash")
+        checked(dict(path=str(path), sha256=value), server=server)
+    comparison_path = checked(
+        dict(path=str(root / "COMPARISON.json"), sha256=complete["comparison_sha256"]),
+        server=server,
+    )
+    comparison = json.loads(comparison_path.read_text())
+    if (
+        set(comparison) != {"schema", "candidate", "comparisons", "scientific_complete"}
+        or comparison["schema"] != "response-anchor-r15-paired-comparison-1"
+        or comparison["candidate"] != "R15-DIR"
+        or comparison["scientific_complete"] is not False
+        or set(comparison["comparisons"]) != {"primary_vs_RI", "secondary_vs_R14"}
+    ):
+        raise ValueError("R15 COMPARISON roles/schema differ")
+    for name, label in (("R3-RI", "primary_vs_RI"), ("R14-FRGA", "secondary_vs_R14")):
+        reference, original = load_retained_reference(
+            spec["retained_references"][name], name, spec["validation"], server=server
+        )
+        assert_paired_identity(reference, candidate, original, native)
+        validate_comparison_contract(comparison["comparisons"][label], spec, original, native)
+    return dict(
+        status="validated_completed_result",
+        spec_sha256=digest(spec),
+        comparison_sha256=complete["comparison_sha256"],
+        conditions=445,
+        updates=0,
+        zero_pkl=True,
+        scientific_complete=False,
+    )
 
 
 if __name__ == "__main__":
