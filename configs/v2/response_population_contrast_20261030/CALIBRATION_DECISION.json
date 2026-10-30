@@ -1,0 +1,33 @@
+{
+  "arm": "R18-CPD",
+  "response_anchor_loss": "population_prediction_contrast",
+  "calibration_source": "c9df8708e52c5cbb60bffcdc616183517fe9f744",
+  "calibration_complete_sha256": "3b4443aa83e6d88e7dd4e40c5086d12b3423cb96432b385d860a665cbd69b21a",
+  "calibration_forward_precision": "bfloat16_autocast",
+  "selected_weight": 1.0,
+  "rule": "min(1,0.1*median(Gpred)/median(Ganchor))",
+  "median_prediction_gradient_norm": 1.143481949745309,
+  "median_unit_anchor_gradient_norm": 0.05241815182114537,
+  "bank_manifest_sha256": "86901e2829d7964f41d39bc958d81f1b150584810861d98fa6fb1b4c5eaf012a",
+  "bank_arrays_sha256": "28bc66a2b02f5435ee7fdec46be808461e1a33cd13fd9be35dd3d6a7bd21ff6d",
+  "population_manifest_sha256": "ad2e3171b17bc851d77f43dc17884a0224a802f153e2656b5d118144a794279a",
+  "population_arrays_sha256": "9b8d854b7836eb3fa54e2d9ece55acaa78f4cd28fa1fa97bf156c8361a784b95",
+  "fit_config": "configs/v2/response_population_contrast_20261030/R18-CPD/gradpert_v2/nadig_jurkat.yaml",
+  "fit_config_sha256": "5b8b6bdb66d747d1c52a4c9ef9d517e67b70310a9607129ee8daa328a2873529",
+  "training_epochs": 2,
+  "optimizer_updates": 300,
+  "global_batch": 320,
+  "pair_schedule": {
+    "conditions": 1322,
+    "connected_components": 1,
+    "coverage_once_per_epoch": true,
+    "distinct_edges": 1322,
+    "group_forwards_per_epoch": 1322,
+    "no_self_pairs": true,
+    "pairs_per_epoch": 661,
+    "schedule_sha256": "dfff6ba7002a7cb0d93e87f8afce4c8e8dbc81dd22329e99967da47b7a01be77",
+    "schema": "fixed-response-population-pair-cycle-v1",
+    "seed": 20261028
+  },
+  "scientific_complete": false
+}
