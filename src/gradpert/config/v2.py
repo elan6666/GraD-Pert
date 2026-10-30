@@ -59,6 +59,9 @@ class V2Architecture:
     prototype_freeze_epochs: int = 0
     prototype_fixed_scale: bool = False
     prototype_freeze_gradients: bool = False
+    ffn_compute_precision: str = "autocast"
+    ssl_head_precision: str = "autocast"
+    prediction_precision: str = "autocast"
     prediction_parameterization: str = "residual"
     genept_hidden_width: int = 0
     genept_middle_width: int = 0
@@ -68,6 +71,21 @@ class V2Architecture:
     random_gene_order: bool = True
 
     def __post_init__(self) -> None:
+        if type(self.ffn_compute_precision) is not str or self.ffn_compute_precision not in (
+            "autocast",
+            "fp8_hybrid",
+        ):
+            raise ValueError("ffn_compute_precision must be autocast or fp8_hybrid")
+        if self.ffn_compute_precision == "fp8_hybrid" and (
+            self.mlp_profile != "restored" or self.ffn_variant != "gelu"
+        ):
+            raise ValueError("fp8_hybrid requires restored profile and gelu FFNs")
+        for name in ("ssl_head_precision", "prediction_precision"):
+            if type(getattr(self, name)) is not str or getattr(self, name) not in (
+                "autocast",
+                "float32",
+            ):
+                raise ValueError(f"{name} must be autocast or float32")
         for name in (
             "width",
             "heads",
@@ -384,6 +402,9 @@ class V2Architecture:
             ("prototype_freeze_epochs", 0),
             ("prototype_fixed_scale", False),
             ("prototype_freeze_gradients", False),
+            ("ffn_compute_precision", "autocast"),
+            ("ssl_head_precision", "autocast"),
+            ("prediction_precision", "autocast"),
             ("prediction_parameterization", "residual"),
             ("genept_hidden_width", 0),
             ("genept_middle_width", 0),
@@ -559,6 +580,9 @@ class V2Options:
             "prototype_freeze_epochs",
             "prototype_fixed_scale",
             "prototype_freeze_gradients",
+            "ffn_compute_precision",
+            "ssl_head_precision",
+            "prediction_precision",
             "prediction_parameterization",
             "genept_hidden_width",
             "genept_middle_width",

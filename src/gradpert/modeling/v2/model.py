@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from typing import TypedDict, cast
 
@@ -485,9 +486,19 @@ class GeneGraph(nn.Module):
         )
 
 
+def _head_precision_context(x: Tensor, precision: str) -> AbstractContextManager[None]:
+    """Require IEEE float32 CUDA matmuls without changing process backend flags."""
+    if precision == "autocast":
+        return nullcontext()
+    if x.device.type == "cuda" and torch.backends.cuda.matmul.allow_tf32:
+        raise RuntimeError("float32 heads require CUDA matmul TF32 disabled by the launcher")
+    return torch.autocast(device_type=x.device.type, enabled=False)
+
+
 class Projector(nn.Module):
     def __init__(self, options: V2Architecture) -> None:
         super().__init__()
+        self.precision = options.ssl_head_precision
         self.features: nn.Module = nn.Sequential(
             nn.Linear(options.width, options.projector_hidden),
             nn.GELU(),
@@ -497,13 +508,17 @@ class Projector(nn.Module):
 
     def forward_with_features(self, x: Tensor) -> tuple[Tensor, Tensor]:
         """Return the existing pre-L2 bottleneck and logits from one MLP evaluation."""
-        features = self.features(x)
-        logits = self.prototypes(F.normalize(features.float(), dim=-1))
-        return features, logits
+        with _head_precision_context(x, self.precision):
+            features = self.features(x.float() if self.precision == "float32" else x)
+            logits = self.prototypes(F.normalize(features.float(), dim=-1))
+            return features, logits
 
     def forward(
         self, x: Tensor, *, return_features: bool = False
     ) -> Tensor | tuple[Tensor, Tensor]:
+        if self.precision == "float32":
+            features, logits = self.forward_with_features(x)
+            return (features, logits) if return_features else logits
         if return_features:
             return self.forward_with_features(x)
         return cast(Tensor, self.prototypes(F.normalize(self.features(x).float(), dim=-1)))
@@ -757,6 +772,22 @@ class GraDPertV2(nn.Module):
         target_mask: Tensor | None = None,
         prediction_head_grad: bool = True,
     ) -> Tensor:
+        with _head_precision_context(joint, self.options.prediction_precision):
+            return self._decode_score(
+                joint.float() if self.options.prediction_precision == "float32" else joint,
+                query_gene_ids=query_gene_ids,
+                target_mask=target_mask,
+                prediction_head_grad=prediction_head_grad,
+            )
+
+    def _decode_score(
+        self,
+        joint: Tensor,
+        *,
+        query_gene_ids: Tensor | None = None,
+        target_mask: Tensor | None = None,
+        prediction_head_grad: bool = True,
+    ) -> Tensor:
         """Raw task score; residual in BR, unconstrained expression score in PO."""
         if type(prediction_head_grad) is not bool:
             raise ValueError("prediction_head_grad must be boolean")
@@ -959,7 +990,11 @@ class GraDPertV2(nn.Module):
             "response_tokens": response[:, :-1],
         }
         if decode:
-            score = self.prediction(response[:, :-1]).squeeze(-1)
+            with _head_precision_context(response, self.options.prediction_precision):
+                head_input = response[:, :-1]
+                if self.options.prediction_precision == "float32":
+                    head_input = head_input.float()
+                score = self.prediction(head_input).squeeze(-1)
             prediction, delta = self.prediction_outputs(score, control)
             output.update(prediction=prediction, delta=delta)
         return output

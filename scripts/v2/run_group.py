@@ -59,6 +59,15 @@ def validate_preflight(plan: dict, entry: dict) -> None:
         or receipt.get("world_size", 1) != len(plan["gpu"].split(","))
     ):
         raise ValueError("preflight config, data, seed or topology differs from launch")
+    parameters = plan.get("resolved_config", {}).get("model", {}).get("parameters", {})
+    if (
+        any(
+            parameters.get(key, {}).get("value", "autocast") != "autocast"
+            for key in ("ssl_head_precision", "prediction_precision", "ffn_compute_precision")
+        )
+        and receipt.get("precision_audit", {}).get("status") != "passed"
+    ):
+        raise ValueError("precision candidates require the native dtype/kernel preflight audit")
     if receipt.get("peak_allocated_bytes", 0) <= 0 or not math.isfinite(
         receipt.get("last_terms", {}).get("gradient_norm", float("nan"))
     ):

@@ -1,0 +1,167 @@
+{
+  "schema": "representation-precision-family-1",
+  "family": "precision_ri_20261031",
+  "priority": [
+    "PREC-SSL32",
+    "PREC-PRED32",
+    "PREC-FFN8"
+  ],
+  "preflight_priority": [
+    "PREC-SSL32",
+    "PREC-PRED32",
+    "PREC-FFN8"
+  ],
+  "common_microbatch": 80,
+  "world_size": 2,
+  "accumulation": 2,
+  "global_batch": 320,
+  "epochs": 2,
+  "seed": 1,
+  "eval_batch": 128,
+  "validation": "disabled",
+  "postfit_validation": true,
+  "test_timing": "deferred; no test-based precision selection",
+  "selection": "final_epoch",
+  "test_roles": [
+    "last"
+  ],
+  "preflight_updates": 10,
+  "eval_capacity_reference_batch": 128,
+  "initialization": "from_scratch; common RI initialization/seed; no checkpoint warm start",
+  "analysis": "same sealed medium population plus a separate fixed-panel training probe",
+  "baseline": {
+    "experiment": "R3-RI",
+    "config": "configs/v2/representation_round3_20261023/R3-RI/gradpert_v2/nadig_jurkat.yaml",
+    "sha256": "65304a02704561f9fbe3addb7be335fc88a51688f9cef69941ac81d1a920a4f7",
+    "training_source_commit": "f0cb20ebb2efab749970f2bf5d205ed2f358592c",
+    "checkpoint_sha256": "96f6e718b4a3d2045ed4b0a5b3ba813a1fbc029aa3e1f0091d3ed68ef3f2d0d4"
+  },
+  "schedule_semantics": {
+    "lr": "unchanged endpoint warmup cosine, warmup_fraction=0.16, over two epochs",
+    "ema": "unchanged cosine 0.99 to 1.0 over two epochs",
+    "comparison": "both arms share the shorter relative schedule; historical epoch2 is not this anchor"
+  },
+  "fixed_panel_diagnostics": {
+    "split": "train",
+    "conditions": 32,
+    "controls_per_condition": 4,
+    "query_genes": 1000,
+    "deep_gene_sample": 128,
+    "panel": "one fixed allowed training-expression panel shared by all arms and conditions",
+    "pairing": [
+      "same_condition_different_control",
+      "different_condition_same_control"
+    ],
+    "stratification": [
+      "cell_line",
+      "cell_type",
+      "context_id"
+    ],
+    "identity": "reuse sealed medium condition/row identities where eligible; seal the extra probe separately",
+    "independence": "deduplicate controls; report actual valid counts; do not replace missing rows silently",
+    "stages": "Response injection input, branch and actual state; self/cross/FFN; final norm",
+    "state_updates": false,
+    "persist_full_activations": false
+  },
+  "research_iteration": {
+    "round": "precision",
+    "authorized_rounds": null,
+    "future_rounds": "analyze these three candidates before any combination or additional arm",
+    "design_evidence": [
+      "train",
+      "validation"
+    ],
+    "test_results_for_selection": false,
+    "success": "joint representation separation and response utility; not CE or DINO rank alone",
+    "hypothesis": "separate sensitive head precision from FFN throughput without changing losses"
+  },
+  "rerun_old_BR_or_officials": false,
+  "main_reference": "R3-RI",
+  "reused_controls": [
+    "R3-RI"
+  ],
+  "repeat_baseline": false,
+  "completed_optimizer_updates": 300,
+  "scientific_complete": false,
+  "precision": {
+    "changes": {
+      "PREC-SSL32": {
+        "ssl_head_precision": "float32"
+      },
+      "PREC-PRED32": {
+        "prediction_precision": "float32"
+      },
+      "PREC-FFN8": {
+        "ffn_compute_precision": "fp8_hybrid"
+      }
+    },
+    "fp8_recipe": "stateless per-tensor current scaling; E4M3 forward / E5M2 output gradient",
+    "fp8_backend": "native torch._scaled_mm; no quantize/dequantize BF16 simulation or fallback",
+    "ds_v3_alignment": "principle only; not the all-E4M3 1x128/128x128 DeepSeek-V3 recipe",
+    "master_parameters": "unchanged FP32",
+    "gradient_storage": "unchanged FP32",
+    "optimizer": "unchanged Muon/AdamW routes and state precision",
+    "teacher": "same module precision policy as Student, no teacher backward",
+    "kda_state": "unchanged FP32",
+    "inactive_heads": "SSL1 node remains inactive",
+    "primary_evaluation": "common_ri_native: original unautocast RI validation; training-precision sensitivity separate",
+    "analysis": "same unified medium/crossed template and fixed population manifests",
+    "preflight": "10 native updates/fullrestore/300-control inference plus precision dtype/kernel audit",
+    "fp8_capacity": "must retain micro80/global320; unsupported backend or shape fails closed"
+  },
+  "comparison_limits": [
+    "retained R3-RI is historical; prove source parity or label cross-version descriptive",
+    "single seed and exploratory two epochs; no causal claim from loss or rank alone",
+    "FP8 FLOPs/peak conventions differ; measure complete-update throughput directly"
+  ],
+  "rows": [
+    {
+      "name": "PREC-SSL32",
+      "config": "configs/v2/precision_ri_20261031/PREC-SSL32/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "b78780c914629201c312fa0aebb8f793b0c2815d3a9003ed97e288e2d45a4fbc",
+      "changes": {
+        "PREC-SSL32": {
+          "ssl_head_precision": "float32"
+        },
+        "PREC-PRED32": {
+          "prediction_precision": "float32"
+        },
+        "PREC-FFN8": {
+          "ffn_compute_precision": "fp8_hybrid"
+        }
+      }
+    },
+    {
+      "name": "PREC-PRED32",
+      "config": "configs/v2/precision_ri_20261031/PREC-PRED32/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "8e6ec175af8049209543fbbfb76cfc624a27977f40882d8dc15ab28ff8a7be7a",
+      "changes": {
+        "PREC-SSL32": {
+          "ssl_head_precision": "float32"
+        },
+        "PREC-PRED32": {
+          "prediction_precision": "float32"
+        },
+        "PREC-FFN8": {
+          "ffn_compute_precision": "fp8_hybrid"
+        }
+      }
+    },
+    {
+      "name": "PREC-FFN8",
+      "config": "configs/v2/precision_ri_20261031/PREC-FFN8/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "b911dd5d2da4df2c5f5f457798a6c31688f5b23a1628cdf73673f9b03fab7dec",
+      "changes": {
+        "PREC-SSL32": {
+          "ssl_head_precision": "float32"
+        },
+        "PREC-PRED32": {
+          "prediction_precision": "float32"
+        },
+        "PREC-FFN8": {
+          "ffn_compute_precision": "fp8_hybrid"
+        }
+      }
+    }
+  ]
+}

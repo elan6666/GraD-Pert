@@ -43,7 +43,11 @@ def diagnostic_conditions(plan: dict[str, Any], selected: tuple[str, ...]) -> tu
 def resolve_evaluation_plan(args: argparse.Namespace) -> dict[str, Any]:
     """Reject mismatched checkpoint/config/source before allocating a GPU."""
     from gradpert.execution.train_entry import repository_root
+    from gradpert.modeling.v2.precision_evaluation import evaluation_precision
 
+    policy = evaluation_precision(getattr(args, "evaluation_precision", "native"))
+    if policy != "native" and args.split != "val":
+        raise ValueError("common_ri_native is restricted to validation research")
     repository = repository_root()
     config_path = args.config.resolve(strict=True)
     config = load_experiment_config(config_path)
@@ -103,6 +107,7 @@ def resolve_evaluation_plan(args: argparse.Namespace) -> dict[str, Any]:
     if not data_root.is_relative_to(SERVER_ROOT):
         raise ValueError("evaluation data must stay on the server")
     return {
+        **({"evaluation_precision": policy} if policy != "native" else {}),
         "config": str(config_path),
         "config_sha256": sha256_file(config_path),
         "training_run_root": str(training_root),
@@ -127,11 +132,20 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
     from gradpert.evaluation.data import CanonicalEvaluationData
     from gradpert.evaluation.state import load_evaluation_state
     from gradpert.execution.identity import inspect_environment
+    from gradpert.modeling.v2.precision_evaluation import (
+        evaluation_precision,
+        evaluation_precision_context,
+        evaluation_student,
+        precision_policy,
+    )
     from gradpert.training.v2.checkpoint import load_evaluation_checkpoint
     from gradpert.training.v2.evaluation import evaluate
     from gradpert.training.v2.exposure import checkpoint_expression_groups
     from gradpert.training.v2.runtime import prepare_runtime
 
+    policy = evaluation_precision(plan.get("evaluation_precision", "native"))
+    if policy != "native" and plan["split"] != "val":
+        raise ValueError("common_ri_native is restricted to validation research")
     started = time.perf_counter()
     config = load_experiment_config(plan["config"])
     if sha256_file(Path(plan["config"])) != plan["config_sha256"]:
@@ -158,8 +172,30 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
             training_identity=plan["training_identity"],
             checkpoint_sha256=plan["checkpoint_sha256"],
         )
-        if plan.get("cpu_training_state", False):
+        if plan.get("cpu_training_state", False) and policy == "native":
             runtime.objective.student.to(device)
+        student = evaluation_student(runtime.objective.student, policy)
+        if policy != "native":
+            student.to(device)
+        precision_receipt = (
+            {
+                "precision_policy": {
+                    "training": precision_policy(runtime.objective.student),
+                    "evaluation": precision_policy(student),
+                    "evaluation_precision": policy,
+                    "autocast_enabled": False,
+                    "autocast_dtype": None,
+                    "parameter_dtype": "float32",
+                    "backend": {
+                        "cuda_matmul_allow_tf32": torch.backends.cuda.matmul.allow_tf32,
+                        "float32_matmul_precision": torch.get_float32_matmul_precision(),
+                        "cudnn_allow_tf32": torch.backends.cudnn.allow_tf32,
+                    },
+                }
+            }
+            if policy != "native"
+            else {}
+        )
         torch.cuda.reset_peak_memory_stats(device)
         split: Literal["val", "test"] = plan["split"]
         common: DatasetArgs = {
@@ -185,30 +221,32 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
                     else None
                 ),
             )
-            result = evaluate(
-                runtime.objective.student,
-                runtime.index,
-                data,
-                reference,
-                expected_split=split,
-                device=device,
-                cell_batch=int(config.training.eval_batch_size.value),
-                query_count=runtime.options.eval_query_count,
-                metric_gene_groups=groups,
-                condition_ids=selected,
-                on_condition_complete=lambda done, count, condition: atomic_json(
-                    Path(plan["output_root"]) / f"worker-{index}-progress.json",
-                    {
-                        "conditions_completed": done,
-                        "conditions_total": count,
-                        "latest_condition": condition,
-                        "checkpoint_sha256": plan["checkpoint_sha256"],
-                    },
-                ),
-            )
+            with evaluation_precision_context(policy, device.type):
+                result = evaluate(
+                    student,
+                    runtime.index,
+                    data,
+                    reference,
+                    expected_split=split,
+                    device=device,
+                    cell_batch=int(config.training.eval_batch_size.value),
+                    query_count=runtime.options.eval_query_count,
+                    metric_gene_groups=groups,
+                    condition_ids=selected,
+                    on_condition_complete=lambda done, count, condition: atomic_json(
+                        Path(plan["output_root"]) / f"worker-{index}-progress.json",
+                        {
+                            "conditions_completed": done,
+                            "conditions_total": count,
+                            "latest_condition": condition,
+                            "checkpoint_sha256": plan["checkpoint_sha256"],
+                        },
+                    ),
+                )
             result["expression_exposure"] = exposure
             torch.cuda.synchronize(device)
             return {
+                **precision_receipt,
                 "runtime_measurement": {
                     "wall_seconds": time.perf_counter() - started,
                     "peak_allocated_bytes": torch.cuda.max_memory_allocated(device),
@@ -227,6 +265,9 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
 def execute_evaluation_plan(plan: dict[str, Any]) -> dict[str, Any]:
     if plan.get("diagnostic_only") or "diagnostic_condition_count" in plan:
         raise ValueError("diagnostic probes cannot produce scientific COMPLETE receipts")
+    from gradpert.modeling.v2.precision_evaluation import evaluation_precision
+
+    evaluation_precision(plan.get("evaluation_precision", "native"))
     evaluation_memory_fraction(plan)
     from gradpert.training.v2.evaluation import merge_evaluation_shards
 
@@ -283,11 +324,15 @@ def execute_evaluation_plan(plan: dict[str, Any]) -> dict[str, Any]:
         environments = [shard["evaluation_environment"] for shard in shards]
         if any(environment != environments[0] for environment in environments[1:]):
             raise ValueError("evaluation workers disagree on environment identity")
+        policies = [shard.get("precision_policy") for shard in shards]
+        if any(policy != policies[0] for policy in policies[1:]):
+            raise ValueError("evaluation workers disagree on precision policy")
         result = merge_evaluation_shards(
             [shard["result"] for shard in shards], ordered_conditions=orders[0]
         )
         result["expression_exposure"] = shards[0]["result"]["expression_exposure"]
         receipt = {
+            **({"precision_policy": policies[0]} if policies[0] is not None else {}),
             "plan": plan,
             "evaluation_environment": environments[0],
             "result": result,

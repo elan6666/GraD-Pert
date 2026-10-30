@@ -42,13 +42,21 @@ class Float32LayerNorm(nn.LayerNorm):
 class MatchedGELUFeedForward(nn.Module):
     """Two matrices with 6d hidden width match the original three 4d matrices."""
 
-    def __init__(self, width: int, dropout: float) -> None:
+    def __init__(self, width: int, dropout: float, compute_precision: str = "autocast") -> None:
         super().__init__()
+        if compute_precision not in ("autocast", "fp8_hybrid"):
+            raise ValueError("unsupported GELU FFN compute precision")
+        self.compute_precision = compute_precision
         self.up = nn.Linear(width, 6 * width, bias=False)
         self.down = nn.Linear(6 * width, width, bias=False)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: Tensor) -> Tensor:
+        if self.compute_precision == "fp8_hybrid":
+            from .fp8_ffn import fp8_linear
+
+            hidden = self.dropout(F.gelu(fp8_linear(x, self.up.weight)))
+            return cast(Tensor, self.dropout(fp8_linear(hidden, self.down.weight)))
         return cast(Tensor, self.dropout(self.down(self.dropout(F.gelu(self.up(x))))))
 
 
@@ -87,11 +95,15 @@ def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architectur
         if options.ffn_variant == "gelu":
             for module in list(model.modules()):
                 if isinstance(module, (SparseRead, RelayGraphLayer)):
-                    module.ffn = MatchedGELUFeedForward(d, options.dropout)
+                    module.ffn = MatchedGELUFeedForward(
+                        d, options.dropout, options.ffn_compute_precision
+                    )
                 elif isinstance(module, ManifoldResidual) and isinstance(
                     module.sublayer, GatedFeedForward
                 ):
-                    module.sublayer = MatchedGELUFeedForward(d, options.dropout)
+                    module.sublayer = MatchedGELUFeedForward(
+                        d, options.dropout, options.ffn_compute_precision
+                    )
         if options.ffn_input_norm in ("rmsnorm", "layernorm"):
 
             def pre_norm(width: int) -> nn.Module:

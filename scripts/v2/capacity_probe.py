@@ -117,10 +117,15 @@ def staged_restore_fingerprint(runtime: Any, *, continuing_joint: bool) -> str:
         runtime.optimizer.state_dict(),
         runtime.generator.bit_generator.state,
     )
+    precision_options = getattr(getattr(runtime.objective, "student", None), "options", None)
     if (
         getattr(getattr(runtime, "options", None), "training_mode", None) == "frozen_readout"
         or getattr(runtime.objective, "spectral_enabled", False)
         or getattr(runtime.objective, "response_anchor_enabled", False)
+        or any(
+            getattr(precision_options, field, "autocast") != "autocast"
+            for field in ("ssl_head_precision", "prediction_precision", "ffn_compute_precision")
+        )
     ):
         return state_fingerprint((full_state, validation_state(runtime)))
     if not continuing_joint:
@@ -529,6 +534,27 @@ def main() -> None:
             run_seed=config.training.run_seeds[0],
             device=torch.device("cuda:0"),
         ) as runtime:
+            from gradpert.training.v2.precision_audit import PrecisionAudit
+            from gradpert.training.v2.precision_audit import enabled as precision_enabled
+
+            precision_audit = None
+            if precision_enabled(runtime.objective.student.options):
+                if kind == "benchmark_only" and not profiling:
+                    from gradpert.training.v2.precision_audit import backend_facts
+
+                    receipt["precision_backend"] = backend_facts(
+                        runtime.device,
+                        fp8=runtime.objective.student.options.ffn_compute_precision == "fp8_hybrid",
+                    )
+                elif kind != "preflight_only" or args.steps != 10 or profiling:
+                    raise ValueError("precision candidates require an unprofiled exact10 preflight")
+                else:
+                    precision_audit = candidate_contexts.enter_context(
+                        PrecisionAudit(
+                            runtime.objective, runtime.objective.student.options, runtime.device
+                        )
+                    )
+                    receipt["precision_audit"] = precision_audit.payload
             anchor_gate = bool(getattr(runtime.options, "response_anchor_weight", 0))
             anchor_restores = []
             if anchor_gate and (kind != "preflight_only" or args.steps != 10):
@@ -881,7 +907,11 @@ def main() -> None:
                         path = args.output / "resume.pt"
                         before_restore = (
                             staged_restore_fingerprint(runtime, continuing_joint=staged_joint)
-                            if staged_gate or readout_gate or spectral_gate or anchor_gate
+                            if staged_gate
+                            or readout_gate
+                            or spectral_gate
+                            or anchor_gate
+                            or precision_audit is not None
                             else None
                         )
                         save_checkpoint(
@@ -902,7 +932,13 @@ def main() -> None:
                         if progress["step"] != step or runtime.optimizer.steps != step:
                             raise ValueError("capacity checkpoint resume progress mismatch")
                         receipt["resume_checkpoint_sha256"] = sha256_file(path)
-                        if staged_gate or readout_gate or spectral_gate or anchor_gate:
+                        if (
+                            staged_gate
+                            or readout_gate
+                            or spectral_gate
+                            or anchor_gate
+                            or precision_audit is not None
+                        ):
                             same = before_restore == staged_restore_fingerprint(
                                 runtime, continuing_joint=staged_joint
                             )
@@ -913,6 +949,8 @@ def main() -> None:
                                 spectral_restores.append(same)
                             if anchor_gate:
                                 anchor_restores.append(same)
+                            if precision_audit is not None:
+                                precision_audit.mark_restored(same)
                             if not same:
                                 raise ValueError("PT1 stage checkpoint restore changed state")
                     if step % 8 == 0:
@@ -1212,6 +1250,8 @@ def main() -> None:
                 )
             if not profiling and kind in ("preflight_only", "capacity_only"):
                 receipt.update(primary_call(validation_probe))
+            if precision_audit is not None:
+                receipt["precision_audit"] = precision_audit.finish()
             local_measurement = {
                 "rank": rank,
                 "physical_gpu": devices[rank],
@@ -1239,6 +1279,8 @@ def main() -> None:
                 "view_generator_after_sha256": sha256_json(runtime.generator.bit_generator.state),
                 "profiled_update_seconds": [durations[i] for i in sorted(profiled_indices)],
             }
+            if precision_audit is not None:
+                local_measurement["precision_audit"] = precision_audit.payload
             measurements: list[Any] = [local_measurement]
             if world > 1:
                 measurements = [None] * world

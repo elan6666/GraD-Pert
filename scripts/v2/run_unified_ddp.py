@@ -119,6 +119,11 @@ def _terminate_active_child(active) -> None:
 
 
 def matrix_contract(source: Path, manifest: Path) -> tuple[dict, tuple[str, ...], list[str]]:
+    if read_json(manifest).get("schema") == "representation-precision-family-1":
+        from generate_precision_family import CHANGES
+        from generate_precision_family import verify_manifest as verify_precision
+
+        return verify_precision(source, manifest), tuple(CHANGES), list(CHANGES)
     if read_json(manifest).get("schema") == "graph-mhc-four-1":
         from generate_graph_mhc import PRIORITY as graph_priority
         from generate_graph_mhc import verify_manifest as verify_graph
@@ -1462,9 +1467,15 @@ def validate_coexistence_acceptance(queue: dict, ready: dict, acceptance: dict) 
 
 def needs_preflight_acceptance(queue: dict) -> bool:
     policy = queue.get("shared_gpu_policy")
-    return [row["name"] for row in queue["rows"]] == ["GM1"] or (
-        policy is not None and policy["schema"] in (DUAL_SCHEMA, DYNAMIC_SCHEMA)
+    return (
+        is_precision_queue(queue)
+        or [row["name"] for row in queue["rows"]] == ["GM1"]
+        or (policy is not None and policy["schema"] in (DUAL_SCHEMA, DYNAMIC_SCHEMA))
     )
+
+
+def is_precision_queue(queue: dict) -> bool:
+    return [row["name"] for row in queue["rows"]] == ["PREC-SSL32", "PREC-PRED32", "PREC-FFN8"]
 
 
 def preflight_acceptance_receipt(queue: dict, state: dict) -> dict:
@@ -1880,7 +1891,7 @@ def execute(queue: dict, directory: Path) -> None:
                 if queue.get("mode") == COMPLETED_BR_MODE:
                     start_eval(actual, stack)
                     drain_eval(stack)
-                else:
+                elif not is_precision_queue(queue):
                     pending_evals.append(actual)
             drain_eval(stack)
             while pending_evals:

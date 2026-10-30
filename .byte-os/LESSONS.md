@@ -412,3 +412,7 @@ Evaluation-state condition IDs may cover more populations or use a different ord
 ## 2026-10-29：跨阶段回执字段要以真实冻结产物为准
 
 R16 CPU目标构建a1在读取表达值前失败：repeatability终态使用`output_sha256`，census使用`outputs_sha256`；合成fixture错误地统一为后者，导致本地闭环测试也未覆盖真实接口。修复分别保留原producer schema，先核原生小型COMPLETE的字段和源函数，再用相同结构验证。失败source/job/日志保留，改动另行发布并用新attempt；不能为适配静默改原历史回执，也不能把单元通过当成原生预检成功。
+
+## 2026-10-31：训练精度不能代替评估精度的证据
+
+精度消融初稿把R3-RI的共同评估称为BF16，但核对不可变训练源f0cb20e的独立评估worker和predict_query_set后发现原评估未开启autocast。参数存储、训练autocast、局部头部计算与评估上下文必须分别核验；外层BF16也不能覆盖显式FP32头或FP8 FFN。修正为common_ri_native：严格加载训练身份后另建精度重置的独立Student，保持原推理路径并记录backend设置，保留历史结果，不重训基线。以后必须沿真实入口读取dtype/autocast和缓存策略，再命名共同评估协议。
