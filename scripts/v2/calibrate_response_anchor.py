@@ -674,6 +674,83 @@ def prediction_losses(
         yield loss * (world * len(micro.control) / global_rows)
 
 
+def audit_pair_replay(
+    runtime: Any, controller: Any, batch: Any, pair: tuple[int, int], *, bf16: bool
+) -> dict[str, Any]:
+    """One frozen TRAIN pair, two replays; excluded from first8 norm calibration.
+
+    This explicitly costs four additional group forwards per rank at calibration,
+    never changes the 1322-forward/epoch fit schedule, and exports only scalars.
+    """
+    from gradpert.hashing import sha256_json
+
+    model = runtime.objective.student
+    params = (*model.response.parameters(), *model.prediction.parameters())
+    with head_route_deterministic_context(runtime.device) as deterministic:
+        samples = []
+        for _ in range(2):
+            with preserved_calibration(runtime), controller.unit_rng(pair, 0):
+                loss = controller.unit_loss(batch, pair, 0, bf16=bf16)
+                gradients = torch.autograd.grad(loss, params, allow_unused=True)
+                samples.append((loss.detach().clone(), gradients))
+        if not torch.equal(samples[0][0], samples[1][0]):
+            raise ValueError("pair loss deterministic replay differs")
+        comparison = compare_head_audit_gradients(
+            samples[0][1],
+            samples[1][1],
+            atol=_CUDA_RESPONSE_GRADIENT_ATOL if runtime.device.type == "cuda" else 0.0,
+        )
+    return dict(
+        schema="population-pair-replay-audit-v1",
+        complete=True,
+        pair=list(pair),
+        query_ids_sha256=sha256_json(
+            batch.graph.ids[batch.query_positions].detach().cpu().tolist()
+        ),
+        epoch=0,
+        replays=2,
+        extra_group_forwards=4,
+        included_in_calibration_norms=False,
+        state_restored=True,
+        deterministic_audit=deterministic,
+        gradient_comparison=comparison,
+        optimizer_updates=0,
+        teacher_updates=0,
+        center_updates=0,
+    )
+
+
+def pair_gradient_diagnostics(
+    model: Any, pair_loss: Tensor, details: dict[str, Any]
+) -> dict[str, Any]:
+    """Scalar diagnostic of the same two live graphs; no additional group forwards."""
+    absolute = details.pop("absolute_loss")
+    result = dict(details)
+    for scope in ("response", "prediction"):
+        params = tuple(getattr(model, scope).parameters())
+        pair = torch.autograd.grad(pair_loss, params, retain_graph=True, allow_unused=True)
+        old = torch.autograd.grad(absolute, params, retain_graph=True, allow_unused=True)
+
+        def dot(a, b):
+            return sum(
+                float((x.detach().double() * y.detach().double()).sum())
+                for x, y in zip(a, b, strict=True)
+                if x is not None and y is not None
+            )
+
+        pn, an = math.sqrt(dot(pair, pair)), math.sqrt(dot(old, old))
+        if not math.isfinite(pn) or not math.isfinite(an) or pn <= 0 or an <= 0:
+            raise ValueError("zero/nonfinite pair or absolute gradient; no pair resampling")
+        result[scope] = dict(
+            pair_gradient_norm=pn,
+            absolute_gradient_norm=an,
+            absolute_pair_gradient_cosine=dot(pair, old) / (pn * an),
+        )
+    if result["target_contrast_rms"] <= 0:
+        raise ValueError("zero target contrast; fixed pair invalid, no resampling")
+    return result
+
+
 def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) -> dict[str, Any]:
     """Use the exact first eight native epoch0 batches at initialization, no filtering."""
     from gradpert.hashing import sha256_json
@@ -686,6 +763,11 @@ def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) 
     rank = torch.distributed.get_rank() if distributed else 0
     protected_head = getattr(runtime.options, "response_anchor_prediction_head_grad", True) is False
     head_audit = None
+    pair_mode = (
+        getattr(runtime.options, "response_anchor_loss", "mse") == "population_prediction_contrast"
+    )
+    pair_audits: list[dict[str, Any]] = []
+    pair_replay = None
     params = tuple(runtime.objective.student.response.parameters())
     readout = getattr(runtime.objective.student, "response_anchor_readout", None)
     if readout is not None and any(id(p) in {id(q) for q in readout.parameters()} for p in params):
@@ -738,12 +820,36 @@ def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) 
                 )
 
             def anchor(step: int) -> Iterable[Tensor]:
-                nonlocal head_audit
+                nonlocal head_audit, pair_replay
                 groups = controller.groups(step)
                 metadata[step]["local_group_indices_sha256"] = sha256_json(list(groups))
                 metadata[step]["local_group_count"] = len(groups)
                 for condition in groups:
-                    if protected_head:
+                    if pair_mode:
+                        if pair_replay is None:
+                            pair_replay = audit_pair_replay(
+                                runtime, controller, current["batch"], condition, bf16=bf16
+                            )
+                        # Generator suspension keeps pair-private streams active through
+                        # autograd.grad, including both checkpoint recomputations.
+                        with controller.unit_rng(condition, 0):
+                            details: dict[str, Any] = {}
+                            loss = controller.unit_loss(
+                                current["batch"], condition, 0, bf16=bf16, diagnostics=details
+                            )
+                            details = pair_gradient_diagnostics(
+                                runtime.objective.student, loss, details
+                            )
+                            pair_audits.append(
+                                dict(
+                                    step=step,
+                                    pair=list(condition),
+                                    query_ids_sha256=metadata[step]["query_ids_sha256"],
+                                    **details,
+                                )
+                            )
+                            yield loss
+                    elif protected_head:
                         if head_audit is None:
                             head_audit = audit_population_head_route(
                                 runtime,
@@ -767,7 +873,7 @@ def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) 
                 pred,
                 anchor,
                 metadata,
-                P=len(controller.bank.condition_ids),
+                P=len(controller.bank.condition_ids) // (2 if pair_mode else 1),
                 steps_per_epoch=runtime.steps_per_epoch,
                 world=world,
                 reduce_mean=reduce_mean,
@@ -775,6 +881,18 @@ def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) 
         finally:
             if hasattr(stream, "close"):
                 stream.close()
+    if pair_mode:
+        from gradpert.training.v2.response_anchor import pair_schedule_identity
+
+        result["pair_replay_audit"] = pair_replay
+        result["pair_diagnostics"] = pair_audits
+        result["pair_diagnostics_scope"] = (
+            "same_first8_native_steps_local_pairs_no_extra_forward_no_rank_reduction"
+        )
+        result["pair_schedule"] = pair_schedule_identity(
+            1322, runtime.steps_per_epoch, runtime.options.response_anchor_seed
+        )
+        result["response_anchor_prediction_head_grad"] = True
     result["state_restored"] = True
     result["world_size"] = world
     result["rank"] = rank
@@ -786,8 +904,11 @@ def calibrate_first_eight(runtime: Any, controller: Any, *, bf16: bool = False) 
         result["response_anchor_prediction_head_grad"] = False
         result["gradient_routing"] = _PROTECTED_ROUTE
         result["population_head_route_audit"] = head_audit
-    if getattr(runtime.options, "response_anchor_loss", "mse") == "population_prediction":
-        result["response_anchor_loss"] = "population_prediction"
+    if getattr(runtime.options, "response_anchor_loss", "mse") in (
+        "population_prediction",
+        "population_prediction_contrast",
+    ):
+        result["response_anchor_loss"] = runtime.options.response_anchor_loss
         result["population_manifest_sha256"] = runtime.options.response_anchor_population_sha256
         result["population_arrays_sha256"] = (
             runtime.options.response_anchor_population_arrays_sha256
@@ -894,7 +1015,10 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
                         str(bank.arrays_path): bank.arrays_sha256,
                     }
                 )
-                if runtime.options.response_anchor_loss == "population_prediction":
+                if runtime.options.response_anchor_loss in (
+                    "population_prediction",
+                    "population_prediction_contrast",
+                ):
                     population_path = Path(runtime.options.response_anchor_population_path)
                     population_doc = json.loads(population_path.read_text())
                     before_files[str(population_path)] = (
@@ -948,6 +1072,9 @@ def execute(args: argparse.Namespace) -> dict[str, Any]:
                     result["population_head_route_audit_ranks"] = [
                         row["population_head_route_audit"] for row in ranks
                     ]
+                if runtime.options.response_anchor_loss == "population_prediction_contrast":
+                    result["pair_diagnostics_ranks"] = [row["pair_diagnostics"] for row in ranks]
+                    result["pair_replay_audit_ranks"] = [row["pair_replay_audit"] for row in ranks]
                 if list(args.output.rglob("*.pkl")):
                     raise ValueError("calibration must remain zero-PKL")
                 result["input_files_sha256"] = before_files

@@ -17,11 +17,14 @@ from gradpert.hashing import sha256_file
 
 from .objective import TrainingBatch
 from .response_anchor import (
+    PAIR_MODE,
     FixedResponseBank,
     group_loss_coefficient,
     group_mean_loss,
     group_schedule,
     isolated_rng,
+    pair_schedule,
+    prediction_contrast_loss,
 )
 
 if TYPE_CHECKING:
@@ -91,9 +94,13 @@ class ResponseAnchorController:
         ):
             raise ValueError("response anchor single-target identity is not the native graph gene")
         mode = getattr(runtime.options, "response_anchor_loss", "mse")
-        if mode not in ("mse", "cosine_direction", "population_prediction"):
+        if mode not in ("mse", "cosine_direction", "population_prediction", PAIR_MODE):
             raise ValueError("unknown response anchor loss")
-        if mode == "population_prediction":
+        if mode == PAIR_MODE and not getattr(
+            runtime.options, "response_anchor_prediction_head_grad", True
+        ):
+            raise ValueError("pair contrast requires normal native prediction head gradients")
+        if mode in ("population_prediction", PAIR_MODE):
             from .population_anchor import load_population_targets
 
             self.population_targets = load_population_targets(
@@ -133,11 +140,12 @@ class ResponseAnchorController:
             **self._direction_diagnostics,
         }
 
-    def groups(self, step: int) -> tuple[int, ...]:
+    def groups(self, step: int) -> tuple[int, ...] | tuple[tuple[int, int], ...]:
         if type(step) is not int or step < 0:
             raise ValueError("response anchor requires the successful native update cursor")
         epoch, within = divmod(step, self.runtime.steps_per_epoch)
-        return group_schedule(
+        schedule = pair_schedule if self.pair_mode else group_schedule
+        return schedule(
             len(self.bank.condition_ids),
             self.runtime.steps_per_epoch,
             epoch,
@@ -145,6 +153,75 @@ class ResponseAnchorController:
             self.world,
             self.rank,
         )[within]
+
+    @property
+    def pair_mode(self) -> bool:
+        return getattr(self.runtime.options, "response_anchor_loss", "mse") == PAIR_MODE
+
+    @property
+    def loss_units(self) -> int:
+        return len(self.bank.condition_ids) // (2 if self.pair_mode else 1)
+
+    def unit_rng(self, unit: int | tuple[int, int], epoch: int) -> AbstractContextManager[None]:
+        if not self.pair_mode:
+            if not isinstance(unit, int):
+                raise ValueError("group mode requires a condition index")
+            return self.group_rng(unit, epoch)
+        if not isinstance(unit, tuple) or len(unit) != 2:
+            raise ValueError("pair mode requires two condition indices")
+        digest = hashlib.sha256(
+            f"population-pair:{self.runtime.options.response_anchor_seed}:{epoch}:{unit[0]}:{unit[1]}".encode()
+        ).digest()
+        device = self.runtime.device
+        return isolated_rng(
+            int.from_bytes(digest[:8], "big") % 2**63,
+            (device.index or 0,) if device.type == "cuda" else (),
+        )
+
+    def unit_loss(
+        self,
+        batch: TrainingBatch,
+        unit: int | tuple[int, int],
+        epoch: int,
+        *,
+        bf16: bool = False,
+        diagnostics: dict[str, Any] | None = None,
+    ) -> Tensor:
+        if not self.pair_mode:
+            if not isinstance(unit, int):
+                raise ValueError("group mode requires a condition index")
+            return self.group_loss(batch, unit, epoch, bf16=bf16)
+        if not isinstance(unit, tuple) or len(unit) != 2:
+            raise ValueError("pair mode requires two condition indices")
+        if not getattr(self.runtime.options, "response_anchor_prediction_head_grad", True):
+            raise ValueError("pair contrast requires normal native prediction head gradients")
+        p, q = unit
+        if any(type(c) is not int or not 0 <= c < len(self.bank.condition_ids) for c in (p, q)):
+            raise ValueError("pair condition outside frozen bank")
+        if p == q:
+            raise ValueError("self pair forbidden")
+        # The caller keeps unit_rng alive through backward/checkpoint recomputation.
+        left, tp = self.native_group_forward(batch, p, epoch, bf16=bf16)
+        right, tq = self.native_group_forward(batch, q, epoch, bf16=bf16)
+        loss = prediction_contrast_loss(left["prediction"], right["prediction"], tp, tq)
+        if diagnostics is not None:
+            mp, mq = left["prediction"].float().mean(0), right["prediction"].float().mean(0)
+            delta, truth = mp - mq, tp.float() - tq.float()
+            diagnostics.update(
+                target_contrast_rms=float(truth.square().mean().sqrt()),
+                prediction_contrast_rms=float(delta.detach().square().mean().sqrt()),
+                contrast_error_rms=float(loss.detach().sqrt()),
+                common_error_energy=float(
+                    ((mp.detach() - tp + mq.detach() - tq) / 2).square().mean()
+                ),
+                difference_error_energy=float(loss.detach()),
+                group_rows=[len(left["prediction"]), len(right["prediction"])],
+            )
+            diagnostics["absolute_loss"] = (
+                population_prediction_loss(left["prediction"], tp)
+                + population_prediction_loss(right["prediction"], tq)
+            ) / 2
+        return loss
 
     def group_rng(self, condition: int, epoch: int) -> AbstractContextManager[None]:
         digest = hashlib.sha256(
@@ -154,10 +231,10 @@ class ResponseAnchorController:
         devices = (device.index or 0,) if device.type == "cuda" else ()
         return isolated_rng(int.from_bytes(digest[:8], "big") % 2**63, devices)
 
-    def group_loss(
+    def native_group_forward(
         self, batch: TrainingBatch, condition: int, epoch: int, *, bf16: bool = False
-    ) -> Tensor:
-        """One complete <=40-row group; Teacher receives no extra forward."""
+    ) -> tuple[dict[str, Tensor], Tensor]:
+        """Shared native group assembly/forward, with no Teacher or readout duplication."""
         runtime, bank = self.runtime, self.bank
         if not runtime.objective.student.training:
             raise ValueError("response anchor is a TRAIN-only auxiliary path")
@@ -170,8 +247,9 @@ class ResponseAnchorController:
         control = torch.from_numpy(bank.control_for_condition(condition)[:, positions].copy()).to(
             runtime.device
         )
-        population = (
-            getattr(runtime.options, "response_anchor_loss", "mse") == "population_prediction"
+        population = getattr(runtime.options, "response_anchor_loss", "mse") in (
+            "population_prediction",
+            PAIR_MODE,
         )
         target_values = (
             self.population_targets[condition, positions]
@@ -202,6 +280,10 @@ class ResponseAnchorController:
                 (),
                 (),
             )
+            if self.pair_mode and not torch.equal(
+                graph.ids[auxiliary.query_positions], batch.graph.ids[batch.query_positions]
+            ):
+                raise ValueError("pair native graph changed the ordered query gene IDs")
             with torch.autocast(runtime.device.type, dtype=torch.bfloat16, enabled=bf16):
                 gene, perturbation = runtime.objective._batch_graph(
                     runtime.objective.student, auxiliary
@@ -219,16 +301,27 @@ class ResponseAnchorController:
                     **decoder_options,
                     **runtime.objective.response_metadata(auxiliary),
                 )
-                if population:
-                    loss = population_prediction_loss(outputs["prediction"], target)
-                else:
-                    loss = group_mean_loss(
-                        outputs["response_cls"],
-                        target,
-                        runtime.objective.student.response_anchor_readout,
-                        getattr(runtime.options, "response_anchor_loss", "mse"),
-                        diagnostics=getattr(self, "_direction_diagnostics", None),
-                    )
+        return outputs, target
+
+    def group_loss(
+        self, batch: TrainingBatch, condition: int, epoch: int, *, bf16: bool = False
+    ) -> Tensor:
+        outputs, target = self.native_group_forward(batch, condition, epoch, bf16=bf16)
+        if getattr(self.runtime.options, "response_anchor_loss", "mse") in (
+            "population_prediction",
+            PAIR_MODE,
+        ):
+            loss = population_prediction_loss(outputs["prediction"], target)
+        else:
+            # Keep the historical readout autocast precision after native forward.
+            with torch.autocast(self.runtime.device.type, dtype=torch.bfloat16, enabled=bf16):
+                loss = group_mean_loss(
+                    outputs["response_cls"],
+                    target,
+                    self.runtime.objective.student.response_anchor_readout,
+                    getattr(self.runtime.options, "response_anchor_loss", "mse"),
+                    diagnostics=getattr(self, "_direction_diagnostics", None),
+                )
         if not torch.isfinite(loss):
             raise FloatingPointError("nonfinite response anchor group loss")
         return loss
@@ -249,25 +342,46 @@ class ResponseAnchorController:
         if not math.isfinite(weight) or not 0 < weight <= 1:
             raise ValueError("invalid anchor gradient weight")
         coefficient = group_loss_coefficient(
-            len(self.bank.condition_ids), self.runtime.steps_per_epoch, self.world, weight
+            self.loss_units, self.runtime.steps_per_epoch, self.world, weight
         )
         total, rows, complete40 = 0.0, 0, 0
         groups = self.groups(step)
         epoch = step // self.runtime.steps_per_epoch
-        for condition in groups:
+        for unit in groups:
             # Keep the private RNG active through recomputation/backward too.
-            with self.group_rng(condition, epoch):
-                loss = self.group_loss(batch, condition, epoch, bf16=bf16)
+            with self.unit_rng(unit, epoch):
+                loss = self.unit_loss(batch, unit, epoch, bf16=bf16)
                 (coefficient * loss).backward()
             total += float(loss.detach())
-            count = int(np.diff(self.bank.control_slot_offsets)[condition])
-            rows += count
-            complete40 += int(count == 40)
-        local = total * self.runtime.steps_per_epoch / len(self.bank.condition_ids)
-        return {
+            conditions = unit if isinstance(unit, tuple) else (unit,)
+            for condition in conditions:
+                count = int(np.diff(self.bank.control_slot_offsets)[condition])
+                rows += count
+                complete40 += int(count == 40)
+        local = total * self.runtime.steps_per_epoch / self.loss_units
+        metrics = {
             "response_anchor_loss": local,
             "response_anchor_weighted": weight * local,
-            "response_anchor_groups": float(len(groups)),
+            "response_anchor_groups": float(len(groups) * (2 if self.pair_mode else 1)),
             "response_anchor_rows": float(rows),
             "response_anchor_complete40_groups": float(complete40),
         }
+
+        if self.pair_mode:
+            metrics.update(
+                response_anchor_pairs=float(len(groups)),
+                response_anchor_pair_live_cells_max=float(
+                    max(
+                        (
+                            sum(
+                                int(np.diff(self.bank.control_slot_offsets)[p])
+                                for p in pair
+                                if isinstance(pair, tuple)
+                            )
+                            for pair in groups
+                        ),
+                        default=0,
+                    )
+                ),
+            )
+        return metrics

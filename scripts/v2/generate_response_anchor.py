@@ -31,7 +31,12 @@ def configuration(
     population_arrays_sha256: str = "",
     prediction_head_grad: bool = True,
 ) -> dict:
-    if loss_mode not in {"mse", "cosine_direction", "population_prediction"}:
+    if loss_mode not in {
+        "mse",
+        "cosine_direction",
+        "population_prediction",
+        "population_prediction_contrast",
+    }:
         raise ValueError("unknown response anchor objective")
     if type(prediction_head_grad) is not bool or (
         not prediction_head_grad and loss_mode != "population_prediction"
@@ -39,7 +44,7 @@ def configuration(
         raise ValueError(
             "prediction_head_grad must be boolean; False requires population_prediction"
         )
-    if loss_mode != "population_prediction" and any(
+    if loss_mode not in ("population_prediction", "population_prediction_contrast") and any(
         (population_path, population_sha256, population_arrays_sha256)
     ):
         raise ValueError("population fields require population_prediction")
@@ -65,7 +70,7 @@ def configuration(
             "source": "project_preregistered",
             "reference": DIRECTION_REFERENCE,
         }
-    if loss_mode == "population_prediction":
+    if loss_mode in ("population_prediction", "population_prediction_contrast"):
         for key, item in {
             "response_anchor_loss": loss_mode,
             "response_anchor_population_path": population_path,
@@ -86,6 +91,15 @@ def configuration(
                 "source": "project_preregistered",
                 "reference": HEAD_PROTECTION_REFERENCE,
             }
+    if loss_mode == "population_prediction_contrast":
+        value["model"]["parameters"]["response_anchor_prediction_head_grad"] = {
+            "value": True,
+            "source": "project_preregistered",
+            "reference": "R18-CPD signed complete-condition native prediction contrast",
+        }
+        value["model"]["parameters"]["response_anchor_loss"]["reference"] = (
+            "R18-CPD signed complete-condition native prediction contrast"
+        )
     return value
 
 
@@ -96,7 +110,14 @@ def main() -> None:
     parser.add_argument("--arrays-sha256", required=True)
     parser.add_argument("--weight", required=True, type=float)
     parser.add_argument(
-        "--loss-mode", choices=("mse", "cosine_direction", "population_prediction"), default="mse"
+        "--loss-mode",
+        choices=(
+            "mse",
+            "cosine_direction",
+            "population_prediction",
+            "population_prediction_contrast",
+        ),
+        default="mse",
     )
     parser.add_argument("--population-path", default="")
     parser.add_argument("--population-sha256", default="")

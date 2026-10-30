@@ -34,6 +34,7 @@ COUNTS = dict(
 SCHEMA = "response-anchor-direct-medium-spec-v1"
 R16_SCHEMA = "response-population-direct-medium-r16-spec-v1"
 R17_SCHEMA = "response-population-head-direct-medium-r17-spec-v1"
+R18_SCHEMA = "response-population-contrast-direct-medium-r18-spec-v1"
 R15_SCHEMA = "response-anchor-direct-medium-r15-spec-v1"
 
 
@@ -280,7 +281,10 @@ def diagnostic_adapter(
             population = getattr(getattr(config, "model", None), "parameters", {}).get(
                 "response_anchor_loss"
             )
-            population = population is not None and population.value == "population_prediction"
+            population = population is not None and population.value in (
+                "population_prediction",
+                "population_prediction_contrast",
+            )
             helper = None
             if population:
                 path = Path(__file__).with_name("response_anchor_postfit.py")
@@ -460,7 +464,7 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
         "resource_owner",
         "output",
         "gpu",
-    } or spec["schema"] not in (SCHEMA, R15_SCHEMA, R16_SCHEMA, R17_SCHEMA):
+    } or spec["schema"] not in (SCHEMA, R15_SCHEMA, R16_SCHEMA, R17_SCHEMA, R18_SCHEMA):
         raise ValueError("exact sealed medium SPEC schema required")
     for key, fields in (
         ("medium", {"parent", "performance", "population_sha256", "identity_changes"}),
@@ -473,7 +477,9 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
         if not isinstance(spec[key], dict) or set(spec[key]) != fields:
             raise ValueError("unexpected or missing sealed binding fields: " + key)
     names = (
-        ("R17-GPM-HG0",)
+        ("R18-CPD",)
+        if spec["schema"] == R18_SCHEMA
+        else ("R17-GPM-HG0",)
         if spec["schema"] == R17_SCHEMA
         else ("R16-GPM",)
         if spec["schema"] == R16_SCHEMA
@@ -527,7 +533,7 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
         raise ValueError("R14-FRGA must bind its enabled training anchor descriptor")
     if spec["schema"] == R15_SCHEMA:
         validate_r15_medium_identity(spec, server=server)
-    elif spec["schema"] in (R16_SCHEMA, R17_SCHEMA):
+    elif spec["schema"] in (R16_SCHEMA, R17_SCHEMA, R18_SCHEMA):
         validate_population_medium_identity(spec, server=server)
     bound = bind_parent(parent, identity, spec["medium"]["identity_changes"])
     from gradpert.hashing import sha256_json
@@ -596,7 +602,9 @@ def validate_population_medium_identity(spec: dict, *, server: bool = True) -> N
     sys.modules[module_spec.name] = module
     module_spec.loader.exec_module(module)
     validator = (
-        module.validate_r17_identity
+        module.validate_r18_identity
+        if spec.get("schema") == R18_SCHEMA
+        else module.validate_r17_identity
         if spec.get("schema") == R17_SCHEMA
         else module.validate_r16_identity
     )
@@ -619,6 +627,12 @@ def validate_r16_medium_identity(spec: dict, *, server: bool = True) -> None:
 def validate_r17_medium_identity(spec: dict, *, server: bool = True) -> None:
     if spec.get("schema") != R17_SCHEMA:
         raise ValueError("R17 medium validator requires its explicit profile")
+    return validate_population_medium_identity(spec, server=server)
+
+
+def validate_r18_medium_identity(spec: dict, *, server: bool = True) -> None:
+    if spec.get("schema") != R18_SCHEMA:
+        raise ValueError("R18 medium validator requires its explicit profile")
     return validate_population_medium_identity(spec, server=server)
 
 

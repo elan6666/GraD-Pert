@@ -544,8 +544,14 @@ def optimizer_step(
                 device=batch.control.device,
                 dtype=torch.float64,
             )
+            pair_peak = None
+            if "response_anchor_pair_live_cells_max" in metrics:
+                pair_peak = values.new_tensor(metrics["response_anchor_pair_live_cells_max"])
+                torch.distributed.all_reduce(pair_peak, op=torch.distributed.ReduceOp.MAX)
             torch.distributed.all_reduce(values)
             values /= torch.distributed.get_world_size()
+            if pair_peak is not None:
+                values[names.index("response_anchor_pair_live_cells_max")] = pair_peak
             metrics = dict(zip(names, values.tolist(), strict=True))
         norm = torch.nn.utils.clip_grad_norm_(
             objective.student.parameters(), 1.0, error_if_nonfinite=True

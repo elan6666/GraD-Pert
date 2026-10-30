@@ -71,7 +71,7 @@ def r17_fixture(tmp_path, recipe, parent_spec, parent_binding):
 
 def head_parity_fixture(tmp_path, base):
     spec, receipt = population_parity_fixture(tmp_path, base)
-    receipt["endpoint"] = "R17-GPM-HG0"
+    receipt["endpoint"] = m.population_profile(spec)[0]
     spec["observer_parity"] = write(Path(spec["observer_parity"]["path"]), receipt)
     return spec, receipt
 
@@ -142,7 +142,7 @@ def head_orchestration_fixture(
 
     def worker(value, name, index, *, spec_file, resource_owner):
         trace.append(("worker", name, index))
-        assert name == "R17-GPM-HG0"
+        assert name == m.population_profile(value)[0]
         e = value["endpoints"][0]
         target = Path(value["output"]) / name / f"worker-{index}"
         target.mkdir()

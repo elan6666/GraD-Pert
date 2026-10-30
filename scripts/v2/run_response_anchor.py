@@ -47,6 +47,7 @@ def recipe(root: Path, arm: str) -> tuple[Path, Path, str]:
         "R14-FRGA": ("response_anchor_20261028", "mse"),
         "R15-DIR": ("response_anchor_direction_20261029", "cosine_direction"),
         "R16-GPM": ("response_population_prediction_20261029", "population_prediction"),
+        "R18-CPD": ("response_population_contrast_20261030", "population_prediction_contrast"),
         "R17-GPM-HG0": ("response_population_head_protection_20261030", "population_prediction"),
     }
     if arm not in families:
@@ -100,6 +101,108 @@ def _positive_finite(value: object) -> bool:
     )
 
 
+def validate_pair_diagnostics(result):
+    """Fail closed on first8 signal and exact two-match metadata; scalar reads only."""
+    from gradpert.training.v2.response_anchor import pair_schedule_identity
+
+    expected = pair_schedule_identity(1322, 150, 20261028)
+    if (
+        result.get("pair_schedule") != expected
+        or result.get("identity", {}).get("response_anchor", {}).get("pair_schedule") != expected
+        or result.get("response_anchor_prediction_head_grad") is not True
+    ):
+        raise ValueError("pair schedule/head calibration identity differs")
+    ranks = result.get("pair_diagnostics_ranks")
+    if not isinstance(ranks, list) or len(ranks) != 2:
+        raise ValueError("pair first8 diagnostics required on both ranks")
+    audits = result.get("pair_replay_audit_ranks")
+    if not isinstance(audits, list) or len(audits) != 2:
+        raise ValueError("pair replay proof required on both ranks")
+    for rank, audit in enumerate(audits):
+        from gradpert.training.v2.response_anchor import pair_schedule
+
+        first_pair = list(pair_schedule(1322, 150, 0, 20261028, 2, rank)[0][0])
+        comparison = audit.get("gradient_comparison", {})
+        deterministic = audit.get("deterministic_audit", {})
+        if (
+            audit.get("pair") != first_pair
+            or audit.get("epoch") != 0
+            or audit.get("query_ids_sha256") != result["batches"][0]["query_ids_sha256"]
+            or audit.get("schema") != "population-pair-replay-audit-v1"
+            or audit.get("complete") is not True
+            or audit.get("state_restored") is not True
+            or audit.get("replays") != 2
+            or audit.get("extra_group_forwards") != 4
+            or audit.get("included_in_calibration_norms") is not False
+            or any(
+                audit.get(k) != 0
+                for k in ("optimizer_updates", "teacher_updates", "center_updates")
+            )
+            or comparison.get("atol") != 2e-6
+            or comparison.get("rtol") != 0
+            or comparison.get("tensor_count", 0) <= 0
+            or any(
+                comparison.get(k) != 0
+                for k in ("missing_mismatch", "shape_mismatch", "nonfinite_tensors")
+            )
+            or not math.isfinite(comparison.get("max_abs", math.inf))
+            or not 0 <= comparison["max_abs"] <= 2e-6
+            or deterministic.get("cuda") is not True
+            or deterministic.get("inside") != {"enabled": True, "warn_only": False}
+            or deterministic.get("restored") != deterministic.get("before")
+            or deterministic.get("settings_restored") is not True
+            or deterministic.get("cublas_workspace_config") not in (":4096:8", ":16:8")
+            or "failure" in deterministic
+        ):
+            raise ValueError("pair strict deterministic replay differs")
+    from gradpert.training.v2.response_anchor import pair_schedule
+
+    for step in range(8):
+        units = pair_schedule(1322, 150, 0, 20261028, 2, 0)[step]
+        row = result["batches"][step]
+        if row.get("local_group_count") != len(units) or row.get(
+            "local_group_indices_sha256"
+        ) != sha256_json(list(units)):
+            raise ValueError("pair first8 batch schedule binding differs")
+    for rank, rows in enumerate(ranks):
+        expected_pairs = [
+            (step, list(pair))
+            for step in range(8)
+            for pair in pair_schedule(1322, 150, 0, 20261028, 2, rank)[step]
+        ]
+        if (
+            not isinstance(rows, list)
+            or [(x.get("step"), x.get("pair")) for x in rows] != expected_pairs
+        ):
+            raise ValueError("pair diagnostic first8 native step coverage differs")
+        for row in rows:
+            if (
+                not _digest(row.get("query_ids_sha256"))
+                or row["query_ids_sha256"] != result["batches"][row["step"]]["query_ids_sha256"]
+                or len(row.get("group_rows", [])) != 2
+                or any(type(n) is not int or not 4 <= n <= 40 for n in row["group_rows"])
+                or any(
+                    not _positive_finite(row.get(k))
+                    for k in (
+                        "target_contrast_rms",
+                        "prediction_contrast_rms",
+                        "contrast_error_rms",
+                    )
+                )
+            ):
+                raise ValueError("pair scalar signal/query/row audit differs")
+            for scope in ("response", "prediction"):
+                data = row.get(scope, {})
+                cosine = data.get("absolute_pair_gradient_cosine", math.inf)
+                if (
+                    not _positive_finite(data.get("pair_gradient_norm"))
+                    or not _positive_finite(data.get("absolute_gradient_norm"))
+                    or not math.isfinite(cosine)
+                    or not -1.000001 <= cosine <= 1.000001
+                ):
+                    raise ValueError("pair gradient diagnostic invalid")
+
+
 def validate_population_calibration(
     config_path: Path,
     parameters: dict,
@@ -114,7 +217,11 @@ def validate_population_calibration(
     sidecar manifest/arrays and read boundaries; this gate never opens an NPZ.
     """
     head_grad = parameters.get("response_anchor_prediction_head_grad", {"value": True}).get("value")
-    expected_arm = "R16-GPM" if head_grad else "R17-GPM-HG0"
+    mode = parameters.get("response_anchor_loss", {"value": "population_prediction"})["value"]
+    pair = mode == "population_prediction_contrast"
+    expected_arm = "R18-CPD" if pair else ("R16-GPM" if head_grad else "R17-GPM-HG0")
+    if pair and head_grad is not True:
+        raise ValueError("pair contrast requires normal prediction head gradients")
     if type(head_grad) is not bool or arm != expected_arm or decision.get("arm") != arm:
         raise ValueError("population arm differs from its prediction head gradient route")
     population = {
@@ -136,9 +243,9 @@ def validate_population_calibration(
     source = calibration.get("source", {})
     weight = calibration.get("selected_weight")
     if (
-        calibration.get("response_anchor_loss") != "population_prediction"
+        calibration.get("response_anchor_loss") != mode
         or decision.get("arm") != arm
-        or decision.get("response_anchor_loss") != "population_prediction"
+        or decision.get("response_anchor_loss") != mode
         or source.get("formal_eligible") is not True
         or source.get("published_commit") != source.get("commit")
         or not _digest(source.get("commit"), 40)
@@ -169,7 +276,7 @@ def validate_population_calibration(
         or not _positive_finite(weight)
         or weight > 1
         or decision.get("selected_weight") != weight
-        or binding.get("loss") != "population_prediction"
+        or binding.get("loss") != mode
         or binding.get("head") != "existing_native_prediction_softplus"
         or binding.get("teacher_readout") != "absent_no_additional_forward"
         or binding.get("weight") != 1.0
@@ -245,9 +352,11 @@ def validate_population_calibration(
         or decision.get("median_prediction_gradient_norm") != gp
         or decision.get("median_unit_anchor_gradient_norm") != ga
         or weight != min(1.0, 0.1 * gp / ga)
-        or calibration.get("anchor_coefficient") != 2 * 150 / 1322
+        or calibration.get("anchor_coefficient") != 2 * 150 / (661 if pair else 1322)
     ):
         raise ValueError("population calibration first-eight gradient rule/identity differs")
+    if pair:
+        validate_pair_diagnostics(calibration)
     if not head_grad:
         # Deferred import avoids the resource launcher's existing checked() import
         # cycle; the shared scalar receipt guard remains the single route gate.
@@ -285,7 +394,7 @@ def validate_calibration(config_path: Path, calibration: dict, arm: str = "R14-F
     if actual_mode != mode:
         raise ValueError("execution arm differs from the configured objective")
     population = {}
-    if mode == "population_prediction":
+    if mode in ("population_prediction", "population_prediction_contrast"):
         population = validate_population_calibration(config_path, p, calibration, decision, arm=arm)
         if yaml.safe_load(probe_path.read_text()) != configuration(
             root,

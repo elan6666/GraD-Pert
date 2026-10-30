@@ -345,3 +345,110 @@ def group_mean_loss(
     if not torch.isfinite(loss):
         raise ValueError("nonfinite group mean loss")
     return loss
+
+
+PAIR_MODE = "population_prediction_contrast"
+PAIR_SCHEDULE_SCHEMA = "fixed-response-population-pair-cycle-v1"
+PAIR_FORMULA = (
+    "mean_gene(square((mean_cell_fp32(pred_p)-mean_cell_fp32(pred_q))"
+    "-(fixed_train_mean_p-fixed_train_mean_q)))"
+)
+
+
+def pair_schedule(
+    P: int, steps_per_epoch: int, epoch: int, seed: int, world: int = 1, rank: int = 0
+) -> tuple[tuple[tuple[int, int], ...], ...]:
+    """Two alternating matchings of one private hash permutation; pairs stay atomic."""
+    for value, name, minimum in (
+        (P, "P", 4),
+        (steps_per_epoch, "steps_per_epoch", 1),
+        (epoch, "epoch", 0),
+        (seed, "seed", 0),
+        (world, "world", 1),
+        (rank, "rank", 0),
+    ):
+        _integer(value, name, minimum)
+    if P % 2 or epoch > 1 or rank >= world:
+        raise ValueError("pair cycle requires even P, epochs 0/1 and rank < world")
+    order = sorted(
+        range(P),
+        key=lambda p: (
+            hashlib.sha256(
+                json.dumps([PAIR_SCHEDULE_SCHEMA, seed, p], separators=(",", ":")).encode()
+            ).digest(),
+            p,
+        ),
+    )
+    shifted = order[epoch:] + order[:epoch]
+    steps: list[list[tuple[int, int]]] = [[] for _ in range(steps_per_epoch)]
+    for i in range(P // 2):
+        if (i // steps_per_epoch) % world == rank:
+            steps[i % steps_per_epoch].append((shifted[2 * i], shifted[2 * i + 1]))
+    return tuple(tuple(step) for step in steps)
+
+
+def pair_schedule_identity(P: int, steps_per_epoch: int, seed: int) -> dict[str, Any]:
+    """Seal ordered schedules and verify exact coverage and connected cycle."""
+    epochs = [
+        [pair for step in pair_schedule(P, steps_per_epoch, e, seed) for pair in step]
+        for e in range(2)
+    ]
+    adjacency: dict[int, set[int]] = {p: set() for p in range(P)}
+    edges = set()
+    for pairs in epochs:
+        if sorted(p for pair in pairs for p in pair) != list(range(P)):
+            raise ValueError("pair epoch coverage differs")
+        for p, q in pairs:
+            edge = tuple(sorted((p, q)))
+            if p == q or edge in edges:
+                raise ValueError("self or duplicate pair edge")
+            edges.add(edge)
+            adjacency[p].add(q)
+            adjacency[q].add(p)
+    visited, pending = set(), [0]
+    while pending:
+        p = pending.pop()
+        if p not in visited:
+            visited.add(p)
+            pending.extend(adjacency[p] - visited)
+    if len(visited) != P or any(len(n) != 2 for n in adjacency.values()):
+        raise ValueError("two-match union is not one connected cycle")
+    return dict(
+        schema=PAIR_SCHEDULE_SCHEMA,
+        seed=seed,
+        conditions=P,
+        pairs_per_epoch=P // 2,
+        group_forwards_per_epoch=P,
+        schedule_sha256=hashlib.sha256(
+            json.dumps(epochs, separators=(",", ":")).encode()
+        ).hexdigest(),
+        coverage_once_per_epoch=True,
+        no_self_pairs=True,
+        distinct_edges=len(edges),
+        connected_components=1,
+    )
+
+
+def prediction_contrast_loss(
+    pred_p: Tensor, pred_q: Tensor, target_p: Tensor, target_q: Tensor
+) -> Tensor:
+    """Signed complete-condition FP32 mean contrast, with no one-half factor."""
+    for prediction, target in ((pred_p, target_p), (pred_q, target_q)):
+        if (
+            prediction.ndim != 2
+            or not 4 <= prediction.shape[0] <= 40
+            or target.shape != prediction.shape[1:]
+            or target.requires_grad
+            or target.device != prediction.device
+            or not prediction.is_floating_point()
+            or not target.is_floating_point()
+            or not torch.isfinite(prediction).all()
+            or not torch.isfinite(target).all()
+        ):
+            raise ValueError("contrast requires finite complete [4..40,Q] groups and fixed targets")
+    if pred_p.shape[1:] != pred_q.shape[1:] or pred_p.device != pred_q.device:
+        raise ValueError("contrast query axes differ")
+    error = (pred_p.float().mean(0) - pred_q.float().mean(0)) - (
+        target_p.detach().float() - target_q.detach().float()
+    )
+    return error.square().mean()

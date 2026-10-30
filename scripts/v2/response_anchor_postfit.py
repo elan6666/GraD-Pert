@@ -28,7 +28,18 @@ SCHEMA = "response-anchor-postfit-input-1"
 R15_SCHEMA = "response-anchor-postfit-r15-input-1"
 R16_SCHEMA = "response-population-postfit-r16-input-1"
 R17_SCHEMA = "response-population-head-postfit-r17-input-1"
+R18_SCHEMA = "response-population-contrast-postfit-r18-input-1"
 POPULATION_PROFILES = {
+    R18_SCHEMA: (
+        "R18-CPD",
+        "r18",
+        True,
+        (
+            ("R3-RI", "primary_vs_RI"),
+            ("R14-FRGA", "secondary_vs_R14"),
+            ("R16-GPM", "parent_vs_R16"),
+        ),
+    ),
     R16_SCHEMA: (
         "R16-GPM",
         "r16",
@@ -991,7 +1002,8 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                     assert_population_headless(runtime)
                 enabled = bool(getattr(runtime.options, "response_anchor_weight", 0))
                 if enabled != (
-                    name in ("FixedResponseGroupAnchor", "R15-DIR", "R16-GPM", "R17-GPM-HG0")
+                    name
+                    in ("FixedResponseGroupAnchor", "R15-DIR", "R16-GPM", "R17-GPM-HG0", "R18-CPD")
                 ):
                     raise ValueError("candidate/reference anchor mechanism differs")
                 if runtime.identity != identity["data"]:
@@ -1479,7 +1491,14 @@ def main():
     p.add_argument("--spec-sha256", required=True)
     p.add_argument(
         "--endpoint",
-        choices=("R3-RI", "FixedResponseGroupAnchor", "R15-DIR", "R16-GPM", "R17-GPM-HG0"),
+        choices=(
+            "R3-RI",
+            "FixedResponseGroupAnchor",
+            "R15-DIR",
+            "R16-GPM",
+            "R17-GPM-HG0",
+            "R18-CPD",
+        ),
     )
     p.add_argument("--worker-index", type=int, choices=(0, 1))
     p.add_argument("--resource-owner", type=Path)
@@ -1509,7 +1528,7 @@ def main():
     elif spec["schema"] in POPULATION_SCHEMAS:
         print(
             json.dumps(
-                (validate_r17_result if spec["schema"] == R17_SCHEMA else validate_r16_result)(
+                _validate_population_result(
                     spec, spec_file=dict(path=str(args.spec.resolve()), sha256=args.spec_sha256)
                 )
             )
@@ -2240,7 +2259,8 @@ def population_options(config):
 
     arch, options = V2Options.parse_parameters(config.model.parameters)
     if (
-        options.response_anchor_loss != "population_prediction"
+        options.response_anchor_loss
+        not in ("population_prediction", "population_prediction_contrast")
         or arch.prediction_parameterization != "softplus"
     ):
         raise ValueError("R16 requires its explicit population native Softplus recipe")
@@ -2262,6 +2282,16 @@ def population_descriptor(options):
         formula="mean_gene(square(mean_cell_fp32(native_prediction)-fixed_train_mean))",
     )
 
+    if options.response_anchor_loss == "population_prediction_contrast":
+        from gradpert.training.v2.response_anchor import PAIR_FORMULA, pair_schedule_identity
+
+        descriptor.update(
+            loss=options.response_anchor_loss,
+            formula=PAIR_FORMULA,
+            schedule="pair_atom_step_i_mod_T_rank_floor_i_div_T_mod_world",
+            pair_schedule=pair_schedule_identity(1322, 150, options.response_anchor_seed),
+            prediction_head_grad=True,
+        )
     if not getattr(options, "response_anchor_prediction_head_grad", True):
         descriptor.update(
             prediction_head_grad=False,
@@ -2270,14 +2300,17 @@ def population_descriptor(options):
     return descriptor
 
 
-def _validate_population_identity(endpoint, *, head_grad, server=True):
+def _validate_population_identity(
+    endpoint, *, head_grad, server=True, expected_mode="population_prediction"
+):
     from gradpert.config import load_experiment_config
 
     identity = json.loads(checked(endpoint["run_manifest"], server=server).read_text())
     config = load_experiment_config(checked(endpoint["config"], server=server))
     options = population_options(config)
     if (
-        getattr(options, "response_anchor_prediction_head_grad", True) is not head_grad
+        options.response_anchor_loss != expected_mode
+        or getattr(options, "response_anchor_prediction_head_grad", True) is not head_grad
         or not valid_sha256(endpoint["config"]["sha256"])
         or not isinstance(endpoint["source"]["commit"], str)
         or len(endpoint["source"]["commit"]) != 40
@@ -2296,7 +2329,14 @@ def _validate_population_identity(endpoint, *, head_grad, server=True):
 
 def _validate_population_payload(spec, *, server=True):
     _, _, head_grad, references = population_profile(spec)
-    _validate_population_identity(spec["endpoints"][0], head_grad=head_grad, server=server)
+    expected = (
+        "population_prediction_contrast"
+        if spec["schema"] == R18_SCHEMA
+        else "population_prediction"
+    )
+    _validate_population_identity(
+        spec["endpoints"][0], head_grad=head_grad, server=server, expected_mode=expected
+    )
     if set(spec["retained_references"]) != {name for name, _ in references}:
         raise ValueError("population candidate requires exact registered retained references")
     for name, binding in spec["retained_references"].items():
@@ -2719,6 +2759,17 @@ def validate_r16_result(spec, *, spec_file, server=True):
 
 def validate_r17_result(spec, *, spec_file, server=True):
     require_population_schema(spec, R17_SCHEMA)
+    return _validate_population_result(spec, spec_file=spec_file, server=server)
+
+
+def validate_r18_identity(endpoint, *, server=True):
+    return _validate_population_identity(
+        endpoint, head_grad=True, server=server, expected_mode="population_prediction_contrast"
+    )
+
+
+def validate_r18_result(spec, *, spec_file, server=True):
+    require_population_schema(spec, R18_SCHEMA)
     return _validate_population_result(spec, spec_file=spec_file, server=server)
 
 

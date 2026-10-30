@@ -461,7 +461,11 @@ def bank_context(runtime, bank):
             set(p.split("+")) - {data.split.control_condition_id}
         ):
             raise ValueError("bank single-target graph identity differs")
-    context = SimpleNamespace(runtime=runtime, bank=bank)
+    context = SimpleNamespace(runtime=runtime, bank=bank, pair_mode=False)
+    if hasattr(ResponseAnchorController, "native_group_forward"):
+        context.native_group_forward = MethodType(
+            ResponseAnchorController.native_group_forward, context
+        )
     context.group_rng = MethodType(ResponseAnchorController.group_rng, context)
     context.group_loss = MethodType(ResponseAnchorController.group_loss, context)
     return context

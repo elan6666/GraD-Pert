@@ -358,7 +358,10 @@ def prepare_runtime(
 
             if arch.width != 256 or config.continuation is not None:
                 raise ValueError("response anchor requires a fresh native width256 model")
-            if options.response_anchor_loss == "population_prediction":
+            if options.response_anchor_loss in (
+                "population_prediction",
+                "population_prediction_contrast",
+            ):
                 if arch.prediction_parameterization != "softplus":
                     raise ValueError("population prediction requires native Softplus outputs")
             else:
@@ -775,7 +778,10 @@ def _configure_response_anchor(runtime: Runtime) -> None:
                 direction_epsilon=1e-6,
                 direction_formula="1-dot(normalize_fp32(Linear(mean_group_cls)),normalize_fp32_fixed_target)",
             )
-        if options.response_anchor_loss == "population_prediction":
+        if options.response_anchor_loss in (
+            "population_prediction",
+            "population_prediction_contrast",
+        ):
             identity["response_anchor"].update(
                 loss="population_prediction",
                 head="existing_native_prediction_softplus",
@@ -783,6 +789,16 @@ def _configure_response_anchor(runtime: Runtime) -> None:
                 population_manifest_sha256=options.response_anchor_population_sha256,
                 population_arrays_sha256=options.response_anchor_population_arrays_sha256,
                 formula="mean_gene(square(mean_cell_fp32(native_prediction)-fixed_train_mean))",
+            )
+        if options.response_anchor_loss == "population_prediction_contrast":
+            from .response_anchor import PAIR_FORMULA, pair_schedule_identity
+
+            identity["response_anchor"].update(
+                loss=options.response_anchor_loss,
+                formula=PAIR_FORMULA,
+                schedule="pair_atom_step_i_mod_T_rank_floor_i_div_T_mod_world",
+                pair_schedule=pair_schedule_identity(1322, 150, options.response_anchor_seed),
+                prediction_head_grad=True,
             )
         if not getattr(options, "response_anchor_prediction_head_grad", True):
             identity["response_anchor"].update(

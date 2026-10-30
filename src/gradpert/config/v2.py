@@ -645,7 +645,12 @@ class V2Options:
             )
         ):
             raise ValueError("prediction head gradient flag requires active population_prediction")
-        if self.response_anchor_loss not in ("mse", "cosine_direction", "population_prediction"):
+        if self.response_anchor_loss not in (
+            "mse",
+            "cosine_direction",
+            "population_prediction",
+            "population_prediction_contrast",
+        ):
             raise ValueError(
                 "response_anchor_loss must be mse or cosine_direction, or population_prediction"
             )
@@ -654,7 +659,7 @@ class V2Options:
             self.response_anchor_population_sha256,
             self.response_anchor_population_arrays_sha256,
         )
-        if self.response_anchor_loss == "population_prediction":
+        if self.response_anchor_loss in ("population_prediction", "population_prediction_contrast"):
             if not self.response_anchor_weight or not all(population_fields):
                 raise ValueError("population prediction requires enabled sealed targets")
             if not self.response_anchor_population_path.startswith("/data/yilangliu/") or any(

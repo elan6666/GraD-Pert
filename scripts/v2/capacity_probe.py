@@ -1119,6 +1119,28 @@ def main() -> None:
                     )
                     receipt["response_anchor_gate"]["direction_diagnostics"] = diagnostic
                     receipt["response_anchor_gate"]["passed"] = all(checks.values())
+                if (
+                    getattr(runtime.options, "response_anchor_loss", "mse")
+                    == "population_prediction_contrast"
+                ):
+                    controller = runtime.objective.response_anchor_backward.__self__
+                    from gradpert.training.v2.response_anchor import pair_schedule_identity
+
+                    checks.update(
+                        pair_atom_observed=terms.get("response_anchor_pairs", 0) > 0,
+                        two_live_complete_groups=0
+                        < terms.get("response_anchor_pair_live_cells_max", 0)
+                        <= 80,
+                        normal_head_gradient=runtime.options.response_anchor_prediction_head_grad
+                        is True,
+                    )
+                    receipt["response_anchor_gate"]["pair_schedule"] = pair_schedule_identity(
+                        1322, 150, runtime.options.response_anchor_seed
+                    )
+                    receipt["response_anchor_gate"]["two_graph_cells_max"] = terms.get(
+                        "response_anchor_pair_live_cells_max"
+                    )
+                    receipt["response_anchor_gate"]["passed"] = all(checks.values())
                 if not all(checks.values()):
                     raise ValueError("response anchor native capacity/restore gate failed")
 

@@ -250,7 +250,8 @@ def execute(path, digest):
     config = load_experiment_config(config_path)
     _, options = V2Options.parse_parameters(config.model.parameters)
     if (
-        options.response_anchor_loss != "population_prediction"
+        options.response_anchor_loss
+        not in ("population_prediction", "population_prediction_contrast")
         or options.response_anchor_weight != 1.0
         or not config_path.resolve().is_relative_to(root)
     ):
@@ -300,6 +301,8 @@ def execute(path, digest):
             OPENBLAS_NUM_THREADS="1",
             MKL_NUM_THREADS="1",
         )
+        if options.response_anchor_loss == "population_prediction_contrast":
+            environment["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
         child, started = spawn_phase(
             output, "native-calibration", command, environment, process_info, owner, cwd=root
         )
@@ -327,7 +330,7 @@ def execute(path, digest):
         result = json.loads(complete.read_text())
         if (
             result.get("run_id") != spec["run_id"]
-            or result.get("response_anchor_loss") != "population_prediction"
+            or result.get("response_anchor_loss") != options.response_anchor_loss
             or result.get("source", {}).get("commit") != spec["source_commit"]
             or not result.get("calibration_complete")
             or not result.get("state_restored")
@@ -339,6 +342,10 @@ def execute(path, digest):
             or list(output.rglob("*.pkl"))
         ):
             raise ValueError("native population calibration closure differs")
+        if options.response_anchor_loss == "population_prediction_contrast":
+            from scripts.v2.run_response_anchor import validate_pair_diagnostics
+
+            validate_pair_diagnostics(result)
         require_head_route_audit(result, options)
         guard()
         if (
