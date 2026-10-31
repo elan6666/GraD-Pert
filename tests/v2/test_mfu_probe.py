@@ -1,8 +1,9 @@
 """Restore transactions and actual fixed native updates, never GPU success mocks."""
 
 import copy
+import json
 import random
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from types import SimpleNamespace
 
 import numpy as np
@@ -16,6 +17,7 @@ from mfu_probe import (
     frozen_clock,
     restore_state,
     run_probe,
+    state_hash_differences,
 )
 from test_relay_method import relay_training_fixture
 
@@ -139,6 +141,113 @@ def test_snapshot_restores_grad_none_modes_pending_optimizer_and_independent_sna
         bf16=False,
     )
     assert digest(original) == original_digest  # opt load must not alias saved moments
+
+
+@pytest.mark.parametrize("changed", ["model", "optimizer", "rng", "data_flag", "module_flag"])
+def test_final_state_mismatch_remains_rejected_with_hash_only_paths(monkeypatch, changed):
+    import mfu_probe as probe
+
+    runtime, source = setup()
+    before = capture_state(runtime, source)
+    final_snapshots = 0
+    tensor_name, parameter = next(runtime.objective.named_parameters())
+    private_value = "PRIVATE_DIAGNOSTIC_ATTRIBUTE_VALUE_742839"
+
+    def capture_with_timing_difference(current, batches):
+        nonlocal final_snapshots
+        if batches.offset == 5:  # three warmups plus two measured native updates
+            final_snapshots += 1
+            if final_snapshots == 2:
+                if changed == "model":
+                    with torch.no_grad():
+                        parameter.add_(1)
+                elif changed == "optimizer":
+                    current.optimizer.steps += 1
+                elif changed == "rng":
+                    torch.rand(1)
+                elif changed == "data_flag":
+                    current.data.forensic_telemetry = private_value
+                else:
+                    current.objective.student.forensic_phase = private_value
+        return capture_state(current, batches)
+
+    monkeypatch.setattr(probe, "capture_state", capture_with_timing_difference)
+    result = run_probe(runtime, source, clock(), measured_updates=2)
+    assert result["status"] == "failed"
+    assert result["error"] == "count/timing complete update state or RNG differs"
+    assert result["final_restore"] and result["paired_final_state_exact"] is False
+    assert result["counted_updates"] == result["timed_updates"] == 2
+    assert result["counted_final_state_sha256"] != result["timed_final_state_sha256"]
+    assert result["mfu"] is result["hfu"] is None
+    assert digest(before) == digest(capture_state(runtime, source))
+    forensic = result["state_hash_differences"]
+    expected = {
+        "model": ["objective", tensor_name],
+        "optimizer": ["optimizer", "steps"],
+        "rng": ["rng", "torch_cpu"],
+        "data_flag": ["data_flags", "forensic_telemetry"],
+        "module_flag": ["module_flags", "student", "forensic_phase"],
+    }[changed]
+    assert expected in [row["path"] for row in forensic["differences"]]
+    assert expected[:1] in [row["path"] for row in forensic["changed_components"]]
+    assert not forensic["truncated"] and forensic["values_exported"] is False
+    serialized = json.dumps(forensic)
+    assert private_value not in serialized
+    assert "tensor(" not in serialized and "array(" not in serialized
+    for row in forensic["differences"]:
+        assert set(row) == {
+            "path",
+            "counted_sha256",
+            "timed_sha256",
+            "counted_present",
+            "timed_present",
+            "counted_type",
+            "timed_type",
+        }
+        assert row["counted_sha256"] != row["timed_sha256"]
+    assert aggregate_ranks([result])["status"] == "incomplete_or_failed"
+
+
+def test_hash_difference_paths_are_bounded_and_report_all_changed_components():
+    counted = {"objective": {f"weight{i}": torch.zeros(2) for i in range(5)}, "rng": [0]}
+    timed = {"objective": {f"weight{i}": torch.ones(2) for i in range(5)}, "rng": [1]}
+    result = state_hash_differences(counted, timed, max_entries=2)
+    assert len(result["differences"]) == 2 and result["truncated"]
+    assert [r["path"] for r in result["changed_components"]] == [["objective"], ["rng"]]
+    assert all(len(row["counted_sha256"]) == 64 for row in result["differences"])
+    assert state_hash_differences(counted, counted)["changed_components"] == []
+    for invalid in (True, 0, 257, 1.5):
+        with pytest.raises(ValueError, match="entry limit"):
+            state_hash_differences(counted, timed, max_entries=invalid)
+
+
+def test_hash_difference_missing_values_types_and_optimizer_tensor_names():
+    before = {"optimizer": {"state": {2: {"momentum": torch.zeros(2)}}}, "flag": "old"}
+    after = {"optimizer": {"state": {2: {"momentum": torch.ones(2)}}}, "flag": 123, "new": None}
+    result = state_hash_differences(before, after)
+    paths = {tuple(row["path"]): row for row in result["differences"]}
+    assert ("optimizer", "state", "2", "momentum") in paths
+    assert paths[("flag",)]["counted_type"] == "str"
+    assert paths[("flag",)]["timed_type"] == "int"
+    assert paths[("new",)]["counted_sha256"] is None
+    assert paths[("new",)]["timed_sha256"] == digest(None)
+    assert "old" not in json.dumps(result) and ": 123" not in json.dumps(result)
+
+
+def test_hash_difference_names_dataclass_pipeline_fields_without_raw_telemetry():
+    @dataclass
+    class Telemetry:
+        yielded_batches: int
+        label: str
+
+    before = {"pipeline_stats": Telemetry(3, "PRIVATE_BEFORE")}
+    after = {"pipeline_stats": Telemetry(4, "PRIVATE_AFTER")}
+    result = state_hash_differences(before, after)
+    assert [r["path"] for r in result["differences"]] == [
+        ["pipeline_stats", "yielded_batches"],
+        ["pipeline_stats", "label"],
+    ]
+    assert "PRIVATE" not in json.dumps(result)
 
 
 def test_exception_in_count_restores_initial_and_uninstalls_observer():

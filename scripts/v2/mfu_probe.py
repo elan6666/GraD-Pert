@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import dataclasses
 import inspect
 import json
 import math
@@ -154,6 +155,106 @@ def digest(value: Any) -> str:
     from update_parity import tree_digest
 
     return tree_digest(value)
+
+
+def state_hash_differences(
+    counted: dict[str, Any], timed: dict[str, Any], *, max_entries: int = 64
+) -> dict[str, Any]:
+    """Failure-only bounded names and hashes; never serialize snapshot values.
+
+    Top-level hashes identify every changed protected component. Nested leaf
+    paths localize parameter/moment/RNG or plain-attribute differences without
+    exporting tensors, scalars, attribute strings or RNG data. A visit budget
+    bounds nested traversal; truncation is explicit, never interpreted as parity.
+    """
+    if type(max_entries) is not int or not 1 <= max_entries <= 256:
+        raise ValueError("state difference entry limit must be an integer from 1 to 256")
+    missing = object()
+    components: list[dict[str, Any]] = []
+    entries: list[dict[str, Any]] = []
+    visits = 0
+    truncated = False
+
+    def name(key: Any) -> str:
+        # Snapshot keys are parameter/module names or optimizer state indices.
+        # Bound path text too; unsupported key types are represented by hashes.
+        if type(key) in (str, int):
+            text = str(key)
+            return text if len(text) <= 192 else text[:128] + "#sha256:" + digest(key)
+        return type(key).__name__ + "#sha256:" + digest(key)
+
+    def hashed(value: Any) -> str | None:
+        return None if value is missing else digest(value)
+
+    def record(path: list[str], left: Any, right: Any) -> None:
+        nonlocal truncated
+        if len(entries) >= max_entries:
+            truncated = True
+            return
+        entries.append(
+            dict(
+                path=path,
+                counted_sha256=hashed(left),
+                timed_sha256=hashed(right),
+                counted_present=left is not missing,
+                timed_present=right is not missing,
+                counted_type=None if left is missing else type(left).__name__,
+                timed_type=None if right is missing else type(right).__name__,
+            )
+        )
+
+    def walk(path: list[str], left: Any, right: Any) -> None:
+        nonlocal visits, truncated
+        if truncated:
+            return
+        visits += 1
+        if visits > 4096 or len(path) > 32:
+            truncated = True
+            return
+        if (
+            type(left) is type(right)
+            and dataclasses.is_dataclass(left)
+            and not isinstance(left, type)
+        ):
+            for field in dataclasses.fields(left):
+                walk([*path, field.name], getattr(left, field.name), getattr(right, field.name))
+                if truncated:
+                    break
+        elif type(left) is type(right) and isinstance(left, dict):
+            for key in sorted(left.keys() | right.keys(), key=repr):
+                walk([*path, name(key)], left.get(key, missing), right.get(key, missing))
+                if truncated:
+                    break
+        elif type(left) is type(right) and isinstance(left, (tuple, list)):
+            for index in range(max(len(left), len(right))):
+                walk(
+                    [*path, str(index)],
+                    left[index] if index < len(left) else missing,
+                    right[index] if index < len(right) else missing,
+                )
+                if truncated:
+                    break
+        elif hashed(left) != hashed(right):
+            record(path, left, right)
+
+    for key in sorted(counted.keys() | timed.keys(), key=repr):
+        left, right = counted.get(key, missing), timed.get(key, missing)
+        before, after = hashed(left), hashed(right)
+        if before != after:
+            components.append(dict(path=[name(key)], counted_sha256=before, timed_sha256=after))
+            walk([name(key)], left, right)
+    return dict(
+        schema="gradpert-native-state-hash-differences-1",
+        changed_components=components,
+        differences=entries,
+        max_entries=max_entries,
+        max_nested_visits=4096,
+        max_path_depth=32,
+        nested_visits=min(visits, 4096),
+        truncated=truncated,
+        values_exported=False,
+        interpretation="localization only; no state component is excluded from exact parity",
+    )
 
 
 def plain_attributes(owner: Any) -> dict[str, Any]:
@@ -488,6 +589,7 @@ def run_probe(
                 result["count"].append(dict(**identity, global_cells=cells))
                 result["counted_updates"] += 1
         counted_final = capture_state(runtime, batches)
+        result["counted_final_state_sha256"] = digest(counted_final)
         # Close all contexts first, then restore. No counter/profiler/hooks are
         # active during the independently replayed timing window.
         restore_state(runtime, batches, warmed)
@@ -528,7 +630,18 @@ def run_probe(
             )
             result["timed_updates"] += 1
             result["actual_samples"] += 1
-        if digest(capture_state(runtime, batches)) != digest(counted_final):
+        timed_final = capture_state(runtime, batches)
+        result["timed_final_state_sha256"] = digest(timed_final)
+        if result["timed_final_state_sha256"] != result["counted_final_state_sha256"]:
+            result["paired_final_state_exact"] = False
+            # This is outside both measurement windows, after observers exit.
+            # Preserve the original strict failure even if forensics itself fails.
+            try:
+                result["state_hash_differences"] = state_hash_differences(
+                    counted_final, timed_final
+                )
+            except Exception as error:
+                result["state_hash_differences_error_type"] = type(error).__name__
             raise ValueError("count/timing complete update state or RNG differs")
         result["paired_final_state_exact"] = True
         durations = [row["end_to_end_seconds"] for row in result["timing"]]
