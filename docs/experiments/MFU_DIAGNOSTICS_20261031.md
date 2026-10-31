@@ -61,12 +61,13 @@ never formal continuation or additional accepted training progress.
    parameter gradients including None, Muon split-part gradients, pending stats,
    module/plain phase flags, temperature index, pipeline diagnostics, all native
    Python/NumPy/Torch CPU/CUDA and view RNGs, raw TRAIN epoch/batch cursor.
-3. Perform three uncounted warmup updates, capture S3, then count ten complete
-   native updates with fixed TRAIN inputs. Raw row/condition identities, input/view
+3. Perform three uncounted warmup updates, capture S3, then count the requested
+   **N** complete native updates (`--measured-updates N`, integer 1..10; default
+   10) with fixed TRAIN inputs. Raw row/condition identities, input/view
    hashes and forward shape counts are retained as small metadata. Raw data and
    all snapshots stay in the server process; no activation/matrix export.
 4. Remove all counting contexts and restore S3 exactly. Seek the raw TRAIN cursor
-   without consuming skipped view RNG draws. Replay the same ten updates without
+   without consuming skipped view RNG draws. Replay the same **N** updates without
    any counter or profiler. Time from requesting the next batch through complete
    accumulation/communication/optimizer/Teacher/center and CUDA synchronization.
    Record preparation and update times too. Hashing/copying occurs after timers.
@@ -78,8 +79,25 @@ never formal continuation or additional accepted training progress.
    Reserve at least 30 seconds (or four initial snapshot times) for restoration.
    Admission checks coordinate both ranks at completed-update boundaries. One
    indivisible native update or I/O call can exceed a soft deadline; report actual
-   elapsed time and incomplete counts, never invent ten samples. NCCL failure
+   elapsed time and incomplete counts, never invent the requested samples. NCCL failure
    timeout is two minutes. Failure receipts remain per-rank if a collective aborts.
+
+Every rank records `requested_measured_updates`, `counted_updates`,
+`timed_updates`, and `actual_samples` (the actual timed sample count), including
+partial/failure receipts. The TRAIN manifest seals exactly `3 + N` batches.
+Aggregation requires one shared valid requested budget and exactly N counted and
+N timed samples from each completed, restored rank. Mismatched budgets, invalid
+integer types (including bool), missing samples, or fabricated completed counts
+fail closed; incomplete runs produce no aggregate timing result. There is no
+implicit legacy fallback for receipts missing the requested budget.
+
+The first 900-second native attempt reached three warmups and eight counted
+updates with zero timed samples; it is an incomplete diagnostic, not a timing
+result. The next authorized attempt must explicitly use `--measured-updates 2`
+after validation releases resources. Two paired samples are a short isolated
+engineering diagnostic, not full MFU/HFU, sustained throughput, capacity evidence,
+or a scientific baseline. This does not change the 900-second soft window, three
+warmups, native optimizer arithmetic, resource policy or exact restoration checks.
 
 The primary paired timing aggregates each step using the slower rank's direct
 end-to-end wall time. Global cells are counted once, not once per rank. The report
@@ -113,6 +131,7 @@ OMP_NUM_THREADS=2 /path/to/original/python -m torch.distributed.run --nproc_per_
   --resource-owner-pid LIVE_GUARDIAN_PID \
   --publication /data/yilangliu/INSTRUMENTATION_PUBLICATION.json \
   --publication-sha256 INSTRUMENTATION_PUBLICATION_SHA256 \
+  --measured-updates 2 \
   --gpu 0,1 --output /data/yilangliu/NEW_DIAGNOSTIC_RUN_ID
 ```
 

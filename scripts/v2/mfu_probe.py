@@ -25,6 +25,13 @@ WINDOW_SECONDS = 15 * 60
 LEASE_ROOT = Path("/data/yilangliu/GraD-Pert/runtime")
 
 
+def measured_update_budget(value: int) -> int:
+    """Accept an explicit bounded integer, never bool or a coerced numeric value."""
+    if type(value) is not int or not 1 <= value <= MEASURED_UPDATES:
+        raise ValueError("measured updates must be an integer from 1 to 10")
+    return value
+
+
 def protect_output(output: Path, protected: list[Path]) -> None:
     """A new diagnostic directory cannot contain, or be inside, any input root."""
     target = output.resolve()
@@ -263,10 +270,10 @@ class TrainBatches:
         self.last_identity: dict[str, Any] = {}
         self.expected_rows: dict[tuple[int, int], dict[str, Any]] | None = None
 
-    def seal(self) -> list[dict[str, Any]]:
-        """Freeze exactly the first thirteen TRAIN row batches without expressions."""
+    def seal(self, measured_updates: int = MEASURED_UPDATES) -> list[dict[str, Any]]:
+        """Freeze warmup plus the requested measured TRAIN batches, without expressions."""
+        remaining = WARMUP_UPDATES + measured_update_budget(measured_updates)
         r = self.runtime
-        remaining = WARMUP_UPDATES + MEASURED_UPDATES
         manifest = []
         epoch = 0
         while remaining:
@@ -379,11 +386,13 @@ def run_probe(
     resource_guard=None,
     monotonic=time.monotonic,
     window_seconds: float = WINDOW_SECONDS,
+    measured_updates: int = MEASURED_UPDATES,
 ) -> dict[str, Any]:
     """Execute native updates, restoring S3 before timing and S0 on every exit."""
     from gradpert.training.checkpoint import _rng_state
     from gradpert.training.v2.engine import optimizer_step, slice_cells
 
+    measured_updates = measured_update_budget(measured_updates)
     if runtime.device.type == "cuda" and resource_guard is None:
         raise ValueError("GPU probe requires its bound resource guard")
     if not 0 < window_seconds <= WINDOW_SECONDS:
@@ -406,8 +415,10 @@ def run_probe(
         mfu=None,
         hfu=None,
         warmup_updates=0,
+        requested_measured_updates=measured_updates,
         counted_updates=0,
         timed_updates=0,
+        actual_samples=0,
         clock=clock,
         count=[],
         timing=[],
@@ -460,7 +471,7 @@ def run_probe(
         warmed = capture_state(runtime, batches)
         result["warmed_state_sha256"] = digest(warmed)
         with counting_regions(runtime, ledger):
-            for i in range(MEASURED_UPDATES):
+            for i in range(measured_updates):
                 if not admitted():
                     result["status"] = "incomplete_soft_deadline"
                     return result
@@ -487,7 +498,7 @@ def run_probe(
         restore_attributes(runtime.data, warmed["data_flags"])
         if warmed["pipeline_stats"] is not None:
             runtime.data.pipeline_stats = clone_tree(warmed["pipeline_stats"])
-        for i in range(MEASURED_UPDATES):
+        for i in range(measured_updates):
             if not admitted():
                 result["status"] = "incomplete_soft_deadline"
                 return result
@@ -516,6 +527,7 @@ def run_probe(
                 )
             )
             result["timed_updates"] += 1
+            result["actual_samples"] += 1
         if digest(capture_state(runtime, batches)) != digest(counted_final):
             raise ValueError("count/timing complete update state or RNG differs")
         result["paired_final_state_exact"] = True
@@ -547,9 +559,7 @@ def run_probe(
 
 
 def aggregate_ranks(results: list[dict[str, Any]]) -> dict[str, Any]:
-    if not results or any(
-        r["status"] != "completed_partial_coverage" or not r["final_restore"] for r in results
-    ):
+    if not results:
         return dict(
             status="incomplete_or_failed",
             mfu=None,
@@ -557,14 +567,54 @@ def aggregate_ranks(results: list[dict[str, Any]]) -> dict[str, Any]:
             rank_results=results,
             scientific_complete=False,
         )
-    for i in range(MEASURED_UPDATES):
+    budgets = [measured_update_budget(r.get("requested_measured_updates")) for r in results]
+    if len(set(budgets)) != 1:
+        raise ValueError("rank requested measured-update budgets differ")
+    measured_updates = budgets[0]
+    for result in results:
+        for field, rows in (("counted_updates", "count"), ("timed_updates", "timing")):
+            count = result.get(field)
+            if (
+                type(count) is not int
+                or not 0 <= count <= measured_updates
+                or not isinstance(result.get(rows), list)
+                or len(result[rows]) != count
+            ):
+                raise ValueError("rank actual sample counts differ from recorded samples or budget")
+        actual = result.get("actual_samples")
+        if type(actual) is not int or actual != result["timed_updates"]:
+            raise ValueError("rank actual sample count differs from timing samples")
+        if result["status"] == "completed_partial_coverage" and (
+            type(result.get("warmup_updates")) is not int
+            or result["warmup_updates"] != WARMUP_UPDATES
+            or result["counted_updates"] != measured_updates
+            or actual != measured_updates
+        ):
+            raise ValueError("completed rank requires exactly the requested measured samples")
+    if any(
+        r["status"] != "completed_partial_coverage" or r["final_restore"] is not True
+        for r in results
+    ):
+        return dict(
+            status="incomplete_or_failed",
+            requested_measured_updates=measured_updates,
+            mfu=None,
+            hfu=None,
+            rank_results=results,
+            scientific_complete=False,
+        )
+    for i in range(measured_updates):
         if len({r["timing"][i]["input_sha256"] for r in results}) != 1:
             raise ValueError("rank TRAIN inputs differ before sharding")
+        if any(r["count"][i]["input_sha256"] != r["timing"][i]["input_sha256"] for r in results):
+            raise ValueError("rank count/timing TRAIN inputs differ")
     durations = [
-        max(r["timing"][i]["end_to_end_seconds"] for r in results) for i in range(MEASURED_UPDATES)
+        max(r["timing"][i]["end_to_end_seconds"] for r in results) for i in range(measured_updates)
     ]
     return dict(
         status="completed_partial_coverage",
+        requested_measured_updates=measured_updates,
+        actual_samples=measured_updates,
         scientific_complete=False,
         mfu=None,
         hfu=None,
@@ -578,9 +628,10 @@ def aggregate_ranks(results: list[dict[str, Any]]) -> dict[str, Any]:
         covered_tflops_per_second=sum(r["ledger"]["covered_executed_flops"] for r in results)
         / sum(durations)
         / 1e12,
-        timing_scope="isolated complete-update samples; synchronized slow-rank wall includes TRAIN "
-        "preparation; resource admission/hash/copy/restore excluded; "
-        "not continuous wall throughput; no profiler; partial arithmetic only",
+        timing_scope="short isolated engineering diagnostic with paired complete-update samples; "
+        "synchronized slow-rank wall includes TRAIN preparation; "
+        "resource admission/hash/copy/restore excluded; not sustained or continuous wall "
+        "throughput; no profiler; partial arithmetic only; not full MFU/HFU",
     )
 
 
@@ -629,6 +680,12 @@ def main() -> None:
     ):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--resource-owner-pid", type=int, required=True)
+    parser.add_argument(
+        "--measured-updates",
+        type=lambda value: measured_update_budget(int(value)),
+        default=MEASURED_UPDATES,
+        help="paired counted/timed updates, 1..10 (default: 10); short engineering diagnostic",
+    )
     args = parser.parse_args()
     world, rank = int(os.environ.get("WORLD_SIZE", "1")), int(os.environ.get("LOCAL_RANK", "0"))
     if world != 2 or args.gpu != "0,1" or rank not in (0, 1):
@@ -732,6 +789,7 @@ def main() -> None:
         checkpoint_sha256=args.checkpoint_sha256,
         config_sha256=sha256_file(args.config),
         world_size=world,
+        requested_measured_updates=args.measured_updates,
         resource_binding_sha256=args.resource_binding_sha256,
         resource_owner=guard.spec["owner"],
         original_resource_policy=guard.policy,
@@ -793,7 +851,7 @@ def main() -> None:
                 return bool(value.item())
 
             batches = TrainBatches(runtime)
-            receipt["train_batch_manifest"] = batches.seal()
+            receipt["train_batch_manifest"] = batches.seal(args.measured_updates)
             receipt["train_batch_manifest_sha256"] = digest(receipt["train_batch_manifest"])
             receipt["startup_seconds"] = time.monotonic() - process_started
             primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
@@ -804,6 +862,7 @@ def main() -> None:
                 synchronize=torch.cuda.synchronize,
                 continue_together=continue_together,
                 resource_guard=guard.check,
+                measured_updates=args.measured_updates,
             )
             local["rank"] = rank
             ledger_path = args.output / f"rank-{rank}-ledger.json"

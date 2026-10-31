@@ -79,15 +79,20 @@ def clock():
     )
 
 
-def test_full_protocol_exact_replay_restore_with_native_updates_and_all_rng():
+@pytest.mark.parametrize("measured_updates", [None, 2])
+def test_full_protocol_exact_replay_restore_with_native_updates_and_all_rng(measured_updates):
     runtime, source = setup()
     before = capture_state(runtime, source)
-    result = run_probe(runtime, source, clock())
+    kwargs = {} if measured_updates is None else dict(measured_updates=measured_updates)
+    expected = 10 if measured_updates is None else measured_updates
+    result = run_probe(runtime, source, clock(), **kwargs)
     assert result["status"] == "completed_partial_coverage", result
+    assert result["requested_measured_updates"] == result["actual_samples"] == expected
+    assert len(result["count"]) == len(result["timing"]) == expected
     assert (result["warmup_updates"], result["counted_updates"], result["timed_updates"]) == (
         3,
-        10,
-        10,
+        expected,
+        expected,
     )
     assert (
         result["warmed_restore"] and result["paired_final_state_exact"] and result["final_restore"]
@@ -208,19 +213,35 @@ def test_terminal_parent_clock_uses_final_accepted_index_and_rejects_unfinished(
         frozen_clock(journal, 299)
 
 
-def test_aggregate_uses_slow_rank_and_global_cells_once():
-    result = dict(
+def completed_rank(measured_updates):
+    return dict(
         status="completed_partial_coverage",
         final_restore=True,
+        warmup_updates=3,
+        requested_measured_updates=measured_updates,
+        counted_updates=measured_updates,
+        timed_updates=measured_updates,
+        actual_samples=measured_updates,
+        count=[dict(input_sha256=str(i)) for i in range(measured_updates)],
         timing=[
-            dict(input_sha256=str(i), end_to_end_seconds=2.0, global_cells=320) for i in range(10)
+            dict(input_sha256=str(i), end_to_end_seconds=2.0, global_cells=320)
+            for i in range(measured_updates)
         ],
         ledger=dict(covered_executed_flops=100),
     )
+
+
+@pytest.mark.parametrize("measured_updates", [2, 10])
+def test_aggregate_uses_slow_rank_and_global_cells_once(measured_updates):
+    result = completed_rank(measured_updates)
     other = copy.deepcopy(result)
     for row in other["timing"]:
         row["end_to_end_seconds"] = 4.0
     aggregate = aggregate_ranks([result, other])
+    assert (
+        aggregate["requested_measured_updates"] == aggregate["actual_samples"] == measured_updates
+    )
+    assert len(aggregate["slow_rank_step_seconds"]) == measured_updates
     assert aggregate["median_seconds"] == 4 and aggregate["global_cells_per_second"] == 80
     assert aggregate["covered_flops"] == 200 and aggregate["mfu"] is aggregate["hfu"] is None
     other["timing"][0]["input_sha256"] = "different"
@@ -228,7 +249,8 @@ def test_aggregate_uses_slow_rank_and_global_cells_once():
         aggregate_ranks([result, other])
 
 
-def test_train_cursor_seeks_raw_rows_without_consuming_view_rng(monkeypatch):
+@pytest.mark.parametrize("measured_updates", [None, 2])
+def test_train_cursor_seeks_raw_rows_without_consuming_view_rng(monkeypatch, measured_updates):
     from gradpert.training.v2 import views
 
     seen = []
@@ -259,9 +281,11 @@ def test_train_cursor_seeks_raw_rows_without_consuming_view_rng(monkeypatch):
 
     monkeypatch.setattr(views, "assemble_batch", assemble)
     source = TrainBatches(runtime)
-    manifest = source.seal()
-    assert len(manifest) == 13
-    assert [(row["epoch"], row["offset"]) for row in manifest][-1] == (2, 3)
+    manifest = source.seal() if measured_updates is None else source.seal(measured_updates)
+    assert len(manifest) == (13 if measured_updates is None else 5)
+    assert [(row["epoch"], row["offset"]) for row in manifest][-1] == (
+        (2, 3) if measured_updates is None else (0, 5)
+    )
     source.load_state_dict(dict(epoch=0, offset=3))
     source.prepare()
     assert seen == []
@@ -582,3 +606,111 @@ def test_resource_guard_check_wiring_rejects_each_owner_policy_lease_boundary(
         )
     with pytest.raises((ValueError, RuntimeError)):
         guard.check()
+
+
+@pytest.mark.parametrize("budget", [True, False, 0, -1, 11, 2.0, "2", None])
+def test_invalid_budgets_fail_before_runtime_mutation_and_aggregation(budget):
+    runtime, source = setup()
+    before = digest(capture_state(runtime, source))
+    with pytest.raises(ValueError, match="integer from 1 to 10"):
+        run_probe(runtime, source, clock(), measured_updates=budget)
+    assert digest(capture_state(runtime, source)) == before
+    assert source.offset == 0
+    with pytest.raises(ValueError, match="integer from 1 to 10"):
+        TrainBatches.seal(SimpleNamespace(runtime=runtime), budget)
+    rank = completed_rank(2)
+    rank["requested_measured_updates"] = budget
+    with pytest.raises(ValueError, match="integer from 1 to 10"):
+        aggregate_ranks([rank])
+
+
+def test_aggregate_rejects_mismatched_rank_budgets():
+    with pytest.raises(ValueError, match="budgets differ"):
+        aggregate_ranks([completed_rank(2), completed_rank(10)])
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda r: r.pop("requested_measured_updates"),
+        lambda r: r.update(actual_samples=True),
+        lambda r: r.update(actual_samples=1),
+        lambda r: r.update(counted_updates=True),
+        lambda r: r.update(timed_updates=0),
+        lambda r: r["count"].pop(),
+        lambda r: r["timing"].pop(),
+        lambda r: r["timing"].append(copy.deepcopy(r["timing"][0])),
+        lambda r: r.update(warmup_updates=2),
+        lambda r: r.update(counted_updates=1, count=r["count"][:1]),
+        lambda r: r.update(timed_updates=1, actual_samples=1, timing=r["timing"][:1]),
+    ],
+)
+def test_aggregate_rejects_malformed_or_incomplete_completed_samples(mutation):
+    result = completed_rank(2)
+    mutation(result)
+    with pytest.raises(ValueError):
+        aggregate_ranks([result])
+
+
+def test_two_sample_deadline_during_timing_restores_and_remains_incomplete():
+    runtime, source = setup()
+    before = digest(capture_state(runtime, source))
+    admissions = 0
+
+    def admit(allowed):
+        nonlocal admissions
+        admissions += 1
+        return allowed and admissions < 7  # 3 warmup + 2 counted + 1 timed
+
+    result = run_probe(runtime, source, clock(), measured_updates=2, continue_together=admit)
+    assert result["status"] == "incomplete_soft_deadline"
+    assert result["requested_measured_updates"] == result["counted_updates"] == 2
+    assert result["actual_samples"] == result["timed_updates"] == 1
+    assert len(result["timing"]) == 1 and result["final_restore"]
+    assert digest(capture_state(runtime, source)) == before
+    aggregate = aggregate_ranks([result])
+    assert aggregate["status"] == "incomplete_or_failed"
+    assert aggregate["mfu"] is aggregate["hfu"] is None
+    assert "median_seconds" not in aggregate
+
+
+def test_two_sample_aggregate_rejects_unpaired_count_inputs_and_unrestored_rank():
+    result = completed_rank(2)
+    result["count"][0]["input_sha256"] = "different"
+    with pytest.raises(ValueError, match="count/timing TRAIN inputs"):
+        aggregate_ranks([result])
+    result = completed_rank(2)
+    result["final_restore"] = False
+    aggregate = aggregate_ranks([result])
+    assert aggregate["status"] == "incomplete_or_failed"
+    assert aggregate["mfu"] is aggregate["hfu"] is None
+
+
+@pytest.mark.parametrize("budget", ["0", "-1", "11", "true", "2.0"])
+def test_cli_rejects_invalid_measured_budget_before_paths_or_gpu(monkeypatch, capsys, budget):
+    import mfu_probe
+
+    names = (
+        "config",
+        "data-root",
+        "output",
+        "training-root",
+        "native-source",
+        "publication",
+        "native-publication",
+        "resource-binding",
+        "publication-sha256",
+        "native-publication-sha256",
+        "checkpoint-sha256",
+        "gpu",
+        "resource-binding-sha256",
+    )
+    argv = ["mfu_probe.py"]
+    for name in names:
+        argv.extend(["--" + name, "unused"])
+    argv.extend(["--resource-owner-pid", "1", "--measured-updates", budget])
+    monkeypatch.setattr("sys.argv", argv)
+    with pytest.raises(SystemExit) as error:
+        mfu_probe.main()
+    assert error.value.code == 2
+    assert "--measured-updates" in capsys.readouterr().err
