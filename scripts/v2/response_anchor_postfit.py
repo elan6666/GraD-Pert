@@ -1112,6 +1112,11 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                     before = evaluation_protected_state(
                         spec, runtime, validation_state, state_fingerprint, student=student
                     )
+                    scalar_diagnostics_before = (
+                        precision_scalar_diagnostics(student, state_fingerprint)
+                        if precision_receipt
+                        else None
+                    )
                     cuda_before = state_fingerprint(torch.cuda.get_rng_state_all())
                     adata_path = data.layout.canonical_adata
                     data_stat = (adata_path.stat().st_size, adata_path.stat().st_mtime_ns)
@@ -1143,7 +1148,13 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                             on_condition_complete=admission_guard.on_condition_complete,
                         )
                     verify_evaluation_state(
-                        spec, runtime, before, validation_state, state_fingerprint, student=student
+                        spec,
+                        runtime,
+                        before,
+                        validation_state,
+                        state_fingerprint,
+                        student=student,
+                        scalar_diagnostics_before=scalar_diagnostics_before,
                     )
                     if state_fingerprint(
                         torch.cuda.get_rng_state_all()
@@ -3078,15 +3089,30 @@ def changed_state_paths(before, after, prefix=""):
     return [] if before == after else [prefix]
 
 
-def verify_evaluation_state(spec, runtime, before, validation_state, fingerprint, *, student=None):
+def verify_evaluation_state(
+    spec,
+    runtime,
+    before,
+    validation_state,
+    fingerprint,
+    *,
+    student=None,
+    scalar_diagnostics_before=None,
+):
     after = evaluation_protected_state(
         spec, runtime, validation_state, fingerprint, student=student
     )
     if after != before:
-        raise ValueError(
-            "evaluation mutated protected state/RNG/data file: "
-            + ", ".join(changed_state_paths(before, after))
-        )
+        paths = changed_state_paths(before, after)
+        if scalar_diagnostics_before is not None and student is not None:
+            paths.extend(
+                changed_state_paths(
+                    scalar_diagnostics_before,
+                    precision_scalar_diagnostics(student, fingerprint),
+                    "evaluation_student.modules",
+                )
+            )
+        raise ValueError("evaluation mutated protected state/RNG/data file: " + ", ".join(paths))
 
 
 def evaluate_observed(spec, native, student, collector, index, data, reference, **kwargs):
@@ -3386,17 +3412,32 @@ def prime_precision_sinkhorn_diagnostics(student, device):
     draw. The requested backend, diagnostic flags and resolved result all remain
     protected by the subsequent scalar-clock fingerprint.
     """
-    from gradpert.modeling.v2.operators import ManifoldResidual
+    from gradpert.modeling.v2.operators import CrossManifoldResidual, ManifoldResidual
     from gradpert.modeling.v2.sinkhorn_fused import resolve_sinkhorn_backend
 
+    native_types = (ManifoldResidual, CrossManifoldResidual)
     for module in student.modules():
-        if type(module) is not ManifoldResidual or module.streams == 1:
+        if not isinstance(module, ManifoldResidual):
+            continue
+        if type(module) not in native_types:
+            raise ValueError("precision Sinkhorn priming forbids a custom residual subclass")
+        if module.streams == 1:
             continue
         requested = "triton" if module.fused_sinkhorn_diagnostic else module.sinkhorn_backend
         resolved = resolve_sinkhorn_backend(requested, device.type, module.streams)
         if module.resolved_sinkhorn_backend not in ("unused", resolved):
             raise ValueError("precision native Sinkhorn diagnostic disagrees with backend")
         module.resolved_sinkhorn_backend = resolved
+
+
+def precision_scalar_diagnostics(student, fingerprint):
+    """Per-module scalar fingerprints for failure names only; never receipt state."""
+    return {
+        f"{name or '<root>'}[{type(module).__name__}].{key}": fingerprint(value)
+        for name, module in student.named_modules()
+        for key, value in vars(module).items()
+        if value is None or isinstance(value, (bool, int, float, str))
+    }
 
 
 def precision_student_state(student, fingerprint):

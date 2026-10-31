@@ -154,6 +154,10 @@ def paired_evaluate(
     if len(selected) != 1 or tuple(kwargs["condition_ids"]) != selected:
         raise ValueError("pilot must evaluate exactly the first fixed condition")
     initial = state()
+    if precision_spec is not None:
+        from scripts.v2.capacity_probe import state_fingerprint
+
+        scalar_diagnostics_before = postfit.precision_scalar_diagnostics(student, state_fingerprint)
     original_methods = (native.predict_controls, native.predict_query_set)
     original_hooks = dict(student.response._forward_hooks)
     predictions, results, counters, callback_counts = [], [], [], []
@@ -191,10 +195,16 @@ def paired_evaluate(
             raise ValueError("pilot native forward/callback coverage differs")
         after = state()
         if after != initial:
-            raise ValueError(
-                "pilot mutated protected state or RNG: "
-                + ", ".join(postfit.changed_state_paths(initial, after))
-            )
+            paths = postfit.changed_state_paths(initial, after)
+            if precision_spec is not None:
+                paths.extend(
+                    postfit.changed_state_paths(
+                        scalar_diagnostics_before,
+                        postfit.precision_scalar_diagnostics(student, state_fingerprint),
+                        "evaluation_student.modules",
+                    )
+                )
+            raise ValueError("pilot mutated protected state or RNG: " + ", ".join(paths))
         if (native.predict_controls, native.predict_query_set) != original_methods or dict(
             student.response._forward_hooks
         ) != original_hooks:

@@ -471,3 +471,181 @@ def test_state_mutation_error_names_only_changed_fingerprint_paths():
         pilot.paired_evaluate(*args, **kwargs)
     assert "tensor(" not in str(error.value)
     assert "tensor:" not in str(error.value)
+
+
+def native_precision_relay_models():
+    """Retain actual SSL32 relay/cross architecture; shrink only dimensions for CPU."""
+    from dataclasses import replace
+
+    from gradpert.config.v2 import V2Options
+    from gradpert.modeling.v2 import GraDPertV2
+    from gradpert.training.v2.objective import JointObjective
+
+    path = (
+        Path(__file__).parents[2]
+        / "configs/v2/precision_ri_20261031/PREC-SSL32"
+        / "gradpert_v2/nadig_jurkat.yaml"
+    )
+    config = load_experiment_config(path)
+    architecture, _ = V2Options.parse_parameters(config.model.parameters)
+    assert architecture.attention == "relay_full" and architecture.graph_read_mode == "relay"
+    assert architecture.streams == 4 and architecture.kda_layers == 2
+    architecture = replace(
+        architecture,
+        width=8,
+        heads=2,
+        latent_rank=4,
+        projector_hidden=12,
+        projector_bottleneck=4,
+        prototypes=11,
+        genept_hidden_width=12,
+        genept_middle_width=4,
+    )
+    model = GraDPertV2(torch.arange(60, dtype=torch.float32).reshape(6, 10) / 60, architecture)
+    objective = JointObjective(model).eval()
+    spec = dict(
+        schema=m.PRECISION_SCHEMA,
+        evaluation_precision=m.PRECISION_POLICY,
+        endpoints=[dict(name="PREC-SSL32")],
+    )
+    return objective, spec
+
+
+def test_actual_ssl32_relay_native_predict_exercises_all_cross_layers_and_preserves_state():
+    import random
+
+    import numpy as np
+    from test_relay_method import small_index
+
+    from gradpert.modeling.v2.operators import CrossManifoldResidual, ManifoldResidual
+    from gradpert.modeling.v2.precision_evaluation import evaluation_student
+    from gradpert.training.v2.evaluation import predict_controls
+
+    objective, spec = native_precision_relay_models()
+    reference = evaluation_student(objective.student, m.PRECISION_POLICY).eval()
+    student, _ = m.evaluation_model(spec, objective, torch.device("cpu"))
+    cross = {
+        name: module
+        for name, module in student.named_modules()
+        if type(module) is CrossManifoldResidual
+    }
+    assert len(cross) == 3
+    assert set(cross) == {f"response.cross_layers.{i}" for i in range(3)}
+    residuals = {
+        name: module
+        for name, module in student.named_modules()
+        if type(module) in (ManifoldResidual, CrossManifoldResidual) and module.streams > 1
+    }
+    assert all(module.resolved_sinkhorn_backend == "native" for module in residuals.values())
+    before = m.precision_student_state(student, state_fingerprint)
+    owner = state_fingerprint(objective.state_dict())
+    rng = state_fingerprint((random.getstate(), np.random.get_state(), torch.get_rng_state()))
+    calls = dict.fromkeys(residuals, 0)
+
+    def count(name):
+        def hook(*args):
+            calls[name] += 1
+
+        return hook
+
+    hooks = [module.register_forward_hook(count(name)) for name, module in residuals.items()]
+    controls = np.arange(24, dtype=np.float32).reshape(4, 6) / 24
+    kwargs = dict(device=torch.device("cpu"), cell_batch=2, query_count=3)
+    try:
+        with (
+            m.forbid_updates(
+                SimpleNamespace(
+                    objective=objective, optimizer=torch.optim.SGD(objective.parameters(), lr=0.1)
+                )
+            ),
+            m.forbid_precision_training_student(
+                SimpleNamespace(objective=objective), student=student
+            ),
+        ):
+            predicted = predict_controls(student, small_index(6), controls, (1,), **kwargs)
+    finally:
+        for hook in hooks:
+            hook.remove()
+    expected = predict_controls(reference, small_index(6), controls, (1,), **kwargs)
+    np.testing.assert_array_equal(predicted, expected)
+    assert all(calls[name] == 4 for name in cross)  # two query blocks, two cell chunks
+    assert all(calls[name] > 0 for name in residuals)
+    assert before == m.precision_student_state(student, state_fingerprint)
+    assert owner == state_fingerprint(objective.state_dict())
+    assert rng == state_fingerprint(
+        (random.getstate(), np.random.get_state(), torch.get_rng_state())
+    )
+    assert all(module.resolved_sinkhorn_backend == "native" for module in residuals.values())
+
+
+def test_priming_rejects_custom_subclasses_and_keeps_native_single_stream_unused():
+    from gradpert.modeling.v2.operators import CrossManifoldResidual, ManifoldResidual
+
+    class CustomResidual(ManifoldResidual):
+        pass
+
+    for base in (ManifoldResidual, CrossManifoldResidual):
+        module = base(4, 1, nn.Identity())
+        m.prime_precision_sinkhorn_diagnostics(module, torch.device("cpu"))
+        assert module.resolved_sinkhorn_backend == "unused"
+    with pytest.raises(ValueError, match="custom residual subclass"):
+        m.prime_precision_sinkhorn_diagnostics(
+            CustomResidual(4, 2, nn.Identity()), torch.device("cpu")
+        )
+
+
+def test_pilot_scalar_failure_reports_module_class_attribute_names_without_values():
+    args, kwargs, _ = paired_fixture()
+    native = args[0]
+    student = kwargs["student"]
+    student.response.sinkhorn_backend = "private_old_marker"
+    evaluate = native.evaluate
+
+    def mutate(*positional, **keywords):
+        result = evaluate(*positional, **keywords)
+        student.response.sinkhorn_backend = "private_new_marker"
+        return result
+
+    native.evaluate = mutate
+    with pytest.raises(ValueError) as error:
+        pilot.paired_evaluate(*args, **kwargs)
+    message = str(error.value)
+    assert "evaluation_student.modules.response[Identity].sinkhorn_backend" in message
+    assert "private_old_marker" not in message and "private_new_marker" not in message
+
+
+@pytest.mark.parametrize(
+    "field,value", [("sinkhorn_backend", "native"), ("resolved_sinkhorn_backend", "unused")]
+)
+def test_fullworker_scalar_failure_names_actual_cross_module_attribute(field, value):
+    from gradpert.modeling.v2.operators import CrossManifoldResidual
+
+    objective, spec = native_precision_relay_models()
+    student, _ = m.evaluation_model(spec, objective, torch.device("cpu"))
+    runtime = SimpleNamespace(objective=objective)
+
+    def native_state(runtime):
+        return {"original": state_fingerprint(runtime.objective.state_dict())}
+
+    before = m.evaluation_protected_state(
+        spec, runtime, native_state, state_fingerprint, student=student
+    )
+    diagnostics = m.precision_scalar_diagnostics(student, state_fingerprint)
+    name, layer = next(
+        (name, layer)
+        for name, layer in student.named_modules()
+        if type(layer) is CrossManifoldResidual
+    )
+    setattr(layer, field, value)
+    with pytest.raises(ValueError) as error:
+        m.verify_evaluation_state(
+            spec,
+            runtime,
+            before,
+            native_state,
+            state_fingerprint,
+            student=student,
+            scalar_diagnostics_before=diagnostics,
+        )
+    assert f"{name}[CrossManifoldResidual].{field}" in str(error.value)
+    assert "unused" not in str(error.value)
