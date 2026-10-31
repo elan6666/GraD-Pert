@@ -35,6 +35,9 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     from generate_fgpo_family import verify_manifest as verify_fgpo_manifest
     from generate_no_ssl import ARMS as NO_SSL_ARMS
     from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
+    from generate_precision_family import CHANGES as PRECISION_ARMS
+    from generate_precision_family import SCHEMA as PRECISION_SCHEMA
+    from generate_precision_family import verify_manifest as verify_precision_manifest
     from generate_pt1 import SCHEMA as PT1_SCHEMA
     from generate_pt2 import SCHEMA as PT2_SCHEMA
     from generate_representation_round1 import ARMS as RS_ARMS
@@ -85,6 +88,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             "br400-best-last-1",
             "br400-remaining-last-1",
             FFN_SCHEMA,
+            PRECISION_SCHEMA,
             FGPO_SCHEMA,
             DINO_SCHEMA,
             DP2_SCHEMA,
@@ -149,6 +153,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     ):
         raise ValueError("DP2 evaluation requires the exact singleton continuation scope")
     if queue.get("family") in (
+        PRECISION_SCHEMA,
         RS_SCHEMA,
         RS2_SCHEMA,
         RS3_SCHEMA,
@@ -164,6 +169,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
     ):
         family_schema = queue["family"]
         verifier, arms = {
+            PRECISION_SCHEMA: (verify_precision_manifest, PRECISION_ARMS),
             RS_SCHEMA: (verify_rs_manifest, RS_ARMS),
             RS2_SCHEMA: (verify_rs2_manifest, RS2_ARMS),
             RS3_SCHEMA: (verify_rs3_manifest, RS3_ARMS),
@@ -194,6 +200,28 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
             )
         ):
             raise ValueError("research evaluation requires the exact sealed family arm scope")
+    if queue.get("family") == PRECISION_SCHEMA:
+        from run_br400_group import PRECISION_BUDGET, PRECISION_POSTFIT
+
+        expected_bindings = [
+            dict(
+                row_name=name,
+                gpu=gpu,
+                cell_batch=128,
+                reference_batch=128,
+                output=str(args.shared_queue.parent.resolve() / f"{name}-eval-b128-g{gpu}"),
+            )
+            for name in PRECISION_ARMS
+            for gpu in ("0", "1")
+        ]
+        if (
+            queue.get("preflight_only") is not True
+            or queue.get("postfit_mode") != PRECISION_POSTFIT
+            or queue.get("precision_training_budget") != PRECISION_BUDGET
+            or queue.get("manifest_sha256") != sha256_file(Path(queue["manifest"]))
+            or queue.get("eval_bindings") != expected_bindings
+        ):
+            raise ValueError("precision evaluation requires all sealed staged dual-GPU leaves")
     rows = [row for row in queue["rows"] if row["name"] == args.row_name]
     if queue.get("family") == PT2_SCHEMA and (
         queue.get("mode") != PT2_SCHEMA
@@ -217,6 +245,7 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         raise ValueError("evaluation probe must select one sealed queue row")
     row, plan = rows[0], rows[0]["plan"]
     if queue.get("family") in (
+        PRECISION_SCHEMA,
         RS3_SCHEMA,
         RS4_SCHEMA,
         RS5_SCHEMA,
@@ -237,7 +266,8 @@ def validate_eval_binding(queue: dict, args: Any, source_commit: str) -> dict:
         expected_config = (Path(queue["source"]) / spec["config"]).resolve()
         if (
             (
-                queue["family"] in (RS9_SCHEMA, RS11_SCHEMA, RS12_SCHEMA, RS13_SCHEMA)
+                queue["family"]
+                in (PRECISION_SCHEMA, RS9_SCHEMA, RS11_SCHEMA, RS12_SCHEMA, RS13_SCHEMA)
                 and ("resolved_config" not in plan or plan.get("source_commit") != source_commit)
             )
             or Path(plan["config"]).resolve() != expected_config

@@ -43,6 +43,21 @@ resource/allocator gates, dtype/kernel observations, ten native updates,
 fullrestore and 300-control inference. Local synthetic/fake-GEMM tests cannot
 stand in for native CUDA evidence. No test tuning or old-run/source mutation.
 
+The shared runner prepares this exact family with `--preflight-only`. Its
+acceptance checks both ranks' complete precision observations and all six
+independent arm/GPU inference leaves. The queue, run and test roots must contain
+no PKL files. Preflight completion cannot start fitting: the main owner must
+independently verify and accept the sealed gates first.
+
+After acceptance, `--resume-fit --fit-only-row PREC-SSL32` explicitly promotes
+one fresh arm; use the corresponding name for each later arm. Each successful
+fit must have two epochs, 150 updates per epoch and 300 successful updates, then
+returns `FIT_COMPLETE.<arm>.json` with scientific completion false. The controller
+does not dispatch historical postfit or test paths for this family. Main owns
+the separate `common_ri_native` validation and unified diagnostics below. A
+later promotion rechecks all original gates and completed fit evidence and
+rejects retraining an already completed arm.
+
 Primary prediction evaluation uses `common_ri_native`: the historical RI
 evaluator does not enable autocast. Reset only the precision policy in a separate
 strictly weight-loaded evaluation Student, leaving training checkpoint identity

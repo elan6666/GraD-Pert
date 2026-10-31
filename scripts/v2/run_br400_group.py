@@ -33,6 +33,9 @@ from generate_fgpo_family import SCHEMA as FGPO_SCHEMA
 from generate_fgpo_family import verify_manifest as verify_fgpo_manifest
 from generate_no_ssl import SCHEMA as NO_SSL_SCHEMA
 from generate_no_ssl import verify_manifest as verify_no_ssl_manifest
+from generate_precision_family import CHANGES as PRECISION_ARMS
+from generate_precision_family import SCHEMA as PRECISION_SCHEMA
+from generate_precision_family import verify_manifest as verify_precision_manifest
 from generate_pt1 import SCHEMA as PT1_SCHEMA
 from generate_pt1 import verify_manifest as verify_pt1_manifest
 from generate_pt2 import SCHEMA as PT2_SCHEMA
@@ -84,6 +87,7 @@ from gradpert.execution.v2_training_stage import validate_training_stage
 from gradpert.hashing import sha256_file, sha256_json
 
 RESEARCH_FAMILIES = (
+    PRECISION_SCHEMA,
     RS_SCHEMA,
     RS2_SCHEMA,
     RS3_SCHEMA,
@@ -109,6 +113,9 @@ FGPO_FAMILIES = (
     *RESEARCH_FAMILIES,
 )
 LAST_ONLY_FAMILIES = (REMAINING_SCHEMA, FFN_SCHEMA, *FGPO_FAMILIES)
+PREFLIGHT_STAGE_FAMILIES = (RS13_SCHEMA, PRECISION_SCHEMA)
+PRECISION_POSTFIT = "main_owned_precision_postfit"
+PRECISION_BUDGET = {"epochs": 2, "updates_per_epoch": 150, "completed_updates": 300}
 DEFERRED_SCDFM_POLICY = "scdfm_fit_gears_terminal_evaluation_deferred_v1"
 PENDING_FGPO_ARMS = ("S12-L4", "CG1", "U24", "MR1", "P1", "C1", "O1", "K2-fixed-prefix")
 R3_CONTINUATION_ARMS = ("R3-AUB", "R3-AUS")
@@ -210,6 +217,7 @@ def deferred_official_dependency_ready(spec: dict, queue: dict) -> bool:
 def verify_manifest(source: Path, manifest: Path) -> dict:
     schema = read_json(manifest).get("schema")
     verifier = {
+        PRECISION_SCHEMA: verify_precision_manifest,
         RS6_SCHEMA: verify_rs6_manifest,
         RS7_SCHEMA: verify_rs7_manifest,
         RS8_SCHEMA: verify_rs8_manifest,
@@ -292,8 +300,8 @@ def prepare(
     if output.exists() or not output.is_relative_to(SERVER_ROOT):
         raise ValueError("fresh server queue root required")
     matrix = selected_matrix(verify_manifest(source, manifest), only_arms)
-    if (matrix["schema"] == RS13_SCHEMA) != preflight_only:
-        raise ValueError("R13 engineering stage requires explicit sealed preflight-only mode")
+    if (matrix["schema"] in PREFLIGHT_STAGE_FAMILIES) != preflight_only:
+        raise ValueError("staged family requires explicit sealed preflight-only mode")
     validate_policy(policy)
     if policy["schema"] != DYNAMIC_SCHEMA:
         raise ValueError("BR400 requires exact approved dual-GPU schema3 policy")
@@ -330,6 +338,11 @@ def prepare(
         "policy_sha256": sha256_json(policy),
         "eval_bindings": [],
     }
+    if matrix["schema"] == PRECISION_SCHEMA:
+        queue["postfit_mode"] = PRECISION_POSTFIT
+        queue["precision_training_budget"] = dict(PRECISION_BUDGET)
+    if matrix["schema"] in PREFLIGHT_STAGE_FAMILIES:
+        queue["preflight_only"] = True
     if matrix["schema"] == RS13_SCHEMA:
         from generate_representation_round13 import validate_calibration_binding
 
@@ -377,8 +390,13 @@ def verify(queue: dict) -> None:
         or output.resolve().is_relative_to(source.resolve())
     ):
         raise ValueError("BR400 queue must preserve published source")
-    if (queue["family"] == RS13_SCHEMA) != (queue.get("preflight_only") is True):
-        raise ValueError("R13 queue must seal preflight-only mode")
+    if (queue["family"] in PREFLIGHT_STAGE_FAMILIES) != (queue.get("preflight_only") is True):
+        raise ValueError("staged queue must seal preflight-only mode")
+    if queue["family"] == PRECISION_SCHEMA and (
+        queue.get("postfit_mode") != PRECISION_POSTFIT
+        or queue.get("precision_training_budget") != PRECISION_BUDGET
+    ):
+        raise ValueError("precision queue must seal main-owned postfit and exact 300-update budget")
     validate_policy(queue["shared_gpu_policy"])
     if queue["shared_gpu_policy"]["schema"] != DYNAMIC_SCHEMA or queue[
         "policy_sha256"
@@ -426,6 +444,8 @@ def verify(queue: dict) -> None:
     bindings = []
     for row, spec in zip(queue["rows"], matrix["rows"], strict=True):
         plan = row["plan"]
+        if queue["family"] == PRECISION_SCHEMA:
+            validate_precision_plan(plan)
         if (
             plan["config"] != str(source / spec["config"])
             or plan["config_sha256"] != spec["sha256"]
@@ -560,6 +580,145 @@ def validate_frozen_readout_gate(proof: dict) -> None:
         raise ValueError("R11 needs actual head-only frozen-state exact10 restore proof")
 
 
+def validate_precision_plan(plan: dict) -> None:
+    """Admit only the three frozen scratch arms; no historical baseline dispatch."""
+    source, config = Path(plan["repository_root"]), Path(plan["config"])
+    matrix = verify_precision_manifest(source, config.parents[2] / "manifest.json")
+    matching = [row for row in matrix["rows"] if source / row["config"] == config]
+    parameters = plan["resolved_config"]["model"]["parameters"]
+    if (
+        len(matching) != 1
+        or matching[0]["name"] not in PRECISION_ARMS
+        or plan["resolved_config"] != load_experiment_config(config).model_dump(mode="json")
+        or plan["resolved_config"]["training"]["max_epochs"]["value"] != 2
+        or parameters["validation_mode"]["value"] != "disabled"
+        or plan.get("postfit_policy") != "deferred"
+    ):
+        raise ValueError(
+            "precision plan must preserve the exact three-arm two-epoch scratch family"
+        )
+
+
+def precision_coverage(plan: dict, name: str) -> tuple[set[str], set[str]]:
+    """Expected observed paths from the sealed RI architecture, without model allocation."""
+    from gradpert.config.v2 import V2Options
+
+    architecture, _ = V2Options.parse_parameters(
+        load_experiment_config(plan["config"]).model.parameters
+    )
+    if name == "PREC-SSL32":
+        features = ("features.1.0", "features.1.2") if architecture.ssl2_cls_input_layernorm else ()
+        heads = {
+            f"{side}.{head}.{leaf}"
+            for side in ("student", "teacher")
+            for head in ("ssl1_cls", "ssl2_cls", "ssl2_node")
+            for leaf in (
+                (*features, "prototypes")
+                if head == "ssl2_cls" and features
+                else ("features.0", "features.2", "prototypes")
+            )
+        }
+        return heads, set()
+    if name == "PREC-PRED32":
+        return {"student.prediction.0", "student.prediction.2"}, set()
+    if (
+        name != "PREC-FFN8"
+        or architecture.graph_read_mode != "relay"
+        or architecture.graph_mhc
+        or architecture.attention != "relay_full"
+    ):
+        raise ValueError("unsupported precision architecture coverage")
+    modules = {f"graph.layers.{i}.ffn" for i in range(4)}
+    modules |= {f"cell.layers.{2 * i + 1}.sublayer" for i in range(architecture.kda_layers + 1)}
+    modules |= {f"response.ffn_layers.{i}.sublayer" for i in range(architecture.kda_layers + 1)}
+    return set(), {
+        f"{side}.{module}.{projection}.weight"
+        for side in ("student", "teacher")
+        for module in modules
+        for projection in ("up", "down")
+    }
+
+
+def validate_precision_gate(row: dict, receipt: dict) -> None:
+    """Consume both native rank observations; a bare passed status is insufficient."""
+    name = row["name"]
+    if name not in PRECISION_ARMS:
+        raise ValueError("precision gate rejects baseline or unknown arm")
+    heads, weights = precision_coverage(row["plan"], name)
+    ranks = receipt.get("rank_measurements", [])
+    if (
+        len(ranks) != 2
+        or {item.get("rank") for item in ranks} != {0, 1}
+        or not isinstance(receipt.get("resume_checkpoint_sha256"), str)
+        or len(receipt["resume_checkpoint_sha256"]) != 64
+    ):
+        raise ValueError("precision gate requires both ranks and checkpoint restore identity")
+    for item in ranks:
+        audit = item.get("precision_audit", {})
+        backend = audit.get("backend", {})
+        if (
+            item.get("physical_gpu") != str(item["rank"])
+            or audit.get("schema") != "gradpert-precision-preflight-1"
+            or audit.get("status") != "passed"
+            or audit.get("exact_full_state_restore") is not True
+            or not backend.get("torch_version")
+            or not backend.get("cuda_version")
+            or not backend.get("device_name")
+            or backend.get("compute_capability") != [12, 0]
+            or backend.get("matmul_allow_tf32") is not False
+            or backend.get("float32_matmul_precision") != "highest"
+        ):
+            raise ValueError("precision gate missing native backend/dtype/fullrestore evidence")
+        if weights and (
+            backend["torch_version"].split("+")[0] != "2.13.0"
+            or backend["cuda_version"] not in ("12.8", "12.9", "13.0")
+            or "_scaled_mm" not in backend.get("scaled_mm_schema", "")
+            or backend.get("recipe") != "per-tensor current scaling, E4M3 forward / E5M2 gradient"
+        ):
+            raise ValueError("precision gate requires the pinned real FP8 backend")
+        observed_heads = set()
+        for call in audit.get("head_linear_calls", []):
+            key = (call.get("phase"), call.get("path"))
+            if type(call.get("calls")) is not int or call["calls"] <= 0 or key in observed_heads:
+                raise ValueError("invalid precision head call evidence")
+            observed_heads.add(key)
+        expected_heads = {
+            (phase, path) for phase in ("before_restore", "after_restore") for path in heads
+        }
+        if observed_heads != expected_heads:
+            raise ValueError("precision head coverage differs from exact active paths")
+        observed_gemms = set()
+        for call in audit.get("fp8_gemm_calls", []):
+            op = call.get("operation")
+            key = (call.get("phase"), call.get("path"), op)
+            if (
+                type(call.get("calls")) is not int
+                or call["calls"] <= 0
+                or key in observed_gemms
+                or call.get("a")
+                != ("torch.float8_e4m3fn" if op == "forward" else "torch.float8_e5m2")
+                or call.get("b") != "torch.float8_e4m3fn"
+                or call.get("output") != ("torch.bfloat16" if op == "forward" else "torch.float32")
+                or call.get("use_fast_accum") is not False
+            ):
+                raise ValueError("invalid real FP8 GEMM recipe evidence")
+            observed_gemms.add(key)
+        expected_gemms = {
+            (phase, path, op)
+            for phase in ("before_restore", "after_restore")
+            for path in weights
+            for op in (
+                ("forward", "dgrad", "wgrad") if path.startswith("student.") else ("forward",)
+            )
+        }
+        if observed_gemms != expected_gemms:
+            raise ValueError("precision GEMM coverage differs from both owners/phases/FFNs")
+    if receipt.get("precision_audit") != next(
+        item["precision_audit"] for item in ranks if item["rank"] == 0
+    ):
+        raise ValueError("precision primary and rank0 audit disagree")
+
+
 def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
     validate_preflight(row["plan"], entry)
     receipt = read_json(Path(entry["receipt"]))
@@ -597,6 +756,8 @@ def validate_training_gate(queue: dict, row: dict, entry: dict) -> dict:
         )
     ):
         raise ValueError("exact10 restore/inference/read-only joint-validation gate missing")
+    if queue["family"] == PRECISION_SCHEMA:
+        validate_precision_gate(row, receipt)
     if queue["family"] in LAST_ONLY_FAMILIES:
         if queue["family"] == RS13_SCHEMA:
             from generate_representation_round13 import validate_amplitude_gate
@@ -866,7 +1027,21 @@ def validate_training_contract(plan: dict) -> dict:
             )
         ):
             raise ValueError("last-only training must contain no best or actual validation")
+    if precision_plan(plan):
+        journal = read_json(Path(plan["run_root"]) / "fit/epoch_state.json")
+        history = read_json(Path(plan["run_root"]) / "fit/history.json")
+        if journal.get("budget") != [2, 150] or [
+            item.get("optimizer_steps") for item in history
+        ] != [150, 300]:
+            raise ValueError(
+                "precision training requires exactly 300 successful updates in two epochs"
+            )
     return training
+
+
+def precision_plan(plan: dict) -> bool:
+    path = Path(plan["config"]).parents[2] / "manifest.json"
+    return path.is_file() and read_json(path).get("schema") == PRECISION_SCHEMA
 
 
 def expected_epochs(plan: dict) -> int:
@@ -892,6 +1067,7 @@ def expected_epochs(plan: dict) -> int:
         registered = [*configs(source).values(), *configs2(source).values()]
         family_manifest = Path(plan["config"]).parents[2] / "manifest.json"
         if family_manifest.is_file() and read_json(family_manifest).get("schema") in (
+            PRECISION_SCHEMA,
             RS3_SCHEMA,
             RS4_SCHEMA,
             RS5_SCHEMA,
@@ -907,6 +1083,8 @@ def expected_epochs(plan: dict) -> int:
             if len(matching) != 1:
                 raise ValueError("research dispatch requires its exact sealed family leaf")
             registered.append(raw)
+        if precision_plan(plan):
+            validate_precision_plan(plan)
         if raw not in registered or plan["resolved_config"] != load_experiment_config(
             plan["config"]
         ).model_dump(mode="json"):
@@ -1086,15 +1264,58 @@ def gate_entry(path: Path) -> dict:
     return {"receipt": str(path), "sha256": sha256_file(path)}
 
 
-def validate_fit_promotion(queue, directory, state):
+def validate_precision_zero_pkl(queue: dict) -> None:
+    """Reject whole-root PKL residue without deleting scientific artifacts."""
+    if queue.get("family") != PRECISION_SCHEMA:
+        return
+    roots = {Path(queue["output"])}
+    roots.update(
+        Path(row["plan"][key]) for row in queue["rows"] for key in ("run_root", "test_root")
+    )
+    for root in roots:
+        if any(root.rglob("*.pkl")):
+            raise ValueError(f"precision whole-root zero-PKL contract failed: {root}")
+
+
+def precision_fit_evidence(queue: dict, row: dict) -> dict:
+    validate_precision_zero_pkl(queue)
+    training = validate_training_contract(row["plan"])
+    root = Path(row["plan"]["run_root"])
+    return dict(
+        schema="precision-fit-complete-1",
+        arm=row["name"],
+        queue_sha256=sha256_file(Path(queue["output"]) / "queue.json"),
+        source_commit=queue["source_commit"],
+        launch_plan_sha256=sha256_file(Path(queue["output"]) / f"{row['name']}.launch-plan.json"),
+        train_complete=gate_entry(root / "TRAIN_COMPLETE.json"),
+        last=training["last"],
+        budget=dict(PRECISION_BUDGET),
+        scientific_complete=False,
+        postfit_mode=PRECISION_POSTFIT,
+        test_status="deferred_to_main",
+    )
+
+
+def validate_fit_promotion(queue, directory, state, *, fit_only_row=None):
     """Explicit later-stage R13 promotion; never rerun or weaken sealed preflights."""
+    precision = queue.get("family") == PRECISION_SCHEMA
+    validate_precision_zero_pkl(queue)
+    valid_state = (state.get("status"), state.get("phase")) == (
+        "preflight_complete",
+        "awaiting_main_acceptance",
+    ) or (
+        precision
+        and (state.get("status"), state.get("phase"))
+        == ("fit_complete", "awaiting_main_precision_postfit")
+    )
+    if fit_only_row is not None and (not precision or fit_only_row not in PRECISION_ARMS):
+        raise ValueError("fit-only-row requires an exact precision arm")
     if (directory / "FAILURE.json").exists():
         raise ValueError("R13 fit promotion rejects a retained controller FAILURE")
     if (
-        queue.get("family") != RS13_SCHEMA
+        queue.get("family") not in PREFLIGHT_STAGE_FAMILIES
         or queue.get("preflight_only") is not True
-        or state.get("status") != "preflight_complete"
-        or state.get("phase") != "awaiting_main_acceptance"
+        or not valid_state
         or state.get("active") is not None
         or state.get("scientific_complete") is not False
         or state.get("completed") != {}
@@ -1123,12 +1344,23 @@ def validate_fit_promotion(queue, directory, state):
         "approved": True,
     }:
         raise ValueError("R13 resume-fit requires main acceptance of every exact retained gate")
-    if (directory / "FIT_PROMOTION.json").exists():
+    promotion_file = f"FIT_PROMOTION.{fit_only_row}.json" if precision else "FIT_PROMOTION.json"
+    if (directory / promotion_file).exists():
         raise ValueError(
             "R13 fit promotion already attempted; reconcile immutable execution evidence"
         )
+    fitted = state.get("precision_fits", {}) if precision else {}
+    if not isinstance(fitted, dict) or set(fitted) - set(PRECISION_ARMS):
+        raise ValueError("unknown precision fitted arm")
+    if fit_only_row in fitted:
+        raise ValueError("precision fit cannot retrain a completed arm")
     for row in queue["rows"]:
-        if any(Path(row["plan"][key]).exists() for key in ("run_root", "test_root")):
+        if row["name"] in fitted:
+            entry = fitted[row["name"]]
+            path = directory / f"FIT_COMPLETE.{row['name']}.json"
+            if entry != gate_entry(path) or read_json(path) != precision_fit_evidence(queue, row):
+                raise ValueError("retained precision fit evidence changed")
+        elif any(Path(row["plan"][key]).exists() for key in ("run_root", "test_root")):
             raise FileExistsError("R13 fit promotion cannot overwrite an existing run/test root")
         if read_json(directory / f"{row['name']}.launch-plan.json") != row["plan"]:
             raise ValueError("R13 retained formal launch plan changed")
@@ -1142,6 +1374,7 @@ def execute(
     eval_only_row: str | None = None,
     preflight_only: bool = False,
     resume_fit: bool = False,
+    fit_only_row: str | None = None,
 ) -> None:
     if (
         os.environ.get("CUDA_VISIBLE_DEVICES") != ""
@@ -1152,10 +1385,19 @@ def execute(
         or read_json(directory / "queue.json") != queue
     ):
         raise ValueError("fresh CPU-only execution must match sealed source/root/queue")
-    if (preflight_only and resume_fit) or (resume_fit and queue.get("family") != RS13_SCHEMA):
+    if (preflight_only and resume_fit) or (
+        resume_fit and queue.get("family") not in PREFLIGHT_STAGE_FAMILIES
+    ):
         raise ValueError("resume-fit is an explicit later R13 stage, separate from preflight-only")
     if queue.get("preflight_only", False) is not (preflight_only or resume_fit):
         raise ValueError("execution preflight-only flag differs from sealed queue")
+    if queue.get("family") == PRECISION_SCHEMA:
+        if (resume_fit and fit_only_row not in PRECISION_ARMS) or (
+            not resume_fit and fit_only_row is not None
+        ):
+            raise ValueError("precision resume-fit requires exactly one explicit fit-only-row")
+    elif fit_only_row is not None:
+        raise ValueError("fit-only-row is restricted to precision promotion")
     verify(queue)
     matrix = selected_matrix(
         verify_manifest(Path(queue["source"]), Path(queue["manifest"])), queue.get("only_arms")
@@ -1180,7 +1422,7 @@ def execute(
     if resume_fit:
         state = read_json(directory / "state.json")
         promotion_state_sha256 = sha256_file(directory / "state.json")
-        validate_fit_promotion(queue, directory, state)
+        validate_fit_promotion(queue, directory, state, fit_only_row=fit_only_row)
     if eval_only_row is not None:
         state["engineering_only_row"] = eval_only_row
 
@@ -1226,7 +1468,7 @@ def execute(
                         "R13 terminal state changed while waiting for controller/GPU locks"
                     )
                 state = disk_state
-                ready = validate_fit_promotion(queue, directory, state)
+                ready = validate_fit_promotion(queue, directory, state, fit_only_row=fit_only_row)
                 write_promotion = dict(
                     queue_sha256=queue_sha,
                     source_commit=queue["source_commit"],
@@ -1236,7 +1478,15 @@ def execute(
                     preflights_reused=True,
                     preflight_state_sha256=promotion_state_sha256,
                 )
-                atomic_json(directory / "FIT_PROMOTION.json", write_promotion)
+                if queue["family"] == PRECISION_SCHEMA:
+                    write_promotion["fit_only_row"] = fit_only_row
+                    write_promotion["postfit_mode"] = PRECISION_POSTFIT
+                promotion_file = (
+                    f"FIT_PROMOTION.{fit_only_row}.json"
+                    if queue["family"] == PRECISION_SCHEMA
+                    else "FIT_PROMOTION.json"
+                )
+                atomic_json(directory / promotion_file, write_promotion)
                 promotion_started = True
                 state.update(
                     status="running",
@@ -1292,6 +1542,7 @@ def execute(
                     ready["official_dependency"] = queue["official_dependency"]
                 if preflight_only:
                     ready["preflight_only"] = True
+                validate_precision_zero_pkl(queue)
                 atomic_json(directory / "PREFLIGHT_COMPLETE.json", ready)
                 if preflight_only:
                     state.update(
@@ -1314,6 +1565,8 @@ def execute(
                         "main acceptance must bind all exact gates and published source"
                     )
             for row in queue["rows"]:
+                if fit_only_row is not None and row["name"] != fit_only_row:
+                    continue
                 if resume_fit and (
                     sha256_file(directory / "MAIN_ACCEPTANCE.json")
                     != write_promotion["main_acceptance_sha256"]
@@ -1335,6 +1588,21 @@ def execute(
                 state["phase"] = f"{row['name']}_fit"
                 run_stage(queue, row, "fit", training_command(path), "0,1", state, guard)
                 validate_training_contract(row["plan"])
+                if queue["family"] == PRECISION_SCHEMA:
+                    fit_path = directory / f"FIT_COMPLETE.{row['name']}.json"
+                    atomic_json(fit_path, precision_fit_evidence(queue, row))
+                    state.setdefault("precision_fits", {})[row["name"]] = gate_entry(fit_path)
+                    state.update(
+                        status="fit_complete",
+                        phase="awaiting_main_precision_postfit",
+                        active=None,
+                        scientific_complete=False,
+                        formal_fit_authorized=False,
+                        test_status="deferred_to_main",
+                        postfit_mode=PRECISION_POSTFIT,
+                    )
+                    atomic_json(directory / "state.json", state)
+                    return
                 if queue["family"] in RESEARCH_FAMILIES:
                     from run_representation_postfit import (
                         postfit_command,
@@ -1445,6 +1713,7 @@ def main() -> None:
     parser.add_argument("--prepare", action="store_true")
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--resume-fit", action="store_true")
+    parser.add_argument("--fit-only-row", choices=tuple(PRECISION_ARMS))
     parser.add_argument("--eval-only-row", choices=("DP", "FN", "FG", "FB", "PO"))
     parser.add_argument(
         "--only-arms",
@@ -1458,6 +1727,7 @@ def main() -> None:
         and not args.queue
         and not args.eval_only_row
         and not args.resume_fit
+        and args.fit_only_row is None
         and all(getattr(args, key) is not None for key in fields)
     ):
         prepare(
@@ -1481,6 +1751,7 @@ def main() -> None:
             eval_only_row=args.eval_only_row,
             preflight_only=args.preflight_only,
             resume_fit=args.resume_fit,
+            fit_only_row=args.fit_only_row,
         )
     else:
         parser.error(
