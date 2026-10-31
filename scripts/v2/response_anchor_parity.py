@@ -31,6 +31,20 @@ def postfit_module():
 postfit = postfit_module()
 
 
+def expected_anchor_enabled(endpoint_name):
+    if endpoint_name == "R3-RI":
+        return False
+    if endpoint_name in (
+        "FixedResponseGroupAnchor",
+        "R15-DIR",
+        "R16-GPM",
+        "R17-GPM-HG0",
+        "R18-CPD",
+    ):
+        return True
+    raise ValueError("unknown native parity endpoint")
+
+
 def first_condition(validation, ordered):
     if tuple(ordered) != tuple(validation["conditions"]) or len(ordered) != 445:
         raise ValueError("full frozen445 condition order differs")
@@ -315,10 +329,7 @@ def execute(spec, endpoint_name, *, spec_file, output):
                     postfit.assert_population_headless(runtime)
                 if (
                     bool(getattr(runtime.options, "response_anchor_weight", 0))
-                    != (
-                        endpoint_name
-                        in ("FixedResponseGroupAnchor", "R15-DIR", "R16-GPM", "R17-GPM-HG0")
-                    )
+                    != expected_anchor_enabled(endpoint_name)
                     or runtime.identity != identity["data"]
                 ):
                     raise ValueError("native evaluation identity/anchor differs")
@@ -484,7 +495,14 @@ def main():
     parser.add_argument("--spec-sha256", required=True)
     parser.add_argument(
         "--endpoint",
-        choices=("R3-RI", "FixedResponseGroupAnchor", "R15-DIR", "R16-GPM", "R17-GPM-HG0"),
+        choices=(
+            "R3-RI",
+            "FixedResponseGroupAnchor",
+            "R15-DIR",
+            "R16-GPM",
+            "R17-GPM-HG0",
+            "R18-CPD",
+        ),
         required=True,
     )
     parser.add_argument("--output", type=Path, required=True)

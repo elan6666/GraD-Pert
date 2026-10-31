@@ -18,6 +18,46 @@ loader = importlib.util.spec_from_file_location("response_anchor_parity_tested",
 pilot = importlib.util.module_from_spec(loader)
 loader.loader.exec_module(pilot)
 
+
+def test_r18_cli_dispatch_preserves_endpoint_and_sealed_spec(tmp_path, monkeypatch):
+    import json
+    import sys
+
+    path = tmp_path / "sealed.json"
+    path.write_text(json.dumps({"schema": pilot.postfit.R18_SCHEMA}))
+    binding = {"path": str(path.resolve()), "sha256": pilot.postfit.sha(path)}
+    monkeypatch.setattr(pilot.postfit, "checked", lambda value: path if value == binding else None)
+    calls = []
+    monkeypatch.setattr(pilot, "execute", lambda *args, **kwargs: calls.append((args, kwargs)))
+    output = tmp_path / "pilot"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "pilot",
+            "--spec",
+            str(path),
+            "--spec-sha256",
+            binding["sha256"],
+            "--endpoint",
+            "R18-CPD",
+            "--output",
+            str(output),
+        ],
+    )
+    pilot.main()
+    assert calls == [
+        (
+            ({"schema": pilot.postfit.R18_SCHEMA}, "R18-CPD"),
+            {"spec_file": binding, "output": output},
+        )
+    ]
+    assert pilot.expected_anchor_enabled("R18-CPD") is True
+    assert pilot.expected_anchor_enabled("R3-RI") is False
+    with pytest.raises(ValueError, match="unknown"):
+        pilot.expected_anchor_enabled("unregistered")
+
+
 METRICS = (
     "txpert_macro_pearson_delta_all",
     "txpert_macro_pearson_delta_deg",
