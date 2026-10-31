@@ -29,6 +29,11 @@ R15_SCHEMA = "response-anchor-postfit-r15-input-1"
 R16_SCHEMA = "response-population-postfit-r16-input-1"
 R17_SCHEMA = "response-population-head-postfit-r17-input-1"
 R18_SCHEMA = "response-population-contrast-postfit-r18-input-1"
+PRECISION_SCHEMA = "representation-precision-postfit-input-1"
+PRECISION_SOURCE = "a240c2688c6b078b32bf2fafbe4d68229837d381"
+PRECISION_ARMS = ("PREC-SSL32", "PREC-PRED32", "PREC-FFN8")
+PRECISION_POLICY = "common_ri_native"
+PRECISION_BUDGET = {"epochs": 2, "updates_per_epoch": 150, "completed_updates": 300}
 POPULATION_PROFILES = {
     R18_SCHEMA: (
         "R18-CPD",
@@ -133,11 +138,19 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
         "bootstrap",
         "medium",
     }
+    precision = spec.get("schema") == PRECISION_SCHEMA
+    if precision:
+        required |= {"precision", "evaluation_precision", "retained_references"}
     r15 = spec.get("schema") == R15_SCHEMA
     r16 = spec.get("schema") in POPULATION_SCHEMAS
     if r15 or r16:
         required |= {"retained_references", "observer_parity"}
-    if set(spec) != required or spec["schema"] not in (SCHEMA, R15_SCHEMA, *POPULATION_SCHEMAS):
+    if set(spec) != required or spec["schema"] not in (
+        SCHEMA,
+        R15_SCHEMA,
+        PRECISION_SCHEMA,
+        *POPULATION_SCHEMAS,
+    ):
         raise ValueError("postfit schema differs")
     v = spec["validation"]
     if set(v) != {
@@ -171,7 +184,9 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
         raise ValueError("paired condition bootstrap is frozen")
     endpoints = spec["endpoints"]
     names = (
-        [population_profile(spec)[0]]
+        [spec["endpoints"][0]["name"]]
+        if precision and len(spec["endpoints"]) == 1
+        else [population_profile(spec)[0]]
         if r16
         else (["R15-DIR"] if r15 else ["R3-RI", "FixedResponseGroupAnchor"])
     )
@@ -208,7 +223,7 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
         _check_source_shape(e["source"], server=server)
         if server:
             server_path(root)
-    if server and not (r15 or r16):
+    if server and not (r15 or r16 or precision):
         reference = endpoints[0]
         if (
             reference["source"]["commit"] != "f0cb20ebb2efab749970f2bf5d205ed2f358592c"
@@ -230,6 +245,8 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
     # Metadata-only future medium binding; endpoint CLI never executes it.
     if not isinstance(spec["medium"], dict):
         raise ValueError("explicit medium binding/status required")
+    if precision:
+        validate_precision_payload(spec, server=server)
     if r15:
         validate_r15_payload(spec, server=server)
     if r16:
@@ -970,6 +987,8 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
         endpoint["source"]["publication"],
         spec["analysis_source"]["publication"],
     ]
+    if spec["schema"] == PRECISION_SCHEMA:
+        file_bindings.extend(precision_inputs(spec, endpoint))
     before_files = {str(checked(b)): b["sha256"] for b in file_bindings}
     root = server_path(Path(spec["output"]) / name / f"worker-{worker_index}", exists=False)
     if root.exists():
@@ -1016,8 +1035,11 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                     training_identity=identity,
                     checkpoint_sha256=endpoint["checkpoint"]["sha256"],
                 )
-                runtime.objective.student.to(device)
                 runtime.objective.eval()
+                student, precision_receipt = evaluation_model(spec, runtime.objective, device)
+                student_before = (
+                    state_fingerprint(student.state_dict()) if precision_receipt else None
+                )
                 if runtime.objective.pending:
                     raise ValueError("evaluation checkpoint has pending Teacher statistics")
                 state_layout = EvaluationStateLayout(
@@ -1082,10 +1104,8 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                         split_content_sha256=data.split.split_content_sha256,
                     )
                     collector = NativeValCollector(selected, targets, controls, allowed)
-                    before = (
-                        population_protected_state(runtime, validation_state, state_fingerprint)
-                        if spec["schema"] in POPULATION_SCHEMAS
-                        else validation_state(runtime)
+                    before = evaluation_protected_state(
+                        spec, runtime, validation_state, state_fingerprint
                     )
                     cuda_before = state_fingerprint(torch.cuda.get_rng_state_all())
                     adata_path = data.layout.canonical_adata
@@ -1097,10 +1117,12 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                         forbid_updates(
                             runtime, forbid_anchor=spec["schema"] == R15_SCHEMA
                         ) as forbidden_counts,
-                        collector.observe(native, runtime.objective.student, data),
                     ):
-                        result = native.evaluate(
-                            runtime.objective.student,
+                        result = evaluate_observed(
+                            spec,
+                            native,
+                            student,
+                            collector,
                             runtime.index,
                             data,
                             reference,
@@ -1112,13 +1134,14 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                             condition_ids=selected,
                             on_condition_complete=admission_guard.on_condition_complete,
                         )
+                    verify_evaluation_state(
+                        spec, runtime, before, validation_state, state_fingerprint
+                    )
                     if (
                         (
-                            population_protected_state(runtime, validation_state, state_fingerprint)
-                            if spec["schema"] in POPULATION_SCHEMAS
-                            else validation_state(runtime)
+                            precision_receipt
+                            and state_fingerprint(student.state_dict()) != student_before
                         )
-                        != before
                         or state_fingerprint(torch.cuda.get_rng_state_all()) != cuda_before
                         or data_stat != (adata_path.stat().st_size, adata_path.stat().st_mtime_ns)
                     ):
@@ -1155,6 +1178,9 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                 or _source(spec["analysis_source"]) != analysis_source
             ):
                 raise ValueError("postfit immutable source/input closure failed")
+            if spec["schema"] == PRECISION_SCHEMA:
+                queue = validate_precision_identity(endpoint, spec["precision"])
+                precision_zero_pkl(queue, spec["output"])
             if list(root.rglob("*.pkl")):
                 raise ValueError("postfit requires zero PKL")
             complete = dict(
@@ -1203,6 +1229,7 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                 ),
                 environment=inspect_environment(native_root, device_name="cuda:0").payload(),
                 scientific_complete=False,
+                **precision_receipt,
             )
             write_new(root / "COMPLETE.json", complete)
             return complete
@@ -1228,6 +1255,15 @@ def merge_endpoint(spec, name):
     endpoint = next(e for e in spec["endpoints"] if e["name"] == name)
     if receipts[0]["resource_owner"] != receipts[1]["resource_owner"]:
         raise ValueError("endpoint workers did not share a sealed dispatcher owner")
+    precision_receipt = {}
+    if spec.get("schema") == PRECISION_SCHEMA:
+        for receipt in receipts:
+            validate_precision_receipt(
+                receipt.get("precision_policy"), spec["endpoints"][0]["name"]
+            )
+        if receipts[0]["precision_policy"] != receipts[1]["precision_policy"]:
+            raise ValueError("precision workers disagree on evaluation arithmetic")
+        precision_receipt = {"precision_policy": receipts[0]["precision_policy"]}
     native = []
     by_condition = {}
     first = None
@@ -1286,6 +1322,8 @@ def merge_endpoint(spec, name):
     native_merged = merge_evaluation_shards(native, ordered_conditions=tuple(ordered))
     if len(native_merged["conditions"]) != 445:
         raise ValueError("native val coverage differs")
+    if spec.get("schema") == PRECISION_SCHEMA:
+        validate_precision_metrics(native_merged, spec["validation"])
     binding = save_arrays(root / "PRIVATE_ENDPOINT.npz", arrays)
     write_new(root / "PRIVATE_NATIVE_RESULT.json", native_merged)
     write_new(
@@ -1310,6 +1348,7 @@ def merge_endpoint(spec, name):
             updates=0,
             zero_pkl=not list(root.rglob("*.pkl")),
             scientific_complete=False,
+            **precision_receipt,
         ),
     )
     return arrays, native_merged
@@ -1322,6 +1361,8 @@ def compare(spec, *, spec_file=None):
     if (root / "FAILURE.json").exists():
         raise ValueError("failed postfit output cannot be promoted")
     geo = geometry_module(Path(spec["analysis_source"]["root"]))
+    if spec["schema"] == PRECISION_SCHEMA:
+        return compare_precision(spec, geo, spec_file=spec_file)
     if spec["schema"] in POPULATION_SCHEMAS:
         return _compare_population(spec, geo, spec_file=spec_file)
     if spec["schema"] == R15_SCHEMA:
@@ -1498,6 +1539,7 @@ def main():
             "R16-GPM",
             "R17-GPM-HG0",
             "R18-CPD",
+            *PRECISION_ARMS,
         ),
     )
     p.add_argument("--worker-index", type=int, choices=(0, 1))
@@ -1525,6 +1567,14 @@ def main():
         )
     elif args.mode == "compare":
         compare(spec, spec_file=dict(path=str(args.spec.resolve()), sha256=args.spec_sha256))
+    elif spec["schema"] == PRECISION_SCHEMA:
+        print(
+            json.dumps(
+                validate_precision_result(
+                    spec, spec_file=dict(path=str(args.spec.resolve()), sha256=args.spec_sha256)
+                )
+            )
+        )
     elif spec["schema"] in POPULATION_SCHEMAS:
         print(
             json.dumps(
@@ -1660,6 +1710,7 @@ def load_completed_endpoint(old, endpoint, complete_binding, spec_binding, *, se
     if (top / "FAILURE.json").exists() or list(top.rglob("*.pkl")):
         raise ValueError("failed or nonzero-PKL retained output")
     complete = json.loads(checked(complete_binding, server=server).read_text())
+    precision_fields = {"precision_policy"} if old.get("schema") == PRECISION_SCHEMA else set()
     if set(complete) != {
         "status",
         "endpoint",
@@ -1672,7 +1723,7 @@ def load_completed_endpoint(old, endpoint, complete_binding, spec_binding, *, se
         "updates",
         "zero_pkl",
         "scientific_complete",
-    } or (
+    } | precision_fields or (
         complete["status"] != "completed"
         or complete["endpoint"] != endpoint["name"]
         or complete["conditions"] != 445
@@ -1683,6 +1734,8 @@ def load_completed_endpoint(old, endpoint, complete_binding, spec_binding, *, se
         or len(complete["worker_receipts_sha256"]) != 2
     ):
         raise ValueError("retained aggregate receipt differs")
+    if precision_fields:
+        validate_precision_receipt(complete.get("precision_policy"), endpoint["name"])
     expected = {
         "COMPLETE.json",
         "PRIVATE_ENDPOINT.npz",
@@ -1767,6 +1820,14 @@ def load_completed_endpoint(old, endpoint, complete_binding, spec_binding, *, se
             or receipt["resource_checks"]["calls"] != len(ordered[i::2]) + 2
         ):
             raise ValueError("retained worker source/state/CP/spec/coverage differs")
+        if precision_fields:
+            validate_precision_receipt(receipt.get("precision_policy"), endpoint["name"])
+            if not {"objective_state", "objective_buffers", "objective_scalar_clocks"}.issubset(
+                receipt.get("state_before", {})
+            ):
+                raise ValueError("precision worker lacks full objective buffer/clock protection")
+            if receipt["precision_policy"] != complete["precision_policy"]:
+                raise ValueError("precision aggregate and worker arithmetic differ")
         counter_keys = {
             "teacher_forward",
             "optimizer_step",
@@ -1810,6 +1871,8 @@ def load_completed_endpoint(old, endpoint, complete_binding, spec_binding, *, se
             receipt["resource_owner"],
             *[endpoint[k] for k in ("run_manifest", "journal", "config", "checkpoint")],
         ]
+        if precision_fields:
+            required_bindings.extend(old["precision"].values())
         if any(
             receipt["input_files_sha256"].get(str(Path(b["path"]).resolve())) != b["sha256"]
             for b in required_bindings
@@ -1828,6 +1891,8 @@ def load_completed_endpoint(old, endpoint, complete_binding, spec_binding, *, se
             raise ValueError("retained worker and aggregate native conditions differ")
     if owners[0] != owners[1]:
         raise ValueError("retained workers used different dispatcher owners")
+    if precision_fields:
+        validate_precision_metrics(native, validation)
     return arrays, native
 
 
@@ -2771,6 +2836,496 @@ def validate_r18_identity(endpoint, *, server=True):
 def validate_r18_result(spec, *, spec_file, server=True):
     require_population_schema(spec, R18_SCHEMA)
     return _validate_population_result(spec, spec_file=spec_file, server=server)
+
+
+def precision_zero_pkl(queue, *outputs):
+    """Read-only whole-family check, including unselected arms and deferred tests."""
+    roots = {Path(queue["output"]), *(Path(p) for p in outputs)}
+    roots.update(
+        Path(row["plan"][key]) for row in queue["rows"] for key in ("run_root", "test_root")
+    )
+    for root in roots:
+        if any(root.rglob("*.pkl")):
+            raise ValueError("precision whole-root zero-PKL contract failed: " + str(root))
+
+
+def validate_precision_identity(endpoint, binding, *, server=True):
+    """Verify published sole intervention and the exact original terminal fit."""
+    from generate_precision_family import CHANGES, verify_manifest
+    from generate_precision_family import SCHEMA as family_schema
+
+    from gradpert.config import load_experiment_config
+    from gradpert.execution.v2_training_stage import validate_training_stage
+
+    if set(binding) != {"family_manifest", "queue", "fit_complete", "controller_state"}:
+        raise ValueError("exact precision manifest/queue/FIT_COMPLETE/state bindings required")
+    files = {key: checked(value, server=server) for key, value in binding.items()}
+    name, source = endpoint["name"], endpoint["source"]
+    if name not in PRECISION_ARMS or source["commit"] != PRECISION_SOURCE:
+        raise ValueError("precision requires one exact candidate and original a240 training source")
+    native = Path(source["root"]).resolve()
+    matrix = verify_manifest(native, files["family_manifest"])
+    queue = json.loads(files["queue"].read_text())
+    directory = Path(queue["output"]).resolve()
+    if (
+        queue.get("schema") != "unified-ddp-queue-1"
+        or queue.get("family") != family_schema
+        or queue.get("mode") != family_schema
+        or Path(queue["source"]).resolve() != native
+        or queue.get("source_commit") != PRECISION_SOURCE
+        or queue.get("postfit_mode") != "main_owned_precision_postfit"
+        or queue.get("precision_training_budget") != PRECISION_BUDGET
+        or queue.get("preflight_only") is not True
+        or queue.get("steps") != 10
+        or queue.get("only_arms") is not None
+        or [r["name"] for r in queue["rows"]] != list(CHANGES)
+        or files["queue"] != directory / "queue.json"
+        or Path(queue["manifest"]).resolve() != files["family_manifest"]
+        or queue.get("manifest_sha256") != binding["family_manifest"]["sha256"]
+    ):
+        raise ValueError("precision queue/source/manifest/budget changed")
+    row = next(row for row in queue["rows"] if row["name"] == name)
+    plan = row["plan"]
+    leaf = next(row for row in matrix["rows"] if row["name"] == name)
+    config_path = checked(endpoint["config"], server=server)
+    config = load_experiment_config(config_path).model_dump(mode="json")
+    run = Path(endpoint["run_root"]).resolve()
+    if (
+        config_path != native / leaf["config"]
+        or endpoint["config"]["sha256"] != leaf["sha256"]
+        or plan.get("config_sha256") != leaf["sha256"]
+        or Path(plan["config"]).resolve() != config_path
+        or Path(plan["repository_root"]).resolve() != native
+        or plan.get("source_commit") != PRECISION_SOURCE
+        or Path(plan["run_root"]).resolve() != run
+        or plan.get("resolved_config") != config
+        or json.loads((run / "resolved_config.json").read_text()) != config
+        or json.loads((directory / f"{name}.launch-plan.json").read_text()) != plan
+        or files["fit_complete"] != directory / f"FIT_COMPLETE.{name}.json"
+    ):
+        raise ValueError("precision original source/config/launch/fit endpoint changed")
+    identity = json.loads(checked(endpoint["run_manifest"], server=server).read_text())
+    journal = json.loads(checked(endpoint["journal"], server=server).read_text())
+    checkpoint = checked(endpoint["checkpoint"], server=server)
+    training = validate_training_stage(plan)
+    history = json.loads((run / "fit/history.json").read_text())
+    last = training["last"]
+    if (
+        Path(endpoint["run_manifest"]["path"]).resolve() != run / "run_manifest.json"
+        or Path(endpoint["journal"]["path"]).resolve() != run / "fit/epoch_state.json"
+        or identity != training["identity"]
+        or identity["source"].get("dirty") is not False
+        or identity["source"].get("commit") != PRECISION_SOURCE
+        or identity.get("run_id") != plan["run_id"]
+        or identity.get("resolved_config_sha256") != digest(config)
+        or "response_anchor" in identity["data"]
+        or journal.get("budget") != [2, 150]
+        or [r.get("optimizer_steps") for r in history] != [150, 300]
+        or any(
+            r.get("validation") != {"validation_mode": "disabled", "performed": False}
+            for r in history
+        )
+        or training["best"] is not None
+        or training["test_roles"] != ["last"]
+        or last["epoch"] != 2
+        or checkpoint != run / "fit" / last["file"]
+        or last["sha256"] != endpoint["checkpoint"]["sha256"]
+        or any(
+            (run / n).exists()
+            for n in (
+                "COMPLETE.json",
+                "EVALUATION_FAILURE.json",
+                "fit/last-test.json",
+                "fit/best-test.json",
+            )
+        )
+    ):
+        raise ValueError("precision requires exact clean epoch2-last/300-update untuned identity")
+    fit = json.loads(files["fit_complete"].read_text())
+    expected = dict(
+        schema="precision-fit-complete-1",
+        arm=name,
+        queue_sha256=binding["queue"]["sha256"],
+        source_commit=PRECISION_SOURCE,
+        launch_plan_sha256=sha(directory / f"{name}.launch-plan.json"),
+        train_complete=dict(
+            receipt=str(run / "TRAIN_COMPLETE.json"), sha256=sha(run / "TRAIN_COMPLETE.json")
+        ),
+        last=last,
+        budget=PRECISION_BUDGET,
+        scientific_complete=False,
+        postfit_mode="main_owned_precision_postfit",
+        test_status="deferred_to_main",
+    )
+    state = json.loads(files["controller_state"].read_text())
+    gate = dict(receipt=str(files["fit_complete"]), sha256=binding["fit_complete"]["sha256"])
+    if fit != expected or (
+        state.get("status") != "fit_complete"
+        or state.get("phase") != "awaiting_main_precision_postfit"
+        or "active" not in state
+        or state.get("active") is not None
+        or state.get("scientific_complete") is not False
+        or state.get("formal_fit_authorized") is not False
+        or state.get("postfit_mode") != "main_owned_precision_postfit"
+        or state.get("test_status") != "deferred_to_main"
+        or not set(state.get("precision_fits", {})).issubset(PRECISION_ARMS)
+        or state.get("precision_fits", {}).get(name) != gate
+    ):
+        raise ValueError("precision FIT_COMPLETE or inactive controller snapshot differs")
+    if server:
+        for path in (
+            native,
+            directory,
+            run,
+            *(Path(r["plan"][k]) for r in queue["rows"] for k in ("run_root", "test_root")),
+        ):
+            server_path(path, exists=False)
+    precision_zero_pkl(queue)
+    return queue
+
+
+def precision_inputs(spec, endpoint):
+    """Bind indirect training inputs as well as the four explicit sealed files."""
+    run = Path(endpoint["run_root"])
+    queue = json.loads(checked(spec["precision"]["queue"]).read_text())
+    paths = [
+        run / n
+        for n in ("resolved_config.json", "launch.json", "fit/history.json", "TRAIN_COMPLETE.json")
+    ]
+    paths.append(Path(queue["output"]) / f"{endpoint['name']}.launch-plan.json")
+    return [*spec["precision"].values(), *(dict(path=str(p), sha256=sha(p)) for p in paths)]
+
+
+def validate_precision_payload(spec, *, server=True):
+    if (
+        spec.get("evaluation_precision") != PRECISION_POLICY
+        or len(spec["endpoints"]) != 1
+        or set(spec["retained_references"]) != {"R3-RI"}
+    ):
+        raise ValueError(
+            "precision requires val-only common policy and retained RI without baseline execution"
+        )
+    queue = validate_precision_identity(spec["endpoints"][0], spec["precision"], server=server)
+    row = next(row for row in queue["rows"] if row["name"] == spec["endpoints"][0]["name"])
+    policy = json.loads(checked(spec["shared_policy"], server=server).read_text())
+    if (
+        Path(spec["data_root"]).resolve() != Path(row["plan"]["data_root"]).resolve()
+        or policy.get("shared_gpu_policy", policy) != queue["shared_gpu_policy"]
+    ):
+        raise ValueError("precision postfit data/resource policy differs from sealed queue")
+    old, _ = retained_metadata(
+        spec["retained_references"]["R3-RI"], "R3-RI", spec["validation"], server=server
+    )
+    output, retained = Path(spec["output"]).resolve(), Path(old["output"]).resolve()
+    if output.is_relative_to(retained) or retained.is_relative_to(output):
+        raise ValueError("precision output overlaps retained RI result")
+    precision_zero_pkl(queue, output)
+
+
+def precision_context(spec, device_type):
+    if spec.get("schema") != PRECISION_SCHEMA:
+        return nullcontext()
+    from gradpert.modeling.v2.precision_evaluation import evaluation_precision_context
+
+    if spec.get("evaluation_precision") != PRECISION_POLICY:
+        raise ValueError("precision primary validation requires common_ri_native")
+    return evaluation_precision_context(PRECISION_POLICY, device_type)
+
+
+def evaluation_protected_state(spec, runtime, validation_state, fingerprint):
+    """Precision also protects every restored objective buffer and scalar clock."""
+    if spec.get("schema") in (*POPULATION_SCHEMAS, PRECISION_SCHEMA):
+        return population_protected_state(runtime, validation_state, fingerprint)
+    return validation_state(runtime)
+
+
+def verify_evaluation_state(spec, runtime, before, validation_state, fingerprint):
+    if evaluation_protected_state(spec, runtime, validation_state, fingerprint) != before:
+        raise ValueError("evaluation mutated protected state/RNG/data file")
+
+
+def evaluate_observed(spec, native, student, collector, index, data, reference, **kwargs):
+    """The observer and evaluator must share exactly the independent inference Student."""
+    with collector.observe(native, student, data), precision_context(spec, kwargs["device"].type):
+        return native.evaluate(student, index, data, reference, **kwargs)
+
+
+def evaluation_model(spec, objective, device):
+    """Called only after strict checkpoint restoration; never edit the restored owner."""
+    if spec.get("schema") != PRECISION_SCHEMA:
+        return objective.student.to(device), {}
+    import torch
+
+    from gradpert.modeling.v2.precision_evaluation import evaluation_student, precision_policy
+
+    if spec.get("evaluation_precision") != PRECISION_POLICY:
+        raise ValueError("precision primary validation requires common_ri_native")
+    student = evaluation_student(objective.student, PRECISION_POLICY).to(device)
+    student.eval()
+    receipt = dict(
+        evaluation_precision=PRECISION_POLICY,
+        training=precision_policy(objective.student),
+        evaluation=precision_policy(student),
+        autocast_enabled=False,
+        autocast_dtype=None,
+        parameter_dtype="float32",
+        backend=dict(
+            cuda_matmul_allow_tf32=torch.backends.cuda.matmul.allow_tf32,
+            float32_matmul_precision=torch.get_float32_matmul_precision(),
+            cudnn_allow_tf32=torch.backends.cudnn.allow_tf32,
+        ),
+    )
+    validate_precision_receipt(receipt, spec["endpoints"][0]["name"])
+    return student, {"precision_policy": receipt}
+
+
+def validate_precision_receipt(receipt, arm):
+    from generate_precision_family import CHANGES
+
+    fields = ("ffn_compute_precision", "ssl_head_precision", "prediction_precision")
+    native = dict.fromkeys(fields, "autocast")
+    training = dict(native, **CHANGES.get(arm, {}))
+    if (
+        not isinstance(receipt, dict)
+        or set(receipt)
+        != {
+            "evaluation_precision",
+            "training",
+            "evaluation",
+            "autocast_enabled",
+            "autocast_dtype",
+            "parameter_dtype",
+            "backend",
+        }
+        or (
+            arm not in PRECISION_ARMS
+            or receipt["evaluation_precision"] != PRECISION_POLICY
+            or receipt["training"] != training
+            or receipt["evaluation"] != native
+            or receipt["autocast_enabled"] is not False
+            or receipt["autocast_dtype"] is not None
+            or receipt["parameter_dtype"] != "float32"
+        )
+    ):
+        raise ValueError("precision evaluation arithmetic receipt differs")
+    backend = receipt["backend"]
+    if (
+        not isinstance(backend, dict)
+        or set(backend)
+        != {"cuda_matmul_allow_tf32", "float32_matmul_precision", "cudnn_allow_tf32"}
+        or (
+            type(backend["cuda_matmul_allow_tf32"]) is not bool
+            or type(backend["cudnn_allow_tf32"]) is not bool
+            or backend["float32_matmul_precision"] not in ("highest", "high", "medium")
+        )
+    ):
+        raise ValueError("precision receipt lacks actual backend settings")
+
+
+def validate_precision_metrics(native, validation):
+    """Keep all eighteen metric identities, their true finite counts and NA values."""
+    from types import SimpleNamespace
+
+    rows = native["conditions"]
+    collector = SimpleNamespace(
+        conditions=tuple(validation["conditions"]),
+        rows={
+            r["condition_id"]: dict(
+                control_sha256=r["control_row_ids_sha256"], truth_sha256=r["truth_row_ids_sha256"]
+            )
+            for r in rows
+        },
+    )
+    validate_native_result(native, collector)
+    groups = native["metric_gene_groups"]
+    if (
+        groups["seen_expression"]["gene_count"] != 4775
+        or groups["unseen_expression"]["gene_count"] != 225
+    ):
+        raise ValueError("precision validation requires actual fixed4775/225 exposure")
+    for metrics in (native["metrics"], *(g["metrics"] for g in groups.values())):
+        for metric in metrics:
+            n, total, value = (
+                metric["finite_condition_count"],
+                metric["total_condition_count"],
+                metric["macro_mean"],
+            )
+            if (
+                type(n) is not int
+                or type(total) is not int
+                or total != 445
+                or (n == 0 and value is not None)
+                or (
+                    n > 0
+                    and (
+                        isinstance(value, bool)
+                        or not isinstance(value, (int, float))
+                        or not math.isfinite(value)
+                    )
+                )
+            ):
+                raise ValueError("precision metric finite counts or NA values differ")
+
+
+def compare_precision(spec, geometry, *, spec_file):
+    if json.loads(checked(spec_file).read_text()) != spec:
+        raise ValueError("precision input SPEC binding differs")
+    validate_precision_payload(spec)
+    root = server_path(spec["output"])
+    name = spec["endpoints"][0]["name"]
+    candidate, native = merge_endpoint(spec, name)
+    reference, original = load_retained_reference(
+        spec["retained_references"]["R3-RI"], "R3-RI", spec["validation"]
+    )
+    result = dict(
+        schema="representation-precision-paired-comparison-1",
+        comparison_scope="cross_version_descriptive_retained_RI_no_baseline_retraining",
+        candidate=name,
+        evaluation_precision=PRECISION_POLICY,
+        scientific_complete=False,
+        comparisons={
+            "primary_vs_RI": paired_comparison(
+                reference, candidate, original, native, geometry, spec["bootstrap"]
+            )
+        },
+    )
+    write_new(root / "COMPARISON.json", result)
+    queue = validate_precision_identity(spec["endpoints"][0], spec["precision"])
+    precision_zero_pkl(queue, root)
+    write_new(
+        root / "COMPLETE.json",
+        dict(
+            schema="representation-precision-val-postfit-complete-1",
+            status="completed",
+            spec_sha256=digest(spec),
+            input_spec=spec_file,
+            comparison_sha256=sha(root / "COMPARISON.json"),
+            endpoint_receipts={name: sha(root / name / "COMPLETE.json")},
+            retained_references=spec["retained_references"],
+            evaluation_precision=PRECISION_POLICY,
+            outputs={
+                str(p.relative_to(root)): sha(p) for p in sorted(root.rglob("*")) if p.is_file()
+            },
+            updates=0,
+            zero_pkl=True,
+            scientific_complete=False,
+            postfit_complete=False,
+            medium_status="not_executed_by_val_worker",
+            test_status="deferred",
+        ),
+    )
+    return result
+
+
+def validate_precision_result(spec, *, spec_file, server=True):
+    """Read-only precision closure; no model forward, merge, or baseline execution."""
+    validate_spec(spec, server=server)
+    if server:
+        _source(spec["analysis_source"])
+    root = Path(spec["output"]).resolve()
+    if (
+        json.loads(checked(spec_file, server=server).read_text()) != spec
+        or json.loads((root / "SPEC.json").read_text()) != spec
+    ):
+        raise ValueError("precision terminal SPEC differs")
+    if (root / "FAILURE.json").exists() or any(root.rglob("*.pkl")):
+        raise ValueError("failed or nonzero-PKL precision output")
+    complete = json.loads((root / "COMPLETE.json").read_text())
+    name = spec["endpoints"][0]["name"]
+    expected = dict(
+        schema="representation-precision-val-postfit-complete-1",
+        status="completed",
+        spec_sha256=digest(spec),
+        input_spec=spec_file,
+        retained_references=spec["retained_references"],
+        evaluation_precision=PRECISION_POLICY,
+        updates=0,
+        zero_pkl=True,
+        scientific_complete=False,
+        postfit_complete=False,
+        medium_status="not_executed_by_val_worker",
+        test_status="deferred",
+    )
+    if (
+        set(complete) != set(expected) | {"outputs", "comparison_sha256", "endpoint_receipts"}
+        or any(complete[k] != v for k, v in expected.items())
+        or set(complete["endpoint_receipts"]) != {name}
+    ):
+        raise ValueError("precision terminal COMPLETE protocol differs")
+    endpoint = spec["endpoints"][0]
+    candidate_root = root / name
+    candidate, native = load_completed_endpoint(
+        spec,
+        endpoint,
+        dict(
+            path=str(candidate_root / "COMPLETE.json"), sha256=complete["endpoint_receipts"][name]
+        ),
+        spec_file,
+        server=server,
+    )
+    actual = {
+        str(p.relative_to(root))
+        for p in root.rglob("*")
+        if p.is_file() and p != root / "COMPLETE.json"
+    }
+    expected_files = {
+        "SPEC.json",
+        "COMPARISON.json",
+        f"{name}-worker-0.log",
+        f"{name}-worker-1.log",
+    }
+    expected_files |= {
+        name + "/" + str(p.relative_to(candidate_root))
+        for p in candidate_root.rglob("*")
+        if p.is_file()
+    }
+    if (
+        actual != expected_files
+        or set(complete["outputs"]) != actual
+        or any(p.is_symlink() for p in root.rglob("*"))
+    ):
+        raise ValueError("precision recursive closure missing or extra output")
+    for relative, value in complete["outputs"].items():
+        path = (root / relative).resolve()
+        if not path.is_relative_to(root):
+            raise ValueError("precision output escaped closure")
+        checked(dict(path=str(path), sha256=value), server=server)
+    comparison = json.loads(
+        checked(
+            dict(path=str(root / "COMPARISON.json"), sha256=complete["comparison_sha256"]),
+            server=server,
+        ).read_text()
+    )
+    if set(comparison) != {
+        "schema",
+        "comparison_scope",
+        "candidate",
+        "evaluation_precision",
+        "comparisons",
+        "scientific_complete",
+    } or (
+        comparison["schema"] != "representation-precision-paired-comparison-1"
+        or comparison["comparison_scope"]
+        != "cross_version_descriptive_retained_RI_no_baseline_retraining"
+        or comparison["candidate"] != name
+        or comparison["evaluation_precision"] != PRECISION_POLICY
+        or comparison["scientific_complete"] is not False
+        or set(comparison["comparisons"]) != {"primary_vs_RI"}
+    ):
+        raise ValueError("precision COMPARISON roles/policy differ")
+    reference, original = load_retained_reference(
+        spec["retained_references"]["R3-RI"], "R3-RI", spec["validation"], server=server
+    )
+    assert_paired_identity(reference, candidate, original, native)
+    validate_comparison_contract(comparison["comparisons"]["primary_vs_RI"], spec, original, native)
+    return dict(
+        status="validated_completed_result",
+        spec_sha256=digest(spec),
+        conditions=445,
+        updates=0,
+        zero_pkl=True,
+        scientific_complete=False,
+    )
 
 
 if __name__ == "__main__":

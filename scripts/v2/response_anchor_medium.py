@@ -36,6 +36,9 @@ R16_SCHEMA = "response-population-direct-medium-r16-spec-v1"
 R17_SCHEMA = "response-population-head-direct-medium-r17-spec-v1"
 R18_SCHEMA = "response-population-contrast-direct-medium-r18-spec-v1"
 R15_SCHEMA = "response-anchor-direct-medium-r15-spec-v1"
+PRECISION_SCHEMA = "representation-precision-direct-medium-spec-v1"
+PRECISION_STATE_PROTECTION = "full_objective_state_buffers_and_scalar_clocks"
+PRECISION_STATE_FIELDS = {"objective_state", "objective_buffers", "objective_scalar_clocks"}
 
 
 def digest(value: Any) -> str:
@@ -267,9 +270,34 @@ def diagnostic_adapter(
     parent_binding: dict | None = None,
     expected_axis: dict | None = None,
     expected_views: list[dict] | None = None,
+    protect_objective: bool = False,
 ) -> Iterator[None]:
-    """Replace endpoint binding hooks only, preserving native collectors/validators."""
+    """Bind endpoints and optional full-state proofs, preserving native numerical collectors."""
     original_args = cap.runtime_args
+    protected_runtimes: dict[int, dict] = {}
+    snapshot = None
+    protected_snapshot = None
+    if protect_objective:
+        import capacity_probe
+
+        snapshot = capacity_probe.validation_state
+        helper = precision_helper()
+
+        def protected_snapshot(runtime):
+            record = protected_runtimes.get(id(runtime))
+            if record is None or record["runtime"] is not runtime:
+                return snapshot(runtime)
+            state = helper.population_protected_state(
+                runtime, snapshot, capacity_probe.state_fingerprint
+            )
+            if record["before"] is None:
+                record["before"] = state
+            elif state != record["before"]:
+                raise ValueError(
+                    "precision medium mutated protected objective state/buffers/clocks"
+                )
+            record["calls"] += 1
+            return state
 
     def runtime_args(args):
         torch, config, identity, prepare, root = original_args(args)
@@ -308,22 +336,47 @@ def diagnostic_adapter(
                 ):
                     raise ValueError("actual allowed axis differs before any numerical read")
                 receipt = {}
-                with (
-                    helper.population_no_training_reads(config, runtime)
-                    if population
-                    else nullcontext(),
-                    allowed_train_reads(
-                        runtime, records, controls_only=controls_only, receipt=receipt
-                    ),
-                ):
-                    yield runtime
-                read_receipts.append(receipt)
+                state_record = dict(runtime=runtime, before=None, calls=0)
+                if protect_objective:
+                    protected_runtimes[id(runtime)] = state_record
+                try:
+                    with (
+                        helper.population_no_training_reads(config, runtime)
+                        if population
+                        else nullcontext(),
+                        allowed_train_reads(
+                            runtime, records, controls_only=controls_only, receipt=receipt
+                        ),
+                    ):
+                        yield runtime
+                    if protect_objective:
+                        if state_record["before"] is None or state_record["calls"] < 2:
+                            raise ValueError(
+                                "precision medium requires native before/after snapshots "
+                                "after restore"
+                            )
+                        after = protected_snapshot(runtime)
+                        receipt["state_protection"] = dict(
+                            policy=PRECISION_STATE_PROTECTION,
+                            native_snapshot_calls=state_record["calls"] - 1,
+                            state_before=state_record["before"],
+                            state_after=after,
+                            state_unchanged=True,
+                        )
+                    read_receipts.append(receipt)
+                finally:
+                    if protect_objective:
+                        protected_runtimes.pop(id(runtime), None)
 
         return torch, config, identity, guarded_prepare, root
 
     from contextlib import ExitStack
 
     with ExitStack() as stack:
+        if protect_objective:
+            stack.enter_context(
+                patch.object(capacity_probe, "validation_state", protected_snapshot)
+            )
         stack.enter_context(patch.object(cap, "runtime_args", runtime_args))
         if panel_module is not None:
             stack.enter_context(patch.object(panel_module, "runtime_args", runtime_args))
@@ -445,6 +498,10 @@ def validate_scopes(deep: list[dict], *, anchor: bool) -> None:
 
 
 def validate_spec(spec: dict, *, server: bool = True) -> dict:
+    precision = spec.get("schema") == PRECISION_SCHEMA
+    precision_fields = (
+        {"precision", "diagnostic_precision", "population_reference"} if precision else set()
+    )
     if set(spec) != {
         "schema",
         "name",
@@ -464,7 +521,14 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
         "resource_owner",
         "output",
         "gpu",
-    } or spec["schema"] not in (SCHEMA, R15_SCHEMA, R16_SCHEMA, R17_SCHEMA, R18_SCHEMA):
+    } | precision_fields or spec["schema"] not in (
+        SCHEMA,
+        R15_SCHEMA,
+        R16_SCHEMA,
+        R17_SCHEMA,
+        R18_SCHEMA,
+        PRECISION_SCHEMA,
+    ):
         raise ValueError("exact sealed medium SPEC schema required")
     for key, fields in (
         ("medium", {"parent", "performance", "population_sha256", "identity_changes"}),
@@ -477,7 +541,9 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
         if not isinstance(spec[key], dict) or set(spec[key]) != fields:
             raise ValueError("unexpected or missing sealed binding fields: " + key)
     names = (
-        ("R18-CPD",)
+        ("PREC-SSL32", "PREC-PRED32", "PREC-FFN8")
+        if precision
+        else ("R18-CPD",)
         if spec["schema"] == R18_SCHEMA
         else ("R17-GPM-HG0",)
         if spec["schema"] == R17_SCHEMA
@@ -529,6 +595,8 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
             or "response_anchor" in identity["data"]
         ):
             raise ValueError("R3-RI must be the exact original retained source/config/epoch2 CP")
+    elif precision:
+        validate_precision_medium_identity(spec, server=server)
     elif "response_anchor" not in identity["data"]:
         raise ValueError("R14-FRGA must bind its enabled training anchor descriptor")
     if spec["schema"] == R15_SCHEMA:
@@ -567,6 +635,137 @@ def validate_spec(spec: dict, *, server: bool = True) -> dict:
     if spec["allowed_axis"].get("count") != 4775:
         raise ValueError("fixed4775 allowed expression boundary required")
     return bound
+
+
+def precision_helper():
+    """Load only the separately published analysis adapter, never another native model."""
+    import importlib.util
+    import sys
+
+    path = Path(__file__).with_name("response_anchor_postfit.py")
+    module_spec = importlib.util.spec_from_file_location("_precision_medium_identity", path)
+    if module_spec is None or module_spec.loader is None:
+        raise ValueError("precision analysis identity helper missing")
+    module = importlib.util.module_from_spec(module_spec)
+    sys.modules[module_spec.name] = module
+    module_spec.loader.exec_module(module)
+    return module
+
+
+def validate_precision_protection(receipt, *, expected_reads, native=None):
+    """A legacy equality-only snapshot cannot satisfy precision phase completion."""
+    if (
+        receipt.get("state_protection") != PRECISION_STATE_PROTECTION
+        or len(receipt.get("reads", [])) != expected_reads
+    ):
+        raise ValueError("precision phase lacks complete full-objective state proof")
+    for row in receipt["reads"]:
+        proof = row.get("state_protection", {})
+        if set(proof) != {
+            "policy",
+            "native_snapshot_calls",
+            "state_before",
+            "state_after",
+            "state_unchanged",
+        } or (
+            proof["policy"] != PRECISION_STATE_PROTECTION
+            or type(proof["native_snapshot_calls"]) is not int
+            or proof["native_snapshot_calls"] < 2
+            or proof["state_unchanged"] is not True
+            or proof["state_before"] != proof["state_after"]
+        ):
+            raise ValueError("precision phase protected runtime changed or is incomplete")
+        state = proof["state_before"]
+        if (
+            not isinstance(state, dict)
+            or not PRECISION_STATE_FIELDS.issubset(state)
+            or not all(
+                isinstance(v, str) and len(v) == 64 and all(c in "0123456789abcdef" for c in v)
+                for v in state.values()
+            )
+        ):
+            raise ValueError("precision phase lacks full objective buffer/clock hashes")
+    if native is not None:
+        proof = receipt["reads"][-1]["state_protection"]
+        if (
+            native.get("state_before") != proof["state_before"]
+            or native.get("state_after") != proof["state_after"]
+        ):
+            raise ValueError("precision native completion differs from protected runtime proof")
+
+
+def precision_metadata(spec):
+    if spec.get("schema") != PRECISION_SCHEMA:
+        return {}
+    return {"diagnostic_precision": copy.deepcopy(spec["diagnostic_precision"])}
+
+
+def validate_precision_metadata(spec, receipt):
+    if (
+        spec.get("schema") == PRECISION_SCHEMA
+        and receipt.get("diagnostic_precision") != spec["diagnostic_precision"]
+    ):
+        raise ValueError("precision medium arithmetic metadata differs")
+
+
+def validate_precision_medium_identity(spec, *, server=True):
+    helper = precision_helper()
+    journal = read(checked(spec["journal"], server=server))
+    cp = (Path(spec["run_root"]) / "fit" / journal["last"]["file"]).resolve()
+    native = spec["native_source"]
+    endpoint = dict(
+        name=spec["name"],
+        source=dict(
+            root=native["root"],
+            commit=native["commit"],
+            publication=dict(path=native["publication"], sha256=native["publication_sha256"]),
+        ),
+        run_root=spec["run_root"],
+        run_manifest=spec["run_manifest"],
+        journal=spec["journal"],
+        config=spec["config"],
+        checkpoint=dict(path=str(cp), sha256=spec["checkpoint"]["sha256"]),
+    )
+    queue = helper.validate_precision_identity(endpoint, spec["precision"], server=server)
+    from generate_precision_family import CHANGES
+
+    policy = dict.fromkeys(
+        ("ffn_compute_precision", "ssl_head_precision", "prediction_precision"), "autocast"
+    )
+    policy.update(CHANGES[spec["name"]])
+    expected = dict(
+        endpoint="as_trained_medium_bf16_context",
+        outer_autocast_dtype="bfloat16",
+        student=policy,
+        teacher=policy,
+    )
+    document = read(checked(spec["resource_policy"], server=server))
+    if (
+        spec.get("diagnostic_precision") != expected
+        or spec["medium"]["identity_changes"] != []
+        or Path(spec["data_root"]).resolve()
+        != Path(
+            next(r for r in queue["rows"] if r["name"] == spec["name"])["plan"]["data_root"]
+        ).resolve()
+        or document.get("shared_gpu_policy", document) != queue["shared_gpu_policy"]
+    ):
+        raise ValueError(
+            "precision medium must keep original BF16 diagnostic policy/data/population"
+        )
+    reference = read(checked(spec["population_reference"], server=server))
+    if reference.get("schema") != SCHEMA or reference.get("name") != "R3-RI":
+        raise ValueError("precision populations require the retained original RI medium SPEC")
+    validate_spec(reference, server=server)
+    if (
+        any(
+            spec["medium"][key] != reference["medium"][key]
+            for key in ("parent", "performance", "population_sha256")
+        )
+        or spec["panel"] != reference["panel"]
+        or spec["allowed_axis"] != reference["allowed_axis"]
+    ):
+        raise ValueError("precision medium/crossed/allowed populations differ from retained RI")
+    helper.precision_zero_pkl(queue, spec["output"])
 
 
 def validate_r15_medium_identity(spec: dict, *, server: bool = True) -> None:
@@ -780,6 +979,7 @@ def execute(spec: dict, mode: str, *, spec_path: Path, spec_sha256: str) -> dict
             checkpoint=endpoint,
             updates=0,
             scientific_complete=False,
+            **precision_metadata(spec),
         )
         if (
             validate_spec(spec) != bound
@@ -791,6 +991,7 @@ def execute(spec: dict, mode: str, *, spec_path: Path, spec_sha256: str) -> dict
         atomic_json(output / "SEALED.json", result)
         return result
     sealed = read(output / "SEALED.json")
+    validate_precision_metadata(spec, sealed)
     if (
         sealed["spec_sha256"] != spec_sha256
         or read(output / "SPEC.json") != spec
@@ -806,6 +1007,14 @@ def execute(spec: dict, mode: str, *, spec_path: Path, spec_sha256: str) -> dict
         medium = read(output / "analysis/summary.json")
         panel_result = read(output / "panel/COMPLETE.json")
         phase = read(output / "MEDIUM_COMPLETE.json")
+        panel_phase = read(output / "PANEL_COMPLETE.json")
+        for receipt in (result, phase, panel_phase):
+            validate_precision_metadata(spec, receipt)
+        if spec["schema"] == PRECISION_SCHEMA:
+            if result.get("state_protection") != PRECISION_STATE_PROTECTION:
+                raise ValueError("precision terminal lacks full-objective state protection")
+            validate_precision_protection(phase, expected_reads=3, native=medium)
+            validate_precision_protection(panel_phase, expected_reads=1, native=panel_result)
         if (
             phase.get("counts") != COUNTS
             or phase.get("parity", {}).get("passed") is not True
@@ -879,6 +1088,7 @@ def execute(spec: dict, mode: str, *, spec_path: Path, spec_sha256: str) -> dict
                 controls_only=False,
                 read_receipts=receipts,
                 expected_axis=spec["allowed_axis"],
+                protect_objective=spec["schema"] == PRECISION_SCHEMA,
             ):
                 for label, backend in [
                     ("reference-probe", "reference"),
@@ -931,6 +1141,7 @@ def execute(spec: dict, mode: str, *, spec_path: Path, spec_sha256: str) -> dict
                 parent_binding=bound["training_protocol_binding"],
                 expected_axis=spec["allowed_axis"],
                 expected_views=read(spec["panel"]["matched_views"]["path"]),
+                protect_objective=spec["schema"] == PRECISION_SCHEMA,
             ):
                 result = panel_module.execute(
                     SimpleNamespace(
@@ -983,6 +1194,10 @@ def execute(spec: dict, mode: str, *, spec_path: Path, spec_sha256: str) -> dict
         )
     ):
         raise ValueError("endpoint inputs/source changed")
+    result.update(precision_metadata(spec))
+    if spec["schema"] == PRECISION_SCHEMA:
+        result["state_protection"] = PRECISION_STATE_PROTECTION
+        validate_precision_protection(result, expected_reads=3 if mode == "medium" else 1)
     atomic_json(phase_receipt, result)
     if (output / "MEDIUM_COMPLETE.json").exists() and (output / "PANEL_COMPLETE.json").exists():
         if list(output.rglob("*.pkl")):
@@ -998,6 +1213,12 @@ def execute(spec: dict, mode: str, *, spec_path: Path, spec_sha256: str) -> dict
             endpoint=endpoint,
             counts=COUNTS,
             panel_rows=128,
+            **(
+                {"state_protection": PRECISION_STATE_PROTECTION}
+                if spec["schema"] == PRECISION_SCHEMA
+                else {}
+            ),
+            **precision_metadata(spec),
             outputs={
                 str(p.relative_to(output)): dict(sha256=sha(p), bytes=p.stat().st_size)
                 for p in sorted(output.rglob("*"))
