@@ -32,7 +32,7 @@ postfit = postfit_module()
 
 
 def expected_anchor_enabled(endpoint_name):
-    if endpoint_name == "R3-RI":
+    if endpoint_name in ("R3-RI", *postfit.PRECISION_ARMS):
         return False
     if endpoint_name in (
         "FixedResponseGroupAnchor",
@@ -79,20 +79,25 @@ def protected_state(runtime, *, validation_state, fingerprint):
 
 
 @contextmanager
-def forbid_anchor_forward(runtime):
+def forbid_anchor_forward(runtime, student=None):
     """The optional Student anchor readout is outside this inference recipe."""
     counts = dict(anchor_forward=0)
-    readout = getattr(runtime.objective.student, "response_anchor_readout", None)
+    models = [runtime.objective.student]
+    if student is not None and student is not runtime.objective.student:
+        models.append(student)
+    readouts = [getattr(model, "response_anchor_readout", None) for model in models]
 
     def forbidden(*args, **kwargs):
         counts["anchor_forward"] += 1
         raise ValueError("forbidden postfit path: anchor_forward")
 
-    handle = None if readout is None else readout.register_forward_pre_hook(forbidden)
+    handles = [
+        readout.register_forward_pre_hook(forbidden) for readout in readouts if readout is not None
+    ]
     try:
         yield counts
     finally:
-        if handle is not None:
+        for handle in handles:
             handle.remove()
 
 
@@ -123,15 +128,34 @@ def capture_prediction(native, *, controls, width):
 
 
 def paired_evaluate(
-    native, runtime, data, reference, collector, kwargs, state, admit, *, population_config=None
+    native,
+    runtime,
+    data,
+    reference,
+    collector,
+    kwargs,
+    state,
+    admit,
+    *,
+    population_config=None,
+    precision_spec=None,
+    student=None,
+    precision_receipt=None,
 ):
     """Delegate both passes to native.evaluate; compare its complete result."""
+    if precision_spec is not None:
+        postfit.assert_precision_evaluation_student(
+            precision_spec, runtime.objective, student, precision_receipt
+        )
+    elif student is not None:
+        raise ValueError("independent Student requires a precision SPEC")
+    student = runtime.objective.student if student is None else student
     selected = tuple(collector.conditions)
     if len(selected) != 1 or tuple(kwargs["condition_ids"]) != selected:
         raise ValueError("pilot must evaluate exactly the first fixed condition")
     initial = state()
     original_methods = (native.predict_controls, native.predict_query_set)
-    original_hooks = dict(runtime.objective.student.response._forward_hooks)
+    original_hooks = dict(student.response._forward_hooks)
     predictions, results, counters, callback_counts = [], [], [], []
     for observed in (False, True):
         callbacks = []
@@ -148,32 +172,36 @@ def paired_evaluate(
             if population_config is not None
             else nullcontext({}) as population_counts,
             postfit.forbid_updates(runtime) as forbidden,
-            forbid_anchor_forward(runtime) as anchor_counts,
+            forbid_anchor_forward(runtime, student) as anchor_counts,
+            postfit.forbid_precision_training_student(runtime)
+            if precision_spec is not None
+            else nullcontext({}) as precision_counts,
+            postfit.precision_context(precision_spec or {}, kwargs["device"].type)
+            if precision_spec is not None
+            else nullcontext(),
             capture_prediction(native, controls=collector.controls, width=collector.width) as raw,
         ):
             arguments = dict(kwargs, on_condition_complete=condition_complete)
             if observed:
-                with collector.observe(native, runtime.objective.student, data):
-                    result = native.evaluate(
-                        runtime.objective.student, runtime.index, data, reference, **arguments
-                    )
+                with collector.observe(native, student, data):
+                    result = native.evaluate(student, runtime.index, data, reference, **arguments)
             else:
-                result = native.evaluate(
-                    runtime.objective.student, runtime.index, data, reference, **arguments
-                )
+                result = native.evaluate(student, runtime.index, data, reference, **arguments)
         if len(raw) != 1 or len(callbacks) != 1:
             raise ValueError("pilot native forward/callback coverage differs")
         if state() != initial:
             raise ValueError("pilot mutated protected state or RNG")
         if (native.predict_controls, native.predict_query_set) != original_methods or dict(
-            runtime.objective.student.response._forward_hooks
+            student.response._forward_hooks
         ) != original_hooks:
             raise ValueError("pilot failed to restore native hooks/methods")
         predictions.append(raw[0])
         results.append(result)
         counters.append(
             dict(
-                forbidden, **(population_counts if population_config is not None else anchor_counts)
+                forbidden,
+                **(population_counts if population_config is not None else anchor_counts),
+                **precision_counts,
             )
         )
         callback_counts.append(len(callbacks))
@@ -225,6 +253,17 @@ def output_path(spec, endpoint, output):
         *[e[k] for e in spec["endpoints"] for k in ("run_root",)],
         *[e["source"]["root"] for e in spec["endpoints"]],
     ]
+    if spec.get("schema") == postfit.PRECISION_SCHEMA:
+        queue = json.loads(postfit.checked(spec["precision"]["queue"]).read_text())
+        protected.extend(
+            [
+                queue["output"],
+                *[r["plan"][k] for r in queue["rows"] for k in ("run_root", "test_root")],
+            ]
+        )
+        retained = spec["retained_references"]["R3-RI"]
+        old = json.loads(postfit.checked(retained["postfit_spec"]).read_text())
+        protected.append(old["output"])
     if any(
         root.is_relative_to(Path(p).resolve()) or Path(p).resolve().is_relative_to(root)
         for p in protected
@@ -237,6 +276,11 @@ def output_path(spec, endpoint, output):
 
 def execute(spec, endpoint_name, *, spec_file, output):
     postfit.validate_spec(spec)
+    precision = spec["schema"] == postfit.PRECISION_SCHEMA
+    if precision and spec.get("observer_parity") is not None:
+        raise ValueError("precision pilot requires an unpiloted immutable SPEC")
+    if endpoint_name not in [e["name"] for e in spec["endpoints"]]:
+        raise ValueError("pilot endpoint differs from sealed SPEC")
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         raise ValueError("native CUDA allocator contract missing")
     gpu = os.environ.get("CUDA_VISIBLE_DEVICES", "")
@@ -286,6 +330,8 @@ def execute(spec, endpoint_name, *, spec_file, output):
         endpoint["source"]["publication"],
         spec["analysis_source"]["publication"],
     ]
+    if precision:
+        bindings.extend(postfit.precision_inputs(spec, endpoint))
     files = {str(postfit.checked(b)): b["sha256"] for b in bindings}
     policy_doc = json.loads(postfit.checked(spec["shared_policy"]).read_text())
     policy = policy_doc.get("shared_gpu_policy", policy_doc)
@@ -339,8 +385,10 @@ def execute(spec, endpoint_name, *, spec_file, output):
                     training_identity=identity,
                     checkpoint_sha256=endpoint["checkpoint"]["sha256"],
                 )
-                runtime.objective.student.to(device)
                 runtime.objective.eval()
+                student, precision_receipt = postfit.evaluation_model(
+                    spec, runtime.objective, device
+                )
                 if runtime.objective.pending:
                     raise ValueError("checkpoint has pending Teacher statistics")
                 reference = load_evaluation_state(
@@ -407,6 +455,15 @@ def execute(spec, endpoint_name, *, spec_file, output):
                                 validation_state=validation_state,
                                 fingerprint=state_fingerprint,
                             ),
+                            **(
+                                {
+                                    "evaluation_student": postfit.precision_student_state(
+                                        student, state_fingerprint
+                                    )
+                                }
+                                if precision
+                                else {}
+                            ),
                             cuda_rng=state_fingerprint(torch.cuda.get_rng_state_all()),
                             canonical_stat=[adata.stat().st_size, adata.stat().st_mtime_ns],
                         )
@@ -427,6 +484,9 @@ def execute(spec, endpoint_name, *, spec_file, output):
                         ),
                         state,
                         admission,
+                        precision_spec=spec if precision else None,
+                        student=student if precision else None,
+                        precision_receipt=precision_receipt.get("precision_policy"),
                         population_config=config
                         if spec["schema"] in postfit.POPULATION_SCHEMAS
                         else None,
@@ -444,10 +504,16 @@ def execute(spec, endpoint_name, *, spec_file, output):
                 postfit._source(e) for e in (endpoint["source"], spec["analysis_source"])
             ]:
                 raise ValueError("pilot immutable input/source closure failed")
+            if precision:
+                queue = postfit.validate_precision_identity(endpoint, spec["precision"])
+                postfit.precision_zero_pkl(queue, root, spec["output"])
             if list(root.rglob("*.pkl")):
                 raise ValueError("pilot requires zero PKL")
             receipt = dict(
-                schema="response-anchor-first-condition-parity-1",
+                schema=postfit.PRECISION_PARITY_SCHEMA
+                if precision
+                else "response-anchor-first-condition-parity-1",
+                **precision_receipt,
                 status="completed",
                 endpoint=endpoint_name,
                 source=sources[0],
@@ -502,6 +568,7 @@ def main():
             "R16-GPM",
             "R17-GPM-HG0",
             "R18-CPD",
+            *postfit.PRECISION_ARMS,
         ),
         required=True,
     )

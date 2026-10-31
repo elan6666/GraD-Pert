@@ -33,6 +33,7 @@ PRECISION_SCHEMA = "representation-precision-postfit-input-1"
 PRECISION_SOURCE = "a240c2688c6b078b32bf2fafbe4d68229837d381"
 PRECISION_ARMS = ("PREC-SSL32", "PREC-PRED32", "PREC-FFN8")
 PRECISION_POLICY = "common_ri_native"
+PRECISION_PARITY_SCHEMA = "representation-precision-first-condition-parity-1"
 PRECISION_BUDGET = {"epochs": 2, "updates_per_epoch": 150, "completed_updates": 300}
 POPULATION_PROFILES = {
     R18_SCHEMA: (
@@ -141,6 +142,8 @@ def validate_spec(spec: dict, *, server: bool = True) -> None:
     precision = spec.get("schema") == PRECISION_SCHEMA
     if precision:
         required |= {"precision", "evaluation_precision", "retained_references"}
+        if "observer_parity" in spec:
+            required.add("observer_parity")
     r15 = spec.get("schema") == R15_SCHEMA
     r16 = spec.get("schema") in POPULATION_SCHEMAS
     if r15 or r16:
@@ -912,7 +915,7 @@ class DispatcherAdmission:
 def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
     """Formal server-only worker. Synthetic tests never call this entry point."""
     validate_spec(spec)
-    if spec["schema"] in (R15_SCHEMA, *POPULATION_SCHEMAS):
+    if spec["schema"] in (R15_SCHEMA, *POPULATION_SCHEMAS, PRECISION_SCHEMA):
         validate_candidate_parity(spec)
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
         raise ValueError("native CUDA allocator contract missing")
@@ -989,6 +992,7 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
     ]
     if spec["schema"] == PRECISION_SCHEMA:
         file_bindings.extend(precision_inputs(spec, endpoint))
+        file_bindings.append(spec["observer_parity"])
     before_files = {str(checked(b)): b["sha256"] for b in file_bindings}
     root = server_path(Path(spec["output"]) / name / f"worker-{worker_index}", exists=False)
     if root.exists():
@@ -1037,9 +1041,10 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                 )
                 runtime.objective.eval()
                 student, precision_receipt = evaluation_model(spec, runtime.objective, device)
-                student_before = (
-                    state_fingerprint(student.state_dict()) if precision_receipt else None
-                )
+                if precision_receipt:
+                    assert_precision_evaluation_student(
+                        spec, runtime.objective, student, precision_receipt["precision_policy"]
+                    )
                 if runtime.objective.pending:
                     raise ValueError("evaluation checkpoint has pending Teacher statistics")
                 state_layout = EvaluationStateLayout(
@@ -1105,7 +1110,7 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                     )
                     collector = NativeValCollector(selected, targets, controls, allowed)
                     before = evaluation_protected_state(
-                        spec, runtime, validation_state, state_fingerprint
+                        spec, runtime, validation_state, state_fingerprint, student=student
                     )
                     cuda_before = state_fingerprint(torch.cuda.get_rng_state_all())
                     adata_path = data.layout.canonical_adata
@@ -1117,6 +1122,9 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                         forbid_updates(
                             runtime, forbid_anchor=spec["schema"] == R15_SCHEMA
                         ) as forbidden_counts,
+                        forbid_precision_training_student(runtime, student=student)
+                        if precision_receipt
+                        else nullcontext({}) as precision_counts,
                     ):
                         result = evaluate_observed(
                             spec,
@@ -1135,21 +1143,20 @@ def run_endpoint(spec, name, worker_index, *, spec_file, resource_owner):
                             on_condition_complete=admission_guard.on_condition_complete,
                         )
                     verify_evaluation_state(
-                        spec, runtime, before, validation_state, state_fingerprint
+                        spec, runtime, before, validation_state, state_fingerprint, student=student
                     )
-                    if (
-                        (
-                            precision_receipt
-                            and state_fingerprint(student.state_dict()) != student_before
-                        )
-                        or state_fingerprint(torch.cuda.get_rng_state_all()) != cuda_before
-                        or data_stat != (adata_path.stat().st_size, adata_path.stat().st_mtime_ns)
+                    if state_fingerprint(
+                        torch.cuda.get_rng_state_all()
+                    ) != cuda_before or data_stat != (
+                        adata_path.stat().st_size,
+                        adata_path.stat().st_mtime_ns,
                     ):
                         raise ValueError("evaluation mutated protected state/RNG/data file")
                     if admission_guard.conditions_checked != len(selected):
                         raise ValueError("native admission callbacks did not cover all conditions")
                     if spec["schema"] in POPULATION_SCHEMAS:
                         forbidden_counts.update(population_counts)
+                    forbidden_counts.update(precision_counts)
                     arrays = collector.arrays()
                     if arrays["cls_means"].shape != (len(selected), 256):
                         raise ValueError("formal ResponseCLS must have frozen width256")
@@ -1261,6 +1268,9 @@ def merge_endpoint(spec, name):
             validate_precision_receipt(
                 receipt.get("precision_policy"), spec["endpoints"][0]["name"]
             )
+        if spec.get("observer_parity") is not None:
+            for receipt in receipts:
+                validate_precision_worker_protection(receipt)
         if receipts[0]["precision_policy"] != receipts[1]["precision_policy"]:
             raise ValueError("precision workers disagree on evaluation arithmetic")
         precision_receipt = {"precision_policy": receipts[0]["precision_policy"]}
@@ -1424,7 +1434,7 @@ def dispatch(spec_path: Path, expected_sha: str):
     spec_path = checked(dict(path=str(spec_path), sha256=expected_sha))
     spec = json.loads(spec_path.read_text())
     validate_spec(spec)
-    if spec["schema"] in (R15_SCHEMA, *POPULATION_SCHEMAS):
+    if spec["schema"] in (R15_SCHEMA, *POPULATION_SCHEMAS, PRECISION_SCHEMA):
         validate_candidate_parity(spec)
     root = server_path(spec["output"], exists=False)
     analysis = Path(spec["analysis_source"]["root"])
@@ -1839,6 +1849,9 @@ def load_completed_endpoint(old, endpoint, complete_binding, spec_binding, *, se
             counter_keys.add("anchor_forward")
         elif old["schema"] in POPULATION_SCHEMAS:
             counter_keys.update(POPULATION_COUNTERS)
+        elif precision_fields and old.get("observer_parity") is not None:
+            counter_keys.update({"anchor_forward", "training_student_forward"})
+            validate_precision_worker_protection(receipt)
         if (
             set(receipt["forbidden_calls"]) != counter_keys
             or any(type(v) is not int or v != 0 for v in receipt["forbidden_calls"].values())
@@ -2314,6 +2327,8 @@ POPULATION_COUNTERS = {
 
 
 def validate_candidate_parity(spec, *, server=True):
+    if spec["schema"] == PRECISION_SCHEMA:
+        return validate_precision_parity(spec, server=server)
     if spec["schema"] in POPULATION_SCHEMAS:
         return _validate_population_observer_parity(spec, server=server)
     return validate_observer_parity(spec, server=server)
@@ -2984,10 +2999,10 @@ def validate_precision_identity(endpoint, binding, *, server=True):
     return queue
 
 
-def precision_inputs(spec, endpoint):
+def precision_inputs(spec, endpoint, *, server=True):
     """Bind indirect training inputs as well as the four explicit sealed files."""
     run = Path(endpoint["run_root"])
-    queue = json.loads(checked(spec["precision"]["queue"]).read_text())
+    queue = json.loads(checked(spec["precision"]["queue"], server=server).read_text())
     paths = [
         run / n
         for n in ("resolved_config.json", "launch.json", "fit/history.json", "TRAIN_COMPLETE.json")
@@ -3020,6 +3035,8 @@ def validate_precision_payload(spec, *, server=True):
     if output.is_relative_to(retained) or retained.is_relative_to(output):
         raise ValueError("precision output overlaps retained RI result")
     precision_zero_pkl(queue, output)
+    if spec.get("observer_parity") is not None:
+        checked(spec["observer_parity"], server=server)
 
 
 def precision_context(spec, device_type):
@@ -3032,15 +3049,26 @@ def precision_context(spec, device_type):
     return evaluation_precision_context(PRECISION_POLICY, device_type)
 
 
-def evaluation_protected_state(spec, runtime, validation_state, fingerprint):
+def evaluation_protected_state(spec, runtime, validation_state, fingerprint, *, student=None):
     """Precision also protects every restored objective buffer and scalar clock."""
     if spec.get("schema") in (*POPULATION_SCHEMAS, PRECISION_SCHEMA):
-        return population_protected_state(runtime, validation_state, fingerprint)
+        result = population_protected_state(runtime, validation_state, fingerprint)
+        if spec.get("schema") == PRECISION_SCHEMA and student is not None:
+            result.update(
+                {
+                    "evaluation_student_" + k: v
+                    for k, v in precision_student_state(student, fingerprint).items()
+                }
+            )
+        return result
     return validation_state(runtime)
 
 
-def verify_evaluation_state(spec, runtime, before, validation_state, fingerprint):
-    if evaluation_protected_state(spec, runtime, validation_state, fingerprint) != before:
+def verify_evaluation_state(spec, runtime, before, validation_state, fingerprint, *, student=None):
+    if (
+        evaluation_protected_state(spec, runtime, validation_state, fingerprint, student=student)
+        != before
+    ):
         raise ValueError("evaluation mutated protected state/RNG/data file")
 
 
@@ -3171,6 +3199,8 @@ def compare_precision(spec, geometry, *, spec_file):
     if json.loads(checked(spec_file).read_text()) != spec:
         raise ValueError("precision input SPEC binding differs")
     validate_precision_payload(spec)
+    if spec.get("observer_parity") is not None:
+        validate_precision_parity(spec)
     root = server_path(spec["output"])
     name = spec["endpoints"][0]["name"]
     candidate, native = merge_endpoint(spec, name)
@@ -3220,6 +3250,8 @@ def compare_precision(spec, geometry, *, spec_file):
 def validate_precision_result(spec, *, spec_file, server=True):
     """Read-only precision closure; no model forward, merge, or baseline execution."""
     validate_spec(spec, server=server)
+    if spec.get("observer_parity") is not None:
+        validate_precision_parity(spec, server=server)
     if server:
         _source(spec["analysis_source"])
     root = Path(spec["output"]).resolve()
@@ -3326,6 +3358,328 @@ def validate_precision_result(spec, *, spec_file, server=True):
         zero_pkl=True,
         scientific_complete=False,
     )
+
+
+def precision_student_state(student, fingerprint):
+    """Include nonpersistent buffers and module modes/clocks of the inference copy."""
+    from gradpert.modeling.v2.precision_evaluation import precision_policy
+
+    return {
+        "state": fingerprint(student.state_dict()),
+        "buffers": fingerprint(dict(student.named_buffers())),
+        "modes": fingerprint({n: m.training for n, m in student.named_modules()}),
+        "scalar_clocks": fingerprint(
+            {
+                n: {
+                    k: v
+                    for k, v in vars(m).items()
+                    if v is None or isinstance(v, (bool, int, float, str))
+                }
+                for n, m in student.named_modules()
+            }
+            | {"precision_policy": precision_policy(student)}
+        ),
+    }
+
+
+def assert_precision_evaluation_student(spec, objective, student, receipt):
+    from gradpert.modeling.v2.precision_evaluation import precision_policy
+    from scripts.v2.capacity_probe import state_fingerprint
+
+    if (
+        spec.get("schema") != PRECISION_SCHEMA
+        or spec.get("evaluation_precision") != PRECISION_POLICY
+    ):
+        raise ValueError("precision pilot requires common_ri_native")
+    validate_precision_receipt(receipt, spec["endpoints"][0]["name"])
+    original = objective.student
+    if (
+        student is original
+        or type(student) is not type(original)
+        or precision_policy(student) != receipt["evaluation"]
+        or precision_policy(original) != receipt["training"]
+        or state_fingerprint(student.state_dict()) != state_fingerprint(original.state_dict())
+        or any(p.dtype.__str__() != "torch.float32" for p in student.parameters())
+        or any(m.training for m in student.modules())
+    ):
+        raise ValueError("precision pilot requires the separate strict-loaded common Student")
+    owner_storage = {
+        t.untyped_storage().data_ptr()
+        for t in (*original.parameters(), *original.buffers())
+        if t.numel()
+    }
+    if any(
+        t.untyped_storage().data_ptr() in owner_storage
+        for t in (*student.parameters(), *student.buffers())
+        if t.numel()
+    ):
+        raise ValueError("precision inference Student aliases restored training storage")
+
+
+@contextmanager
+def forbid_precision_training_student(runtime, *, student=None):
+    counts = {"training_student_forward": 0}
+
+    def reject(*args, **kwargs):
+        counts["training_student_forward"] += 1
+        raise ValueError("forbidden postfit path: training_student_forward")
+
+    handles = [m.register_forward_pre_hook(reject) for m in runtime.objective.student.modules()]
+    if student is not None:
+        counts["anchor_forward"] = 0
+        readout = getattr(student, "response_anchor_readout", None)
+
+        def reject_anchor(*args, **kwargs):
+            counts["anchor_forward"] += 1
+            raise ValueError("forbidden postfit path: anchor_forward")
+
+        if readout is not None:
+            handles.append(readout.register_forward_pre_hook(reject_anchor))
+    try:
+        yield counts
+    finally:
+        for handle in handles:
+            handle.remove()
+
+
+def validate_precision_parity(spec, *, server=True):
+    """Require native first-condition proof before any full precision execution.
+
+    Preparation may omit observer_parity or set it to None. The pilot seals that
+    unmodified full445 document; appending only its proof binding cannot create a
+    circular hash dependency.
+    """
+    from gradpert.config import load_experiment_config
+
+    if spec.get("observer_parity") is None:
+        raise ValueError("precision execution requires native first-condition off/on parity")
+    binding = spec["observer_parity"]
+    root = checked(binding, server=server).parent
+    receipt = json.loads((root / "COMPLETE.json").read_text())
+    if Path(binding["path"]).resolve() != root / "COMPLETE.json":
+        raise ValueError("precision parity requires its sealed COMPLETE")
+    pilot = json.loads(checked(receipt["spec"], server=server).read_text())
+    endpoint = spec["endpoints"][0]
+    parity = receipt.get("parity", {})
+
+    def without_proof(value):
+        return {k: v for k, v in value.items() if k != "observer_parity"}
+
+    if (
+        len(spec["endpoints"]) != 1
+        or endpoint["name"] not in PRECISION_ARMS
+        or pilot.get("observer_parity") is not None
+        or without_proof(pilot) != without_proof(spec)
+        or receipt.get("schema") != PRECISION_PARITY_SCHEMA
+        or receipt.get("status") != "completed"
+        or receipt.get("spec_digest") != digest(pilot)
+        or receipt.get("endpoint_digest") != digest(endpoint)
+        or receipt.get("endpoint") != endpoint["name"]
+        or receipt.get("checkpoint") != endpoint["checkpoint"]
+        or receipt.get("condition") != spec["validation"]["conditions"][0]
+        or tuple(
+            receipt.get(k)
+            for k in (
+                "full_validation_conditions",
+                "executed_conditions",
+                "controls",
+                "expression_genes",
+                "query_count",
+            )
+        )
+        != (445, 1, 300, 5000, 1000)
+        or tuple(receipt.get(k) for k in ("epoch", "role", "split")) != (2, "last", "val")
+        or any(
+            type(receipt.get(k)) is not int or receipt[k] != 0
+            for k in ("updates", "teacher_updates", "center_updates")
+        )
+        or receipt.get("zero_pkl") is not True
+        or receipt.get("postfit_complete") is not False
+        or receipt.get("scientific_complete") is not False
+    ):
+        raise ValueError("precision parity source/SPEC/endpoint/coverage differs")
+    for key, source in (
+        ("source", endpoint["source"]),
+        ("analysis_source", spec["analysis_source"]),
+    ):
+        observed = receipt.get(key, {})
+        if (
+            observed.get("commit") != source["commit"]
+            or observed.get("dirty") is not False
+            or observed.get("repository_root") != str(Path(source["root"]).resolve())
+            or observed.get("publication_receipt_sha256") != source["publication"]["sha256"]
+        ):
+            raise ValueError("precision parity immutable source differs")
+        if server and observed != _source(source):
+            raise ValueError("precision parity source publication differs")
+    validate_precision_receipt(receipt.get("precision_policy"), endpoint["name"])
+    expected_fields = {
+        "passed",
+        "comparison",
+        "atol",
+        "rtol",
+        "max_abs",
+        "prediction_shape",
+        "prediction_sha256",
+        "native_result_sha256",
+        "observer_calls",
+        "forbidden_calls",
+        "callback_counts",
+        "state_before",
+        "state_after",
+        "state_unchanged",
+    }
+    if (
+        set(parity) != expected_fields
+        or parity.get("passed") is not True
+        or parity.get("comparison") != "exact_array_and_native_result_identity"
+        or any(parity.get(k) != 0 for k in ("atol", "rtol", "max_abs"))
+        or parity.get("prediction_shape") != [300, 5000]
+        or parity.get("callback_counts") != [1, 1]
+        or parity.get("state_unchanged") is not True
+        or parity.get("state_before") != parity.get("state_after")
+    ):
+        raise ValueError("precision parity exact prediction/state proof differs")
+    for key in ("prediction_sha256", "native_result_sha256"):
+        values = parity[key]
+        if (
+            not isinstance(values, list)
+            or len(values) != 2
+            or values[0] != values[1]
+            or not all(valid_sha256(v) for v in values)
+        ):
+            raise ValueError("precision parity fingerprints differ")
+    for key in ("state_before", "state_after"):
+        state = parity[key]
+        if not isinstance(state, dict) or "evaluation_student" not in state:
+            raise ValueError("precision parity inference Student state missing")
+        original = {k: v for k, v in state.items() if k != "evaluation_student"}
+        evaluation = state["evaluation_student"]
+        if (
+            not valid_parity_state(original)
+            or not isinstance(evaluation, dict)
+            or set(evaluation) != {"state", "buffers", "modes", "scalar_clocks"}
+            or not all(valid_sha256(v) for v in evaluation.values())
+        ):
+            raise ValueError("precision parity full protected state differs")
+    counters = {
+        "teacher_forward",
+        "optimizer_step",
+        "statistics_commit",
+        "backward",
+        "autograd_grad",
+        "anchor_forward",
+        "training_student_forward",
+    }
+    rows = parity["forbidden_calls"]
+    if (
+        not isinstance(rows, list)
+        or len(rows) != 2
+        or any(
+            set(row) != counters or any(type(v) is not int or v != 0 for v in row.values())
+            for row in rows
+        )
+    ):
+        raise ValueError("precision parity forbidden-path counters differ")
+    batch = int(
+        load_experiment_config(
+            checked(endpoint["config"], server=server)
+        ).training.eval_batch_size.value
+    )
+    if parity["observer_calls"] != dict(
+        predict_controls=1,
+        query_blocks=5,
+        response_forward=5 * math.ceil(300 / batch),
+        truth_reads=1,
+        control_reads=1,
+    ):
+        raise ValueError("precision parity incomplete forward/read coverage")
+    required = [
+        receipt["spec"],
+        spec["shared_policy"],
+        spec["analysis_source"]["publication"],
+        endpoint["source"]["publication"],
+        *[endpoint[k] for k in ("run_manifest", "journal", "config", "checkpoint")],
+        *precision_inputs(spec, endpoint, server=server),
+    ]
+    from gradpert.data import DatasetLayout
+    from gradpert.evaluation.state import EvaluationStateLayout
+
+    config = load_experiment_config(checked(endpoint["config"], server=server))
+    layout = DatasetLayout(Path(spec["data_root"]), config.dataset_id, config.data.protocol_id)
+    reference = EvaluationStateLayout(
+        Path(spec["data_root"]), config.dataset_id, config.data.protocol_id, True, "v2"
+    )
+    metadata = [
+        layout.manifests / n
+        for n in ("canonical.json", "split.json", "evaluation_controls.val.json")
+    ]
+    metadata.extend([reference.manifest, reference.arrays])
+    required.extend(dict(path=str(p), sha256=sha(p)) for p in metadata)
+    inputs = receipt.get("input_files_sha256")
+    if (
+        not isinstance(inputs, dict)
+        or set(inputs) != {str(checked(b, server=server)) for b in required}
+        or any(inputs.get(str(checked(b, server=server))) != b["sha256"] for b in required)
+    ):
+        raise ValueError("precision parity omitted immutable input closure")
+    for path, value in inputs.items():
+        checked(dict(path=path, sha256=value), server=server)
+    if Path(receipt["arrays"]["path"]).resolve() != root / "PRIVATE_ENDPOINT.npz":
+        raise ValueError("precision parity arrays escaped independent root")
+    checked(receipt["arrays"], server=server)
+    checked(
+        dict(path=str(root / "PRIVATE_NATIVE_RESULT.json"), sha256=receipt["native_result_sha256"]),
+        server=server,
+    )
+    if (root / "FAILURE.json").exists():
+        raise ValueError("failed precision parity output")
+    queue = validate_precision_identity(endpoint, spec["precision"], server=server)
+    retained = json.loads(
+        checked(spec["retained_references"]["R3-RI"]["postfit_spec"], server=server).read_text()
+    )
+    protected = [
+        spec["data_root"],
+        spec["output"],
+        spec["analysis_source"]["root"],
+        endpoint["source"]["root"],
+        endpoint["run_root"],
+        queue["output"],
+        retained["output"],
+        *[row["plan"][k] for row in queue["rows"] for k in ("run_root", "test_root")],
+    ]
+    if any(
+        root.is_relative_to(Path(p).resolve()) or Path(p).resolve().is_relative_to(root)
+        for p in protected
+    ):
+        raise ValueError("precision parity output overlaps protected root")
+    if {str(p.relative_to(root)) for p in root.rglob("*") if p.is_file()} != {
+        "COMPLETE.json",
+        "PRIVATE_ENDPOINT.npz",
+        "PRIVATE_NATIVE_RESULT.json",
+    }:
+        raise ValueError("precision parity output closure differs")
+    precision_zero_pkl(queue, root, spec["output"])
+    return receipt
+
+
+def validate_precision_worker_protection(receipt):
+    state = receipt.get("state_before", {})
+    fields = {"evaluation_student_" + k for k in ("state", "buffers", "modes", "scalar_clocks")}
+    if not fields.issubset(state) or not all(valid_sha256(state[k]) for k in fields):
+        raise ValueError("precision worker lacks inference Student buffer/mode/clock proof")
+    counters = {
+        "teacher_forward",
+        "optimizer_step",
+        "statistics_commit",
+        "backward",
+        "autograd_grad",
+        "anchor_forward",
+        "training_student_forward",
+    }
+    observed = receipt.get("forbidden_calls", {})
+    if set(observed) != counters or any(type(v) is not int or v != 0 for v in observed.values()):
+        raise ValueError("precision worker lacks zero forbidden-forward/update proof")
 
 
 if __name__ == "__main__":
