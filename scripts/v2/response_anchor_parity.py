@@ -189,8 +189,12 @@ def paired_evaluate(
                 result = native.evaluate(student, runtime.index, data, reference, **arguments)
         if len(raw) != 1 or len(callbacks) != 1:
             raise ValueError("pilot native forward/callback coverage differs")
-        if state() != initial:
-            raise ValueError("pilot mutated protected state or RNG")
+        after = state()
+        if after != initial:
+            raise ValueError(
+                "pilot mutated protected state or RNG: "
+                + ", ".join(postfit.changed_state_paths(initial, after))
+            )
         if (native.predict_controls, native.predict_query_set) != original_methods or dict(
             student.response._forward_hooks
         ) != original_hooks:

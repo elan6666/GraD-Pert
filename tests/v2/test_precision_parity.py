@@ -359,3 +359,115 @@ def test_full_worker_readback_rejects_missing_or_nonzero_protection(case):
         receipt["forbidden_calls"]["anchor_forward"] = 1
     with pytest.raises(ValueError):
         m.validate_precision_worker_protection(receipt)
+
+
+def native_precision_models():
+    from dataclasses import replace
+
+    from test_components import fixture as native_fixture
+
+    from gradpert.modeling.v2 import GraDPertV2
+    from gradpert.training.v2.objective import JointObjective
+
+    original, _ = native_fixture()
+    model = GraDPertV2(
+        original.graph.embedding.weight.detach(),
+        replace(original.options, ssl_head_precision="float32"),
+    )
+    objective = JointObjective(model).eval()
+    spec = dict(
+        schema=m.PRECISION_SCHEMA,
+        evaluation_precision=m.PRECISION_POLICY,
+        endpoints=[dict(name="PREC-SSL32")],
+    )
+    return objective, spec
+
+
+def test_native_cpu_lazy_sinkhorn_reproduced_then_primed_without_forward_tensor_or_rng_change():
+    from gradpert.modeling.v2.operators import ManifoldResidual
+    from gradpert.modeling.v2.precision_evaluation import evaluation_student
+
+    objective, spec = native_precision_models()
+    unprimed = evaluation_student(objective.student, m.PRECISION_POLICY).eval()
+    layer = next(
+        layer
+        for layer in unprimed.modules()
+        if type(layer) is ManifoldResidual and layer.streams > 1
+    )
+    x = torch.zeros(2, layer.streams, layer.norm.normalized_shape[0])
+    before = m.precision_student_state(unprimed, state_fingerprint)
+    with torch.inference_mode():
+        layer.maps(x)
+    after = m.precision_student_state(unprimed, state_fingerprint)
+    assert m.changed_state_paths(before, after) == ["scalar_clocks"]
+    assert layer.resolved_sinkhorn_backend == "native"
+
+    objective_before = state_fingerprint(objective.state_dict())
+    rng = torch.get_rng_state().clone()
+    student, _ = m.evaluation_model(spec, objective, torch.device("cpu"))
+    assert state_fingerprint(objective.state_dict()) == objective_before
+    assert torch.equal(rng, torch.get_rng_state())
+    before = m.precision_student_state(student, state_fingerprint)
+    forward_hooks = [
+        module.register_forward_pre_hook(
+            lambda *args: pytest.fail("priming must not forward any module")
+        )
+        for module in student.modules()
+    ]
+    try:
+        m.prime_precision_sinkhorn_diagnostics(student, torch.device("cpu"))
+    finally:
+        for hook in forward_hooks:
+            hook.remove()
+    assert before == m.precision_student_state(student, state_fingerprint)
+    assert torch.equal(rng, torch.get_rng_state())
+    with torch.inference_mode():
+        for layer in student.modules():
+            if type(layer) is ManifoldResidual and layer.streams > 1:
+                assert layer.resolved_sinkhorn_backend == "native"
+                layer.maps(torch.zeros(2, layer.streams, layer.norm.normalized_shape[0]))
+    assert before == m.precision_student_state(student, state_fingerprint)
+    assert torch.equal(rng, torch.get_rng_state())
+    assert state_fingerprint(objective.state_dict()) == objective_before
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("sinkhorn_backend", "auto"),
+        ("resolved_sinkhorn_backend", "unused"),
+        ("fused_sinkhorn_diagnostic", True),
+        ("sinkhorn_save_no_grad_diagnostic", True),
+    ],
+)
+def test_primed_native_sinkhorn_requested_and_resolved_diagnostics_remain_guarded(field, value):
+    from gradpert.modeling.v2.operators import ManifoldResidual
+
+    objective, spec = native_precision_models()
+    student, _ = m.evaluation_model(spec, objective, torch.device("cpu"))
+    runtime = SimpleNamespace(objective=objective)
+
+    def native_state(runtime):
+        return {"original": state_fingerprint(runtime.objective.state_dict())}
+
+    before = m.evaluation_protected_state(
+        spec, runtime, native_state, state_fingerprint, student=student
+    )
+    layer = next(
+        layer
+        for layer in student.modules()
+        if type(layer) is ManifoldResidual and layer.streams > 1
+    )
+    setattr(layer, field, value)
+    with pytest.raises(ValueError, match="evaluation_student_scalar_clocks"):
+        m.verify_evaluation_state(
+            spec, runtime, before, native_state, state_fingerprint, student=student
+        )
+
+
+def test_state_mutation_error_names_only_changed_fingerprint_paths():
+    args, kwargs, _ = paired_fixture(failure="buffer")
+    with pytest.raises(ValueError, match=r"evaluation_student\.buffers") as error:
+        pilot.paired_evaluate(*args, **kwargs)
+    assert "tensor(" not in str(error.value)
+    assert "tensor:" not in str(error.value)

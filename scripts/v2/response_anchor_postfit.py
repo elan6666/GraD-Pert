@@ -3064,12 +3064,29 @@ def evaluation_protected_state(spec, runtime, validation_state, fingerprint, *, 
     return validation_state(runtime)
 
 
+def changed_state_paths(before, after, prefix=""):
+    """Report changed fingerprint keys, never state values or scientific arrays."""
+    if isinstance(before, dict) and isinstance(after, dict):
+        paths = []
+        for key in sorted(set(before) | set(after)):
+            path = f"{prefix}.{key}" if prefix else str(key)
+            if key not in before or key not in after:
+                paths.append(path)
+            else:
+                paths.extend(changed_state_paths(before[key], after[key], path))
+        return paths
+    return [] if before == after else [prefix]
+
+
 def verify_evaluation_state(spec, runtime, before, validation_state, fingerprint, *, student=None):
-    if (
-        evaluation_protected_state(spec, runtime, validation_state, fingerprint, student=student)
-        != before
-    ):
-        raise ValueError("evaluation mutated protected state/RNG/data file")
+    after = evaluation_protected_state(
+        spec, runtime, validation_state, fingerprint, student=student
+    )
+    if after != before:
+        raise ValueError(
+            "evaluation mutated protected state/RNG/data file: "
+            + ", ".join(changed_state_paths(before, after))
+        )
 
 
 def evaluate_observed(spec, native, student, collector, index, data, reference, **kwargs):
@@ -3090,6 +3107,7 @@ def evaluation_model(spec, objective, device):
         raise ValueError("precision primary validation requires common_ri_native")
     student = evaluation_student(objective.student, PRECISION_POLICY).to(device)
     student.eval()
+    prime_precision_sinkhorn_diagnostics(student, device)
     receipt = dict(
         evaluation_precision=PRECISION_POLICY,
         training=precision_policy(objective.student),
@@ -3358,6 +3376,27 @@ def validate_precision_result(spec, *, spec_file, server=True):
         zero_pkl=True,
         scientific_complete=False,
     )
+
+
+def prime_precision_sinkhorn_diagnostics(student, device):
+    """Resolve only native lazy telemetry before the precision protected snapshot.
+
+    ManifoldResidual.maps records this derived backend on first use. Calling the
+    same resolver here performs no forward, tensor/state_dict operation or RNG
+    draw. The requested backend, diagnostic flags and resolved result all remain
+    protected by the subsequent scalar-clock fingerprint.
+    """
+    from gradpert.modeling.v2.operators import ManifoldResidual
+    from gradpert.modeling.v2.sinkhorn_fused import resolve_sinkhorn_backend
+
+    for module in student.modules():
+        if type(module) is not ManifoldResidual or module.streams == 1:
+            continue
+        requested = "triton" if module.fused_sinkhorn_diagnostic else module.sinkhorn_backend
+        resolved = resolve_sinkhorn_backend(requested, device.type, module.streams)
+        if module.resolved_sinkhorn_backend not in ("unused", resolved):
+            raise ValueError("precision native Sinkhorn diagnostic disagrees with backend")
+        module.resolved_sinkhorn_backend = resolved
 
 
 def precision_student_state(student, fingerprint):
