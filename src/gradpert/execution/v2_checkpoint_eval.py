@@ -143,6 +143,11 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
     from gradpert.training.v2.exposure import checkpoint_expression_groups
     from gradpert.training.v2.runtime import prepare_runtime
 
+    transfer = "dataset_transfer_validation" in plan
+    if transfer:
+        from gradpert.execution import dataset_transfer_validation as transfer_validation
+
+        transfer_validation.validate_hook(plan)
     policy = evaluation_precision(plan.get("evaluation_precision", "native"))
     if policy != "native" and plan["split"] != "val":
         raise ValueError("common_ri_native is restricted to validation research")
@@ -182,7 +187,7 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
                 "precision_policy": {
                     "training": precision_policy(runtime.objective.student),
                     "evaluation": precision_policy(student),
-                    "evaluation_precision": policy,
+                    "evaluation_precision": "native_unautocast" if transfer else policy,
                     "autocast_enabled": False,
                     "autocast_dtype": None,
                     "parameter_dtype": "float32",
@@ -193,7 +198,7 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
                     },
                 }
             }
-            if policy != "native"
+            if policy != "native" or transfer
             else {}
         )
         torch.cuda.reset_peak_memory_stats(device)
@@ -211,17 +216,37 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
             selected = diagnostic_conditions(plan, frozen_order[index :: len(plan["gpu"])])
             if not selected:
                 raise ValueError("more evaluation workers than frozen conditions")
-            groups, exposure = checkpoint_expression_groups(
-                progress["history"],
-                checkpoint_epoch=int(plan["checkpoint_epoch"]),
-                expression_gene_ids=data.expression_gene_ids,
-                allowed_gene_indices=(
-                    tuple(int(i) for i in runtime.allowed_expression_ids)
-                    if runtime.allowed_expression_ids is not None
-                    else None
-                ),
+            if transfer:
+                groups, exposure = transfer_validation.validation_groups(
+                    plan,
+                    history=progress["history"],
+                    genes=tuple(data.expression_gene_ids),
+                    allowed=tuple(int(i) for i in runtime.allowed_expression_ids),
+                    test_conditions=tuple(data.split.test_conditions),
+                    control_condition=data.split.control_condition_id,
+                    condition_order=frozen_order,
+                    reference_hash=reference.manifest_file_sha256,
+                    controls_hash=data.control_manifest_file_sha256,
+                )
+            else:
+                groups, exposure = checkpoint_expression_groups(
+                    progress["history"],
+                    checkpoint_epoch=int(plan["checkpoint_epoch"]),
+                    expression_gene_ids=data.expression_gene_ids,
+                    allowed_gene_indices=(
+                        tuple(int(i) for i in runtime.allowed_expression_ids)
+                        if runtime.allowed_expression_ids is not None
+                        else None
+                    ),
+                )
+            from contextlib import nullcontext
+
+            transfer_context = (
+                transfer_validation.validation_context(plan, device.type)
+                if transfer
+                else nullcontext()
             )
-            with evaluation_precision_context(policy, device.type):
+            with transfer_context, evaluation_precision_context(policy, device.type):
                 result = evaluate(
                     student,
                     runtime.index,
@@ -263,6 +288,11 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
 
 
 def execute_evaluation_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    transfer = "dataset_transfer_validation" in plan
+    if transfer:
+        from gradpert.execution import dataset_transfer_validation as transfer_validation
+
+        transfer_validation.validate_hook(plan)
     if plan.get("diagnostic_only") or "diagnostic_condition_count" in plan:
         raise ValueError("diagnostic probes cannot produce scientific COMPLETE receipts")
     from gradpert.modeling.v2.precision_evaluation import evaluation_precision
@@ -330,6 +360,13 @@ def execute_evaluation_plan(plan: dict[str, Any]) -> dict[str, Any]:
         result = merge_evaluation_shards(
             [shard["result"] for shard in shards], ordered_conditions=orders[0]
         )
+        if transfer:
+            transfer_validation.validate_merged(plan, result, orders[0])
+            if any(
+                shard["result"]["expression_exposure"] != shards[0]["result"]["expression_exposure"]
+                for shard in shards[1:]
+            ):
+                raise ValueError("validation workers disagree on actual/frozen expression exposure")
         result["expression_exposure"] = shards[0]["result"]["expression_exposure"]
         receipt = {
             **({"precision_policy": policies[0]} if policies[0] is not None else {}),
