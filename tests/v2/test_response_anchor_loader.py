@@ -13,6 +13,20 @@ class FakeH5ad:
     def __init__(self, values):
         self.values = values
         self.reads = []
+        parent = self
+
+        class Backing:
+            shape = values.shape
+            dtype = values.dtype
+
+            def __init__(self):
+                self.attrs = {}
+
+            def __getitem__(self, key):
+                parent.reads.append(key)
+                return values[key]
+
+        self.file = {"X": Backing()}
 
     def __getitem__(self, key):
         rows, columns = key
@@ -51,11 +65,10 @@ def test_slice_before_X_and_duplicate_row_global_axis_parity():
     np.testing.assert_array_equal(result[:, allowed], values[[8, 2, 8, 3]][:, allowed])
     assert result.shape == (4, 10) and result.dtype == np.float32
     assert np.all(result[:, [1, 3, 4, 6, 7, 8]] == 0)
-    assert len(data._adata.reads) == 2
+    assert data._adata.reads
     for rows, columns in data._adata.reads:
-        assert isinstance(rows, slice)
-        np.testing.assert_array_equal(columns, allowed)
-    assert [(r.start, r.stop) for r, _ in data._adata.reads] == [(2, 4), (8, 9)]
+        assert set(range(rows.start, rows.stop)).issubset({2, 3, 8})
+        assert set(range(columns.start, columns.stop)).issubset(set(allowed))
 
 
 def test_default_off_full_axis_and_evaluation_control_loader():
@@ -108,7 +121,7 @@ def test_materialize_paths_preserve_allowed_values(merged):
         batch.target_expression[:, [0, 2, 5, 9]], values[[7, 6, 7]][:, [0, 2, 5, 9]]
     )
     for _, columns in data._adata.reads:
-        np.testing.assert_array_equal(columns, [0, 2, 5, 9])
+        assert set(range(columns.start, columns.stop)).issubset({0, 2, 5, 9})
 
 
 def test_control_cache_and_cached_target_share_read_boundary():
@@ -121,7 +134,7 @@ def test_control_cache_and_cached_target_share_read_boundary():
     np.testing.assert_array_equal(batch.target_expression[:, [0, 2]], values[[7, 6, 7]][:, [0, 2]])
     assert data.pipeline_stats.cached_control_batches == 1
     for _, columns in data._adata.reads:
-        np.testing.assert_array_equal(columns, [0, 2])
+        assert set(range(columns.start, columns.stop)).issubset({0, 2})
 
 
 def enabled_options():
@@ -148,5 +161,45 @@ def test_control_only_and_allowed_nonfinite_fail_closed():
     np.testing.assert_array_equal(batch.control_expression[:, [0, 2]], values[[2, 0, 2]][:, [0, 2]])
     assert all(r.stop <= 3 for r, _ in data._adata.reads)
     values[0, 2] = np.nan
-    with pytest.raises(ValueError, match="invalid shape/values"):
+    with pytest.raises(ValueError, match="finite"):
         data._read_expression_indices([0])
+
+
+@pytest.mark.parametrize("storage", ["dense", "csr", "csc"])
+def test_real_backed_anndata_never_materializes_full_sparse_matrix(tmp_path, monkeypatch, storage):
+    ad = pytest.importorskip("anndata")
+    sparse = pytest.importorskip("scipy.sparse")
+    from anndata._core.sparse_dataset import BaseCompressedSparseDataset
+
+    data, values = data_fixture()
+    # Poison outside the exact logical selection must never reach finite checks.
+    values[:, [1, 3, 4, 6, 7, 8]] = np.nan
+    values[10, 0] = np.inf
+    matrix = (
+        sparse.csr_matrix(values)
+        if storage == "csr"
+        else sparse.csc_matrix(values)
+        if storage == "csc"
+        else values
+    )
+    path = tmp_path / "synthetic.h5ad"
+    ad.AnnData(matrix).write_h5ad(path)
+
+    def reject_full_read(*args, **kwargs):
+        raise AssertionError("full sparse matrix read is forbidden")
+
+    monkeypatch.setattr(BaseCompressedSparseDataset, "to_memory", reject_full_read)
+    data._adata = ad.read_h5ad(path, backed="r")
+    try:
+        data.configure_training_expression_columns([0, 2, 5, 9])
+        before = np.random.get_state()
+        result = data._read_expression_indices([8, 2, 8, 3])
+        np.testing.assert_array_equal(
+            result[:, [0, 2, 5, 9]], values[[8, 2, 8, 3]][:, [0, 2, 5, 9]]
+        )
+        assert np.all(result[:, [1, 3, 4, 6, 7, 8]] == 0)
+        after = np.random.get_state()
+        assert before[0] == after[0] and before[2:] == after[2:]
+        np.testing.assert_array_equal(before[1], after[1])
+    finally:
+        data.close()

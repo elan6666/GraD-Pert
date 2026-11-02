@@ -416,3 +416,9 @@ R16 CPU目标构建a1在读取表达值前失败：repeatability终态使用`out
 ## 2026-10-31：训练精度不能代替评估精度的证据
 
 精度消融初稿把R3-RI的共同评估称为BF16，但核对不可变训练源f0cb20e的独立评估worker和predict_query_set后发现原评估未开启autocast。参数存储、训练autocast、局部头部计算与评估上下文必须分别核验；外层BF16也不能覆盖显式FP32头或FP8 FFN。修正为common_ri_native：严格加载训练身份后另建精度重置的独立Student，保持原推理路径并记录backend设置，保留历史结果，不重训基线。以后必须沿真实入口读取dtype/autocast和缓存策略，再命名共同评估协议。
+
+## 2026-11-03 — 限列读取要核对真实存储后端
+
+- 证据：K562 a2 工程预检0次更新，初始诊断611秒；服务器安装的AnnData CSR实现对row slice＋column array回退self.to_memory后再筛列。表面view先筛列的fake测试没有覆盖实际后端。
+- 预防：数值读取边界须落实到HDF5授权坐标/稀疏data offsets；结构indices/indptr与数值分开，禁止to_memory后mask。增加真实h5py dense/CSR/CSC测试和禁止数值offset代理，保留行顺序、重复行和RNG。rchar累计不是物理磁盘吞吐；HDF5逻辑选择不等于内部压缩块零物理触碰。
+- 状态：active；a2取消保留，修复用新提交和新attempt原生验证，不覆盖历史结果。

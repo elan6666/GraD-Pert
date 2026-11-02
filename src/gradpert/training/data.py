@@ -441,28 +441,13 @@ class CanonicalTrainingData:
         self._training_expression_read_started = True
         columns = getattr(self, "_training_expression_columns", None)
         if columns is not None:
-            # AnnData backed reads use only one fancy axis: consecutive authorized
-            # row slices and allowed columns before numerical .X exposure.
-            dense_allowed = np.empty((len(unique_sorted), len(columns)), dtype=np.float32)
-            start = 0
-            while start < len(unique_sorted):
-                stop = start + 1
-                while (
-                    stop < len(unique_sorted)
-                    and unique_sorted[stop] == unique_sorted[stop - 1] + 1
-                    and stop - start < 2048
-                ):
-                    stop += 1
-                selection = self._adata[
-                    slice(int(unique_sorted[start]), int(unique_sorted[stop - 1]) + 1),
-                    np.asarray(columns, dtype=np.int64),
-                ]
-                matrix = selection.X
-                block = matrix.toarray() if hasattr(matrix, "toarray") else np.asarray(matrix)
-                if block.shape != (stop - start, len(columns)) or not np.isfinite(block).all():
-                    raise ValueError("allowed canonical expression block has invalid shape/values")
-                dense_allowed[start:stop] = block
-                start = stop
+            from gradpert.training.expression_io import read_expression_selection
+
+            # Use the underlying HDF5 coordinates. AnnData's sparse fancy-column
+            # indexing can materialize the full matrix before it applies this filter.
+            dense_allowed = read_expression_selection(self._adata.file["X"], unique_sorted, columns)
+            if dense_allowed.shape != (len(unique_sorted), len(columns)):
+                raise ValueError("allowed canonical expression block has invalid shape/values")
             restored = np.zeros((len(indices), self.manifest.n_expression_genes), dtype=np.float32)
             restored[:, list(columns)] = dense_allowed[inverse]
             if not np.isfinite(restored).all():
