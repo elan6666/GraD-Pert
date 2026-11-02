@@ -24,6 +24,36 @@ SOURCE = Path(__file__).resolve().parents[2]
 DATASETS = ("replogle_k562_essential", "replogle_rpe1_essential", "nadig_hepg2", "norman")
 
 
+def validate_family_preflight(plan: dict, entry: dict) -> None:
+    """Require this family's exact ten-update and 300-control native probe."""
+    validate_preflight(plan, entry)
+    receipt = read_json(Path(entry["receipt"]))
+    shape = receipt.get("inference_shape", [])
+    if (
+        receipt.get("kind") != "preflight_only"
+        or receipt.get("steps_requested") != 10
+        or receipt.get("steps_completed") != 10
+        or receipt.get("inference_exercised") is not True
+        or len(shape) != 2
+        or shape[0] != 300
+        or shape[1] < 1
+    ):
+        raise ValueError("family requires exact10 native updates and 300-control inference")
+
+
+def validate_acceptance(plan: dict, ready_path: Path, acceptance: dict) -> None:
+    """Bind an affirmative independent acceptance to the immutable launch inputs."""
+    if (
+        acceptance.get("approved") is not True
+        or acceptance.get("preflight_ready_sha256") != sha256_file(ready_path)
+        or acceptance.get("source_commit") != plan["source_commit"]
+        or acceptance.get("config_sha256") != plan["config_sha256"]
+        or acceptance.get("run_id") != plan["run_id"]
+        or acceptance.get("optimizer_updates") != 300
+    ):
+        raise ValueError("independent main acceptance missing or changed")
+
+
 def native_run(command: list[str], log: Path, policy: dict) -> None:
     """Recheck ownership/resource identity while the exact child is alive."""
     with log.open("x") as stream:
@@ -158,7 +188,7 @@ def main() -> None:
                 )
                 receipt = preflight / "receipt.json"
                 entry = {"receipt": str(receipt), "sha256": sha256_file(receipt)}
-                validate_preflight(plan, entry)
+                validate_family_preflight(plan, entry)
                 atomic_json(
                     output / "PREFLIGHT_READY.json",
                     {
@@ -171,17 +201,12 @@ def main() -> None:
                 )
             else:
                 ready = read_json(output / "PREFLIGHT_READY.json")
-                validate_preflight(plan, ready["preflight"])
-                acceptance = read_json(output / "MAIN_ACCEPTANCE.json")
-                if (
-                    acceptance.get("preflight_ready_sha256")
-                    != sha256_file(output / "PREFLIGHT_READY.json")
-                    or acceptance.get("source_commit") != identity.commit
-                    or acceptance.get("config_sha256") != plan["config_sha256"]
-                    or acceptance.get("run_id") != plan["run_id"]
-                    or acceptance.get("optimizer_updates") != 300
-                ):
-                    raise ValueError("independent main acceptance missing or changed")
+                validate_family_preflight(plan, ready["preflight"])
+                validate_acceptance(
+                    plan,
+                    output / "PREFLIGHT_READY.json",
+                    read_json(output / "MAIN_ACCEPTANCE.json"),
+                )
                 native_run(
                     [
                         sys.executable,
