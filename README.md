@@ -20,6 +20,70 @@ The repository is under active implementation. Current authoritative material:
 - [experiment architecture alignment](docs/provenance/TRISHIFT_ARCHITECTURE_ALIGNMENT.md)
 - [private Trackio loss/utilization dashboards](docs/experiments/HUGGING_FACE_TRACKIO.md)
 
+## Current short protocol: dataset transfer, 300 updates
+
+The [native RI dataset-transfer protocol](docs/experiments/DATASET_TRANSFER_300_20261102.md)
+is a separate, explicitly authorized experiment family. Each new within-cell
+arm (K562 essential, RPE1 essential, HepG2 and Norman) runs exactly **300
+successful optimizer updates** from scratch with seed 1 and global batch 320
+(80 per GPU × two GPUs × two accumulation microsteps). This matches the update
+budget of the retained small Jurkat R3-RI baseline: 150 updates per epoch × two
+epochs. Reuse that baseline rather than retraining it.
+
+The four new arms use their complete canonical TRAIN partitions, with no extra
+cap40 sampling. Their larger or smaller populations mean 300 updates need not
+cover two complete epochs. Keep partial-epoch counters in history; the LR,
+Teacher EMA and temperature schedules use the sealed 300-update horizon.
+Self-contained configs are in
+[configs/v2/dataset_transfer_300_20261102/](configs/v2/dataset_transfer_300_20261102/).
+
+| Dataset | TRAIN cells | Train / validation / test conditions | Expression genes | Excluded expression genes | Updates per complete data epoch |
+|---|---:|---|---:|---:|---:|
+| K562 essential | 83,950 | 612 / 202 / 273 | 5,000 | 117 | 263 |
+| RPE1 essential | 125,684 | 1,335 / 448 / 590 | 5,000 | 238 | 393 |
+| HepG2 | 69,425 | 1,334 / 448 / 591 | 5,000 | 209 | 217 |
+| Norman | 74,652 | 206 / 11 / 13 | 5,045 | 20 | 234 |
+
+Excluded columns are determined from each dataset's frozen test-target identities;
+training cannot read their expression values. Gene identities and graph priors
+remain available. Norman retains its combination-perturbation protocol.
+Validation uses the frozen 300-control draws and reports the three Pearson
+families for all genes and DEG, split by full/allowed/held-out expression axes
+(18 values), with valid condition counts and NA reasons. Record actual query
+exposure separately. Medium/crossed representation analysis has its own frozen
+population and zero-update receipts; a prepared analysis plan is not a measured
+result. This family does not launch external models, cross-cell fits or
+validation/test-based hyperparameter selection.
+
+### Git and experiment version management
+
+Before a behavior-changing edit, verify that its clean pre-change commit is
+already published, or preserve and publish a scoped baseline first. After
+implementation and relevant checks/review, commit and push the scoped change to
+GitHub `main` before using it in a new experiment. Keep unrelated working-tree
+changes and server-only scientific artifacts out of those commits. Record
+major feature upgrades and experiment-affecting changes here, with a linked
+protocol and the expected effect on earlier runs.
+
+Never edit or pull a running server checkout. New behavior uses a new run ID,
+clean published source and resolved config hash. Preserve the original source,
+config, data and checkpoint hashes for every historical result. Record training
+and evaluation commits separately; cross-version evaluation requires explicit
+compatibility evidence. A documentation-only update does not change an existing
+run's source SHA, restart it, or justify retraining a compatible baseline.
+
+| Published commit | Change | Effect on previous experiments |
+|---|---|---|
+| [`bdf5eb2254686f002fecccffac65e1238dc887de`](https://github.com/elan6666/GraD-Pert/commit/bdf5eb2254686f002fecccffac65e1238dc887de) | Restricted HDF5 expression I/O used by K562's accepted 300-update run | Earlier attempts stay separate; do not relabel them as this repaired version. |
+| [`bbf50c866ea3c0b2faf775a0867e87476a264432`](https://github.com/elan6666/GraD-Pert/commit/bbf50c866ea3c0b2faf775a0867e87476a264432) | Last-300 validation planning and frozen expression-group metrics | Original modeling/training/evaluation-core and four config blobs match the K562 training source; retain separate evaluation provenance. RPE1 training uses this commit. |
+| [`ecd327e9939bee3d3eed471f37665ec9f5aa5278`](https://github.com/elan6666/GraD-Pert/commit/ecd327e9939bee3d3eed471f37665ec9f5aa5278) | Dynamic medium/crossed analysis runner and tests | Only two new analysis/test files relative to the preceding commit; original training/core/config blobs are unchanged. Actual analysis still requires native execution and independent acceptance. |
+
+Live progress and private receipts are retained in the permanent local
+`experiment-analysis/dataset-transfer-300updates-20261102/` archive and the
+experiment platform. The archive is Git-ignored; raw data, matrices and
+checkpoints remain on the server. Training completion, validation acceptance
+and representation-analysis completion are separate milestones.
+
 ## GraD-Pert v2 checkpoint workflows
 
 A historical three-epoch Jurkat B0 config is
