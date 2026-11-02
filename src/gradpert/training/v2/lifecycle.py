@@ -14,6 +14,7 @@ import time
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
 from functools import partial
+from itertools import islice
 from pathlib import Path
 from typing import Any
 
@@ -118,6 +119,7 @@ def fit(
     bootstrap_history: list[dict[str, Any]] | None = None,
     bootstrap_best: tuple[dict[str, Any], Path] | None = None,
     diagnose: Callable[[], dict[str, Any]] | None = None,
+    max_updates: int | None = None,
 ) -> dict[str, Any]:
     """Commit only complete epochs; resume replays an interrupted epoch exactly.
 
@@ -127,6 +129,17 @@ def fit(
     """
     if epochs < 1 or steps_per_epoch < 1 or not 0 < teacher_start <= teacher_end <= 1:
         raise ValueError("invalid lifecycle budget or teacher momentum")
+    if max_updates is not None and (
+        type(max_updates) is not int
+        or max_updates < 1
+        or not (epochs - 1) * steps_per_epoch < max_updates <= epochs * steps_per_epoch
+        or bootstrap_history is not None
+        or bootstrap_best is not None
+        or hasattr(objective, "pretrain_steps")
+    ):
+        raise ValueError(
+            "update budget must end in the last data epoch; continuation/staged mode unsupported"
+        )
     selection_metric = "joint_loss" if validate is not None else "final_epoch"
     if validate is None and (bootstrap_history is not None or bootstrap_best is not None):
         raise ValueError("train-only lifecycle cannot reinterpret validated parent history")
@@ -138,6 +151,8 @@ def fit(
         "bf16": bf16,
         "selection_metric": selection_metric,
     }
+    if max_updates is not None:
+        contract["optimizer_update_budget"] = max_updates
     if resume and bootstrap_history is not None:
         raise ValueError("resume must use the committed child journal, not bootstrap again")
     if not resume and bootstrap_history is None and optimizer.steps:
@@ -168,7 +183,7 @@ def fit(
             else {}
         )
 
-    total = epochs * steps_per_epoch
+    total = epochs * steps_per_epoch if max_updates is None else max_updates
     schedule.at_step(0, total)  # Reject invalid timing before writing run state.
     distributed = torch.distributed.is_initialized()
     world = torch.distributed.get_world_size() if distributed else 1
@@ -192,7 +207,9 @@ def fit(
         history = progress["history"]
         if staged_joint and history and history[-1]["training_stage"] != objective.training_stage:
             raise ValueError("checkpoint phase differs from its last completed epoch")
-        if len(history) != journal["epoch"] or optimizer.steps != len(history) * steps_per_epoch:
+        if len(history) != journal["epoch"] or optimizer.steps != min(
+            len(history) * steps_per_epoch, total
+        ):
             raise ValueError("checkpoint progress differs from committed epoch journal")
     elif journal_path.exists() or any(root.iterdir()):
         raise FileExistsError("new training requires an empty lifecycle directory")
@@ -246,7 +263,7 @@ def fit(
         """Publish diagnostics after committed updates without changing training collectives."""
         if rank != 0:
             return
-        completed = (epoch_number - 1) * steps_per_epoch + epoch_step
+        completed = min((epoch_number - 1) * steps_per_epoch + epoch_step, total)
         elapsed = max(0.0, time.monotonic() - progress_started)
         payload = {
             "schema_version": "gradpert-v2-live-progress-1",
@@ -255,7 +272,7 @@ def fit(
             "epoch": epoch_number,
             "epochs_total": epochs,
             "epoch_step": epoch_step,
-            "epoch_steps_total": steps_per_epoch,
+            "epoch_steps_total": min(steps_per_epoch, total - (epoch_number - 1) * steps_per_epoch),
             "optimizer_steps_completed": completed,
             "optimizer_steps_total": total,
             "fraction_complete": completed / total,
@@ -287,6 +304,7 @@ def fit(
             lambda: atomic_json(root / "loss-diagnostic-epoch-0000.json", initial_diagnostic)
         )
     for epoch in range(len(history), epochs):
+        epoch_budget = min(steps_per_epoch, total - epoch * steps_per_epoch)
         sums: dict[str, float] = {}
         epoch_started = time.monotonic()
         epoch_cells = 0
@@ -379,13 +397,20 @@ def fit(
                     flush=True,
                 )
 
-        count = execute_epoch(batches(epoch), update, maximum_steps=steps_per_epoch)
-        if count != steps_per_epoch:
+        epoch_batches = batches(epoch)
+        stream = islice(epoch_batches, epoch_budget) if max_updates is not None else epoch_batches
+        try:
+            count = execute_epoch(stream, update, maximum_steps=epoch_budget)
+        finally:
+            close = getattr(epoch_batches, "close", None)
+            if close is not None:
+                close()
+        if count != epoch_budget:
             raise ValueError("epoch iterator shorter than sealed step budget")
         loss: float | None = None
         validation: dict[str, Any] = {"validation_mode": "disabled", "performed": False}
         if validate is not None:
-            live("validation", epoch + 1, steps_per_epoch)
+            live("validation", epoch + 1, epoch_budget)
             validation = primary_call(validate)
             if validation.get("split") != "val":
                 raise ValueError("checkpoint selection requires validation-only results")
@@ -406,6 +431,15 @@ def fit(
             {
                 "epoch": epoch + 1,
                 "optimizer_steps": optimizer.steps,
+                **(
+                    {
+                        "updates_this_data_epoch": count,
+                        "data_epoch_complete": count == steps_per_epoch,
+                        "data_epoch_fraction": count / steps_per_epoch,
+                    }
+                    if max_updates is not None
+                    else {}
+                ),
                 **staged_progress(),
                 **(
                     {"sampler_epoch": max(0, epoch - objective.pretrain_steps // steps_per_epoch)}
@@ -436,7 +470,7 @@ def fit(
             }
         )
         checkpoint = root / f"epoch-{epoch + 1:04d}.pt"
-        live("checkpointing", epoch + 1, steps_per_epoch)
+        live("checkpointing", epoch + 1, epoch_budget)
         save_checkpoint(
             checkpoint,
             objective,
@@ -500,8 +534,8 @@ def fit(
                     old.unlink()
 
         primary_call(prune)
-        live("epoch_complete", epoch + 1, steps_per_epoch)
-    live("training_complete", epochs, steps_per_epoch)
+        live("epoch_complete", epoch + 1, epoch_budget)
+    live("training_complete", epochs, min(steps_per_epoch, total - (epochs - 1) * steps_per_epoch))
     return journal
 
 

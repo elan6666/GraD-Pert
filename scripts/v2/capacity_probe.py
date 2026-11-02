@@ -617,6 +617,8 @@ def main() -> None:
             if args.profile_last_update:
                 capture = ProfileCapture(runtime, args.output, rank)
             total_steps = int(config.training.max_epochs.value) * runtime.steps_per_epoch
+            if config.training.formal_run_policy == "v2_updates_300":
+                total_steps = 300
             staged_joint = runtime.options.training_mode == "ssl_then_joint"
             staged_gate = runtime.options.training_mode in ("ssl_then_mse", "ssl_then_joint")
             if args.profile_pt1_stages and (not staged_gate or staged_joint):

@@ -141,6 +141,7 @@ class TrainingConfig(StrictModel):
         "v2_fixed_4",
         "v2_fixed_1",
         "v2_fixed_2",
+        "v2_updates_300",
         "inference_only",
         "vnext_combination_100",
         "vnext_combination_200",
@@ -176,6 +177,7 @@ class TrainingConfig(StrictModel):
                     "v2_fixed_4",
                     "v2_fixed_1",
                     "v2_fixed_2",
+                    "v2_updates_300",
                 }:
                     raise ValueError("LR-only schedule requires R50 policy")
             elif self.formal_run_policy not in {"vnext_combination_100", "vnext_combination_200"}:
@@ -241,6 +243,19 @@ class TrainingConfig(StrictModel):
                     raise ValueError("vNext combination requires early-stopping patience=10")
                 if self.monitor != "val/txpert_macro_pearson_delta" or self.monitor_mode != "max":
                     raise ValueError("vNext combination requires the common validation monitor")
+            elif self.formal_run_policy == "v2_updates_300":
+                if (
+                    type(self.max_epochs.value) is not int
+                    or not 1 <= self.max_epochs.value <= 300
+                    or self.early_stopping
+                    or self.monitor != "none"
+                    or self.monitor_mode != "none"
+                    or self.run_seeds != [1]
+                ):
+                    raise ValueError(
+                        "300-update research requires explicit epoch ceiling, "
+                        "seed1 and no selection"
+                    )
             elif self.formal_run_policy in {
                 "v2_fixed_20",
                 "v2_fixed_50",
@@ -454,6 +469,7 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_4",
                 "v2_fixed_1",
                 "v2_fixed_2",
+                "v2_updates_300",
                 "fixed_epoch_pilot",
                 "vnext_combination_100",
                 "vnext_combination_200",
@@ -481,6 +497,7 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_4",
                 "v2_fixed_1",
                 "v2_fixed_2",
+                "v2_updates_300",
             }
             and self.model_id != "gradpert_v2"
         ):
@@ -500,7 +517,13 @@ class ExperimentConfig(StrictModel):
                 disabled
                 and (
                     self.training.formal_run_policy
-                    not in {"v2_fixed_6", "v2_fixed_4", "v2_fixed_3", "v2_fixed_2"}
+                    not in {
+                        "v2_fixed_6",
+                        "v2_fixed_4",
+                        "v2_fixed_3",
+                        "v2_fixed_2",
+                        "v2_updates_300",
+                    }
                     or self.continuation
                 )
             ):
@@ -519,9 +542,11 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_4",
                 "v2_fixed_1",
                 "v2_fixed_2",
+                "v2_updates_300",
             } or self.training.max_epochs.value != {
                 "v2_fixed_1": 1,
                 "v2_fixed_2": 2,
+                "v2_updates_300": self.training.max_epochs.value,
                 "v2_fixed_3": 3,
                 "v2_fixed_4": 4,
                 "v2_fixed_5": 5,

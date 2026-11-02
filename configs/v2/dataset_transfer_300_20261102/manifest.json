@@ -1,0 +1,40 @@
+{
+  "schema": "gradpert-dataset-transfer-300-v1",
+  "rows": [
+    {
+      "dataset": "replogle_k562_essential",
+      "config": "configs/v2/dataset_transfer_300_20261102/gradpert_v2/replogle_k562_essential.yaml",
+      "steps_per_data_epoch": 263,
+      "optimizer_updates": 300,
+      "excluded_genes": 117,
+      "train_rows": 83950
+    },
+    {
+      "dataset": "replogle_rpe1_essential",
+      "config": "configs/v2/dataset_transfer_300_20261102/gradpert_v2/replogle_rpe1_essential.yaml",
+      "steps_per_data_epoch": 393,
+      "optimizer_updates": 300,
+      "excluded_genes": 238,
+      "train_rows": 125684
+    },
+    {
+      "dataset": "nadig_hepg2",
+      "config": "configs/v2/dataset_transfer_300_20261102/gradpert_v2/nadig_hepg2.yaml",
+      "steps_per_data_epoch": 217,
+      "optimizer_updates": 300,
+      "excluded_genes": 209,
+      "train_rows": 69425
+    },
+    {
+      "dataset": "norman",
+      "config": "configs/v2/dataset_transfer_300_20261102/gradpert_v2/norman.yaml",
+      "steps_per_data_epoch": 234,
+      "optimizer_updates": 300,
+      "excluded_genes": 20,
+      "train_rows": 74652
+    }
+  ],
+  "sampling": "all canonical TRAIN rows; no cap40",
+  "jurkat_retrained": false,
+  "crosscell": "pending row-level adapter; never consume folds through condition-only interfaces"
+}

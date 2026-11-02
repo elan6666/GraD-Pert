@@ -33,6 +33,14 @@ def training_stage_evidence(root: Path, identity: dict[str, Any], epochs: int) -
             or sha256_file(checkpoint) != selected["sha256"]
         ):
             raise ValueError("training stage checkpoint escaped or changed")
+    if identity.get("training_budget", {}).get("unit") == "optimizer_update":
+        expected = identity["training_budget"]["count"]
+        if (
+            history[-1]["optimizer_steps"] != expected
+            or journal["contract"].get("optimizer_update_budget") != expected
+            or sum(row["updates_this_data_epoch"] for row in history) != expected
+        ):
+            raise ValueError("training stage did not complete exact update budget")
     return {
         "schema": "gradpert-v2-training-complete-1",
         "stage": "training_complete",

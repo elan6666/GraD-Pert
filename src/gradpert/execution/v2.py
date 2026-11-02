@@ -39,6 +39,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     if config.model_id != "gradpert_v2" or config.training.formal_run_policy not in {
         "v2_fixed_1",
         "v2_fixed_2",
+        "v2_updates_300",
         "v2_fixed_3",
         "v2_fixed_4",
         "v2_fixed_5",
@@ -100,6 +101,18 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
     with prepare_runtime(
         config, data_root=data_root, run_seed=plan["seed"], device=device
     ) as runtime:
+        update_budget = 300 if config.training.formal_run_policy == "v2_updates_300" else None
+        if update_budget is not None and (
+            int(config.training.max_epochs.value)
+            != (update_budget + runtime.steps_per_epoch - 1) // runtime.steps_per_epoch
+            or runtime.options.training_mode != "joint"
+            or runtime.options.validation_mode != "disabled"
+            or plan.get("postfit_policy") != "deferred"
+        ):
+            raise ValueError(
+                "300-update research requires exact epoch ceiling "
+                "and deferred joint-training evaluation"
+            )
         bootstrap_history = None
         bootstrap_best = None
         continuation_provenance = None
@@ -136,6 +149,13 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             identity["frozen_readout"] = readout_provenance
         if continuation_provenance is not None:
             identity["continuation"] = continuation_provenance
+        if update_budget is not None:
+            identity["training_budget"] = {
+                "unit": "optimizer_update",
+                "count": 300,
+                "steps_per_data_epoch": runtime.steps_per_epoch,
+                "partial_final_epoch": 300 % runtime.steps_per_epoch != 0,
+            }
         manifest_path = root / "run_manifest.json"
         if manifest_path.exists() and read_json(manifest_path) != identity:
             raise ValueError("existing run identity differs; results cannot be overwritten")
@@ -281,6 +301,7 @@ def _run_v2(plan: dict[str, Any], *, resume: bool = False) -> dict[str, Any]:
             resume=resume,
             bootstrap_history=bootstrap_history if not resume else None,
             bootstrap_best=bootstrap_best if not resume else None,
+            max_updates=update_budget,
         )
         if readout_provenance is not None:
             from gradpert.training.v2.readout import frozen_state_proof

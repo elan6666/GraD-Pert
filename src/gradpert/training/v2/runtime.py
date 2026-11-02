@@ -329,7 +329,9 @@ def prepare_runtime(
             )
         if allowed_expression_ids is not None and len(allowed_expression_ids) < options.query_count:
             raise ValueError("training expression partition smaller than query budget")
-        if options.response_anchor_weight and purpose == "training":
+        if (
+            options.response_anchor_weight or config.training.formal_run_policy == "v2_updates_300"
+        ) and purpose == "training":
             if allowed_expression_ids is None:
                 raise ValueError("response anchor requires expression-column holdout")
             data.configure_training_expression_columns(allowed_expression_ids)
