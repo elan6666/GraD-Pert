@@ -331,6 +331,36 @@ def admit_dynamic(policy: dict, observed: dict, gpus: dict) -> None:
         gpus[d["gpu_index"]]["uuid"] != d["gpu_uuid"] for d in devices.values()
     ):
         raise RuntimeError("shared-GPU physical device identity changed")
+    _admit_dynamic_devices(policy, observed, gpus, devices)
+
+
+def admit_selected_device(policy: dict, observed: dict, gpu_index: int) -> None:
+    """Apply an unchanged dynamic policy to one explicitly allocated physical card."""
+    validate_policy(policy)
+    if policy["schema"] != DYNAMIC_SCHEMA or type(gpu_index) is not int or gpu_index not in (0, 1):
+        raise ValueError("selected-device admission requires dynamic policy and physical GPU0/1")
+    device = next(d for d in policy["devices"] if d["gpu_index"] == gpu_index)
+    gpu = {int(k): v for k, v in observed["gpus"].items()}.get(gpu_index)
+    if gpu is None or gpu["uuid"] != device["gpu_uuid"]:
+        raise RuntimeError("shared-GPU physical device identity changed")
+    selected = []
+    for entry in observed["processes"]:
+        if entry.get("owned") and entry.get("gpu_uuid") != device["gpu_uuid"]:
+            raise RuntimeError("owned GPU workload escaped the selected physical device")
+        if entry.get("gpu_uuid") == device["gpu_uuid"]:
+            selected.append(entry)
+        elif entry.get("gpu_uuid") not in {d["gpu_uuid"] for d in policy["devices"]}:
+            raise RuntimeError("shared-GPU process device telemetry missing or invalid")
+    _admit_dynamic_devices(
+        policy,
+        {"processes": selected},
+        {gpu_index: gpu},
+        {device["gpu_uuid"]: device},
+    )
+
+
+def _admit_dynamic_devices(policy: dict, observed: dict, gpus: dict, devices: dict) -> None:
+    """Share the same process allowances, owned sum, and reserve checks across scopes."""
     seen, owned_memory = set(), {uuid: 0 for uuid in devices}
     for entry in observed["processes"]:
         uuid = entry.get("gpu_uuid")

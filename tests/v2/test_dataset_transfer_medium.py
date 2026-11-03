@@ -635,7 +635,7 @@ def test_incomplete_or_changed_receipt_never_passes_final_closure(tmp_path, monk
         crossed=dict(status="not_applicable", reason="less than four controls"),
     )
     medium.validate_completion(spec, receipt)
-    for change in ("count", "parity", "gradient", "source", "pkl"):
+    for change in ("count", "parity", "gradient", "source", "scope", "pkl"):
         import copy
 
         broken = copy.deepcopy(receipt)
@@ -647,6 +647,8 @@ def test_incomplete_or_changed_receipt_never_passes_final_closure(tmp_path, monk
             broken["medium"]["gradients"] = []
         elif change == "source":
             broken["checkpoint_sha256"] = "0" * 64
+        elif change == "scope":
+            broken["admission_scope"] = "selected_device"
         else:
             sibling = tmp_path / "sibling-job"
             sibling.mkdir()
@@ -657,8 +659,9 @@ def test_incomplete_or_changed_receipt_never_passes_final_closure(tmp_path, monk
 
 
 @pytest.mark.parametrize("child_success", [True, False])
+@pytest.mark.parametrize("scope", ["original_policy", "selected_device"])
 def test_owned_controller_writes_complete_only_after_verified_child(
-    tmp_path, monkeypatch, child_success
+    tmp_path, monkeypatch, child_success, scope
 ):
     import os
     from contextlib import contextmanager
@@ -671,6 +674,8 @@ def test_owned_controller_writes_complete_only_after_verified_child(
     monkeypatch.setenv("PYTORCH_ALLOC_CONF", "expandable_segments:True")
     monkeypatch.setenv("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
     spec = dict(output=str(tmp_path / "output"), gpu="0", policy={"unchanged": "original"})
+    if scope == "selected_device":
+        spec["admission_scope"] = scope
     specfile = tmp_path / "spec.json"
     atomic_json(specfile, spec)
     monkeypatch.setattr(medium, "validate_execution_spec", lambda _: None)
@@ -698,16 +703,23 @@ def test_owned_controller_writes_complete_only_after_verified_child(
         monkeypatch.setattr(leases, "lock", lock)
         monkeypatch.setattr(shared, "snapshot", lambda pid: {"owner": pid})
         monkeypatch.setattr(shared, "admit", lambda policy, observed: checks.append("admit"))
+
+        def selected(policy, observed, gpu_index):
+            assert scope == "selected_device" and gpu_index == 0
+            checks.append("admit")
+
+        monkeypatch.setattr(shared, "admit_selected_device", selected)
         monkeypatch.setattr(
             shared,
             "process_info",
             lambda pid: dict(pid=pid, uid=os.getuid(), start_ticks="1", command_sha256="cmd"),
         )
 
-        def child(command, log, policy):
+        def child(command, log, policy, *, admission_check):
             assert "--worker-binding" in command
             assert os.environ["CUDA_VISIBLE_DEVICES"] == "0"
             checks.append("child")
+            admission_check()
             if not child_success:
                 raise RuntimeError("synthetic child failure")
             atomic_json(
@@ -726,6 +738,7 @@ def test_owned_controller_writes_complete_only_after_verified_child(
             assert not (tmp_path / "output/COMPLETE.json").exists()
             assert (tmp_path / "output/FAILURE.json").is_file()
         assert checks[:3] == ["lock", "admit", "child"]
+        assert checks.count("admit") == 2
 
 
 def test_execution_spec_binds_sources_runtime_resource_and_protected_outputs(tmp_path, monkeypatch):
@@ -816,6 +829,7 @@ def test_execution_spec_binds_sources_runtime_resource_and_protected_outputs(tmp
         compatibility={"proof": "synthetic"},
     )
     spec = medium.build_execution_spec(**kwargs)
+    assert "admission_scope" not in spec
     assert spec["policy"] == policy and compatibility_calls
     assert spec["training_source"] == terminal["identity"]["source"]
     assert not (tmp_path / "new-output").exists()
@@ -850,6 +864,14 @@ def test_execution_spec_binds_sources_runtime_resource_and_protected_outputs(tmp
         assert actual["policy"] == dynamic
         assert actual["selected_device"] == dynamic["devices"][int(gpu)]
         medium.validate_execution_spec(actual)
+        scoped = medium.build_execution_spec(
+            **{**kwargs, "gpu": gpu, "admission_scope": "selected_device"}
+        )
+        assert scoped == {**actual, "admission_scope": "selected_device"}
+        medium.validate_execution_spec(scoped)
+        scoped["admission_scope"] = "ignore_limits"
+        with pytest.raises(ValueError, match="admission scope"):
+            medium.validate_execution_spec(scoped)
         actual["selected_device"]["gpu_uuid"] = "GPU-altered"
         with pytest.raises(ValueError, match="changed"):
             medium.validate_execution_spec(actual)

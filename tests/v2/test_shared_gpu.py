@@ -559,3 +559,72 @@ def test_shared_preflight_rejects_changed_config_output_or_update_protocol(tmp_p
     config.write_text("changed config")
     with pytest.raises(ValueError):
         shared.validate_probe_binding(queue, args, "commit", "preflight_only", 2)
+
+
+@pytest.mark.parametrize("off_card", ["unknown", "growth", "reserve", "telemetry"])
+def test_selected_device_ignores_other_cards_without_changing_original_gate(
+    dynamic_policy, dynamic_observed, off_card
+):
+    foreign = dynamic_observed["processes"][2]
+    if off_card == "unknown":
+        foreign["identity"] = None
+    elif off_card == "growth":
+        foreign["memory_mib"] = 17054
+    elif off_card == "reserve":
+        dynamic_observed["gpus"][1]["free_mib"] = 0
+    else:
+        dynamic_observed["gpus"][1]["free_mib"] = None
+    shared.admit_selected_device(dynamic_policy, dynamic_observed, 0)
+    with pytest.raises(RuntimeError):
+        shared.admit(dynamic_policy, dynamic_observed)
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "program",
+        "uid",
+        "growth",
+        "second",
+        "free",
+        "own_sum",
+        "uuid",
+        "telemetry",
+        "escape",
+        "missing_gpu",
+    ],
+)
+def test_selected_device_keeps_selected_card_limits_and_rejects_owned_escape(
+    dynamic_policy, dynamic_observed, failure
+):
+    foreign = dynamic_observed["processes"][1]
+    if failure == "program":
+        foreign["identity"]["script_basename"] = None
+    elif failure == "uid":
+        foreign["identity"]["uid"] = 1004
+    elif failure == "growth":
+        foreign["memory_mib"] = 1025
+    elif failure == "second":
+        duplicate = copy.deepcopy(foreign)
+        duplicate["pid"] = duplicate["identity"]["pid"] = 999
+        dynamic_observed["processes"].append(duplicate)
+    elif failure == "free":
+        dynamic_observed["gpus"][0]["free_mib"] = 2047
+    elif failure == "own_sum":
+        dynamic_observed["processes"].append(dict(owned=True, gpu_uuid="GPU-0", memory_mib=13000))
+    elif failure == "uuid":
+        dynamic_observed["gpus"][0]["uuid"] = "GPU-altered"
+    elif failure == "telemetry":
+        dynamic_observed["gpus"][0]["free_mib"] = None
+    elif failure == "escape":
+        dynamic_observed["processes"][0]["gpu_uuid"] = "GPU-1"
+    else:
+        del dynamic_observed["gpus"][0]
+    with pytest.raises(RuntimeError):
+        shared.admit_selected_device(dynamic_policy, dynamic_observed, 0)
+
+
+@pytest.mark.parametrize("gpu", [True, "0", 2, -1])
+def test_selected_device_requires_exact_physical_selector(dynamic_policy, dynamic_observed, gpu):
+    with pytest.raises(ValueError):
+        shared.admit_selected_device(dynamic_policy, dynamic_observed, gpu)

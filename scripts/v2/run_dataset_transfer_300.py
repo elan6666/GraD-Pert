@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -54,7 +55,13 @@ def validate_acceptance(plan: dict, ready_path: Path, acceptance: dict) -> None:
         raise ValueError("independent main acceptance missing or changed")
 
 
-def native_run(command: list[str], log: Path, policy: dict) -> None:
+def native_run(
+    command: list[str],
+    log: Path,
+    policy: dict,
+    *,
+    admission_check: Callable[[], None] | None = None,
+) -> None:
     """Recheck ownership/resource identity while the exact child is alive."""
     with log.open("x") as stream:
         process = subprocess.Popen(
@@ -67,7 +74,10 @@ def native_run(command: list[str], log: Path, policy: dict) -> None:
         atomic_json(log.with_suffix(".process.json"), identity)
         try:
             while process.poll() is None:
-                admit(policy, snapshot(os.getpid()))
+                if admission_check is None:
+                    admit(policy, snapshot(os.getpid()))
+                else:
+                    admission_check()
                 time.sleep(15)
             if process.returncode:
                 raise RuntimeError(f"native child exited {process.returncode}; inspect {log}")

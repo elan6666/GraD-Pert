@@ -72,3 +72,53 @@ def test_affirmative_main_acceptance_required(tmp_path, api, approval):
     accepted["approved"] = approval
     with pytest.raises(ValueError):
         api["validate_acceptance"](plan, ready, accepted)
+
+
+@pytest.mark.parametrize("guard_fails", [False, True])
+def test_native_child_loop_rechecks_allocation_and_cleans_only_owned_child(
+    tmp_path, api, monkeypatch, guard_fails
+):
+    from types import SimpleNamespace
+
+    namespace = api["native_run"].__globals__
+    events = []
+    child = SimpleNamespace(pid=123, returncode=None)
+    polls = iter([None, 0, 0] if not guard_fails else [None, None])
+
+    def poll():
+        value = next(polls)
+        child.returncode = value
+        return value
+
+    child.poll = poll
+    child.wait = lambda **kw: events.append("wait")
+    monkeypatch.setattr(namespace["subprocess"], "Popen", lambda *a, **kw: child)
+    monkeypatch.setitem(
+        namespace,
+        "process_info",
+        lambda pid: dict(pid=pid, start_ticks="7", command_sha256="a" * 64),
+    )
+    monkeypatch.setitem(
+        namespace,
+        "terminate_tree",
+        lambda pid, identity: events.append(("terminate", pid, identity["start_ticks"])),
+    )
+    monkeypatch.setitem(
+        namespace, "admit", lambda *a: pytest.fail("explicit check must replace global admission")
+    )
+    monkeypatch.setattr(
+        namespace["time"], "sleep", lambda duration: events.append(("sleep", duration))
+    )
+
+    def guard():
+        events.append("guard")
+        if guard_fails:
+            raise RuntimeError("selected card guard")
+
+    if guard_fails:
+        with pytest.raises(RuntimeError, match="selected card guard"):
+            api["native_run"](["synthetic"], tmp_path / "worker.log", {}, admission_check=guard)
+        assert events == ["guard", ("terminate", 123, "7"), "wait"]
+    else:
+        api["native_run"](["synthetic"], tmp_path / "worker.log", {}, admission_check=guard)
+        assert events == ["guard", ("sleep", 15)]

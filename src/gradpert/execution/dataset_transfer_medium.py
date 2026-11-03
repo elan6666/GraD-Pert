@@ -1054,6 +1054,7 @@ def build_execution_spec(
     family_root: Path,
     gpu: str,
     compatibility: dict[str, str] | None = None,
+    admission_scope: str = "original_policy",
 ) -> dict[str, Any]:
     """Bind published analysis code and the original native training contract."""
     from gradpert.config import load_experiment_config
@@ -1062,6 +1063,8 @@ def build_execution_spec(
 
     if gpu not in ("0", "1"):
         raise ValueError("medium requires one existing physical GPU selector0/1")
+    if admission_scope not in ("original_policy", "selected_device"):
+        raise ValueError("unknown medium admission scope")
     training = read_json(checked(training_plan))
     terminal = training_terminal(training)
     frozen = read_json(checked(population_binding))
@@ -1096,7 +1099,10 @@ def build_execution_spec(
     original_runtime = read_json(train_runtime)
     policy = original_runtime["shared_gpu_policy"]
     with _scripts():
-        importlib.import_module("shared_gpu").validate_policy(policy)
+        shared = importlib.import_module("shared_gpu")
+        shared.validate_policy(policy)
+        if admission_scope == "selected_device" and policy["schema"] != shared.DYNAMIC_SCHEMA:
+            raise ValueError("selected-device admission requires original dynamic policy")
     devices = policy.get("devices", [policy])
     selected = [device for device in devices if str(device["gpu_index"]) == gpu]
     if len(selected) != 1:
@@ -1118,7 +1124,7 @@ def build_execution_spec(
         raise ValueError("medium family must be the original sealed runs_root parent")
     if family == destination or not destination.is_relative_to(family):
         raise ValueError("medium family root must strictly contain its output")
-    return dict(
+    spec = dict(
         schema=EXECUTION_SCHEMA,
         training_plan=training_plan,
         population=population_binding,
@@ -1140,6 +1146,10 @@ def build_execution_spec(
         precision="as_trained_outer_bfloat16_native_autocast_heads",
         scientific_complete=False,
     )
+    # Historical specs remain byte-for-byte unchanged; the new allocation is explicit.
+    if admission_scope == "selected_device":
+        spec["admission_scope"] = admission_scope
+    return spec
 
 
 def validate_execution_spec(spec: dict[str, Any]) -> None:
@@ -1153,6 +1163,7 @@ def validate_execution_spec(spec: dict[str, Any]) -> None:
         family_root=Path(spec["family_root"]),
         gpu=spec["gpu"],
         compatibility=spec["compatibility"],
+        admission_scope=spec.get("admission_scope", "original_policy"),
     )
     if spec != expected:
         raise ValueError("medium execution source/inputs changed")
@@ -1176,6 +1187,7 @@ def validate_completion(spec: dict[str, Any], receipt: dict[str, Any]) -> None:
         receipt.get("status") != "completed"
         or receipt.get("updates") != 0
         or receipt.get("spec_sha256") != sha256_json(spec)
+        or receipt.get("admission_scope") != spec.get("admission_scope")
         or receipt.get("checkpoint_sha256") != spec["checkpoint_sha256"]
         or receipt.get("training_source") != spec["training_source"]
         or receipt.get("analysis_source") != spec["analysis_source"]
@@ -1269,7 +1281,7 @@ def _run_worker(worker_binding: dict[str, str]) -> None:
                 owner["process"]["pid"],
                 [mfu.LEASE_ROOT / f"v2-gpu-{spec['gpu']}.lock"],
             )
-            shared.admit(spec["policy"], shared.snapshot(owner["process"]["pid"]))
+            _admit_resources(shared, spec, shared.snapshot(owner["process"]["pid"]))
 
         guard()
         training = read_json(checked(spec["training_plan"]))
@@ -1342,8 +1354,17 @@ def _run_worker(worker_binding: dict[str, str]) -> None:
             **results,
             scientific_complete=False,
         )
+        if "admission_scope" in spec:
+            receipt["admission_scope"] = spec["admission_scope"]
         validate_completion(spec, receipt)
         atomic_json(Path(spec["output"]) / "WORKER_COMPLETE.json", receipt)
+
+
+def _admit_resources(shared, spec: dict[str, Any], observed: dict) -> None:
+    if spec.get("admission_scope", "original_policy") == "selected_device":
+        shared.admit_selected_device(spec["policy"], observed, int(spec["gpu"]))
+    else:
+        shared.admit(spec["policy"], observed)
 
 
 def execute_medium(*, spec_binding: dict[str, str]) -> dict[str, Any]:
@@ -1371,7 +1392,7 @@ def execute_medium(*, spec_binding: dict[str, str]) -> dict[str, Any]:
             stack.enter_context(
                 lock(Path(f"/data/yilangliu/GraD-Pert/runtime/v2-gpu-{spec['gpu']}.lock"))
             )
-            shared.admit(spec["policy"], shared.snapshot(os.getpid()))
+            _admit_resources(shared, spec, shared.snapshot(os.getpid()))
             owner = shared.process_info(os.getpid())
             if owner is None:
                 raise ValueError("medium controller identity unavailable")
@@ -1406,7 +1427,14 @@ def execute_medium(*, spec_binding: dict[str, str]) -> dict[str, Any]:
             )
             try:
                 with patch.dict(os.environ, env, clear=True):
-                    runner.native_run(command, output / "worker.log", spec["policy"])
+                    runner.native_run(
+                        command,
+                        output / "worker.log",
+                        spec["policy"],
+                        admission_check=lambda: _admit_resources(
+                            shared, spec, shared.snapshot(os.getpid())
+                        ),
+                    )
                 receipt = read_json(output / "WORKER_COMPLETE.json")
                 validate_completion(spec, receipt)
                 atomic_json(output / "COMPLETE.json", receipt)

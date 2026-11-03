@@ -78,6 +78,12 @@ run's source SHA, restart it, or justify retraining a compatible baseline.
 | [`bbf50c866ea3c0b2faf775a0867e87476a264432`](https://github.com/elan6666/GraD-Pert/commit/bbf50c866ea3c0b2faf775a0867e87476a264432) | Last-300 validation planning and frozen expression-group metrics | Original modeling/training/evaluation-core and four config blobs match the K562 training source; retain separate evaluation provenance. RPE1 training uses this commit. |
 | [`ecd327e9939bee3d3eed471f37665ec9f5aa5278`](https://github.com/elan6666/GraD-Pert/commit/ecd327e9939bee3d3eed471f37665ec9f5aa5278) | Dynamic medium/crossed analysis runner and tests | Only two new analysis/test files relative to the preceding commit; original training/core/config blobs are unchanged. Actual analysis still requires native execution and independent acceptance. |
 
+The [selected-device diagnostic admission protocol](docs/provenance/DATASET300_SELECTED_DEVICE_ADMISSION.md)
+adds an explicit allocation for new GPU0-only analysis attempts. Historical specs
+retain whole-policy admission; old failed outputs and training/evaluation source
+identities remain unchanged. Model, training, data, metrics and experiment configs
+are unaffected.
+
 Live progress and private receipts are retained in the permanent local
 `experiment-analysis/dataset-transfer-300updates-20261102/` archive and the
 experiment platform. The archive is Git-ignored; raw data, matrices and
