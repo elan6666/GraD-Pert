@@ -67,12 +67,26 @@ def native_run(
         process = subprocess.Popen(
             command, cwd=SOURCE, env=os.environ.copy(), stdout=stream, stderr=subprocess.STDOUT
         )
-        identity = process_info(process.pid)
-        if identity is None:
-            process.wait()
-            raise RuntimeError("child disappeared before identity capture")
-        atomic_json(log.with_suffix(".process.json"), identity)
+        identity = None
         try:
+            identity = process_info(process.pid)
+            if identity is None:
+                # /proc/cmdline can be briefly empty across exec. Never wait for
+                # an unidentified live job to finish without resource checks.
+                for _ in range(20):
+                    if process.poll() is not None:
+                        raise RuntimeError("native child exited before identity capture")
+                    if admission_check is None:
+                        admit(policy, snapshot(os.getpid()))
+                    else:
+                        admission_check()
+                    time.sleep(0.05)
+                    identity = process_info(process.pid)
+                    if identity is not None:
+                        break
+                if identity is None:
+                    raise RuntimeError("native child identity unavailable after bounded startup")
+            atomic_json(log.with_suffix(".process.json"), identity)
             while process.poll() is None:
                 if admission_check is None:
                     admit(policy, snapshot(os.getpid()))
@@ -83,7 +97,12 @@ def native_run(
                 raise RuntimeError(f"native child exited {process.returncode}; inspect {log}")
         finally:
             if process.poll() is None:
-                terminate_tree(process.pid, identity)
+                if identity is not None:
+                    terminate_tree(process.pid, identity)
+                else:
+                    # This is the unreaped direct Popen child, never a PID from
+                    # a historical receipt. Do not guess a descendant identity.
+                    process.terminate()
                 process.wait(timeout=30)
 
 
