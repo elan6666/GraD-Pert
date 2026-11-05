@@ -22,6 +22,26 @@ import numpy as np
 import torch
 
 
+def validate_gpu_assignment(gpu: str, world: int, rank: int) -> list[str]:
+    """Bind one worker to each explicitly selected physical device.
+
+    A single-rank NCCL group exercises the same collective/update path without
+    reserving the other GPU. Historical two-rank invocations retain both cards.
+    """
+    devices = gpu.split(",")
+    if (
+        type(world) is not int
+        or type(rank) is not int
+        or world not in (1, 2)
+        or len(devices) != world
+        or len(set(devices)) != world
+        or not set(devices) <= {"0", "1"}
+        or not 0 <= rank < world
+    ):
+        raise ValueError("use torchrun with one worker per selected physical GPU (0 and/or 1)")
+    return devices
+
+
 def tree_digest(value: Any) -> str:
     digest = hashlib.sha256()
 
@@ -442,9 +462,10 @@ def main() -> None:
     ):
         parser.error("no-grad storage diagnostic must isolate one execution factor")
     world, rank = int(os.environ.get("WORLD_SIZE", "1")), int(os.environ.get("LOCAL_RANK", "0"))
-    devices = args.gpu.split(",")
-    if world != 2 or sorted(devices) != ["0", "1"] or not 0 <= rank < world:
-        parser.error("use torchrun with both physical GPUs")
+    try:
+        devices = validate_gpu_assignment(args.gpu, world, rank)
+    except ValueError as error:
+        parser.error(str(error))
     if not args.output.resolve().is_relative_to("/data/yilangliu"):
         parser.error("diagnostic artifacts stay on the server")
     if os.environ.get("PYTORCH_ALLOC_CONF") != "expandable_segments:True":
@@ -523,7 +544,7 @@ def main() -> None:
         publication_receipt=args.publication,
         expected_publication_receipt_sha256=args.publication_sha256,
     )
-    if args.pt1_execution:
+    if args.pt1_execution or world == 1:
         torch.cuda.set_per_process_memory_fraction(0.90)
     free, total = torch.cuda.mem_get_info()
     if total - free > 512 * 1024**2:
@@ -538,6 +559,8 @@ def main() -> None:
             else ("two_update_parity" if args.updates == 2 else "multi_update_parity")
         ),
         "rank": rank,
+        "world_size": world,
+        "physical_gpu": devices[rank],
         "source": source.payload(),
         "config_sha256": sha256_file(args.config),
         "candidate_config_sha256": sha256_file(args.candidate_config),
