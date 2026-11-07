@@ -20,6 +20,13 @@ from gradpert.hashing import sha256_file, sha256_json
 SERVER_ROOT = Path("/data/yilangliu")
 
 
+def evaluation_metric_scope(plan: dict[str, Any]) -> str:
+    value = plan.get("metric_scope", "all_and_deg")
+    if type(value) is not str or value not in ("all_and_deg", "expression_only"):
+        raise ValueError("unknown evaluation metric scope")
+    return value
+
+
 def evaluation_memory_fraction(plan: dict[str, Any]) -> float | None:
     """Optional per-worker allocation cap; never alter batches or model arithmetic."""
     value = plan.get("cuda_memory_fraction")
@@ -42,6 +49,7 @@ def diagnostic_conditions(plan: dict[str, Any], selected: tuple[str, ...]) -> tu
 
 def resolve_evaluation_plan(args: argparse.Namespace) -> dict[str, Any]:
     """Reject mismatched checkpoint/config/source before allocating a GPU."""
+    scope = evaluation_metric_scope({"metric_scope": getattr(args, "metric_scope", "all_and_deg")})
     from gradpert.execution.train_entry import repository_root
     from gradpert.modeling.v2.precision_evaluation import evaluation_precision
 
@@ -107,6 +115,7 @@ def resolve_evaluation_plan(args: argparse.Namespace) -> dict[str, Any]:
     if not data_root.is_relative_to(SERVER_ROOT):
         raise ValueError("evaluation data must stay on the server")
     return {
+        **({"metric_scope": scope} if scope == "expression_only" else {}),
         **({"evaluation_precision": policy} if policy != "native" else {}),
         "config": str(config_path),
         "config_sha256": sha256_file(config_path),
@@ -127,6 +136,7 @@ def resolve_evaluation_plan(args: argparse.Namespace) -> dict[str, Any]:
 
 def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
     """Each process owns one visible GPU and a disjoint condition subset."""
+    scope = evaluation_metric_scope(plan)
     import torch
 
     from gradpert.evaluation.data import CanonicalEvaluationData
@@ -258,6 +268,7 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
                     query_count=runtime.options.eval_query_count,
                     metric_gene_groups=groups,
                     condition_ids=selected,
+                    include_deg_metrics=scope != "expression_only",
                     on_condition_complete=lambda done, count, condition: atomic_json(
                         Path(plan["output_root"]) / f"worker-{index}-progress.json",
                         {
@@ -288,6 +299,7 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
 
 
 def execute_evaluation_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    evaluation_metric_scope(plan)
     transfer = "dataset_transfer_validation" in plan
     if transfer:
         from gradpert.execution import dataset_transfer_validation as transfer_validation

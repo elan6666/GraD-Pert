@@ -185,8 +185,11 @@ def compute_condition_metrics_v2(
     systema_reference: np.ndarray[Any, Any],
     de_unavailable_reason: str | None = None,
     gene_indices: Sequence[int] | None = None,
+    include_deg: bool = True,
 ) -> ConditionMetrics:
-    """Six v2 Pearsons: three references, each on all selected genes and one shared DEG set."""
+    """Three expression Pearsons, optionally also evaluating the shared DEG set."""
+    if type(include_deg) is not bool:
+        raise ValueError("include_deg must be an explicit boolean")
     if not condition_id:
         raise ValueError("condition_id must be non-empty")
     pred = _population(prediction, "prediction")
@@ -200,7 +203,9 @@ def compute_condition_metrics_v2(
     if metric_control.shape != (n,) or reference.shape != (n,):
         raise ValueError("metric reference gene dimension differs")
     selected = np.arange(n) if gene_indices is None else _indices(gene_indices, n, "gene_indices")
-    if de_unavailable_reason is None:
+    if not include_deg:
+        de = np.asarray([], dtype=np.int64)
+    elif de_unavailable_reason is None:
         de = _indices(de_gene_indices, n, "de_gene_indices")
         de = de[np.isin(de, selected)]
     else:
@@ -216,8 +221,9 @@ def compute_condition_metrics_v2(
         ("systema_pearson", reference),
     )
     results: list[ConditionMetricResult] = []
+    scopes = (("all", selected), ("deg", de)) if include_deg else (("all", selected),)
     for family, baseline in axes:
-        for suffix, indices in (("all", selected), ("deg", de)):
+        for suffix, indices in scopes:
             metric_id = cast(MetricId, f"{family}_{suffix}")
             if suffix == "deg" and de_unavailable_reason is not None:
                 results.append(

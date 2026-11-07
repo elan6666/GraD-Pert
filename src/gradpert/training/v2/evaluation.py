@@ -230,7 +230,13 @@ def evaluate(
     metric_gene_groups: dict[str, tuple[int, ...]] | None = None,
     condition_ids: tuple[str, ...] | None = None,
     on_condition_complete: Callable[[int, int, str], None] | None = None,
+    include_deg_metrics: bool = True,
 ) -> dict[str, Any]:
+    if type(include_deg_metrics) is not bool:
+        raise ValueError("include_deg_metrics must be an explicit boolean")
+    v2_metrics = getattr(reference.manifest, "schema_version", None) == "evaluation-state-v2"
+    if not include_deg_metrics and not v2_metrics:
+        raise ValueError("expression-only evaluation requires the v2 metric protocol")
     if data.split_name != expected_split or data.control_manifest.split_name != expected_split:
         raise ValueError("evaluation split differs from requested lifecycle stage")
     gene_index = {g: i for i, g in enumerate(index.gene_ids)}
@@ -289,22 +295,29 @@ def evaluate(
             graph_memory=graph_memory,
         )
         truth = data.load_truth_rows(condition)
-        v2_metrics = getattr(reference.manifest, "schema_version", None) == "evaluation-state-v2"
         metric_fn = compute_condition_metrics_v2 if v2_metrics else compute_condition_metrics
+        de_arguments: dict[str, Any] = (
+            {
+                "de_gene_indices": reference.manifest.de_gene_indices[condition],
+                "de_unavailable_reason": reference.manifest.de_unavailable_reasons.get(condition),
+            }
+            if include_deg_metrics
+            else {"de_gene_indices": (), "include_deg": False}
+        )
+        top_de_arguments: dict[str, Any] = (
+            {}
+            if v2_metrics
+            else {"top_de_gene_indices": reference.manifest.top_de_gene_indices[condition]}
+        )
         metric = metric_fn(
             condition_id=condition,
             prediction=prediction,
             input_control=controls.expression,
             truth=truth.expression,
             metric_control_pool_mean=reference.metric_control_means[reference_positions[condition]],
-            de_gene_indices=reference.manifest.de_gene_indices[condition],
-            **(
-                {}
-                if v2_metrics
-                else {"top_de_gene_indices": reference.manifest.top_de_gene_indices[condition]}
-            ),
+            **de_arguments,
+            **top_de_arguments,
             systema_reference=reference.systema_reference,
-            de_unavailable_reason=reference.manifest.de_unavailable_reasons.get(condition),
         )
         loss = prediction_selection_loss(prediction, truth.expression, selection_gene_ids)
         metrics.append(metric)
@@ -322,15 +335,10 @@ def evaluate(
                 metric_control_pool_mean=reference.metric_control_means[
                     reference_positions[condition]
                 ],
-                de_gene_indices=reference.manifest.de_gene_indices[condition],
-                **(
-                    {}
-                    if v2_metrics
-                    else {"top_de_gene_indices": reference.manifest.top_de_gene_indices[condition]}
-                ),
+                **de_arguments,
+                **top_de_arguments,
                 systema_reference=reference.systema_reference,
                 gene_indices=indices,
-                de_unavailable_reason=reference.manifest.de_unavailable_reasons.get(condition),
             )
             group_metrics[name].append(group_metric)
             per_group[name] = asdict(group_metric)
@@ -352,6 +360,7 @@ def evaluate(
     if not losses:
         raise ValueError("evaluation split is empty")
     return {
+        **({"metric_scope": "expression_only"} if not include_deg_metrics else {}),
         "split": expected_split,
         "prediction_loss": float(np.mean(losses)),
         "selection_gene_ids": (
@@ -392,7 +401,12 @@ def merge_evaluation_shards(
     ):
         raise ValueError("complete ordered evaluation shards required")
     first = shards[0]
+    scope = first.get("metric_scope", "all_and_deg")
+    if scope not in ("all_and_deg", "expression_only"):
+        raise ValueError("unknown evaluation metric scope")
     for shard in shards[1:]:
+        if shard.get("metric_scope", "all_and_deg") != scope:
+            raise ValueError("evaluation shards differ in metric_scope")
         for key in (
             "split",
             "selection_gene_ids",
