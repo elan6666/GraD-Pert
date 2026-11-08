@@ -340,7 +340,8 @@ class GeneGraph(nn.Module):
         self.projection_activation: nn.Module = (
             nn.GELU() if options.genept_projection_activation == "gelu" else nn.Identity()
         )
-        self.norm = nn.LayerNorm(options.width)
+        self.norm: nn.Module = nn.LayerNorm(options.width)
+        self.final_norm: nn.Module = nn.Identity()
         self.mask_token = nn.Parameter(torch.zeros(options.width))
         if options.graph_read_mode == "relay":
             # Zero queries stay zero across bias-free relay blocks; repeated
@@ -463,12 +464,12 @@ class GeneGraph(nn.Module):
                         if self.checkpoint_chunks and torch.is_grad_enabled()
                         else read(*args)
                     )
-                return torch.cat(outputs, dim=1)
+                return cast(Tensor, self.final_norm(torch.cat(outputs, dim=1)))
             if self.mhc:
                 x = self.layers[3](x, context.neighbors, context.valid, context.sources).mean(-2)
             else:
                 x = self.layers[3](x, x, context.neighbors, context.valid, context.sources)
-            return cast(Tensor, x[context.query_positions])
+            return cast(Tensor, self.final_norm(x[context.query_positions]))
         if context is None or len(self.layers) != 2:
             raise ValueError("propagated graph read requires two layers and a context")
         first = self.layers[0](
@@ -703,6 +704,11 @@ class GraDPertV2(nn.Module):
             from .restored_ffn import configure_restored
 
             configure_restored(self, seeds.shape[1], options)
+
+        if options.normalization_layout == "llm_pre":
+            from .norm_layout import configure_norm_layout
+
+            configure_norm_layout(self)
 
         if options.graph_mhc:
             from .graph_mhc import GraphManifoldLayer

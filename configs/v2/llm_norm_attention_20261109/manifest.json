@@ -1,0 +1,27 @@
+{
+  "schema": "gradpert-llm-norm-terminal-attention-1",
+  "parent_config": "configs/v2/graph_prenorm_20261108/baseline/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "92deaaeabb15237f4125b7ff6f3f3344846535263bc9935a1ba0671137c622af",
+  "changed_model_parameters": [
+    "normalization_layout",
+    "terminal_attention"
+  ],
+  "epochs": 2,
+  "new_baseline": false,
+  "checkpoint_role": "last",
+  "evaluation_partition": "validation",
+  "deg": false,
+  "test_tuning": false,
+  "rows": [
+    {
+      "arm": "A_norm_mla",
+      "config": "configs/v2/llm_norm_attention_20261109/A_norm_mla/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "a338efc691b92db1b9a3673663d12a9cb6d9da72e6fd6619449b3e8bedc2f6fe"
+    },
+    {
+      "arm": "B_norm_standard",
+      "config": "configs/v2/llm_norm_attention_20261109/B_norm_standard/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "a478b4f2e0bd0600a768a62f1e9ca7cac22e70f0832405ebb11d4835f04df69c"
+    }
+  ]
+}

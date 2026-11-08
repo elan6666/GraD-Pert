@@ -17,6 +17,7 @@ from torch.nn import functional as F
 from torch.utils.checkpoint import checkpoint
 
 from .attention_ablation import ReplacementAttention
+from .standard_attention import StandardAttention
 
 
 def delta_scan(q: Tensor, k: Tensor, v: Tensor, log_decay: Tensor, beta: Tensor) -> Tensor:
@@ -869,7 +870,9 @@ class ManifoldResidual(nn.Module):
                 )
                 if isinstance(self.sublayer, RelayDeltaAttention)
                 else self.sublayer(h, block_cls_to_gene=block_cls_to_gene)
-                if isinstance(self.sublayer, (LatentAttention, ReplacementAttention))
+                if isinstance(
+                    self.sublayer, (LatentAttention, ReplacementAttention, StandardAttention)
+                )
                 else self.sublayer(h)
             )
             return x + cast(Tensor, y).unsqueeze(-2)
@@ -888,7 +891,7 @@ class ManifoldResidual(nn.Module):
             )
             if isinstance(self.sublayer, RelayDeltaAttention)
             else self.sublayer(h, block_cls_to_gene=block_cls_to_gene)
-            if isinstance(self.sublayer, (LatentAttention, ReplacementAttention))
+            if isinstance(self.sublayer, (LatentAttention, ReplacementAttention, StandardAttention))
             else self.sublayer(h),
         )
         return torch.einsum("...ij,...jd->...id", residual, x) + post.unsqueeze(-1) * y.unsqueeze(

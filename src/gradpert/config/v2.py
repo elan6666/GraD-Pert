@@ -54,6 +54,8 @@ class V2Architecture:
     ffn_input_norm: str = "historical"
     graph_input_norm: str = "historical"
     mla_query_rank: int = 0
+    normalization_layout: str = "historical"
+    terminal_attention: str = "latent"
     ssl2_cls_input_layernorm: bool = False
     ffn_clip: bool = True
     ffn_linear_bias: str = "historical"
@@ -73,6 +75,28 @@ class V2Architecture:
     random_gene_order: bool = True
 
     def __post_init__(self) -> None:
+        if self.normalization_layout not in ("historical", "llm_pre"):
+            raise ValueError("unknown normalization layout")
+        if self.terminal_attention not in ("latent", "standard"):
+            raise ValueError("unknown terminal attention")
+        if self.terminal_attention == "standard" and self.normalization_layout != "llm_pre":
+            raise ValueError("standard terminal attention requires llm_pre normalization layout")
+        if self.normalization_layout == "llm_pre" and (
+            self.mlp_profile != "restored"
+            or self.attention != "relay_full"
+            or self.graph_read_mode != "relay"
+            or self.graph_layers != 4
+            or self.graph_mhc
+            or self.graph_input_norm != "historical"
+            or self.ffn_input_norm != "historical"
+            or self.attention_replacement != "none"
+            or self.mla_query_rank != 0
+            or not self.response_injection_residual
+            or self.ssl2_cls_input_layernorm
+        ):
+            raise ValueError(
+                "llm_pre normalization layout requires the isolated restored relay recipe"
+            )
         if (
             type(self.mla_query_rank) is not int
             or self.mla_query_rank < 0
@@ -434,6 +458,8 @@ class V2Architecture:
             ("ffn_input_norm", "historical"),
             ("graph_input_norm", "historical"),
             ("mla_query_rank", 0),
+            ("normalization_layout", "historical"),
+            ("terminal_attention", "latent"),
             ("ssl2_cls_input_layernorm", False),
             ("ffn_clip", True),
             ("ffn_linear_bias", "historical"),
@@ -615,6 +641,8 @@ class V2Options:
             "ffn_input_norm",
             "graph_input_norm",
             "mla_query_rank",
+            "normalization_layout",
+            "terminal_attention",
             "ffn_clip",
             "ffn_linear_bias",
             "prototype_weight_norm",

@@ -15,6 +15,7 @@ from gradpert.modeling.v2.operators import (
     IndexedLatentAttention,
     LatentAttention,
 )
+from gradpert.modeling.v2.standard_attention import StandardAttention
 
 
 def routes(model: nn.Module) -> list[dict[str, Any]]:
@@ -44,7 +45,14 @@ def routes(model: nn.Module) -> list[dict[str, Any]]:
         if (
             hidden
             and isinstance(
-                owner, (SparseRead, DeltaAttention, LatentAttention, ReplacementAttention)
+                owner,
+                (
+                    SparseRead,
+                    DeltaAttention,
+                    LatentAttention,
+                    ReplacementAttention,
+                    StandardAttention,
+                ),
             )
             and projection in ("query", "key", "value")
         ):
