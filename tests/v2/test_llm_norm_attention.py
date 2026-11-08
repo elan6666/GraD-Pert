@@ -162,13 +162,14 @@ def test_uncompressed_graph_read_cannot_see_non_neighbors():
 
 
 @pytest.mark.parametrize("terminal", ["latent", "standard"])
-def test_full_update_and_exact_resume(terminal, tmp_path):
+@pytest.mark.parametrize("bf16", [False, True])
+def test_full_update_and_exact_resume(terminal, bf16, tmp_path):
     o, batch, _ = build(terminal)
     optimizer = V2Optimizer(o.student, 1e-3, 0)
     generator = np.random.default_rng(1)
     before = {k: v.clone() for k, v in o.student.state_dict().items()}
     for _ in range(2):
-        loss = optimizer_step(o, optimizer, batch, microbatch=4, lr=1e-3, momentum=0.9, bf16=False)
+        loss = optimizer_step(o, optimizer, batch, microbatch=4, lr=1e-3, momentum=0.9, bf16=bf16)
         assert all(math.isfinite(v) for v in loss.values()) and not o.pending
     assert any(not torch.equal(before[k], v) for k, v in o.student.state_dict().items())
     assert all(p.grad is None for p in o.teacher.parameters())
@@ -177,16 +178,46 @@ def test_full_update_and_exact_resume(terminal, tmp_path):
     save_checkpoint(
         path, o, optimizer, identity=identity, progress={"step": 2}, generator=generator
     )
-    expected = optimizer_step(o, optimizer, batch, microbatch=4, lr=1e-3, momentum=0.9, bf16=False)
+    expected = optimizer_step(o, optimizer, batch, microbatch=4, lr=1e-3, momentum=0.9, bf16=bf16)
     state, rng = copy.deepcopy(o.state_dict()), torch.get_rng_state().clone()
     resumed, _, _ = build(terminal)
     opt = V2Optimizer(resumed.student, 1e-3, 0)
     load_checkpoint(path, resumed, opt, identity=identity, generator=generator)
-    actual = optimizer_step(resumed, opt, batch, microbatch=4, lr=1e-3, momentum=0.9, bf16=False)
+    actual = optimizer_step(resumed, opt, batch, microbatch=4, lr=1e-3, momentum=0.9, bf16=bf16)
     assert actual == expected and torch.equal(rng, torch.get_rng_state())
     assert opt.state_dict()["routes"] == optimizer.state_dict()["routes"]
     for name, value in resumed.state_dict().items():
         torch.testing.assert_close(value, state[name], atol=0, rtol=0)
+
+
+def test_bf16_graph_mapping_inserts_fp32_mask_and_keeps_its_gradient(monkeypatch):
+    objective, batch, _ = build()
+    graph = objective.student.graph
+    original = graph.identities
+    monkeypatch.setattr(graph, "identities", lambda: original().to(torch.bfloat16))
+
+    class ReadIdentity(nn.Module):
+        def forward(self, x, *unused):
+            return x
+
+    for i in range(3):
+        graph.layers[i] = ReadIdentity()
+    context = batch.graph.context
+    assert context is not None
+    masked = batch.graph.ids[:2]
+    output = graph.relay_prefix(context, masked)
+    assert output.dtype == torch.bfloat16 and graph.mask_token.dtype == torch.float32
+    selected = (context.ids[:, None] == masked).any(dim=1)
+    assert selected.any()
+    torch.testing.assert_close(
+        output[selected],
+        graph.mask_token.to(torch.bfloat16).expand(int(selected.sum()), -1),
+        atol=0,
+        rtol=0,
+    )
+    output.float().square().sum().backward()
+    assert graph.mask_token.grad is not None
+    assert torch.isfinite(graph.mask_token.grad).all() and graph.mask_token.grad.abs().sum() > 0
 
 
 def test_config_manifest_and_historical_identity():

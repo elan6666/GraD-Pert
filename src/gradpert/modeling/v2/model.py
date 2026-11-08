@@ -403,7 +403,9 @@ class GeneGraph(nn.Module):
     def relay_prefix(self, context: GraphContext, masked_ids: Tensor | None = None) -> Tensor:
         memory = self.identities()
         if masked_ids is not None:
-            memory = memory.index_copy(0, masked_ids, self.mask_token.expand(len(masked_ids), -1))
+            memory = memory.index_copy(
+                0, masked_ids, self.mask_token.to(memory).expand(len(masked_ids), -1)
+            )
         x = memory[context.ids]
         if self.mhc:
             x = x.unsqueeze(-2).expand(-1, self.mhc_streams, -1)
@@ -428,7 +430,9 @@ class GeneGraph(nn.Module):
             else self.embedding.weight.new_empty((0, 0))
         )
         if masked_ids is not None and self.read_mode != "relay":
-            memory = memory.index_copy(0, masked_ids, self.mask_token.expand(len(masked_ids), -1))
+            memory = memory.index_copy(
+                0, masked_ids, self.mask_token.to(memory).expand(len(masked_ids), -1)
+            )
         if self.read_mode == "static":
             if context is not None:
                 raise ValueError("static graph read cannot use propagation context")

@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 S = Path(__file__).resolve().parents[2]
-F = Path("/data/yilangliu/GraD-Pert/development/llm-norm-standard-attention-20261109-a1")
+F = Path("/data/yilangliu/GraD-Pert/development/llm-norm-standard-attention-20261109-a2")
 # Direct-file launches also need the native scripts namespace.
 sys.path[:0] = [str(S / "src"), str(S), str(S / "scripts/v2")]
 

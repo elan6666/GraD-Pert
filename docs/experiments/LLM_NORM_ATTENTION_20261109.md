@@ -75,3 +75,18 @@ including its associated norm and parameter count; not a matched-capacity or
 single-norm causal claim. Historical comparisons retain separate training/eval
 commit/config/checkpoint identities. Large data/weights/results stay on server;
 only reviewed small summaries are pulled with SHA checks.
+
+## Mixed precision integration repair
+
+The initial integration attempt (`cfc24349c2cd921f4bf36af4b1153a3e299694ff`)
+failed before any successful update. Removing the mapping LayerNorm exposes
+BF16 graph memory under autocast, while the learned mask parameter remains
+FP32. The mask insertion now converts only its inserted view to the memory's
+dtype/device, preserving the FP32 parameter and its gradient. Both relay and
+static insertion sites follow this contract. Historical equal-dtype paths are
+unchanged. A regression explicitly exercises BF16 mapped memory with an FP32
+mask outside autocast, since autocast promotion rules differ between PyTorch
+versions; both arms also exercise full BF16 updates and exact state/RNG resume.
+The failed server directory is preserved; the repaired attempt uses a fresh
+`llm-norm-standard-attention-20261109-a2` family, new plan/run identities, and a
+new clean published source. Configurations and training budgets are unchanged.
