@@ -10,7 +10,7 @@ from gradpert.config.v2 import V2Architecture
 
 from .conditional_graph import ControlGraphModulation, ControlSummary
 from .model import GraDPertV2, RelayGraphLayer, RelayResponseEncoder, SparseRead
-from .operators import GatedFeedForward, ManifoldResidual
+from .operators import GatedFeedForward, LatentAttention, ManifoldResidual
 
 
 class UnclippedGate(nn.Module):
@@ -202,3 +202,21 @@ def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architectur
             torch.manual_seed((torch.initial_seed() + 0x71F2) % (2**63))
             model.control_summary = ControlSummary(d, gelu=True)
             model.graph_modulation = ControlGraphModulation(d, options.heads)
+    if options.mla_query_rank:
+        # An isolated initialization stream preserves all common B0 parameters/RNG.
+        # Only dense latent self/cross Q projections change; KV and KDA stay native.
+        with torch.random.fork_rng(devices=devices):
+            torch.manual_seed((torch.initial_seed() + 0x71F5) % (2**63))
+            for module in list(model.modules()):
+                if isinstance(module, LatentAttention):
+                    previous = module.query
+                    if not isinstance(previous, nn.Linear):
+                        raise ValueError("MLA query compression requires native linear Q")
+                    rank = options.mla_query_rank
+                    replacement = nn.Sequential(
+                        nn.Linear(previous.in_features, rank, bias=False),
+                        nn.RMSNorm(rank, eps=1e-6),
+                        nn.Linear(rank, previous.out_features, bias=False),
+                    ).to(device=previous.weight.device, dtype=previous.weight.dtype)
+                    replacement.train(previous.training)
+                    module.query = replacement

@@ -92,6 +92,12 @@ and representation-analysis completion are separate milestones.
 
 ## GraD-Pert v2 checkpoint workflows
 
+The [query-compression experiment](docs/experiments/MLA_QUERY_COMPRESSION_20261108.md)
+adds a config-selected low-rank Q projection with an internal RMSNorm. It is a
+separate two-epoch structural arm from graph-entrance RMSNorm; completed baseline
+and graph-normalization runs are reused. Both arms retain explicit throughput
+flags, and training completion remains separate from metric acceptance.
+
 A historical three-epoch Jurkat B0 config is
 `configs/v2/mhc_joint_only_jurkat/three_epoch_m68_a2/gradpert_v2/nadig_jurkat.yaml`:
 four mHC streams, full prediction + SSL1 + SSL2, three epochs, dual-GPU global

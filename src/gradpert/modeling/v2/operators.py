@@ -570,7 +570,7 @@ class LatentAttention(nn.Module):
     def __init__(self, width: int, heads: int, rank: int, dropout: float) -> None:
         super().__init__()
         self.heads, self.head_width, self.dropout = heads, width // heads, dropout
-        self.query = nn.Linear(width, width, bias=False)
+        self.query: nn.Module = nn.Linear(width, width, bias=False)
         self.compress = nn.Linear(width, rank, bias=False)
         self.latent_norm = nn.RMSNorm(rank)
         self.key = nn.Linear(rank, width, bias=False)

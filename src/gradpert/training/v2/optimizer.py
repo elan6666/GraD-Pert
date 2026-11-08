@@ -51,6 +51,13 @@ def routes(model: nn.Module) -> list[dict[str, Any]]:
             heads = owner.heads
         if hidden and isinstance(owner, FullAttention) and projection == "qkv":
             heads = 3 * owner.heads
+        # Compressed Q has a shared down-projection and a per-head expansion.
+        # Sequential nesting must not silently route its expansion as one matrix.
+        if hidden and projection == "2" and owner_path.endswith(".query"):
+            attention_path = owner_path.rpartition(".")[0]
+            attention_owner = modules.get(attention_path)
+            if isinstance(attention_owner, LatentAttention):
+                heads = attention_owner.heads
         if (
             hidden
             and isinstance(owner, IndexedLatentAttention)
