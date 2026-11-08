@@ -219,6 +219,21 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   report. A reporting failure is separate from scientific completion and must
   return for repair. Representation comparisons require matching probe hashes.
 
+## New training execution defaults (2026-11-08)
+
+- User requires the measured throughput preset for future native v2 relay
+  training: explicitly set `relay_validate_once: true` and
+  `cache_kda_constants: true` in each new self-contained configuration.
+  Use `scripts/v2/prepare_training_config.py` or
+  `gradpert.config.training_defaults.with_training_throughput_defaults` when
+  generating a new recipe. See `docs/experiments/TRAINING_EXECUTION_DEFAULTS.md`.
+- Never retrofit historical configs/checkpoints or enable hidden defaults at
+  load time. A named execution ablation may explicitly compare disabled flags.
+  External models and unsupported attention paths retain their own settings.
+- Preserve resource admission, GPU locks, allocator and CUBLAS contracts.
+  The observed speed gain is not proof of numerical equivalence: the prior
+  two-epoch final weights differed and prediction metrics changed in both directions.
+
 ## Maintenance
 
 - Last reviewed: 2026-08-24

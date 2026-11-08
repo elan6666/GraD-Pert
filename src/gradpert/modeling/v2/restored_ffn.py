@@ -133,6 +133,23 @@ def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architectur
             model.ssl2_cls.features = nn.Sequential(
                 Float32LayerNorm(d, eps=1e-6), model.ssl2_cls.features
             )
+        if options.graph_input_norm == "rmsnorm":
+            # Replace only existing graph sublayer entrances, preserving eps and scale.
+            # RMSNorm has no beta; all task heads, latent norms and output norms stay intact.
+            for layer in model.graph.layers:
+                if not isinstance(layer, (RelayGraphLayer, SparseRead)):
+                    raise ValueError("graph input normalization requires native relay graph layers")
+                for name in ("norm1", "norm2"):
+                    previous = getattr(layer, name)
+                    if not isinstance(previous, nn.LayerNorm) or previous.weight is None:
+                        raise ValueError("graph input normalization requires affine LayerNorm")
+                    replacement = nn.RMSNorm(previous.normalized_shape, eps=previous.eps).to(
+                        device=previous.weight.device, dtype=previous.weight.dtype
+                    )
+                    with torch.no_grad():
+                        replacement.weight.copy_(previous.weight)
+                    replacement.train(previous.training)
+                    setattr(layer, name, replacement)
         if options.ffn_linear_bias == "none":
             # These role roots exclude Q/K/V, KDA state gates, mHC routing and norm beta.
             roles: list[nn.Module] = [model.graph.adapter, model.expression, model.prediction]

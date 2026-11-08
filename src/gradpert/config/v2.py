@@ -52,6 +52,7 @@ class V2Architecture:
     mlp_profile: str = "historical"
     ffn_variant: str = "mixed"
     ffn_input_norm: str = "historical"
+    graph_input_norm: str = "historical"
     ssl2_cls_input_layernorm: bool = False
     ffn_clip: bool = True
     ffn_linear_bias: str = "historical"
@@ -71,6 +72,20 @@ class V2Architecture:
     random_gene_order: bool = True
 
     def __post_init__(self) -> None:
+        if self.graph_input_norm not in ("historical", "rmsnorm"):
+            raise ValueError("unknown graph input normalization")
+        if self.graph_input_norm != "historical" and (
+            self.mlp_profile != "restored"
+            or self.attention != "relay_full"
+            or self.graph_read_mode != "relay"
+            or self.ffn_input_norm != "historical"
+            or self.graph_mhc
+            or self.attention_replacement != "none"
+        ):
+            raise ValueError(
+                "graph input normalization requires restored relay graph, historical FFN norm "
+                "and no graph mHC or attention replacement"
+            )
         if type(self.ffn_compute_precision) is not str or self.ffn_compute_precision not in (
             "autocast",
             "fp8_hybrid",
@@ -395,6 +410,7 @@ class V2Architecture:
             ("mlp_profile", "historical"),
             ("ffn_variant", "mixed"),
             ("ffn_input_norm", "historical"),
+            ("graph_input_norm", "historical"),
             ("ssl2_cls_input_layernorm", False),
             ("ffn_clip", True),
             ("ffn_linear_bias", "historical"),
@@ -574,6 +590,7 @@ class V2Options:
             "mlp_profile",
             "ffn_variant",
             "ffn_input_norm",
+            "graph_input_norm",
             "ffn_clip",
             "ffn_linear_bias",
             "prototype_weight_norm",

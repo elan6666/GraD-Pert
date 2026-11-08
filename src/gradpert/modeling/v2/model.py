@@ -78,7 +78,7 @@ class SparseRead(nn.Module):
         self.source_key_gate = (
             nn.Parameter(torch.zeros(4, heads, self.head_width)) if source_key_gate else None
         )
-        self.norm1 = nn.LayerNorm(width)
+        self.norm1: nn.Module = nn.LayerNorm(width)
         self.norm2: nn.Module = nn.LayerNorm(width)
         self.ffn: nn.Module = (
             GatedFeedForward(width, dropout)
@@ -154,7 +154,7 @@ class RelayGraphLayer(nn.Module):
         checkpoint_chunks: bool = False,
     ) -> None:
         super().__init__()
-        self.norm1 = nn.LayerNorm(width)
+        self.norm1: nn.Module = nn.LayerNorm(width)
         self.norm2: nn.Module = nn.LayerNorm(width)
         self.read = RelayDeltaAttention(width, heads)
         self.ffn: nn.Module = GatedFeedForward(width, dropout)

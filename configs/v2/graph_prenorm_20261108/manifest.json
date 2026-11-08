@@ -1,0 +1,29 @@
+{
+  "schema": "gradpert-graph-prenorm-comparison-1",
+  "parent_config": "configs/v2/training_speed_20261106/baseline/gradpert_v2/nadig_jurkat.yaml",
+  "parent_sha256": "f01d25b3509960416c8bfd1e0893a27716f48957c3abed0aad01dbe06b9a1eb1",
+  "changed_model_parameters": [
+    "graph_input_norm"
+  ],
+  "shared_execution_preset": [
+    "relay_validate_once",
+    "cache_kda_constants"
+  ],
+  "epochs": 2,
+  "checkpoint_role": "last",
+  "evaluation_partition": "validation",
+  "deg": false,
+  "test_tuning": false,
+  "rows": [
+    {
+      "arm": "baseline",
+      "config": "configs/v2/graph_prenorm_20261108/baseline/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "92deaaeabb15237f4125b7ff6f3f3344846535263bc9935a1ba0671137c622af"
+    },
+    {
+      "arm": "graph_rmsnorm",
+      "config": "configs/v2/graph_prenorm_20261108/graph_rmsnorm/gradpert_v2/nadig_jurkat.yaml",
+      "sha256": "4e62c4e1ad3e4a684431c85dff07d81eb5daec38ebdaef5d2b788faf0c728dfc"
+    }
+  ]
+}
