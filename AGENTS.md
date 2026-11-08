@@ -98,6 +98,14 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   explicitly requests regular updates. Preserve pauses, stop requests, and
   notification preferences; delete obsolete or completed monitors. A monitor
   never expands the user's authorized scope.
+- The user interacts through the main chat. Main handles connection, reconnection,
+  dispatch, supervision and handback for the selected existing supervisor without
+  asking the user to switch chats or copy connection instructions. For enrollment,
+  the user authorizes a native platform message to that exact supervisor asking it
+  to run its own Bridge `connect` and `context`; this is an explicit exception to
+  the older Bridge-only bootstrap restriction. Main verifies the actual returned
+  binding, then uses Bridge for task handoffs and results. An enrollment message
+  does not itself establish a connection, launch an experiment or enable a timer.
 - Every native CUDA capacity/smoke/full process must start with
   `PYTORCH_ALLOC_CONF=expandable_segments:True`; the runner fails closed when
   this allocator contract is missing or changed.
