@@ -88,7 +88,7 @@ def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architectur
                 UnclippedGate(2 * d, d, d) for _ in response.injections
             )
             model.prediction = UnclippedGate(2 * d, d, 1)
-            for head in (model.ssl1_cls, model.ssl1_node, model.ssl2_cls, model.ssl2_node):
+            for head in model.distillation_heads():
                 head.features = UnclippedGate(
                     d, options.projector_hidden, options.projector_bottleneck
                 )
@@ -127,9 +127,9 @@ def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architectur
                 nn.Sequential(pre_norm(2 * d), block) for block in response.injections
             )
             model.prediction = nn.Sequential(pre_norm(2 * d), model.prediction)
-            for head in (model.ssl1_cls, model.ssl1_node, model.ssl2_cls, model.ssl2_node):
+            for head in model.distillation_heads():
                 head.features = nn.Sequential(pre_norm(d), head.features)
-        if options.ssl2_cls_input_layernorm:
+        if options.ssl2_cls_input_layernorm and options.has_distillation:
             model.ssl2_cls.features = nn.Sequential(
                 Float32LayerNorm(d, eps=1e-6), model.ssl2_cls.features
             )
@@ -161,10 +161,7 @@ def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architectur
                 if isinstance(module, ManifoldResidual)
                 and isinstance(module.sublayer, (GatedFeedForward, MatchedGELUFeedForward))
             )
-            roles.extend(
-                head.features
-                for head in (model.ssl1_cls, model.ssl1_node, model.ssl2_cls, model.ssl2_node)
-            )
+            roles.extend(head.features for head in model.distillation_heads())
             for root in roles:
                 for module in root.modules():
                     if isinstance(module, nn.Linear):
@@ -172,7 +169,7 @@ def configure_restored(model: GraDPertV2, raw_width: int, options: V2Architectur
         if options.prototype_weight_norm:
             from torch.nn.utils.parametrizations import weight_norm
 
-            for head in (model.ssl1_cls, model.ssl1_node, model.ssl2_cls, model.ssl2_node):
+            for head in model.distillation_heads():
                 weight_norm(head.prototypes, name="weight", dim=0)
                 # v retains the original Linear initialization; g begins at one.
                 with torch.no_grad():

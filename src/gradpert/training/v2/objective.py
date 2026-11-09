@@ -223,7 +223,7 @@ class JointObjective(nn.Module):
                 "and disabled AU/CR/KoLeo/population loss"
             )
         self.student = student
-        no_distillation = student.options.architecture_variant == "small_softmax_mhc"
+        no_distillation = not student.options.has_distillation
         if no_distillation and any(
             (
                 lambda1,
@@ -235,7 +235,7 @@ class JointObjective(nn.Module):
                 lambda_cls_mask,
                 masked_response_ratio,
                 lambda_masked_response,
-                lambda_mmd,
+                lambda_mmd if student.options.architecture_variant == "small_softmax_mhc" else 0,
                 teacher_temperature_warmup_steps,
                 self.au_enabled,
                 self.cr_enabled,
@@ -243,7 +243,7 @@ class JointObjective(nn.Module):
                 population_response,
             )
         ):
-            raise ValueError("small softmax arm constructs only the prediction objective")
+            raise ValueError("distillation-disabled model constructs only the prediction objective")
         self.teacher = (
             None if no_distillation else copy.deepcopy(student).requires_grad_(False).eval()
         )

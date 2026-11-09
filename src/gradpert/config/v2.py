@@ -10,6 +10,7 @@ from typing import Any
 @dataclass(frozen=True)
 class V2Architecture:
     architecture_variant: str = "historical"
+    distillation_enabled: bool = True
     width: int = 256
     heads: int = 4
     graph_layers: int = 2
@@ -75,7 +76,13 @@ class V2Architecture:
     response_injection_residual: bool = False
     random_gene_order: bool = True
 
+    @property
+    def has_distillation(self) -> bool:
+        return self.distillation_enabled and self.architecture_variant != "small_softmax_mhc"
+
     def __post_init__(self) -> None:
+        if type(self.distillation_enabled) is not bool:
+            raise ValueError("distillation_enabled must be boolean")
         if self.architecture_variant not in ("historical", "small_softmax_mhc"):
             raise ValueError("unknown v2 architecture variant")
         if self.architecture_variant == "small_softmax_mhc":
@@ -501,6 +508,7 @@ class V2Architecture:
             values.pop("genept_projection_activation")
         for name, default in (
             ("architecture_variant", "historical"),
+            ("distillation_enabled", True),
             ("mlp_profile", "historical"),
             ("ffn_variant", "mixed"),
             ("ffn_input_norm", "historical"),
@@ -642,6 +650,7 @@ class V2Options:
         names = {f.name for f in fields(cls)}
         optional = {
             "architecture_variant",
+            "distillation_enabled",
             "sinkhorn_backend",
             "expression_holdout_path",
             "expression_holdout_sha256",
@@ -776,7 +785,7 @@ class V2Options:
             or arch.gene_conditioned_readout
         ):
             raise ValueError("protected population head requires native relay Softplus decoder")
-        if arch.architecture_variant == "small_softmax_mhc":
+        if not arch.has_distillation:
             disabled = (
                 "lambda1",
                 "lambda2",
@@ -791,7 +800,7 @@ class V2Options:
                 "auxiliary_mask_ratio",
                 "lambda_masked_response",
                 "masked_response_ratio",
-                "lambda_mmd",
+                "population_response",
                 "response_anchor_weight",
                 "teacher_temperature_warmup_epochs",
                 "ssl_pretrain_epochs",
@@ -803,9 +812,11 @@ class V2Options:
                 "spectral_amplitude_weight",
             )
             if any(getattr(options, k) for k in disabled) or options.prediction_error_power != 2:
-                raise ValueError("small softmax arm requires prediction MSE only; SSL is absent")
+                raise ValueError("distillation-disabled runs require prediction MSE only")
+            if arch.architecture_variant == "small_softmax_mhc" and options.lambda_mmd:
+                raise ValueError("small softmax arm requires a zero MMD weight")
             if options.training_mode != "joint":
-                raise ValueError("small softmax arm requires joint entrypoint with MSE only")
+                raise ValueError("distillation-disabled runs require the joint entrypoint")
         return arch, options
 
     def __post_init__(self) -> None:

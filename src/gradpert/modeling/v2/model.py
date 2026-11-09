@@ -578,10 +578,11 @@ class GraDPertV2(nn.Module):
         )
         prediction_width = 2 * d if options.attention == "relay_full" else d
         self.prediction = nn.Sequential(nn.Linear(prediction_width, d), nn.GELU(), nn.Linear(d, 1))
-        self.ssl1_cls = Projector(options)
-        self.ssl1_node = Projector(options)
-        self.ssl2_cls = Projector(options)
-        self.ssl2_node = Projector(options)
+        if options.has_distillation:
+            self.ssl1_cls = Projector(options)
+            self.ssl1_node = Projector(options)
+            self.ssl2_cls = Projector(options)
+            self.ssl2_node = Projector(options)
         if options.attention_replacement != "none":
             if not isinstance(self.response, RelayResponseEncoder):
                 raise ValueError("complete replacement requires the relay response path")
@@ -694,7 +695,7 @@ class GraDPertV2(nn.Module):
                 self.prediction = nn.Sequential(
                     UnifiedMLP(prediction_width, 4 * d, d), nn.Identity(), nn.Linear(d, 1)
                 )
-                for head in (self.ssl1_cls, self.ssl1_node, self.ssl2_cls, self.ssl2_node):
+                for head in self.distillation_heads():
                     head.features = UnifiedMLP(
                         d, options.projector_hidden, options.projector_bottleneck
                     )
@@ -738,6 +739,11 @@ class GraDPertV2(nn.Module):
                 )
             self.graph.mhc = True
             self.graph.mhc_streams = options.streams
+
+    def distillation_heads(self) -> tuple[Projector, ...]:
+        if not self.options.has_distillation:
+            return ()
+        return self.ssl1_cls, self.ssl1_node, self.ssl2_cls, self.ssl2_node
 
     @staticmethod
     def _prior_mlp(width: int) -> nn.Sequential:

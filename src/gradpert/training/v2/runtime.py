@@ -523,9 +523,13 @@ def prepare_runtime(
             "ibot": "masked_tokens_per_cell_then_valid_cell_population",
             "exceptions": ["ssl1_node", "ssl1_spread", "teacher_centers"],
         }
-        if arch.architecture_variant == "small_softmax_mhc":
+        if not arch.has_distillation:
             identity["loss_protocol"].update(
-                version="small-softmax-mhc-prediction-only-v1",
+                version=(
+                    "small-softmax-mhc-prediction-only-v1"
+                    if arch.architecture_variant == "small_softmax_mhc"
+                    else "historical-prediction-only-v1"
+                ),
                 teacher_and_centers="not_constructed",
                 distillation_heads="not_constructed",
                 ssl_views="not_constructed",

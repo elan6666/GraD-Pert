@@ -1,4 +1,4 @@
-"""One authorized small-model arm through the native preflight and fit lifecycle."""
+"""Run a sealed two-epoch prediction-only arm through preflight and fit."""
 
 from __future__ import annotations
 
@@ -68,8 +68,12 @@ def main() -> None:
         raise ValueError("plan source/config mismatch")
     config = plan["resolved_config"]
     params = config["model"]["parameters"]
+    variant = params.get("architecture_variant", {}).get("value", "historical")
+    prediction_only = variant == "small_softmax_mhc" or (
+        variant == "historical" and params.get("distillation_enabled", {}).get("value") is False
+    )
     if (
-        params["architecture_variant"]["value"] != "small_softmax_mhc"
+        not prediction_only
         or any(
             params[k]["value"]
             for k in (
