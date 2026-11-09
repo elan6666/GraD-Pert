@@ -212,6 +212,8 @@ class SmallGraphLayer(nn.Module):
 
 
 class SmallGeneGraph(nn.Module):
+    read_mode = "relay"
+
     def __init__(self, seeds: Tensor, options: V2Architecture) -> None:
         super().__init__()
         if seeds.ndim != 2 or seeds.shape[1] != 2048 or not torch.isfinite(seeds).all():

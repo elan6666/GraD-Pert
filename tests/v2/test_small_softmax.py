@@ -336,3 +336,24 @@ def test_controller_preserves_other_gpu_work_and_rejects_selected_foreign_proces
     observed["gpus"][1]["free_mib"] = 1024
     with pytest.raises(RuntimeError, match="reserve"):
         admit_selected_idle(observed, 1, "chosen")
+
+
+def test_evaluation_graph_cache_uses_the_same_complete_graph_and_invalidates_updates():
+    from test_relay_method import small_index
+    from gradpert.training.v2.evaluation_graph import prepare_evaluation_graph
+    from gradpert.training.v2.evaluation import predict_controls
+
+    torch.set_num_threads(2)
+    objective, _ = fixture(False)
+    model, index = objective.student.eval(), small_index(16)
+    memory = prepare_evaluation_graph(model, index, device=torch.device("cpu"))
+    assert memory is not None
+    controls = np.random.default_rng(9).random((3, 16), dtype=np.float32)
+    options = dict(device=torch.device("cpu"), cell_batch=2, query_count=6)
+    cached = predict_controls(model, index, controls, (0,), graph_memory=memory, **options)
+    uncached = predict_controls(model, index, controls, (0,), **options)
+    np.testing.assert_allclose(cached, uncached, atol=2e-6, rtol=2e-5)
+    with torch.no_grad():
+        model.graph.layers[0].attention.q_up.weight.add_(0.01)
+    with pytest.raises(ValueError, match="same frozen"):
+        memory.select(model, index, torch.arange(4))
