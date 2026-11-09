@@ -21,10 +21,15 @@ from gradpert.modeling.v2.standard_attention import StandardAttention
 
 def routes(model: nn.Module) -> list[dict[str, Any]]:
     modules = dict(model.named_modules())
+    options = getattr(model, "options", None)
+    prediction_score_path = "prediction.2"
+    if getattr(options, "architecture_variant", None) == "small_softmax_mhc":
+        head = modules["prediction"]
+        if not isinstance(head, nn.Sequential):
+            raise ValueError("small model prediction head must expose its scalar output layer")
+        prediction_score_path = f"prediction.{len(head) - 1}"
     layernorm_score_path = (
-        "prediction.1.2"
-        if getattr(getattr(model, "options", None), "ffn_input_norm", None) == "layernorm"
-        else None
+        "prediction.1.2" if getattr(options, "ffn_input_norm", None) == "layernorm" else None
     )
     result = []
     for name, parameter in model.named_parameters():
@@ -38,7 +43,7 @@ def routes(model: nn.Module) -> list[dict[str, Any]]:
             isinstance(module, nn.Linear)
             and field == "weight"
             and "prototypes" not in path
-            and path not in ("prediction.2", "control_reconstruction.gene")
+            and path not in (prediction_score_path, "control_reconstruction.gene")
             and path != layernorm_score_path
             and projection != "route"
         )

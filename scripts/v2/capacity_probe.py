@@ -282,6 +282,7 @@ def main() -> None:
     parser.add_argument("--steps", type=int)
     parser.add_argument("--integration-only", action="store_true")
     parser.add_argument("--benchmark-only", action="store_true")
+    parser.add_argument("--batch-capacity-only", action="store_true")
     parser.add_argument("--warmup-steps", type=int)
     parser.add_argument("--profile-last-update", action="store_true")
     parser.add_argument("--profile-pt1-stages", action="store_true")
@@ -302,6 +303,37 @@ def main() -> None:
     parser.add_argument("--joint-validation-check", action="store_true")
     parser.add_argument("--reference-unused-ssl-decoder", action="store_true")
     args = parser.parse_args()
+    if args.batch_capacity_only:
+        if not args.benchmark_only or args.steps not in (None, 3):
+            parser.error("batch screening requires --benchmark-only and exactly three updates")
+        if (
+            any(
+                getattr(args, flag)
+                for flag in (
+                    "integration_only",
+                    "profile_last_update",
+                    "profile_pt1_stages",
+                    "profile_memory",
+                    "profile_operator_table",
+                    "sync_phase_timing",
+                    "no_sequence_checkpoint",
+                    "cpu_prefetch",
+                    "fused_sinkhorn",
+                    "save_no_grad_sinkhorn",
+                    "fused_gram",
+                    "gram_io",
+                    "aten_kda",
+                    "metric_scalar_batch",
+                    "record_update_state",
+                    "shared_queue",
+                    "joint_validation_check",
+                    "reference_unused_ssl_decoder",
+                )
+            )
+            or args.warmup_steps is not None
+        ):
+            parser.error("batch screening does not alter the native execution path")
+        args.steps = 3
     try:
         validate_metric_scalar_mode(args)
     except ValueError as error:
@@ -438,7 +470,22 @@ def main() -> None:
     from gradpert.training.v2.runtime import prepare_runtime
 
     config = load_experiment_config(args.config)
-    architecture, _ = V2Options.parse_parameters(config.model.parameters)
+    architecture, options = V2Options.parse_parameters(config.model.parameters)
+    if args.batch_capacity_only and (
+        architecture.architecture_variant != "small_softmax_mhc"
+        or architecture.small_gene_table
+        or architecture.graph_layers != 4
+        or architecture.has_distillation
+        or options.world_size != 2
+        or world != 2
+        or options.accumulation != 1
+        or 2 * options.microbatch != int(config.training.train_batch_size.value)
+        or options.query_count != 1000
+        or not options.process_diagnostics
+        or not architecture.checkpoint_layers
+        or not architecture.checkpoint_genept_mapping
+    ):
+        parser.error("batch screening requires two ranks and the sealed small-model settings")
     if args.save_no_grad_sinkhorn and architecture.sinkhorn_backend not in ("auto", "triton"):
         parser.error("saved no-grad Sinkhorn requires a fused backend")
     source = inspect_source_identity(
@@ -506,6 +553,17 @@ def main() -> None:
     if shared_policy is not None:
         receipt["shared_gpu_policy"] = shared_policy
         receipt["shared_queue_sha256"] = sha256_file(args.shared_queue)
+    if args.batch_capacity_only:
+        receipt["batch_capacity_screen"] = {
+            "microbatch": options.microbatch,
+            "global_batch": int(config.training.train_batch_size.value),
+            "accumulation": options.accumulation,
+            "world_size": world,
+            "rank": rank,
+            "queries": options.query_count,
+            "cuda_memory_fraction": 0.9,
+            "phase": "runtime_preparation",
+        }
     primary_call(lambda: atomic_json(args.output / "receipt.json", receipt))
     capture = None
     candidate_contexts = ExitStack()
@@ -683,13 +741,13 @@ def main() -> None:
             if (
                 not profiling
                 and loss_diagnostics_enabled
-                and kind
-                in (
-                    "preflight_only",
-                    "capacity_only",
-                    "integration_only",
+                and (
+                    args.batch_capacity_only
+                    or kind in ("preflight_only", "capacity_only", "integration_only")
                 )
             ):
+                if args.batch_capacity_only:
+                    receipt["batch_capacity_screen"]["phase"] = "initial_diagnostic"
                 torch.cuda.reset_peak_memory_stats()
                 started = time.perf_counter()
                 receipt["initial_loss_diagnostic"] = primary_call(runtime.loss_diagnostics)
@@ -768,6 +826,12 @@ def main() -> None:
                             moments
                             == state_fingerprint({k: after[k] for k in ("muon", "adamw", "steps")})
                         )
+                    if args.batch_capacity_only:
+                        if len(batch.control) != options.microbatch:
+                            raise ValueError(
+                                "capacity screening requires a complete candidate batch"
+                            )
+                        receipt["batch_capacity_screen"]["phase"] = "optimizer_update"
                     terms = optimizer_step(
                         runtime.objective,
                         runtime.optimizer,
@@ -788,6 +852,14 @@ def main() -> None:
                         batch_metric_scalars=args.metric_scalar_batch,
                     )
                     torch.cuda.synchronize()
+                    if args.batch_capacity_only:
+                        receipt["batch_capacity_screen"]["phase"] = "post_update"
+                        if not (
+                            math.isfinite(terms["prediction_mse"])
+                            and math.isfinite(terms["gradient_norm"])
+                            and terms["gradient_norm"] > 0
+                        ):
+                            raise ValueError("capacity update lacked finite nonzero gradients")
                     durations.append(time.perf_counter() - started)
                     if args.record_update_state:
                         # Deliberately outside the update timer. These parity runs
@@ -1429,10 +1501,26 @@ def main() -> None:
                     )
                 ),
             )
+            if args.batch_capacity_only:
+                receipt["batch_capacity_screen"]["phase"] = "screen_complete"
+                receipt["coverage"] = (
+                    "three complete updates at the specified batch with native initialization "
+                    "diagnostic; no checkpoint, inference or sustained-capacity claim"
+                )
     except BaseException as error:
         if capture is not None:
             capture.close(export=False)
         receipt.update(status="failed", error_type=type(error).__name__, error=str(error))
+        if args.batch_capacity_only:
+            screen = receipt["batch_capacity_screen"]
+            screen["failure_class"] = (
+                "cuda_update_oom"
+                if isinstance(error, torch.OutOfMemoryError)
+                and screen["phase"] == "optimizer_update"
+                else "unclassified_failure"
+            )
+            receipt["peak_allocated_bytes"] = torch.cuda.max_memory_allocated()
+            receipt["peak_reserved_bytes"] = torch.cuda.max_memory_reserved()
         atomic_json(args.output / f"rank-{rank}-failure.json", receipt)
         if rank == 0:
             atomic_json(args.output / "receipt.json", receipt)

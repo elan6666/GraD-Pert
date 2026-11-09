@@ -535,7 +535,9 @@ class GraDPertV2(nn.Module):
     readout_prior: Tensor
     gene_expression_fusion: nn.Linear
 
-    def __init__(self, seeds: Tensor, options: V2Architecture) -> None:
+    def __init__(
+        self, seeds: Tensor | int, options: V2Architecture, *, gene_seed: int | None = None
+    ) -> None:
         super().__init__()
         self.options = options
         self.randomize_relay_order = False
@@ -544,8 +546,10 @@ class GraDPertV2(nn.Module):
         if options.architecture_variant == "small_softmax_mhc":
             from .small_softmax import initialize_small_model
 
-            initialize_small_model(self, seeds, options)
+            initialize_small_model(self, seeds, options, gene_seed=gene_seed)
             return
+        if not isinstance(seeds, Tensor) or gene_seed is not None:
+            raise ValueError("historical v2 requires the existing seed tensor")
         self.graph = GeneGraph(seeds, options)
         self.expression = nn.Sequential(
             nn.Linear(1, d), nn.GELU(), nn.Linear(d, d), nn.LayerNorm(d)

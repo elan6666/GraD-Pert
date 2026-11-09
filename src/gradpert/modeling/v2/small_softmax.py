@@ -214,24 +214,41 @@ class SmallGraphLayer(nn.Module):
 class SmallGeneGraph(nn.Module):
     read_mode = "relay"
 
-    def __init__(self, seeds: Tensor, options: V2Architecture) -> None:
+    def __init__(
+        self, seeds: Tensor | int, options: V2Architecture, *, gene_seed: int | None
+    ) -> None:
         super().__init__()
-        if seeds.ndim != 2 or seeds.shape[1] != 2048 or not torch.isfinite(seeds).all():
-            raise ValueError("small softmax requires finite raw 2048-dimensional priors")
         d = options.width
-        self.embedding = nn.Embedding(
-            seeds.shape[0], seeds.shape[1], _weight=seeds.detach().clone(), _freeze=True
-        )
-        self.adapter = nn.Sequential(
-            FeatureRMSNorm(2048),
-            nn.Linear(2048, 1024),
-            nn.GELU(),
-            nn.Linear(1024, d),
-            nn.GELU(),
-            nn.Linear(d, d),
-        )
+        self.adapter: nn.Module
+        if options.small_gene_table:
+            if not isinstance(seeds, int) or seeds <= 0 or type(gene_seed) is not int:
+                raise ValueError("trainable gene table requires a graph node count and run seed")
+            generator = torch.Generator(device="cpu").manual_seed(gene_seed)
+            weight = torch.randn(seeds, d, generator=generator, device="cpu", dtype=torch.float32)
+            self.embedding = nn.Embedding(seeds, d, _weight=weight)
+            self.adapter = nn.Identity()
+        else:
+            if (
+                not isinstance(seeds, Tensor)
+                or seeds.ndim != 2
+                or seeds.shape[1] != 2048
+                or not torch.isfinite(seeds).all()
+                or gene_seed is not None
+            ):
+                raise ValueError("small softmax requires finite raw 2048-dimensional priors")
+            self.embedding = nn.Embedding(
+                seeds.shape[0], seeds.shape[1], _weight=seeds.detach().clone(), _freeze=True
+            )
+            self.adapter = nn.Sequential(
+                FeatureRMSNorm(2048),
+                nn.Linear(2048, 1024),
+                nn.GELU(),
+                nn.Linear(1024, d),
+                nn.GELU(),
+                nn.Linear(d, d),
+            )
         self.mask_token = nn.Parameter(torch.randn(d) * 0.02)
-        self.layers = nn.ModuleList(SmallGraphLayer(d) for _ in range(4))
+        self.layers = nn.ModuleList(SmallGraphLayer(d) for _ in range(options.graph_layers))
         self.final_norm = FeatureRMSNorm(d)
         self.checkpoint_layers = options.checkpoint_layers
         self.checkpoint_genept_mapping = options.checkpoint_genept_mapping
@@ -321,7 +338,8 @@ class SmallTokenLayer(nn.Module):
 class SmallTokenEncoder(nn.Module):
     def __init__(self, options: V2Architecture, response: bool = False) -> None:
         super().__init__()
-        self.layers = nn.ModuleList(SmallTokenLayer(options.width, response) for _ in range(3))
+        depth = 3 if response else options.small_cell_layers
+        self.layers = nn.ModuleList(SmallTokenLayer(options.width, response) for _ in range(depth))
         self.norm = FeatureRMSNorm(options.width)
         self.checkpoint_layers = options.checkpoint_layers
 
@@ -345,9 +363,11 @@ class SmallTokenEncoder(nn.Module):
         return cast(Tensor, self.norm(collapse_streams(state, read)))
 
 
-def initialize_small_model(model: Any, seeds: Tensor, options: V2Architecture) -> None:
+def initialize_small_model(
+    model: Any, seeds: Tensor | int, options: V2Architecture, *, gene_seed: int | None
+) -> None:
     d = options.width
-    model.graph = SmallGeneGraph(seeds, options)
+    model.graph = SmallGeneGraph(seeds, options, gene_seed=gene_seed)
     model.expression = nn.Sequential(nn.Linear(1, d), nn.GELU(), nn.Linear(d, d))
     model.expression_mask = nn.Parameter(torch.zeros(d))
     model.control_cls = nn.Parameter(torch.randn(1, 1, d) * 0.02)
@@ -355,7 +375,10 @@ def initialize_small_model(model: Any, seeds: Tensor, options: V2Architecture) -
     model.gene_expression_fusion = nn.Linear(2 * d, d)
     model.cell = SmallTokenEncoder(options)
     model.response = SmallTokenEncoder(options, response=True)
-    model.prediction = nn.Sequential(nn.Linear(2 * d, d), nn.GELU(), nn.Linear(d, 1))
+    layers: list[nn.Module] = [nn.Linear(2 * d, d), nn.GELU()]
+    for _ in range(options.small_prediction_hidden_layers - 1):
+        layers.extend((nn.Linear(d, d), nn.GELU()))
+    model.prediction = nn.Sequential(*layers, nn.Linear(d, 1))
     model.prior_readout = None
     model.control_summary = None
     model.graph_modulation = None

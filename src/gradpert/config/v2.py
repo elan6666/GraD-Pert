@@ -11,6 +11,9 @@ from typing import Any
 class V2Architecture:
     architecture_variant: str = "historical"
     distillation_enabled: bool = True
+    small_cell_layers: int = 3
+    small_prediction_hidden_layers: int = 1
+    small_gene_table: bool = False
     width: int = 256
     heads: int = 4
     graph_layers: int = 2
@@ -85,20 +88,34 @@ class V2Architecture:
             raise ValueError("distillation_enabled must be boolean")
         if self.architecture_variant not in ("historical", "small_softmax_mhc"):
             raise ValueError("unknown v2 architecture variant")
+        if (
+            type(self.small_cell_layers) is not int
+            or type(self.small_prediction_hidden_layers) is not int
+            or type(self.small_gene_table) is not bool
+        ):
+            raise ValueError("invalid small-model configuration types")
+        small_shape = (self.small_cell_layers, self.small_prediction_hidden_layers)
+        if self.architecture_variant != "small_softmax_mhc" and (
+            small_shape != (3, 1) or self.small_gene_table
+        ):
+            raise ValueError("small-model settings require small_softmax_mhc")
         if self.architecture_variant == "small_softmax_mhc":
+            if (self.graph_layers, *small_shape) not in ((4, 3, 1), (6, 6, 2)) or (
+                self.small_gene_table and small_shape != (3, 1)
+            ):
+                raise ValueError("unsupported small-model depth and gene source combination")
             fixed = {
                 "width": 256,
                 "heads": 4,
                 "streams": 4,
-                "graph_layers": 4,
                 "graph_read_mode": "relay",
                 "attention": "relay_full",
                 "dropout": 0.0,
-                "learned_genept_projection": True,
+                "learned_genept_projection": not self.small_gene_table,
                 "mlp_profile": "restored",
-                "genept_projection_activation": "gelu",
-                "genept_hidden_width": 1024,
-                "genept_middle_width": 256,
+                "genept_projection_activation": "none" if self.small_gene_table else "gelu",
+                "genept_hidden_width": 0 if self.small_gene_table else 1024,
+                "genept_middle_width": 0 if self.small_gene_table else 256,
                 "ffn_variant": "swiglu",
                 "ffn_clip": True,
                 "ffn_linear_bias": "none",
@@ -290,13 +307,15 @@ class V2Architecture:
         ) and self.mlp_profile != "restored":
             raise ValueError("five-arm FFN controls require restored profile")
         if self.mlp_profile == "restored":
-            if (
-                self.attention != "relay_full"
-                or not self.learned_genept_projection
-                or self.genept_projection_activation != "gelu"
-                or any(
-                    type(v) is not int or v < 1
-                    for v in (self.genept_hidden_width, self.genept_middle_width)
+            if self.attention != "relay_full" or (
+                not self.small_gene_table
+                and (
+                    not self.learned_genept_projection
+                    or self.genept_projection_activation != "gelu"
+                    or any(
+                        type(v) is not int or v < 1
+                        for v in (self.genept_hidden_width, self.genept_middle_width)
+                    )
                 )
             ):
                 raise ValueError(
@@ -356,7 +375,11 @@ class V2Architecture:
             raise ValueError("unknown graph read mode")
         if self.graph_read_mode == "propagated" and self.graph_layers != 2:
             raise ValueError("propagated graph read currently requires two layers")
-        if self.graph_read_mode == "relay" and self.graph_layers != 4:
+        if (
+            self.graph_read_mode == "relay"
+            and self.architecture_variant == "historical"
+            and self.graph_layers != 4
+        ):
             raise ValueError("relay graph read requires three KDA plus one MLA layer")
         if self.graph_mhc and (self.graph_read_mode != "relay" or self.control_conditioned_graph):
             raise ValueError("graph mHC requires relay graph without control conditioning")
@@ -509,6 +532,9 @@ class V2Architecture:
         for name, default in (
             ("architecture_variant", "historical"),
             ("distillation_enabled", True),
+            ("small_cell_layers", 3),
+            ("small_prediction_hidden_layers", 1),
+            ("small_gene_table", False),
             ("mlp_profile", "historical"),
             ("ffn_variant", "mixed"),
             ("ffn_input_norm", "historical"),
@@ -651,6 +677,9 @@ class V2Options:
         optional = {
             "architecture_variant",
             "distillation_enabled",
+            "small_cell_layers",
+            "small_prediction_hidden_layers",
+            "small_gene_table",
             "sinkhorn_backend",
             "expression_holdout_path",
             "expression_holdout_sha256",
@@ -773,6 +802,8 @@ class V2Options:
         plain = {name: value.value for name, value in values.items()}
         arch = V2Architecture.parse({name: plain[name] for name in arch_names if name in plain})
         options = cls(**{name: plain[name] for name in names if name in plain})
+        if arch.small_gene_table != (options.gene_initialization == "learned_normal"):
+            raise ValueError("learned normal initialization requires the native small gene table")
         if (
             arch.prior_shared_adapter
             or arch.gene_conditioned_readout
@@ -1148,14 +1179,19 @@ class V2Options:
             raise ValueError("invalid SSL1 reduction")
         if self.prediction_loss not in ("cell_mean", "condition_mean"):
             raise ValueError("invalid prediction loss")
-        if self.gene_initialization not in ("genept", "random"):
+        if self.gene_initialization not in ("genept", "random", "learned_normal"):
             raise ValueError("invalid gene initialization")
         if self.max_conditions == 1 and self.ssl2_koleo != 0:
             raise ValueError("single-condition batches require SSL2 KoLeo disabled")
         for name in ("mask_probability", "graph_mask_ratio", "graph_edge_dropout"):
             if not 0 <= getattr(self, name) <= 1:
                 raise ValueError(f"invalid probability: {name}")
-        for name in ("genept_sha256", "graph_manifest_sha256"):
+        no_prior = self.gene_initialization == "learned_normal"
+        if no_prior and (self.genept_artifact_path != "" or self.genept_sha256 != ""):
+            raise ValueError("learned normal gene table forbids a GenePT path or hash")
+        for name in (
+            ("graph_manifest_sha256",) if no_prior else ("genept_sha256", "graph_manifest_sha256")
+        ):
             digest = getattr(self, name)
             if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
                 raise ValueError(f"{name} must be an exact SHA256")

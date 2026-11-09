@@ -258,19 +258,21 @@ def prepare_runtime(
     topology = load_dataset_graph_topology(
         dataset_id=config.dataset_id, protocol_id=config.data.protocol_id, data_root=data_root
     )
-    prior_path = Path(options.genept_artifact_path).resolve()
-    if not prior_path.is_relative_to("/data/yilangliu"):
-        raise ValueError("GenePT artifacts stay on the server")
-    prior = verify_text_prior_npz(
-        prior_path,
-        expected_sha256=options.genept_sha256,
-        expected_gene_ids=topology.gene_ids,
-        perturbation_target_gene_ids=topology.gene_ids,
-    )
-    if arch.learned_genept_projection and prior.embedding_width != 2048:
-        raise ValueError("U4 requires the original 2048-wide GenePT prior, not PCA")
-    if prior.gene_ids != topology.gene_ids:
-        raise ValueError("v2 requires complete GenePT coverage of the frozen graph axis")
+    prior = None
+    if not arch.small_gene_table:
+        prior_path = Path(options.genept_artifact_path).resolve()
+        if not prior_path.is_relative_to("/data/yilangliu"):
+            raise ValueError("GenePT artifacts stay on the server")
+        prior = verify_text_prior_npz(
+            prior_path,
+            expected_sha256=options.genept_sha256,
+            expected_gene_ids=topology.gene_ids,
+            perturbation_target_gene_ids=topology.gene_ids,
+        )
+        if arch.learned_genept_projection and prior.embedding_width != 2048:
+            raise ValueError("U4 requires the original 2048-wide GenePT prior, not PCA")
+        if prior.gene_ids != topology.gene_ids:
+            raise ValueError("v2 requires complete GenePT coverage of the frozen graph axis")
     with ExitStack() as stack:
         data = stack.enter_context(
             CanonicalTrainingData(
@@ -351,10 +353,13 @@ def prepare_runtime(
         torch.manual_seed(run_seed)
         if device.type == "cuda":
             torch.cuda.manual_seed_all(run_seed)
-        seed = torch.from_numpy(prior.values.copy())
-        if options.gene_initialization == "random":
-            seed = torch.randn_like(seed) * 0.02
-        student = GraDPertV2(seed, arch).to(device)
+        if prior is None:
+            student = GraDPertV2(len(topology.gene_ids), arch, gene_seed=run_seed).to(device)
+        else:
+            seed = torch.from_numpy(prior.values.copy())
+            if options.gene_initialization == "random":
+                seed = torch.randn_like(seed) * 0.02
+            student = GraDPertV2(seed, arch).to(device)
         if options.response_anchor_weight:
             from .response_anchor import attach_anchor_readout
 
@@ -499,7 +504,7 @@ def prepare_runtime(
             "expression_gene_order_sha256": data.manifest.expression_gene_order_sha256,
             "graph_gene_order_sha256": sha256_json(list(topology.gene_ids)),
             "graph_manifest_sha256": options.graph_manifest_sha256,
-            "genept_sha256": prior.source_sha256,
+            "genept_sha256": prior.source_sha256 if prior is not None else None,
             "run_seed": run_seed,
         }
         identity["loss_protocol"] = {
@@ -709,6 +714,7 @@ def prepare_runtime(
                 "initialization": "zero_final_layer_separate_rng_stream",
             }
         if arch.learned_genept_projection:
+            assert prior is not None
             identity["unseen_gene_mechanisms"].update(
                 learned_genept_projection=True,
                 prior_source="original_2048_genept_frozen",
@@ -723,6 +729,7 @@ def prepare_runtime(
                     arch.genept_projection_activation
                 )
         if arch.mlp_profile == "unified" and arch.learned_genept_projection:
+            assert prior is not None
             identity["unseen_gene_mechanisms"]["shared_projection"] = {
                 "linear": [prior.embedding_width, arch.width],
                 "nonlinear": [arch.width, 4 * arch.width, arch.width],
@@ -738,11 +745,22 @@ def prepare_runtime(
                     "activation": "clipped_swiglu",
                 }
         if arch.architecture_variant == "small_softmax_mhc":
-            identity["unseen_gene_mechanisms"]["initialization"] = (
-                "project_xavier_zero_bias_native_seed_stream"
-            )
+            if arch.small_gene_table:
+                identity["unseen_gene_mechanisms"] = {
+                    "prior_source": "none",
+                    "learned_genept_projection": False,
+                    "independent_gene_table": True,
+                    "initialization": "standard_normal_private_cpu_rng",
+                    "table_seed": run_seed,
+                    "table_shape": [len(topology.gene_ids), arch.width],
+                    "graph_gene_order_sha256": identity["graph_gene_order_sha256"],
+                }
+            else:
+                identity["unseen_gene_mechanisms"]["initialization"] = (
+                    "project_xavier_zero_bias_native_seed_stream"
+                )
             identity["small_softmax_mhc"] = {
-                "graph_cell_response_layers": [4, 3, 3],
+                "graph_cell_response_layers": [arch.graph_layers, arch.small_cell_layers, 3],
                 "streams": 4,
                 "q_rank": 128,
                 "graph_kv_rank": 128,
@@ -757,6 +775,10 @@ def prepare_runtime(
                 "legacy_kda_options": "inactive_no_KDA_modules",
                 "teacher_ema_centers_ssl_heads": "not_constructed",
             }
+            if arch.small_prediction_hidden_layers != 1:
+                identity["small_softmax_mhc"]["prediction_hidden_layers"] = (
+                    arch.small_prediction_hidden_layers
+                )
         identity["training_expression_policy"] = expression_policy_receipt
         if train_selection_receipt is not None:
             identity["training_row_selection"] = train_selection_receipt

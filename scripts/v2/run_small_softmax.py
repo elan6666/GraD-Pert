@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import sys
+from contextlib import ExitStack
 from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parents[2]
@@ -21,15 +22,21 @@ from scripts.v2.shared_gpu import process_info, snapshot  # noqa: E402
 
 
 def admit_selected_idle(observed: dict, gpu: int, uuid: str) -> None:
-    device = observed["gpus"].get(gpu)
-    if device is None or device["uuid"] != uuid:
-        raise RuntimeError("selected GPU identity changed")
-    if device["free_mib"] < 2048:
-        raise RuntimeError("selected GPU free-memory reserve exhausted")
+    admit_selected_devices(observed, {gpu: uuid})
+
+
+def admit_selected_devices(observed: dict, selected: dict[int, str]) -> None:
+    for gpu, uuid in selected.items():
+        device = observed["gpus"].get(gpu)
+        if device is None or device["uuid"] != uuid:
+            raise RuntimeError("selected GPU identity changed")
+        if device["free_mib"] < 2048:
+            raise RuntimeError("selected GPU free-memory reserve exhausted")
+    uuids = set(selected.values())
     for process in observed["processes"]:
-        if process["gpu_uuid"] == uuid and not process["owned"]:
+        if process["gpu_uuid"] in uuids and not process["owned"]:
             raise RuntimeError("selected GPU has foreign work; preserve it")
-        if process["owned"] and process["gpu_uuid"] != uuid:
+        if process["owned"] and process["gpu_uuid"] not in uuids:
             raise RuntimeError("owned process escaped selected GPU")
 
 
@@ -46,11 +53,17 @@ def main() -> None:
     root = args.plan.resolve().parent
     if not root.is_relative_to("/data/yilangliu/"):
         raise ValueError("server-only scientific execution")
-    gpu = int(plan["gpu"])
+    devices = plan["gpu"].split(",")
+    uuids = args.gpu_uuid.split(",")
+    if devices not in (["0"], ["1"], ["0", "1"]) or (
+        len(uuids) != len(devices) or len(set(uuids)) != len(uuids)
+    ):
+        raise ValueError("selected physical GPU indices and UUIDs do not agree")
+    selected = dict(zip(map(int, devices), uuids, strict=True))
     for key, value in (
         ("PYTORCH_ALLOC_CONF", "expandable_segments:True"),
         ("CUBLAS_WORKSPACE_CONFIG", ":4096:8"),
-        ("CUDA_VISIBLE_DEVICES", str(gpu)),
+        ("CUDA_VISIBLE_DEVICES", plan["gpu"]),
     ):
         if os.environ.get(key) != value:
             raise ValueError("required execution environment differs: " + key)
@@ -89,8 +102,9 @@ def main() -> None:
         )
         or config["training"]["max_epochs"]["value"] != 2
         or plan["postfit_policy"] != "deferred"
+        or params["world_size"]["value"] != len(devices)
     ):
-        raise ValueError("single prediction-only two-epoch scope changed")
+        raise ValueError("prediction-only two-epoch scope changed")
     if Path(plan["run_root"]).exists():
         raise FileExistsError("no duplicate run or implicit resume")
     marker = root / (args.stage + "-owner.json")
@@ -99,11 +113,15 @@ def main() -> None:
     owner = process_info(os.getpid())
     if owner is None:
         raise RuntimeError("controller identity unavailable")
-    with lock(Path("/data/yilangliu/GraD-Pert/runtime") / f"v2-gpu-{gpu}.lock"):
+    with ExitStack() as stack:
+        for gpu in selected:
+            stack.enter_context(
+                lock(Path("/data/yilangliu/GraD-Pert/runtime") / f"v2-gpu-{gpu}.lock")
+            )
 
         def guard():
             state = snapshot(os.getpid())
-            admit_selected_idle(state, gpu, args.gpu_uuid)
+            admit_selected_devices(state, selected)
             atomic_json(root / "RESOURCE_CURRENT.json", state)
 
         guard()
@@ -122,7 +140,7 @@ def main() -> None:
                 identity=owner,
                 stage=args.stage,
                 plan_sha256=args.plan_sha256,
-                gpu_uuid=args.gpu_uuid,
+                **({"gpu_uuid": uuids[0]} if len(uuids) == 1 else {"gpu_uuids": uuids}),
             ),
         )
         try:
@@ -137,7 +155,7 @@ def main() -> None:
                     "--output",
                     str(preflight),
                     "--gpu",
-                    str(gpu),
+                    plan["gpu"],
                     "--publication",
                     plan["publication"],
                     "--publication-sha256",
@@ -145,6 +163,16 @@ def main() -> None:
                     "--steps",
                     "10",
                 ]
+                if len(devices) == 2:
+                    command = [
+                        sys.executable,
+                        "-m",
+                        "torch.distributed.run",
+                        "--standalone",
+                        "--nproc_per_node",
+                        "2",
+                        *command[1:],
+                    ]
             else:
                 command = [
                     sys.executable,
@@ -152,7 +180,7 @@ def main() -> None:
                     "torch.distributed.run",
                     "--standalone",
                     "--nproc_per_node",
-                    "1",
+                    str(len(devices)),
                     str(SOURCE / "scripts/v2/distributed_train.py"),
                     "--plan",
                     str(args.plan),
