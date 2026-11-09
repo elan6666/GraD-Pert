@@ -106,6 +106,50 @@ def test_read_only_collection_and_undefined_metric(run):
     assert before == {str(p): module.digest(p) for p in run.rglob("*") if p.is_file()}
 
 
+def test_expression_validation_binds_deferred_training_checkpoint(run):
+    completed = module.read(run / "COMPLETE.json")
+    put(run / "fit/epoch_state.json", {"epoch": 1})
+    put(
+        run / "TRAIN_COMPLETE.json",
+        {
+            **completed,
+            "stage": "training_complete",
+            "history_sha256": module.digest(run / "fit/history.json"),
+            "epoch_state_sha256": module.digest(run / "fit/epoch_state.json"),
+        },
+    )
+    validation = run.parent / "validation" / "COMPLETE.json"
+    test = module.read(run / "fit/last-test.json")
+    receipt = {
+        "plan": {
+            "training_run_root": str(run),
+            "output_root": str(validation.parent),
+            "checkpoint": str(run / "fit/last.pt"),
+            "checkpoint_sha256": completed["last"]["sha256"],
+            "checkpoint_epoch": 1,
+            "checkpoint_role": "last",
+            "config_sha256": completed["identity"]["config_sha256"],
+            "training_identity": completed["identity"],
+            "evaluation_source": completed["identity"]["source"],
+            "split": "val",
+            "metric_scope": "expression_only",
+        },
+        "result": {**test["result"], "split": "val", "metric_scope": "expression_only"},
+        "zero_pkl": True,
+    }
+    put(validation, receipt)
+    options = dict(name="small model", analysis_identity={}, expression_validation=validation)
+    summary = module.collect(run, **options)
+    assert summary["evaluation_split"] == "val"
+    assert summary["validation_prediction_mse"] == 0.1
+    assert summary["metrics"]
+    assert not summary["test_performed_for_endpoint"]
+    receipt["plan"]["checkpoint_sha256"] = "x" * 64
+    put(validation, receipt)
+    with pytest.raises(ValueError, match="expression validation/checkpoint identity mismatch"):
+        module.collect(run, **options)
+
+
 @pytest.mark.parametrize("all_ssl_disabled", [False, True])
 def test_disabled_node_head_is_reported_missing_and_all_figures_render(
     run, tmp_path, all_ssl_disabled

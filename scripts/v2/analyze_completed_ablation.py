@@ -153,31 +153,31 @@ def diagnostic_path(root: Path, epoch: int, manifest: dict, history: list) -> tu
 
 
 def collect(
-    root: Path, *, name: str, analysis_identity: dict, checkpoint_role: str = "last"
+    root: Path,
+    *,
+    name: str,
+    analysis_identity: dict,
+    checkpoint_role: str = "last",
+    expression_validation: Path | None = None,
 ) -> dict:
     """Reject partial runs and "
     "drift; expose scalar aggregates, "
     "never cell matrices."""
     manifest = read(root / "run_manifest.json")
-    complete = read(root / "COMPLETE.json")
+    terminal = root / ("TRAIN_COMPLETE.json" if expression_validation else "COMPLETE.json")
+    complete = read(terminal)
     config = read(root / "resolved_config.json")
     history = read(root / "fit/history.json")
-    test = read(root / "fit/last-test.json")
+    evaluation_path = expression_validation or root / "fit/last-test.json"
+    evaluation = read(evaluation_path)
     source = manifest["source"]
     if source["dirty"] or source["commit"] != source["published_commit"]:
         raise ValueError("training source must be clean and published")
     epochs = int(config["training"]["max_epochs"]["value"])
-    if complete["identity"] != manifest or complete["epoch"] != epochs or not complete["zero_pkl"]:
+    if complete["identity"] != manifest or complete["epoch"] != epochs:
         raise ValueError("exact completed run required")
     if [h["epoch"] for h in history] != list(range(1, epochs + 1)):
         raise ValueError("all committed epochs required")
-    if (
-        test["identity"]["training"] != manifest
-        or test["identity"]["checkpoint"] != complete["last"]
-        or test["identity"]["role"] != "last"
-        or test["result"]["split"] != "test"
-    ):
-        raise ValueError("test/checkpoint identity mismatch")
     checkpoint = (root / "fit" / complete["last"]["file"]).resolve()
     if (
         not checkpoint.is_relative_to((root / "fit").resolve())
@@ -186,13 +186,56 @@ def collect(
         raise ValueError("checkpoint content changed")
     if any(root.rglob("*.pkl")):
         raise ValueError("completed run must have zero PKL")
+    result = evaluation["result"]
+    if expression_validation:
+        plan = evaluation["plan"]
+        if (
+            checkpoint_role != "last"
+            or complete["stage"] != "training_complete"
+            or complete["history_sha256"] != digest(root / "fit/history.json")
+            or complete["epoch_state_sha256"] != digest(root / "fit/epoch_state.json")
+            or Path(plan["training_run_root"]).resolve() != root.resolve()
+            or Path(plan["output_root"]).resolve() != evaluation_path.parent.resolve()
+            or Path(plan["checkpoint"]).resolve() != checkpoint
+            or plan["checkpoint_sha256"] != complete["last"]["sha256"]
+            or plan["checkpoint_epoch"] != epochs
+            or plan["checkpoint_role"] != "last"
+            or plan["config_sha256"] != manifest["config_sha256"]
+            or plan["training_identity"] != manifest
+            or any(
+                row["split"] != "val" or row["metric_scope"] != "expression_only"
+                for row in (plan, result)
+            )
+            or not evaluation["zero_pkl"]
+            or any(evaluation_path.parent.rglob("*.pkl"))
+        ):
+            raise ValueError("expression validation/checkpoint identity mismatch")
+        evaluation_source = plan["evaluation_source"]
+        if (
+            evaluation_source["dirty"]
+            or evaluation_source["commit"] != evaluation_source["published_commit"]
+        ):
+            raise ValueError("expression validation source must be clean and published")
+    else:
+        identity = evaluation["identity"]
+        if (
+            not complete["zero_pkl"]
+            or identity["training"] != manifest
+            or identity["checkpoint"] != complete["last"]
+            or identity["role"] != "last"
+            or result["split"] != "test"
+        ):
+            raise ValueError("test/checkpoint identity mismatch")
+        evaluation_source = identity["evaluation"]["source"]
     paths = [
         root / "run_manifest.json",
-        root / "COMPLETE.json",
+        terminal,
         root / "resolved_config.json",
         root / "fit/history.json",
-        root / "fit/last-test.json",
+        evaluation_path,
     ]
+    if expression_validation:
+        paths.append(root / "fit/epoch_state.json")
     snapshots = []
     for epoch in range(epochs + 1):
         path, origin = diagnostic_path(root, epoch, manifest, history)
@@ -237,7 +280,6 @@ def collect(
     elif checkpoint_role != "last":
         raise ValueError("unsupported diagnostic checkpoint role")
     metrics = []
-    result = test["result"]
     for group, values in {
         "all": {"metrics": result["metrics"]},
         **result["metric_gene_groups"],
@@ -263,16 +305,19 @@ def collect(
         "run_id": manifest["run_id"],
         "run_root": str(root),
         "training_source": source,
-        "evaluation_source": test["identity"]["evaluation"]["source"]
-        if checkpoint_role == "last"
-        else None,
+        "evaluation_source": evaluation_source if checkpoint_role == "last" else None,
         "analysis_identity": analysis_identity,
         "checkpoint_sha256": selected["sha256"],
         "checkpoint_role": checkpoint_role,
         "checkpoint_epoch": endpoint_epoch,
         "training_stage": endpoint_stage,
         "full_training_epochs": epochs,
-        "test_performed_for_endpoint": checkpoint_role == "last",
+        "test_performed_for_endpoint": checkpoint_role == "last" and not expression_validation,
+        **(
+            {"evaluation_split": "val", "validation_prediction_mse": result["prediction_loss"]}
+            if expression_validation
+            else {}
+        ),
         "config_sha256": manifest["config_sha256"],
         "resolved_config_sha256": digest(root / "resolved_config.json"),
         "inputs": {
@@ -302,7 +347,9 @@ def collect(
         ],
         "snapshots": snapshots,
         "metrics": metrics if checkpoint_role == "last" else [],
-        "test_prediction_mse": result["prediction_loss"] if checkpoint_role == "last" else None,
+        "test_prediction_mse": result["prediction_loss"]
+        if checkpoint_role == "last" and not expression_validation
+        else None,
         "expression_exposure": result["expression_exposure"],
         "limitations": LIMITS,
     }
@@ -332,6 +379,7 @@ def graph_gradient_rows(snapshots: list[dict]) -> list[dict]:
 
 
 def report(data: dict) -> str:
+    validation = data.get("evaluation_split") == "val"
     first, last = data["snapshots"][0], data["snapshots"][-1]
     groups = data.get("fixed_inputs_by_training_stage", [])
     if groups:
@@ -558,7 +606,7 @@ def report(data: dict) -> str:
         "",
         "![输出与图梯度](04_outputs_gradients.png)",
         "",
-        "## 最终测试：全部、表达见过、表达未见过",
+        "## 表达验证集评估" if validation else "## 最终测试：全部、表达见过、表达未见过",
         "",
         "| 分组 | 指标 | Pearson | 有效/总条件 |",
         "|---|---|---:|---:|",
@@ -572,12 +620,14 @@ def report(data: dict) -> str:
             f" "
             f"|"
         )
-    if not data.get("test_performed_for_endpoint", True):
+    if not validation and not data.get("test_performed_for_endpoint", True):
         lines.append("本端点预测头尚未训练，不复用最终checkpoint的测试结果。")
     lines += [
         "",
         (
-            f"最终测试MSE **{data['test_prediction_mse']:.6f}"
+            f"验证集表达 MSE **{data['validation_prediction_mse']:.6f}**"
+            if validation
+            else f"最终测试MSE **{data['test_prediction_mse']:.6f}"
             "**；与上述训练探针MSE属于不同数据/采样口径。"
             if data.get("test_performed_for_endpoint", True)
             else "正式测试MSE：N/A；只有最终微调端点做正式测试。"
@@ -828,12 +878,15 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--name", required=True)
     parser.add_argument("--checkpoint-role", choices=("last", "pretrain"), default="last")
+    parser.add_argument("--expression-validation", type=Path)
     args = parser.parse_args()
     root, output = args.run_root.resolve(), args.output.resolve()
+    validation = args.expression_validation.resolve() if args.expression_validation else None
     if (
         not root.is_relative_to(Path("/data/yilangliu"))
         or not output.is_relative_to(Path("/data/yilangliu"))
         or output.is_relative_to(root)
+        or (validation is not None and not validation.is_relative_to(Path("/data/yilangliu")))
     ):
         parser.error("scientific inputs and fresh independent analysis output must stay on server")
     repo = Path(__file__).resolve().parents[2]
@@ -851,7 +904,11 @@ def main() -> None:
         "training_method_unchanged": True,
     }
     data = collect(
-        root, name=args.name, analysis_identity=identity, checkpoint_role=args.checkpoint_role
+        root,
+        name=args.name,
+        analysis_identity=identity,
+        checkpoint_role=args.checkpoint_role,
+        expression_validation=validation,
     )
     export(data, output)
     print(
