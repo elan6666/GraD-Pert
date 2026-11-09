@@ -340,8 +340,9 @@ def test_controller_preserves_other_gpu_work_and_rejects_selected_foreign_proces
 
 def test_evaluation_graph_cache_uses_the_same_complete_graph_and_invalidates_updates():
     from test_relay_method import small_index
-    from gradpert.training.v2.evaluation_graph import prepare_evaluation_graph
+
     from gradpert.training.v2.evaluation import predict_controls
+    from gradpert.training.v2.evaluation_graph import prepare_evaluation_graph
 
     torch.set_num_threads(2)
     objective, _ = fixture(False)
