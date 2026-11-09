@@ -250,7 +250,11 @@ def evaluate_process_diagnostics(
     features: dict[str, FeatureSummary] = {}
     pairs: dict[str, list[float]] = {}
     logits_names: dict[int, str] = {}
-    center_names = {id(getattr(objective, name + "_center")): name for name in HEADS}
+    center_names = {
+        id(getattr(objective, name + "_center")): name
+        for name in HEADS
+        if hasattr(objective, name + "_center")
+    }
     handles = []
     original_ce = objective_module.cross_entropy_terms
 
@@ -261,6 +265,14 @@ def evaluate_process_diagnostics(
         key: str, has_cls: bool
     ) -> Callable[[nn.Module, tuple[Tensor, ...], Tensor], None]:
         def observe(module: nn.Module, values: tuple[Tensor, ...], output: Tensor) -> None:
+            if (
+                isinstance(output, tuple)
+                and len(output) == 2
+                and all(isinstance(v, Tensor) for v in output)
+                and output[0].shape[:-1] == output[1].shape
+            ):
+                # Single-pass mHC exports state plus next-read coefficients.
+                output = (output[0].float() * output[1].unsqueeze(-1)).sum(-2)
             if not isinstance(output, Tensor):
                 return
             # Manifold layers return [cell,gene,stream,width]; aggregate streams
@@ -297,7 +309,11 @@ def evaluate_process_diagnostics(
         try:
             for role in ("student", "teacher"):
                 model = getattr(objective, role)
+                if model is None:
+                    continue
                 for name in HEADS:
+                    if not hasattr(model, name):
+                        continue
                     key = role + "." + name
                     center = getattr(objective, name + "_center")
                     distributions[key] = DistributionSummary(model.options.prototypes, max_samples)
@@ -476,6 +492,11 @@ def evaluate_process_diagnostics(
             if hasattr(objective, "training_stage")
             else {}
         ),
+        "distillation": (
+            "disabled; teacher, heads, centers and SSL views are absent"
+            if objective.teacher is None
+            else "enabled_modules"
+        ),
         "distributions": {k: v.result() for k, v in distributions.items()},
         "centers": {
             name: {
@@ -483,6 +504,7 @@ def evaluate_process_diagnostics(
                 "std": float(getattr(objective, name + "_center").std(unbiased=False)),
             }
             for name in HEADS
+            if hasattr(objective, name + "_center")
         },
         "features": {k: v.result() for k, v in features.items()},
         "pairs": {

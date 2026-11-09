@@ -15,6 +15,7 @@ from gradpert.modeling.v2.operators import (
     IndexedLatentAttention,
     LatentAttention,
 )
+from gradpert.modeling.v2.small_softmax import NeighborhoodAttention, SharedKVAttention
 from gradpert.modeling.v2.standard_attention import StandardAttention
 
 
@@ -77,6 +78,12 @@ def routes(model: nn.Module) -> list[dict[str, Any]]:
                 "index_query",
                 "index_key",
             )
+        ):
+            heads = owner.heads
+        if (
+            hidden
+            and isinstance(owner, (NeighborhoodAttention, SharedKVAttention))
+            and projection in ("q_up", "k_up", "v_up", "relation_query")
         ):
             heads = owner.heads
         if hidden and (parameter.ndim != 2 or parameter.shape[0] % heads):

@@ -533,6 +533,7 @@ class GraDPertV2(nn.Module):
     model_version = "v2"
     randomize_relay_order: bool
     readout_prior: Tensor
+    gene_expression_fusion: nn.Linear
 
     def __init__(self, seeds: Tensor, options: V2Architecture) -> None:
         super().__init__()
@@ -540,6 +541,11 @@ class GraDPertV2(nn.Module):
         self.randomize_relay_order = False
         self.control_reconstruction: ControlReconstruction | None = None
         d = options.width
+        if options.architecture_variant == "small_softmax_mhc":
+            from .small_softmax import initialize_small_model
+
+            initialize_small_model(self, seeds, options)
+            return
         self.graph = GeneGraph(seeds, options)
         self.expression = nn.Sequential(
             nn.Linear(1, d), nn.GELU(), nn.Linear(d, d), nn.LayerNorm(d)
@@ -893,7 +899,13 @@ class GraDPertV2(nn.Module):
                 self.expression_mask if mask_token is None else mask_token,
                 expression,
             )
-        x = expression + (gene.unsqueeze(0) if gene.ndim == 2 else gene)
+        gene_tokens = gene.unsqueeze(0).expand_as(expression) if gene.ndim == 2 else gene
+        small = self.options.architecture_variant == "small_softmax_mhc"
+        x = (
+            self.gene_expression_fusion(torch.cat((gene_tokens, expression), -1))
+            if small
+            else expression + gene_tokens
+        )
         relay = self.options.attention == "relay_full"
         if self.options.fixed_gene_order and (
             query_gene_ids is None or query_gene_ids.shape != (control.shape[1],)
@@ -913,8 +925,8 @@ class GraDPertV2(nn.Module):
                 )
                 for layer in range(self.options.kda_layers)
             )
-            if relay
-            else None
+            if relay and not small
+            else (() if small else None)
         )
         encoded = self.cell(
             torch.cat((x, self.control_cls.expand(len(control), -1, -1)), dim=1), order=order

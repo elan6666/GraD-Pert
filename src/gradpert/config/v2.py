@@ -9,6 +9,7 @@ from typing import Any
 
 @dataclass(frozen=True)
 class V2Architecture:
+    architecture_variant: str = "historical"
     width: int = 256
     heads: int = 4
     graph_layers: int = 2
@@ -75,6 +76,52 @@ class V2Architecture:
     random_gene_order: bool = True
 
     def __post_init__(self) -> None:
+        if self.architecture_variant not in ("historical", "small_softmax_mhc"):
+            raise ValueError("unknown v2 architecture variant")
+        if self.architecture_variant == "small_softmax_mhc":
+            fixed = {
+                "width": 256,
+                "heads": 4,
+                "streams": 4,
+                "graph_layers": 4,
+                "graph_read_mode": "relay",
+                "attention": "relay_full",
+                "dropout": 0.0,
+                "learned_genept_projection": True,
+                "mlp_profile": "restored",
+                "genept_projection_activation": "gelu",
+                "genept_hidden_width": 1024,
+                "genept_middle_width": 256,
+                "ffn_variant": "swiglu",
+                "ffn_clip": True,
+                "ffn_linear_bias": "none",
+                "prediction_parameterization": "softplus",
+                "random_gene_order": False,
+                "response_injection_residual": True,
+                "perturbation_injection": "per_layer",
+                "normalization_layout": "historical",
+                "terminal_attention": "latent",
+                "ffn_input_norm": "historical",
+                "graph_input_norm": "historical",
+                "graph_mhc": False,
+                "attention_replacement": "none",
+                "mla_query_rank": 0,
+                "control_conditioned_graph": False,
+                "gene_conditioned_readout": False,
+                "direct_target_flag": False,
+                "prior_shared_adapter": False,
+                "all_kda_prefix": False,
+                "fixed_gene_order": False,
+                "prototype_weight_norm": False,
+                "prototype_freeze_epochs": 0,
+                "ffn_compute_precision": "autocast",
+                "ssl2_cls_input_layernorm": False,
+            }
+            mismatch = [k for k, v in fixed.items() if getattr(self, k) != v]
+            if mismatch:
+                raise ValueError(
+                    "small softmax fixed architecture mismatch: " + ", ".join(mismatch)
+                )
         if self.normalization_layout not in ("historical", "llm_pre"):
             raise ValueError("unknown normalization layout")
         if self.terminal_attention not in ("latent", "standard"):
@@ -453,6 +500,7 @@ class V2Architecture:
             # Preserve the architecture identity of historical linear U4 checkpoints.
             values.pop("genept_projection_activation")
         for name, default in (
+            ("architecture_variant", "historical"),
             ("mlp_profile", "historical"),
             ("ffn_variant", "mixed"),
             ("ffn_input_norm", "historical"),
@@ -593,6 +641,7 @@ class V2Options:
         arch_names = {f.name for f in fields(V2Architecture)}
         names = {f.name for f in fields(cls)}
         optional = {
+            "architecture_variant",
             "sinkhorn_backend",
             "expression_holdout_path",
             "expression_holdout_sha256",
@@ -727,6 +776,36 @@ class V2Options:
             or arch.gene_conditioned_readout
         ):
             raise ValueError("protected population head requires native relay Softplus decoder")
+        if arch.architecture_variant == "small_softmax_mhc":
+            disabled = (
+                "lambda1",
+                "lambda2",
+                "ssl1_condition",
+                "ssl1_node",
+                "ssl1_spread",
+                "ssl2_dino",
+                "ssl2_ibot",
+                "ssl2_koleo",
+                "lambda_gene_mask",
+                "lambda_cls_mask",
+                "auxiliary_mask_ratio",
+                "lambda_masked_response",
+                "masked_response_ratio",
+                "lambda_mmd",
+                "response_anchor_weight",
+                "teacher_temperature_warmup_epochs",
+                "ssl_pretrain_epochs",
+                "au_alignment_weight",
+                "au_uniformity_weight",
+                "cr_weight",
+                "spectral_rank_weight",
+                "spectral_cosine_weight",
+                "spectral_amplitude_weight",
+            )
+            if any(getattr(options, k) for k in disabled) or options.prediction_error_power != 2:
+                raise ValueError("small softmax arm requires prediction MSE only; SSL is absent")
+            if options.training_mode != "joint":
+                raise ValueError("small softmax arm requires joint entrypoint with MSE only")
         return arch, options
 
     def __post_init__(self) -> None:

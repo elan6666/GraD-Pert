@@ -223,10 +223,33 @@ class JointObjective(nn.Module):
                 "and disabled AU/CR/KoLeo/population loss"
             )
         self.student = student
-        self.teacher = copy.deepcopy(student).requires_grad_(False).eval()
+        no_distillation = student.options.architecture_variant == "small_softmax_mhc"
+        if no_distillation and any(
+            (
+                lambda1,
+                lambda2,
+                *ssl1_weights,
+                *ssl2_weights,
+                auxiliary_mask_ratio,
+                lambda_gene_mask,
+                lambda_cls_mask,
+                masked_response_ratio,
+                lambda_masked_response,
+                lambda_mmd,
+                teacher_temperature_warmup_steps,
+                self.au_enabled,
+                self.cr_enabled,
+                self.spectral_enabled,
+                population_response,
+            )
+        ):
+            raise ValueError("small softmax arm constructs only the prediction objective")
+        self.teacher = (
+            None if no_distillation else copy.deepcopy(student).requires_grad_(False).eval()
+        )
         self.prediction_enabled = True
         self.decode_ssl_views = True
-        self.teacher_updates_enabled = True
+        self.teacher_updates_enabled = not no_distillation
         if prediction_error_power not in (2, 4):
             raise ValueError("prediction error power must be 2 or 4")
         if prediction_reduction_override not in ("inherit", "row_mean", "condition_mean"):
@@ -277,7 +300,8 @@ class JointObjective(nn.Module):
             raise ValueError("unknown objective reduction")
         self.ssl1_reduction, self.prediction_reduction = ssl1_reduction, prediction_reduction
         for name in ("ssl1_cls", "ssl1_node", "ssl2_cls", "ssl2_node"):
-            self.register_buffer(name + "_center", torch.zeros(student.options.prototypes))
+            if not no_distillation:
+                self.register_buffer(name + "_center", torch.zeros(student.options.prototypes))
         self.pending: dict[str, list[Tensor]] = {}
         if (
             any(
@@ -332,10 +356,12 @@ class JointObjective(nn.Module):
 
     def train(self, mode: bool = True) -> JointObjective:
         super().train(mode)
-        self.teacher.eval()
+        if self.teacher is not None:
+            self.teacher.eval()
         if self.student.options.attention == "relay_full":
             self.student.set_relay_order_randomization(mode)
-            self.teacher.set_relay_order_randomization(mode)
+            if self.teacher is not None:
+                self.teacher.set_relay_order_randomization(mode)
         return self
 
     def _targets(self, name: str, logits: Tensor) -> None:
@@ -547,6 +573,7 @@ class JointObjective(nn.Module):
                 w * v for w, v in zip(self.weights[0], ssl1.values(), strict=True)
             )
         if self.lambda2:
+            assert self.teacher is not None
             # Independent teacher graph; shared teacher parameters are EMA-updated once.
             with torch.no_grad():
                 teacher_prefix = (
@@ -584,6 +611,7 @@ class JointObjective(nn.Module):
         query_gene_ids: Tensor | None = None,
         condition_weights: Tensor | None = None,
     ) -> dict[str, Tensor]:
+        assert self.teacher is not None
         if len(views) < 2:
             raise ValueError("SSL1 requires two globals")
         active_views = views if self.weights[0][0] else views[:2]
@@ -639,6 +667,7 @@ class JointObjective(nn.Module):
                             self._targets("ssl1_node", self.teacher.ssl1_node(tn))
 
                         def node_ce(student_node: Tensor, teacher_node: Tensor) -> Tensor:
+                            assert self.teacher is not None
                             with torch.no_grad():
                                 target_node = self.teacher.ssl1_node(teacher_node)
                             return self._cross_entropy(
@@ -785,6 +814,7 @@ class JointObjective(nn.Module):
         teacher_prefix: Tensor | None = None,
         checkpoint_deferred_response: bool = False,
     ) -> dict[str, Tensor]:
+        assert self.teacher is not None
         if len(batch.cell_views) < 2:
             raise ValueError("SSL2 requires two globals")
         student_outputs, teacher_outputs = [], []
@@ -1003,6 +1033,7 @@ class JointObjective(nn.Module):
             return
         if not 0 <= momentum <= 1:
             raise ValueError("invalid teacher EMA momentum")
+        assert self.teacher is not None
         parameters = dict(self.student.named_parameters())
         for name, teacher in self.teacher.named_parameters():
             teacher.lerp_(parameters[name], 1 - momentum)

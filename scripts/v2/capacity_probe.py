@@ -79,7 +79,9 @@ def validation_state(runtime: Any) -> dict[str, str]:
     objective = runtime.objective
     return {
         "student": state_fingerprint(objective.student.state_dict()),
-        "teacher": state_fingerprint(objective.teacher.state_dict()),
+        "teacher": state_fingerprint(
+            None if objective.teacher is None else objective.teacher.state_dict()
+        ),
         "centers": state_fingerprint(
             {name: value for name, value in objective.named_buffers() if name.endswith("_center")}
         ),
@@ -1384,6 +1386,8 @@ def main() -> None:
 
             backend_counts: dict[str, int] = {}
             for model in (runtime.objective.student, runtime.objective.teacher):
+                if model is None:
+                    continue
                 for module in model.modules():
                     if isinstance(module, ManifoldResidual):
                         backend = module.resolved_sinkhorn_backend

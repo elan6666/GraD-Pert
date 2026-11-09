@@ -523,6 +523,16 @@ def prepare_runtime(
             "ibot": "masked_tokens_per_cell_then_valid_cell_population",
             "exceptions": ["ssl1_node", "ssl1_spread", "teacher_centers"],
         }
+        if arch.architecture_variant == "small_softmax_mhc":
+            identity["loss_protocol"].update(
+                version="small-softmax-mhc-prediction-only-v1",
+                teacher_and_centers="not_constructed",
+                distillation_heads="not_constructed",
+                ssl_views="not_constructed",
+                koleo_population="disabled",
+                ibot="disabled",
+                exceptions=[],
+            )
         if options.training_mode == "frozen_readout":
             identity["loss_protocol"]["frozen_readout"] = {
                 "mode": "existing_prediction_mlp_only",
@@ -723,6 +733,26 @@ def prepare_runtime(
                     "initialization": "zero_down_weight_and_bias_separate_rng_stream",
                     "activation": "clipped_swiglu",
                 }
+        if arch.architecture_variant == "small_softmax_mhc":
+            identity["unseen_gene_mechanisms"]["initialization"] = (
+                "project_xavier_zero_bias_native_seed_stream"
+            )
+            identity["small_softmax_mhc"] = {
+                "graph_cell_response_layers": [4, 3, 3],
+                "streams": 4,
+                "q_rank": 128,
+                "graph_kv_rank": 128,
+                "shared_kv_width": 64,
+                "output_groups": 2,
+                "output_rank_per_group": 64,
+                "rmsnorm_epsilon": 1e-20,
+                "swiglu_limit": 10,
+                "sinkhorn_iterations": 20,
+                "sinkhorn_epsilon": 1e-6,
+                "single_pass_read": "preceding_sublayer_coefficients",
+                "legacy_kda_options": "inactive_no_KDA_modules",
+                "teacher_ema_centers_ssl_heads": "not_constructed",
+            }
         identity["training_expression_policy"] = expression_policy_receipt
         if train_selection_receipt is not None:
             identity["training_row_selection"] = train_selection_receipt
