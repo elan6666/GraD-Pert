@@ -90,3 +90,20 @@ versions; both arms also exercise full BF16 updates and exact state/RNG resume.
 The failed server directory is preserved; the repaired attempt uses a fresh
 `llm-norm-standard-attention-20261109-a2` family, new plan/run identities, and a
 new clean published source. Configurations and training budgets are unchanged.
+
+## Fixed expression evaluation
+
+After both native training terminals are independently accepted, evaluate the
+final epoch-2 checkpoint of each arm on the frozen 445 Jurkat validation
+conditions and identical ordered 300-control draws. Use native evaluation
+precision, the existing training-only reference, and expression-only metrics.
+The selected physical GPU remains 0, with the existing shared-GPU guard and
+lock. The two-arm controller checks the sealed plan, training manifest, final
+checkpoint, configuration, scope, and complete ordered condition coverage.
+No baseline training, DEG, test evaluation, or checkpoint selection is part
+of this comparison.
+
+The evaluation controller is published separately from the training commit.
+Record the actual evaluation source and its compatibility evidence separately;
+training checkpoints retain their original source identity. The evaluation
+controller does not change model, dataset, loss, or metric implementation.
