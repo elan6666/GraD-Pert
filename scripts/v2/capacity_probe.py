@@ -474,7 +474,7 @@ def main() -> None:
     if args.batch_capacity_only and (
         architecture.architecture_variant != "small_softmax_mhc"
         or architecture.small_gene_table
-        or architecture.graph_layers != 4
+        or architecture.graph_layers not in (4, 6)
         or architecture.has_distillation
         or options.world_size != 2
         or world != 2

@@ -29,13 +29,17 @@ REFERENCE = "docs/design/GRADPERT_SMALL_SOFTMAX_FOLLOWUPS_20261110.md"
 BASE = "configs/v2/small_softmax_mhc_no_distill/gradpert_v2/nadig_jurkat.yaml"
 GRID = (80, 96, 128, 160, 224, 320, 448, 640)
 STRIDE = 4
+DEEP_BASE = "configs/v2/small_softmax_mhc_deep_no_distill/gradpert_v2/nadig_jurkat.yaml"
+DEEP_GRID = (64, 96, 128, 160, 224, 320, 448, 640)
+SCREEN_VARIANTS = {"original": (BASE, GRID, STRIDE), "deep": (DEEP_BASE, DEEP_GRID, 1)}
 ROWS = 47_836
 
 
-def recipe(microbatch: int) -> dict[str, Any]:
-    if microbatch < GRID[0] or microbatch > GRID[-1] or microbatch % STRIDE:
+def recipe(microbatch: int, variant: str = "original") -> dict[str, Any]:
+    base, grid, stride = SCREEN_VARIANTS[variant]
+    if microbatch < grid[0] or microbatch > grid[-1] or microbatch % stride:
         raise ValueError("candidate outside registered microbatch grid")
-    payload = yaml.safe_load((SOURCE / BASE).read_text())
+    payload = yaml.safe_load((SOURCE / base).read_text())
     provenance = dict(source="user_locked", reference=REFERENCE)
     params = payload["model"]["parameters"]
     for key, value in {
@@ -129,13 +133,17 @@ def main() -> None:
     if not root.is_relative_to("/data/yilangliu") or not root.is_dir():
         raise ValueError("batch screen is server-only")
     plan = read_json(args.plan)
+    variant = plan.get("variant", "original")
+    if variant not in SCREEN_VARIANTS:
+        raise ValueError("unknown batch screen variant")
+    base, grid, stride = SCREEN_VARIANTS[variant]
     if (
         plan["gpu"] != "0,1"
         or plan["gpu_uuids"]
         != ["GPU-23bb1466-b82b-982d-8eaf-9a0002c6a4e7", "GPU-edd7484e-c71d-1938-4831-76c233466ccb"]
-        or plan["candidate_grid"] != list(GRID)
-        or plan["stride"] != STRIDE
-        or plan["baseline_recipe_sha256"] != sha256_file(SOURCE / BASE)
+        or plan["candidate_grid"] != list(grid)
+        or plan["stride"] != stride
+        or plan["baseline_recipe_sha256"] != sha256_file(SOURCE / base)
     ):
         raise ValueError("batch screen scope differs")
     for name, expected in (
@@ -183,7 +191,7 @@ def main() -> None:
                 attempt.mkdir()
                 path = attempt / "gradpert_v2/nadig_jurkat.yaml"
                 path.parent.mkdir()
-                path.write_text(yaml.safe_dump(recipe(microbatch), sort_keys=False))
+                path.write_text(yaml.safe_dump(recipe(microbatch, variant), sort_keys=False))
                 cfg = load_experiment_config(path)
                 _, opt = V2Options.parse_parameters(cfg.model.parameters)
                 if int(cfg.training.train_batch_size.value) != 2 * opt.microbatch:
@@ -234,16 +242,16 @@ def main() -> None:
                 return evidence["classification"] == "passed"
 
             best, oom = None, None
-            for micro in GRID:
+            for micro in grid:
                 if check(micro):
                     best = micro
                 else:
                     oom = micro
                     break
             if best is None:
-                raise ValueError("reference microbatch 80 did not pass two-rank capacity screening")
-            while oom is not None and oom - best > STRIDE:
-                midpoint = ((best + oom) // (2 * STRIDE)) * STRIDE
+                raise ValueError(f"microbatch {grid[0]} did not pass two-rank capacity screening")
+            while oom is not None and oom - best > stride:
+                midpoint = ((best + oom) // (2 * stride)) * stride
                 if check(midpoint):
                     best = midpoint
                 else:
@@ -254,13 +262,14 @@ def main() -> None:
                     status="screen_complete",
                     plan_sha256=args.plan_sha256,
                     source_commit=plan["source_commit"],
+                    variant=variant,
                     highest_verified_microbatch=best,
                     global_batch=2 * best,
                     accumulation=1,
                     world_size=2,
                     lowest_verified_cuda_update_oom=oom,
-                    search_upper_microbatch=GRID[-1],
-                    resolution=STRIDE,
+                    search_upper_microbatch=grid[-1],
+                    resolution=stride,
                     steps_per_epoch=math.ceil(ROWS / (2 * best)),
                     last_global_batch=ROWS % (2 * best) or 2 * best,
                     rows=rows,
