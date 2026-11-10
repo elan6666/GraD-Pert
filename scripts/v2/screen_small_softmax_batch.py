@@ -33,13 +33,41 @@ DEEP_BASE = "configs/v2/small_softmax_mhc_deep_no_distill/gradpert_v2/nadig_jurk
 DEEP_GRID = (64, 96, 128, 160, 224, 320, 448, 640)
 SCREEN_VARIANTS = {"original": (BASE, GRID, STRIDE), "deep": (DEEP_BASE, DEEP_GRID, 1)}
 ROWS = 47_836
+FULL_ROWS = 128_266
+FULL_GRID = {
+    "original": (64, 96, 128, 132, 133, 144, 160, 224, 320, 448, 640),
+    "deep": (64, 96, 128, 131, 132, 144, 160, 224, 320, 448, 640),
+}
 
 
-def recipe(microbatch: int, variant: str = "original") -> dict[str, Any]:
+def screen_grid(variant: str, training_scope: str) -> tuple[str, tuple[int, ...], int]:
     base, grid, stride = SCREEN_VARIANTS[variant]
+    if training_scope == "full":
+        return base, FULL_GRID[variant], 1
+    if training_scope != "cap40":
+        raise ValueError("unknown batch screen training scope")
+    return base, grid, stride
+
+
+def full_training_recipe(base: str) -> dict[str, Any]:
+    payload = yaml.safe_load((SOURCE / base).read_text())
+    params = payload["model"]["parameters"]
+    for key in ("train_selection_path", "train_selection_sha256"):
+        params[key] = dict(value="", source="user_locked", reference=REFERENCE)
+    return payload
+
+
+def recipe(
+    microbatch: int, variant: str = "original", training_scope: str = "cap40"
+) -> dict[str, Any]:
+    base, grid, stride = screen_grid(variant, training_scope)
     if microbatch < grid[0] or microbatch > grid[-1] or microbatch % stride:
         raise ValueError("candidate outside registered microbatch grid")
-    payload = yaml.safe_load((SOURCE / base).read_text())
+    payload = (
+        full_training_recipe(base)
+        if training_scope == "full"
+        else yaml.safe_load((SOURCE / base).read_text())
+    )
     provenance = dict(source="user_locked", reference=REFERENCE)
     params = payload["model"]["parameters"]
     for key, value in {
@@ -69,6 +97,13 @@ def screen_evidence(directory: Path, microbatch: int, plan: dict, config_sha256:
             and screen["accumulation"] == 1
             and screen["queries"] == 1000
             and screen["cuda_memory_fraction"] == 0.9
+            and (
+                plan.get("training_scope", "cap40") != "full"
+                or (
+                    value.get("training_rows") == FULL_ROWS
+                    and "training_row_selection" not in value["data"]
+                )
+            )
         )
 
     receipt = directory / "receipt.json"
@@ -136,7 +171,9 @@ def main() -> None:
     variant = plan.get("variant", "original")
     if variant not in SCREEN_VARIANTS:
         raise ValueError("unknown batch screen variant")
-    base, grid, stride = SCREEN_VARIANTS[variant]
+    training_scope = plan.get("training_scope", "cap40")
+    base, grid, stride = screen_grid(variant, training_scope)
+    training_rows = FULL_ROWS if training_scope == "full" else ROWS
     if (
         plan["gpu"] != "0,1"
         or plan["gpu_uuids"]
@@ -144,6 +181,7 @@ def main() -> None:
         or plan["candidate_grid"] != list(grid)
         or plan["stride"] != stride
         or plan["baseline_recipe_sha256"] != sha256_file(SOURCE / base)
+        or plan.get("training_rows", ROWS) != training_rows
     ):
         raise ValueError("batch screen scope differs")
     for name, expected in (
@@ -191,7 +229,9 @@ def main() -> None:
                 attempt.mkdir()
                 path = attempt / "gradpert_v2/nadig_jurkat.yaml"
                 path.parent.mkdir()
-                path.write_text(yaml.safe_dump(recipe(microbatch, variant), sort_keys=False))
+                path.write_text(
+                    yaml.safe_dump(recipe(microbatch, variant, training_scope), sort_keys=False)
+                )
                 cfg = load_experiment_config(path)
                 _, opt = V2Options.parse_parameters(cfg.model.parameters)
                 if int(cfg.training.train_batch_size.value) != 2 * opt.microbatch:
@@ -263,6 +303,8 @@ def main() -> None:
                     plan_sha256=args.plan_sha256,
                     source_commit=plan["source_commit"],
                     variant=variant,
+                    training_scope=training_scope,
+                    training_rows=training_rows,
                     highest_verified_microbatch=best,
                     global_batch=2 * best,
                     accumulation=1,
@@ -270,8 +312,8 @@ def main() -> None:
                     lowest_verified_cuda_update_oom=oom,
                     search_upper_microbatch=grid[-1],
                     resolution=stride,
-                    steps_per_epoch=math.ceil(ROWS / (2 * best)),
-                    last_global_batch=ROWS % (2 * best) or 2 * best,
+                    steps_per_epoch=math.ceil(training_rows / (2 * best)),
+                    last_global_batch=training_rows % (2 * best) or 2 * best,
                     rows=rows,
                 ),
             )

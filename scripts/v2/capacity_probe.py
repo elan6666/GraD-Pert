@@ -733,6 +733,7 @@ def main() -> None:
                 runtime.objective.pretrain_steps = 5
                 initial_head = state_fingerprint(runtime.objective.student.prediction.state_dict())
             receipt["data"] = runtime.identity
+            receipt["training_rows"] = len(runtime.data.train_row_indices)
             receipt["optimizer_routes"] = runtime.optimizer.routes
             loss_diagnostics_enabled = (
                 runtime.options.prediction_reduction_override != "inherit"
