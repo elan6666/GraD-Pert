@@ -27,6 +27,20 @@ def evaluation_metric_scope(plan: dict[str, Any]) -> str:
     return value
 
 
+def evaluation_response_diagnostics(plan: dict[str, Any]) -> bool:
+    value = plan.get("response_diagnostics", False)
+    if type(value) is not bool or (
+        value
+        and (
+            plan["split"] != "val"
+            or evaluation_metric_scope(plan) != "expression_only"
+            or "dataset_transfer_validation" in plan
+        )
+    ):
+        raise ValueError("response diagnostics require explicit frozen expression-only validation")
+    return value
+
+
 def evaluation_memory_fraction(plan: dict[str, Any]) -> float | None:
     """Optional per-worker allocation cap; never alter batches or model arithmetic."""
     value = plan.get("cuda_memory_fraction")
@@ -101,6 +115,7 @@ def resolve_evaluation_plan(args: argparse.Namespace) -> dict[str, Any]:
         repository,
         formal=True,
         expected_repository=config.source_code.repository,
+        remote_ref=runtime.get("publication_remote_ref", "refs/heads/main"),
         publication_receipt=publication,
         expected_publication_receipt_sha256=runtime["publication_sha256"],
     )
@@ -114,7 +129,12 @@ def resolve_evaluation_plan(args: argparse.Namespace) -> dict[str, Any]:
     data_root = Path(runtime["data_root"]).resolve(strict=True)
     if not data_root.is_relative_to(SERVER_ROOT):
         raise ValueError("evaluation data must stay on the server")
+    diagnostics = getattr(args, "response_diagnostics", False)
+    evaluation_response_diagnostics(
+        {"split": args.split, "metric_scope": scope, "response_diagnostics": diagnostics}
+    )
     return {
+        **({"response_diagnostics": True} if diagnostics else {}),
         **({"metric_scope": scope} if scope == "expression_only" else {}),
         **({"evaluation_precision": policy} if policy != "native" else {}),
         "config": str(config_path),
@@ -269,6 +289,7 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
                     metric_gene_groups=groups,
                     condition_ids=selected,
                     include_deg_metrics=scope != "expression_only",
+                    response_diagnostics=evaluation_response_diagnostics(plan),
                     on_condition_complete=lambda done, count, condition: atomic_json(
                         Path(plan["output_root"]) / f"worker-{index}-progress.json",
                         {
@@ -300,6 +321,7 @@ def evaluate_worker(plan: dict[str, Any], index: int) -> dict[str, Any]:
 
 def execute_evaluation_plan(plan: dict[str, Any]) -> dict[str, Any]:
     evaluation_metric_scope(plan)
+    evaluation_response_diagnostics(plan)
     transfer = "dataset_transfer_validation" in plan
     if transfer:
         from gradpert.execution import dataset_transfer_validation as transfer_validation

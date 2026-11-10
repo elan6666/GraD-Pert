@@ -18,6 +18,12 @@ from gradpert.evaluation.metrics import (
     compute_condition_metrics_v2,
     macro_summarize,
 )
+from gradpert.evaluation.response_diagnostics import (
+    SCHEMA,
+    centroid,
+    normalized_bank,
+    summarize_condition,
+)
 from gradpert.evaluation.state import LoadedEvaluationState
 from gradpert.hashing import sha256_json
 from gradpert.modeling.v2 import GraDPertV2
@@ -231,6 +237,7 @@ def evaluate(
     condition_ids: tuple[str, ...] | None = None,
     on_condition_complete: Callable[[int, int, str], None] | None = None,
     include_deg_metrics: bool = True,
+    response_diagnostics: bool = False,
 ) -> dict[str, Any]:
     if type(include_deg_metrics) is not bool:
         raise ValueError("include_deg_metrics must be an explicit boolean")
@@ -271,6 +278,38 @@ def evaluate(
     losses, metrics, rows = [], [], []
     group_metrics: dict[str, list[Any]] = {key: [] for key in groups}
     total_conditions = len(selected)
+    diagnostics: dict[str, Any] = {}
+    if response_diagnostics:
+        if expected_split != "val" or include_deg_metrics:
+            raise ValueError("response diagnostics require frozen expression-only validation")
+        # This private bank never leaves the worker. Each shard uses the same candidate set.
+        pool = reference.metric_control_means
+        responses = [
+            centroid(data.load_truth_rows(c).expression) - pool[reference_positions[c]]
+            for c in all_ids
+        ]
+        bank, valid_positions = normalized_bank(responses)
+        val_targets = {
+            gene_index[g]
+            for c in all_ids
+            for g in c.split("+")
+            if g != data.split.control_condition_id
+        }
+        off_axis = np.array(
+            [i for i in range(len(data.expression_gene_ids)) if i not in val_targets],
+            dtype=np.int64,
+        )
+        off_bank, off_positions = normalized_bank([response[off_axis] for response in responses])
+        downstream_bank = (off_axis, off_bank, off_positions)
+        del responses
+        positions = {c: i for i, c in enumerate(all_ids)}
+        diagnostics = {
+            "schema": SCHEMA,
+            "candidate_count": len(all_ids),
+            "valid_candidate_count": len(valid_positions),
+            "without_val_targets_valid_count": len(off_positions),
+            "without_val_targets_gene_count": len(off_axis),
+        }
     graph_memory = prepare_evaluation_graph(model, index, device=device)
     for draw in data.control_manifest.draws:
         condition = draw.condition_id
@@ -355,12 +394,27 @@ def evaluate(
                 "truth_row_ids_sha256": sha256_json(list(truth.ordered_row_ids)),
             }
         )
+        if response_diagnostics:
+            rows[-1]["response_diagnostics"] = summarize_condition(
+                prediction=centroid(prediction),
+                truth=centroid(truth.expression),
+                paired_control=centroid(controls.expression),
+                pool_control=reference.metric_control_means[reference_positions[condition]],
+                train_mean=reference.systema_reference,
+                target_indices=targets,
+                position=positions[condition],
+                bank=bank,
+                valid_positions=valid_positions,
+                groups=groups,
+                downstream_bank=downstream_bank,
+            )
         if on_condition_complete is not None:
             on_condition_complete(len(rows), total_conditions, condition)
     if not losses:
         raise ValueError("evaluation split is empty")
     return {
         **({"metric_scope": "expression_only"} if not include_deg_metrics else {}),
+        **({"response_diagnostics": diagnostics} if response_diagnostics else {}),
         "split": expected_split,
         "prediction_loss": float(np.mean(losses)),
         "selection_gene_ids": (
@@ -405,6 +459,8 @@ def merge_evaluation_shards(
     if scope not in ("all_and_deg", "expression_only"):
         raise ValueError("unknown evaluation metric scope")
     for shard in shards[1:]:
+        if shard.get("response_diagnostics") != first.get("response_diagnostics"):
+            raise ValueError("evaluation shards differ in response diagnostics identity")
         if shard.get("metric_scope", "all_and_deg") != scope:
             raise ValueError("evaluation shards differ in metric_scope")
         for key in (
@@ -434,6 +490,8 @@ def merge_evaluation_shards(
     if set(by_condition) != set(ordered_conditions):
         raise ValueError("evaluation shards do not cover the frozen condition manifest")
     rows = [by_condition[condition] for condition in ordered_conditions]
+    if any(("response_diagnostics" in row) != ("response_diagnostics" in first) for row in rows):
+        raise ValueError("response diagnostics do not cover all frozen conditions")
 
     def summarize(key: str | None) -> list[dict[str, Any]]:
         values = []

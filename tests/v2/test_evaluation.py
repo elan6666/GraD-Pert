@@ -1,3 +1,4 @@
+from copy import deepcopy
 from types import SimpleNamespace
 
 import numpy as np
@@ -212,3 +213,82 @@ def test_explicit_noncontiguous_queries_preserve_gene_identity():
             device=torch.device("cpu"),
             cell_batch=2,
         )
+
+
+def test_response_diagnostics_keep_metrics_and_candidate_bank_identical_across_shards(monkeypatch):
+    from gradpert.training.v2 import evaluation as module
+
+    index = graph_index()
+    frozen = ("g0", "g1")
+    controls = np.zeros((300, 4), dtype=np.float32)
+    centroids = dict(zip(frozen, (np.arange(4), -np.arange(4)), strict=True))
+    ids = tuple(f"control-{i}" for i in range(300))
+    calls = []
+
+    def predict(model, index, expression, targets, **kwargs):
+        target = f"g{targets[0]}"
+        calls.append(target)
+        return np.repeat(centroids[target][None], len(expression), axis=0).astype(np.float32)
+
+    monkeypatch.setattr(module, "predict_controls", predict)
+    monkeypatch.setattr(module, "prepare_evaluation_graph", lambda *args, **kwargs: None)
+    data = SimpleNamespace(
+        split_name="val",
+        control_manifest=SimpleNamespace(
+            split_name="val",
+            draws=[SimpleNamespace(condition_id=c, ordered_row_ids=ids) for c in frozen],
+        ),
+        expression_gene_ids=index.gene_ids[:4],
+        split=SimpleNamespace(
+            val_conditions=list(frozen), train_conditions=["g3"], control_condition_id="ctrl"
+        ),
+        load_control_rows=lambda ordered: SimpleNamespace(
+            ordered_row_ids=ordered, expression=controls
+        ),
+        load_truth_rows=lambda c: SimpleNamespace(
+            ordered_row_ids=(f"{c}-truth",), expression=centroids[c][None].astype(np.float32)
+        ),
+        control_manifest_file_sha256="frozen-controls",
+    )
+    reference = SimpleNamespace(
+        manifest=SimpleNamespace(
+            schema_version="evaluation-state-v2",
+            condition_ids=list(frozen),
+            systema_reference_condition_ids=["g3"],
+        ),
+        metric_control_means=np.zeros((2, 4)),
+        systema_reference=np.zeros(4),
+        manifest_file_sha256="frozen-reference",
+    )
+    kwargs = dict(
+        expected_split="val",
+        device=torch.device("cpu"),
+        cell_batch=2,
+        query_count=4,
+        include_deg_metrics=False,
+        metric_gene_groups={"seen_expression": (0, 1), "unseen_expression": (2, 3)},
+    )
+    original = evaluate(fixture()[0], index, data, reference, **kwargs)
+    shards = [
+        evaluate(
+            fixture()[0],
+            index,
+            data,
+            reference,
+            **kwargs,
+            response_diagnostics=True,
+            condition_ids=(c,),
+        )
+        for c in reversed(frozen)
+    ]
+    merged = deepcopy(module.merge_evaluation_shards(shards, ordered_conditions=frozen))
+    assert calls == ["g0", "g1", "g1", "g0"]
+    assert merged.pop("response_diagnostics")["valid_candidate_count"] == 2
+    for row in merged["conditions"]:
+        diagnostic = row.pop("response_diagnostics")
+        assert diagnostic["retrieval"]["model"]["top1"] == 1
+        assert diagnostic["retrieval"]["control_copy"]["top1"] == 0.5
+    assert merged == original
+    shards[0]["conditions"][0].pop("response_diagnostics")
+    with pytest.raises(ValueError, match="do not cover"):
+        module.merge_evaluation_shards(shards, ordered_conditions=frozen)
