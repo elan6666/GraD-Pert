@@ -1,0 +1,444 @@
+artifacts:
+  inference_recipe_schema_version: inference-recipe-v1
+  large_artifacts_server_only: true
+  result_mode: metrics_only
+  result_pkl_name: result.pkl
+  root: runs/v2
+  small_sync_extensions:
+  - .txt
+  - .json
+  - .jsonl
+  - .csv
+  - .md
+  sync_requires_dry_run: true
+data:
+  canonical_data_root: data/nadig_jurkat/within_cell_unseen_single/canonical
+  dataset_id: nadig_jurkat
+  expected_control_manifest_hash: from_canonical_manifest
+  expected_expression_gene_order_hash: from_canonical_manifest
+  expected_graph_gene_order_hash: from_canonical_manifest
+  expected_split_hash: from_canonical_manifest
+  preprocessing_id: txpert_within_cell_v1
+  protocol_id: within_cell_unseen_single
+  registry_version: datasets-v2
+  split_policy: grouped_0.5625_0.1875_0.25__gears_default_graph_intersection_v1
+  split_seed: 42
+dataset_id: nadig_jurkat
+evaluation:
+  bundle_schema_version: evaluation-bundle-v1
+  control_context_policy: truth_cell_context_resampling
+  evaluation_seed: 20260824
+  evaluator_version: gradpert-evaluator-v1
+  headline_metrics:
+  - txpert_macro_pearson_delta
+  - trishift_pearson_delta
+  - systema_pearson
+  n_controls_per_condition: 300
+  prediction_schema_version: prediction-artifact-v1
+  sample_controls_with_replacement: true
+  truth_access: evaluator_only
+experiment_id: gradpert_v2__nadig_jurkat
+model:
+  exclude_test_target_expression: true
+  family: native_learned
+  implementation: gradpert.modeling.v2
+  model_id: gradpert_v2
+  parameters:
+    accumulation:
+      value: 1
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_FOLLOWUPS_20261110.md
+    attention:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: relay_full
+    checkpoint_genept_mapping:
+      reference: .byte-os/plans/GRADPERT_V2_BR400_BEST_LAST_20261012.plan.md
+      source: project_preregistered
+      value: true
+    checkpoint_layers:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: true
+    dropout:
+      value: 0.0
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    eval_query_count:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 1000
+    ffn_clip:
+      value: true
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    ffn_input_norm:
+      reference: docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md
+      source: user_locked
+      value: historical
+    ffn_type:
+      reference: docs/provenance/GRADPERT_V2_OPERATORS.md
+      source: project_preregistered
+      value: swiglu
+    ffn_variant:
+      value: swiglu
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    gene_initialization:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: genept
+    genept_artifact_path:
+      reference: docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md
+      source: user_locked
+      value: /data/yilangliu/DinoGenePT/data/embeddings/seed-go-protein-pathway-master-aligned.npz
+    genept_hidden_width:
+      value: 1024
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    genept_middle_width:
+      value: 256
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    genept_projection_activation:
+      reference: docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md
+      source: user_locked
+      value: gelu
+    genept_sha256:
+      reference: docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md
+      source: user_locked
+      value: 34d4c81b311f567304d299800eb07c8847641f26e82e573f5a1acfe77c202318
+    global_max_ratio:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: 0.9
+    global_min_ratio:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: 0.6
+    graph_edge_dropout:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 0.1
+    graph_expander_degree:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: 3
+    graph_expander_seed:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 1
+    graph_expander_type:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: hamiltonian
+    graph_layers:
+      value: 6
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_FOLLOWUPS_20261110.md
+    graph_manifest_path:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: /data/yilangliu/GraD-Pert/data-vnext-a942114/nadig_jurkat/within_cell_unseen_single/graphs/manifest.json
+    graph_manifest_sha256:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 0de04502516318f835699683f0c95362386d7031cdefd99800ca3039eb392ae2
+    graph_mask_ratio:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 0.25
+    graph_read_mode:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: relay
+    graph_source_key_gate:
+      value: false
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    graph_view_mode:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: multiscale
+    heads:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 4
+    kda_layers:
+      reference: docs/design/GRADPERT_V2.md#glm53-compact-depth
+      source: user_locked
+      value: 2
+    koleo_exclude_same_condition:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: true
+    lambda1:
+      value: 0.0
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    lambda2:
+      value: 0.0
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    latent_rank:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 64
+    learned_genept_projection:
+      reference: docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md
+      source: user_locked
+      value: true
+    local_max_ratio:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: 0.5
+    local_min_ratio:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: 0.25
+    local_views:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: 2
+    loss_reduction:
+      reference: docs/design/GRADPERT_V2.md#18
+      source: user_locked
+      value: row_mean
+    mask_max_ratio:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 0.5
+    mask_min_ratio:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 0.1
+    mask_probability:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 0.5
+    max_conditions:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: user_locked
+      value: 0
+    microbatch:
+      value: 130
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_FOLLOWUPS_20261110.md
+    mlp_profile:
+      reference: docs/experiments/GRADPERT_V2_GLOBAL_FFN_DESIGN_20261011.md
+      source: user_locked
+      value: restored
+    prediction_loss:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: cell_mean
+    prediction_parameterization:
+      value: softplus
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    process_diagnostics:
+      value: true
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    projector_bottleneck:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 256
+    projector_hidden:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 2048
+    prototypes:
+      reference: docs/design/GRADPERT_V2.md#glm53-compact-depth
+      source: user_locked
+      value: 16384
+    query_count:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 1000
+    relay_eval_seed:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: project_preregistered
+      value: 1
+    relay_passes:
+      reference: docs/design/GRADPERT_V2_RELAY_METHOD_PLAN.md
+      source: user_locked
+      value: 1
+    relay_sequence_chunk_size:
+      reference: docs/experiments/GRADPERT_V2_GATE_BATCH_CHUNK_20260928.md
+      source: project_preregistered
+      value: 16
+    response_injection_residual:
+      value: true
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    sinkhorn_backend:
+      reference: docs/experiments/GRADPERT_V2_SINGLE_PASS_PERFORMANCE.md
+      source: project_preregistered
+      value: auto
+    ssl1_condition:
+      value: 0.0
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    ssl1_local_layout:
+      reference: .byte-os/plans/MEDIUM_PERFORMANCE_AND_NEW_B0_20261015.plan.md
+      source: user_locked
+      value: go_string
+    ssl1_local_views:
+      reference: .byte-os/plans/MEDIUM_PERFORMANCE_AND_NEW_B0_20261015.plan.md
+      source: user_locked
+      value: 2
+    ssl1_node:
+      value: 0.0
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    ssl1_reduction:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: row_mean
+    ssl1_spread:
+      value: 0.0
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    ssl2_dino:
+      value: 0.0
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    ssl2_ibot:
+      value: 0.0
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    ssl2_koleo:
+      value: 0.0
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    ssl2_local_views:
+      reference: .byte-os/plans/MEDIUM_PERFORMANCE_AND_NEW_B0_20261015.plan.md
+      source: user_locked
+      value: 2
+    streams:
+      reference: docs/experiments/GRADPERT_V2_MHC_JOINT_ONLY_B0.md
+      source: user_locked
+      value: 4
+    teacher_end:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 1.0
+    teacher_start:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 0.99
+    train_selection_path:
+      value: ''
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_FOLLOWUPS_20261110.md
+    train_selection_sha256:
+      value: ''
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_FOLLOWUPS_20261110.md
+    validation_mode:
+      reference: .byte-os/plans/OFFICIAL_RECOVERY_FFN_DIAGNOSTICS_20261013.plan.md
+      source: user_locked
+      value: disabled
+    width:
+      reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+      source: project_preregistered
+      value: 256
+    world_size:
+      value: 2
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_FOLLOWUPS_20261110.md
+    architecture_variant:
+      value: small_softmax_mhc
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    ffn_linear_bias:
+      value: none
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    random_gene_order:
+      value: false
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    lambda_mmd:
+      value: 0.0
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_MHC_DESIGN_20261109.md#21
+    relay_validate_once:
+      value: true
+      source: user_locked
+      reference: docs/experiments/TRAINING_EXECUTION_DEFAULTS.md
+    cache_kda_constants:
+      value: true
+      source: user_locked
+      reference: docs/experiments/TRAINING_EXECUTION_DEFAULTS.md
+    distillation_enabled:
+      value: false
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_FOLLOWUPS_20261110.md
+    small_cell_layers:
+      value: 6
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_FOLLOWUPS_20261110.md
+    small_prediction_hidden_layers:
+      value: 2
+      source: user_locked
+      reference: docs/design/GRADPERT_SMALL_SOFTMAX_FOLLOWUPS_20261110.md
+  version: v2
+model_id: gradpert_v2
+schema_version: 1
+source_code:
+  commit: resolve_clean_commit_at_launch
+  execution: native
+  license_boundary: project_repository
+  repository: https://github.com/elan6666/GraD-Pert.git
+training:
+  early_stopping: false
+  early_stopping_patience:
+    reference: docs/design/GRADPERT_VNEXT_ABLATIONS.md
+    source: user_locked
+    value: 10
+  eval_batch_size:
+    reference: .byte-os/plans/OFFICIAL_RECOVERY_FFN_DIAGNOSTICS_20261013.plan.md
+    source: project_preregistered
+    value: 128
+  formal_run_policy: v2_fixed_2
+  learned: true
+  learning_rate:
+    reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+    source: project_preregistered
+    value: 0.001
+  max_epochs:
+    reference: scripts/v2/generate_representation_round1.py#research-protocol
+    source: user_locked
+    value: 2
+  min_delta: 0.0
+  monitor: none
+  monitor_mode: none
+  optimizer:
+    reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+    source: project_preregistered
+    value: GLM5MuonSplit_v2
+  run_seeds:
+  - 1
+  scheduler:
+    reference: docs/experiments/R50_GLM5_MUON.md
+    source: project_preregistered
+    value:
+      interval: step
+      max_lr: 0.001
+      min_lr: 0.0002
+      name: lr_warmup_cosine_endpoint
+      warmup_fraction: 0.16
+  smoke_epochs:
+    reference: 'user requirement: learned integration gate is exactly one epoch'
+    source: user_locked
+    value: 1
+  train_batch_size:
+    value: 260
+    source: user_locked
+    reference: docs/design/GRADPERT_SMALL_SOFTMAX_FOLLOWUPS_20261110.md
+  weight_decay:
+    reference: docs/design/GRADPERT_V2.md#capacity-probe-settings
+    source: project_preregistered
+    value: 0.0
