@@ -1,4 +1,4 @@
-"""Run a sealed two-epoch prediction-only arm through preflight and fit."""
+"""Run a sealed prediction-only arm through preflight and fit."""
 
 from __future__ import annotations
 
@@ -85,6 +85,8 @@ def main() -> None:
     prediction_only = variant == "small_softmax_mhc" or (
         variant == "historical" and params.get("distillation_enabled", {}).get("value") is False
     )
+    training = config["training"]
+    epochs = {"v2_fixed_2": 2, "v2_fixed_10": 10}.get(training["formal_run_policy"])
     if (
         not prediction_only
         or any(
@@ -100,11 +102,11 @@ def main() -> None:
                 "ssl2_koleo",
             )
         )
-        or config["training"]["max_epochs"]["value"] != 2
+        or training["max_epochs"]["value"] != epochs
         or plan["postfit_policy"] != "deferred"
         or params["world_size"]["value"] != len(devices)
     ):
-        raise ValueError("prediction-only two-epoch scope changed")
+        raise ValueError("prediction-only fixed-epoch scope changed")
     if Path(plan["run_root"]).exists():
         raise FileExistsError("no duplicate run or implicit resume")
     marker = root / (args.stage + "-owner.json")

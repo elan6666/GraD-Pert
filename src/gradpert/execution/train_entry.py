@@ -64,6 +64,7 @@ def resolve_plan(args: argparse.Namespace) -> dict[str, Any]:
         "v2_fixed_4": 4,
         "v2_fixed_1": 1,
         "v2_fixed_2": 2,
+        "v2_fixed_10": 10,
     }.get(config.training.formal_run_policy)
     if config.training.formal_run_policy == "v2_updates_300":
         expected_epochs = config.training.max_epochs.value
@@ -151,7 +152,11 @@ def resolve_plan(args: argparse.Namespace) -> dict[str, Any]:
             raise ValueError("deferred postfit scheduling is v2 only")
         plan["postfit_policy"] = "deferred"
         plan["stages"] = ["fit", "configured validation", "curves", "TRAIN_COMPLETE; tests pending"]
-    if config.training.formal_run_policy in {"v2_fixed_2", "v2_updates_300"}:
+    if config.training.formal_run_policy == "v2_fixed_10" and not getattr(
+        args, "defer_test", False
+    ):
+        raise ValueError("fixed10 research requires deferred postfit")
+    if config.training.formal_run_policy in {"v2_fixed_2", "v2_fixed_10", "v2_updates_300"}:
         plan["report_all_validation_metrics"] = False
         plan["stages"] = [
             "fit",

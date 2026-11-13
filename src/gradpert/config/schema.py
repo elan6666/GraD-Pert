@@ -141,6 +141,7 @@ class TrainingConfig(StrictModel):
         "v2_fixed_4",
         "v2_fixed_1",
         "v2_fixed_2",
+        "v2_fixed_10",
         "v2_updates_300",
         "inference_only",
         "vnext_combination_100",
@@ -177,6 +178,7 @@ class TrainingConfig(StrictModel):
                     "v2_fixed_4",
                     "v2_fixed_1",
                     "v2_fixed_2",
+                    "v2_fixed_10",
                     "v2_updates_300",
                 }:
                     raise ValueError("LR-only schedule requires R50 policy")
@@ -265,10 +267,12 @@ class TrainingConfig(StrictModel):
                 "v2_fixed_4",
                 "v2_fixed_1",
                 "v2_fixed_2",
+                "v2_fixed_10",
             }:
                 expected_epochs = {
                     "v2_fixed_1": 1,
                     "v2_fixed_2": 2,
+                    "v2_fixed_10": 10,
                     "v2_fixed_3": 3,
                     "v2_fixed_4": 4,
                     "v2_fixed_5": 5,
@@ -283,13 +287,13 @@ class TrainingConfig(StrictModel):
                     )
                 final_only = (
                     self.formal_run_policy
-                    in {"v2_fixed_6", "v2_fixed_4", "v2_fixed_3", "v2_fixed_2"}
+                    in {"v2_fixed_10", "v2_fixed_6", "v2_fixed_4", "v2_fixed_3", "v2_fixed_2"}
                     and self.monitor == "none"
                     and self.monitor_mode == "none"
                 )
-                if self.formal_run_policy == "v2_fixed_2" and not final_only:
+                if self.formal_run_policy in {"v2_fixed_2", "v2_fixed_10"} and not final_only:
                     raise ValueError(
-                        "v2 fixed2 research requires monitor=none and last-only selection"
+                        "v2 fixed2/fixed10 research requires monitor=none and last-only selection"
                     )
                 if not final_only and (
                     self.monitor not in {"val/prediction_loss", "val/joint_loss"}
@@ -469,6 +473,7 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_4",
                 "v2_fixed_1",
                 "v2_fixed_2",
+                "v2_fixed_10",
                 "v2_updates_300",
                 "fixed_epoch_pilot",
                 "vnext_combination_100",
@@ -497,6 +502,7 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_4",
                 "v2_fixed_1",
                 "v2_fixed_2",
+                "v2_fixed_10",
                 "v2_updates_300",
             }
             and self.model_id != "gradpert_v2"
@@ -522,13 +528,14 @@ class ExperimentConfig(StrictModel):
                         "v2_fixed_4",
                         "v2_fixed_3",
                         "v2_fixed_2",
+                        "v2_fixed_10",
                         "v2_updates_300",
                     }
                     or self.continuation
                 )
             ):
                 raise ValueError(
-                    "disabled validation requires fresh fixed2/fixed3/fixed4/fixed6 "
+                    "disabled validation requires fresh fixed2/fixed3/fixed4/fixed6/fixed10 "
                     "and monitor=none"
                 )
             if self.artifacts.result_mode != "metrics_only":
@@ -542,10 +549,12 @@ class ExperimentConfig(StrictModel):
                 "v2_fixed_4",
                 "v2_fixed_1",
                 "v2_fixed_2",
+                "v2_fixed_10",
                 "v2_updates_300",
             } or self.training.max_epochs.value != {
                 "v2_fixed_1": 1,
                 "v2_fixed_2": 2,
+                "v2_fixed_10": 10,
                 "v2_updates_300": self.training.max_epochs.value,
                 "v2_fixed_3": 3,
                 "v2_fixed_4": 4,
