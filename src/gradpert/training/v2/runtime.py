@@ -260,13 +260,14 @@ def prepare_runtime(
         from .crosscell import CrossCellTrainingData, load_crosscell_topology
 
         if (
-            purpose != "training"
-            or options.validation_mode != "disabled"
+            options.validation_mode != "disabled"
             or options.train_selection_path
             or options.expression_holdout_path
             or options.world_size != 1
         ):
-            raise ValueError("cross-cell adapter supports sealed single-card source training only")
+            raise ValueError(
+                "cross-cell adapter requires a sealed single-card source training configuration"
+            )
         seal, topology = load_crosscell_topology(graph_manifest)
         row_data = seal
     else:
