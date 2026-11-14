@@ -16,6 +16,7 @@ DatasetId = Literal[
     "nadig_hepg2",
     "norman",
 ]
+ExperimentDatasetId = DatasetId | Literal["crosscell_k562"]
 ModelId = Literal[
     "gradpert_b2",
     "gradpert_v2",
@@ -69,7 +70,7 @@ class SourceCode(StrictModel):
 
 
 class DataConfig(StrictModel):
-    dataset_id: DatasetId
+    dataset_id: ExperimentDatasetId
     protocol_id: str
     registry_version: str
     canonical_data_root: str
@@ -426,7 +427,7 @@ class ExperimentConfig(StrictModel):
     schema_version: Literal[1]
     experiment_id: str
     model_id: ModelId
-    dataset_id: DatasetId
+    dataset_id: ExperimentDatasetId
     source_code: SourceCode
     data: DataConfig
     model: ModelConfig
@@ -455,6 +456,14 @@ class ExperimentConfig(StrictModel):
             raise ValueError("top-level and nested model_id differ")
         if self.dataset_id != self.data.dataset_id:
             raise ValueError("top-level and nested dataset_id differ")
+        if self.dataset_id == "crosscell_k562" and (
+            self.model_id != "gradpert_v2"
+            or self.data.protocol_id != "txpert_cache_fixed_axis_leave_one_line_out_v1"
+            or self.training.formal_run_policy != "v2_fixed_10"
+            or self.continuation is not None
+            or self.model.excludes_test_target_expression
+        ):
+            raise ValueError("K562 leave-one-line-out requires its fresh native v2 training recipe")
         expected_id = f"{self.model_id}__{self.dataset_id}"
         if self.experiment_id != expected_id:
             raise ValueError(f"experiment_id must equal {expected_id}")

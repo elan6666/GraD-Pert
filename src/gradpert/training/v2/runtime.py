@@ -255,9 +255,24 @@ def prepare_runtime(
         raise ValueError("configured graph manifest differs from runtime dataset")
     if sha256_file(graph_manifest) != options.graph_manifest_sha256:
         raise ValueError("graph manifest checksum mismatch")
-    topology = load_dataset_graph_topology(
-        dataset_id=config.dataset_id, protocol_id=config.data.protocol_id, data_root=data_root
-    )
+    row_data = None
+    if config.dataset_id == "crosscell_k562":
+        from .crosscell import CrossCellTrainingData, load_crosscell_topology
+
+        if (
+            purpose != "training"
+            or options.validation_mode != "disabled"
+            or options.train_selection_path
+            or options.expression_holdout_path
+            or options.world_size != 1
+        ):
+            raise ValueError("cross-cell adapter supports sealed single-card source training only")
+        seal, topology = load_crosscell_topology(graph_manifest)
+        row_data = seal
+    else:
+        topology = load_dataset_graph_topology(
+            dataset_id=config.dataset_id, protocol_id=config.data.protocol_id, data_root=data_root
+        )
     prior = None
     if not arch.small_gene_table:
         prior_path = Path(options.genept_artifact_path).resolve()
@@ -275,7 +290,11 @@ def prepare_runtime(
             raise ValueError("v2 requires complete GenePT coverage of the frozen graph axis")
     with ExitStack() as stack:
         data = stack.enter_context(
-            CanonicalTrainingData(
+            CrossCellTrainingData(
+                seal=row_data, graph_manifest=graph_manifest, data_root=data_root, run_seed=run_seed
+            )
+            if row_data is not None
+            else CanonicalTrainingData(
                 dataset_id=config.dataset_id,
                 protocol_id=config.data.protocol_id,
                 data_root=data_root,

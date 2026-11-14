@@ -471,21 +471,24 @@ def main() -> None:
 
     config = load_experiment_config(args.config)
     architecture, options = V2Options.parse_parameters(config.model.parameters)
+    screen_world = 1 if config.dataset_id == "crosscell_k562" else 2
     if args.batch_capacity_only and (
         architecture.architecture_variant != "small_softmax_mhc"
         or architecture.small_gene_table
         or architecture.graph_layers not in (4, 6)
         or architecture.has_distillation
-        or options.world_size != 2
-        or world != 2
+        or options.world_size != screen_world
+        or world != screen_world
         or options.accumulation != 1
-        or 2 * options.microbatch != int(config.training.train_batch_size.value)
+        or screen_world * options.microbatch != int(config.training.train_batch_size.value)
         or options.query_count != 1000
         or not options.process_diagnostics
         or not architecture.checkpoint_layers
         or not architecture.checkpoint_genept_mapping
     ):
-        parser.error("batch screening requires two ranks and the sealed small-model settings")
+        parser.error(
+            "batch screening requires the configured ranks and sealed small-model settings"
+        )
     if args.save_no_grad_sinkhorn and architecture.sinkhorn_backend not in ("auto", "triton"):
         parser.error("saved no-grad Sinkhorn requires a fused backend")
     source = inspect_source_identity(
@@ -1263,6 +1266,39 @@ def main() -> None:
             # condition. No test truth, scientific score or hyperparameter selection.
             def validation_probe() -> dict[str, Any]:
                 validation: dict[str, Any] = {}
+                if config.dataset_id == "crosscell_k562":
+                    condition, context, rows, expression = runtime.data.preflight_controls()
+                    torch.cuda.synchronize()
+                    started = time.perf_counter()
+                    predicted = predict_controls(
+                        runtime.objective.student,
+                        runtime.index,
+                        expression,
+                        runtime.data.anchors_by_condition[condition],
+                        device=runtime.device,
+                        cell_batch=int(config.training.eval_batch_size.value),
+                        query_count=runtime.options.eval_query_count,
+                    )
+                    torch.cuda.synchronize()
+                    return {
+                        "inference_seconds": time.perf_counter() - started,
+                        "evaluation_cell_batch": int(config.training.eval_batch_size.value),
+                        "inference_shape": list(predicted.shape),
+                        "inference_condition": condition,
+                        "inference_context": context,
+                        "inference_control_manifest_sha256": sha256_json(
+                            [
+                                runtime.data.split.split_content_sha256,
+                                condition,
+                                context,
+                                list(rows),
+                            ]
+                        ),
+                        "ordered_control_row_ids_sha256": sha256_json(list(rows)),
+                        "inference_expression_gene_order_sha256": (
+                            runtime.data.manifest.expression_gene_order_sha256
+                        ),
+                    }
                 with CanonicalEvaluationData(
                     dataset_id=config.dataset_id,
                     protocol_id=config.data.protocol_id,
