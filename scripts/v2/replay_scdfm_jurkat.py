@@ -72,7 +72,9 @@ def evaluate_slice(args, output):
     reference = load_evaluation_state(
         dataset_id=DATASET, protocol_id=PROTOCOL, data_root=DATA, evaluation_protocol="v2"
     )
-    with CanonicalEvaluationData(dataset_id=DATASET, protocol_id=PROTOCOL, data_root=DATA) as data:
+    with CanonicalEvaluationData(
+        dataset_id=DATASET, protocol_id=PROTOCOL, split_name="test", data_root=DATA
+    ) as data:
         if (
             data.control_manifest_file_sha256 != fit_receipt["control_manifest_sha256"]
             or data.control_manifest_file_sha256 != cohort["evaluation_controls_sha256"]
