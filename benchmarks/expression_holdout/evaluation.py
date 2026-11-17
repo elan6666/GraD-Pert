@@ -23,6 +23,7 @@ def evaluate(
     seed: int,
     progress: Callable | None = None,
     condition_slice: slice | None = None,
+    response_scorer: Callable | None = None,
 ) -> dict:
     if data.split_name != "test" or reference.manifest.schema_version != "evaluation-state-v2":
         raise ValueError("official comparison requires frozen v2 test evaluation")
@@ -102,6 +103,10 @@ def evaluate(
                 "truth_count": len(truth.ordered_row_ids),
             }
         )
+        if response_scorer is not None:
+            rows[-1]["response_metrics"] = response_scorer(
+                draw.condition_id, prediction, controls.expression, truth
+            )
         if progress:
             progress(number, len(draws), draw.condition_id)
     return {
