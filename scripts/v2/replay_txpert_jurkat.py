@@ -18,7 +18,7 @@ from replay_scdfm_jurkat import COHORT_SHA, DATA, DATASET, PROTOCOL, SERVER, STU
 from benchmarks.common.condition_response import FrozenConditionResponse, summarize_response
 from benchmarks.expression_holdout.evaluation import evaluate
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
-from benchmarks.txpert.runner import _official_config
+from benchmarks.txpert.runner import _official_config, _register_anndata_null_reader
 from gradpert.config import load_experiment_config
 from gradpert.data._io import atomic_json, read_json
 from gradpert.evaluation.data import CanonicalEvaluationData
@@ -133,6 +133,7 @@ def evaluate_frozen(output, stop):
     reference = load_evaluation_state(
         dataset_id=DATASET, protocol_id=PROTOCOL, data_root=DATA, evaluation_protocol="v2"
     )
+    reader_compatibility = _register_anndata_null_reader()
     with CanonicalEvaluationData(
         dataset_id=DATASET, protocol_id=PROTOCOL, split_name="test", data_root=DATA
     ) as data:
@@ -179,6 +180,7 @@ def evaluate_frozen(output, stop):
             condition_slice=slice(0, stop),
             response_scorer=response,
         )
+    result["canonical_reader_compatibility"] = reader_compatibility
     result["response_summary"] = summarize_response(result["condition_metrics"])
     atomic_json(output / "last-test.json", result)
     return {

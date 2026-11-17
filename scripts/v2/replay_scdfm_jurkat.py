@@ -187,6 +187,7 @@ def main():
     parser.add_argument("--uuid", required=True)
     parser.add_argument("--start", required=True, type=int)
     parser.add_argument("--stop", required=True, type=int)
+    parser.add_argument("--tf32-probe", action="store_true")
     args = parser.parse_args()
     if any(not p.resolve().is_relative_to(STUDY) for p in (args.output, args.publication)):
         raise ValueError("Jurkat replay artifacts stay on the study server")
@@ -208,6 +209,8 @@ def main():
         admit_selected_idle(snapshot(os.getpid()), int(args.gpu), args.uuid)
         torch.cuda.set_device(0)
         torch.cuda.set_per_process_memory_fraction(0.9, 0)
+        if args.tf32_probe:
+            torch.set_float32_matmul_precision("high")
         args.output.mkdir(exist_ok=False)
         owner = {
             "source_commit": identity.commit,
@@ -216,6 +219,7 @@ def main():
             "owner": process_info(os.getpid()),
             "gpu": int(args.gpu),
             "gpu_uuid": args.uuid,
+            "float32_matmul_precision": torch.get_float32_matmul_precision(),
         }
         atomic_json(args.output / "OWNER.json", owner)
         try:
