@@ -386,6 +386,7 @@ def run_one_epoch(
         write_training_data_receipt(training_data, small_root / "training_data.json")
         if requested_epochs == 100 or (r50 and not smoke and not step_smoke):
             smoke_source_commit = source.commit
+            smoke_environment_sha256 = environment.payload_sha256
             if released_recipe_train:
                 if smoke_run_root is None:
                     raise ValueError("released TxPert training requires a completed recipe smoke")
@@ -402,6 +403,24 @@ def run_one_epoch(
                     or observed_schedule["_milestones"] != [recipe.warmup_epochs]
                 ):
                     raise ValueError("validated smoke did not exercise this released recipe")
+                smoke_environment = json.loads(
+                    (smoke_run_root / "small_results/environment.json").read_text()
+                )
+                current_environment = environment.payload()
+                for field in (
+                    "python_version",
+                    "platform",
+                    "lock_file_sha256",
+                    "torch_version",
+                    "cuda_runtime",
+                    "cudnn_version",
+                    "device_name",
+                ):
+                    if smoke_environment[field] != current_environment[field]:
+                        raise ValueError(f"released TxPert smoke runtime differs on {field}")
+                # Environment digests include the absolute lock-file path, which
+                # changes between the two immutable study checkouts.
+                smoke_environment_sha256 = smoke_environment["payload_sha256"]
                 smoke_source_commit = json.loads(
                     (smoke_run_root / "small_results/r50_smoke.json").read_text()
                 )["source_commit"]
@@ -422,7 +441,7 @@ def run_one_epoch(
                     config_sha256=config_sha256,
                     training_data=training_data,
                     source_commit=smoke_source_commit,
-                    **({"environment_sha256": environment.payload_sha256} if r50 else {}),
+                    **({"environment_sha256": smoke_environment_sha256} if r50 else {}),
                 ),
             )
         adapted = build_training_validation_adata(training_data, axis="expression")
