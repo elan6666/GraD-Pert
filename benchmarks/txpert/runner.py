@@ -292,19 +292,23 @@ def run_one_epoch(
     source_publication_receipt: Path | None = None,
     source_publication_receipt_sha256: str | None = None,
     released_recipe_smoke: bool = False,
+    released_recipe_train: bool = False,
     source_remote_ref: str = "refs/heads/main",
 ) -> dict[str, object]:
     config_file = config_path.resolve(strict=True)
     config = load_experiment_config(config_file)
     requested_epochs = 1 if smoke else int(config.training.max_epochs.value)
     r50 = config.training.formal_run_policy == "external_fixed_50"
-    recipe = WITHIN_CELL_EXPHORMER_MG if released_recipe_smoke else None
+    recipe = WITHIN_CELL_EXPHORMER_MG if released_recipe_smoke or released_recipe_train else None
     if recipe is not None and (
-        not formal or not r50 or not smoke or step_smoke or config.dataset_id != "nadig_jurkat"
+        not formal
+        or not r50
+        or step_smoke
+        or released_recipe_smoke == released_recipe_train
+        or smoke != released_recipe_smoke
+        or config.dataset_id != "nadig_jurkat"
     ):
-        raise ValueError(
-            "released within-cell TxPert smoke requires the formal Jurkat one-epoch gate"
-        )
+        raise ValueError("released TxPert recipe requires formal Jurkat smoke or full training")
     if step_smoke and (not r50 or smoke):
         raise ValueError("--step-smoke requires R50 and excludes --smoke")
     if config.model_id != "txpert_public" or config.training.max_epochs.value not in {1, 50, 100}:
@@ -358,7 +362,7 @@ def run_one_epoch(
                 "scheduler": recipe.scheduler_args,
                 "observed_dataset": "K562 within-cell",
                 "applied_dataset": config.dataset_id,
-                "stage": "one_epoch_validation_smoke",
+                "stage": "one_epoch_validation_smoke" if smoke else "from_scratch_full_fit",
             },
         )
     atomic_json(
@@ -381,6 +385,35 @@ def run_one_epoch(
         )
         write_training_data_receipt(training_data, small_root / "training_data.json")
         if requested_epochs == 100 or (r50 and not smoke and not step_smoke):
+            smoke_source_commit = source.commit
+            if released_recipe_train:
+                if smoke_run_root is None:
+                    raise ValueError("released TxPert training requires a completed recipe smoke")
+                smoke_meta = json.loads(
+                    (smoke_run_root / "small_results/released_recipe.json").read_text()
+                )
+                observed_schedule = json.loads(
+                    (smoke_run_root / "small_results/released_schedule_observed.json").read_text()
+                )
+                if (
+                    smoke_meta.get("checkpoint_sha256") != recipe.checkpoint_sha256
+                    or smoke_meta.get("scheduler") != recipe.scheduler_args
+                    or smoke_meta.get("initialization") != "from_scratch"
+                    or observed_schedule["_milestones"] != [recipe.warmup_epochs]
+                ):
+                    raise ValueError("validated smoke did not exercise this released recipe")
+                smoke_source_commit = json.loads(
+                    (smoke_run_root / "small_results/r50_smoke.json").read_text()
+                )["source_commit"]
+                # Use a previously passed validation-only integration of this same
+                # official data adapter, model and scheduler from the study branch.
+                import subprocess
+
+                subprocess.run(
+                    ["git", "merge-base", "--is-ancestor", smoke_source_commit, source.commit],
+                    cwd=repository_root,
+                    check=True,
+                )
             atomic_json(
                 small_root / "smoke_gate.json",
                 (require_r50_smoke if r50 else require_completed_smoke)(
@@ -388,7 +421,7 @@ def run_one_epoch(
                     config=config,
                     config_sha256=config_sha256,
                     training_data=training_data,
-                    source_commit=source.commit,
+                    source_commit=smoke_source_commit,
                     **({"environment_sha256": environment.payload_sha256} if r50 else {}),
                 ),
             )
@@ -483,6 +516,7 @@ def run_one_epoch(
                     if r50
                     else {}
                 ),
+                **({"released_recipe": recipe} if released_recipe_train else {}),
             )
             if step_smoke:
                 atomic_json(
@@ -566,7 +600,7 @@ def run_one_epoch(
                     or warmup["total_iters"] != recipe.warmup_epochs
                     or cosine["T_max"] != recipe.epochs - recipe.warmup_epochs
                     or cosine["eta_min"] != recipe.min_lr
-                    or scheduler["last_epoch"] != 1
+                    or scheduler["last_epoch"] != completed_epochs
                     or any(
                         group["initial_lr"] != recipe.learning_rate
                         or group["weight_decay"] != recipe.weight_decay
@@ -597,7 +631,8 @@ def run_one_epoch(
                     "formal_eligible": source.formal_eligible,
                 }
             evaluations = {}
-            for role in ("best", "last") if r50 else ("best",):
+            test_roles = ("best", "last") if r50 and not released_recipe_train else ("best",)
+            for role in test_roles:
                 role_destination = destination / "evaluations" / role if r50 else destination
                 if r50:
                     role_destination.mkdir(parents=True, exist_ok=False)
@@ -715,6 +750,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--step-smoke", action="store_true")
     parser.add_argument("--released-recipe-smoke", action="store_true")
+    parser.add_argument("--released-recipe-train", action="store_true")
     parser.add_argument("--source-remote-ref", default="refs/heads/main")
     parser.add_argument("--smoke-run-root", type=Path)
     parser.add_argument("--source-publication-receipt", type=Path)
@@ -758,6 +794,7 @@ def main(argv: list[str] | None = None) -> None:
             source_publication_receipt=args.source_publication_receipt,
             source_publication_receipt_sha256=args.source_publication_receipt_sha256,
             released_recipe_smoke=args.released_recipe_smoke,
+            released_recipe_train=args.released_recipe_train,
             source_remote_ref=args.source_remote_ref,
         )
     rendered = json.dumps(payload, indent=2, sort_keys=True)

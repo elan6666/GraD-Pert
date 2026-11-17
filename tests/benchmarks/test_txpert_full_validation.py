@@ -6,10 +6,21 @@ from types import SimpleNamespace
 import pytest
 
 from benchmarks.txpert.official_api import OfficialPublicAPI
+from benchmarks.txpert.released_recipe import WITHIN_CELL_EXPHORMER_MG
 
 
-@pytest.mark.parametrize("epochs,r50,completed", [(100, False, 11), (50, True, 50), (1, True, 1)])
-def test_full_validation_never_calls_test_or_resets_optimizer(tmp_path, epochs, r50, completed):
+@pytest.mark.parametrize(
+    "epochs,r50,recipe,completed,best_epoch",
+    [
+        (100, False, None, 11, 1),
+        (50, True, None, 50, 1),
+        (1, True, None, 1, 1),
+        (50, True, WITHIN_CELL_EXPHORMER_MG, 41, 10),
+    ],
+)
+def test_full_validation_never_calls_test_or_resets_optimizer(
+    tmp_path, epochs, r50, recipe, completed, best_epoch
+):
     events = []
     snapshots = {}
 
@@ -90,11 +101,12 @@ def test_full_validation_never_calls_test_or_resets_optimizer(tmp_path, epochs, 
         progress_path=tmp_path / "progress.json",
         r50=r50,
         last_checkpoint_path=tmp_path / "last.pt" if r50 else None,
+        released_recipe=recipe,
     )
     assert events.count("one_continuous_fit") == 1
     assert events.count("validation") == completed
-    assert trainer.gradpert_best_epoch == 1
-    assert model.state == 0
+    assert trainer.gradpert_best_epoch == best_epoch
+    assert model.state == best_epoch - 1
     assert model.training
     assert len(snapshots) == (2 if r50 else 1)
     if r50:

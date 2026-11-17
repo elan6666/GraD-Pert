@@ -11,6 +11,7 @@ from typing import Any
 
 import numpy as np
 
+from benchmarks.txpert.released_recipe import ReleasedRecipe
 from gradpert.hashing import sha256_json
 
 
@@ -280,6 +281,7 @@ class OfficialPublicAPI:
         r50: bool = False,
         last_checkpoint_path: str | Path | None = None,
         step_checkpoint_path: str | Path | None = None,
+        released_recipe: ReleasedRecipe | None = None,
     ) -> Any:
         """Official training/optimizer and official val metric, with no test hook.
 
@@ -291,6 +293,10 @@ class OfficialPublicAPI:
         """
         from gradpert.data._io import atomic_json
 
+        if released_recipe is not None and (
+            not r50 or epochs != released_recipe.epochs or step_checkpoint_path is not None
+        ):
+            raise ValueError("full released recipe requires its published epoch horizon")
         if step_checkpoint_path is not None and (
             not r50 or epochs != 50 or last_checkpoint_path is not None
         ):
@@ -311,6 +317,7 @@ class OfficialPublicAPI:
             def __init__(self):
                 self.history = []
                 self.best = -float("inf")
+                self.checkpoint_best = -float("inf")
                 self.bad = 0
                 self.best_epoch = None
 
@@ -331,13 +338,19 @@ class OfficialPublicAPI:
                     value = float(metrics["pearson_delta"])
                     if not np.isfinite(value):
                         raise RuntimeError("nonfinite official TxPert validation metric")
-                    improved = value > self.best
                     epoch = int(trainer.current_epoch) + 1
-                    if improved:
-                        self.best, self.bad, self.best_epoch = value, 0, epoch
-                        trainer.save_checkpoint(str(checkpoint_path))
+                    if value > self.best:
+                        self.best, self.bad = value, 0
                     else:
                         self.bad += 1
+                    checkpoint_due = (
+                        released_recipe is None
+                        or epoch % released_recipe.checkpoint_every_n_epochs == 0
+                    )
+                    improved = checkpoint_due and value > self.checkpoint_best
+                    if improved:
+                        self.checkpoint_best, self.best_epoch = value, epoch
+                        trainer.save_checkpoint(str(checkpoint_path))
                     self.history.append(
                         {
                             "epoch": epoch,
@@ -354,7 +367,8 @@ class OfficialPublicAPI:
                             "canonical_test_truth_during_fit": False,
                         },
                     )
-                    if not r50 and self.bad >= 10:
+                    patience = released_recipe.patience if released_recipe is not None else 10
+                    if (released_recipe is not None or not r50) and self.bad >= patience:
                         trainer.should_stop = True
                 finally:
                     pl_module.train(was_training)
@@ -387,7 +401,7 @@ class OfficialPublicAPI:
         if not callback.history or callback.best_epoch is None:
             raise RuntimeError("TxPert did not produce a validation-selected checkpoint")
         if r50:
-            if len(callback.history) != epochs:
+            if released_recipe is None and len(callback.history) != epochs:
                 raise RuntimeError("R50 TxPert did not complete its exact epoch budget")
             assert last_checkpoint_path is not None
             Path(last_checkpoint_path).parent.mkdir(parents=True, exist_ok=True)
