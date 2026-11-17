@@ -90,7 +90,13 @@ def evaluate_frozen(output, stop):
         or fitted_adapter["canonical_test_truth_present"]
     ):
         raise ValueError("last checkpoint or full training exposure has changed")
-    config = load_experiment_config(FIT / "small_results/config.resolved.yaml")
+    archived_config = FIT / "small_results/config.resolved.yaml"
+    config_path = output / "config/txpert_public/nadig_jurkat.yaml"
+    config_path.parent.mkdir(parents=True)
+    config_path.write_bytes(archived_config.read_bytes())
+    if sha256_file(config_path) != role["config_sha256"]:
+        raise ValueError("archived TxPert experiment configuration changed")
+    config = load_experiment_config(config_path)
     _, official = _official_config(config, CHECKOUT)
     dims = fitted_adapter["gene_count"]
     mapping = datamodule.PertDataModule(
