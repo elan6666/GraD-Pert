@@ -22,6 +22,7 @@ def evaluate(
     query_count: int,
     seed: int,
     progress: Callable | None = None,
+    condition_slice: slice | None = None,
 ) -> dict:
     if data.split_name != "test" or reference.manifest.schema_version != "evaluation-state-v2":
         raise ValueError("official comparison requires frozen v2 test evaluation")
@@ -41,6 +42,10 @@ def evaluate(
     draws = data.control_manifest.draws
     if tuple(d.condition_id for d in draws) != tuple(data.split.test_conditions):
         raise ValueError("test condition coverage differs from frozen split")
+    if condition_slice is not None:
+        draws = draws[condition_slice]
+        if not draws:
+            raise ValueError("evaluation slice selected no frozen conditions")
     for number, draw in enumerate(draws, 1):
         ids = tuple(draw.ordered_row_ids)
         controls = data.load_control_rows(ids)
