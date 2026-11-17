@@ -209,6 +209,8 @@ class OfficialPublicAPI:
         weight_decay: float,
         device: str,
         match_control_for_eval: bool,
+        scheduler_args: Mapping[str, Any] | None = None,
+        min_lr: float = 0.0,
     ) -> Any:
         """Instantiate the official graph and predictor from official config values."""
 
@@ -227,6 +229,11 @@ class OfficialPublicAPI:
             weight_decay=float(weight_decay),
             device=device,
             match_cntr_for_eval=bool(match_control_for_eval),
+            **(
+                {"lr_scheduler_args": dict(scheduler_args), "min_lr": min_lr}
+                if scheduler_args is not None
+                else {}
+            ),
         ).to(device)
 
     def fit_one_epoch(

@@ -8,6 +8,7 @@ import importlib
 import json
 import random
 from collections.abc import MutableMapping
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,7 @@ from benchmarks.common import (
 from benchmarks.common.full_gate import require_completed_smoke
 from benchmarks.common.r50_gate import require_r50_smoke, seal_external_step, seal_r50_smoke
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
+from benchmarks.txpert.released_recipe import WITHIN_CELL_EXPHORMER_MG, ZENODO_RECORD
 from benchmarks.txpert.runtime import inspect_cuda_runtime, load_runtime_contract
 from gradpert.artifacts import PredictionConditionArrays
 from gradpert.config import ExperimentConfig, load_experiment_config
@@ -289,16 +291,33 @@ def run_one_epoch(
     smoke_run_root: Path | None = None,
     source_publication_receipt: Path | None = None,
     source_publication_receipt_sha256: str | None = None,
+    released_recipe_smoke: bool = False,
+    source_remote_ref: str = "refs/heads/main",
 ) -> dict[str, object]:
     config_file = config_path.resolve(strict=True)
     config = load_experiment_config(config_file)
     requested_epochs = 1 if smoke else int(config.training.max_epochs.value)
     r50 = config.training.formal_run_policy == "external_fixed_50"
+    recipe = WITHIN_CELL_EXPHORMER_MG if released_recipe_smoke else None
+    if recipe is not None and (
+        not formal or not r50 or not smoke or step_smoke or config.dataset_id != "nadig_jurkat"
+    ):
+        raise ValueError(
+            "released within-cell TxPert smoke requires the formal Jurkat one-epoch gate"
+        )
     if step_smoke and (not r50 or smoke):
         raise ValueError("--step-smoke requires R50 and excludes --smoke")
     if config.model_id != "txpert_public" or config.training.max_epochs.value not in {1, 50, 100}:
         raise ValueError("TxPert execution requires a one-epoch TxPert config")
     official_config_path, official_config = _official_config(config, checkout_root)
+    if recipe is not None and (
+        official_config_path.relative_to(checkout_root.resolve()).as_posix() != recipe.config_file
+        or config.training.max_epochs.value != recipe.epochs
+        or float(config.training.learning_rate.value) != recipe.learning_rate
+        or float(config.training.weight_decay.value) != recipe.weight_decay
+        or config.training.scheduler.value != "linear_warmup_cosine"
+    ):
+        raise ValueError("study plan does not match the public TxPert recipe")
     destination = run_root.resolve()
     if destination.exists() and any(destination.iterdir()):
         raise FileExistsError("run root must be new and empty")
@@ -308,6 +327,7 @@ def run_one_epoch(
         formal=formal,
         expected_repository=PROJECT_REPOSITORY,
         development_commit=development_commit,
+        remote_ref=source_remote_ref,
         publication_receipt=source_publication_receipt,
         expected_publication_receipt_sha256=source_publication_receipt_sha256,
     )
@@ -327,6 +347,20 @@ def run_one_epoch(
     small_root = destination / "small_results"
     atomic_text(small_root / "config.resolved.yaml", config_file.read_text(encoding="utf-8"))
     atomic_json(small_root / "source_identity.json", source.payload())
+    if recipe is not None:
+        atomic_json(
+            small_root / "released_recipe.json",
+            {
+                **asdict(recipe),
+                "source": ZENODO_RECORD,
+                "initialization": "from_scratch",
+                "checkpoint_usage": "configuration_metadata_only",
+                "scheduler": recipe.scheduler_args,
+                "observed_dataset": "K562 within-cell",
+                "applied_dataset": config.dataset_id,
+                "stage": "one_epoch_validation_smoke",
+            },
+        )
     atomic_json(
         small_root / "environment.json",
         {**environment.payload(), "runtime_compatibility": runtime_compatibility},
@@ -414,6 +448,11 @@ def run_one_epoch(
                 weight_decay=float(config.training.weight_decay.value),
                 device=device,
                 match_control_for_eval=True,
+                **(
+                    {"scheduler_args": recipe.scheduler_args, "min_lr": recipe.min_lr}
+                    if recipe is not None
+                    else {}
+                ),
             )
             full_policy = r50 or config.training.formal_run_policy == "external_full_100"
             checkpoint_path = (
@@ -516,6 +555,26 @@ def run_one_epoch(
                     cache_receipts=cache_receipts,
                 ),
             )
+            if recipe is not None:
+                if len(trainer.lr_scheduler_configs) != 1 or len(trainer.optimizers) != 1:
+                    raise RuntimeError("released TxPert smoke must run one optimizer and scheduler")
+                scheduler = trainer.lr_scheduler_configs[0].scheduler.state_dict()
+                warmup, cosine = scheduler["_schedulers"]
+                groups = trainer.optimizers[0].param_groups
+                if (
+                    scheduler["_milestones"] != [recipe.warmup_epochs]
+                    or warmup["total_iters"] != recipe.warmup_epochs
+                    or cosine["T_max"] != recipe.epochs - recipe.warmup_epochs
+                    or cosine["eta_min"] != recipe.min_lr
+                    or scheduler["last_epoch"] != 1
+                    or any(
+                        group["initial_lr"] != recipe.learning_rate
+                        or group["weight_decay"] != recipe.weight_decay
+                        for group in groups
+                    )
+                ):
+                    raise RuntimeError("effective smoke scheduler differs from released recipe")
+                atomic_json(small_root / "released_schedule_observed.json", scheduler)
             if r50 and smoke:
                 atomic_json(small_root / "official_checkout.json", checkout_receipt.payload())
                 seal_r50_smoke(
@@ -655,6 +714,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--step-smoke", action="store_true")
+    parser.add_argument("--released-recipe-smoke", action="store_true")
+    parser.add_argument("--source-remote-ref", default="refs/heads/main")
     parser.add_argument("--smoke-run-root", type=Path)
     parser.add_argument("--source-publication-receipt", type=Path)
     parser.add_argument("--source-publication-receipt-sha256")
@@ -696,6 +757,8 @@ def main(argv: list[str] | None = None) -> None:
             smoke_run_root=args.smoke_run_root,
             source_publication_receipt=args.source_publication_receipt,
             source_publication_receipt_sha256=args.source_publication_receipt_sha256,
+            released_recipe_smoke=args.released_recipe_smoke,
+            source_remote_ref=args.source_remote_ref,
         )
     rendered = json.dumps(payload, indent=2, sort_keys=True)
     if args.receipt:
