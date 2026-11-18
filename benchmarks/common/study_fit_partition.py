@@ -34,6 +34,36 @@ def restrict_fit_rows(rows, condition_ids, test_ids, expected_row_hashes):
     return kept
 
 
+def crosscell_fit_rows(rows, conditions, cohort, *, compatibility=None):
+    """Keep the sealed holdout, optionally applying the shared C2 support manifest."""
+    baseline = restrict_fit_rows(
+        rows, conditions, cohort["condition_ids"], cohort["fit_row_sha256"]
+    )
+    if compatibility is None:
+        return baseline
+    exclusions = set(compatibility["exclusion_ids"])
+    if (
+        compatibility["schema"] != "crosscell-shared-fit-support-v1"
+        or compatibility["condition_ids_sha256"] != cohort["condition_ids_sha256"]
+        or compatibility["paired_rows_sha256"] != cohort["per_condition_pairing_sha256"]
+        or compatibility["parent_fit_row_sha256"] != cohort["fit_row_sha256"]
+        or not exclusions
+        or not exclusions.isdisjoint((*cohort["condition_ids"], "ctrl"))
+    ):
+        raise ValueError("C2 shared support manifest does not match the frozen cohort")
+    retained = {
+        role: indices[~np.isin(conditions[indices], sorted(exclusions))]
+        for role, indices in baseline.items()
+    }
+    for role, indices in retained.items():
+        if (
+            len(indices) != compatibility["fit_counts"][role]
+            or sha256_json(indices.tolist()) != compatibility["fit_row_sha256"][role]
+        ):
+            raise ValueError(f"C2 support manifest does not match the retained {role} rows")
+    return retained
+
+
 def allowed_expression_indices(gene_ids, held_genes, *, masked):
     if len(set(gene_ids)) != len(gene_ids):
         raise ValueError("expression panel contains duplicate gene identities")
@@ -47,7 +77,13 @@ def allowed_expression_indices(gene_ids, held_genes, *, masked):
 
 
 def open_crosscell_fit_partition(
-    *, source: Path, verified_rows, cohort, mask_expression: bool, metadata_only: bool = False
+    *,
+    source: Path,
+    verified_rows,
+    cohort,
+    mask_expression: bool,
+    metadata_only: bool = False,
+    fit_compatibility=None,
 ):
     """Read verified fixed-scale cache. Test truth and K562 controls stay outside fit."""
 
@@ -59,8 +95,8 @@ def open_crosscell_fit_partition(
         lines = adata.obs["cell_line"].astype(str).to_numpy()
         batches = adata.obs["batch"].astype(str).to_numpy()
         panel = tuple(map(str, adata.var_names))
-        roles = restrict_fit_rows(
-            verified_rows, conditions, cohort["condition_ids"], cohort["fit_row_sha256"]
+        roles = crosscell_fit_rows(
+            verified_rows, conditions, cohort, compatibility=fit_compatibility
         )
         ordered = np.sort(np.concatenate(list(roles.values())))
         if set(lines[ordered]) != {"RPE1", "hepg2", "jurkat"}:
@@ -105,6 +141,8 @@ def open_crosscell_fit_partition(
             "test_truth_present": False,
             "scale_scope": "existing fixed-panel dataset; preprocessing precedes this partition",
         }
+        if fit_compatibility is not None:
+            receipt["shared_fit_support_sha256"] = sha256_json(fit_compatibility)
         if metadata_only:
             return receipt
         # Readers project before returning any block to the upstream process.

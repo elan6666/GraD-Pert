@@ -1,4 +1,4 @@
-"""Evaluate the historical full-data official TxPert Jurkat last checkpoint."""
+"""Replay official TxPert Jurkat checkpoints using the common frozen evaluator."""
 
 from __future__ import annotations
 
@@ -55,9 +55,35 @@ FIT_HASHES = {
 }
 
 
-def evaluate_frozen(output, stop):
-    for name, digest in FIT_HASHES.items():
-        if sha256_file(FIT / name) != digest:
+J2_FIT = STUDY / "txpert-jurkat-j2-released-scratch-full-a1"
+J2_FIT_HASHES = {
+    "checkpoints/best.ckpt": "783ad20fedad57818ad6f3be418549ad67068eedea24fceebe6388613799b4ef",
+    "small_results/config.resolved.yaml": (
+        "7f6464011c7848f2debc73fcc21495d553e3a40d47416b2f151ed25983afa45c"
+    ),
+    "small_results/training_receipt.json": (
+        "8f2f71d88f51a29b4cafea2755bf7603afe74046809668c011dad85561c5e475"
+    ),
+    "small_results/double_holdout_fit.json": (
+        "4d58111505399e2b049c7006852420ae0f8a0b8c767b2ec62e27cfc44098ce48"
+    ),
+    "small_results/official_data_adapter.json": (
+        "2da6884cf314a37ab2c15c982577f7113152b6fa9d079c06c04fb7465c7a2d74"
+    ),
+    "small_results/training_data.json": FIT_HASHES["small_results/training_data.json"],
+    "evaluations/best/small_results/checkpoint_role.json": (
+        "7ac80c418074f97a578c16a5b48b6f33fe6f13ac0c0b633a8011ca2ba80bbbc4"
+    ),
+}
+
+
+def evaluate_frozen(output, stop, *, double_holdout=False):
+    fit, hashes, checkpoint_role = (
+        (J2_FIT, J2_FIT_HASHES, "best") if double_holdout else (FIT, FIT_HASHES, "last")
+    )
+    checkpoint = f"checkpoints/{checkpoint_role}.ckpt"
+    for name, digest in hashes.items():
+        if sha256_file(fit / name) != digest:
             raise ValueError(f"historical TxPert fit input changed: {name}")
     if (
         not Path(predictor.__file__).resolve().is_relative_to(CHECKOUT)
@@ -74,23 +100,39 @@ def evaluate_frozen(output, stop):
     if sha256_file(cohort_path) != COHORT_SHA:
         raise ValueError("frozen Jurkat cohort identity changed")
     cohort = read_json(cohort_path)["jurkat"]
-    fitted_data = read_json(FIT / "small_results/training_data.json")
-    fitted_adapter = read_json(FIT / "small_results/official_data_adapter.json")
-    training = read_json(FIT / "small_results/training_receipt.json")
-    role = read_json(FIT / "evaluations/last/small_results/checkpoint_role.json")
+    fitted_data = read_json(fit / "small_results/training_data.json")
+    fitted_adapter = read_json(fit / "small_results/official_data_adapter.json")
+    training = read_json(fit / "small_results/training_receipt.json")
+    role = read_json(fit / f"evaluations/{checkpoint_role}/small_results/checkpoint_role.json")
     if (
         training["epochs_completed"] != 50
         or role["checkpoint_epoch"] != 50
-        or role["checkpoint_sha256"] != FIT_HASHES["checkpoints/last.ckpt"]
+        or role["checkpoint_sha256"] != hashes[checkpoint]
         or fitted_data["train_perturbed_cell_count"] != 128266
         or fitted_data["canonical_data_sha256"] != cohort["canonical_h5ad_sha256"]
         or fitted_data["split_content_sha256"] != cohort["split_content_sha256"]
-        or fitted_adapter["canonical_test_conditions_excluded_sha256"]
+        or fitted_adapter[
+            "test_conditions_sha256"
+            if double_holdout
+            else "canonical_test_conditions_excluded_sha256"
+        ]
         != cohort["condition_ids_sha256"]["test"]
         or fitted_adapter["canonical_test_truth_present"]
     ):
         raise ValueError("last checkpoint or full training exposure has changed")
-    archived_config = FIT / "small_results/config.resolved.yaml"
+    held_genes = ()
+    if double_holdout:
+        policy = read_json(fit / "small_results/double_holdout_fit.json")
+        if (
+            policy["cohort_sha256"] != COHORT_SHA
+            or policy["held_genes"] != cohort["masked_genes_in_expression_order"]
+            or policy["test_truth_present_during_fit"]
+            or policy["fit_allowed_gene_count"] != 4775
+            or training["optimizer_steps"] != 109550
+        ):
+            raise ValueError("Jurkat J2 checkpoint does not have the accepted double-holdout fit")
+        held_genes = tuple(policy["held_genes"])
+    archived_config = fit / "small_results/config.resolved.yaml"
     config_path = output / "config/txpert_public/nadig_jurkat.yaml"
     config_path.parent.mkdir(parents=True)
     config_path.write_bytes(archived_config.read_bytes())
@@ -98,7 +140,7 @@ def evaluate_frozen(output, stop):
         raise ValueError("archived TxPert experiment configuration changed")
     config = load_experiment_config(config_path)
     _, official = _official_config(config, CHECKOUT)
-    dims = fitted_adapter["gene_count"]
+    dims = cohort["expression_panel_genes"] if double_holdout else fitted_adapter["gene_count"]
     mapping = datamodule.PertDataModule(
         batch_size=64,
         match_cntr=True,
@@ -125,7 +167,7 @@ def evaluate_frozen(output, stop):
         device="cuda:0",
         match_control_for_eval=True,
     )
-    state = torch.load(FIT / "checkpoints/last.ckpt", map_location="cpu", weights_only=False)
+    state = torch.load(fit / checkpoint, map_location="cpu", weights_only=False)
     model.load_state_dict(state["state_dict"], strict=True)
     model.eval().requires_grad_(False)
     if model.basal_mode != "construct_control":
@@ -172,7 +214,9 @@ def evaluate_frozen(output, stop):
             data,
             reference,
             predict_for_benchmark,
-            seen_indices=tuple(range(dims)),
+            seen_indices=tuple(
+                i for i, gene in enumerate(data.expression_gene_ids) if gene not in held_genes
+            ),
             cell_batch=int(config.training.eval_batch_size.value),
             query_count=dims,
             seed=1,
@@ -181,15 +225,19 @@ def evaluate_frozen(output, stop):
             response_scorer=response,
         )
     result["canonical_reader_compatibility"] = reader_compatibility
+    result["checkpoint_role"] = checkpoint_role
+    result["prediction_condition_encoding"] = "official_single_target_and_ctrl"
     result["response_summary"] = summarize_response(result["condition_metrics"])
-    atomic_json(output / "last-test.json", result)
+    atomic_json(output / f"{checkpoint_role}-test.json", result)
     return {
         "conditions": len(result["condition_metrics"]),
         "optimizer_updates": 0,
         "fit_optimizer_updates": training["optimizer_steps"],
         "checkpoint_epoch": 50,
-        "checkpoint_sha256": FIT_HASHES["checkpoints/last.ckpt"],
-        "evaluation_sha256": sha256_file(output / "last-test.json"),
+        "checkpoint_role": checkpoint_role,
+        "checkpoint_sha256": hashes[checkpoint],
+        "training_source_commit": role["training_git_sha"],
+        "evaluation_sha256": sha256_file(output / f"{checkpoint_role}-test.json"),
         "retrieval_bank_conditions": len(response.conditions),
     }
 
@@ -200,6 +248,7 @@ def main():
     parser.add_argument("--publication-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--stop", type=int, default=592)
+    parser.add_argument("--double-holdout", action="store_true")
     parser.add_argument("--gpu", choices=("0", "1"), required=True)
     parser.add_argument("--uuid", required=True)
     args = parser.parse_args()
@@ -234,7 +283,7 @@ def main():
         }
         atomic_json(args.output / "OWNER.json", owner)
         try:
-            receipt = evaluate_frozen(args.output, args.stop)
+            receipt = evaluate_frozen(args.output, args.stop, double_holdout=args.double_holdout)
             atomic_json(
                 args.output / "COMPLETE.json",
                 {

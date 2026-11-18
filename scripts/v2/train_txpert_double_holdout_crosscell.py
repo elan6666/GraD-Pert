@@ -18,7 +18,7 @@ from evaluate_crosscell_k562 import SERVER, read_rows, source_reference
 from omegaconf import OmegaConf
 
 from benchmarks.common import official_module_session
-from benchmarks.common.study_fit_partition import open_crosscell_fit_partition, restrict_fit_rows
+from benchmarks.common.study_fit_partition import crosscell_fit_rows, open_crosscell_fit_partition
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
 from benchmarks.txpert.released_recipe import CROSS_CELL_GAT, ZENODO_RECORD
 from benchmarks.txpert.runner import _materialize_official_cell_context
@@ -106,7 +106,7 @@ def bind_official_datasets(official, config, prepared, cross, cohort):
     return data
 
 
-def score(model, data, api, metrics, source, cross, cohort, rows, output):
+def score(model, data, api, metrics, source, cross, cohort, rows, compatibility, output):
     ids = cohort["condition_ids"]
     draw_path = Path(cohort["shared_frozen_draws_path"])
     if sha256_file(draw_path) != cross["shared_frozen_draws_sha256"]:
@@ -120,7 +120,7 @@ def score(model, data, api, metrics, source, cross, cohort, rows, output):
         conditions = adata.obs["condition"].astype(str).to_numpy()
         batches = adata.obs["batch"].astype(str).to_numpy()
         target_controls = rows["target_control"]
-        fit = restrict_fit_rows(rows, conditions, ids, cohort["fit_row_sha256"])
+        fit = crosscell_fit_rows(rows, conditions, cohort, compatibility=compatibility)
         reference = source_reference(adata, conditions, np.sort(np.r_[fit["train"], fit["val"]]))
         predicted = {}
         for index, (condition, draw) in enumerate(draws.items(), start=1):
@@ -212,8 +212,21 @@ def score(model, data, api, metrics, source, cross, cohort, rows, output):
 
 def fit(args, output, identity):
     source, cross, cohort, rows = cohort_inputs()
+    if sha256_file(args.fit_compatibility) != args.fit_compatibility_sha:
+        raise ValueError("C2 shared fit support manifest changed")
+    compatibility = read_json(args.fit_compatibility)
+    if (
+        compatibility["source_cohort_sha256"] != COHORT_SHA
+        or compatibility["upstream_commit"] != UPSTREAM_COMMIT
+        or compatibility["vocabulary_sha256"] != sha256_file(UPSTREAM / "data/gears_gene_set.csv")
+    ):
+        raise ValueError("C2 shared fit support is not tied to the official vocabulary and cohort")
     prepared = open_crosscell_fit_partition(
-        source=source, verified_rows=rows, cohort=cohort, mask_expression=True
+        source=source,
+        verified_rows=rows,
+        cohort=cohort,
+        mask_expression=True,
+        fit_compatibility=compatibility,
     )
     atomic_json(output / "double_holdout_fit.json", prepared.receipt)
     config_path = UPSTREAM / RECIPE.config_file
@@ -227,6 +240,7 @@ def fit(args, output, identity):
         "source_commit": identity.commit,
         "cohort_sha256": COHORT_SHA,
         "configuration_sha256": OFFICIAL_CONFIG_SHA,
+        "shared_fit_support_file_sha256": args.fit_compatibility_sha,
         "fit_sha256": sha256_file(output / "double_holdout_fit.json"),
         "initialization": "from_scratch",
         "recipe": {**asdict(RECIPE), "source": ZENODO_RECORD},
@@ -240,6 +254,7 @@ def fit(args, output, identity):
             "cohort_sha256",
             "configuration_sha256",
             "fit_sha256",
+            "shared_fit_support_file_sha256",
             "initialization",
             "recipe",
         ):
@@ -329,7 +344,16 @@ def fit(args, output, identity):
         gc.collect()
         torch.cuda.empty_cache()
         scored = score(
-            model, data, api, modules["gspp.metrics"], source, cross, cohort, rows, output
+            model,
+            data,
+            api,
+            modules["gspp.metrics"],
+            source,
+            cross,
+            cohort,
+            rows,
+            compatibility,
+            output,
         )
         if any(path.suffix.lower() in {".pkl", ".pickle"} for path in output.rglob("*")):
             raise ValueError("C2 default metrics-only output contains a pickle")
@@ -341,11 +365,13 @@ def main():
     parser.add_argument("--publication", type=Path, required=True)
     parser.add_argument("--publication-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--fit-compatibility", type=Path, required=True)
+    parser.add_argument("--fit-compatibility-sha", required=True)
     phase = parser.add_mutually_exclusive_group(required=True)
     phase.add_argument("--smoke", action="store_true")
     phase.add_argument("--smoke-run", type=Path)
     args = parser.parse_args()
-    if not args.output.resolve().is_relative_to(STUDY):
+    if any(not p.resolve().is_relative_to(STUDY) for p in (args.output, args.fit_compatibility)):
         raise ValueError("C2 science outputs must stay in the study root")
     identity = inspect_source_identity(
         REPO,
