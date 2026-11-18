@@ -14,6 +14,7 @@ import json
 import random
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
@@ -146,18 +147,24 @@ def _training_groups(prepared: Any) -> dict[str, dict[str, list[int]]]:
     rows = {str(row): i for i, row in enumerate(prepared.adata.obs_names)}
     groups: dict[str, dict[str, list[int]]] = {}
     allowed_conditions = set(prepared.train_conditions)
+    row_conditions = prepared.adata.obs["condition"].astype(str).to_numpy()
+    verified_pools: set[tuple[str, int]] = set()
     for row_id in prepared.train_row_ids:
         index = rows[str(row_id)]
-        condition = str(prepared.adata.obs.iloc[index]["condition"])
+        condition = str(row_conditions[index])
         if condition not in allowed_conditions or not _targets(condition):
             raise ValueError("scDFM train row has an unauthorized/control condition")
         context = str(prepared.row_context_ids[index])
         candidates = prepared.train_control_indices[str(row_id)]
         if len(candidates) == 0:
             raise ValueError("scDFM target has no compatible training control")
-        for control in candidates:
-            if str(prepared.row_context_ids[int(control)]) != context:
+        pool_key = (context, id(candidates))
+        if pool_key not in verified_pools:
+            if any(
+                str(prepared.row_context_ids[int(control)]) != context for control in candidates
+            ):
                 raise ValueError("scDFM control/target context mismatch")
+            verified_pools.add(pool_key)
         groups.setdefault(condition, {}).setdefault(context, []).append(index)
     if not groups or set(groups) != allowed_conditions:
         raise ValueError("scDFM training condition coverage differs from canonical split")
@@ -468,6 +475,7 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
 
         query_hook = accelerator.unwrap_model(vf).register_forward_pre_hook(observe_queries)
         losses = []
+        updates_started = time.monotonic()
         for step in range(count):
             source, target, condition, _, target_rows = sample_batch(
                 prepared, groups, int(training["batch_size"]), rng
@@ -509,6 +517,7 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
                     ),
                     flush=True,
                 )
+        updates_elapsed_seconds = time.monotonic() - updates_started
         vf = accelerator.unwrap_model(vf)
         query_hook.remove()
         official.utils.save_checkpoint(
@@ -534,6 +543,7 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
         "actual_model": {"d_model": 512, "nhead": 8, "nlayers": 4, "ntoken": len(vocab)},
         **budget_progress(budget, count),
         "last_loss": losses[-1],
+        "updates_elapsed_seconds": updates_elapsed_seconds,
         "sampled_target_rows": len(sampled_rows),
         "allowed_expression_gene_indices": allowed.tolist(),
         "observed_training_expression_gene_indices": sorted(sampled_gene_indices),

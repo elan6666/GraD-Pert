@@ -106,7 +106,7 @@ def bind_official_datasets(official, config, prepared, cross, cohort):
     return data
 
 
-def score(model, data, api, metrics, source, cross, cohort, rows, compatibility, output):
+def score(predict_controls, metrics, source, cross, cohort, rows, compatibility, output):
     ids = cohort["condition_ids"]
     draw_path = Path(cohort["shared_frozen_draws_path"])
     if sha256_file(draw_path) != cross["shared_frozen_draws_sha256"]:
@@ -128,16 +128,10 @@ def score(model, data, api, metrics, source, cross, cohort, rows, compatibility,
             if len(control_ids) != 300 or not np.isin(control_ids, target_controls).all():
                 raise ValueError("prediction requires 300 ordered K562 controls")
             controls = read_rows(adata, control_ids)
-            predicted[condition] = (
-                api.predict_exact_controls(
-                    trained_model=model,
-                    perturbation_genes=tuple(condition.split("+")),
-                    perturbation_to_id=data.pert2id,
-                    input_controls=controls,
-                    batch_size=data.batch_size,
-                ),
-                controls,
-            )
+            prediction = predict_controls(condition, controls)
+            if prediction.shape != controls.shape or not np.isfinite(prediction).all():
+                raise ValueError("frozen prediction requires a finite, full-axis matrix")
+            predicted[condition] = (prediction, controls)
             if index == 1 or index % 10 == 0 or index == len(ids):
                 atomic_json(output / "evaluation_progress.json", {"done": index, "total": len(ids)})
         evaluation_rows = np.sort(
@@ -343,10 +337,18 @@ def fit(args, output, identity):
         del saved, trainer
         gc.collect()
         torch.cuda.empty_cache()
+
+        def predict_controls(condition, controls):
+            return api.predict_exact_controls(
+                trained_model=model,
+                perturbation_genes=tuple(condition.split("+")),
+                perturbation_to_id=data.pert2id,
+                input_controls=controls,
+                batch_size=data.batch_size,
+            )
+
         scored = score(
-            model,
-            data,
-            api,
+            predict_controls,
             modules["gspp.metrics"],
             source,
             cross,
