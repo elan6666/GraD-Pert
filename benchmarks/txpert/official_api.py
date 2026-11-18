@@ -302,10 +302,12 @@ class OfficialPublicAPI:
             not r50 or epochs != 50 or last_checkpoint_path is not None
         ):
             raise ValueError("single-step requires R50 horizon and diagnostic checkpoint")
+        horizon = released_recipe.epochs if released_recipe is not None else 50
         if r50 and (
-            epochs not in {1, 50} or (last_checkpoint_path is None and step_checkpoint_path is None)
+            epochs not in {1, horizon}
+            or (last_checkpoint_path is None and step_checkpoint_path is None)
         ):
-            raise ValueError("R50 TxPert requires one or50 epochs and explicit last checkpoint")
+            raise ValueError("released TxPert fit requires one epoch or its official horizon")
         if not r50 and (epochs not in {1, 100} or last_checkpoint_path is not None):
             raise ValueError("external integration requires one or100 epochs")
         if last_checkpoint_path is not None and Path(last_checkpoint_path).exists():
