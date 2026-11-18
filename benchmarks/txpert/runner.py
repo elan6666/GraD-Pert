@@ -23,6 +23,7 @@ from benchmarks.common import (
 )
 from benchmarks.common.full_gate import require_completed_smoke
 from benchmarks.common.r50_gate import require_r50_smoke, seal_external_step, seal_r50_smoke
+from benchmarks.common.study_fit_partition import open_jurkat_double_holdout_fit
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
 from benchmarks.txpert.released_recipe import WITHIN_CELL_EXPHORMER_MG, ZENODO_RECORD
 from benchmarks.txpert.runtime import inspect_cuda_runtime, load_runtime_contract
@@ -294,6 +295,8 @@ def run_one_epoch(
     released_recipe_smoke: bool = False,
     released_recipe_train: bool = False,
     source_remote_ref: str = "refs/heads/main",
+    double_holdout_cohort: Path | None = None,
+    double_holdout_cohort_sha256: str | None = None,
 ) -> dict[str, object]:
     config_file = config_path.resolve(strict=True)
     config = load_experiment_config(config_file)
@@ -309,6 +312,10 @@ def run_one_epoch(
         or config.dataset_id != "nadig_jurkat"
     ):
         raise ValueError("released TxPert recipe requires formal Jurkat smoke or full training")
+    if (double_holdout_cohort is None) != (double_holdout_cohort_sha256 is None) or (
+        double_holdout_cohort is not None and recipe is None
+    ):
+        raise ValueError("double holdout requires a cohort file and hash on the released recipe")
     if step_smoke and (not r50 or smoke):
         raise ValueError("--step-smoke requires R50 and excludes --smoke")
     if config.model_id != "txpert_public" or config.training.max_epochs.value not in {1, 50, 100}:
@@ -362,6 +369,7 @@ def run_one_epoch(
                 "scheduler": recipe.scheduler_args,
                 "observed_dataset": "K562 within-cell",
                 "applied_dataset": config.dataset_id,
+                "double_holdout_cohort_sha256": double_holdout_cohort_sha256,
                 "stage": "one_epoch_validation_smoke" if smoke else "from_scratch_full_fit",
             },
         )
@@ -400,6 +408,8 @@ def run_one_epoch(
                     smoke_meta.get("checkpoint_sha256") != recipe.checkpoint_sha256
                     or smoke_meta.get("scheduler") != recipe.scheduler_args
                     or smoke_meta.get("initialization") != "from_scratch"
+                    or smoke_meta.get("double_holdout_cohort_sha256")
+                    != double_holdout_cohort_sha256
                     or observed_schedule["_milestones"] != [recipe.warmup_epochs]
                 ):
                     raise ValueError("validated smoke did not exercise this released recipe")
@@ -444,7 +454,23 @@ def run_one_epoch(
                     **({"environment_sha256": smoke_environment_sha256} if r50 else {}),
                 ),
             )
-        adapted = build_training_validation_adata(training_data, axis="expression")
+        allowed_indices = None
+        if double_holdout_cohort is None:
+            adapted = build_training_validation_adata(training_data, axis="expression")
+        else:
+            assert double_holdout_cohort_sha256 is not None
+            adapted = open_jurkat_double_holdout_fit(
+                training_data,
+                cohort_path=double_holdout_cohort,
+                cohort_sha256=double_holdout_cohort_sha256,
+            )
+            allowed_indices = adapted.allowed_indices
+            atomic_json(small_root / "double_holdout_fit.json", adapted.receipt)
+            if released_recipe_train:
+                assert smoke_run_root is not None
+                smoke_policy = smoke_run_root / "small_results/double_holdout_fit.json"
+                if json.loads(smoke_policy.read_text()) != adapted.receipt:
+                    raise ValueError("J2 fit identities differ from the completed validation smoke")
         cell_types = tuple(sorted(adapted.adata.obs["cell_type"].astype(str).unique()))
         if len(cell_types) != 1:
             raise ValueError("TxPert within-cell adapter requires exactly one cell type")
@@ -536,6 +562,11 @@ def run_one_epoch(
                     else {}
                 ),
                 **({"released_recipe": recipe} if released_recipe_train else {}),
+                **(
+                    {"allowed_expression_indices": allowed_indices}
+                    if allowed_indices is not None
+                    else {}
+                ),
             )
             if step_smoke:
                 atomic_json(
@@ -772,6 +803,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--released-recipe-train", action="store_true")
     parser.add_argument("--source-remote-ref", default="refs/heads/main")
     parser.add_argument("--smoke-run-root", type=Path)
+    parser.add_argument("--double-holdout-cohort", type=Path)
+    parser.add_argument("--double-holdout-cohort-sha256")
     parser.add_argument("--source-publication-receipt", type=Path)
     parser.add_argument("--source-publication-receipt-sha256")
     parser.add_argument("--receipt", type=Path)
@@ -815,6 +848,8 @@ def main(argv: list[str] | None = None) -> None:
             released_recipe_smoke=args.released_recipe_smoke,
             released_recipe_train=args.released_recipe_train,
             source_remote_ref=args.source_remote_ref,
+            double_holdout_cohort=args.double_holdout_cohort,
+            double_holdout_cohort_sha256=args.double_holdout_cohort_sha256,
         )
     rendered = json.dumps(payload, indent=2, sort_keys=True)
     if args.receipt:

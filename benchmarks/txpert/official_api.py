@@ -282,6 +282,7 @@ class OfficialPublicAPI:
         last_checkpoint_path: str | Path | None = None,
         step_checkpoint_path: str | Path | None = None,
         released_recipe: ReleasedRecipe | None = None,
+        allowed_expression_indices: tuple[int, ...] | None = None,
     ) -> Any:
         """Official training/optimizer and official val metric, with no test hook.
 
@@ -312,6 +313,23 @@ class OfficialPublicAPI:
         official = self.modules.predictor
         torch = self.modules.torch
         data = training_only_data_module
+        validation_adata = data.adata
+        if allowed_expression_indices is not None:
+            allowed = list(allowed_expression_indices)
+            if not allowed or len(allowed) >= model.adata_output_dim:
+                raise ValueError(
+                    "masked TxPert fit requires a proper subset of its expression axis"
+                )
+            validation_adata = data.adata[:, allowed].copy()
+            indices = torch.as_tensor(allowed, dtype=torch.long, device=model.device)
+            reconstruction_loss = model.model.reconstruction_loss
+
+            def masked_reconstruction_loss(prediction, target):
+                return reconstruction_loss(
+                    prediction.index_select(-1, indices), target.index_select(-1, indices)
+                )
+
+            model.model.reconstruction_loss = masked_reconstruction_loss
 
         class ValidationOnly(self.modules.lightning.Callback):
             def __init__(self):
@@ -332,8 +350,11 @@ class OfficialPublicAPI:
                             data.adata,
                             data.id2pert,
                         )
+                        if allowed_expression_indices is not None:
+                            for key in (official.cs.RES_PRED, official.cs.RES_TRUTH):
+                                results[key] = results[key][:, allowed]
                         metrics, _ = official.compute_metrics(
-                            results, data.adata, official.cs.FAST, match_cntr=True
+                            results, validation_adata, official.cs.FAST, match_cntr=True
                         )
                     value = float(metrics["pearson_delta"])
                     if not np.isfinite(value):

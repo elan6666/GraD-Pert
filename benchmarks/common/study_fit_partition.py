@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 from benchmarks.expression_holdout.data import build_prepared, read_allowed_rows
-from gradpert.hashing import sha256_json
+from gradpert.hashing import sha256_file, sha256_json
 
 
 def restrict_fit_rows(rows, condition_ids, test_ids, expected_row_hashes):
@@ -130,3 +130,82 @@ def open_crosscell_fit_partition(
         )
     finally:
         adata.file.close()
+
+
+def open_jurkat_double_holdout_fit(data, *, cohort_path: Path, cohort_sha256: str):
+    """Use the study's frozen Jurkat identities and project expression before fit."""
+    import json
+
+    if sha256_file(cohort_path) != cohort_sha256:
+        raise ValueError("sealed double-holdout cohort hash mismatch")
+    cohort = json.loads(cohort_path.read_text())["jurkat"]
+    split = data.split
+    panel = tuple(data.expression_gene_ids)
+    control = split.control_condition_id
+    test_targets = {gene for condition in split.test_conditions for gene in condition.split("+")}
+    test_targets.discard(control)
+    held = [gene for gene in panel if gene in test_targets]
+    fit_targets = {
+        gene
+        for condition in (*split.train_conditions, *split.val_conditions)
+        for gene in condition.split("+")
+        if gene != control
+    }
+    fit_roles = {
+        "train": set(split.train_conditions),
+        "val": set(split.val_conditions),
+        "control": {control},
+    }
+    test_controls = data.layout.manifests / "evaluation_controls.test.json"
+    if (
+        data.manifest.dataset_id != "nadig_jurkat"
+        or data.manifest.canonical_adata_sha256 != cohort["canonical_h5ad_sha256"]
+        or split.split_content_sha256 != cohort["split_content_sha256"]
+        or sha256_json(list(split.test_conditions)) != cohort["condition_ids_sha256"]["test"]
+        or len(panel) != cohort["expression_panel_genes"]
+        or sha256_json(list(panel)) != cohort["expression_gene_order_sha256"]
+        or sha256_file(test_controls) != cohort["evaluation_controls_sha256"]
+        or not held
+        or held != cohort["masked_genes_in_expression_order"]
+        or not test_targets.isdisjoint(fit_targets)
+    ):
+        raise ValueError("Jurkat fit split, panel, controls or held targets differ from the cohort")
+    positions = {
+        role: tuple(i for i, condition in enumerate(data.condition_ids) if condition in conditions)
+        for role, conditions in fit_roles.items()
+    }
+    selected = tuple(sorted(i for indices in positions.values() for i in indices))
+    allowed = allowed_expression_indices(panel, held, masked=True)
+    return build_prepared(
+        matrix=read_allowed_rows(data._adata, selected, allowed, len(panel)),
+        allowed_indices=allowed,
+        gene_ids=panel,
+        graph_gene_ids=tuple(data.graph_gene_ids),
+        row_ids=tuple(data.row_ids[i] for i in selected),
+        conditions=tuple(data.condition_ids[i] for i in selected),
+        contexts=tuple(data.context_ids[i] for i in selected),
+        train_row_ids=tuple(data.row_ids[i] for i in positions["train"]),
+        val_row_ids=tuple(data.row_ids[i] for i in positions["val"]),
+        control_row_ids=tuple(data.row_ids[i] for i in positions["control"]),
+        train_conditions=tuple(split.train_conditions),
+        val_conditions=tuple(split.val_conditions),
+        control_condition=control,
+        receipt={
+            "scenario": "J2",
+            "cohort_sha256": cohort_sha256,
+            "canonical_data_sha256": data.manifest.canonical_adata_sha256,
+            "split_content_sha256": split.split_content_sha256,
+            "evaluation_controls_sha256": cohort["evaluation_controls_sha256"],
+            "test_conditions_sha256": cohort["condition_ids_sha256"]["test"],
+            "expression_gene_order_sha256": cohort["expression_gene_order_sha256"],
+            "fit_row_counts": {role: len(indices) for role, indices in positions.items()},
+            "fit_allowed_gene_count": len(allowed),
+            "held_genes": held,
+            "held_target_count_outside_panel": len(test_targets) - len(held),
+            "fit_target_intersection_with_held": [],
+            "test_truth_present_during_fit": False,
+            "test_scoring_panel_gene_count": len(panel),
+            "test_control_expression": "full_canonical_panel",
+            "scale_scope": "existing fixed-panel dataset; preprocessing precedes this partition",
+        },
+    )
