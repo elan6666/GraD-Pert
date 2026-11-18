@@ -6,16 +6,19 @@ import hashlib
 import json
 import os
 import shlex
+import signal
 import subprocess
 import time
 from pathlib import Path
 
 MODELS = ("txpert", "scdfm", "scfoundation", "scbig", "perturbdiff", "prescribe")
 ORDER = tuple(f"{model}-{scenario}" for model in MODELS for scenario in ("j2", "c2"))
+CROSS_ONLY_ORDER = tuple(f"{model}-c2" for model in MODELS[1:])
 
 
 def digest(path):
-    return hashlib.file_digest(path.open("rb"), "sha256").hexdigest()
+    with path.open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 def read(path):
@@ -49,6 +52,12 @@ def load_job(root, arm, plan):
         or [stage["name"] for stage in job["stages"]] != ["smoke", "formal"]
     ):
         raise ValueError(f"unrecognized queue descriptor: {ready}")
+    support = plan.get("shared_fit_support_sha256")
+    if support is not None and (
+        job.get("shared_fit_support_sha256") != support
+        or job["stages"][-1]["expected"].get("shared_fit_support_file_sha256") != support
+    ):
+        raise ValueError("C2 runner is not bound to the common fitting support")
     repository = Path(job["repository"]).resolve(strict=True)
     for spec in job["stages"]:
         for key in ("log", "receipt", "run_root"):
@@ -67,15 +76,81 @@ def load_job(root, arm, plan):
     return job, digest(ready)
 
 
+def wait_for_txpert_c2(root, plan, state, state_path, poll_seconds):
+    """Continue after the active C2 result, without restarting or overlapping it."""
+    handoff_path = root / "predecessor_handoff.json"
+    if handoff_path.exists():
+        handoff = read(handoff_path)
+        if digest(Path(handoff["c2_result"])) != handoff["sha256"]:
+            raise ValueError("accepted TxPert C2 result changed")
+        return
+    predecessor = root.parent / "double-holdout-queue-a1"
+    old_plan_sha = plan["predecessor_plan_sha256"]
+    if digest(predecessor / "plan.json") != old_plan_sha:
+        raise ValueError("predecessor plan identity changed")
+    state.update(status="awaiting_txpert_c2", active_arm=None)
+    write(state_path, state)
+    while True:
+        prior = read(predecessor / "state.json")
+        if prior["plan_sha256"] != old_plan_sha:
+            raise ValueError("predecessor state belongs to another plan")
+        c2 = prior["arms"].get("txpert-c2", {})
+        if (
+            c2.get("status") == "completed"
+            and prior["active_arm"] == "scdfm-j2"
+            and prior["status"] == "awaiting_verified_runner"
+        ):
+            break
+        time.sleep(poll_seconds)
+    result = Path(c2["receipt"]).resolve(strict=True)
+    if result.parent.parent != root.parent:
+        raise ValueError("predecessor C2 receipt is outside the study")
+    receipt = read(result)
+    if (
+        receipt.get("scenario") != "C2"
+        or receipt.get("status") != "evaluated"
+        or receipt.get("formal_eligible") is not True
+        or receipt.get("conditions") != 128
+        or receipt.get("shared_fit_support_file_sha256") != plan["shared_fit_support_sha256"]
+    ):
+        raise ValueError("predecessor C2 did not seal the shared frozen cohort")
+    if (predecessor / "ready/scdfm-j2.json").exists():
+        raise ValueError("retired Jurkat arm must not have an executable descriptor")
+    pid = int((predecessor / "controller.pid").read_text())
+    try:
+        pidfd = os.pidfd_open(pid)
+    except ProcessLookupError:
+        pidfd = None
+    if pidfd is not None:
+        try:
+            process = Path(f"/proc/{pid}")
+            argv = os.fsdecode((process / "cmdline").read_bytes()).rstrip("\0").split("\0")
+            children = (process / f"task/{pid}/children").read_text().strip()
+            if argv != [""] and (
+                argv[2:] != [str(predecessor / "controller.py"), str(predecessor), old_plan_sha]
+                or process.stat().st_uid != os.getuid()
+                or children
+            ):
+                raise ValueError("predecessor is not the owned, idle queue controller")
+            if argv != [""]:
+                signal.pidfd_send_signal(pidfd, signal.SIGTERM)
+        finally:
+            os.close(pidfd)
+    write(
+        handoff_path, {"c2_result": str(result), "sha256": digest(result), "predecessor_pid": pid}
+    )
+
+
 def run(root, expected_plan_sha256, poll_seconds):
     plan_path = root / "plan.json"
     if digest(plan_path) != expected_plan_sha256:
         raise ValueError("queue plan hash mismatch")
     plan = read(plan_path)
-    if tuple(plan["order"]) != ORDER:
-        raise ValueError("the queue must contain each of the twelve authorized J2/C2 arms once")
+    order = tuple(plan["order"])
+    if order not in (ORDER, CROSS_ONLY_ORDER):
+        raise ValueError("the queue must match an authorized study order")
     state_path = root / "state.json"
-    state = {"plan_sha256": expected_plan_sha256, "order": list(ORDER), "arms": {}}
+    state = {"plan_sha256": expected_plan_sha256, "order": list(order), "arms": {}}
 
     def set_arm(arm, status, **fields):
         state["status"] = status
@@ -91,7 +166,9 @@ def run(root, expected_plan_sha256, poll_seconds):
         state = read(state_path)
         if state["plan_sha256"] != expected_plan_sha256:
             raise ValueError("existing queue state belongs to a different plan")
-    for arm in ORDER:
+    if order == CROSS_ONLY_ORDER:
+        wait_for_txpert_c2(root, plan, state, state_path, poll_seconds)
+    for arm in order:
         record = state["arms"].get(arm, {})
         if record.get("status") == "completed":
             continue
