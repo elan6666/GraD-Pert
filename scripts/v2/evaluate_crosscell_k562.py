@@ -12,7 +12,6 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from scipy import sparse
 
 SOURCE = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(SOURCE / "src"), str(SOURCE), str(SOURCE / "scripts/v2")]
@@ -20,6 +19,7 @@ sys.path[:0] = [str(SOURCE / "src"), str(SOURCE), str(SOURCE / "scripts/v2")]
 from gradpert.config import load_experiment_config  # noqa: E402
 from gradpert.data._io import atomic_json, read_json  # noqa: E402
 from gradpert.data.controls import stable_draw_seed  # noqa: E402
+from gradpert.evaluation.crosscell import read_rows, source_reference  # noqa: E402
 from gradpert.evaluation.metrics import compute_condition_metrics_v2, macro_summarize  # noqa: E402
 from gradpert.execution.identity import inspect_source_identity  # noqa: E402
 from gradpert.hashing import sha256_file, sha256_json  # noqa: E402
@@ -61,26 +61,6 @@ def freeze_controls(conditions, contexts, test_rows, control_rows):
             "metric_control_contexts": available,
         }
     return draws, pools
-
-
-def source_reference(adata, conditions, rows):
-    """Equal condition weighting over original source train+validation rows."""
-    ids, codes = np.unique(conditions[rows], return_inverse=True)
-    sums = np.zeros((len(ids), adata.n_vars), dtype=np.float64)
-    for start in range(0, len(rows), 4096):
-        selected = rows[start : start + 4096]
-        active, inverse = np.unique(codes[start : start + len(selected)], return_inverse=True)
-        indicator = sparse.csr_matrix(
-            (np.ones(len(selected), dtype=np.float64), (inverse, np.arange(len(selected)))),
-            shape=(len(active), len(selected)),
-        )
-        sums[active] += (indicator @ adata.X[selected]).toarray()
-    return (sums / np.bincount(codes)[:, None]).mean(axis=0)
-
-
-def read_rows(adata, rows):
-    ordered, reverse = np.unique(rows, return_inverse=True)
-    return np.asarray(adata.X[ordered].toarray(), dtype=np.float32)[reverse]
 
 
 def evaluate(args, plan, stop, training_identity, checkpoint, output):

@@ -8,15 +8,15 @@ from pathlib import Path
 
 import anndata
 import numpy as np
-from evaluate_crosscell_k562 import SOURCE
 
+from benchmarks.crosscell.study_paths import CROSS
+from benchmarks.crosscell.study_paths import REPO as SOURCE
+from benchmarks.crosscell.study_paths import SERVER as ROOT
 from gradpert.data._io import atomic_json, read_json
 from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file, sha256_json
 from gradpert.training.v2.crosscell import FOLDS_SHA, SOURCE_SHA, frozen_rows
 
-ROOT = Path("/data/yilangliu/GraD-Pert")
-CROSS = ROOT / "crosscell-fixed-v1"
 JURKAT = ROOT / "data-vnext-a942114/nadig_jurkat/within_cell_unseen_single"
 REFERENCE = ROOT / "development/crosscell-k562-small-single-10ep-20261114-a1/eval-epoch5-k562-a1"
 PRIOR_EVAL_SHA = "79274f56bac9b595828de4df08490ff5888e0de2178f4920f9905a3fecf61a09"

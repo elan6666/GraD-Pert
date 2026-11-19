@@ -4,69 +4,33 @@ from __future__ import annotations
 
 import argparse
 import gc
-import json
 import os
 import random
-import time
 from dataclasses import asdict
 from pathlib import Path
 
-import anndata
 import numpy as np
 import torch
-from audit_crosscell_study_fits import COHORT_SHA, FOLDS_SHA, SOURCE_SHA, STUDY
-from evaluate_crosscell_k562 import SERVER, read_rows, source_reference
 from omegaconf import OmegaConf
 
 from benchmarks.common import official_module_session
-from benchmarks.common.study_fit_partition import crosscell_fit_rows, open_crosscell_fit_partition
+from benchmarks.common.study_fit_partition import open_crosscell_fit_partition
+from benchmarks.crosscell.study_data import cohort_inputs, score
+from benchmarks.crosscell.study_paths import COHORT_SHA, REPO, SERVER, STUDY
+from benchmarks.crosscell.study_paths import TXPERT_CHECKOUT as UPSTREAM
+from benchmarks.crosscell.study_paths import TXPERT_COMMIT as UPSTREAM_COMMIT
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
 from benchmarks.txpert.released_recipe import CROSS_CELL_GAT, ZENODO_RECORD
 from benchmarks.txpert.runner import _materialize_official_cell_context
 from benchmarks.txpert.runtime import inspect_cuda_runtime, load_runtime_contract
-from gradpert.data._io import atomic_json, atomic_text, read_json
-from gradpert.evaluation.metrics import (
-    ConditionMetricResult,
-    ConditionMetrics,
-    compute_condition_metrics_v2,
-    macro_summarize,
-)
+from gradpert.data._io import atomic_json, read_json
+from gradpert.execution.gpu_lease import admit_selected_idle, lock
 from gradpert.execution.identity import inspect_source_identity
-from gradpert.hashing import sha256_file, sha256_json
-from gradpert.training.v2.crosscell import frozen_rows
-from scripts.v2.run_group import lock
-from scripts.v2.run_small_softmax import admit_selected_idle
+from gradpert.hashing import sha256_file
 from scripts.v2.shared_gpu import process_info, snapshot
 
-REPO = Path(__file__).resolve().parents[2]
-UPSTREAM = SERVER / "upstreams/txpert"
-UPSTREAM_COMMIT = "08d82eea86746b044cf7531f4ec8c5f60e1cb73f"
 OFFICIAL_CONFIG_SHA = "36c11ed5e188301c699ba2ef853493808683368f9a94f8005c857ac3e4396048"
-CROSS = SERVER / "crosscell-fixed-v1"
 RECIPE = CROSS_CELL_GAT
-
-
-def cohort_inputs():
-    path = STUDY / "frozen/cohorts.json"
-    source = CROSS / "source/K562_cross_cell_lines/de_adata_test.h5ad"
-    fold_path = CROSS / "folds-baadb85/manifest.json"
-    for candidate, digest in ((path, COHORT_SHA), (source, SOURCE_SHA), (fold_path, FOLDS_SHA)):
-        if sha256_file(candidate) != digest:
-            raise ValueError(f"fixed study input changed: {candidate}")
-    cross = read_json(path)["cross_cell"]
-    cohort = cross["engineered_k562"]
-    fold = read_json(fold_path)["folds"][cross["target_cell_line"]]
-    archive = fold_path.parent / fold["row_index_file"]
-    if not sha256_file(archive) == fold["row_index_sha256"] == cross["frozen_fold_sha256"]:
-        raise ValueError("frozen fold archive changed")
-    adata = anndata.read_h5ad(source, backed="r")
-    try:
-        if sha256_json(list(adata.var_names)) != cross["expression_gene_order_sha256"]:
-            raise ValueError("frozen cross-cell expression axis changed")
-        rows = frozen_rows(archive, fold, adata.obs)
-    finally:
-        adata.file.close()
-    return source, cross, cohort, rows
 
 
 def bind_official_datasets(official, config, prepared, cross, cohort):
@@ -110,135 +74,6 @@ def bind_official_datasets(official, config, prepared, cross, cohort):
         setattr(data, f"{role}_data", dataset)
     data.data_prepared = True
     return data
-
-
-def score(
-    predict_controls,
-    metrics,
-    source,
-    cross,
-    cohort,
-    rows,
-    compatibility,
-    output,
-    *,
-    journal_key=None,
-    stop_starting_conditions_at=None,
-):
-    ids = cohort["condition_ids"]
-    draw_path = Path(cohort["shared_frozen_draws_path"])
-    if sha256_file(draw_path) != cross["shared_frozen_draws_sha256"]:
-        raise ValueError("paired control and truth rows changed")
-    frozen = read_json(draw_path)["draws"]
-    draws = {condition: frozen[condition] for condition in ids}
-    if sha256_json(draws) != cohort["per_condition_pairing_sha256"]:
-        raise ValueError("C2 paired test cohort changed")
-    journal = output / "condition-receipts" if journal_key is not None else None
-    if journal is not None:
-        journal.mkdir(exist_ok=True)
-    records = []
-    adata = anndata.read_h5ad(source, backed="r")
-    try:
-        conditions = adata.obs["condition"].astype(str).to_numpy()
-        batches = adata.obs["batch"].astype(str).to_numpy()
-        target_controls = rows["target_control"]
-        fit = crosscell_fit_rows(rows, conditions, cohort, compatibility=compatibility)
-        reference = source_reference(adata, conditions, np.sort(np.r_[fit["train"], fit["val"]]))
-        evaluation_rows = np.sort(
-            np.concatenate([target_controls] + [d["truth_rows"] for d in draws.values()])
-        )
-        reference_adata = anndata.AnnData(
-            X=adata.X[evaluation_rows], obs=adata.obs.iloc[evaluation_rows].copy()
-        )
-        metrics.cache_perturbation_means(reference_adata, cross["target_cell_line"])
-        if len(metrics.PERT_MEANS[cross["target_cell_line"]]) != len(ids):
-            raise ValueError("official retrieval candidate count differs from the frozen cohort")
-        retrieval = metrics.RetrievalMetric(subset=False)
-        for index, (condition, draw) in enumerate(draws.items(), start=1):
-            receipt = journal / f"{index:03d}.json" if journal is not None else None
-            if receipt is not None and receipt.is_file():
-                saved = read_json(receipt)
-                if saved["key"] != journal_key or saved["metrics"]["condition_id"] != condition:
-                    raise ValueError("scored condition receipt differs from the frozen evaluation")
-                records.append(saved["metrics"])
-                continue
-            if (
-                stop_starting_conditions_at is not None
-                and time.monotonic() >= stop_starting_conditions_at
-            ):
-                return {"conditions_completed": len(records), "conditions_total": len(ids)}
-            control_ids = np.asarray(draw["input_control_rows"])
-            if len(control_ids) != 300 or not np.isin(control_ids, target_controls).all():
-                raise ValueError("prediction requires 300 ordered K562 controls")
-            controls = read_rows(adata, control_ids)
-            prediction = predict_controls(condition, controls)
-            if prediction.shape != controls.shape or not np.isfinite(prediction).all():
-                raise ValueError("frozen prediction requires a finite, full-axis matrix")
-            truth_rows = np.asarray(draw["truth_rows"])
-            if not np.array_equal(truth_rows, rows["test"][conditions[rows["test"]] == condition]):
-                raise ValueError(f"frozen truth IDs changed for {condition}")
-            truth = read_rows(adata, truth_rows)
-            matching = target_controls[np.isin(batches[target_controls], batches[truth_rows])]
-            control_mean = np.asarray(adata.X[matching].mean(axis=0)).ravel()
-            values = compute_condition_metrics_v2(
-                condition_id=condition,
-                prediction=prediction,
-                input_control=controls,
-                truth=truth,
-                metric_control_pool_mean=control_mean,
-                de_gene_indices=(),
-                systema_reference=reference,
-                include_deg=False,
-            )
-            error = prediction.mean(0, dtype=np.float64) - truth.mean(0, dtype=np.float64)
-            row = {
-                **asdict(values),
-                "mean_mse": float(np.mean(error**2)),
-                "retrieval": float(
-                    retrieval(
-                        prediction,
-                        truth,
-                        cross["target_cell_line"],
-                        controls,
-                        reference_adata,
-                        condition,
-                    )
-                ),
-            }
-            if receipt is not None:
-                atomic_json(receipt, {"key": journal_key, "metrics": row})
-            records.append(row)
-            if receipt is not None or index == 1 or index % 10 == 0 or index == len(ids):
-                atomic_json(output / "evaluation_progress.json", {"done": index, "total": len(ids)})
-    finally:
-        adata.file.close()
-    scores_path = output / "conditions.jsonl"
-    rendered = "".join(
-        json.dumps(row, allow_nan=False, sort_keys=journal is not None) + "\n" for row in records
-    )
-    if scores_path.exists():
-        if scores_path.read_text() != rendered:
-            raise ValueError("previously finalized condition results have changed")
-    else:
-        atomic_text(scores_path, rendered)
-    pearson = [
-        ConditionMetrics(
-            row["condition_id"], tuple(ConditionMetricResult(**m) for m in row["results"])
-        )
-        for row in records
-    ]
-    return {
-        "conditions": len(records),
-        "condition_ids_sha256": cohort["condition_ids_sha256"],
-        "paired_rows_sha256": cohort["per_condition_pairing_sha256"],
-        "test_panel_genes": cross["expression_panel_genes"],
-        "test_controls_per_condition": 300,
-        "test_updates": 0,
-        "mean_mse": float(np.mean([row["mean_mse"] for row in records])),
-        "retrieval_mean": float(np.mean([row["retrieval"] for row in records])),
-        "pearson": [asdict(value) for value in macro_summarize(pearson)],
-        "conditions_file_sha256": sha256_file(scores_path),
-    }
 
 
 def fit(args, output, identity):

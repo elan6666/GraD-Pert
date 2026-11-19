@@ -141,6 +141,36 @@ def wait_for_txpert_c2(root, plan, state, state_path, poll_seconds):
     )
 
 
+def deferred_run(root, arm, record):
+    path = root / "deferrals" / f"{arm}.json"
+    if not path.is_file():
+        return None
+    spec = read(path)
+    run = Path(record["run_root"]).resolve(strict=True)
+    marker = run / "SCOPE_DEFER.json"
+    if (
+        record.get("status") not in ("blocked", "deferred_by_user")
+        or spec["arm_id"] != arm
+        or run.parent != root.parent
+        or spec["marker_sha256"] != digest(marker)
+        or (run / "result.json").exists()
+    ):
+        raise ValueError("deferred arm must match its stopped run and immutable receipt")
+    note = read(marker)
+    if (
+        note["reason"] != "deferred_by_user"
+        or note["run_id"] != run.name
+        or note["descriptor_sha256"] != record["descriptor_sha256"]
+    ):
+        raise ValueError("user deferral belongs to another descriptor or run")
+    return {
+        "run_root": str(run),
+        "descriptor_sha256": record["descriptor_sha256"],
+        "deferral_receipt": str(marker),
+        "deferral_receipt_sha256": spec["marker_sha256"],
+    }
+
+
 def run(root, expected_plan_sha256, poll_seconds):
     plan_path = root / "plan.json"
     if digest(plan_path) != expected_plan_sha256:
@@ -171,6 +201,11 @@ def run(root, expected_plan_sha256, poll_seconds):
     for arm in order:
         record = state["arms"].get(arm, {})
         if record.get("status") == "completed":
+            continue
+        deferred = deferred_run(root, arm, record)
+        if deferred is not None:
+            if record["status"] != "deferred_by_user":
+                set_arm(arm, "deferred_by_user", **deferred)
             continue
         while True:
             prepared = load_job(root, arm, plan)

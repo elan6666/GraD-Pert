@@ -11,29 +11,21 @@ from pathlib import Path
 
 import torch
 import yaml
-from train_scdfm_double_holdout_crosscell import (
-    CHECKOUT,
-    COHORT_SHA,
-    GPU_UUID,
-    REPO,
-    SERVER,
-    STUDY,
-    UPSTREAM,
-    UPSTREAM_COMMIT,
-    cohort_inputs,
-    score,
-)
 
 from benchmarks.common import official_module_session
 from benchmarks.common.study_fit_partition import open_crosscell_fit_partition
+from benchmarks.crosscell.study_data import cohort_inputs, score
+from benchmarks.crosscell.study_paths import COHORT_SHA, REPO, SERVER, STUDY
+from benchmarks.crosscell.study_paths import TXPERT_CHECKOUT as UPSTREAM
+from benchmarks.crosscell.study_paths import TXPERT_COMMIT as UPSTREAM_COMMIT
 from benchmarks.expression_holdout import scdfm
 from benchmarks.expression_holdout.contract import FittedAdapter
 from benchmarks.expression_holdout.runner import restore_last
+from benchmarks.expression_holdout.scdfm_crosscell_c2 import CHECKOUT, GPU_UUID
 from gradpert.data._io import atomic_json, read_json
+from gradpert.execution.gpu_lease import admit_selected_idle, lock
 from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file, sha256_json
-from scripts.v2.run_group import lock
-from scripts.v2.run_small_softmax import admit_selected_idle
 from scripts.v2.shared_gpu import process_info, snapshot
 
 CONFIG = REPO / "configs/studies/scdfm-crosscell-c2-3h/scdfm/crosscell_k562.yaml"
@@ -207,7 +199,13 @@ def score_bounded(output, inputs, support, config, started, identity):
 def coordinate(output, budget):
     """Run the fit, then release the GPU between individual evaluation tasks."""
     output.mkdir(exist_ok=False)
-    argv = [sys.executable, "-u", str(Path(__file__).resolve()), *sys.argv[1:]]
+    argv = [
+        sys.executable,
+        "-u",
+        "-m",
+        "benchmarks.expression_holdout.scdfm_crosscell_budgeted",
+        *sys.argv[1:],
+    ]
     subprocess.run([*argv, "--stage", "fit"], check=True, timeout=budget["training_wall_seconds"])
     if not (output / "training_result.json").is_file():
         raise RuntimeError("scDFM capped training has no accepted checkpoint receipt")

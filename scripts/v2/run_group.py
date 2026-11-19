@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import fcntl
 import json
 import math
 import subprocess
@@ -16,6 +15,7 @@ from generate_group import verify_group
 from prepare_followup import validate_dependency
 
 from gradpert.data._io import atomic_json
+from gradpert.execution.gpu_lease import lock as lock
 from gradpert.execution.train_entry import resolve_plan
 from gradpert.hashing import sha256_file
 
@@ -151,17 +151,6 @@ def next_action(plan: dict) -> str:
     if not (root / "fit/epoch_state.json").is_file():
         raise ValueError("startup failed before an epoch commit; repair explicitly before retry")
     return "resume"
-
-
-@contextlib.contextmanager
-def lock(path: Path):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a+") as handle:
-        try:
-            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as error:
-            raise RuntimeError(f"another process owns lease {path}") from error
-        yield handle.fileno()
 
 
 def execute_queue(queue: dict, directory: Path) -> None:

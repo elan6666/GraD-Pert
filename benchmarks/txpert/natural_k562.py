@@ -15,19 +15,20 @@ import joblib
 import lightning
 import numpy as np
 import torch
-from evaluate_crosscell_k562 import SOURCE, read_rows, source_reference
-from freeze_perturbation_holdout_study import CROSS, ROOT
 from gspp import metrics, predictor
 from gspp.data import datamodule, graphmodule
 from omegaconf import OmegaConf
 
+from benchmarks.crosscell.study_paths import CROSS
+from benchmarks.crosscell.study_paths import REPO as SOURCE
+from benchmarks.crosscell.study_paths import SERVER as ROOT
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
 from gradpert.data._io import atomic_json, read_json
+from gradpert.evaluation.crosscell import read_rows, source_reference
 from gradpert.evaluation.metrics import compute_condition_metrics_v2, macro_summarize
+from gradpert.execution.gpu_lease import admit_selected_idle, lock
 from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file, sha256_json
-from scripts.v2.run_group import lock
-from scripts.v2.run_small_softmax import admit_selected_idle
 from scripts.v2.shared_gpu import process_info, snapshot
 
 UPSTREAM = ROOT / "upstreams/txpert"

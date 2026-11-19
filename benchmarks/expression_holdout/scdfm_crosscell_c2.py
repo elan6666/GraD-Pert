@@ -10,26 +10,19 @@ from pathlib import Path
 import numpy as np
 import torch
 import yaml
-from train_txpert_double_holdout_crosscell import (
-    COHORT_SHA,
-    REPO,
-    SERVER,
-    STUDY,
-    UPSTREAM,
-    UPSTREAM_COMMIT,
-    cohort_inputs,
-    score,
-)
 
 from benchmarks.common import official_module_session
 from benchmarks.common.study_fit_partition import open_crosscell_fit_partition
+from benchmarks.crosscell.study_data import cohort_inputs, score
+from benchmarks.crosscell.study_paths import COHORT_SHA, REPO, SERVER, STUDY
+from benchmarks.crosscell.study_paths import TXPERT_CHECKOUT as UPSTREAM
+from benchmarks.crosscell.study_paths import TXPERT_COMMIT as UPSTREAM_COMMIT
 from benchmarks.expression_holdout import scdfm
 from benchmarks.expression_holdout.runner import restore_last
 from gradpert.data._io import atomic_json, read_json
+from gradpert.execution.gpu_lease import admit_selected_idle, lock
 from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file
-from scripts.v2.run_group import lock
-from scripts.v2.run_small_softmax import admit_selected_idle
 from scripts.v2.shared_gpu import process_info, snapshot
 
 CHECKOUT = SERVER / "upstreams/scdfm-8de47e7"

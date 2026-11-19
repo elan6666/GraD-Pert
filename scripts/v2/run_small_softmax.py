@@ -12,32 +12,15 @@ from pathlib import Path
 SOURCE = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(SOURCE / "src"), str(SOURCE), str(SOURCE / "scripts/v2")]
 
-from gradpert.data._io import atomic_json  # noqa: E402
-from gradpert.execution.identity import inspect_source_identity  # noqa: E402
-from gradpert.execution.v2_training_stage import validate_training_stage  # noqa: E402
-from gradpert.hashing import sha256_file  # noqa: E402
-from scripts.v2.run_dataset_transfer_300 import native_run  # noqa: E402
-from scripts.v2.run_group import lock, validate_preflight  # noqa: E402
-from scripts.v2.shared_gpu import process_info, snapshot  # noqa: E402
-
-
-def admit_selected_idle(observed: dict, gpu: int, uuid: str) -> None:
-    admit_selected_devices(observed, {gpu: uuid})
-
-
-def admit_selected_devices(observed: dict, selected: dict[int, str]) -> None:
-    for gpu, uuid in selected.items():
-        device = observed["gpus"].get(gpu)
-        if device is None or device["uuid"] != uuid:
-            raise RuntimeError("selected GPU identity changed")
-        if device["free_mib"] < 2048:
-            raise RuntimeError("selected GPU free-memory reserve exhausted")
-    uuids = set(selected.values())
-    for process in observed["processes"]:
-        if process["gpu_uuid"] in uuids and not process["owned"]:
-            raise RuntimeError("selected GPU has foreign work; preserve it")
-        if process["owned"] and process["gpu_uuid"] not in uuids:
-            raise RuntimeError("owned process escaped selected GPU")
+from gradpert.data._io import atomic_json
+from gradpert.execution.gpu_lease import admit_selected_devices
+from gradpert.execution.gpu_lease import admit_selected_idle as admit_selected_idle
+from gradpert.execution.identity import inspect_source_identity
+from gradpert.execution.v2_training_stage import validate_training_stage
+from gradpert.hashing import sha256_file
+from scripts.v2.run_dataset_transfer_300 import native_run
+from scripts.v2.run_group import lock, validate_preflight
+from scripts.v2.shared_gpu import process_info, snapshot
 
 
 def main() -> None:

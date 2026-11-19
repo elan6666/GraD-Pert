@@ -4,32 +4,29 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 import time
 from pathlib import Path
 
 import torch
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
+from benchmarks.crosscell.study_paths import COHORT_SHA, DATA, DATASET, PROTOCOL, SERVER, STUDY
+from benchmarks.crosscell.study_paths import REPO as ROOT
+from benchmarks.expression_holdout import scdfm
+from benchmarks.expression_holdout.contract import FittedAdapter
+from benchmarks.expression_holdout.evaluation import evaluate
+from benchmarks.expression_holdout.runner import restore_last
+from gradpert.data._io import atomic_json, read_json
+from gradpert.evaluation.data import CanonicalEvaluationData
+from gradpert.evaluation.state import load_evaluation_state
+from gradpert.execution.gpu_lease import (
+    admit_selected_idle,
+    lock,
+)
+from gradpert.execution.identity import inspect_source_identity
+from gradpert.hashing import sha256_file, sha256_json
+from scripts.v2.shared_gpu import process_info, snapshot
 
-from benchmarks.expression_holdout import scdfm  # noqa: E402
-from benchmarks.expression_holdout.contract import FittedAdapter  # noqa: E402
-from benchmarks.expression_holdout.evaluation import evaluate  # noqa: E402
-from benchmarks.expression_holdout.runner import restore_last  # noqa: E402
-from gradpert.data._io import atomic_json, read_json  # noqa: E402
-from gradpert.evaluation.data import CanonicalEvaluationData  # noqa: E402
-from gradpert.evaluation.state import load_evaluation_state  # noqa: E402
-from gradpert.execution.identity import inspect_source_identity  # noqa: E402
-from gradpert.hashing import sha256_file, sha256_json  # noqa: E402
-from scripts.v2.run_group import lock  # noqa: E402
-from scripts.v2.run_small_softmax import admit_selected_idle  # noqa: E402
-from scripts.v2.shared_gpu import process_info, snapshot  # noqa: E402
-
-SERVER = Path("/data/yilangliu/GraD-Pert")
-DATA = SERVER / "data-vnext-a942114"
 CHECKOUT = SERVER / "upstreams/scdfm-8de47e7"
-STUDY = SERVER / "development/perturbation-holdout-study-20261117-a1"
 FIT = (
     SERVER
     / "runs-official-recovery-9607981"
@@ -41,9 +38,6 @@ FIT_HASHES = {
     "fit-receipt.json": "aa00d18a0f49fba76bd8035134f71653728580000054eb29790602fcfcb4160c",
     "data-receipt.json": "89ae735cb13081774cf8355c855a7c2c3091b9a68d7a7bd1167ed3682e2d9bf2",
 }
-COHORT_SHA = "543a5b5638030da5df5790423ad7efec636e298e12089b5d98b534688cb9d4f4"
-DATASET = "nadig_jurkat"
-PROTOCOL = "within_cell_unseen_single"
 
 
 def evaluate_slice(args, output):

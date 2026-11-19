@@ -10,12 +10,12 @@ from pathlib import Path
 
 import lightning
 import torch
-from evaluate_crosscell_k562 import SOURCE
 from gspp import predictor
 from gspp.data import datamodule, graphmodule
-from replay_scdfm_jurkat import COHORT_SHA, DATA, DATASET, PROTOCOL, SERVER, STUDY
 
 from benchmarks.common.condition_response import FrozenConditionResponse, summarize_response
+from benchmarks.crosscell.study_paths import COHORT_SHA, DATA, DATASET, PROTOCOL, SERVER, STUDY
+from benchmarks.crosscell.study_paths import REPO as SOURCE
 from benchmarks.expression_holdout.evaluation import evaluate
 from benchmarks.txpert.official_api import OfficialPublicAPI, OfficialPublicModules
 from benchmarks.txpert.runner import _official_config, _register_anndata_null_reader
@@ -23,10 +23,9 @@ from gradpert.config import load_experiment_config
 from gradpert.data._io import atomic_json, read_json
 from gradpert.evaluation.data import CanonicalEvaluationData
 from gradpert.evaluation.state import load_evaluation_state
+from gradpert.execution.gpu_lease import admit_selected_idle, lock
 from gradpert.execution.identity import inspect_source_identity
 from gradpert.hashing import sha256_file
-from scripts.v2.run_group import lock
-from scripts.v2.run_small_softmax import admit_selected_idle
 from scripts.v2.shared_gpu import process_info, snapshot
 
 CHECKOUT = SERVER / "upstreams/txpert"

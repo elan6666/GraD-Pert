@@ -3,21 +3,17 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 import anndata
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path[:0] = [str(ROOT / "src"), str(ROOT)]
-
-from replay_scdfm_jurkat import COHORT_SHA, SERVER, STUDY  # noqa: E402
-
-from benchmarks.common.study_fit_partition import open_crosscell_fit_partition  # noqa: E402
-from gradpert.data._io import atomic_json, read_json  # noqa: E402
-from gradpert.execution.identity import inspect_source_identity  # noqa: E402
-from gradpert.hashing import sha256_file  # noqa: E402
-from gradpert.training.v2.crosscell import FOLDS_SHA, SOURCE_SHA, frozen_rows  # noqa: E402
+from benchmarks.common.study_fit_partition import open_crosscell_fit_partition
+from benchmarks.crosscell.study_paths import COHORT_SHA, SERVER, STUDY
+from benchmarks.crosscell.study_paths import REPO as ROOT
+from gradpert.data._io import atomic_json, read_json
+from gradpert.execution.identity import inspect_source_identity
+from gradpert.hashing import sha256_file
+from gradpert.training.v2.crosscell import FOLDS_SHA, SOURCE_SHA, frozen_rows
 
 
 def main():
