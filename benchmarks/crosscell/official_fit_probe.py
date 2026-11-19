@@ -34,21 +34,28 @@ PRIOR_SHA = {
     "perturbdiff": "8c43bce711e34b4b7cb27541e1dc654d54d01a0efb225993b5c396124c4a7574",
     "prescribe": "011230c0767bb0eeb730b787b7ade2a815567249bf2b2c108188734514778f23",
 }
+CELL_PRIOR_SHA = "e29b1213fc95a72d5f4402920291d26125f07b22b3ab74d414f500fe8811d99a"
 STEPS = 4
 
 
-def source_batches(role_rows, conditions, contexts, support, random, groups, cells):
+def source_batches(
+    role_rows, conditions, contexts, support, random, groups, cells, *, replace_short=False
+):
     grouped = defaultdict(list)
     for row in role_rows:
         condition = conditions[row]
         if condition in support:
             grouped[(condition, contexts[row])].append(row)
-    candidates = sorted(key for key, values in grouped.items() if len(values) >= cells)
+    candidates = sorted(
+        key for key, values in grouped.items() if (replace_short or len(values) >= cells)
+    )
     if len(candidates) < groups:
         raise ValueError("not enough represented C2 source groups for the bounded probe")
     chosen = random.choice(len(candidates), groups, replace=False)
     selected = [candidates[i] for i in chosen]
-    treated = np.stack([random.choice(grouped[key], cells, replace=False) for key in selected])
+    treated = np.stack(
+        [random.choice(grouped[key], cells, replace=len(grouped[key]) < cells) for key in selected]
+    )
     return treated, selected
 
 
@@ -83,7 +90,9 @@ def prepare(path, rows, cohort, priors, seed, output):
         train, train_keys = source_batches(
             fit["train"], conditions, contexts, permitted, rng, 4 * STEPS, 32
         )
-        val, val_keys = source_batches(fit["val"], conditions, contexts, permitted, rng, 4, 32)
+        val, val_keys = source_batches(
+            fit["val"], conditions, contexts, permitted, rng, 4, 32, replace_short=True
+        )
         train_controls = np.stack(
             [rng.choice(controls[key[1]], 32, replace=True) for key in train_keys]
         )
@@ -111,6 +120,7 @@ def prepare(path, rows, cohort, priors, seed, output):
                 "visible_expression_axis": len(allowed),
                 "train_row_sha256": sha256_json(train.tolist()),
                 "val_row_sha256": sha256_json(val.tolist()),
+                "val_rows_unique": int(np.unique(val).size),
                 "train_control_row_sha256": sha256_json(train_controls.tolist()),
                 "val_control_row_sha256": sha256_json(val_controls.tolist()),
                 "test_expression_rows_read": 0,
@@ -153,7 +163,7 @@ def fit_perturbdiff(upstream, asset, train, val):
     pert = {
         g: i for i, g in enumerate(sorted({"non-targeting", *(c.split("+")[0] for c, _ in keys)}))
     }
-    lines = {name: i for i, name in enumerate(sorted({context[0] for _, context in keys}))}
+    lines = {name: i for i, name in enumerate(sorted({context[0].lower() for _, context in keys}))}
     batches = {name: i for i, name in enumerate(sorted({context[1] for _, context in keys}))}
     with initialize_config_dir(version_base=None, config_dir=str(upstream / "configs")):
         cfg = compose(
@@ -167,10 +177,13 @@ def fit_perturbdiff(upstream, asset, train, val):
                 f"model.input_dim={genes}",
                 f"model.hidden_num=[{genes},512]",
                 f"data.pad_length={genes}",
-                # This fit-only probe measures the official model on source groups.
-                "cov_encoding.celltype_encoding=onehot",
+                "cov_encoding.celltype_encoding=llm",
             ],
         )
+    cell_prior = asset.with_name("celltype.pkl")
+    if sha256_file(cell_prior) != CELL_PRIOR_SHA:
+        raise ValueError("official released cell-type embeddings changed")
+    cfg.cov_encoding.celltype_embedding_path = str(cell_prior)
     cfg.cov_encoding.replogle_gene_embedding_path = str(asset)
     cfg.cov_encoding.pert_dict = pert
     cfg.cov_encoding.cell_type_dict = lines
@@ -199,7 +212,9 @@ def fit_perturbdiff(upstream, asset, train, val):
                 "pert_emb": y[start : start + 4].cuda(),
                 "cont_emb": x[start : start + 4].cuda(),
                 "cov_pert": torch.tensor([pert[c.split("+")[0]] for c, _ in keys], device="cuda"),
-                "cov_celltype": torch.tensor([lines[line] for _, (line, _) in keys], device="cuda"),
+                "cov_celltype": torch.tensor(
+                    [lines[line.lower()] for _, (line, _) in keys], device="cuda"
+                ),
                 "cov_batch": torch.tensor([batches[b] for _, (_, b) in keys], device="cuda"),
                 "ds_name": ["replogle"] * len(keys),
             }
@@ -224,7 +239,7 @@ def fit_perturbdiff(upstream, asset, train, val):
         mod,
         loss_values,
         valid,
-        {"celltype_encoding": "onehot", "group_size": 32, "batch_cells": 128},
+        {"celltype_encoding": "llm", "group_size": 32, "batch_cells": 128},
     )
 
 
