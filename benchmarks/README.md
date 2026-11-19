@@ -10,7 +10,7 @@ its pinned environment:
 | Workflow | Module |
 | --- | --- |
 | Shared cohort manifest and audit | `benchmarks.crosscell.study_manifest`, `benchmarks.crosscell.study_audit` |
-| Serial baseline queue | `benchmarks.crosscell.study_queue` |
+| Baseline queue | `benchmarks.crosscell.study_queue` |
 | TxPert Cross-cell C2 | `benchmarks.txpert.crosscell_c2` |
 | TxPert Jurkat and natural K562 replay | `benchmarks.txpert.replay_jurkat`, `benchmarks.txpert.natural_k562` |
 | scDFM Cross-cell C2 | `benchmarks.expression_holdout.scdfm_crosscell_c2`, `benchmarks.expression_holdout.scdfm_crosscell_budgeted` |
@@ -19,6 +19,13 @@ its pinned environment:
 ```sh
 PYTHONPATH=src:. python -m benchmarks.crosscell.study_queue --help
 ```
+
+The C2 controller accepts `--parallel 2` when both GPUs are available. Bind
+each ready descriptor to one physical GPU using `CUDA_VISIBLE_DEVICES=0` or
+`CUDA_VISIBLE_DEVICES=1`. Each runner must hold the shared per-GPU lease during
+its GPU work. Smoke and formal occupy the same queue slot. A missing or blocked
+descriptor leaves the other GPU available for any ready C2 arm. The status
+file lists all running arms under `active_arms` in two-GPU mode.
 
 Historical run receipts refer to the script paths at their captured commit.
 C2 adapters share the same frozen fitting support, ordered controls and scoring

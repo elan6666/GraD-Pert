@@ -8,7 +8,10 @@ import os
 import shlex
 import signal
 import subprocess
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
 
 MODELS = ("txpert", "scdfm", "scfoundation", "scbig", "perturbdiff", "prescribe")
@@ -45,7 +48,8 @@ def load_job(root, arm, plan):
     ready = root / "ready" / f"{arm}.json"
     if not ready.exists():
         return None
-    job = read(ready)
+    contents = ready.read_bytes()
+    job = json.loads(contents)
     if (
         job["arm_id"] != arm
         or job["cohort_sha256"] != plan["cohort_sha256"]
@@ -73,7 +77,7 @@ def load_job(root, arm, plan):
     ).strip()
     if observed_commit != job["source_commit"] or dirty:
         raise ValueError(f"queue runner differs from its sealed clean source: {repository}")
-    return job, digest(ready)
+    return job, hashlib.sha256(contents).hexdigest()
 
 
 def wait_for_txpert_c2(root, plan, state, state_path, poll_seconds):
@@ -171,7 +175,146 @@ def deferred_run(root, arm, record):
     }
 
 
-def run(root, expected_plan_sha256, poll_seconds):
+def run_arm(job, descriptor_sha256, set_arm, *, controller_fd=None):
+    for stage in job["stages"]:
+        try:
+            if check_receipt(stage):
+                continue
+            log_path = Path(stage["log"])
+            if log_path.exists() or Path(stage["run_root"]).exists():
+                raise RuntimeError("attempt exists without an accepted terminal receipt")
+            with log_path.open("xb", buffering=0) as output:
+                print(shlex.join(stage["command"]), flush=True)
+                with subprocess.Popen(
+                    stage["command"],
+                    cwd=job["repository"],
+                    env={**os.environ, **job["env"]},
+                    stdout=output,
+                    stderr=subprocess.STDOUT,
+                    stdin=subprocess.DEVNULL,
+                    pass_fds=() if controller_fd is None else (controller_fd,),
+                ) as process:
+                    set_arm(
+                        "running",
+                        stage=stage["name"],
+                        pid=process.pid,
+                        run_root=stage["run_root"],
+                        log=stage["log"],
+                        descriptor_sha256=descriptor_sha256,
+                    )
+                    code = process.wait()
+            if code != 0 or not check_receipt(stage):
+                raise RuntimeError(f"runner exited with code {code} without a valid receipt")
+        except (OSError, ValueError, RuntimeError) as error:
+            set_arm(
+                "blocked",
+                stage=stage["name"],
+                log=stage["log"],
+                run_root=stage["run_root"],
+                error=str(error),
+                descriptor_sha256=descriptor_sha256,
+            )
+            raise
+    set_arm(
+        "completed",
+        run_root=job["stages"][-1]["run_root"],
+        receipt=job["stages"][-1]["receipt"],
+        descriptor_sha256=descriptor_sha256,
+    )
+
+
+def run_parallel(root, plan, state, state_path, poll_seconds, controller_fd):
+    if any(record["status"] == "running" for record in state["arms"].values()):
+        raise RuntimeError("reconcile any previous running arms before parallel admission")
+    order = plan["order"]
+    state_lock = threading.Lock()
+    terminal = {"completed", "deferred_by_user"}
+
+    def publish(arm, status, **fields):
+        with state_lock:
+            arms = state["arms"]
+            record = {"status": status, **fields}
+            if record == {k: v for k, v in arms.get(arm, {}).items() if k != "updated_unix"}:
+                return
+            arms[arm] = {**record, "updated_unix": time.time()}
+            active = [a for a in order if arms.get(a, {}).get("status") == "running"]
+            pending = [a for a in order if arms.get(a, {}).get("status") not in terminal]
+            next_arm = next(iter(active or pending), None)
+            summary = arms.get(next_arm, {}).get("status", "awaiting_verified_runner")
+            state.update(
+                max_parallel=2,
+                active_arms=active,
+                active_arm=next_arm,
+                status=summary if next_arm else "completed",
+            )
+            write(state_path, state)
+
+    def launch(arm, gpu, job, sealed_sha):
+        def update(status, **fields):
+            publish(arm, status, gpu=gpu, **fields)
+
+        run_arm(job, sealed_sha, update, controller_fd=controller_fd)
+
+    # Each sealed descriptor selects one physical GPU. Smoke and formal hold its
+    # slot together, and the official runner must acquire the shared GPU lease.
+    active = {}
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        while True:
+            for gpu, (arm, future) in list(active.items()):
+                if future.done():
+                    del active[gpu]
+                    try:
+                        future.result()
+                    except (OSError, ValueError, RuntimeError) as error:
+                        print(f"{arm}: {error}", flush=True)
+            if not active and all(
+                state["arms"].get(a, {}).get("status") in terminal for a in order
+            ):
+                state.update(status="completed", active_arm=None, active_arms=[], max_parallel=2)
+                write(state_path, state)
+                return
+            for arm in order:
+                with state_lock:
+                    record = state["arms"].get(arm, {}).copy()
+                if record.get("status") in terminal or any(a == arm for a, _ in active.values()):
+                    continue
+                deferred = deferred_run(root, arm, record)
+                if deferred is not None:
+                    publish(arm, "deferred_by_user", **deferred)
+                    continue
+                ready = root / "ready" / f"{arm}.json"
+                if not ready.is_file():
+                    if record.get("status") != "blocked":
+                        publish(arm, "awaiting_verified_runner")
+                    continue
+                sealed_sha = digest(ready)
+                if record.get("status") == "blocked" and sealed_sha == record.get(
+                    "descriptor_sha256"
+                ):
+                    continue
+                try:
+                    job, loaded_sha = load_job(root, arm, plan)
+                    gpu = job["env"]["CUDA_VISIBLE_DEVICES"]
+                    if loaded_sha != sealed_sha or gpu not in {"0", "1"}:
+                        raise ValueError("parallel runner must seal exactly one GPU index (0 or 1)")
+                except (
+                    OSError,
+                    ValueError,
+                    KeyError,
+                    TypeError,
+                    subprocess.CalledProcessError,
+                ) as error:
+                    publish(arm, "blocked", descriptor_sha256=sealed_sha, error=str(error))
+                    continue
+                if gpu in active:
+                    publish(arm, "awaiting_gpu", gpu=gpu)
+                    continue
+                publish(arm, "running", gpu=gpu, stage="dispatch", descriptor_sha256=sealed_sha)
+                active[gpu] = (arm, pool.submit(launch, arm, gpu, job, sealed_sha))
+            time.sleep(poll_seconds)
+
+
+def run(root, expected_plan_sha256, poll_seconds, *, parallel=1, controller_fd=None):
     plan_path = root / "plan.json"
     if digest(plan_path) != expected_plan_sha256:
         raise ValueError("queue plan hash mismatch")
@@ -196,8 +339,15 @@ def run(root, expected_plan_sha256, poll_seconds):
         state = read(state_path)
         if state["plan_sha256"] != expected_plan_sha256:
             raise ValueError("existing queue state belongs to a different plan")
+    if parallel != 1 and (parallel != 2 or order != CROSS_ONLY_ORDER):
+        raise ValueError("two-GPU execution is supported only for the Cross-cell C2 queue")
+    if parallel == 1 and state.get("max_parallel") == 2:
+        raise ValueError("the active queue is configured for two-GPU execution")
     if order == CROSS_ONLY_ORDER:
         wait_for_txpert_c2(root, plan, state, state_path, poll_seconds)
+    if parallel == 2:
+        run_parallel(root, plan, state, state_path, poll_seconds, controller_fd)
+        return
     for arm in order:
         record = state["arms"].get(arm, {})
         if record.get("status") == "completed":
@@ -216,53 +366,7 @@ def run(root, expected_plan_sha256, poll_seconds):
                 record = state["arms"][arm]
             time.sleep(poll_seconds)
         job, descriptor_sha256 = prepared
-        for stage in job["stages"]:
-            try:
-                if check_receipt(stage):
-                    continue
-                log_path = Path(stage["log"])
-                if log_path.exists() or Path(stage["run_root"]).exists():
-                    raise RuntimeError("attempt exists without an accepted terminal receipt")
-                with log_path.open("xb", buffering=0) as output:
-                    print(shlex.join(stage["command"]), flush=True)
-                    with subprocess.Popen(
-                        stage["command"],
-                        cwd=job["repository"],
-                        env={**os.environ, **job["env"]},
-                        stdout=output,
-                        stderr=subprocess.STDOUT,
-                        stdin=subprocess.DEVNULL,
-                    ) as process:
-                        set_arm(
-                            arm,
-                            "running",
-                            stage=stage["name"],
-                            pid=process.pid,
-                            run_root=stage["run_root"],
-                            log=stage["log"],
-                            descriptor_sha256=descriptor_sha256,
-                        )
-                        code = process.wait()
-                if code != 0 or not check_receipt(stage):
-                    raise RuntimeError(f"runner exited with code {code} without a valid receipt")
-            except (OSError, ValueError, RuntimeError) as error:
-                set_arm(
-                    arm,
-                    "blocked",
-                    stage=stage["name"],
-                    log=stage["log"],
-                    run_root=stage["run_root"],
-                    error=str(error),
-                    descriptor_sha256=descriptor_sha256,
-                )
-                raise
-        set_arm(
-            arm,
-            "completed",
-            run_root=job["stages"][-1]["run_root"],
-            receipt=job["stages"][-1]["receipt"],
-            descriptor_sha256=descriptor_sha256,
-        )
+        run_arm(job, descriptor_sha256, partial(set_arm, arm))
     state.update(status="completed", active_arm=None)
     write(state_path, state)
 
@@ -271,11 +375,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path)
     parser.add_argument("plan_sha256")
+    parser.add_argument("--parallel", type=int, choices=(1, 2), default=1)
     args = parser.parse_args()
     root = args.root.resolve(strict=True)
     with (root / "controller.lock").open("ab") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        run(root, args.plan_sha256, 30)
+        run(root, args.plan_sha256, 30, parallel=args.parallel, controller_fd=lock.fileno())
 
 
 if __name__ == "__main__":
