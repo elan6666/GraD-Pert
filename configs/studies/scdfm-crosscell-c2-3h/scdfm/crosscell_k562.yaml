@@ -1,0 +1,29 @@
+schema: scdfm-crosscell-fixed-panel-c2-v1
+dataset: crosscell_k562
+scenario: C2
+seed: 1
+model:
+  model_type: origin
+  fusion_method: differential_perceiver
+training:
+  batch_size: 48
+  steps: 650
+  lr: 5.0e-5
+  eta_min: 1.0e-6
+  mode: predict_y
+  noise_type: Gaussian
+  infer_top_gene: 1000
+  use_mmd_loss: true
+  gamma: 0.5
+  topk: 30
+  use_negative_edge: true
+  activation_offload: cpu
+evaluation:
+  control_cells: 300
+  cell_batch: 64
+  query_count: 1000
+budget:
+  training_wall_seconds: 10800
+  checkpoint_reserve_seconds: 180
+  evaluation_task_wall_seconds: 10800
+  evaluation_condition_reserve_seconds: 1200

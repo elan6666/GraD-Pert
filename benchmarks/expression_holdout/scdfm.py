@@ -385,7 +385,15 @@ def _training_activation_context(training: dict, device: Any):
     return contextlib.nullcontext()
 
 
-def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: int | None = None):
+def fit(
+    prepared: Any,
+    config: dict,
+    runtime: dict,
+    output: Path,
+    max_updates: int | None = None,
+    *,
+    stop_starting_updates_at: float | None = None,
+):
     """Use upstream train_step and exact Adam -> cosine update ordering."""
     import torch
     from accelerate import Accelerator
@@ -476,7 +484,14 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
         query_hook = accelerator.unwrap_model(vf).register_forward_pre_hook(observe_queries)
         losses = []
         updates_started = time.monotonic()
+        update_reserve = 60.0
         for step in range(count):
+            started = time.monotonic()
+            if (
+                stop_starting_updates_at is not None
+                and started + update_reserve >= stop_starting_updates_at
+            ):
+                break
             source, target, condition, _, target_rows = sample_batch(
                 prepared, groups, int(training["batch_size"]), rng
             )
@@ -503,6 +518,7 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
             optimizer.step()
             scheduler.step()
             losses.append(float(loss.detach().cpu()))
+            update_reserve = max(update_reserve, time.monotonic() - started)
             if step == 0 or (step + 1) % int(training.get("log_every", 100)) == 0:
                 print(
                     json.dumps(
@@ -518,6 +534,10 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
                     flush=True,
                 )
         updates_elapsed_seconds = time.monotonic() - updates_started
+        if not losses:
+            raise TimeoutError("scDFM wall-time budget expired before the first optimizer update")
+        scheduled_count = count
+        count = len(losses)
         vf = accelerator.unwrap_model(vf)
         query_hook.remove()
         official.utils.save_checkpoint(
@@ -544,6 +564,14 @@ def fit(prepared: Any, config: dict, runtime: dict, output: Path, max_updates: i
         **budget_progress(budget, count),
         "last_loss": losses[-1],
         "updates_elapsed_seconds": updates_elapsed_seconds,
+        **(
+            {
+                "budget_stop_reason": "wall_time" if count < scheduled_count else "update_count",
+                "loss_history": losses,
+            }
+            if stop_starting_updates_at is not None
+            else {}
+        ),
         "sampled_target_rows": len(sampled_rows),
         "allowed_expression_gene_indices": allowed.tolist(),
         "observed_training_expression_gene_indices": sorted(sampled_gene_indices),
