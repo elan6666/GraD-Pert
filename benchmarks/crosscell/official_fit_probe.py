@@ -205,15 +205,18 @@ def fit_perturbdiff(upstream, asset, train, val):
     def compute(batch, start):
         y, x, contexts = batch
         keys = contexts[start : start + 4]
+
+        # The released cell-set collator emits one covariate index per cell.
+        def per_cell(values):
+            return torch.tensor(values, device="cuda")[:, None].expand(-1, y.shape[1])
+
         loss = mod._compute_loss(
             {
-                "pert_emb": y[start : start + 4].cuda(),
-                "cont_emb": x[start : start + 4].cuda(),
-                "cov_pert": torch.tensor([pert[c.split("+")[0]] for c, _ in keys], device="cuda"),
-                "cov_celltype": torch.tensor(
-                    [lines[line.lower()] for _, (line, _) in keys], device="cuda"
-                ),
-                "cov_batch": torch.tensor([batches[b] for _, (_, b) in keys], device="cuda"),
+                "pert_emb": y[start : start + 4].cuda() / 10.0,
+                "cont_emb": x[start : start + 4].cuda() / 10.0,
+                "cov_pert": per_cell([pert[c.split("+")[0]] for c, _ in keys]),
+                "cov_celltype": per_cell([lines[line.lower()] for _, (line, _) in keys]),
+                "cov_batch": per_cell([batches[b] for _, (_, b) in keys]),
                 "ds_name": ["replogle"] * len(keys),
             }
         )
@@ -237,7 +240,7 @@ def fit_perturbdiff(upstream, asset, train, val):
         mod,
         loss_values,
         valid,
-        {"celltype_encoding": "llm", "group_size": 32, "batch_cells": 128},
+        {"celltype_encoding": "llm", "group_size": 32, "batch_cells": 128, "input_divisor": 10.0},
     )
 
 
