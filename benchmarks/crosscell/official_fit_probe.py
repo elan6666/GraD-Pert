@@ -155,7 +155,6 @@ def prepare(path, rows, cohort, priors, seed, output):
 
 def fit_perturbdiff(upstream, asset, train, val):
     from hydra import compose, initialize_config_dir
-    from omegaconf import OmegaConf
     from src.models.lightning.lightning_module import PlModel
 
     genes = train[0].shape[-1]
@@ -192,7 +191,6 @@ def fit_perturbdiff(upstream, asset, train, val):
     cfg.cov_encoding.num_celltype = len(lines)
     cfg.cov_encoding.num_batch = len(batches)
     cfg.model.dataset_dict = ["replogle"]
-    OmegaConf.resolve(cfg)
     mod = PlModel(
         cfg.cov_encoding,
         cfg.model,
