@@ -36,7 +36,9 @@ from scripts.v2.shared_gpu import process_info, snapshot
 STAGE1 = STUDY / "scbig-crosscell-c2-budget3h-gcae-stage1-a1"
 STAGE1_RECEIPT_SHA = "43e4f24d0f64bbbb1180b423dadcdbee3424539810e7fa4b79b2f87d86350b94"
 HGNC = SERVER.parent / "DinoGenePT/data/hgnc/2026-08-28/hgnc_complete_set.txt"
-HGNC_SHA = "6df77ac3cbaeb86a6dce5e17d851ebb27b6b3cdcd2471a211a3d8464f00c54c4"
+HGNC_SHA = "0615a070f1628e6727953f67ad9248dd0f0ddbb16d41a7b40e06aa852fc3f448"
+COVERAGE = STUDY / "scbig-c2-esm2-coverage-a2.json"
+COVERAGE_SHA = "0ae9df3193f284c1d545454fccbb9206a2a8b84894cb3fdcaf4a7f68ec1e1b62"
 GENE_LOSS_PERIOD = 1000
 
 
@@ -90,8 +92,11 @@ def audited_prior(esm, genes):
     import torch
 
     bank = torch.load(esm, map_location="cpu", weights_only=True)
-    if sha256_file(HGNC) != HGNC_SHA:
-        raise ValueError("HGNC source differs from the previous C2 coverage audit")
+    if sha256_file(HGNC) != HGNC_SHA or sha256_file(COVERAGE) != COVERAGE_SHA:
+        raise ValueError("HGNC or ESM2 C2 coverage audit inputs changed")
+    audit = read_json(COVERAGE)
+    if len(bank) != audit["embeddings"] or audit["fit_unresolved_after_alias"]:
+        raise ValueError("the released ESM2 bank does not match the C2 audit")
     records = pd.read_csv(
         HGNC,
         sep="\t",
@@ -100,6 +105,8 @@ def audited_prior(esm, genes):
         usecols=["symbol", "prev_symbol", "alias_symbol"],
     )
     missing = set(genes) - bank.keys()
+    if missing != set(genes).intersection(audit["fit_missing"]):
+        raise ValueError("exact ESM2 support differs from the C2 fit audit")
     choices = {gene: set() for gene in missing}
     for approved, previous, synonyms in records.itertuples(index=False, name=None):
         if approved not in bank:
