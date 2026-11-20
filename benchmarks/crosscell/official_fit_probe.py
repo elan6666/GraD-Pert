@@ -59,7 +59,7 @@ def source_batches(
     return treated, selected
 
 
-def prepare(path, rows, cohort, priors, seed, output):
+def prepare(path, rows, cohort, priors, seed, output, *, full_axis=False):
     support_path = STUDY / "frozen/crosscell-c2-shared-fit-support-a1.json"
     if sha256_file(support_path) != SUPPORT_SHA:
         raise ValueError("C2 shared fit support changed")
@@ -108,9 +108,13 @@ def prepare(path, rows, cohort, priors, seed, output):
             raise ValueError("a test row crossed the fit boundary")
 
         def read(ids):
-            return torch.from_numpy(
-                read_rows(adata, ids.ravel())[:, allowed].reshape(*ids.shape, -1)
-            )
+            values = read_rows(adata, ids.ravel())[:, allowed]
+            if full_axis:
+                # Only observed values cross the fit boundary.
+                packed = np.zeros((len(values), len(genes)), dtype=values.dtype)
+                packed[:, allowed] = values
+                values = packed
+            return torch.from_numpy(values.reshape(*ids.shape, -1))
 
         atomic_json(
             output / "fit_inputs.json",
@@ -118,6 +122,11 @@ def prepare(path, rows, cohort, priors, seed, output):
                 "fit_support_sha256": SUPPORT_SHA,
                 "frozen_expression_axis": len(genes),
                 "visible_expression_axis": len(allowed),
+                **(
+                    {"masked_fit_input_axis": len(genes), "visible_indices": allowed}
+                    if full_axis
+                    else {}
+                ),
                 "train_row_sha256": sha256_json(train.tolist()),
                 "val_row_sha256": sha256_json(val.tolist()),
                 "val_rows_unique": int(np.unique(val).size),
@@ -202,10 +211,29 @@ def build_perturbdiff(upstream, asset, train, val):
     return mod, pert, lines, batches
 
 
-def fit_perturbdiff(upstream, asset, train, val):
+def fit_perturbdiff(upstream, asset, train, val, visible_indices=None):
     mod, pert, lines, batches = build_perturbdiff(upstream, asset, train, val)
     optimizers, schedules = mod.configure_optimizers()
     opt, schedule = optimizers[0], schedules[0]["scheduler"]
+
+    loss_scale = 1.0
+    projection = None
+    if visible_indices is not None:
+        keep = torch.zeros(train[0].shape[-1], dtype=torch.bool, device="cuda")
+        keep[visible_indices] = True
+        loss_scale = len(visible_indices) / len(keep)
+
+        def hide_unobserved_response(_layer, _inputs, values):
+            return {
+                **values,
+                "x": values["x"].masked_fill(~keep, 0),
+                "x_control": values["x_control"].masked_fill(~keep, 0),
+            }
+
+        projection = mod.model.register_forward_hook(hide_unobserved_response)
+        # Energy distance is unaffected by padded zeros. Preserve its relative
+        # weight after the official MSE averages over the wider tensor.
+        mod.optimizer_cfg.MMD_loss_factor *= loss_scale
 
     def compute(batch, start):
         y, x, contexts = batch
@@ -225,7 +253,7 @@ def fit_perturbdiff(upstream, asset, train, val):
                 "ds_name": ["replogle"] * len(keys),
             }
         )
-        return (loss["loss"] * loss["weights"]).mean()
+        return (loss["loss"] * loss["weights"]).mean() / loss_scale
 
     loss_values = []
     for index in range(STEPS):
@@ -241,11 +269,20 @@ def fit_perturbdiff(upstream, asset, train, val):
     mod.eval()
     with torch.no_grad():
         valid = float(compute(val, 0))
+    if projection is not None:
+        projection.remove()
     return (
         mod,
         loss_values,
         valid,
-        {"celltype_encoding": "llm", "group_size": 32, "batch_cells": 128, "input_divisor": 10.0},
+        {
+            "celltype_encoding": "llm",
+            "group_size": 32,
+            "batch_cells": 128,
+            "input_divisor": 10.0,
+            "full_output_axis": visible_indices is not None,
+            "fit_loss_visible_only": True,
+        },
     )
 
 
@@ -278,6 +315,8 @@ def time_perturbdiff(upstream, asset, train, val, source, rows, cohort, previous
                 gene_ids, cohort["masked_genes_in_expression_order"], masked=True
             )
         )
+        if train[0].shape[-1] == len(gene_ids):
+            allowed = list(range(len(gene_ids)))
         available = rows["source_control"]
         control_obs = adata.obs.iloc[available]
         ctl_lines = control_obs["cell_line"].astype(str).to_numpy()
@@ -464,7 +503,10 @@ def main():
     parser.add_argument("gpu", type=int, choices=(0, 1))
     parser.add_argument("output", type=Path)
     parser.add_argument("--timing-from", type=Path)
+    parser.add_argument("--full-axis-probe", action="store_true")
     args = parser.parse_args()
+    if args.full_axis_probe and args.model != "perturbdiff":
+        raise ValueError("the full-axis probe requires PerturbDiff")
     if args.timing_from is not None:
         args.timing_from = args.timing_from.resolve(strict=True)
         if args.model != "perturbdiff" or args.timing_from.parent != STUDY:
@@ -495,7 +537,9 @@ def main():
         with asset.open("rb") as stream:
             priors = pickle.load(stream)
         source, _, cohort, rows = cohort_inputs()
-        train, val = prepare(source, rows, cohort, priors, seed, args.output)
+        train, val = prepare(
+            source, rows, cohort, priors, seed, args.output, full_axis=args.full_axis_probe
+        )
         del priors
         sys.path.insert(0, str(upstream))
         os.chdir(args.output)
@@ -507,7 +551,8 @@ def main():
             return
         begin = time.monotonic()
         if args.model == "perturbdiff":
-            mod, losses, valid, changes = fit_perturbdiff(upstream, asset, train, val)
+            visible = read_json(args.output / "fit_inputs.json").get("visible_indices")
+            mod, losses, valid, changes = fit_perturbdiff(upstream, asset, train, val, visible)
         else:
             mod, losses, valid, changes = fit_prescribe(asset, train, val, args.output)
         if not np.isfinite(valid):
