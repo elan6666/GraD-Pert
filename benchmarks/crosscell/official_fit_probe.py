@@ -153,7 +153,7 @@ def prepare(path, rows, cohort, priors, seed, output):
         adata.file.close()
 
 
-def fit_perturbdiff(upstream, asset, train, val):
+def build_perturbdiff(upstream, asset, train, val):
     from hydra import compose, initialize_config_dir
     from src.models.lightning.lightning_module import PlModel
 
@@ -199,6 +199,11 @@ def fit_perturbdiff(upstream, asset, train, val):
         cfg.trainer,
         ["val"],
     ).cuda()
+    return mod, pert, lines, batches
+
+
+def fit_perturbdiff(upstream, asset, train, val):
+    mod, pert, lines, batches = build_perturbdiff(upstream, asset, train, val)
     optimizers, schedules = mod.configure_optimizers()
     opt, schedule = optimizers[0], schedules[0]["scheduler"]
 
@@ -242,6 +247,116 @@ def fit_perturbdiff(upstream, asset, train, val):
         valid,
         {"celltype_encoding": "llm", "group_size": 32, "batch_cells": 128, "input_divisor": 10.0},
     )
+
+
+def time_perturbdiff(upstream, asset, train, val, source, rows, cohort, previous, output):
+    """Replay one condition through the official sampler with 300 source controls."""
+    from hydra import compose, initialize_config_dir
+    from src.apps.sampling.sampling_generation_helpers import resolve_sampling_runner
+
+    fit_receipt = read_json(previous / "result.json")
+    checkpoint = previous / "fit_probe.pt"
+    fit_inputs = output / "fit_inputs.json"
+    if (
+        fit_receipt["status"] != "bounded_fit_probe"
+        or fit_receipt["model"] != "perturbdiff"
+        or fit_receipt["upstream_commit"] != COMMITS["perturbdiff"]
+        or fit_receipt["test_conditions_accessed"] != 0
+        or fit_receipt["checkpoint_sha256"] != sha256_file(checkpoint)
+        or fit_receipt["fit_inputs_sha256"] != sha256_file(fit_inputs)
+    ):
+        raise ValueError("the probe checkpoint and reconstructed fitting metadata differ")
+    model, pert, lines, batches = build_perturbdiff(upstream, asset, train, val)
+    model.load_state_dict(torch.load(checkpoint, map_location="cpu", weights_only=True))
+    model.eval()
+
+    adata = anndata.read_h5ad(source, backed="r")
+    try:
+        gene_ids = list(map(str, adata.var_names))
+        allowed = list(
+            allowed_expression_indices(
+                gene_ids, cohort["masked_genes_in_expression_order"], masked=True
+            )
+        )
+        available = rows["source_control"]
+        control_obs = adata.obs.iloc[available]
+        ctl_lines = control_obs["cell_line"].astype(str).to_numpy()
+        ctl_batches = control_obs["batch"].astype(str).to_numpy()
+        candidates = [
+            (c, line, batch, available[(ctl_lines == line) & (ctl_batches == batch)])
+            for c, (line, batch) in val[2]
+        ]
+        condition, line, batch_id, positions = max(candidates, key=lambda item: len(item[-1]))
+        if len(positions) < 300 or line.lower() == "k562":
+            raise ValueError("the trained vocabulary lacks a validation context with 300 controls")
+        selected = np.sort(np.random.default_rng(42).choice(positions, 300, replace=False))
+        if not (adata.obs.iloc[selected]["condition"].astype(str) == "ctrl").all():
+            raise ValueError("non-control rows in the sampling benchmark")
+        controls = read_rows(adata, selected)[:, allowed]
+    finally:
+        adata.file.close()
+
+    with initialize_config_dir(version_base=None, config_dir=str(upstream / "configs")):
+        config = compose(
+            config_name="rawdata_diffusion_sampling", overrides=["data=replogle_finetune"]
+        )
+    sample, kwargs = resolve_sampling_runner(config, model.diffusion, config.sampling.use_ddim)
+    part_seconds = []
+    with torch.inference_mode():
+        for begin in range(0, 300, 128):
+            chunk = controls[begin : begin + 128]
+            padded = np.pad(chunk, ((0, -len(chunk) % 32), (0, 0)), mode="edge")
+            encoded = torch.from_numpy(padded).cuda().reshape(-1, 32, len(allowed)) / 10.0
+            group_shape = encoded.shape[:2]
+            ids = {
+                "cov_pert": torch.full(group_shape, pert[condition.split("+")[0]], device="cuda"),
+                "cov_celltype": torch.full(group_shape, lines[line.lower()], device="cuda"),
+                "cov_batch": torch.full(group_shape, batches[batch_id], device="cuda"),
+            }
+            torch.cuda.synchronize()
+            start = time.perf_counter()
+            prediction, _ = sample(
+                model.model,
+                tuple(encoded.shape),
+                self_condition={
+                    "batch_emb": model._encode_covariates(ids),
+                    "cont_emb": encoded,
+                    "gene_emb": None,
+                    "ds_name": ["replogle"] * group_shape[0],
+                },
+                clip_denoised=config.sampling.clip_denoised,
+                device=encoded.device,
+                progress=False,
+                **kwargs,
+            )
+            torch.cuda.synchronize()
+            part_seconds.append(time.perf_counter() - start)
+            prediction = prediction.reshape(-1, len(allowed))[: len(chunk)]
+            if prediction.shape != chunk.shape or not torch.isfinite(prediction).all().item():
+                raise ValueError("official DDIM did not return a finite visible-axis prediction")
+            print(
+                f"sampled_rows={begin + len(chunk)}/300 seconds={part_seconds[-1]:.2f}", flush=True
+            )
+    return {
+        "model": "perturbdiff",
+        "scenario": "C2",
+        "status": "source_ddim_timing",
+        "formal_eligible": False,
+        "optimizer_updates": 0,
+        "test_conditions_accessed": 0,
+        "upstream_commit": COMMITS["perturbdiff"],
+        "checkpoint_sha256": fit_receipt["checkpoint_sha256"],
+        "fit_probe_receipt_sha256": sha256_file(previous / "result.json"),
+        "control_row_sha256": sha256_json(selected.tolist()),
+        "condition_id": condition,
+        "source_cell_line": line,
+        "output_shape": [300, len(allowed)],
+        "ddim_steps": kwargs["start_time"],
+        "guidance_strength": kwargs["guidance_strength"],
+        "batch_seconds": part_seconds,
+        "total_sample_seconds": sum(part_seconds),
+        "projected_128_conditions_sample_seconds": 128 * sum(part_seconds),
+    }
 
 
 def fit_prescribe(asset, train, val, output):
@@ -322,7 +437,12 @@ def main():
     parser.add_argument("model", choices=tuple(COMMITS))
     parser.add_argument("gpu", type=int, choices=(0, 1))
     parser.add_argument("output", type=Path)
+    parser.add_argument("--timing-from", type=Path)
     args = parser.parse_args()
+    if args.timing_from is not None:
+        args.timing_from = args.timing_from.resolve(strict=True)
+        if args.model != "perturbdiff" or args.timing_from.parent != STUDY:
+            raise ValueError("DDIM timing requires a server PerturbDiff fit probe")
     args.output = args.output.resolve()
     if args.output.parent != STUDY or os.environ.get("CUDA_VISIBLE_DEVICES") != str(args.gpu):
         raise ValueError("pin one physical GPU and a fresh server study output")
@@ -353,6 +473,12 @@ def main():
         del priors
         sys.path.insert(0, str(upstream))
         os.chdir(args.output)
+        if args.timing_from is not None:
+            receipt = time_perturbdiff(
+                upstream, asset, train, val, source, rows, cohort, args.timing_from, args.output
+            )
+            atomic_json(args.output / "result.json", {**receipt, "gpu": args.gpu})
+            return
         begin = time.monotonic()
         if args.model == "perturbdiff":
             mod, losses, valid, changes = fit_perturbdiff(upstream, asset, train, val)
