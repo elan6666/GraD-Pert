@@ -39,15 +39,64 @@ ACCUMULATION = 20
 LINE_NAMES = ("RPE1", "hepg2", "jurkat")
 
 
-def restore_encoder():
+def initialize_encoder(panel, train, compass):
+    """Construct the official wrapper and its training state for a fixed GRC order."""
     import jax
     import jax.numpy as jnp
-    from flax import serialization
     from scbig.models._gcae_impl import (
         BioInductiveAutoEncoder,
         create_bio_train_state,
         get_encoder_for_ablation,
     )
+
+    encoder = get_encoder_for_ablation(
+        "genecompass_pe_module",
+        latent_dim=50,
+        embed_dim=256,
+        num_layers=3,
+        num_heads=8,
+        mlp_dim=512,
+        dropout_rate=0.1,
+        chunk_size=64,
+        num_inducing=8,
+        pooling_type="mean",
+    )
+    encoder.set_priors(panel, genecompass_path=str(compass))
+    encoder.input_dim = len(panel)
+    encoder.X_mean = jnp.asarray(train.mean(axis=0, keepdims=True), dtype=jnp.float32)
+    names = (
+        "latent_dim",
+        "embed_dim",
+        "num_layers",
+        "num_heads",
+        "mlp_dim",
+        "dropout_rate",
+        "chunk_size",
+        "pe_type",
+        "attention_type",
+        "window_size",
+        "num_inducing",
+        "n_pathway_queries",
+        "use_pathway_pooling",
+        "pooling_type",
+    )
+    encoder.model = BioInductiveAutoEncoder(
+        output_dim=len(panel), **{name: getattr(encoder, name) for name in names}
+    )
+    encoder.state = create_bio_train_state(
+        encoder.model,
+        jax.random.PRNGKey(0),
+        (BATCH_CELLS, len(panel)),
+        1e-4,
+        encoder.ppi_mask,
+        encoder.scgpt_pe,
+        encoder.pathway_matrix,
+    )
+    return encoder
+
+
+def restore_encoder():
+    from flax import serialization
 
     receipt_path = ENCODER_PROBE / "result.json"
     inputs_path = ENCODER_PROBE / "encoder_inputs.json"
@@ -76,50 +125,8 @@ def restore_encoder():
     compass = RESOURCES / "genecompass_gene_embeddings_full.pkl"
     if sha256_file(compass) != receipt["asset_sha256"][compass.name]:
         raise ValueError("GeneCompass prior differs from the encoder receipt")
-    encoder = get_encoder_for_ablation(
-        "genecompass_pe_module",
-        latent_dim=50,
-        embed_dim=256,
-        num_layers=3,
-        num_heads=8,
-        mlp_dim=512,
-        dropout_rate=0.1,
-        chunk_size=64,
-        num_inducing=8,
-        pooling_type="mean",
-    )
-    encoder.set_priors(sorted_panel, genecompass_path=str(compass))
-    encoder.input_dim = len(panel)
-    encoder.X_mean = jnp.asarray(train.mean(axis=0, keepdims=True), dtype=jnp.float32)
-    names = (
-        "latent_dim",
-        "embed_dim",
-        "num_layers",
-        "num_heads",
-        "mlp_dim",
-        "dropout_rate",
-        "chunk_size",
-        "pe_type",
-        "attention_type",
-        "window_size",
-        "num_inducing",
-        "n_pathway_queries",
-        "use_pathway_pooling",
-        "pooling_type",
-    )
-    encoder.model = BioInductiveAutoEncoder(
-        output_dim=len(panel), **{name: getattr(encoder, name) for name in names}
-    )
-    template = create_bio_train_state(
-        encoder.model,
-        jax.random.PRNGKey(0),
-        (BATCH_CELLS, len(panel)),
-        1e-4,
-        encoder.ppi_mask,
-        encoder.scgpt_pe,
-        encoder.pathway_matrix,
-    )
-    encoder.state = serialization.from_bytes(template, weights.read_bytes())
+    encoder = initialize_encoder(sorted_panel, train, compass)
+    encoder.state = serialization.from_bytes(encoder.state, weights.read_bytes())
     restored = np.asarray(encoder.inverse_transform(encoder.transform(controls[:, order])))
     error = float(np.mean((restored[:, np.argsort(order)] - controls) ** 2))
     if int(encoder.state.step) != UPDATES or not np.isclose(
