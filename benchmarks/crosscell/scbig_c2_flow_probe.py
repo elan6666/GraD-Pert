@@ -35,6 +35,8 @@ from scripts.v2.shared_gpu import process_info, snapshot
 ENCODER_PROBE = STUDY / "scbig-crosscell-c2-official-encoder-smoke-a2"
 ENCODER_RECEIPT = "33c1cebef51bd88692d8b796961a893b7a8be922ad92572099597444a7468295"
 ASSETS_RECEIPT = "44e014d412ca61a70944f645ed33533ebc114fbfc9edc9ba42ef7d1a7a98e44b"
+FULL_AXIS_PROBE = STUDY / "scbig-crosscell-c2-masked-full-axis-smoke-a1"
+FULL_AXIS_RECEIPT = "ce0724430526f8959de5973599196f74f1c2225df8de2a20403ee0d4a72bd682"
 ACCUMULATION = 20
 LINE_NAMES = ("RPE1", "hepg2", "jurkat")
 
@@ -136,6 +138,57 @@ def restore_encoder():
     return encoder, sorted_panel, order, error
 
 
+def restore_full_axis_encoder():
+    from flax import serialization
+
+    receipt_path = FULL_AXIS_PROBE / "result.json"
+    inputs_path = FULL_AXIS_PROBE / "encoder_inputs.json"
+    weights = FULL_AXIS_PROBE / "encoder.msgpack"
+    if sha256_file(receipt_path) != FULL_AXIS_RECEIPT:
+        raise ValueError("full-axis encoder receipt changed")
+    receipt = read_json(receipt_path)
+    if (
+        receipt["status"] != "full_axis_gcae_smoke_complete"
+        or receipt["test_conditions_accessed"]
+        or receipt["fit_masked_input_columns"] != 128
+        or receipt["fit_masked_loss_columns"] != 128
+        or sha256_file(inputs_path) != receipt["inputs_sha256"]
+        or sha256_file(weights) != receipt["checkpoint_sha256"]
+    ):
+        raise ValueError("full-axis encoder artifacts disagree with the source-only receipt")
+    inputs = read_json(inputs_path)
+    visible, (train, val, _), row_hashes = source_inputs()
+    panel = inputs["grc_gene_order"]
+    order = np.asarray(inputs["grc_indices"])
+    if len(panel) != 3352 or any(inputs[key] != value for key, value in row_hashes.items()):
+        raise ValueError("full-axis encoder positions or source input rows changed")
+    positions = {gene: i for i, gene in enumerate(visible)}
+    keep = np.asarray([gene in positions for gene in panel])
+    selected = [positions[gene] for gene in panel if gene in positions]
+
+    def pack(values):
+        result = np.zeros((len(values), len(panel)), dtype=np.float32)
+        result[:, keep] = values[:, selected]
+        return result
+
+    manifest = RESOURCES / "release-assets-a1.json"
+    compass = RESOURCES / "genecompass_gene_embeddings_full.pkl"
+    if sha256_file(manifest) != ASSETS_RECEIPT or (
+        sha256_file(compass) != read_json(manifest)[compass.name]["sha256"]
+    ):
+        raise ValueError("released prior changed")
+    encoder = initialize_encoder(panel, pack(train), compass)
+    encoder.state = serialization.from_bytes(encoder.state, weights.read_bytes())
+    validation = pack(val)
+    reconstruction = np.asarray(encoder.inverse_transform(encoder.transform(validation)))
+    mse = float(np.mean((reconstruction[:, keep] - validation[:, keep]) ** 2))
+    if int(encoder.state.step) != UPDATES or not np.isclose(
+        mse, receipt["visible_source_validation_mse"], rtol=1e-6
+    ):
+        raise ValueError("full-axis encoder reload failed the original validation check")
+    return encoder, panel, order, mse
+
+
 def flow_inputs(panel, bank):
     source, _, cohort, frozen = cohort_inputs()
     support = STUDY / "frozen/crosscell-c2-shared-fit-support-a1.json"
@@ -173,12 +226,19 @@ def flow_inputs(panel, bank):
         used = np.r_[training, val_control, val_ids]
         if np.intersect1d(used, np.r_[frozen["test"], frozen["target_control"]]).size:
             raise ValueError("target-line rows entered the source-only flow probe")
-        columns = adata.var_names.get_indexer(panel).tolist()
+        held = set(cohort["masked_genes_in_expression_order"])
+        keep = np.asarray([gene not in held for gene in panel])
+        columns = adata.var_names.get_indexer(np.asarray(panel)[keep]).tolist()
         if min(columns) < 0:
             raise ValueError("encoder gene order is missing from the frozen expression axis")
 
         def read(ids):
-            return read_allowed_rows(adata, ids, columns, adata.n_vars).toarray()
+            values = read_allowed_rows(adata, ids, columns, adata.n_vars).toarray()
+            if keep.all():
+                return values
+            packed = np.zeros((len(ids), len(panel)), dtype=np.float32)
+            packed[:, keep] = values
+            return packed
 
         def obs(ids):
             slots = [c.split("+") for c in labels[ids]]
@@ -209,7 +269,7 @@ def flow_inputs(panel, bank):
         adata.file.close()
 
 
-def execute(output):
+def execute(output, full_axis=False):
     import jax
     import optax
     import torch
@@ -221,7 +281,8 @@ def execute(output):
     if len(devices) != 1 or devices[0].platform != "gpu":
         raise RuntimeError("the released flow did not receive one CUDA device")
     started = time.monotonic()
-    encoder, panel, order, reconstruction_mse = restore_encoder()
+    restore = restore_full_axis_encoder if full_axis else restore_encoder
+    encoder, panel, order, reconstruction_mse = restore()
     print("Verified the original encoder reconstruction. Encoder updates this run: 0.", flush=True)
     assets_path = RESOURCES / "release-assets-a1.json"
     if sha256_file(assets_path) != ASSETS_RECEIPT:
@@ -309,19 +370,29 @@ def execute(output):
     (latent,) = predictions.values()
     decoded = np.asarray(encoder.inverse_transform(latent))[:, np.argsort(order)]
     if decoded.shape != (300, len(panel)) or not np.isfinite(decoded).all():
-        raise ValueError("scBIG did not decode 300 source controls on the visible C2 axis")
+        raise ValueError("scBIG did not decode 300 source controls on the sealed gene axis")
+    if full_axis:
+        _, _, cohort, _ = cohort_inputs()
+        held = np.isin(
+            np.asarray(panel)[np.argsort(order)], cohort["masked_genes_in_expression_order"]
+        )
+        if held.sum() != 128 or (np.std(decoded[:, held], axis=0, dtype=np.float64) == 0).any():
+            raise ValueError("the full-axis flow did not produce varying held outputs")
     atomic_json(
         output / "result.json",
         {
-            "status": "visible_axis_flow_smoke_complete",
+            "status": "full_axis_flow_smoke_complete"
+            if full_axis
+            else "visible_axis_flow_smoke_complete",
             "scenario": "C2",
             "formal_eligible": False,
+            "full_axis_source_prediction_verified": full_axis,
             "full_scoring_axis_verified": False,
             "upstream_commit": COMMIT,
             "source_commit": subprocess.check_output(
                 ["git", "rev-parse", "HEAD"], text=True
             ).strip(),
-            "encoder_receipt_sha256": ENCODER_RECEIPT,
+            "encoder_receipt_sha256": FULL_AXIS_RECEIPT if full_axis else ENCODER_RECEIPT,
             "encoder_reload_reconstruction_mse": reconstruction_mse,
             "encoder_updates": 0,
             "flow_microsteps": ACCUMULATION,
@@ -345,6 +416,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--gpu-uuid", required=True)
+    parser.add_argument("--full-axis", action="store_true")
     args = parser.parse_args()
     output = args.output.resolve()
     if output.parent != STUDY or any(
@@ -369,14 +441,14 @@ def main():
         atomic_json(
             output / "worker.json",
             {
-                "stage": "visible_axis_flow_smoke",
+                "stage": "full_axis_flow_smoke" if args.full_axis else "visible_axis_flow_smoke",
                 "owner": process_info(os.getpid()),
                 "physical_gpu": 1,
                 "gpu_uuid": args.gpu_uuid,
             },
         )
         sys.path.insert(0, str(UPSTREAM))
-        execute(output)
+        execute(output, full_axis=args.full_axis)
 
 
 if __name__ == "__main__":
