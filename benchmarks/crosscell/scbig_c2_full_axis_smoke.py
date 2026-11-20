@@ -84,10 +84,7 @@ def stage1_inputs(source, cohort, frozen, budgeted):
     )
 
 
-def fit_full_axis(output, stage1_fit_seconds=None):
-    import jax
-    import jax.numpy as jnp
-    from flax import serialization
+def full_axis_grc(full_axis, compass, info, links):
     from scbig.clustering.grc import (
         build_gene_embedding_matrix,
         formula1_grc_clustering,
@@ -95,6 +92,30 @@ def fit_full_axis(output, stage1_fit_seconds=None):
         load_string_ppi_adjacency,
         reorder_genes_by_cluster,
     )
+
+    print("Building full-axis GRC order from external gene priors only", flush=True)
+    embedding, coverage = build_gene_embedding_matrix(
+        full_axis, *load_genecompass(compass), fill_missing=True, random_seed=SEED
+    )
+    adjacency, edges = load_string_ppi_adjacency(full_axis, info, links, min_score=700)
+    labels, _ = formula1_grc_clustering(
+        embedding,
+        adjacency,
+        n_clusters=32,
+        n_refinement_steps=3,
+        sinkhorn_reg=0.1,
+        semantic_weight=1.0,
+        ppi_weight=1.0,
+        random_state=SEED,
+    )
+    genes, sorted_labels, order = reorder_genes_by_cluster(full_axis, labels, return_order=True)
+    return genes, sorted_labels, order, coverage, edges
+
+
+def fit_full_axis(output, stage1_fit_seconds=None):
+    import jax
+    import jax.numpy as jnp
+    from flax import serialization
     from scbig.models._gcae_impl import train_step_bio
 
     devices = jax.devices()
@@ -140,22 +161,7 @@ def fit_full_axis(output, stage1_fit_seconds=None):
         coverage = mapping["genecompass_coverage"]
         edges = mapping["string_edges"]
     else:
-        print("Building full-axis GRC order from external gene priors only", flush=True)
-        embedding, coverage = build_gene_embedding_matrix(
-            full_axis, *load_genecompass(compass), fill_missing=True, random_seed=SEED
-        )
-        adjacency, edges = load_string_ppi_adjacency(full_axis, info, links, min_score=700)
-        labels, _ = formula1_grc_clustering(
-            embedding,
-            adjacency,
-            n_clusters=32,
-            n_refinement_steps=3,
-            sinkhorn_reg=0.1,
-            semantic_weight=1.0,
-            ppi_weight=1.0,
-            random_state=SEED,
-        )
-        genes, _, order = reorder_genes_by_cluster(full_axis, labels, return_order=True)
+        genes, _, order, coverage, edges = full_axis_grc(full_axis, compass, info, links)
     mask = np.asarray([gene in kept for gene in genes], dtype=bool)
     if list(np.asarray(genes)[np.argsort(order)]) != full_axis or int(mask.sum()) != len(visible):
         raise ValueError("GRC did not preserve the canonical C2 axis")
