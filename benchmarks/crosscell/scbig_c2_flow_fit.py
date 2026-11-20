@@ -107,14 +107,20 @@ def audited_prior(esm, genes):
     missing = set(genes) - bank.keys()
     if missing != set(genes).intersection(audit["fit_missing"]):
         raise ValueError("exact ESM2 support differs from the C2 fit audit")
-    choices = {gene: set() for gene in missing}
-    for approved, previous, synonyms in records.itertuples(index=False, name=None):
+    previous_symbols = {gene: set() for gene in missing}
+    synonyms = {gene: set() for gene in missing}
+    ordered = records[["symbol", "prev_symbol", "alias_symbol"]]
+    for approved, previous, alternate in ordered.itertuples(index=False, name=None):
         if approved not in bank:
             continue
-        for alias in missing.intersection((*previous.split("|"), *synonyms.split("|"))):
-            choices[alias].add(approved)
-    if any(len(matches) != 1 for matches in choices.values()):
-        raise ValueError(f"non-unique or missing official ESM2 mappings: {choices}")
+        for gene in missing.intersection(previous.split("|")):
+            previous_symbols[gene].add(approved)
+        for gene in missing.intersection(alternate.split("|")):
+            synonyms[gene].add(approved)
+    choices = {gene: previous_symbols[gene] or synonyms[gene] for gene in missing}
+    unresolved = {gene: sorted(matches) for gene, matches in choices.items() if len(matches) != 1}
+    if unresolved:
+        raise ValueError(f"non-unique or missing official ESM2 mappings: {unresolved}")
     aliases = {key: next(iter(choices[key])) for key in sorted(choices)}
     result = {
         gene: np.asarray(bank[aliases.get(gene, gene)], dtype=np.float32).reshape(-1)
