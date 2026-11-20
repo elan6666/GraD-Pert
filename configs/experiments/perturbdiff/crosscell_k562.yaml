@@ -1,0 +1,17 @@
+# Released Replogle settings with project-preregistered C2 horizon.
+seed: 42
+expression_genes: 3352
+batch_cells: 128
+cell_set_size: 32
+input_divisor: 10.0
+learning_rate: 0.002
+max_updates: 4800
+max_fit_seconds: 7500
+max_wall_seconds: 10500
+validation_batches: 5
+smoke_updates: 10
+ddim_steps: 100
+guidance_strength: 1.0
+evaluation_seed: 42
+unseen_batch: mean_fitted_embedding
+allowed_missing_fit_target: CCDC130

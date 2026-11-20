@@ -162,24 +162,38 @@ def prepare(path, rows, cohort, priors, seed, output, *, full_axis=False):
         adata.file.close()
 
 
-def build_perturbdiff(upstream, asset, train, val):
+def build_perturbdiff(
+    upstream,
+    asset,
+    train=None,
+    val=None,
+    *,
+    vocabulary=None,
+    genes=None,
+    cell_prior=None,
+    max_steps=200000,
+):
     from hydra import compose, initialize_config_dir
     from src.models.lightning.lightning_module import PlModel
 
-    genes = train[0].shape[-1]
-    keys = train[2] + val[2]
-    pert = {
-        g: i for i, g in enumerate(sorted({"non-targeting", *(c.split("+")[0] for c, _ in keys)}))
-    }
-    lines = {name: i for i, name in enumerate(sorted({context[0].lower() for _, context in keys}))}
-    batches = {name: i for i, name in enumerate(sorted({context[1] for _, context in keys}))}
+    if vocabulary is None:
+        genes = train[0].shape[-1]
+        keys = train[2] + val[2]
+        targets = {"non-targeting", *(c.split("+")[0] for c, _ in keys)}
+        pert = {name: i for i, name in enumerate(sorted(targets))}
+        lines = {
+            name: i for i, name in enumerate(sorted({context[0].lower() for _, context in keys}))
+        }
+        batches = {name: i for i, name in enumerate(sorted({context[1] for _, context in keys}))}
+    else:
+        pert, lines, batches = (vocabulary[name] for name in ("pert", "cell_line", "batch"))
     with initialize_config_dir(version_base=None, config_dir=str(upstream / "configs")):
         cfg = compose(
             config_name="rawdata_diffusion_training",
             overrides=[
                 "data=replogle_finetune",
                 "optimization.optimizer.lr=0.002",
-                "trainer.max_steps=200000",
+                f"trainer.max_steps={max_steps}",
                 "cov_encoding.replogle_gene_encoding=genept",
                 "model.p_drop_control=0",
                 f"model.input_dim={genes}",
@@ -188,7 +202,7 @@ def build_perturbdiff(upstream, asset, train, val):
                 "cov_encoding.celltype_encoding=llm",
             ],
         )
-    cell_prior = asset.with_name("celltype.pkl")
+    cell_prior = cell_prior or asset.with_name("celltype.pkl")
     if sha256_file(cell_prior) != CELL_PRIOR_SHA:
         raise ValueError("official released cell-type embeddings changed")
     cfg.cov_encoding.celltype_embedding_path = str(cell_prior)
@@ -211,29 +225,34 @@ def build_perturbdiff(upstream, asset, train, val):
     return mod, pert, lines, batches
 
 
+def install_perturbdiff_fit_mask(model, genes, visible_indices):
+    if visible_indices is None:
+        return 1.0, None
+    device = next(model.parameters()).device
+    keep = torch.zeros(genes, dtype=torch.bool, device=device)
+    keep[visible_indices] = True
+    loss_scale = len(visible_indices) / genes
+
+    def hide_unobserved_response(_layer, _inputs, values):
+        return {
+            **values,
+            "x": values["x"].masked_fill(~keep, 0),
+            "x_control": values["x_control"].masked_fill(~keep, 0),
+        }
+
+    projection = model.model.register_forward_hook(hide_unobserved_response)
+    # Energy distance is unchanged by padding. Compensate for the MSE divisor
+    # so the official loss still reduces over observed expression.
+    model.optimizer_cfg.MMD_loss_factor *= loss_scale
+    return loss_scale, projection
+
+
 def fit_perturbdiff(upstream, asset, train, val, visible_indices=None):
     mod, pert, lines, batches = build_perturbdiff(upstream, asset, train, val)
     optimizers, schedules = mod.configure_optimizers()
     opt, schedule = optimizers[0], schedules[0]["scheduler"]
 
-    loss_scale = 1.0
-    projection = None
-    if visible_indices is not None:
-        keep = torch.zeros(train[0].shape[-1], dtype=torch.bool, device="cuda")
-        keep[visible_indices] = True
-        loss_scale = len(visible_indices) / len(keep)
-
-        def hide_unobserved_response(_layer, _inputs, values):
-            return {
-                **values,
-                "x": values["x"].masked_fill(~keep, 0),
-                "x_control": values["x_control"].masked_fill(~keep, 0),
-            }
-
-        projection = mod.model.register_forward_hook(hide_unobserved_response)
-        # Energy distance is unaffected by padded zeros. Preserve its relative
-        # weight after the official MSE averages over the wider tensor.
-        mod.optimizer_cfg.MMD_loss_factor *= loss_scale
+    loss_scale, projection = install_perturbdiff_fit_mask(mod, train[0].shape[-1], visible_indices)
 
     def compute(batch, start):
         y, x, contexts = batch

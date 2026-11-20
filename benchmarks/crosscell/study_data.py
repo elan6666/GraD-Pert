@@ -58,6 +58,7 @@ def score(
     output,
     *,
     journal_key=None,
+    include_control_row_ids=False,
     stop_starting_conditions_at=None,
 ):
     ids = cohort["condition_ids"]
@@ -106,7 +107,11 @@ def score(
             if len(control_ids) != 300 or not np.isin(control_ids, target_controls).all():
                 raise ValueError("prediction requires 300 ordered K562 controls")
             controls = read_rows(adata, control_ids)
-            prediction = predict_controls(condition, controls)
+            prediction = (
+                predict_controls(condition, controls, control_ids)
+                if include_control_row_ids
+                else predict_controls(condition, controls)
+            )
             if prediction.shape != controls.shape or not np.isfinite(prediction).all():
                 raise ValueError("frozen prediction requires a finite, full-axis matrix")
             truth_rows = np.asarray(draw["truth_rows"])
