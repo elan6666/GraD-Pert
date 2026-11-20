@@ -282,17 +282,43 @@ def time_perturbdiff(upstream, asset, train, val, source, rows, cohort, previous
         control_obs = adata.obs.iloc[available]
         ctl_lines = control_obs["cell_line"].astype(str).to_numpy()
         ctl_batches = control_obs["batch"].astype(str).to_numpy()
+        compatible = np.isin(ctl_batches, list(batches))
         candidates = [
-            (c, line, batch, available[(ctl_lines == line) & (ctl_batches == batch)])
-            for c, (line, batch) in val[2]
+            (c, line, available[compatible & (ctl_lines == line)]) for c, (line, _) in val[2]
         ]
-        condition, line, batch_id, positions = max(candidates, key=lambda item: len(item[-1]))
+        condition, line, positions = max(candidates, key=lambda item: len(item[-1]))
         if len(positions) < 300 or line.lower() == "k562":
-            raise ValueError("the trained vocabulary lacks a validation context with 300 controls")
-        selected = np.sort(np.random.default_rng(42).choice(positions, 300, replace=False))
-        if not (adata.obs.iloc[selected]["condition"].astype(str) == "ctrl").all():
-            raise ValueError("non-control rows in the sampling benchmark")
-        controls = read_rows(adata, selected)[:, allowed]
+            raise ValueError("the checkpoint lacks a source line with 300 representable controls")
+
+        # Each cell set stays within a batch, as in the released Replogle sampler.
+        within_line = adata.obs.iloc[positions]["batch"].astype(str).to_numpy()
+        by_batch = [(b, positions[within_line == b]) for b in np.unique(within_line)]
+        rng = np.random.default_rng(42)
+        selected_groups = []
+        remaining = 300
+        for batch_id, candidates in sorted(by_batch, key=lambda item: -len(item[1])):
+            count = min(len(candidates), remaining)
+            sampled = np.sort(rng.choice(candidates, count, replace=False))
+            for offset in range(0, count, 32):
+                group = sampled[offset : offset + 32]
+                selected_groups.append((batch_id, group))
+            remaining -= count
+            if remaining == 0:
+                break
+        selected = np.concatenate([group for _, group in selected_groups])
+        if (
+            len(np.unique(selected)) != 300
+            or not (adata.obs.iloc[selected]["condition"].astype(str) == "ctrl").all()
+        ):
+            raise ValueError("the sampling benchmark requires 300 distinct source controls")
+        controls = [
+            (
+                batch_id,
+                len(group),
+                read_rows(adata, np.pad(group, (0, 32 - len(group)), mode="edge"))[:, allowed],
+            )
+            for batch_id, group in selected_groups
+        ]
     finally:
         adata.file.close()
 
@@ -302,16 +328,17 @@ def time_perturbdiff(upstream, asset, train, val, source, rows, cohort, previous
         )
     sample, kwargs = resolve_sampling_runner(config, model.diffusion, config.sampling.use_ddim)
     part_seconds = []
+    completed = 0
     with torch.inference_mode():
-        for begin in range(0, 300, 128):
-            chunk = controls[begin : begin + 128]
-            padded = np.pad(chunk, ((0, -len(chunk) % 32), (0, 0)), mode="edge")
-            encoded = torch.from_numpy(padded).cuda().reshape(-1, 32, len(allowed)) / 10.0
+        for begin in range(0, len(controls), 4):
+            chunk = controls[begin : begin + 4]
+            encoded = torch.from_numpy(np.stack([x for _, _, x in chunk])).cuda() / 10.0
             group_shape = encoded.shape[:2]
+            batch_indices = torch.tensor([batches[b] for b, _, _ in chunk], device="cuda")
             ids = {
                 "cov_pert": torch.full(group_shape, pert[condition.split("+")[0]], device="cuda"),
                 "cov_celltype": torch.full(group_shape, lines[line.lower()], device="cuda"),
-                "cov_batch": torch.full(group_shape, batches[batch_id], device="cuda"),
+                "cov_batch": batch_indices[:, None].expand(group_shape),
             }
             torch.cuda.synchronize()
             start = time.perf_counter()
@@ -331,12 +358,10 @@ def time_perturbdiff(upstream, asset, train, val, source, rows, cohort, previous
             )
             torch.cuda.synchronize()
             part_seconds.append(time.perf_counter() - start)
-            prediction = prediction.reshape(-1, len(allowed))[: len(chunk)]
-            if prediction.shape != chunk.shape or not torch.isfinite(prediction).all().item():
+            if prediction.shape != encoded.shape or not torch.isfinite(prediction).all().item():
                 raise ValueError("official DDIM did not return a finite visible-axis prediction")
-            print(
-                f"sampled_rows={begin + len(chunk)}/300 seconds={part_seconds[-1]:.2f}", flush=True
-            )
+            completed += sum(count for _, count, _ in chunk)
+            print(f"sampled_rows={completed}/300 seconds={part_seconds[-1]:.2f}", flush=True)
     return {
         "model": "perturbdiff",
         "scenario": "C2",
@@ -350,7 +375,8 @@ def time_perturbdiff(upstream, asset, train, val, source, rows, cohort, previous
         "control_row_sha256": sha256_json(selected.tolist()),
         "condition_id": condition,
         "source_cell_line": line,
-        "output_shape": [300, len(allowed)],
+        "output_shape": [completed, len(allowed)],
+        "padded_rows": len(controls) * 32 - completed,
         "ddim_steps": kwargs["start_time"],
         "guidance_strength": kwargs["guidance_strength"],
         "batch_seconds": part_seconds,
