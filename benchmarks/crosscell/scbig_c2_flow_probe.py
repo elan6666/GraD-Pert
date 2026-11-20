@@ -269,12 +269,47 @@ def flow_inputs(panel, bank):
         adata.file.close()
 
 
+def initialize_flow(adata):
+    import optax
+    from cellflow.model import CellFlow
+
+    flow = CellFlow(adata, solver="otfm")
+    flow.prepare_data(
+        sample_rep="X_pca",
+        control_key="is_control",
+        perturbation_covariates={"pert": ["pert1", "pert2"]},
+        perturbation_covariate_reps={"pert": "pert_embeddings"},
+        sample_covariates=["cell_line"],
+        sample_covariate_reps={"cell_line": "cell_line_embeddings"},
+        split_covariates=["cell_line"],
+        max_combination_length=2,
+        null_value=0.0,
+    )
+    optimizer = optax.MultiSteps(
+        optax.chain(optax.clip_by_global_norm(1.0), optax.scale_by_adam(), optax.scale(-5e-5)),
+        ACCUMULATION,
+    )
+    flow.prepare_model(
+        condition_mode="deterministic",
+        regularization=0.0,
+        pooling="attention_seed",
+        condition_embedding_dim=256,
+        time_encoder_dims=(1024, 1024),
+        hidden_dims=(1024, 1024),
+        decoder_dims=(1024, 1024),
+        hidden_dropout=0.1,
+        decoder_dropout=0.1,
+        optimizer=optimizer,
+        probability_path={"constant_noise": 0.5},
+        condition_encoder_kwargs={},
+    )
+    return flow
+
+
 def execute(output, full_axis=False):
     import jax
-    import optax
     import torch
     from cellflow.data._dataloader import TrainSampler
-    from cellflow.model import CellFlow
     from flax import serialization
 
     devices = jax.devices()
@@ -310,36 +345,7 @@ def execute(output, full_axis=False):
 
     train_data = latent_data(x, train_obs)
     validation_controls = latent_data(controls, control_obs)
-    flow = CellFlow(train_data, solver="otfm")
-    flow.prepare_data(
-        sample_rep="X_pca",
-        control_key="is_control",
-        perturbation_covariates={"pert": ["pert1", "pert2"]},
-        perturbation_covariate_reps={"pert": "pert_embeddings"},
-        sample_covariates=["cell_line"],
-        sample_covariate_reps={"cell_line": "cell_line_embeddings"},
-        split_covariates=["cell_line"],
-        max_combination_length=2,
-        null_value=0.0,
-    )
-    optimizer = optax.MultiSteps(
-        optax.chain(optax.clip_by_global_norm(1.0), optax.scale_by_adam(), optax.scale(-5e-5)),
-        ACCUMULATION,
-    )
-    flow.prepare_model(
-        condition_mode="deterministic",
-        regularization=0.0,
-        pooling="attention_seed",
-        condition_embedding_dim=256,
-        time_encoder_dims=(1024, 1024),
-        hidden_dims=(1024, 1024),
-        decoder_dims=(1024, 1024),
-        hidden_dropout=0.1,
-        decoder_dropout=0.1,
-        optimizer=optimizer,
-        probability_path={"constant_noise": 0.5},
-        condition_encoder_kwargs={},
-    )
+    flow = initialize_flow(train_data)
     sampler = TrainSampler(data=flow.train_data, batch_size=1024)
     rng = jax.random.PRNGKey(SEED)
     host_rng = np.random.default_rng(SEED)
