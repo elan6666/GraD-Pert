@@ -43,12 +43,14 @@ def hgnc_links():
     return links
 
 
-def reconcile(names, vocabulary, links):
+def reconcile(names, vocabulary, links, *, verified_aliases):
     claimed = defaultdict(list)
     mapping = {}
     missing = []
     for name in sorted(set(names)):
-        if name in vocabulary:
+        if name in verified_aliases and verified_aliases[name] in vocabulary:
+            resolved = verified_aliases[name]
+        elif name in vocabulary:
             resolved = name
         else:
             matches = links.get(name, ())
@@ -75,7 +77,7 @@ def reconcile(names, vocabulary, links):
     }
 
 
-def scfoundation(panel, test, links, vocab):
+def scfoundation(panel, test, links, vocab, verified_aliases):
     vocabulary = vocab_names(vocab)
     return {
         "checkpoint_path": str(FOUNDATION_WEIGHTS),
@@ -85,8 +87,8 @@ def scfoundation(panel, test, links, vocab):
         if FOUNDATION_WEIGHTS.is_file()
         else None,
         "vocabulary_sha256": sha256_file(vocab),
-        "expression": reconcile(panel, vocabulary, links),
-        "test": reconcile(test, vocabulary, links),
+        "expression": reconcile(panel, vocabulary, links, verified_aliases=verified_aliases),
+        "test": reconcile(test, vocabulary, links, verified_aliases=verified_aliases),
     }
 
 
@@ -95,7 +97,7 @@ def vocab_names(path):
         return {row["gene_name"] for row in csv.DictReader(stream, delimiter="\t")}
 
 
-def prescribe(training, test, links):
+def prescribe(training, test, links, verified_aliases):
     from src.nn.loss import ListMLELoss
 
     path = UPSTREAMS / "prescribe-c2-study-assets/scgpt-primary.pkl"
@@ -117,8 +119,8 @@ def prescribe(training, test, links):
     (reversed_gradient,) = torch.autograd.grad(second, scores)
     return {
         "released_prior_sha256": PRIOR_SHA["prescribe"],
-        "training": reconcile(training, vocabulary, links),
-        "test": reconcile(test, vocabulary, links),
+        "training": reconcile(training, vocabulary, links, verified_aliases=verified_aliases),
+        "test": reconcile(test, vocabulary, links, verified_aliases=verified_aliases),
         "prior_fit_pca_sha256": sha256_file(pca_path),
         "prior_fit_pca_width": pca_width,
         "prior_fit_pca_rank": pca_rank,
@@ -129,6 +131,20 @@ def prescribe(training, test, links):
             "maximum_gradient_difference": float((gradient - reversed_gradient).abs().max()),
         },
     }
+
+
+def verify_qars_alias(conditions, lines, links):
+    """Disambiguate the retired QARS name for the frozen C2 source vocabulary."""
+    if not any(approved == "QARS1" and tier == 1 for tier, approved, _ in links["QARS"]):
+        raise ValueError("HGNC no longer lists QARS as a previous QARS1 symbol")
+    paired_names = {"QARS+ctrl", "EPRS+ctrl"}
+    for line in ("K562", "RPE1", "hepg2", "jurkat"):
+        line_conditions = set(conditions[lines == line])
+        if not paired_names <= line_conditions:
+            raise ValueError(
+                f"C2 metadata no longer independently identifies QARS and EPRS in {line}"
+            )
+    return {"QARS": "QARS1"}
 
 
 def main():
@@ -152,12 +168,22 @@ def main():
         }
         test = {condition.removesuffix("+ctrl") for condition in cohort["condition_ids"]}
         count_metadata = [str(key) for key in adata.obs if "count" in str(key).lower()]
+        lines = adata.obs["cell_line"].astype(str).to_numpy()
+        layers = list(adata.layers)
+        raw_present = adata.raw is not None
     finally:
         adata.file.close()
     if len(panel) != 3352 or len(training) != 1957 or len(test) != 128 or training & test:
         raise ValueError("unexpected frozen C2 identities")
     links = hgnc_links()
     vocab = UPSTREAMS / "scfoundation-c2-study/OS_scRNA_gene_index.19264.tsv"
+    aliases = verify_qars_alias(conditions, lines, links)
+    foundation = scfoundation(panel, test, links, vocab, aliases)
+    prescribed = prescribe(training, test, links, aliases)
+    missing = set(foundation["expression"]["unresolved"])
+    held = set(cohort["masked_genes_in_expression_order"])
+    prior_missing = set(prescribed["training"]["unresolved"])
+    common = [gene for gene in panel if gene not in missing and gene not in held]
     atomic_json(
         args.output,
         {
@@ -168,8 +194,31 @@ def main():
             "expression_matrices_materialized": False,
             "test_expression_rows_read": 0,
             "count_metadata_columns": count_metadata,
-            "scfoundation": scfoundation(panel, test, links, vocab),
-            "prescribe": prescribe(training, test, links),
+            "raw_expression_layers": layers,
+            "anndata_raw_present": raw_present,
+            "verified_symbol_aliases": aliases,
+            "qars_reference_hgnc_id": "HGNC:9751",
+            "scfoundation": foundation,
+            "prescribe": prescribed,
+            "coverage_options": {
+                "total_scoring_genes": len(panel),
+                "conditions_with_resolved_target_symbols": len(test)
+                - len(
+                    set(foundation["test"]["unresolved"]) | set(prescribed["test"]["unresolved"])
+                ),
+                "scfoundation_without_model_output": [gene for gene in panel if gene in missing],
+                "prescribe_without_model_output": [gene for gene in panel if gene in held],
+                "common_model_output_genes": len(common),
+                "common_model_output_gene_names": common,
+                "prescribe_unavailable_prior_fit_rows": {
+                    role: {
+                        gene: int(np.count_nonzero(conditions[positions] == f"{gene}+ctrl"))
+                        for gene in sorted(prior_missing)
+                    }
+                    for role, positions in roles.items()
+                    if role in ("train", "val")
+                },
+            },
         },
     )
 
