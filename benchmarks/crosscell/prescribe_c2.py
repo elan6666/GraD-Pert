@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 
 from benchmarks.common import official_module_session
 from benchmarks.common.study_fit_partition import allowed_expression_indices, crosscell_fit_rows
-from benchmarks.crosscell.common_score_panel import PANEL, load_panel
+from benchmarks.crosscell.common_score_panel import AUDIT, AUDIT_SHA, PANEL, load_panel
 from benchmarks.crosscell.official_fit_probe import COMMITS, PRIOR_SHA, SUPPORT_SHA
 from benchmarks.crosscell.study_data import cohort_inputs, score
 from benchmarks.crosscell.study_paths import (
@@ -45,31 +45,30 @@ UPSTREAM = SERVER / "upstreams/prescribe-c2-study"
 ASSETS = UPSTREAM.with_name(UPSTREAM.name + "-assets")
 SUPPORT = STUDY / "frozen/crosscell-c2-shared-fit-support-a1.json"
 PANEL_SHA = "931d25e3153c220b07b3ca9c1410b90d3f66c851b8259c2a3cfd0cd48f2074ca"
-ALIAS = {"QARS": "QARS1"}
 MISSING = "TBCE"
 
 
-def condition_target(condition):
+def condition_target(condition, aliases):
     if not condition.endswith("+ctrl") or condition.count("+") != 1:
         raise ValueError(f"C2 requires one target per treatment: {condition}")
     target = condition.removesuffix("+ctrl")
-    return ALIAS.get(target, target)
+    return aliases.get(target, target)
 
 
-def build_embedding_bank(train_names, val_names, test_names):
+def build_embedding_bank(train_names, val_names, test_names, aliases):
     path = ASSETS / "scgpt-primary.pkl"
     if sha256_file(path) != PRIOR_SHA["prescribe"]:
         raise ValueError("released scGPT embedding bank changed")
     with path.open("rb") as file:
         prior = pickle.load(file)
-    fit = {condition_target(c) for c in (*train_names, *val_names)}
-    test = {condition_target(c) for c in test_names}
+    fit = {condition_target(c, aliases) for c in (*train_names, *val_names)}
+    test = {condition_target(c, aliases) for c in test_names}
     if fit & test or fit - prior.keys() != {MISSING} or test - prior.keys():
         raise ValueError("frozen released-prior coverage changed")
     bank = {
         gene: np.asarray(prior[gene], dtype=np.float32) for gene in sorted((fit | test) - {MISSING})
     }
-    supported_train = sorted({condition_target(c) for c in train_names} & bank.keys())
+    supported_train = sorted({condition_target(c, aliases) for c in train_names} & bank.keys())
     bank[MISSING] = (
         np.stack([bank[gene] for gene in supported_train])
         .mean(0, dtype=np.float64)
@@ -116,7 +115,18 @@ def fit_data(source, cohort, rows, compatibility, cfg):
     names, lines, batches = names[fit], lines[fit], batches[fit]
     train, val, controls = [roles[role] for role in ("train", "val", "source_control")]
     train_names, val_names = [sorted(set(names[role])) for role in (train, val)]
-    bank, supported_train = build_embedding_bank(train_names, val_names, cohort["condition_ids"])
+    if sha256_file(AUDIT) != AUDIT_SHA:
+        raise ValueError("the C2 vocabulary audit changed")
+    coverage = read_json(AUDIT)["prescribe"]
+    fit_aliases, test_aliases = (coverage[role]["aliases"] for role in ("training", "test"))
+    if any(
+        fit_aliases[key] != test_aliases[key] for key in fit_aliases.keys() & test_aliases.keys()
+    ):
+        raise ValueError("C2 vocabulary aliases disagree")
+    aliases = {**fit_aliases, **test_aliases}
+    bank, supported_train = build_embedding_bank(
+        train_names, val_names, cohort["condition_ids"], aliases
+    )
     missing_counts = {
         role: int((names[indices] == "TBCE+ctrl").sum())
         for role, indices in (("train", train), ("val", val))
@@ -160,7 +170,7 @@ def fit_data(source, cohort, rows, compatibility, cfg):
         "rank_target": "released_squared_euclidean_sample_corrected_e_distance",
         "rank_target_scope": "train_treatment_and_source_controls_only",
         "rank_targets_sha256": sha256_json(ranks),
-        "target_aliases": ALIAS,
+        "target_aliases": aliases,
     }
     return matrix, cols, visible, roles, names, pca, pca_rows, ranks, paired, bank, receipt
 
@@ -176,10 +186,10 @@ class Batch(dict):
         raise AttributeError(name)
 
 
-def prepare_batch(controls, conditions, **targets):
+def prepare_batch(controls, conditions, aliases, **targets):
     return Batch(
         x=torch.as_tensor(controls, dtype=torch.float32),
-        pert=[f"{condition_target(c)}+ctrl" for c in conditions],
+        pert=[f"{condition_target(c, aliases)}+ctrl" for c in conditions],
         **targets,
     )
 
@@ -225,6 +235,7 @@ def run(output, identity, cfg, smoke, cpu_check, started):
         return prepare_batch(
             matrix[[paired[row] for row in indices]].toarray(),
             examples,
+            receipt["target_aliases"],
             pert_idx=[[0] for _ in indices],
             y_pca=torch.from_numpy(pca_rows[indices]).float(),
             y_n=torch.tensor([ranks.get(c, 0.0) for c in examples], dtype=torch.float32),
@@ -240,7 +251,9 @@ def run(output, identity, cfg, smoke, cpu_check, started):
 
     def predict(condition, input_controls):
         with torch.inference_mode():
-            batch = prepare_batch(input_controls, [condition] * len(input_controls))
+            batch = prepare_batch(
+                input_controls, [condition] * len(input_controls), receipt["target_aliases"]
+            )
             batch["x"] = batch.x.cuda()
             posterior, _ = model(batch)
             pca_prediction = posterior.maximum_a_posteriori().loc.cpu().numpy()
