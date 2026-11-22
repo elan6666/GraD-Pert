@@ -43,7 +43,7 @@ def main():
     ):
         raise ValueError("scFoundation official source changed")
     audit = read_json(AUDIT)["scfoundation"]
-    vocab_path = UPSTREAM.with_name(UPSTREAM.name + "-assets") / "OS_scRNA_gene_index.19264.tsv"
+    vocab_path = UPSTREAM / "model/OS_scRNA_gene_index.19264.tsv"
     if sha256_file(vocab_path) != audit["vocabulary_sha256"]:
         raise ValueError("the stock scFoundation vocabulary changed")
     with vocab_path.open() as stream:
