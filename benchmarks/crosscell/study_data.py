@@ -60,6 +60,8 @@ def score(
     journal_key=None,
     include_control_row_ids=False,
     stop_starting_conditions_at=None,
+    score_genes=None,
+    prediction_on_score_panel=False,
 ):
     ids = cohort["condition_ids"]
     draw_path = Path(cohort["shared_frozen_draws_path"])
@@ -69,25 +71,41 @@ def score(
     draws = {condition: frozen[condition] for condition in ids}
     if sha256_json(draws) != cohort["per_condition_pairing_sha256"]:
         raise ValueError("C2 paired test cohort changed")
+    if prediction_on_score_panel and score_genes is None:
+        raise ValueError("a projected predictor requires a declared score panel")
+    if journal_key is not None and score_genes is not None:
+        journal_key = sha256_json({"run": journal_key, "score_genes": list(score_genes)})
     journal = output / "condition-receipts" if journal_key is not None else None
     if journal is not None:
         journal.mkdir(exist_ok=True)
     records = []
+    target_line = cross["target_cell_line"]
     adata = anndata.read_h5ad(source, backed="r")
     try:
+        previous_means = metrics.PERT_MEANS.pop(target_line, None)
+        if score_genes is None:
+            columns = slice(None)
+        else:
+            columns = adata.var_names.get_indexer(score_genes)
+            if len(columns) < 2 or columns[0] < 0 or np.any(np.diff(columns) <= 0):
+                raise ValueError("the scoring panel must be a unique ordered subsequence of C2")
         conditions = adata.obs["condition"].astype(str).to_numpy()
         batches = adata.obs["batch"].astype(str).to_numpy()
         target_controls = rows["target_control"]
         fit = crosscell_fit_rows(rows, conditions, cohort, compatibility=compatibility)
-        reference = source_reference(adata, conditions, np.sort(np.r_[fit["train"], fit["val"]]))
+        reference = source_reference(adata, conditions, np.sort(np.r_[fit["train"], fit["val"]]))[
+            columns
+        ]
         evaluation_rows = np.sort(
             np.concatenate([target_controls] + [d["truth_rows"] for d in draws.values()])
         )
         reference_adata = anndata.AnnData(
-            X=adata.X[evaluation_rows], obs=adata.obs.iloc[evaluation_rows].copy()
+            X=adata.X[evaluation_rows][:, columns],
+            obs=adata.obs.iloc[evaluation_rows].copy(),
+            var=adata.var.iloc[columns].copy() if score_genes is not None else None,
         )
-        metrics.cache_perturbation_means(reference_adata, cross["target_cell_line"])
-        if len(metrics.PERT_MEANS[cross["target_cell_line"]]) != len(ids):
+        metrics.cache_perturbation_means(reference_adata, target_line)
+        if len(metrics.PERT_MEANS[target_line]) != len(ids):
             raise ValueError("official retrieval candidate count differs from the frozen cohort")
         retrieval = metrics.RetrievalMetric(subset=False)
         for index, (condition, draw) in enumerate(draws.items(), start=1):
@@ -112,18 +130,24 @@ def score(
                 if include_control_row_ids
                 else predict_controls(condition, controls)
             )
-            if prediction.shape != controls.shape or not np.isfinite(prediction).all():
-                raise ValueError("frozen prediction requires a finite, full-axis matrix")
+            projected_controls = controls[:, columns]
+            expected_shape = (
+                projected_controls.shape if prediction_on_score_panel else controls.shape
+            )
+            if prediction.shape != expected_shape or not np.isfinite(prediction).all():
+                raise ValueError("frozen predictions must match their declared gene axis")
+            if not prediction_on_score_panel:
+                prediction = prediction[:, columns]
             truth_rows = np.asarray(draw["truth_rows"])
             if not np.array_equal(truth_rows, rows["test"][conditions[rows["test"]] == condition]):
                 raise ValueError(f"frozen truth IDs changed for {condition}")
-            truth = read_rows(adata, truth_rows)
+            truth = read_rows(adata, truth_rows)[:, columns]
             matching = target_controls[np.isin(batches[target_controls], batches[truth_rows])]
-            control_mean = np.asarray(adata.X[matching].mean(axis=0)).ravel()
+            control_mean = np.asarray(adata.X[matching].mean(axis=0)).ravel()[columns]
             values = compute_condition_metrics_v2(
                 condition_id=condition,
                 prediction=prediction,
-                input_control=controls,
+                input_control=projected_controls,
                 truth=truth,
                 metric_control_pool_mean=control_mean,
                 de_gene_indices=(),
@@ -138,8 +162,8 @@ def score(
                     retrieval(
                         prediction,
                         truth,
-                        cross["target_cell_line"],
-                        controls,
+                        target_line,
+                        projected_controls,
                         reference_adata,
                         condition,
                     )
@@ -151,6 +175,9 @@ def score(
             if receipt is not None or index == 1 or index % 10 == 0 or index == len(ids):
                 atomic_json(output / "evaluation_progress.json", {"done": index, "total": len(ids)})
     finally:
+        metrics.PERT_MEANS.pop(target_line, None)
+        if previous_means is not None:
+            metrics.PERT_MEANS[target_line] = previous_means
         adata.file.close()
     scores_path = output / "conditions.jsonl"
     rendered = "".join(
@@ -171,7 +198,17 @@ def score(
         "conditions": len(records),
         "condition_ids_sha256": cohort["condition_ids_sha256"],
         "paired_rows_sha256": cohort["per_condition_pairing_sha256"],
-        "test_panel_genes": cross["expression_panel_genes"],
+        "test_panel_genes": cross["expression_panel_genes"]
+        if score_genes is None
+        else len(score_genes),
+        **(
+            {
+                "test_panel_gene_order_sha256": sha256_json(list(score_genes)),
+                "canonical_test_panel_genes": cross["expression_panel_genes"],
+            }
+            if score_genes is not None
+            else {}
+        ),
         "test_controls_per_condition": 300,
         "test_updates": 0,
         "mean_mse": float(np.mean([row["mean_mse"] for row in records])),
