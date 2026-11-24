@@ -24,6 +24,7 @@ from benchmarks.common import official_module_session
 from benchmarks.common.study_fit_partition import allowed_expression_indices, crosscell_fit_rows
 from benchmarks.crosscell.common_score_panel import AUDIT, AUDIT_SHA, PANEL, load_panel
 from benchmarks.crosscell.official_fit_probe import COMMITS, PRIOR_SHA, SUPPORT_SHA
+from benchmarks.crosscell.prescribe_gpu import SharedGpu
 from benchmarks.crosscell.study_data import cohort_inputs, score
 from benchmarks.crosscell.study_paths import (
     COHORT_SHA,
@@ -194,7 +195,7 @@ def prepare_batch(controls, conditions, aliases, **targets):
     )
 
 
-def run(output, identity, cfg, smoke, cpu_check, started):
+def run(output, identity, cfg, smoke, cpu_check, started, shared=None):
     source, cross, cohort, rows = cohort_inputs()
     panel = load_panel(source, cross, cohort)
     if sha256_file(PANEL) != PANEL_SHA or sha256_file(SUPPORT) != SUPPORT_SHA:
@@ -221,7 +222,7 @@ def run(output, identity, cfg, smoke, cpu_check, started):
         return
     fit_deadline = started + cfg["fit_seconds"]
     sys.path[:0] = [str(UPSTREAM), str(ASSETS / "python-pyblaze-2.3.2")]
-    from lightning.pytorch import Trainer, seed_everything
+    from lightning.pytorch import Callback, Trainer, seed_everything
     from lightning.pytorch.callbacks import ModelCheckpoint, Timer
     from src.model.lightening_module import NaturalPosteriorNetworkLightningModule
     from src.model.lightening_module_flow import NaturalPosteriorNetworkFlowLightningModule
@@ -229,6 +230,23 @@ def run(output, identity, cfg, smoke, cpu_check, started):
     from src.nn.encoder import Encoder
     from src.nn.flow import MixFlow
     from src.nn.output import MultiNormalOutput
+
+    class ShareGuard(Callback):
+        def on_train_batch_start(self, trainer, module, batch, batch_idx):
+            shared.check()
+            self.started = time.monotonic()
+
+        def on_train_batch_end(self, trainer, module, outputs, batch, batch_idx):
+            shared.finish_batch(self.started)
+
+        def on_validation_batch_start(self, trainer, module, batch, batch_idx, dataloader_idx=0):
+            shared.check()
+            self.started = time.monotonic()
+
+        def on_validation_batch_end(
+            self, trainer, module, outputs, batch, batch_idx, dataloader_idx=0
+        ):
+            shared.finish_batch(self.started)
 
     def collate(indices):
         examples = names[indices]
@@ -250,6 +268,9 @@ def run(output, identity, cfg, smoke, cpu_check, started):
         )
 
     def predict(condition, input_controls):
+        if shared is not None:
+            shared.check()
+        started_prediction = time.monotonic()
         with torch.inference_mode():
             batch = prepare_batch(
                 input_controls, [condition] * len(input_controls), receipt["target_aliases"]
@@ -257,12 +278,17 @@ def run(output, identity, cfg, smoke, cpu_check, started):
             batch["x"] = batch.x.cuda()
             posterior, _ = model(batch)
             pca_prediction = posterior.maximum_a_posteriori().loc.cpu().numpy()
-            return (pca_prediction @ pca.components_ + pca.mean_)[:, projection]
+            prediction = (pca_prediction @ pca.components_ + pca.mean_)[:, projection]
+        if shared is not None:
+            shared.finish_batch(started_prediction)
+        return prediction
 
     def trainer(epochs, **kwargs):
         duration = int(fit_deadline - time.monotonic())
         if duration <= 0:
             raise RuntimeError("PRESCRIBE fit budget expired before the next phase")
+        if shared is not None:
+            kwargs["callbacks"] = [*kwargs.get("callbacks", []), ShareGuard()]
         return Trainer(
             accelerator="gpu",
             devices=1,
@@ -401,6 +427,8 @@ def run(output, identity, cfg, smoke, cpu_check, started):
     )
     receipt["fit_projection_sha256"] = sha256_file(output / "fit_projection.npz")
     receipt["main_epochs_completed"] = main.current_epoch
+    if shared is not None:
+        receipt["shared_gpu_evidence"] = shared.evidence()
     atomic_json(output / "training_result.json", {**identity, **receipt})
     if smoke:
         atomic_json(
@@ -434,6 +462,8 @@ def run(output, identity, cfg, smoke, cpu_check, started):
         )
     if result.get("conditions") != 128 or list(output.rglob("*.pkl")):
         raise RuntimeError("PRESCRIBE did not finish a complete metrics-only evaluation")
+    if shared is not None:
+        receipt["shared_gpu_evidence"] = shared.evidence()
     atomic_json(output / "result.json", {**identity, **receipt, **result, "status": "evaluated"})
 
 
@@ -445,13 +475,16 @@ def worker(output, stage, gpu):
 
 
 @contextmanager
-def wait_for_gpu(output, gpu, uuid):
+def wait_for_gpu(output, gpu, uuid, shared=None):
     worker(output, "awaiting_gpu", gpu)
     while True:
         try:
             with ExitStack() as resources:
                 resources.enter_context(lock(SERVER / "runtime" / f"v2-gpu-{gpu}.lock"))
-                admit_selected_idle(snapshot(os.getpid()), gpu, uuid)
+                if shared is None:
+                    admit_selected_idle(snapshot(os.getpid()), gpu, uuid)
+                else:
+                    shared.admit()
                 lease = resources.pop_all()
         except RuntimeError as error:
             reason = str(error)
@@ -460,6 +493,7 @@ def wait_for_gpu(output, gpu, uuid):
                     "another process owns lease",
                     "selected GPU has foreign work",
                     "selected GPU free-memory reserve exhausted",
+                    "selected GPU coexistence unavailable",
                 )
             ):
                 raise
@@ -478,6 +512,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--gpu", type=int, choices=(0, 1))
     parser.add_argument("--gpu-uuid")
+    parser.add_argument("--shared-gpu", action="store_true")
     phase = parser.add_mutually_exclusive_group(required=True)
     phase.add_argument("--cpu-check", action="store_true")
     phase.add_argument("--smoke", action="store_true")
@@ -486,7 +521,7 @@ def main():
     if args.output.resolve().parent != STUDY:
         raise ValueError("PRESCRIBE output must stay within the research study")
     if args.cpu_check:
-        if os.getenv("CUDA_VISIBLE_DEVICES") != "":
+        if args.shared_gpu or os.getenv("CUDA_VISIBLE_DEVICES") != "":
             raise ValueError("data preflight must be CPU-only")
     elif (
         args.gpu is None
@@ -523,6 +558,7 @@ def main():
         "formal_eligible": source.formal_eligible,
         "run_id": args.output.name,
         "gpu": args.gpu,
+        "gpu_admission": "capped_shared" if args.shared_gpu else "exclusive",
         "source_commit": source.commit,
         "official_commit": upstream,
         "cohort_sha256": COHORT_SHA,
@@ -549,11 +585,14 @@ def main():
     if args.cpu_check:
         run(args.output, identity, cfg, False, True, time.monotonic())
     else:
-        with wait_for_gpu(args.output, args.gpu, args.gpu_uuid):
+        shared = SharedGpu(args.gpu, args.gpu_uuid, cfg["shared_gpu"]) if args.shared_gpu else None
+        with wait_for_gpu(args.output, args.gpu, args.gpu_uuid, shared):
             if torch.cuda.device_count() != 1:
                 raise ValueError("PRESCRIBE requires exactly one admitted CUDA device")
+            if shared is not None:
+                shared.configure_allocator()
             worker(args.output, "fit_data", args.gpu)
-            run(args.output, identity, cfg, args.smoke, False, time.monotonic())
+            run(args.output, identity, cfg, args.smoke, False, time.monotonic(), shared)
 
 
 if __name__ == "__main__":

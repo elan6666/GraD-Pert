@@ -26,3 +26,10 @@ warmup_steps: 0
 warmup_max_steps: 1093
 fit_seconds: 8400
 wall_seconds: 10800
+# Optional C2 shared mode. These are resource limits, not training settings.
+shared_gpu:
+  allocator_mib: 4096
+  process_mib: 5120
+  reserve_mib: 4096
+  foreign_limit_mib: 20480
+  pause_ratio: 1.0
