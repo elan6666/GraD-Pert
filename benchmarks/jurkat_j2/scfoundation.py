@@ -119,6 +119,60 @@ def initialize(output, fit_batches):
     return model, positions, target_map, val_loader, provenance, columns
 
 
+J2_SCORE_BATCHES = (6, 12, 24)
+FROZEN_SMOKE_COMMIT = "bf55526b24bd80cacb71001c15ca4df68dbeabd0"
+
+
+def select_score_batch(predict, name, values):
+    """Measure ordered source controls and accept only equivalent predictions."""
+    rows = []
+    reference = None
+    for size in J2_SCORE_BATCHES:
+        try:
+            predict(name, values[:size], size)
+            torch.cuda.reset_peak_memory_stats()
+            start = time.monotonic()
+            predicted = predict(name, values, size)
+        except torch.cuda.OutOfMemoryError:
+            if size == released.BATCH:
+                raise
+            rows.append({"batch": size, "status": "out_of_memory"})
+        else:
+            seconds = time.monotonic() - start
+            if reference is None:
+                if predicted.shape != values.shape or not np.isfinite(predicted).all():
+                    raise ValueError("invalid official validation prediction")
+                reference = predicted
+            same_shape = predicted.shape == reference.shape
+            finite = np.isfinite(predicted).all()
+            equivalent = (
+                same_shape and finite and np.allclose(predicted, reference, rtol=1e-5, atol=1e-5)
+            )
+            rows.append(
+                {
+                    "batch": size,
+                    "status": "equivalent" if equivalent else "prediction_drift",
+                    "seconds_per_300_controls": seconds,
+                    "cells_per_second": len(values) / seconds,
+                    "max_abs_difference": float(np.max(np.abs(predicted - reference)))
+                    if same_shape and finite
+                    else None,
+                    "peak_reserved_bytes": torch.cuda.max_memory_reserved(),
+                }
+            )
+            del predicted
+        torch.cuda.empty_cache()
+    baseline = rows[0]
+    viable = [
+        row
+        for row in rows
+        if row["status"] == "equivalent"
+        and row["seconds_per_300_controls"] < baseline["seconds_per_300_controls"] * 0.95
+    ]
+    selected = min(viable, key=lambda row: row["seconds_per_300_controls"], default=baseline)
+    return selected["batch"], rows
+
+
 def run(output, identity, *, smoke, fit_batches, resume):
     started = time.monotonic()
     torch.manual_seed(released.SEED)
@@ -151,10 +205,10 @@ def run(output, identity, *, smoke, fit_batches, resume):
     frozen.eval().requires_grad_(False)
 
     @torch.inference_mode()
-    def predict(name, values):
+    def predict(name, values, batch_size):
         predictions = []
-        for i in range(0, len(values), released.BATCH):
-            chunk = values[i : i + released.BATCH]
+        for i in range(0, len(values), batch_size):
+            chunk = values[i : i + batch_size]
             batch = released.Batch(
                 chunk, positions, [targets[name]] * len(chunk), [name] * len(chunk)
             )
@@ -165,7 +219,7 @@ def run(output, identity, *, smoke, fit_batches, resume):
         sample = next(iter(val_loader))
         values = sample.x.reshape(-1, released.GENES + 1).numpy()[:, positions]
         begin = time.monotonic()
-        trial = predict(sample.pert[0], np.resize(values, (300, len(positions))))
+        trial = predict(sample.pert[0], np.resize(values, (300, len(positions))), released.BATCH)
         if trial.shape != (300, len(columns)) or not np.isfinite(trial).all():
             raise ValueError("the source-only J2 smoke did not return finite predictions")
         atomic_json(
@@ -179,8 +233,35 @@ def run(output, identity, *, smoke, fit_batches, resume):
             },
         )
         return
+    batch_receipt = output / "inference-batch.json"
+    if batch_receipt.exists():
+        batch_plan = read_json(batch_receipt)
+        if (
+            batch_plan["checkpoint_sha256"] != fit_record["checkpoint_sha256"]
+            or batch_plan["selected_batch"] not in J2_SCORE_BATCHES
+        ):
+            raise ValueError("the checkpoint or frozen inference batch changed")
+        score_batch = batch_plan["selected_batch"]
+    elif (output / "condition-receipts").exists():
+        score_batch = released.BATCH
+    else:
+        source = np.unique(val_loader.paired[val_loader.paired >= 0])
+        selected = np.random.default_rng(released.SEED).choice(source, 300, replace=False)
+        values = val_loader.matrix[selected].toarray()
+        condition = val_loader.conditions[val_loader.rows[0]]
+        score_batch, trials = select_score_batch(predict, condition, values)
+        atomic_json(
+            batch_receipt,
+            {
+                "checkpoint_sha256": fit_record["checkpoint_sha256"],
+                "selected_batch": score_batch,
+                "validation_controls": 300,
+                "test_conditions_accessed": 0,
+                "candidate_batches": trials,
+            },
+        )
     measured = evaluate_segment(
-        lambda name, values, _ids, axis: predict(name, values[:, axis]),
+        lambda name, values, _ids, axis: predict(name, values[:, axis], score_batch),
         output,
         fit_record,
         deadline=started + 10500,
@@ -195,6 +276,10 @@ def run(output, identity, *, smoke, fit_batches, resume):
             **fit_record,
             **measured,
             "status": "evaluated",
+            "inference_batch": score_batch,
+            "inference_batch_receipt_sha256": sha256_file(batch_receipt)
+            if batch_receipt.exists()
+            else None,
             "evaluation_source_commit": identity["source_commit"],
         },
     )
@@ -238,7 +323,13 @@ def main():
     if args.smoke_run:
         smoke = read_json(args.smoke_run / "result.json")
         if (
-            any(smoke[k] != v for k, v in identity.items() if k not in {"run_id", "gpu"})
+            any(
+                smoke[k] != v
+                for k, v in identity.items()
+                if k not in {"run_id", "gpu", "source_commit"}
+            )
+            or smoke["source_commit"] not in {source.commit, FROZEN_SMOKE_COMMIT}
+            or smoke["test_conditions_accessed"] != 0
             or smoke["status"] != "trained_validation_only"
             or smoke["validation_prediction_shape"] != [300, 4486]
         ):
