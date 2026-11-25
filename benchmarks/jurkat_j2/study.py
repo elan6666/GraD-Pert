@@ -25,6 +25,10 @@ VOCABULARY = SERVER / "upstreams/scfoundation-c2-study/model/OS_scRNA_gene_index
 EXPECTED_CONDITIONS = 592
 
 
+class EvaluationBudgetExpired(TimeoutError):
+    """A segment used its budget between two complete conditions."""
+
+
 def fit_data(seed):
     _register_anndata_null_reader()
     with CanonicalTrainingData(
@@ -64,6 +68,46 @@ def references():
     return load_evaluation_state(**args), load_evaluation_state(validation_only=True, **args)
 
 
+def frozen_receipt(output, identity, checkpoint_name):
+    if (output / "result.json").exists():
+        raise FileExistsError("the frozen J2 run already has a result")
+    receipt = read_json(output / "training_result.json")
+    if (
+        any(
+            receipt.get(key) != value
+            for key, value in identity.items()
+            if key not in {"gpu", "source_commit"}
+        )
+        or receipt.get("test_updates") != 0
+        or sha256_file(output / checkpoint_name) != receipt["checkpoint_sha256"]
+    ):
+        raise ValueError("the frozen J2 training receipt or checkpoint changed")
+    return receipt
+
+
+def evaluate_segment(predict, output, receipt, *, deadline):
+    try:
+        return evaluate(
+            predict,
+            output,
+            deadline=deadline,
+            journal_identity=receipt["checkpoint_sha256"],
+        )
+    except EvaluationBudgetExpired:
+        progress = read_json(output / "evaluation_progress.json")
+        atomic_json(
+            output / "segment.json",
+            {
+                "status": "evaluation_segment_complete",
+                "checkpoint_sha256": receipt["checkpoint_sha256"],
+                "conditions_completed": progress["done"],
+                "conditions_total": progress["total"],
+                "test_updates": 0,
+            },
+        )
+        return None
+
+
 def evaluate(predict, output, *, deadline=None, journal_identity=None):
     """Score the common J2 axis. The model receives fixed original controls."""
     reference, systema = references()
@@ -96,6 +140,13 @@ def evaluate(predict, output, *, deadline=None, journal_identity=None):
             ]
         )
         values, records = [], []
+
+        def report_progress(done):
+            atomic_json(
+                Path(output) / "evaluation_progress.json",
+                {"done": done, "total": EXPECTED_CONDITIONS},
+            )
+
         for i, draw in enumerate(data.control_manifest.draws, start=1):
             name = draw.condition_id
             saved = journal / f"{i:03d}.json"
@@ -110,7 +161,10 @@ def evaluate(predict, output, *, deadline=None, journal_identity=None):
                 )
             else:
                 if deadline is not None and time.monotonic() >= deadline:
-                    raise TimeoutError(f"J2 scoring stopped after {i - 1} complete conditions")
+                    report_progress(i - 1)
+                    raise EvaluationBudgetExpired(
+                        f"J2 scoring stopped after {i - 1} complete conditions"
+                    )
                 ids = tuple(draw.ordered_row_ids)
                 controls = data.load_control_rows(ids)
                 if controls.ordered_row_ids != ids or len(ids) != 300:
@@ -137,13 +191,11 @@ def evaluate(predict, output, *, deadline=None, journal_identity=None):
                 )
                 row = {**asdict(metric), "response_metrics": response, "key": key}
                 atomic_json(saved, row)
+                if i == 1 or i % 5 == 0:
+                    report_progress(i)
             records.append(row)
             values.append(metric)
-            if i == 1 or i % 5 == 0 or i == EXPECTED_CONDITIONS:
-                atomic_json(
-                    Path(output) / "evaluation_progress.json",
-                    {"done": i, "total": EXPECTED_CONDITIONS},
-                )
+        report_progress(len(records))
         import json
 
         csv_path = Path(output) / "conditions.jsonl"

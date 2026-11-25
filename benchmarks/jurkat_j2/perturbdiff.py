@@ -30,7 +30,13 @@ from benchmarks.crosscell.perturbdiff_c2 import (
 from benchmarks.crosscell.remaining_c2_readiness import hgnc_links, reconcile
 from benchmarks.crosscell.replay_common_c2 import require_upstream
 from benchmarks.crosscell.study_paths import COHORT_SHA, REPO, SERVER, STUDY
-from benchmarks.jurkat_j2.study import context, evaluate, fit_data, score_axis
+from benchmarks.jurkat_j2.study import (
+    context,
+    evaluate_segment,
+    fit_data,
+    frozen_receipt,
+    score_axis,
+)
 from gradpert.data._io import atomic_json, read_json
 from gradpert.execution.gpu_lease import admit_selected_idle, lock
 from gradpert.execution.identity import inspect_source_identity
@@ -65,8 +71,11 @@ def j2_prior(fitted, test, path):
     return sorted(missing & fitted), sorted(missing & test)
 
 
-def run(output, cfg, identity, smoke, fit_seconds):
+def run(output, cfg, identity, smoke, fit_seconds, *, resume):
     started = time.monotonic()
+    checkpoint = output / "checkpoint.pt"
+    if resume:
+        receipt = frozen_receipt(output, identity, checkpoint.name)
     prepared = fit_data(cfg["seed"])
     adata = prepared.adata
     axis = score_axis(prepared.gene_ids)
@@ -119,35 +128,42 @@ def run(output, cfg, identity, smoke, fit_seconds):
             cell_prior=ASSETS / "celltype.pkl",
             max_steps=cfg["max_updates"],
         )
-        n, exposed, loss = fit(
-            adata,
-            *fits,
-            controls,
-            list(prepared.allowed_indices),
-            model,
-            vocab,
-            cfg,
-            output,
-            cfg["smoke_updates"] if smoke else cfg["max_updates"],
-            started + fit_seconds,
-        )
-    checkpoint = output / "checkpoint.pt"
-    torch.save(model.state_dict(), checkpoint)
+        if not resume:
+            n, exposed, loss = fit(
+                adata,
+                *fits,
+                controls,
+                list(prepared.allowed_indices),
+                model,
+                vocab,
+                cfg,
+                output,
+                cfg["smoke_updates"] if smoke else cfg["max_updates"],
+                started + fit_seconds,
+            )
+    if resume:
+        if (missing_fit, missing_test) != (
+            receipt["missing_fit_targets"],
+            receipt["missing_test_targets"],
+        ):
+            raise ValueError("the frozen PerturbDiff prior coverage changed")
+    else:
+        torch.save(model.state_dict(), checkpoint)
+        receipt = {
+            **identity,
+            "optimizer_updates": n,
+            "fit_rows_exposed": exposed,
+            "validation_loss": loss,
+            "checkpoint_sha256": sha256_file(checkpoint),
+            "missing_fit_targets": missing_fit,
+            "missing_test_targets": missing_test,
+            "missing_genept_policy": "released_zero_embedding",
+            "fit_seconds": time.monotonic() - started,
+            "test_updates": 0,
+        }
+        atomic_json(output / "training_result.json", receipt)
     model.load_state_dict(torch.load(checkpoint, map_location="cpu", weights_only=True))
     model.eval().requires_grad_(False)
-    receipt = {
-        **identity,
-        "optimizer_updates": n,
-        "fit_rows_exposed": exposed,
-        "validation_loss": loss,
-        "checkpoint_sha256": sha256_file(checkpoint),
-        "missing_fit_targets": missing_fit,
-        "missing_test_targets": missing_test,
-        "missing_genept_policy": "released_zero_embedding",
-        "fit_seconds": time.monotonic() - started,
-        "test_updates": 0,
-    }
-    atomic_json(output / "training_result.json", receipt)
     if smoke:
         rng = np.random.default_rng(cfg["seed"] + 1)
         sample = rng.choice(control_rows, 300, replace=False)
@@ -182,15 +198,22 @@ def run(output, cfg, identity, smoke, fit_seconds):
             :, columns
         ]
 
-    result = evaluate(
-        apply,
-        output,
-        deadline=started + cfg["max_wall_seconds"],
-        journal_identity=receipt["checkpoint_sha256"],
+    result = evaluate_segment(
+        apply, output, receipt, deadline=started + cfg["max_wall_seconds"] - 60
     )
+    if result is None:
+        return
     if sha256_file(checkpoint) != receipt["checkpoint_sha256"] or list(output.rglob("*.pkl")):
         raise ValueError("checkpoint or metrics-only output changed")
-    atomic_json(output / "result.json", {**receipt, **result, "status": "evaluated"})
+    atomic_json(
+        output / "result.json",
+        {
+            **receipt,
+            **result,
+            "status": "evaluated",
+            "evaluation_source_commit": identity["source_commit"],
+        },
+    )
 
 
 def main():
@@ -203,6 +226,7 @@ def main():
     phase = parser.add_mutually_exclusive_group(required=True)
     phase.add_argument("--smoke", action="store_true")
     phase.add_argument("--smoke-run", type=Path)
+    phase.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     if args.output.resolve().parent != STUDY or os.environ.get("CUDA_VISIBLE_DEVICES") != str(
         args.gpu
@@ -252,11 +276,12 @@ def main():
         admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
         torch.manual_seed(cfg["seed"])
         torch.cuda.set_per_process_memory_fraction(0.90)
-        args.output.mkdir()
+        if not args.resume:
+            args.output.mkdir()
         atomic_json(
             args.output / "worker.json", {"owner": process_info(os.getpid()), "gpu": args.gpu}
         )
-        run(args.output, cfg, identity, args.smoke, fit_seconds)
+        run(args.output, cfg, identity, args.smoke, fit_seconds, resume=args.resume)
 
 
 if __name__ == "__main__":

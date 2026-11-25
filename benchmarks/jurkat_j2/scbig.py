@@ -20,7 +20,13 @@ from benchmarks.crosscell.scbig_c2_encoder_smoke import ENCODER_FILES
 from benchmarks.crosscell.scbig_c2_flow_fit import verify_assets
 from benchmarks.crosscell.scbig_c2_flow_probe import initialize_encoder, initialize_flow
 from benchmarks.crosscell.study_paths import COHORT_SHA, REPO, SERVER, STUDY
-from benchmarks.jurkat_j2.study import context, evaluate, fit_data, score_axis
+from benchmarks.jurkat_j2.study import (
+    context,
+    evaluate_segment,
+    fit_data,
+    frozen_receipt,
+    score_axis,
+)
 from gradpert.data._io import atomic_json, read_json
 from gradpert.execution.gpu_lease import admit_selected_idle, lock
 from gradpert.execution.identity import inspect_source_identity
@@ -92,12 +98,16 @@ def fit_encoder(encoder, matrix, keep, output, *, smoke):
     return {"encoder_optimizer_updates": count, "encoder_sha256": sha256_file(checkpoint)}
 
 
-def run(output, identity, *, smoke):
+def run(output, identity, *, smoke, resume):
     import jax
+    from flax import serialization
 
     if len(jax.devices()) != 1 or jax.devices()[0].platform != "gpu":
         raise ValueError("scBIG J2 needs exactly one visible CUDA GPU")
     start = time.monotonic()
+    checkpoint = output / "flow_inference.msgpack"
+    if resume:
+        receipt = frozen_receipt(output, identity, checkpoint.name)
     compass, esm = verify_assets()
     assets = read_json(released.RESOURCES / "release-assets-a1.json")
     for name in ENCODER_FILES:
@@ -123,16 +133,27 @@ def run(output, identity, *, smoke):
         raise ValueError("J2 masked expression entered the GCAE")
     controls = np.asarray([known[row] for row in prepared.control_row_ids])
     encoder = initialize_encoder(list(genes), matrix, compass)
-    fit_info = fit_encoder(encoder, matrix, keep, output, smoke=smoke)
-    atomic_json(
-        output / "encoder-inputs.json",
-        {
-            "gene_order": list(genes),
-            "permutation": order.tolist(),
-            "genecompass_coverage": coverage,
-            "string_edges": int(edges),
-        },
-    )
+    inputs = {
+        "gene_order": list(genes),
+        "permutation": order.tolist(),
+        "genecompass_coverage": coverage,
+        "string_edges": int(edges),
+    }
+    if resume:
+        encoder_checkpoint = output / "encoder.msgpack"
+        if (
+            sha256_file(encoder_checkpoint) != receipt["encoder_sha256"]
+            or read_json(output / "encoder-inputs.json") != inputs
+            or not np.array_equal(
+                np.asarray(encoder.X_mean),
+                np.load(output / "encoder-center.npy", allow_pickle=False),
+            )
+        ):
+            raise ValueError("the frozen scBIG encoder or its inputs changed")
+        encoder.state = serialization.from_bytes(encoder.state, encoder_checkpoint.read_bytes())
+    else:
+        fit_info = fit_encoder(encoder, matrix, keep, output, smoke=smoke)
+        atomic_json(output / "encoder-inputs.json", inputs)
     train_names = {n.removesuffix("+ctrl") for n in prepared.train_conditions}
     val_names = {n.removesuffix("+ctrl") for n in prepared.val_conditions}
     test_names = {n.removesuffix("+ctrl") for n in test}
@@ -174,23 +195,41 @@ def run(output, identity, *, smoke):
     flows.uns["pert_embeddings"] = {g: bank[g] for g in set(obs["pert1"])}
     flows.uns["cell_line_embeddings"] = {"jurkat": np.ones(1, dtype=np.float32)}
     flow = initialize_flow(flows)
-    labels, pathways = released.loss_priors(list(genes), order, keep, compass)
-    flow_info = released.fit(
-        output,
-        flow,
-        encoder,
-        flows,
-        None,
-        genes,
-        keep,
-        labels,
-        pathways,
-        start + 4200,
-        prepared=prepared,
-        step_cap=20 if smoke else FLOW_STEPS,
-    )
-    receipt = {**identity, **fit_info, **flow_info, **prior_receipt, "test_updates": 0}
-    atomic_json(output / "training_result.json", receipt)
+    if resume:
+        if any(receipt.get(k) != v for k, v in prior_receipt.items()):
+            raise ValueError("the frozen scBIG prior changed")
+        state = checkpoint.read_bytes()
+        flow.solver.vf_state_inference = serialization.from_bytes(
+            flow.solver.vf_state_inference, state
+        )
+        saved, saved_tree = jax.tree_util.tree_flatten(serialization.msgpack_restore(state))
+        current, current_tree = jax.tree_util.tree_flatten(
+            serialization.to_state_dict(flow.solver.vf_state_inference)
+        )
+        if saved_tree != current_tree or any(
+            x.dtype != y.dtype or x.shape != y.shape or x.tobytes() != y.tobytes()
+            for x, y in zip(map(np.asarray, saved), map(np.asarray, current), strict=True)
+        ):
+            raise ValueError("the restored scBIG flow differs from the saved inference state")
+        flow.solver.is_trained = True
+    else:
+        labels, pathways = released.loss_priors(list(genes), order, keep, compass)
+        flow_info = released.fit(
+            output,
+            flow,
+            encoder,
+            flows,
+            None,
+            genes,
+            keep,
+            labels,
+            pathways,
+            start + 4200,
+            prepared=prepared,
+            step_cap=20 if smoke else FLOW_STEPS,
+        )
+        receipt = {**identity, **fit_info, **flow_info, **prior_receipt, "test_updates": 0}
+        atomic_json(output / "training_result.json", receipt)
     apply = released.frozen_predictor(flow, encoder, order, bank, "jurkat")
     if smoke:
         begin = time.monotonic()
@@ -208,15 +247,25 @@ def run(output, identity, *, smoke):
             },
         )
         return
-    result = evaluate(
+    result = evaluate_segment(
         lambda name, controls, _ids, columns: apply(name, controls)[:, columns],
         output,
+        receipt,
         deadline=start + 10600,
-        journal_identity=receipt["checkpoint_sha256"],
     )
-    if sha256_file(output / "flow_inference.msgpack") != receipt["checkpoint_sha256"]:
+    if result is None:
+        return
+    if sha256_file(checkpoint) != receipt["checkpoint_sha256"]:
         raise ValueError("the frozen scBIG flow changed")
-    atomic_json(output / "result.json", {**receipt, **result, "status": "evaluated"})
+    atomic_json(
+        output / "result.json",
+        {
+            **receipt,
+            **result,
+            "status": "evaluated",
+            "evaluation_source_commit": identity["source_commit"],
+        },
+    )
 
 
 def main():
@@ -229,6 +278,7 @@ def main():
     phase = parser.add_mutually_exclusive_group(required=True)
     phase.add_argument("--smoke", action="store_true")
     phase.add_argument("--smoke-run", type=Path)
+    phase.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     if args.output.resolve().parent != STUDY or os.environ.get("CUDA_VISIBLE_DEVICES") != str(
         args.gpu
@@ -268,11 +318,12 @@ def main():
             raise ValueError("the official scBIG J2 smoke did not pass")
     with lock(SERVER / "runtime" / f"v2-gpu-{args.gpu}.lock"):
         admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
-        args.output.mkdir()
+        if not args.resume:
+            args.output.mkdir()
         atomic_json(
             args.output / "worker.json", {"owner": process_info(os.getpid()), "gpu": args.gpu}
         )
-        run(args.output, identity, smoke=args.smoke)
+        run(args.output, identity, smoke=args.smoke, resume=args.resume)
 
 
 if __name__ == "__main__":

@@ -18,7 +18,14 @@ import torch
 from benchmarks.crosscell import scfoundation_c2 as released
 from benchmarks.crosscell.remaining_c2_readiness import hgnc_links, reconcile
 from benchmarks.crosscell.study_paths import COHORT_SHA, REPO, SERVER, STUDY
-from benchmarks.jurkat_j2.study import VOCABULARY, context, evaluate, fit_data, score_axis
+from benchmarks.jurkat_j2.study import (
+    VOCABULARY,
+    context,
+    evaluate_segment,
+    fit_data,
+    frozen_receipt,
+    score_axis,
+)
 from gradpert.data._io import atomic_json, read_json
 from gradpert.execution.gpu_lease import admit_selected_idle, lock
 from gradpert.execution.identity import inspect_source_identity
@@ -115,14 +122,13 @@ def initialize(output, fit_batches):
 def run(output, identity, *, smoke, fit_batches, resume):
     started = time.monotonic()
     torch.manual_seed(released.SEED)
-    model, positions, targets, val_loader, provenance, columns = initialize(output, fit_batches)
     checkpoint = output / "checkpoint.pt"
     if resume:
-        fit_record = read_json(output / "training_result.json")
-        if fit_record["checkpoint_sha256"] != sha256_file(checkpoint) or any(
-            fit_record[k] != v for k, v in identity.items() if k != "gpu"
-        ):
-            raise ValueError("the scoped J2 evaluation cannot resume a changed checkpoint")
+        fit_record = frozen_receipt(output, identity, checkpoint.name)
+        if sha256_file(output / "coexpression.npz") != fit_record["coexpression_sha256"]:
+            raise ValueError("the frozen J2 co-expression graph changed")
+    model, positions, targets, val_loader, provenance, columns = initialize(output, fit_batches)
+    if resume:
         frozen = model.model.cuda()
     else:
         begin = time.monotonic()
@@ -173,29 +179,25 @@ def run(output, identity, *, smoke, fit_batches, resume):
             },
         )
         return
-    try:
-        measured = evaluate(
-            lambda name, values, _ids, axis: predict(name, values[:, axis]),
-            output,
-            journal_identity=fit_record["checkpoint_sha256"],
-            deadline=started + 10500,
-        )
-    except TimeoutError:
-        last = read_json(output / "evaluation_progress.json")
-        atomic_json(
-            output / "segment.json",
-            {
-                "status": "evaluation_segment_complete",
-                "checkpoint_sha256": fit_record["checkpoint_sha256"],
-                "conditions_completed": last["done"],
-                "conditions_total": last["total"],
-                "test_updates": 0,
-            },
-        )
+    measured = evaluate_segment(
+        lambda name, values, _ids, axis: predict(name, values[:, axis]),
+        output,
+        fit_record,
+        deadline=started + 10500,
+    )
+    if measured is None:
         return
     if sha256_file(checkpoint) != fit_record["checkpoint_sha256"]:
         raise ValueError("the frozen GEARS checkpoint changed")
-    atomic_json(output / "result.json", {**fit_record, **measured, "status": "evaluated"})
+    atomic_json(
+        output / "result.json",
+        {
+            **fit_record,
+            **measured,
+            "status": "evaluated",
+            "evaluation_source_commit": identity["source_commit"],
+        },
+    )
 
 
 def main():
