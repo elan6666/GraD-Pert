@@ -56,7 +56,7 @@ def condition_target(condition, aliases):
     return aliases.get(target, target)
 
 
-def build_embedding_bank(train_names, val_names, test_names, aliases):
+def build_embedding_bank(train_names, val_names, test_names, aliases, *, missing=(MISSING,)):
     path = ASSETS / "scgpt-primary.pkl"
     if sha256_file(path) != PRIOR_SHA["prescribe"]:
         raise ValueError("released scGPT embedding bank changed")
@@ -64,17 +64,15 @@ def build_embedding_bank(train_names, val_names, test_names, aliases):
         prior = pickle.load(file)
     fit = {condition_target(c, aliases) for c in (*train_names, *val_names)}
     test = {condition_target(c, aliases) for c in test_names}
-    if fit & test or fit - prior.keys() != {MISSING} or test - prior.keys():
+    if fit & test or fit - prior.keys() != set(missing) or test - prior.keys():
         raise ValueError("frozen released-prior coverage changed")
     bank = {
-        gene: np.asarray(prior[gene], dtype=np.float32) for gene in sorted((fit | test) - {MISSING})
+        gene: np.asarray(prior[gene], dtype=np.float32)
+        for gene in sorted((fit | test) - set(missing))
     }
     supported_train = sorted({condition_target(c, aliases) for c in train_names} & bank.keys())
-    bank[MISSING] = (
-        np.stack([bank[gene] for gene in supported_train])
-        .mean(0, dtype=np.float64)
-        .astype(np.float32)
-    )
+    fallback = np.stack([bank[gene] for gene in supported_train]).mean(0, dtype=np.float64)
+    bank.update({gene: fallback.astype(np.float32) for gene in missing})
     if not np.isfinite(np.stack(list(bank.values()))).all():
         raise ValueError("the selected scGPT embeddings must be finite")
     return bank, supported_train
@@ -134,6 +132,39 @@ def fit_data(source, cohort, rows, compatibility, cfg):
     }
     if missing_counts != {"train": 113, "val": 12} or not np.all(names[controls] == "ctrl"):
         raise ValueError("the prior omission or control identities changed")
+    return fit_projection(
+        matrix,
+        cols,
+        visible,
+        roles,
+        names,
+        lines,
+        batches,
+        train_names,
+        aliases,
+        bank,
+        supported_train,
+        missing_counts,
+        cfg,
+    )
+
+
+def fit_projection(
+    matrix,
+    cols,
+    visible,
+    roles,
+    names,
+    lines,
+    batches,
+    train_names,
+    aliases,
+    bank,
+    supported_train,
+    missing_counts,
+    cfg,
+):
+    train, val, controls = [roles[role] for role in ("train", "val", "source_control")]
     print(
         f"PCA train_rows={len(train)} val_rows={len(val)} "
         f"source_controls={len(controls)} genes={len(cols)}",
@@ -195,15 +226,20 @@ def prepare_batch(controls, conditions, aliases, **targets):
     )
 
 
-def run(output, identity, cfg, smoke, cpu_check, started, shared=None):
-    source, cross, cohort, rows = cohort_inputs()
-    panel = load_panel(source, cross, cohort)
-    if sha256_file(PANEL) != PANEL_SHA or sha256_file(SUPPORT) != SUPPORT_SHA:
-        raise ValueError("the C2 score panel or fit support changed")
-    scores = panel["score_genes"]
-    matrix, cols, visible, roles, names, pca, pca_rows, ranks, paired, bank, receipt = fit_data(
-        source, cohort, rows, read_json(SUPPORT), cfg
-    )
+def run(output, identity, cfg, smoke, cpu_check, started, shared=None, *, j2=False):
+    if j2:
+        from benchmarks.jurkat_j2.prescribe import fit_inputs
+
+        scores, load_fitting = fit_inputs()
+        prepared = load_fitting(cfg)
+    else:
+        source, cross, cohort, rows = cohort_inputs()
+        panel = load_panel(source, cross, cohort)
+        if sha256_file(PANEL) != PANEL_SHA or sha256_file(SUPPORT) != SUPPORT_SHA:
+            raise ValueError("the C2 score panel or fit support changed")
+        scores = panel["score_genes"]
+        prepared = fit_data(source, cohort, rows, read_json(SUPPORT), cfg)
+    matrix, cols, visible, roles, names, pca, pca_rows, ranks, paired, bank, receipt = prepared
     projection = visible.get_indexer(scores)
     if np.any(projection < 0):
         raise ValueError("PRESCRIBE cannot produce the common output panel")
@@ -443,24 +479,36 @@ def run(output, identity, cfg, smoke, cpu_check, started, shared=None):
         )
         return
     worker(output, "evaluate", identity["gpu"])
-    with official_module_session(
-        checkout_root=TXPERT_CHECKOUT, expected_commit=TXPERT_COMMIT, module_names=("gspp.metrics",)
-    ) as (modules, _):
-        result = score(
-            lambda condition, controls: predict(condition, controls[:, cols]),
-            modules["gspp.metrics"],
-            source,
-            cross,
-            cohort,
-            rows,
-            read_json(SUPPORT),
+    if j2:
+        from benchmarks.jurkat_j2.study import evaluate
+
+        result = evaluate(
+            lambda condition, controls, _rows, _axis: predict(condition, controls[:, cols]),
             output,
-            journal_key=receipt["checkpoint_sha256"],
-            score_genes=scores,
-            prediction_on_score_panel=True,
-            stop_starting_conditions_at=started + cfg["wall_seconds"],
+            deadline=started + cfg["wall_seconds"],
+            journal_identity=receipt["checkpoint_sha256"],
         )
-    if result.get("conditions") != 128 or list(output.rglob("*.pkl")):
+    else:
+        with official_module_session(
+            checkout_root=TXPERT_CHECKOUT,
+            expected_commit=TXPERT_COMMIT,
+            module_names=("gspp.metrics",),
+        ) as (modules, _):
+            result = score(
+                lambda condition, controls: predict(condition, controls[:, cols]),
+                modules["gspp.metrics"],
+                source,
+                cross,
+                cohort,
+                rows,
+                read_json(SUPPORT),
+                output,
+                journal_key=receipt["checkpoint_sha256"],
+                score_genes=scores,
+                prediction_on_score_panel=True,
+                stop_starting_conditions_at=started + cfg["wall_seconds"],
+            )
+    if result.get("conditions") != (592 if j2 else 128) or list(output.rglob("*.pkl")):
         raise RuntimeError("PRESCRIBE did not finish a complete metrics-only evaluation")
     if shared is not None:
         receipt["shared_gpu_evidence"] = shared.evidence()

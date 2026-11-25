@@ -76,7 +76,7 @@ J2_FIT_HASHES = {
 }
 
 
-def evaluate_frozen(output, stop, *, double_holdout=False):
+def evaluate_frozen(output, stop, *, double_holdout=False, common_panel=False):
     fit, hashes, checkpoint_role = (
         (J2_FIT, J2_FIT_HASHES, "best") if double_holdout else (FIT, FIT_HASHES, "last")
     )
@@ -182,6 +182,34 @@ def evaluate_frozen(output, stop, *, double_holdout=False):
         validation_only=True,
     )
     reader_compatibility = _register_anndata_null_reader()
+    if common_panel:
+        from benchmarks.jurkat_j2.study import evaluate as evaluate_common
+
+        if not double_holdout or stop != 592:
+            raise ValueError("common-panel replay is defined on the complete frozen J2 test")
+        result = evaluate_common(
+            lambda condition, controls, _rows, axis: api.predict_exact_controls(
+                trained_model=model,
+                perturbation_genes=(*[g for g in condition.split("+") if g != "ctrl"], "ctrl"),
+                perturbation_to_id=mapping.pert2id,
+                input_controls=controls,
+                batch_size=int(config.training.eval_batch_size.value),
+            )[:, axis],
+            output,
+            journal_identity=hashes[checkpoint],
+        )
+        result.update(
+            checkpoint_sha256=hashes[checkpoint],
+            checkpoint_epoch=50,
+            model="txpert",
+            scenario="J2",
+            status="evaluated",
+            training_source_commit=role["training_git_sha"],
+            run_id=output.name,
+        )
+        atomic_json(output / "result.json", result)
+        return result
+
     with CanonicalEvaluationData(
         dataset_id=DATASET, protocol_id=PROTOCOL, split_name="test", data_root=DATA
     ) as data:
@@ -257,6 +285,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--stop", type=int, default=592)
     parser.add_argument("--double-holdout", action="store_true")
+    parser.add_argument("--common-panel", action="store_true")
     parser.add_argument("--gpu", choices=("0", "1"), required=True)
     parser.add_argument("--uuid", required=True)
     args = parser.parse_args()
@@ -291,7 +320,12 @@ def main():
         }
         atomic_json(args.output / "OWNER.json", owner)
         try:
-            receipt = evaluate_frozen(args.output, args.stop, double_holdout=args.double_holdout)
+            receipt = evaluate_frozen(
+                args.output,
+                args.stop,
+                double_holdout=args.double_holdout,
+                common_panel=args.common_panel,
+            )
             atomic_json(
                 args.output / "COMPLETE.json",
                 {

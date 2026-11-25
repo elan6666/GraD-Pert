@@ -18,7 +18,7 @@ def centered_unit_rows(values):
 class FrozenConditionResponse:
     """Build the test-only bank from means of cell-level batch-centered truth."""
 
-    def __init__(self, data):
+    def __init__(self, data, *, columns=slice(None)):
         conditions = tuple(data.split.test_conditions)
         self.conditions = tuple(sorted(conditions))
         self.rank_keys = {
@@ -28,7 +28,8 @@ class FrozenConditionResponse:
         if len(set(self.rank_keys.values())) != len(conditions):
             raise ValueError("TxPert retrieval keys are ambiguous")
         self.positions = {condition: idx for idx, condition in enumerate(self.conditions)}
-        self.axis = {gene: index for index, gene in enumerate(data.expression_gene_ids)}
+        genes = np.asarray(data.expression_gene_ids)[columns]
+        self.axis = {gene: index for index, gene in enumerate(genes)}
         control_ids = defaultdict(list)
         self.context_by_row = dict(zip(data.row_ids, data.context_ids, strict=True))
         for row_id, condition, context in zip(
@@ -37,7 +38,9 @@ class FrozenConditionResponse:
             if condition == data.split.control_condition_id:
                 control_ids[context].append(row_id)
         baselines = {
-            context: data.load_control_rows(tuple(ids)).expression.mean(0, dtype=np.float64)
+            context: data.load_control_rows(tuple(ids))
+            .expression[:, columns]
+            .mean(0, dtype=np.float64)
             for context, ids in control_ids.items()
         }
         bank = []
@@ -46,7 +49,7 @@ class FrozenConditionResponse:
             contexts = [self.context_by_row[row_id] for row_id in truth.ordered_row_ids]
             weights = {context: contexts.count(context) for context in sorted(set(contexts))}
             mean_baseline = sum(baselines[k] * n for k, n in weights.items()) / len(contexts)
-            bank.append(truth.expression.mean(0, dtype=np.float64) - mean_baseline)
+            bank.append(truth.expression[:, columns].mean(0, dtype=np.float64) - mean_baseline)
         self.bank = centered_unit_rows(np.asarray(bank))
 
     def __call__(self, condition, prediction, controls, truth):
