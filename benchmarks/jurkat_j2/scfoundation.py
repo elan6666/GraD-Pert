@@ -289,6 +289,8 @@ def run(output, identity, *, smoke, fit_batches, resume, assist=None, replay=Non
             deadline=started + 10500,
             journal_identity=fit_record["checkpoint_sha256"],
             assist=assist,
+            full_axis=replay is not None,
+            native_columns=native_columns,
         )
         if sha256_file(checkpoint) != fit_record["checkpoint_sha256"]:
             raise ValueError("the assisted checkpoint changed")
@@ -298,7 +300,8 @@ def run(output, identity, *, smoke, fit_batches, resume, assist=None, replay=Non
                 **identity,
                 **measured,
                 "status": "evaluation_partition_complete",
-                "primary_run_id": parent.name,
+                "primary_run_id": assist[0].name,
+                "original_run_id": parent.name,
                 "checkpoint_sha256": fit_record["checkpoint_sha256"],
                 "inference_batch_receipt_sha256": sha256_file(batch_receipt),
             },
@@ -346,13 +349,17 @@ def main():
     phase.add_argument("--replay-full", type=Path)
     phase.add_argument("--assist-parent", type=Path)
     parser.add_argument("--assist-start", type=int)
+    parser.add_argument("--assist-full-parent", type=Path)
     args = parser.parse_args()
     output = args.output.resolve()
     if output.parent != STUDY or os.environ.get("CUDA_VISIBLE_DEVICES") != str(args.gpu):
         raise ValueError("invalid J2 study path or GPU")
+    if args.assist_full_parent is not None and args.replay_full is None:
+        raise ValueError("a full-gene helper requires the original frozen run")
     assist = None
-    if args.assist_parent is not None:
-        parent = args.assist_parent.resolve()
+    assist_parent = args.assist_full_parent or args.assist_parent
+    if assist_parent is not None:
+        parent = assist_parent.resolve()
         if (
             parent.parent != STUDY
             or parent == output
@@ -362,7 +369,7 @@ def main():
             raise ValueError("invalid J2 primary run or condition partition")
         assist = (parent, args.assist_start)
     elif args.assist_start is not None:
-        raise ValueError("--assist-start requires --assist-parent")
+        raise ValueError("--assist-start requires an evaluation parent")
     source = inspect_source_identity(
         REPO,
         formal=True,
