@@ -264,31 +264,51 @@ def gene_update(step, flow, encoder, source, adata, columns, labels, pathways, o
     return optimizer, means
 
 
-def fit(output, flow, encoder, data, source_path, panel, keep, grc, pathways, deadline):
+def fit(
+    output,
+    flow,
+    encoder,
+    data,
+    source_path,
+    panel,
+    keep,
+    grc,
+    pathways,
+    deadline,
+    *,
+    prepared=None,
+    step_cap=STEP_CAP,
+):
     import jax
     import jax.numpy as jnp
     import optax
     from cellflow.data._dataloader import TrainSampler
     from flax import serialization
 
-    rng, host_rng = restore_flow(flow)
+    if prepared is None:
+        rng, host_rng = restore_flow(flow)
+        start_update = 999
+    else:
+        rng, host_rng = jax.random.PRNGKey(42), np.random.default_rng(42)
+        start_update = 0
     adam = optax.adam(5e-5)
     optimizer = adam.init(flow.solver.vf_state.params)
     step = official_step(flow, encoder, keep, adam)
     sampler = TrainSampler(data=flow.train_data, batch_size=1024)
-    if sampler.n_source_dists != 3 or sampler.n_target_dists != 4333:
+    if prepared is None and (sampler.n_source_dists != 3 or sampler.n_target_dists != 4333):
         raise ValueError("the released sampler differs from the accepted prefix")
     log = output / "fit-losses.jsonl"
-    adata = anndata.read_h5ad(source_path, backed="r")
+    adata = anndata.read_h5ad(source_path, backed="r") if prepared is None else prepared.adata
     try:
         columns = adata.var_names.get_indexer(np.asarray(panel)[keep]).tolist()
-        if min(columns) < 0 or len(columns) != 3224:
+        expected_genes = 3224 if prepared is None else len(prepared.allowed_indices)
+        if min(columns) < 0 or len(columns) != expected_genes:
             raise ValueError("invalid stage 2 expression visibility")
-        completed = 999
+        completed = start_update
         gene_updates = 0
         start = time.monotonic()
         with log.open("x", encoding="utf-8") as history:
-            for update in range(1000, STEP_CAP + 1):
+            for update in range(start_update + 1, step_cap + 1):
                 if time.monotonic() >= deadline:
                     break
                 rng, key = jax.random.split(rng)
@@ -329,23 +349,25 @@ def fit(output, flow, encoder, data, source_path, panel, keep, grc, pathways, de
                     )
                     + "\n"
                 )
-                if update == 1000 or update % 100 == 0:
+                if update == 1 or update == 1000 or update % 100 == 0:
                     history.flush()
                     atomic_json(
                         output / "training_progress.json",
                         {
                             "microsteps": update,
-                            "planned": STEP_CAP,
+                            "planned": step_cap,
                             "gene_space_updates": gene_updates,
                             "ot_flow_loss": loss,
                             "latest_gene_space_losses": components,
                         },
                     )
     finally:
-        adata.file.close()
+        if prepared is None:
+            adata.file.close()
     state = flow.solver.vf_state
+    minimum = min(1000, step_cap)
     if (
-        completed < 1000
+        completed < minimum
         or gene_updates != 3 * (completed // GENE_LOSS_PERIOD)
         or int(state.step) != completed
         or int(state.opt_state.gradient_step) != completed // 20
@@ -358,16 +380,22 @@ def fit(output, flow, encoder, data, source_path, panel, keep, grc, pathways, de
         flow.solver.vf_state_inference, checkpoint.read_bytes()
     )
     return {
-        "source_prefix_sha256": PREFIX_SHA,
-        "encoder_receipt_sha256": STAGE1_RECEIPT_SHA,
-        "resumed_at_microstep": 1000,
+        **(
+            {
+                "source_prefix_sha256": PREFIX_SHA,
+                "encoder_receipt_sha256": STAGE1_RECEIPT_SHA,
+                "resumed_at_microstep": 1000,
+            }
+            if prepared is None
+            else {"resumed_at_microstep": 0}
+        ),
         "flow_microsteps": completed,
-        "planned_microsteps": STEP_CAP,
+        "planned_microsteps": step_cap,
         "flow_optimizer_updates": int(state.opt_state.gradient_step),
         "gene_space_updates": gene_updates,
         "gene_space_update_period": GENE_LOSS_PERIOD,
         "fit_seconds": time.monotonic() - start,
-        "fit_stop_reason": "microstep_cap" if completed == STEP_CAP else "time_cap",
+        "fit_stop_reason": "microstep_cap" if completed == step_cap else "time_cap",
         "checkpoint_sha256": sha256_file(checkpoint),
         "fit_history_sha256": sha256_file(log),
         "fit_expression_columns": len(columns),

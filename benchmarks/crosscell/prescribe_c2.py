@@ -83,11 +83,10 @@ def sample_corrected_edistance(treated, controls):
     treated = np.asarray(treated, dtype=np.float64)
     controls = np.asarray(controls, dtype=np.float64)
     delta = treated.mean(0) - controls.mean(0)
-    return 2 * (
-        float(delta @ delta)
-        - treated.var(0, ddof=1).sum() / len(treated)
-        - controls.var(0, ddof=1).sum() / len(controls)
-    )
+    # For singleton fit conditions there is no within-condition pair.
+    treated_noise = treated.var(0, ddof=1).sum() / len(treated) if len(treated) > 1 else 0.0
+    control_noise = controls.var(0, ddof=1).sum() / len(controls) if len(controls) > 1 else 0.0
+    return 2 * (float(delta @ delta) - treated_noise - control_noise)
 
 
 def fit_data(source, cohort, rows, compatibility, cfg):

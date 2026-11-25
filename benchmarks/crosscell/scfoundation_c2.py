@@ -55,20 +55,17 @@ GENES, BATCH, ACCUMULATION, SEED = 19264, 6, 5, 1
 OFFICIAL_EPOCHS, WALL_SECONDS = 15, 10800
 
 
-def released_module():
+def released_module(*, require_crosscell_artifacts=True):
     git = ["git", "-C", str(UPSTREAM)]
     if (
         subprocess.check_output([*git, "rev-parse", "HEAD"], text=True).strip() != COMMIT
         or subprocess.check_output([*git, "status", "--porcelain"], text=True).strip()
     ):
         raise ValueError("released scFoundation source changed")
-    for path, expected in (
-        (FOUNDATION_WEIGHTS, FOUNDATION_WEIGHTS_SHA),
-        (GO, GO_SHA),
-        (COEX, COEX_SHA),
-        (AUDIT, AUDIT_SHA),
-        (SUPPORT, SUPPORT_SHA),
-    ):
+    checks = [(FOUNDATION_WEIGHTS, FOUNDATION_WEIGHTS_SHA), (GO, GO_SHA)]
+    if require_crosscell_artifacts:
+        checks += [(COEX, COEX_SHA), (AUDIT, AUDIT_SHA), (SUPPORT, SUPPORT_SHA)]
+    for path, expected in checks:
         if sha256_file(path) != expected:
             raise ValueError(f"frozen scFoundation input changed: {path.name}")
     # The official module resolves paths from its own GEARS directory.
@@ -246,13 +243,57 @@ def initialize(output, source, rows, cohort, compatibility, panel, limit, val_li
     if len(node) != GENES or len(set(positions)) != len(positions):
         raise ValueError("ambiguous C2 vocabulary projection")
     matrix, conditions, roles, paired = fitting_data(source, rows, cohort, compatibility, panel)
-    fit_names = np.unique(conditions[roles["train"]]).tolist()
-    if not set(conditions[roles["val"]]) <= set(fit_names):
+    if not set(conditions[roles["val"]]) <= set(conditions[roles["train"]]):
         raise ValueError("validation would require DE selection from an unseen fit condition")
-    # The official graph uses external annotations, with nodes restricted to the
-    # declared C2 perturbation identities. No K562 expression enters graph fitting.
-    all_names = [*fit_names, *cohort["condition_ids"]]
-    required = {g for name in all_names for g in name.split("+") if g != "ctrl"}
+    return initialize_fitting(
+        output,
+        Gears,
+        network,
+        native,
+        positions,
+        {},
+        matrix,
+        conditions,
+        roles,
+        paired,
+        cohort["condition_ids"],
+        read_coexpression(COEX),
+        panel["score_genes"],
+        limit,
+        val_limit,
+    )
+
+
+def read_coexpression(path):
+    with np.load(path, allow_pickle=False) as graph:
+        return torch.from_numpy(graph["edge_index"]), torch.from_numpy(graph["edge_weight"])
+
+
+def initialize_fitting(
+    output,
+    Gears,
+    network,
+    native,
+    positions,
+    target_aliases,
+    matrix,
+    conditions,
+    roles,
+    paired,
+    test_names,
+    coexpression,
+    genes,
+    limit,
+    val_limit,
+):
+    node = {gene: i for i, gene in enumerate(native)}
+    fit_names = np.unique(conditions[np.r_[roles["train"], roles["val"]]]).tolist()
+    # The graph uses only external gene annotations. Validation-only J2
+    # conditions use a shared train-only DE reference for checkpoint selection.
+    all_names = [*fit_names, *test_names]
+    required = {
+        target_aliases.get(g, g) for name in all_names for g in name.split("+") if g != "ctrl"
+    }
     with GO.open("rb") as file:
         stock = pickle.load(file)
     ontology = {g: v for g, v in stock.items() if g in required}
@@ -260,11 +301,12 @@ def initialize(output, source, rows, cohort, compatibility, panel, limit, val_li
         raise ValueError("a frozen condition is missing from the audited GO prior")
     perts = sorted(ontology)
     pert_map = {g: i for i, g in enumerate(perts)}
-    targets = {name: [pert_map[g] for g in name.split("+") if g != "ctrl"] for name in all_names}
+    targets = {
+        name: [pert_map[target_aliases.get(g, g)] for g in name.split("+") if g != "ctrl"]
+        for name in all_names
+    }
     go = network(go_neighbors(ontology), perts, pert_map)
-    with np.load(COEX, allow_pickle=False) as graph:
-        coex_edges = torch.from_numpy(graph["edge_index"])
-        coex_weights = torch.from_numpy(graph["edge_weight"])
+    coex_edges, coex_weights = coexpression
     train = roles["train"]
     ordered_train = train[np.argsort(conditions[train], kind="stable")]
     subgroups = np.split(
@@ -281,6 +323,13 @@ def initialize(output, source, rows, cohort, compatibility, panel, limit, val_li
             raise ValueError(f"too few expressed training genes: {name}")
         top = present[np.argsort(-np.abs(mean[present] - ctrl_mean[present]), kind="stable")[:20]]
         de[name], nonzero[name] = positions[top].tolist(), positions[present].tolist()
+
+    train_mean = np.asarray(matrix[train].mean(0)).ravel()
+    present = np.flatnonzero(train_mean != 0)
+    top = present[np.argsort(-np.abs(train_mean[present] - ctrl_mean[present]), kind="stable")[:20]]
+    for name in fit_names:
+        de.setdefault(name, positions[top].tolist())
+        nonzero.setdefault(name, positions[present].tolist())
 
     rng = np.random.default_rng(SEED)
     train_selected = rng.permutation(train)[: limit * BATCH]
@@ -344,7 +393,7 @@ def initialize(output, source, rows, cohort, compatibility, panel, limit, val_li
             "val_microbatches": len(val_loader),
             "fit_selection_sha256": sha256_json(fitting_indices(train_selected, paired)),
             "val_selection_sha256": sha256_json(fitting_indices(val_selected, paired)),
-            "test_panel_gene_order_sha256": sha256_json(panel["score_genes"]),
+            "test_panel_gene_order_sha256": sha256_json(genes),
         },
     )
 

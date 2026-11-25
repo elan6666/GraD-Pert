@@ -55,7 +55,7 @@ def j2_prior(fitted, test, path):
     merged = {**external, **primary}
     support = reconcile(fitted | test, set(merged), hgnc_links(), verified_aliases={})
     missing = set(support["unresolved"])
-    if support["collisions"] or missing & test != {"INTS2", "WDR61"}:
+    if support["collisions"] or missing != {"C1orf109", "CCDC130", "DDN", "FRG2"} or missing & test:
         raise ValueError("unexpected Jurkat J2 GenePT coverage")
     aliases = support["aliases"]
     bank = {g: merged[aliases.get(g, g)] for g in sorted((fitted | test) - missing)}
