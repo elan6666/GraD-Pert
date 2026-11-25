@@ -72,7 +72,7 @@ def j2_prior(fitted, test, path):
     return sorted(missing & fitted), sorted(missing & test)
 
 
-def run(output, cfg, identity, smoke, fit_seconds, *, resume, replay=None):
+def run(output, cfg, identity, smoke, fit_seconds, *, resume, replay=None, colab_prefix=None):
     started = time.monotonic()
     parent = replay or output
     checkpoint = parent / "checkpoint.pt"
@@ -88,6 +88,8 @@ def run(output, cfg, identity, smoke, fit_seconds, *, resume, replay=None):
     with context() as data:
         test_names = {target(n) for n in data.split.test_conditions}
         frozen_control_batches = dict(zip(data.row_ids, data.context_ids, strict=True))
+        draw_order = [draw.condition_id for draw in data.control_manifest.draws]
+        paired_rows_sha256 = data.control_manifest_file_sha256
     if (train_names | val_names) & test_names:
         raise ValueError("J2 condition identities leaked into fit")
     batches = np.asarray(prepared.row_context_ids)
@@ -195,7 +197,24 @@ def run(output, cfg, identity, smoke, fit_seconds, *, resume, replay=None):
         )
         return
 
+    means, cloud_receipt = {}, {}
+    prediction_identity = None
+    if colab_prefix is not None:
+        from benchmarks.jurkat_j2.colab_perturbdiff import load_condition_means
+
+        input_manifest = colab_prefix / "manifest.json"
+        if read_json(input_manifest)["paired_rows_sha256"] != paired_rows_sha256:
+            raise ValueError("Colab and the server use different frozen control manifests")
+        means, cloud_receipt = load_condition_means(
+            input_manifest, colab_prefix, replay, draw_order
+        )
+        prediction_identity = sha256_json(
+            [receipt["checkpoint_sha256"], cloud_receipt["predictions_sha256"]]
+        )
+
     def apply(name, control, ids, columns):
+        if name in means:
+            return np.broadcast_to(means[name][columns], control.shape)
         torch.manual_seed(int(sha256_json([cfg["evaluation_seed"], name])[:8], 16))
         control_contexts = np.asarray([frozen_control_batches[r] for r in ids])
         return predict(model, vocab, cfg, target(name), "jurkat", control, control_contexts)[
@@ -208,6 +227,7 @@ def run(output, cfg, identity, smoke, fit_seconds, *, resume, replay=None):
         receipt,
         deadline=started + cfg["max_wall_seconds"] - 60,
         full_axis=replay is not None,
+        prediction_identity=prediction_identity,
     )
     if result is None:
         return
@@ -220,6 +240,15 @@ def run(output, cfg, identity, smoke, fit_seconds, *, resume, replay=None):
             **result,
             "status": "evaluated",
             "evaluation_source_commit": identity["source_commit"],
+            **(
+                {
+                    "inference_provider": "Google Colab and campus GPU",
+                    "colab_inference": cloud_receipt,
+                    "campus_inference_conditions": 592 - len(means),
+                }
+                if cloud_receipt
+                else {}
+            ),
             **(replay_fields(replay, identity) if replay is not None else {}),
         },
     )
@@ -237,6 +266,7 @@ def main():
     phase.add_argument("--smoke-run", type=Path)
     phase.add_argument("--resume", action="store_true")
     phase.add_argument("--replay-full", type=Path)
+    parser.add_argument("--colab-prefix", type=Path)
     args = parser.parse_args()
     if args.output.resolve().parent != STUDY or os.environ.get("CUDA_VISIBLE_DEVICES") != str(
         args.gpu
@@ -282,6 +312,10 @@ def main():
                 cfg["max_wall_seconds"] - 592 * smoke["seconds_per_condition"] * 1.10 - 180,
             ),
         )
+    if args.colab_prefix is not None and (
+        args.replay_full is None or args.colab_prefix.resolve().parent != STUDY
+    ):
+        raise ValueError("a Colab prefix must belong to a full replay in the sealed study")
     if args.replay_full is not None:
         args.replay_full = args.replay_full.resolve()
         if args.replay_full.parent != STUDY or args.replay_full == args.output.resolve():
@@ -306,6 +340,7 @@ def main():
             fit_seconds,
             resume=args.resume or args.replay_full is not None,
             replay=args.replay_full,
+            colab_prefix=args.colab_prefix,
         )
 
 

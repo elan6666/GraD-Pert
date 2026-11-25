@@ -87,13 +87,22 @@ def frozen_receipt(output, identity, checkpoint_name, *, replay=False):
     return receipt
 
 
-def evaluate_segment(predict, output, receipt, *, deadline, full_axis=False, native_columns=None):
+def evaluate_segment(
+    predict,
+    output,
+    receipt,
+    *,
+    deadline,
+    full_axis=False,
+    native_columns=None,
+    prediction_identity=None,
+):
     try:
         return evaluate(
             predict,
             output,
             deadline=deadline,
-            journal_identity=receipt["checkpoint_sha256"],
+            journal_identity=prediction_identity or receipt["checkpoint_sha256"],
             full_axis=full_axis,
             native_columns=native_columns,
         )

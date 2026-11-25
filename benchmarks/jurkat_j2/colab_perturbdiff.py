@@ -198,7 +198,7 @@ def infer(inputs, output, *, stop=None, seconds=10400):
         else:
             if time.monotonic() - started >= seconds:
                 print(f"Segment ended at {i - 1}/{count} conditions", flush=True)
-                return
+                break
             torch.manual_seed(int(sha256_json([cfg["evaluation_seed"], name])[:8], 16))
             values = predict(
                 model,
@@ -222,14 +222,18 @@ def infer(inputs, output, *, stop=None, seconds=10400):
         if i == 1 or i % 10 == 0 or i == count:
             print(f"{i}/{count} conditions, {time.monotonic() - started:.1f}s", flush=True)
     predictions = output / "condition-means.npz"
-    np.savez_compressed(predictions, conditions=conditions[:count], means=np.asarray(means))
+    if not means:
+        raise RuntimeError("the inference segment did not complete a frozen condition")
+    np.savez_compressed(predictions, conditions=conditions[: len(means)], means=np.asarray(means))
     atomic_json(
         output / "inference.json",
         {
             "manifest_sha256": manifest_sha,
             "predictions_sha256": sha256_file(predictions),
             "checkpoint_sha256": manifest["files"]["checkpoint.pt"],
-            "conditions": count,
+            "conditions": len(means),
+            "requested_conditions": count,
+            "status": "complete" if len(means) == count else "partial",
             "test_controls_per_condition": 300,
             "test_updates": 0,
             "test_truth_accessed": False,
@@ -243,17 +247,16 @@ def infer(inputs, output, *, stop=None, seconds=10400):
     )
 
 
-def score(input_manifest, inference, output, origin):
-    """Rejoin exact condition means with the original truth on the study server."""
-    from benchmarks.common.full_gene_evaluation import replay_fields
-    from benchmarks.jurkat_j2.study import COHORT_SHA, EXPECTED_CONDITIONS, evaluate
+def load_condition_means(input_manifest, inference, origin, expected_conditions):
+    """Verify that the returned means cover a prefix of the original ordered controls."""
+    from benchmarks.crosscell.study_paths import COHORT_SHA
 
     manifest = read_json(input_manifest)
     receipt = read_json(inference / "inference.json")
     original = read_json(origin / "result.json")
     predictions = inference / "condition-means.npz"
     if (
-        receipt["conditions"] != EXPECTED_CONDITIONS
+        not 1 <= receipt["conditions"] <= len(expected_conditions)
         or receipt["test_controls_per_condition"] != 300
         or receipt["test_truth_accessed"]
         or receipt["test_updates"] != 0
@@ -267,11 +270,29 @@ def score(input_manifest, inference, output, origin):
         raise ValueError("portable run failed frozen inference provenance verification")
     with np.load(predictions, allow_pickle=False) as archive:
         names, means = archive["conditions"], archive["means"]
-    if means.shape != (EXPECTED_CONDITIONS, 5000) or not np.isfinite(means).all():
-        raise ValueError("invalid condition means")
-    lookup = dict(zip(names, means, strict=True))
+    count = receipt["conditions"]
+    if (
+        means.shape != (count, 5000)
+        or not np.isfinite(means).all()
+        or list(names) != list(expected_conditions[:count])
+    ):
+        raise ValueError("the returned means do not match the fixed draw-order prefix")
+    return dict(zip(names, means, strict=True)), receipt
+
+
+def score(input_manifest, inference, output, origin):
+    """Rejoin exact condition means with the original truth on the study server."""
+    from benchmarks.common.full_gene_evaluation import replay_fields
+    from benchmarks.jurkat_j2.study import EXPECTED_CONDITIONS, context, evaluate
+
+    with context() as data:
+        expected = [draw.condition_id for draw in data.control_manifest.draws]
+        if read_json(input_manifest)["paired_rows_sha256"] != data.control_manifest_file_sha256:
+            raise ValueError("portable inference and scoring use different controls")
+    lookup, receipt = load_condition_means(input_manifest, inference, origin, expected)
     if len(lookup) != EXPECTED_CONDITIONS:
-        raise ValueError("a portable condition is duplicated")
+        raise ValueError("complete Colab scoring requires every condition")
+    original = read_json(origin / "result.json")
     output.mkdir()
     result = evaluate(
         lambda name, controls, _ids, _axis: np.broadcast_to(lookup[name], controls.shape),
@@ -279,8 +300,6 @@ def score(input_manifest, inference, output, origin):
         journal_identity=receipt["predictions_sha256"],
         full_axis=True,
     )
-    if result["paired_rows_sha256"] != manifest["paired_rows_sha256"]:
-        raise ValueError("portable fold and scoring use different controls")
     import subprocess
 
     sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
