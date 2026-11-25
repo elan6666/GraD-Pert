@@ -349,7 +349,7 @@ def main():
         formal=True,
         expected_repository="https://github.com/elan6666/GraD-Pert.git",
         remote_ref="refs/heads/codex/perturbation-holdout-study",
-        verification_method="github_rest_live",
+        verification_method="git_ls_remote_live",
         publication_receipt=args.publication,
         expected_publication_receipt_sha256=args.publication_sha,
     )
