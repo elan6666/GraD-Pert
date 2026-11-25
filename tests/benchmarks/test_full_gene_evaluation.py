@@ -30,6 +30,45 @@ def test_coverage_receipt_binds_missing_columns_to_full_gene_order(tmp_path):
         coverage(tmp_path, ["A", "B", "C"], [0, 1], 3)
 
 
+def test_scfoundation_replays_the_legacy_checkpoint_without_relaxing_new_receipts():
+    from benchmarks.crosscell.scfoundation_c2 import LEGACY_FIT_COMMIT, verify_fit_selection
+
+    identity = {
+        "shared_fit_support_file_sha256": "fit support",
+        "weights_sha256": "released weights",
+        "encoder_tokens": "released_nonzero",
+        "matched_fit_microbatches": None,
+    }
+    original = {
+        "source_commit": LEGACY_FIT_COMMIT,
+        "fit_microbatches": 1500,
+        "val_microbatches": 20,
+        "test_panel_gene_order_sha256": "ordered original panel",
+        "shared_fit_support_file_sha256": identity["shared_fit_support_file_sha256"],
+        "weights_sha256": identity["weights_sha256"],
+    }
+    selection = {
+        "fit_microbatches": 1500,
+        "val_microbatches": 20,
+        "test_panel_gene_order_sha256": "ordered original panel",
+        "fit_selection_sha256": "train rows",
+        "val_selection_sha256": "validation rows",
+    }
+
+    assert verify_fit_selection(original, selection, identity) == (
+        "legacy_seeded_fit_without_selection_hashes"
+    )
+    modern = {**original, **selection, "source_commit": "more recent commit"}
+    assert verify_fit_selection(modern, selection, identity) == "selection_hashes_verified"
+    for invalid in (
+        {**original, "source_commit": "more recent commit"},
+        {**original, "fit_microbatches": 1499},
+        {**modern, "fit_selection_sha256": "different training rows"},
+    ):
+        with pytest.raises(ValueError, match="frozen fit selection changed"):
+            verify_fit_selection(invalid, selection, identity)
+
+
 def test_colab_returns_only_the_sealed_draw_order_prefix(tmp_path):
     from benchmarks.crosscell.study_paths import COHORT_SHA
     from benchmarks.jurkat_j2.colab_perturbdiff import load_condition_means

@@ -55,6 +55,7 @@ GO_SHA = "f145c5e84a53048d87942a417d870a4f2d8db50200b96e492b358c13aba8c771"
 COEX_SHA = "aa9ec8578389fedbb8572763f7d69c9d19c91d524f97f76f5023fb47fe000f67"
 GENES, BATCH, ACCUMULATION, SEED = 19264, 6, 5, 1
 OFFICIAL_EPOCHS, WALL_SECONDS = 15, 10800
+LEGACY_FIT_COMMIT = "6607a7b5b5e9e84bedf55ae67340176d01a01273"
 
 
 def released_module(*, require_crosscell_artifacts=True):
@@ -424,6 +425,29 @@ def fitting_indices(rows, paired):
     return np.column_stack((rows, paired[rows])).tolist()
 
 
+def verify_fit_selection(original, selection, identity):
+    selection_hashes = {"fit_selection_sha256", "val_selection_sha256"}
+    legacy = (
+        original["source_commit"] == LEGACY_FIT_COMMIT
+        and identity["encoder_tokens"] == "released_nonzero"
+        and identity["matched_fit_microbatches"] is None
+        and selection_hashes.isdisjoint(original)
+    )
+    if (
+        original.get("encoder_tokens", "released_nonzero") != identity["encoder_tokens"]
+        or original.get("matched_fit_microbatches") != identity["matched_fit_microbatches"]
+        or original["shared_fit_support_file_sha256"] != identity["shared_fit_support_file_sha256"]
+        or original["weights_sha256"] != identity["weights_sha256"]
+        or any(
+            original.get(key) != value
+            for key, value in selection.items()
+            if not (legacy and key in selection_hashes)
+        )
+    ):
+        raise ValueError("scFoundation frozen fit selection changed")
+    return "legacy_seeded_fit_without_selection_hashes" if legacy else "selection_hashes_verified"
+
+
 def run(output, identity, args):
     torch.manual_seed(SEED)
     np.random.seed(SEED)
@@ -491,11 +515,14 @@ def run(output, identity, args):
         )
         atomic_json(output / "fit_receipt.json", fit)
     else:
-        if any(original[key] != value for key, value in selection.items()):
-            raise ValueError("scFoundation frozen fit selection changed")
+        selection_verification = verify_fit_selection(original, selection, identity)
         checkpoint = replay / "checkpoint.pt"
         checkpoint_sha = original["checkpoint_sha256"]
-        fit = {**original, **replay_fields(replay, identity)}
+        fit = {
+            **original,
+            **replay_fields(replay, identity),
+            "fit_selection_verification": selection_verification,
+        }
         # The scorer replaces evaluation fields from the original common panel.
         fit.pop("score_panel_sha256", None)
         frozen = model.model
