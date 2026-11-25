@@ -62,6 +62,7 @@ def score(
     stop_starting_conditions_at=None,
     score_genes=None,
     prediction_on_score_panel=False,
+    record_response=None,
 ):
     ids = cohort["condition_ids"]
     draw_path = Path(cohort["shared_frozen_draws_path"])
@@ -154,7 +155,11 @@ def score(
                 systema_reference=reference,
                 include_deg=False,
             )
-            error = prediction.mean(0, dtype=np.float64) - truth.mean(0, dtype=np.float64)
+            predicted_mean = prediction.mean(0, dtype=np.float64)
+            truth_mean = truth.mean(0, dtype=np.float64)
+            error = predicted_mean - truth_mean
+            if record_response is not None:
+                record_response(condition, predicted_mean - control_mean, truth_mean - control_mean)
             row = {
                 **asdict(values),
                 "mean_mse": float(np.mean(error**2)),

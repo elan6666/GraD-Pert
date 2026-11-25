@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from collections import defaultdict
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -199,6 +200,38 @@ class FittingLoader:
             )
 
 
+@contextmanager
+def encoder_token_gate(positions, include_zero_tokens):
+    """Change only MAE encoder token presence, preserving the full decoder input."""
+    if not include_zero_tokens:
+        yield
+        return
+    from modules import encoders
+
+    original = encoders.getEncoerDecoderData
+
+    def include_all_allowed(data, raw, config):
+        native = list(original(data, raw, config))
+        labels, decoder, decoder_ids = native[3], native[4], native[8]
+        if config["pad_token_id"] == 0:
+            raise ValueError("the released padding ID cannot encode measured zeros")
+        labels = labels.clone()
+        labels[:, positions] = True
+        genes, _ = encoders.gatherData(decoder_ids, labels, config["pad_token_id"])
+        expression, padding = encoders.gatherData(decoder, labels, config["pad_token_id"])
+        genes[padding] = config["seq_len"]
+        if not torch.equal((~padding).sum(1), labels.sum(1)):
+            raise ValueError("MAE token selection lost a declared encoder token")
+        native[:4] = [expression, genes, padding, labels]
+        return tuple(native)
+
+    encoders.getEncoerDecoderData = include_all_allowed
+    try:
+        yield
+    finally:
+        encoders.getEncoerDecoderData = original
+
+
 def initialize(output, source, rows, cohort, compatibility, panel, limit, val_limit):
     Gears, network = released_module()
     audit = read_json(AUDIT)["scfoundation"]
@@ -306,14 +339,18 @@ def initialize(output, source, rows, cohort, compatibility, panel, limit, val_li
         positions,
         targets,
         val_loader,
-        len(train_loader),
-        len(val_loader),
-        columns_hash(panel),
+        {
+            "fit_microbatches": len(train_loader),
+            "val_microbatches": len(val_loader),
+            "fit_selection_sha256": sha256_json(fitting_indices(train_selected, paired)),
+            "val_selection_sha256": sha256_json(fitting_indices(val_selected, paired)),
+            "test_panel_gene_order_sha256": sha256_json(panel["score_genes"]),
+        },
     )
 
 
-def columns_hash(panel):
-    return sha256_json(panel["score_genes"])
+def fitting_indices(rows, paired):
+    return np.column_stack((rows, paired[rows])).tolist()
 
 
 def run(output, identity, args):
@@ -328,7 +365,13 @@ def run(output, identity, args):
         smoke = read_json(args.smoke_run / "result.json")
         if smoke["status"] != "trained_validation_only" or any(
             smoke[k] != identity[k]
-            for k in ("source_commit", "shared_fit_support_file_sha256", "cohort_sha256")
+            for k in (
+                "source_commit",
+                "shared_fit_support_file_sha256",
+                "cohort_sha256",
+                "encoder_tokens",
+                "matched_fit_microbatches",
+            )
         ):
             raise ValueError("formal run needs this source's validation-only smoke")
         # Reserve full frozen evaluation before choosing a bounded fit prefix.
@@ -337,15 +380,20 @@ def run(output, identity, args):
         )
         if budget < 120:
             raise RuntimeError("smoke projects that frozen scoring exceeds the three-hour envelope")
-        limit = max(5, min(1500, int(budget / max(smoke["fit_seconds"] / 5, 0.001))))
+        affordable = int(budget / max(smoke["fit_seconds"] / 5, 0.001))
+        if args.matched_fit_batches and affordable < args.matched_fit_batches:
+            raise RuntimeError("the preregistered matched prefix does not fit this elapsed budget")
+        limit = args.matched_fit_batches or max(5, min(1500, affordable))
         limit -= limit % ACCUMULATION
         val_limit = 20
-    model, positions, targets, val_loader, fit_batches, val_batches, axis = initialize(
+    model, positions, targets, val_loader, selection = initialize(
         output, source, rows, cohort, compatibility, panel, limit, val_limit
     )
     setup_seconds = time.monotonic() - start
     fit_start = time.monotonic()
-    model.train(epochs=1, result_dir=str(output), lr=0.01, weight_decay=5e-4)
+    all_allowed = args.encoder_tokens == "all_allowed"
+    with encoder_token_gate(positions, all_allowed):
+        model.train(epochs=1, result_dir=str(output), lr=0.01, weight_decay=5e-4)
     fit_seconds = time.monotonic() - fit_start
     checkpoint = output / "checkpoint.pt"
     checkpoint_sha = sha256_file(checkpoint)
@@ -354,12 +402,11 @@ def run(output, identity, args):
     frozen.requires_grad_(False).eval()
     fit = dict(
         identity,
+        **selection,
         setup_seconds=setup_seconds,
         fit_seconds=fit_seconds,
         checkpoint_sha256=checkpoint_sha,
-        fit_microbatches=fit_batches,
-        val_microbatches=val_batches,
-        optimizer_updates=(fit_batches + ACCUMULATION - 1) // ACCUMULATION,
+        optimizer_updates=(selection["fit_microbatches"] + ACCUMULATION - 1) // ACCUMULATION,
         epochs=1,
         official_epoch_reference=OFFICIAL_EPOCHS,
         batch=BATCH,
@@ -367,17 +414,35 @@ def run(output, identity, args):
         validation_de_basis="top20_absolute_training_mean_delta_over_source_controls",
         budget_policy="single reduced epoch with a seeded fitting prefix and held validation",
         fit_test_conditions_accessed=0,
-        test_panel_gene_order_sha256=axis,
     )
     atomic_json(output / "fit_receipt.json", fit)
 
+    diagnostics = not args.smoke and args.matched_fit_batches is not None
+    embeddings, deltas = {}, {}
+
+    def record_response(condition, prediction, truth):
+        deltas[condition] = (prediction, truth)
+
     @torch.inference_mode()
     def predict(name, controls):
-        y = []
-        for i in range(0, len(controls), BATCH):
-            values = controls[i : i + BATCH]
-            batch = Batch(values, positions, [targets[name]] * len(values), [name] * len(values))
-            y.append(frozen(batch.to("cuda"))[:, positions].cpu().numpy())
+        y, states = [], []
+        with ExitStack() as stack:
+            stack.enter_context(encoder_token_gate(positions, all_allowed))
+            if diagnostics:
+                handle = frozen.cross_gene_state.register_forward_hook(
+                    lambda _module, _inputs, out: states.append(out.detach().float().sum(0))
+                )
+                stack.callback(handle.remove)
+            for i in range(0, len(controls), BATCH):
+                values = controls[i : i + BATCH]
+                batch = Batch(
+                    values, positions, [targets[name]] * len(values), [name] * len(values)
+                )
+                y.append(frozen(batch.to("cuda"))[:, positions].cpu().numpy())
+        if diagnostics:
+            if len(states) != len(y):
+                raise ValueError("GEARS cross-gene representation coverage changed")
+            embeddings[name] = (torch.stack(states).sum(0) / len(controls)).cpu().numpy()
         return np.concatenate(y)
 
     if args.smoke:
@@ -422,11 +487,33 @@ def run(output, identity, args):
                 journal_key=checkpoint_sha,
                 score_genes=panel["score_genes"],
                 prediction_on_score_panel=True,
+                record_response=record_response if diagnostics else None,
                 stop_starting_conditions_at=start + WALL_SECONDS,
             )
         if measured.get("conditions") != 128 or sha256_file(checkpoint) != checkpoint_sha:
             raise RuntimeError("full frozen scoring did not finish within its budget")
         result = dict(fit, **measured, status="evaluated")
+        if diagnostics:
+            names = cohort["condition_ids"]
+            if set(names) != set(embeddings) or set(names) != set(deltas):
+                raise ValueError("ablation diagnostics did not cover every frozen condition")
+            target = output / "condition-representations.npz"
+            representations = np.stack([embeddings[name] for name in names])
+            responses = np.stack([deltas[name] for name in names])
+            if not np.isfinite(representations).all() or not np.isfinite(responses).all():
+                raise ValueError("nonfinite ablation representations or deltas")
+            np.savez_compressed(
+                target,
+                conditions=np.asarray(names),
+                genes=np.asarray(panel["score_genes"]),
+                cross_gene_state=representations,
+                predicted_delta=responses[:, 0],
+                truth_delta=responses[:, 1],
+            )
+            result["diagnostic_sha256"] = sha256_file(target)
+            result["diagnostic_layer"] = (
+                "GEARS cross_gene_state, mean over the 300 ordered controls"
+            )
     if list(output.rglob("*.pkl")):
         raise RuntimeError("scFoundation output unexpectedly contains PKLs")
     atomic_json(output / "result.json", result)
@@ -439,10 +526,16 @@ def main():
     parser.add_argument("--publication-sha", required=True)
     parser.add_argument("--gpu", required=True, type=int, choices=(0, 1))
     parser.add_argument("--gpu-uuid", required=True)
+    parser.add_argument(
+        "--encoder-tokens", choices=("released_nonzero", "all_allowed"), default="released_nonzero"
+    )
+    parser.add_argument("--matched-fit-batches", type=int, choices=(300,))
     choice = parser.add_mutually_exclusive_group(required=True)
     choice.add_argument("--smoke", action="store_true")
     choice.add_argument("--smoke-run", type=Path)
     args = parser.parse_args()
+    if args.encoder_tokens == "all_allowed" and args.matched_fit_batches is None:
+        parser.error("all-allowed tokens are reserved for the matched-prefix ablation")
     output = args.output.resolve()
     if output.parent != STUDY or any(
         os.getenv(k) != v
@@ -473,6 +566,8 @@ def main():
         shared_fit_support_file_sha256=SUPPORT_SHA,
         weights_sha256=FOUNDATION_WEIGHTS_SHA,
         score_panel_sha256=sha256_file(PANEL),
+        encoder_tokens=args.encoder_tokens,
+        matched_fit_microbatches=args.matched_fit_batches,
     )
     with lock(SERVER / f"runtime/v2-gpu-{args.gpu}.lock"):
         admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
