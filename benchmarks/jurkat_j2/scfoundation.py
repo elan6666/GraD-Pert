@@ -21,6 +21,7 @@ from benchmarks.crosscell.study_paths import COHORT_SHA, REPO, SERVER, STUDY
 from benchmarks.jurkat_j2.study import (
     VOCABULARY,
     context,
+    evaluate,
     evaluate_segment,
     fit_data,
     frozen_receipt,
@@ -33,7 +34,7 @@ from gradpert.hashing import sha256_file, sha256_json
 from scripts.v2.shared_gpu import process_info, snapshot
 
 
-def initialize(output, fit_batches):
+def initialize(output, fit_batches, *, frozen_graph=None):
     Gears, network = released.released_module(require_crosscell_artifacts=False)
     from gears.utils import get_coexpression_network_from_train
 
@@ -67,7 +68,7 @@ def initialize(output, fit_batches):
     }
     conditions = prepared.adata.obs["condition"].astype(str).to_numpy()
     matrix = prepared.adata.X[:, columns].tocsr()
-    coex = output / "coexpression.npz"
+    coex = frozen_graph if frozen_graph is not None else output / "coexpression.npz"
     if not coex.is_file():
         rows = roles["train"]
         data = anndata.AnnData(
@@ -173,15 +174,19 @@ def select_score_batch(predict, name, values):
     return selected["batch"], rows
 
 
-def run(output, identity, *, smoke, fit_batches, resume):
+def run(output, identity, *, smoke, fit_batches, resume, assist=None):
     started = time.monotonic()
     torch.manual_seed(released.SEED)
-    checkpoint = output / "checkpoint.pt"
+    parent = assist[0] if assist is not None else output
+    checkpoint = parent / "checkpoint.pt"
+    coexpression = parent / "coexpression.npz"
     if resume:
-        fit_record = frozen_receipt(output, identity, checkpoint.name)
-        if sha256_file(output / "coexpression.npz") != fit_record["coexpression_sha256"]:
+        fit_record = frozen_receipt(parent, {**identity, "run_id": parent.name}, checkpoint.name)
+        if sha256_file(coexpression) != fit_record["coexpression_sha256"]:
             raise ValueError("the frozen J2 co-expression graph changed")
-    model, positions, targets, val_loader, provenance, columns = initialize(output, fit_batches)
+    model, positions, targets, val_loader, provenance, columns = initialize(
+        output, fit_batches, frozen_graph=coexpression if resume else None
+    )
     if resume:
         frozen = model.model.cuda()
     else:
@@ -233,7 +238,9 @@ def run(output, identity, *, smoke, fit_batches, resume):
             },
         )
         return
-    batch_receipt = output / "inference-batch.json"
+    batch_receipt = parent / "inference-batch.json"
+    if assist is not None and not batch_receipt.is_file():
+        raise ValueError("the primary evaluator has not pinned its inference batch")
     if batch_receipt.exists():
         batch_plan = read_json(batch_receipt)
         if (
@@ -260,8 +267,34 @@ def run(output, identity, *, smoke, fit_batches, resume):
                 "candidate_batches": trials,
             },
         )
+
+    def predict_projected(name, values, _ids, axis):
+        return predict(name, values[:, axis], score_batch)
+
+    if assist is not None:
+        measured = evaluate(
+            predict_projected,
+            output,
+            deadline=started + 10500,
+            journal_identity=fit_record["checkpoint_sha256"],
+            assist=assist,
+        )
+        if sha256_file(checkpoint) != fit_record["checkpoint_sha256"]:
+            raise ValueError("the assisted checkpoint changed")
+        atomic_json(
+            output / "result.json",
+            {
+                **identity,
+                **measured,
+                "status": "evaluation_partition_complete",
+                "primary_run_id": parent.name,
+                "checkpoint_sha256": fit_record["checkpoint_sha256"],
+                "inference_batch_receipt_sha256": sha256_file(batch_receipt),
+            },
+        )
+        return
     measured = evaluate_segment(
-        lambda name, values, _ids, axis: predict(name, values[:, axis], score_batch),
+        predict_projected,
         output,
         fit_record,
         deadline=started + 10500,
@@ -296,10 +329,25 @@ def main():
     phase.add_argument("--smoke", action="store_true")
     phase.add_argument("--smoke-run", type=Path)
     phase.add_argument("--resume", action="store_true")
+    phase.add_argument("--assist-parent", type=Path)
+    parser.add_argument("--assist-start", type=int)
     args = parser.parse_args()
     output = args.output.resolve()
     if output.parent != STUDY or os.environ.get("CUDA_VISIBLE_DEVICES") != str(args.gpu):
         raise ValueError("invalid J2 study path or GPU")
+    assist = None
+    if args.assist_parent is not None:
+        parent = args.assist_parent.resolve()
+        if (
+            parent.parent != STUDY
+            or parent == output
+            or args.assist_start is None
+            or not 1 <= args.assist_start <= 592
+        ):
+            raise ValueError("invalid J2 primary run or condition partition")
+        assist = (parent, args.assist_start)
+    elif args.assist_start is not None:
+        raise ValueError("--assist-start requires --assist-parent")
     source = inspect_source_identity(
         REPO,
         formal=True,
@@ -344,7 +392,8 @@ def main():
             identity,
             smoke=args.smoke,
             fit_batches=5 if args.smoke else 1500,
-            resume=args.resume,
+            resume=args.resume or assist is not None,
+            assist=assist,
         )
 
 

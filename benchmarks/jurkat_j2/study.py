@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -108,7 +109,7 @@ def evaluate_segment(predict, output, receipt, *, deadline):
         return None
 
 
-def evaluate(predict, output, *, deadline=None, journal_identity=None):
+def evaluate(predict, output, *, deadline=None, journal_identity=None, assist=None):
     """Score the common J2 axis. The model receives fixed original controls."""
     reference, systema = references()
     with context() as data:
@@ -140,30 +141,41 @@ def evaluate(predict, output, *, deadline=None, journal_identity=None):
             ]
         )
         values, records = [], []
+        draws = list(enumerate(data.control_manifest.draws, start=1))
+        if assist is not None:
+            shared, start = assist
+            shared = Path(shared) / "condition-receipts"
+            if not journal_identity or not shared.is_dir() or not 1 <= start <= len(draws):
+                raise ValueError("invalid checkpoint-bound evaluation partition")
+            draws = draws[start - 1 :][::-1]
+
+        def saved_metric(path, expected_name):
+            from gradpert.evaluation.metrics import ConditionMetricResult, ConditionMetrics
+
+            saved_row = read_json(path)
+            if saved_row.get("key") != key or saved_row["condition_id"] != expected_name:
+                raise ValueError("per-condition receipt identity changed")
+            return saved_row, ConditionMetrics(
+                expected_name, tuple(ConditionMetricResult(**item) for item in saved_row["results"])
+            )
 
         def report_progress(done):
             atomic_json(
                 Path(output) / "evaluation_progress.json",
-                {"done": done, "total": EXPECTED_CONDITIONS},
+                {"done": done, "total": len(draws)},
             )
 
-        for i, draw in enumerate(data.control_manifest.draws, start=1):
+        for i, draw in draws:
             name = draw.condition_id
             saved = journal / f"{i:03d}.json"
-            if journal_identity is not None and saved.is_file():
-                from gradpert.evaluation.metrics import ConditionMetricResult, ConditionMetrics
-
-                row = read_json(saved)
-                if row.get("key") != key or row["condition_id"] != name:
-                    raise ValueError("per-condition receipt identity changed")
-                metric = ConditionMetrics(
-                    name, tuple(ConditionMetricResult(**item) for item in row["results"])
-                )
+            existing = shared / saved.name if assist is not None else saved
+            if journal_identity is not None and existing.is_file():
+                row, metric = saved_metric(existing, name)
             else:
                 if deadline is not None and time.monotonic() >= deadline:
-                    report_progress(i - 1)
+                    report_progress(len(records))
                     raise EvaluationBudgetExpired(
-                        f"J2 scoring stopped after {i - 1} complete conditions"
+                        f"J2 scoring stopped after {len(records)} complete conditions"
                     )
                 ids = tuple(draw.ordered_row_ids)
                 controls = data.load_control_rows(ids)
@@ -191,11 +203,27 @@ def evaluate(predict, output, *, deadline=None, journal_identity=None):
                 )
                 row = {**asdict(metric), "response_metrics": response, "key": key}
                 atomic_json(saved, row)
-                if i == 1 or i % 5 == 0:
+                if assist is not None:
+                    try:
+                        os.link(saved, existing)
+                    except FileExistsError:
+                        saved_metric(existing, name)
+                elif i == 1 or i % 5 == 0:
                     report_progress(i)
             records.append(row)
             values.append(metric)
+            if assist is not None and (len(records) == 1 or len(records) % 5 == 0):
+                report_progress(len(records))
         report_progress(len(records))
+        if assist is not None:
+            return {
+                "condition_partition_start": start,
+                "condition_partition_stop": EXPECTED_CONDITIONS,
+                "conditions": len(records),
+                "systema_reference_scope": "train_only",
+                "systema_reference_sha256": systema.manifest.systema_reference_content_sha256,
+                "test_updates": 0,
+            }
         import json
 
         csv_path = Path(output) / "conditions.jsonl"
