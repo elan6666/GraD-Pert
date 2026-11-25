@@ -200,7 +200,9 @@ def evaluate(
                 if controls.ordered_row_ids != ids or len(ids) != 300:
                     raise ValueError("the frozen J2 controls changed")
                 full = controls.expression
-                predicted = np.asarray(predict(name, full, ids, axis), dtype=np.float32)
+                predicted = np.asarray(
+                    predict(name, full, ids, axis), dtype=None if full_axis else np.float32
+                )
                 if full_axis and native_columns is not None:
                     predicted = fill_missing_predictions(predicted, full, native_columns)
                 truth = data.load_truth_rows(name)
