@@ -21,6 +21,7 @@ from benchmarks.crosscell.prescribe_c2 import (
     run,
     wait_for_gpu,
 )
+from benchmarks.crosscell.prescribe_gpu import SharedGpu
 from benchmarks.crosscell.remaining_c2_readiness import hgnc_links, reconcile
 from benchmarks.crosscell.replay_common_c2 import require_upstream
 from benchmarks.crosscell.study_paths import COHORT_SHA, REPO, STUDY
@@ -98,11 +99,14 @@ def main():
     parser.add_argument("--publication-sha", required=True)
     parser.add_argument("--gpu", required=True, type=int, choices=(0, 1))
     parser.add_argument("--gpu-uuid", required=True)
+    parser.add_argument("--shared-gpu", action="store_true")
     phase = parser.add_mutually_exclusive_group(required=True)
     phase.add_argument("--smoke", action="store_true")
     phase.add_argument("--smoke-run", type=Path)
     phase.add_argument("--replay-full", type=Path)
     args = parser.parse_args()
+    if args.shared_gpu and args.replay_full is None:
+        parser.error("shared GPU admission is limited to frozen J2 scoring")
     if args.replay_full is not None:
         args.replay_full = args.replay_full.resolve()
         if args.replay_full.parent != STUDY or args.replay_full == args.output.resolve():
@@ -146,9 +150,16 @@ def main():
         ):
             raise ValueError("the official J2 smoke did not pass")
     args.output.mkdir(exist_ok=args.replay_full is not None)
-    with wait_for_gpu(args.output, args.gpu, args.gpu_uuid):
+    shared = (
+        SharedGpu(args.gpu, args.gpu_uuid, cfg["shared_gpu"], allow_same_account_resident=True)
+        if args.shared_gpu
+        else None
+    )
+    with wait_for_gpu(args.output, args.gpu, args.gpu_uuid, shared):
         if torch.cuda.device_count() != 1:
             raise RuntimeError("PRESCRIBE J2 requires one CUDA device")
+        if shared is not None:
+            shared.configure_allocator()
         run(
             args.output,
             identity,
@@ -156,6 +167,7 @@ def main():
             args.smoke,
             False,
             time.monotonic(),
+            shared=shared,
             j2=True,
             replay=args.replay_full,
         )
