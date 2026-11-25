@@ -678,7 +678,16 @@ def main():
     if args.cpu_check:
         run(args.output, identity, cfg, False, True, time.monotonic())
     else:
-        shared = SharedGpu(args.gpu, args.gpu_uuid, cfg["shared_gpu"]) if args.shared_gpu else None
+        shared = (
+            SharedGpu(
+                args.gpu,
+                args.gpu_uuid,
+                cfg["shared_gpu"],
+                allow_same_account_resident=args.replay_full is not None,
+            )
+            if args.shared_gpu
+            else None
+        )
         with wait_for_gpu(args.output, args.gpu, args.gpu_uuid, shared):
             if torch.cuda.device_count() != 1:
                 raise ValueError("PRESCRIBE requires exactly one admitted CUDA device")

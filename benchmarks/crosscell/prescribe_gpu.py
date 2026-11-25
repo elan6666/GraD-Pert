@@ -11,13 +11,14 @@ from scripts.v2.shared_gpu import snapshot
 
 
 class SharedGpu:
-    def __init__(self, gpu, uuid, config):
+    def __init__(self, gpu, uuid, config, *, allow_same_account_resident=False):
         self.gpu, self.uuid = gpu, uuid
         self.allocator_mib = config["allocator_mib"]
         self.process_mib = config["process_mib"]
         self.reserve_mib = config["reserve_mib"]
         self.foreign_limit_mib = config["foreign_limit_mib"]
         self.pause_ratio = config["pause_ratio"]
+        self.allow_same_account_resident = allow_same_account_resident
         self.peak_process_mib = 0
         self.min_free_mib = None
 
@@ -36,7 +37,9 @@ class SharedGpu:
                 own_mib += process["memory_mib"]
                 continue
             identity = process["identity"]
-            if identity is None or identity["uid"] == os.getuid():
+            if identity is None or (
+                identity["uid"] == os.getuid() and not self.allow_same_account_resident
+            ):
                 raise RuntimeError("selected GPU coexistence unavailable: unverified resident")
             key = (
                 identity["pid"],
