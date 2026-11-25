@@ -15,6 +15,7 @@ from omegaconf import OmegaConf
 
 from benchmarks.common import official_module_session
 from benchmarks.common.study_fit_partition import open_crosscell_fit_partition
+from benchmarks.crosscell.common_score_panel import load_panel
 from benchmarks.crosscell.study_data import cohort_inputs, score
 from benchmarks.crosscell.study_paths import COHORT_SHA, REPO, SERVER, STUDY
 from benchmarks.crosscell.study_paths import TXPERT_CHECKOUT as UPSTREAM
@@ -76,7 +77,8 @@ def bind_official_datasets(official, config, prepared, cross, cohort):
     return data
 
 
-def fit(args, output, identity):
+def fit(args, output, identity, *, replay_checkpoint=None):
+    model_panel = None
     source, cross, cohort, rows = cohort_inputs()
     if sha256_file(args.fit_compatibility) != args.fit_compatibility_sha:
         raise ValueError("C2 shared fit support manifest changed")
@@ -111,7 +113,7 @@ def fit(args, output, identity):
         "initialization": "from_scratch",
         "recipe": {**asdict(RECIPE), "source": ZENODO_RECORD},
     }
-    if args.smoke_run:
+    if replay_checkpoint is None and args.smoke_run:
         smoke = read_json(args.smoke_run / "result.json")
         for field in (
             "scenario",
@@ -167,46 +169,55 @@ def fit(args, output, identity):
             min_lr=RECIPE.min_lr,
         )
         best, last = output / "best.ckpt", output / "last.ckpt"
-        trainer = api.fit_with_validation(
-            model=model,
-            training_only_data_module=data,
-            checkpoint_path=best,
-            accelerator="gpu",
-            epochs=1 if args.smoke else RECIPE.epochs,
-            progress_path=output / "validation_progress.json",
-            r50=True,
-            last_checkpoint_path=last,
-            released_recipe=None if args.smoke else RECIPE,
-            allowed_expression_indices=prepared.allowed_indices,
-        )
-        schedule = trainer.lr_scheduler_configs[0].scheduler.state_dict()
-        warmup, cosine = schedule["_schedulers"]
-        if (
-            schedule["_milestones"] != [RECIPE.warmup_epochs]
-            or warmup["total_iters"] != RECIPE.warmup_epochs
-            or cosine["T_max"] != RECIPE.epochs - RECIPE.warmup_epochs
-            or cosine["eta_min"] != RECIPE.min_lr
-            or any(
-                group["initial_lr"] != RECIPE.learning_rate
-                or group["weight_decay"] != RECIPE.weight_decay
-                for group in trainer.optimizers[0].param_groups
+        if replay_checkpoint is None:
+            trainer = api.fit_with_validation(
+                model=model,
+                training_only_data_module=data,
+                checkpoint_path=best,
+                accelerator="gpu",
+                epochs=1 if args.smoke else RECIPE.epochs,
+                progress_path=output / "validation_progress.json",
+                r50=True,
+                last_checkpoint_path=last,
+                released_recipe=None if args.smoke else RECIPE,
+                allowed_expression_indices=prepared.allowed_indices,
             )
-        ):
-            raise ValueError("official C2 optimizer schedule differed from the published recipe")
-        receipt.update(
-            epochs_completed=trainer.gradpert_last_epoch,
-            best_epoch=trainer.gradpert_best_epoch,
-            checkpoint_sha256=sha256_file(best),
-        )
-        if args.smoke:
-            return {**receipt, "status": "trained_validation_only"}
+            schedule = trainer.lr_scheduler_configs[0].scheduler.state_dict()
+            warmup, cosine = schedule["_schedulers"]
+            if (
+                schedule["_milestones"] != [RECIPE.warmup_epochs]
+                or warmup["total_iters"] != RECIPE.warmup_epochs
+                or cosine["T_max"] != RECIPE.epochs - RECIPE.warmup_epochs
+                or cosine["eta_min"] != RECIPE.min_lr
+                or any(
+                    group["initial_lr"] != RECIPE.learning_rate
+                    or group["weight_decay"] != RECIPE.weight_decay
+                    for group in trainer.optimizers[0].param_groups
+                )
+            ):
+                raise ValueError(
+                    "official C2 optimizer schedule differed from the published recipe"
+                )
+            receipt.update(
+                epochs_completed=trainer.gradpert_last_epoch,
+                best_epoch=trainer.gradpert_best_epoch,
+                checkpoint_sha256=sha256_file(best),
+            )
+            if args.smoke:
+                return {**receipt, "status": "trained_validation_only"}
+        else:
+            best = replay_checkpoint
+            receipt["checkpoint_sha256"] = sha256_file(best)
+            model_panel = load_panel(source, cross, cohort)
         saved = torch.load(best, map_location="cpu", weights_only=False)
         model.load_state_dict(saved["state_dict"], strict=True)
         api.restore_post_fit_device(model, "cuda:0")
         model.eval().requires_grad_(False)
         for property_name in ("train_data", "val_data"):
             delattr(data, property_name)
-        del saved, trainer
+        del saved
+        if replay_checkpoint is None:
+            del trainer
         gc.collect()
         torch.cuda.empty_cache()
 
@@ -228,6 +239,8 @@ def fit(args, output, identity):
             rows,
             compatibility,
             output,
+            score_genes=model_panel["score_genes"] if model_panel is not None else None,
+            journal_key=receipt["checkpoint_sha256"] if replay_checkpoint is not None else None,
         )
         if any(path.suffix.lower() in {".pkl", ".pickle"} for path in output.rglob("*")):
             raise ValueError("C2 default metrics-only output contains a pickle")
