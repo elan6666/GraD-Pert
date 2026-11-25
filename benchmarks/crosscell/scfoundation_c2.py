@@ -257,10 +257,9 @@ def initialize(output, source, rows, cohort, compatibility, panel, limit, val_li
     )
     val_loader = FittingLoader(matrix, conditions, paired, positions, targets, de, val_selected)
     # GEARS uses adata here for control mean and condition-keyed loss masks only.
-    x = sparse.csr_matrix(
-        (ctrl_mean, (np.zeros(len(positions), dtype=int), positions)),
-        shape=(len(fit_names) + 1, GENES),
-    )
+    # Released GEARS indexes X with a pandas mask, which SciPy CSR rejects.
+    x = np.zeros((len(fit_names) + 1, GENES), dtype=ctrl_mean.dtype)
+    x[0, positions] = ctrl_mean
     labels = ["ctrl", *fit_names]
     info = anndata.AnnData(
         x, obs=pd.DataFrame({"condition": labels, "condition_name": labels}, index=labels)
