@@ -130,6 +130,7 @@ def perturbdiff_predictor(checkpoint, receipt, source, cohort, output, *, latent
 
 def scbig_predictor(checkpoint, receipt, cross, cohort, *, latent_readout=False):
     import jax
+    import numpy as np
     from flax import serialization
 
     from benchmarks.crosscell import scbig_c2 as released
@@ -147,8 +148,18 @@ def scbig_predictor(checkpoint, receipt, cross, cohort, *, latent_readout=False)
     flow = released.initialize_flow(training)
     state = checkpoint.read_bytes()
     flow.solver.vf_state_inference = serialization.from_bytes(flow.solver.vf_state_inference, state)
-    if serialization.to_bytes(flow.solver.vf_state_inference) != state:
-        raise ValueError("scBIG inference checkpoint did not restore exactly")
+    # Flax stores parameter mappings in insertion order. A fresh official
+    # template can deserialize identical leaves under a different key order.
+    state_dict = serialization.msgpack_restore(state)
+    restored = serialization.to_state_dict(flow.solver.vf_state_inference)
+    lhs, lhs_tree = jax.tree_util.tree_flatten(state_dict)
+    rhs, rhs_tree = jax.tree_util.tree_flatten(restored)
+    if lhs_tree != rhs_tree:
+        raise ValueError("scBIG inference state tree changed during checkpoint restore")
+    for index, (saved, loaded) in enumerate(zip(lhs, rhs, strict=True)):
+        x, y = np.asarray(saved), np.asarray(loaded)
+        if x.dtype != y.dtype or x.shape != y.shape or x.tobytes() != y.tobytes():
+            raise ValueError(f"scBIG state leaf {index} changed during checkpoint restore")
     flow.solver.is_trained = True
     prior = released.test_prior(esm, cohort["condition_ids"])
     return released.frozen_predictor(
@@ -269,7 +280,7 @@ def main():
         formal=True,
         expected_repository="https://github.com/elan6666/GraD-Pert.git",
         remote_ref="refs/heads/codex/perturbation-holdout-study",
-        verification_method="github_rest_live",
+        verification_method="git_ls_remote_live",
         publication_receipt=args.publication,
         expected_publication_receipt_sha256=args.publication_sha,
     )

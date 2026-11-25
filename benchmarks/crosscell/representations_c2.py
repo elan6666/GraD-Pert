@@ -235,7 +235,8 @@ def run(args, identity):
     }
     if any(receipt.get(k) != v for k, v in scope.items()):
         raise ValueError("baseline checkpoint provenance did not verify")
-    common = STUDY / f"{model}-crosscell-c2-common3194-frozen-a1/result.json"
+    attempt = "a2" if model == "scbig" else "a1"
+    common = STUDY / f"{model}-crosscell-c2-common3194-frozen-{attempt}/result.json"
     common = common if model in ORIGINAL else origin_result
     score_result = read_json(common)
     if (
