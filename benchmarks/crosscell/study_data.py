@@ -74,8 +74,14 @@ def score(
         raise ValueError("C2 paired test cohort changed")
     if prediction_on_score_panel and score_genes is None:
         raise ValueError("a projected predictor requires a declared score panel")
-    if journal_key is not None and score_genes is not None:
-        journal_key = sha256_json({"run": journal_key, "score_genes": list(score_genes)})
+    if journal_key is not None:
+        journal_key = sha256_json(
+            {
+                "run": journal_key,
+                "systema_reference_scope": "train_only",
+                "score_genes": list(score_genes) if score_genes is not None else None,
+            }
+        )
     journal = output / "condition-receipts" if journal_key is not None else None
     if journal is not None:
         journal.mkdir(exist_ok=True)
@@ -94,9 +100,10 @@ def score(
         batches = adata.obs["batch"].astype(str).to_numpy()
         target_controls = rows["target_control"]
         fit = crosscell_fit_rows(rows, conditions, cohort, compatibility=compatibility)
-        reference = source_reference(adata, conditions, np.sort(np.r_[fit["train"], fit["val"]]))[
-            columns
-        ]
+        train_rows = np.sort(fit["train"])
+        if np.any(conditions[train_rows] == "ctrl"):
+            raise ValueError("Systema reference must exclude controls")
+        reference = source_reference(adata, conditions, train_rows)[columns]
         evaluation_rows = np.sort(
             np.concatenate([target_controls] + [d["truth_rows"] for d in draws.values()])
         )
@@ -216,6 +223,11 @@ def score(
         ),
         "test_controls_per_condition": 300,
         "test_updates": 0,
+        "systema_reference_scope": "train_only",
+        "systema_reference_train_rows_sha256": sha256_json(train_rows.tolist()),
+        "systema_reference_condition_ids_sha256": sha256_json(
+            np.unique(conditions[train_rows]).tolist()
+        ),
         "mean_mse": float(np.mean([row["mean_mse"] for row in records])),
         "retrieval_mean": float(np.mean([row["retrieval"] for row in records])),
         "pearson": [asdict(value) for value in macro_summarize(pearson)],

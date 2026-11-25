@@ -174,6 +174,13 @@ def evaluate_frozen(output, stop, *, double_holdout=False):
     reference = load_evaluation_state(
         dataset_id=DATASET, protocol_id=PROTOCOL, data_root=DATA, evaluation_protocol="v2"
     )
+    train_reference = load_evaluation_state(
+        dataset_id=DATASET,
+        protocol_id=PROTOCOL,
+        data_root=DATA,
+        evaluation_protocol="v2",
+        validation_only=True,
+    )
     reader_compatibility = _register_anndata_null_reader()
     with CanonicalEvaluationData(
         dataset_id=DATASET, protocol_id=PROTOCOL, split_name="test", data_root=DATA
@@ -222,6 +229,7 @@ def evaluate_frozen(output, stop, *, double_holdout=False):
             progress=progress,
             condition_slice=slice(0, stop),
             response_scorer=response,
+            train_systema_state=train_reference,
         )
     result["canonical_reader_compatibility"] = reader_compatibility
     result["checkpoint_role"] = checkpoint_role
@@ -238,6 +246,7 @@ def evaluate_frozen(output, stop, *, double_holdout=False):
         "training_source_commit": role["training_git_sha"],
         "evaluation_sha256": sha256_file(output / f"{checkpoint_role}-test.json"),
         "retrieval_bank_conditions": len(response.conditions),
+        "systema_reference_scope": result["systema_reference_scope"],
     }
 
 

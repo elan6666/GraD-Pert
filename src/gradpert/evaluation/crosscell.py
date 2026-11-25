@@ -5,7 +5,7 @@ from scipy import sparse
 
 
 def source_reference(adata, conditions, rows):
-    """Equal condition weighting over original source train+validation rows."""
+    """Compute the equal-weight condition centroids of exactly the supplied rows."""
     ids, codes = np.unique(conditions[rows], return_inverse=True)
     sums = np.zeros((len(ids), adata.n_vars), dtype=np.float64)
     for start in range(0, len(rows), 4096):

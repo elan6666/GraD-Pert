@@ -24,9 +24,23 @@ def evaluate(
     progress: Callable | None = None,
     condition_slice: slice | None = None,
     response_scorer: Callable | None = None,
+    train_systema_state: Any = None,
 ) -> dict:
     if data.split_name != "test" or reference.manifest.schema_version != "evaluation-state-v2":
         raise ValueError("official comparison requires frozen v2 test evaluation")
+    systema = reference if train_systema_state is None else train_systema_state
+    if train_systema_state is not None:
+        manifest = systema.manifest
+        if (
+            manifest.systema_reference_condition_ids != list(data.split.train_conditions)
+            or manifest.canonical_data_sha256 != data.manifest.canonical_adata_sha256
+            or manifest.split_content_sha256 != data.split.split_content_sha256
+            or manifest.expression_gene_order_sha256
+            != reference.manifest.expression_gene_order_sha256
+        ):
+            raise ValueError(
+                "Systema requires the exact training perturbations and expression axis"
+            )
     genes = tuple(data.expression_gene_ids)
     if (
         not seen_indices
@@ -79,7 +93,7 @@ def evaluate(
                 reference_positions[draw.condition_id]
             ],
             de_gene_indices=reference.manifest.de_gene_indices[draw.condition_id],
-            systema_reference=reference.systema_reference,
+            systema_reference=systema.systema_reference,
             de_unavailable_reason=reference.manifest.de_unavailable_reasons.get(draw.condition_id),
         )
         metric = compute_condition_metrics_v2(**args)
@@ -126,7 +140,20 @@ def evaluate(
         "expression_gene_order_sha256": sha256_json(list(genes)),
         "control_manifest_sha256": data.control_manifest_file_sha256,
         "evaluation_state_sha256": reference.manifest_file_sha256,
-        "systema_reference_sha256": reference.manifest.systema_reference_content_sha256,
+        "systema_reference_sha256": systema.manifest.systema_reference_content_sha256,
+        "systema_reference_state_sha256": systema.manifest_file_sha256,
+        **(
+            {
+                "systema_reference_condition_ids_sha256": (
+                    systema.manifest.systema_reference_condition_ids_sha256
+                ),
+            }
+            if train_systema_state is not None
+            else {}
+        ),
+        "systema_reference_scope": "train_only"
+        if train_systema_state is not None
+        else "legacy_evaluation_state",
         "evaluation_recipe": {
             "controls": 300,
             "aggregation": "mean_then_pearson_condition_equal",
