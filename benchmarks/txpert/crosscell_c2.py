@@ -77,7 +77,7 @@ def bind_official_datasets(official, config, prepared, cross, cohort):
     return data
 
 
-def fit(args, output, identity, *, replay_checkpoint=None):
+def fit(args, output, identity, *, replay_checkpoint=None, read_representation=None):
     model_panel = None
     source, cross, cohort, rows = cohort_inputs()
     if sha256_file(args.fit_compatibility) != args.fit_compatibility_sha:
@@ -229,6 +229,11 @@ def fit(args, output, identity, *, replay_checkpoint=None):
                 input_controls=controls,
                 batch_size=data.batch_size,
             )
+
+        if read_representation is not None:
+            if replay_checkpoint is None:
+                raise ValueError("representation readout requires a frozen checkpoint")
+            return read_representation(model, predict_controls)
 
         scored = score(
             predict_controls,

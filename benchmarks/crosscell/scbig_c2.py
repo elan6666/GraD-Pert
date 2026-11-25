@@ -396,7 +396,7 @@ def test_prior(esm, expected):
     return prior
 
 
-def frozen_predictor(flow, encoder, order, prior, target_line):
+def frozen_predictor(flow, encoder, order, prior, target_line, *, latent_readout=False):
     import jax
 
     # Compile the released ODE prediction once for the frozen 300-cell shape.
@@ -429,8 +429,10 @@ def frozen_predictor(flow, encoder, order, prior, target_line):
             raise ValueError("released scBIG did not match all ordered K562 controls")
         batch = PredictionSampler(prediction).sample()
         (source_key,) = batch["source"]
-        latent = solve(batch["source"][source_key], batch["condition"][source_key])
-        return np.asarray(encoder.inverse_transform(np.asarray(latent)))[:, inverse]
+        latent = np.asarray(solve(batch["source"][source_key], batch["condition"][source_key]))
+        if latent_readout:
+            return latent
+        return np.asarray(encoder.inverse_transform(latent))[:, inverse]
 
     return predict
 

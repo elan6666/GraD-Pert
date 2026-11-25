@@ -57,7 +57,7 @@ def require_upstream(checkout, expected):
         raise ValueError(f"released checkout changed: {checkout.name}")
 
 
-def perturbdiff_predictor(checkpoint, receipt, source, cohort, output):
+def perturbdiff_predictor(checkpoint, receipt, source, cohort, output, *, latent_readout=False):
     import anndata
     import torch
     import yaml
@@ -98,7 +98,21 @@ def perturbdiff_predictor(checkpoint, receipt, source, cohort, output):
     model.load_state_dict(torch.load(checkpoint, map_location="cpu", weights_only=True))
     model.eval().requires_grad_(False)
 
+    @torch.inference_mode()
     def inference(condition, controls, control_rows):
+        if latent_readout:
+            covariates = {
+                "cov_pert": vocab["pert"][condition.removesuffix("+ctrl")],
+                "cov_celltype": vocab["cell_line"]["k562"],
+                "cov_batch": vocab["batch"][released.UNSEEN_BATCH],
+            }
+            encoded = model._encode_covariates(
+                {
+                    field: torch.full((1, 1), index, device="cuda")
+                    for field, index in covariates.items()
+                }
+            )
+            return encoded.detach().cpu().numpy().reshape(1, -1)
         torch.manual_seed(cfg["evaluation_seed"] + cohort["condition_ids"].index(condition))
         return released.predict(
             model,
@@ -114,7 +128,7 @@ def perturbdiff_predictor(checkpoint, receipt, source, cohort, output):
     return inference
 
 
-def scbig_predictor(checkpoint, receipt, cross, cohort):
+def scbig_predictor(checkpoint, receipt, cross, cohort, *, latent_readout=False):
     import jax
     from flax import serialization
 
@@ -138,7 +152,12 @@ def scbig_predictor(checkpoint, receipt, cross, cohort):
     flow.solver.is_trained = True
     prior = released.test_prior(esm, cohort["condition_ids"])
     return released.frozen_predictor(
-        flow, encoder, inputs["grc_indices"], prior, cross["target_cell_line"]
+        flow,
+        encoder,
+        inputs["grc_indices"],
+        prior,
+        cross["target_cell_line"],
+        latent_readout=latent_readout,
     )
 
 
