@@ -99,7 +99,7 @@ def fit_encoder(encoder, matrix, keep, output, *, smoke):
     return {"encoder_optimizer_updates": count, "encoder_sha256": sha256_file(checkpoint)}
 
 
-def run(output, identity, *, smoke, resume, replay=None):
+def run(output, identity, *, smoke, resume, replay=None, shared=None):
     import jax
     from flax import serialization
 
@@ -251,8 +251,18 @@ def run(output, identity, *, smoke, resume, replay=None):
             },
         )
         return
+
+    def predict(name, controls, _ids, columns):
+        if shared is not None:
+            shared.check()
+            started_condition = time.monotonic()
+        value = apply(name, controls)[:, columns]
+        if shared is not None:
+            shared.finish_batch(started_condition)
+        return value
+
     result = evaluate_segment(
-        lambda name, controls, _ids, columns: apply(name, controls)[:, columns],
+        predict,
         output,
         receipt,
         deadline=start + 10600,
@@ -269,6 +279,7 @@ def run(output, identity, *, smoke, resume, replay=None):
             **result,
             "status": "evaluated",
             "evaluation_source_commit": identity["source_commit"],
+            **({"shared_gpu_evidence": shared.evidence()} if shared is not None else {}),
             **(replay_fields(replay, identity) if replay is not None else {}),
         },
     )
@@ -286,7 +297,10 @@ def main():
     phase.add_argument("--smoke-run", type=Path)
     phase.add_argument("--resume", action="store_true")
     phase.add_argument("--replay-full", type=Path)
+    parser.add_argument("--shared-gpu", action="store_true")
     args = parser.parse_args()
+    if args.shared_gpu and args.replay_full is None:
+        parser.error("shared CUDA admission applies only to full-gene scBIG replay")
     if args.output.resolve().parent != STUDY or os.environ.get("CUDA_VISIBLE_DEVICES") != str(
         args.gpu
     ):
@@ -331,7 +345,15 @@ def main():
         if (args.output / "result.json").exists():
             raise FileExistsError("the full-gene replay already completed")
     with lock(SERVER / "runtime" / f"v2-gpu-{args.gpu}.lock"):
-        admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
+        shared = None
+        if args.shared_gpu:
+            from benchmarks.crosscell.prescribe_gpu import scbig_shared_gpu
+
+            shared = scbig_shared_gpu(args.gpu, args.gpu_uuid)
+            shared.admit()
+            shared.configure_jax_allocator()
+        else:
+            admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
         if not args.resume:
             args.output.mkdir(exist_ok=args.replay_full is not None)
         atomic_json(
@@ -343,6 +365,7 @@ def main():
             smoke=args.smoke,
             resume=args.resume or args.replay_full is not None,
             replay=args.replay_full,
+            shared=shared,
         )
 
 

@@ -172,7 +172,7 @@ def scbig_predictor(checkpoint, receipt, cross, cohort, *, latent_readout=False)
     )
 
 
-def run(args, source_identity):
+def run(args, source_identity, *, shared=None):
     model = args.model
     output = args.output
     origin, filename, digest = ORIGINAL[model]
@@ -210,7 +210,17 @@ def run(args, source_identity):
         if model == "perturbdiff":
             inference = perturbdiff_predictor(checkpoint, receipt, source, cohort, output)
         else:
-            inference = scbig_predictor(checkpoint, receipt, cross, cohort)
+            predict_scbig = scbig_predictor(checkpoint, receipt, cross, cohort)
+            inference = predict_scbig
+            if shared is not None:
+
+                def inference(condition, controls):
+                    shared.check()
+                    started_condition = time.monotonic()
+                    prediction = predict_scbig(condition, controls)
+                    shared.finish_batch(started_condition)
+                    return prediction
+
         with official_module_session(
             checkout_root=TXPERT_CHECKOUT,
             expected_commit=TXPERT_COMMIT,
@@ -253,6 +263,7 @@ def run(args, source_identity):
             **({"score_panel_sha256": sha256_file(PANEL)} if not args.full_axis else {}),
             "replay_optimizer_updates": 0,
             "evaluation_seconds": time.monotonic() - started,
+            **({"shared_gpu_evidence": shared.evidence()} if shared is not None else {}),
         },
     )
 
@@ -261,13 +272,18 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", choices=ORIGINAL)
     parser.add_argument("--full-axis", action="store_true")
+    parser.add_argument("--shared-gpu", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--publication", type=Path, required=True)
     parser.add_argument("--publication-sha", required=True)
     parser.add_argument("--gpu", type=int, choices=(0, 1), required=True)
     parser.add_argument("--gpu-uuid", required=True)
     args = parser.parse_args()
+    if args.shared_gpu and (args.model != "scbig" or not args.full_axis):
+        parser.error("shared CUDA admission applies only to full-gene scBIG replay")
     args.output = args.output.resolve()
+    if (args.output / "result.json").exists():
+        raise FileExistsError("the frozen C2 replay already completed")
     if args.output.parent != STUDY or any(
         os.getenv(k) != v
         for k, v in {
@@ -287,12 +303,20 @@ def main():
         expected_publication_receipt_sha256=args.publication_sha,
     )
     with lock(SERVER / "runtime" / f"v2-gpu-{args.gpu}.lock"):
-        admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
-        args.output.mkdir()
+        shared = None
+        if args.shared_gpu:
+            from benchmarks.crosscell.prescribe_gpu import scbig_shared_gpu
+
+            shared = scbig_shared_gpu(args.gpu, args.gpu_uuid)
+            shared.admit()
+            shared.configure_jax_allocator()
+        else:
+            admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
+        args.output.mkdir(exist_ok=args.full_axis)
         atomic_json(
             args.output / "worker.json", {"owner": process_info(os.getpid()), "gpu": args.gpu}
         )
-        run(args, identity)
+        run(args, identity, shared=shared)
 
 
 if __name__ == "__main__":

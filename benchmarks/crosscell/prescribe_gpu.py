@@ -74,11 +74,19 @@ class SharedGpu:
                 "selected GPU coexistence unavailable: insufficient reserved headroom"
             )
         self.residents = set(foreign)
+        self.jax_allocator = False
         self.min_free_mib = device["free_mib"]
         self.total_mib = device["total_mib"]
 
     def configure_allocator(self):
         torch.cuda.set_per_process_memory_fraction(self.allocator_mib / self.total_mib, 0)
+
+    def configure_jax_allocator(self):
+        # Configure the BFC pool before JAX initializes the selected device.
+        os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "default"
+        os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "true"
+        os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = str(self.allocator_mib / self.total_mib)
+        self.jax_allocator = True
 
     def check(self):
         device, foreign, own_mib = self._read()
@@ -95,7 +103,8 @@ class SharedGpu:
         return bool(foreign)
 
     def finish_batch(self, started):
-        torch.cuda.synchronize()
+        if not self.jax_allocator:
+            torch.cuda.synchronize()
         if self.check():
             time.sleep(self.pause_ratio * (time.monotonic() - started))
 
@@ -108,7 +117,29 @@ class SharedGpu:
             "free_reserve_mib": self.reserve_mib,
             "minimum_observed_free_mib": self.min_free_mib,
             "peak_observed_process_mib": self.peak_process_mib,
-            "peak_pytorch_reserved_mib": torch.cuda.max_memory_reserved() / mib,
-            "peak_pytorch_allocated_mib": torch.cuda.max_memory_allocated() / mib,
+            **(
+                {}
+                if self.jax_allocator
+                else {
+                    "peak_pytorch_reserved_mib": torch.cuda.max_memory_reserved() / mib,
+                    "peak_pytorch_allocated_mib": torch.cuda.max_memory_allocated() / mib,
+                }
+            ),
             "resident_count_at_admission": len(self.residents),
         }
+
+
+def scbig_shared_gpu(gpu, uuid):
+    """Bound the frozen scBIG JAX pool and keep headroom for verified peers."""
+    return SharedGpu(
+        gpu,
+        uuid,
+        {
+            "allocator_mib": 8192,
+            "process_mib": 9216,
+            "reserve_mib": 4096,
+            "foreign_limit_mib": 18432,
+            "pause_ratio": 1.0,
+        },
+        allow_same_account_resident=True,
+    )
