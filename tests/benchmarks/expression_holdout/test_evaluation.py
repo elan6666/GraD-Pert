@@ -99,3 +99,36 @@ def test_bad_axis_or_missing_prediction_rejected():
             query_count=1000,
             seed=1,
         )
+
+
+def test_training_only_systema_replaces_only_the_systema_reference():
+    data, legacy, control, _ = fixtures()
+    data.split.train_conditions = ["A+ctrl"]
+    legacy.manifest.expression_gene_order_sha256 = "axis"
+    state = SimpleNamespace(
+        manifest=SimpleNamespace(
+            systema_reference_condition_ids=["A+ctrl"],
+            canonical_data_sha256="a",
+            split_content_sha256="s",
+            expression_gene_order_sha256="axis",
+            systema_reference_content_sha256="training-vector",
+            systema_reference_condition_ids_sha256="training-ids",
+        ),
+        systema_reference=np.array([2.0, 0.0, 1.0, 5.0, 8.0]),
+        manifest_file_sha256="training-state",
+    )
+    kwargs = dict(seen_indices=(0, 1, 2), cell_batch=32, query_count=5, seed=1)
+
+    def predict(*args, **kw):
+        return control + np.array([2.0, -1.0, 4.0, 1.0, -2.0])
+
+    old = evaluate(data, legacy, predict, **kwargs)
+    corrected = evaluate(data, legacy, predict, train_systema_state=state, **kwargs)
+    assert old["summary"][:4] == corrected["summary"][:4]
+    assert old["summary"][4:] != corrected["summary"][4:]
+    assert corrected["systema_reference_scope"] == "train_only"
+    assert corrected["systema_reference_sha256"] == "training-vector"
+    assert corrected["evaluation_state_sha256"] == "e"
+    state.manifest.systema_reference_condition_ids.append("V+ctrl")
+    with pytest.raises(ValueError, match="exact training perturbations"):
+        evaluate(data, legacy, predict, train_systema_state=state, **kwargs)

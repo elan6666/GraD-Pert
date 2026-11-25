@@ -4,17 +4,27 @@ import pandas as pd
 import pytest
 from scipy.sparse import csr_matrix
 
+from benchmarks.crosscell import study_data
 from benchmarks.crosscell.study_data import score
 from gradpert.data._io import atomic_json
 from gradpert.hashing import sha256_file, sha256_json
 
 
-def test_c2_scoring_projects_all_metric_populations(tmp_path):
+def test_c2_scoring_projects_all_metric_populations(tmp_path, monkeypatch):
     genes = ["A", "omitted", "B", "C"]
     panel = ["A", "B", "C"]
     source = tmp_path / "miniature.h5ad"
     observations = ["fit+ctrl", "fit+ctrl", "ctrl"] + ["ctrl"] * 300 + ["held+ctrl"]
-    data = np.array([[2, 40, 3, 4]] * 3 + [[1, 50, 2, 3]] * 300 + [[3, 80, 6, 2]])
+    data = np.array(
+        [[2, 40, 3, 4], [100, 40, -30, 35], [2, 40, 3, 4]] + [[1, 50, 2, 3]] * 300 + [[3, 80, 6, 2]]
+    )
+    calculate = study_data.compute_condition_metrics_v2
+
+    def require_training_reference(**kwargs):
+        np.testing.assert_array_equal(kwargs["systema_reference"], [2, 3, 4])
+        return calculate(**kwargs)
+
+    monkeypatch.setattr(study_data, "compute_condition_metrics_v2", require_training_reference)
     anndata.AnnData(
         X=csr_matrix(data),
         obs=pd.DataFrame(
@@ -107,6 +117,8 @@ def test_c2_scoring_projects_all_metric_populations(tmp_path):
         )
     assert metrics.PERT_MEANS == {"K562": "previous gene panel"}
     assert results[0] == results[1]
+    assert results[0]["systema_reference_scope"] == "train_only"
+    assert results[0]["systema_reference_train_rows_sha256"] == sha256_json([0])
     assert results[0]["mean_mse"] == 0.0
     assert results[0]["retrieval_mean"] == 1.0
     assert results[0]["test_panel_genes"] == 3
