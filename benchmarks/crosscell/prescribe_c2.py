@@ -395,6 +395,24 @@ def run(output, identity, cfg, smoke, cpu_check, started, shared=None, *, j2=Fal
                 certainty_budget=cfg["certainty_budget"],
                 bound=cfg["bound"],
             )
+            if replay is None:
+                warmup = NaturalPosteriorNetworkFlowLightningModule(
+                    model,
+                    learning_rate=cfg["warmup_lr"],
+                    early_stopping=False,
+                    stage="warmup",
+                    log_prob_positive=False,
+                )
+                warm, warm_timer = trainer(
+                    1 if smoke else cfg["warmup_epochs"], enable_checkpointing=False
+                )
+                warm.callbacks.append(warm_timer)
+                worker(output, "warmup", identity["gpu"])
+                warm.fit(warmup, loader("train"), loader("val"))
+                if warm.global_step < 1 or warm.current_epoch != (
+                    1 if smoke else cfg["warmup_epochs"]
+                ):
+                    raise RuntimeError("PRESCRIBE warmup did not finish its configured epochs")
             main_module = NaturalPosteriorNetworkLightningModule(
                 model=model,
                 data_name="c2",
@@ -419,23 +437,6 @@ def run(output, identity, cfg, smoke, cpu_check, started, shared=None, *, j2=Fal
             )
             main_module.hparams.pop("model", None)
             if replay is None:
-                warmup = NaturalPosteriorNetworkFlowLightningModule(
-                    model,
-                    learning_rate=cfg["warmup_lr"],
-                    early_stopping=False,
-                    stage="warmup",
-                    log_prob_positive=False,
-                )
-                warm, warm_timer = trainer(
-                    1 if smoke else cfg["warmup_epochs"], enable_checkpointing=False
-                )
-                warm.callbacks.append(warm_timer)
-                worker(output, "warmup", identity["gpu"])
-                warm.fit(warmup, loader("train"), loader("val"))
-                if warm.global_step < 1 or warm.current_epoch != (
-                    1 if smoke else cfg["warmup_epochs"]
-                ):
-                    raise RuntimeError("PRESCRIBE warmup did not finish its configured epochs")
                 checkpoint = ModelCheckpoint(
                     dirpath=output,
                     filename="best",
