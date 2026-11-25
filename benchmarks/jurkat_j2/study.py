@@ -12,6 +12,7 @@ from benchmarks.common.condition_response import FrozenConditionResponse, summar
 from benchmarks.common.study_fit_partition import open_jurkat_double_holdout_fit
 from benchmarks.crosscell.remaining_c2_readiness import hgnc_links, reconcile
 from benchmarks.crosscell.study_paths import COHORT_SHA, DATA, DATASET, PROTOCOL, SERVER, STUDY
+from benchmarks.txpert.runner import _register_anndata_null_reader
 from gradpert.data._io import atomic_json, atomic_text, read_json
 from gradpert.evaluation.data import CanonicalEvaluationData, LoadedTruthRows
 from gradpert.evaluation.metrics import compute_condition_metrics_v2, macro_summarize
@@ -25,6 +26,7 @@ EXPECTED_CONDITIONS = 592
 
 
 def fit_data(seed):
+    _register_anndata_null_reader()
     with CanonicalTrainingData(
         data_root=DATA, dataset_id=DATASET, protocol_id=PROTOCOL, run_seed=seed
     ) as data:
@@ -51,6 +53,7 @@ def score_axis(genes):
 
 
 def context():
+    _register_anndata_null_reader()
     return CanonicalEvaluationData(
         data_root=DATA, dataset_id=DATASET, protocol_id=PROTOCOL, split_name="test"
     )
