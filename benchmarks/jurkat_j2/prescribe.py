@@ -20,6 +20,7 @@ from benchmarks.crosscell.prescribe_c2 import (
     fit_projection,
     run,
     wait_for_gpu,
+    worker,
 )
 from benchmarks.crosscell.prescribe_gpu import SharedGpu
 from benchmarks.crosscell.remaining_c2_readiness import hgnc_links, reconcile
@@ -160,6 +161,7 @@ def main():
             raise RuntimeError("PRESCRIBE J2 requires one CUDA device")
         if shared is not None:
             shared.configure_allocator()
+        worker(args.output, "fit_data", args.gpu)
         run(
             args.output,
             identity,

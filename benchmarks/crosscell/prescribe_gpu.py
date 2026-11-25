@@ -24,7 +24,18 @@ class SharedGpu:
         self.min_free_mib = None
 
     def _read(self):
-        state = snapshot(os.getpid())
+        for attempt in range(3):
+            state = snapshot(os.getpid())
+            missing = any(
+                process["gpu_uuid"] == self.uuid
+                and not process["owned"]
+                and process["identity"] is None
+                for process in state["processes"]
+            )
+            if not missing or attempt == 2:
+                break
+            # A peer can exit between the NVIDIA and process identity reads.
+            time.sleep(0.2)
         device = state["gpus"].get(self.gpu)
         if device is None or device["uuid"] != self.uuid:
             raise RuntimeError("selected GPU identity changed")
