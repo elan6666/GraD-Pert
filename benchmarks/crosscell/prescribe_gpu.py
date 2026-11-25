@@ -19,6 +19,7 @@ class SharedGpu:
         self.foreign_limit_mib = config["foreign_limit_mib"]
         self.pause_ratio = config["pause_ratio"]
         self.allow_same_account_resident = allow_same_account_resident
+        self.max_residents = 2 if allow_same_account_resident else 1
         self.peak_process_mib = 0
         self.min_free_mib = None
 
@@ -53,8 +54,8 @@ class SharedGpu:
     def admit(self):
         device, foreign, own_mib = self._read()
         if (
-            len(foreign) > 1
-            or any(mib > self.foreign_limit_mib for mib in foreign.values())
+            len(foreign) > self.max_residents
+            or sum(foreign.values()) > self.foreign_limit_mib
             or device["free_mib"] < self.process_mib + self.reserve_mib
             or own_mib
         ):
@@ -73,8 +74,9 @@ class SharedGpu:
         self.peak_process_mib = max(self.peak_process_mib, own_mib)
         self.min_free_mib = min(self.min_free_mib, device["free_mib"])
         if (
-            not foreign.keys() <= self.residents
-            or any(mib > self.foreign_limit_mib for mib in foreign.values())
+            (not self.allow_same_account_resident and not foreign.keys() <= self.residents)
+            or len(foreign) > self.max_residents
+            or sum(foreign.values()) > self.foreign_limit_mib
             or device["free_mib"] < self.reserve_mib
             or own_mib > self.process_mib
         ):
