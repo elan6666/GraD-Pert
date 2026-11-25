@@ -31,8 +31,9 @@ def test_only_same_checkpoint_can_resume(tmp_path):
 def test_budget_boundary_preserves_checkpoint_identity(tmp_path, monkeypatch):
     receipt = {"checkpoint_sha256": "frozen"}
 
-    def budget_boundary(predict, output, *, deadline, journal_identity):
+    def budget_boundary(predict, output, *, deadline, journal_identity, full_axis, native_columns):
         assert journal_identity == "frozen"
+        assert not full_axis and native_columns is None
         atomic_json(output / "evaluation_progress.json", {"done": 517, "total": 592})
         raise study.EvaluationBudgetExpired
 

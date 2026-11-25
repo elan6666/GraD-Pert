@@ -208,7 +208,8 @@ def fit(args, output, identity, *, replay_checkpoint=None, read_representation=N
         else:
             best = replay_checkpoint
             receipt["checkpoint_sha256"] = sha256_file(best)
-            model_panel = load_panel(source, cross, cohort)
+            if not getattr(args, "full_axis", False):
+                model_panel = load_panel(source, cross, cohort)
         saved = torch.load(best, map_location="cpu", weights_only=False)
         model.load_state_dict(saved["state_dict"], strict=True)
         api.restore_post_fit_device(model, "cuda:0")
@@ -245,6 +246,7 @@ def fit(args, output, identity, *, replay_checkpoint=None, read_representation=N
             compatibility,
             output,
             score_genes=model_panel["score_genes"] if model_panel is not None else None,
+            full_axis=getattr(args, "full_axis", False),
             journal_key=receipt["checkpoint_sha256"] if replay_checkpoint is not None else None,
         )
         if any(path.suffix.lower() in {".pkl", ".pickle"} for path in output.rglob("*")):

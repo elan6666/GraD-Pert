@@ -1,4 +1,4 @@
-"""Re-score the three accepted frozen C2 checkpoints on the common gene panel."""
+"""Re-score frozen C2 checkpoints on the full or historical common gene axis."""
 
 from __future__ import annotations
 
@@ -206,7 +206,7 @@ def run(args, source_identity):
         scored = fit(args, output, source_identity, replay_checkpoint=checkpoint)
     else:
         source, cross, cohort, rows = cohort_inputs()
-        panel = load_panel(source, cross, cohort)
+        panel = None if args.full_axis else load_panel(source, cross, cohort)
         if model == "perturbdiff":
             inference = perturbdiff_predictor(checkpoint, receipt, source, cohort, output)
         else:
@@ -226,13 +226,14 @@ def run(args, source_identity):
                 read_json(SUPPORT),
                 output,
                 journal_key=receipt["checkpoint_sha256"],
-                score_genes=panel["score_genes"],
+                score_genes=panel["score_genes"] if panel is not None else None,
+                full_axis=args.full_axis,
                 include_control_row_ids=model == "perturbdiff",
                 stop_starting_conditions_at=started + 10800,
             )
     if (
         scored.get("conditions") != required["conditions"]
-        or scored.get("test_panel_genes") != 3194
+        or scored.get("test_panel_genes") != (3352 if args.full_axis else 3194)
         or scored["paired_rows_sha256"] != receipt["paired_rows_sha256"]
         or sha256_file(checkpoint) != receipt["checkpoint_sha256"]
         or sha256_file(manifest) != digest
@@ -249,7 +250,7 @@ def run(args, source_identity):
             "evaluation_source_commit": source_identity.commit,
             "original_run_id": origin,
             "original_receipt_sha256": digest,
-            "score_panel_sha256": sha256_file(PANEL),
+            **({"score_panel_sha256": sha256_file(PANEL)} if not args.full_axis else {}),
             "replay_optimizer_updates": 0,
             "evaluation_seconds": time.monotonic() - started,
         },
@@ -259,6 +260,7 @@ def run(args, source_identity):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", choices=ORIGINAL)
+    parser.add_argument("--full-axis", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--publication", type=Path, required=True)
     parser.add_argument("--publication-sha", required=True)

@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from benchmarks.common.full_gene_evaluation import replay_fields, verify_replay
 from benchmarks.crosscell import scbig_c2 as released
 from benchmarks.crosscell.remaining_c2_readiness import hgnc_links, reconcile
 from benchmarks.crosscell.replay_common_c2 import require_upstream
@@ -98,16 +99,19 @@ def fit_encoder(encoder, matrix, keep, output, *, smoke):
     return {"encoder_optimizer_updates": count, "encoder_sha256": sha256_file(checkpoint)}
 
 
-def run(output, identity, *, smoke, resume):
+def run(output, identity, *, smoke, resume, replay=None):
     import jax
     from flax import serialization
 
     if len(jax.devices()) != 1 or jax.devices()[0].platform != "gpu":
         raise ValueError("scBIG J2 needs exactly one visible CUDA GPU")
     start = time.monotonic()
-    checkpoint = output / "flow_inference.msgpack"
+    parent = replay or output
+    checkpoint = parent / "flow_inference.msgpack"
     if resume:
-        receipt = frozen_receipt(output, identity, checkpoint.name)
+        receipt = frozen_receipt(
+            parent, {**identity, "run_id": parent.name}, checkpoint.name, replay=replay is not None
+        )
     compass, esm = verify_assets()
     assets = read_json(released.RESOURCES / "release-assets-a1.json")
     for name in ENCODER_FILES:
@@ -140,13 +144,13 @@ def run(output, identity, *, smoke, resume):
         "string_edges": int(edges),
     }
     if resume:
-        encoder_checkpoint = output / "encoder.msgpack"
+        encoder_checkpoint = parent / "encoder.msgpack"
         if (
             sha256_file(encoder_checkpoint) != receipt["encoder_sha256"]
-            or read_json(output / "encoder-inputs.json") != inputs
+            or read_json(parent / "encoder-inputs.json") != inputs
             or not np.array_equal(
                 np.asarray(encoder.X_mean),
-                np.load(output / "encoder-center.npy", allow_pickle=False),
+                np.load(parent / "encoder-center.npy", allow_pickle=False),
             )
         ):
             raise ValueError("the frozen scBIG encoder or its inputs changed")
@@ -252,6 +256,7 @@ def run(output, identity, *, smoke, resume):
         output,
         receipt,
         deadline=start + 10600,
+        full_axis=replay is not None,
     )
     if result is None:
         return
@@ -264,6 +269,7 @@ def run(output, identity, *, smoke, resume):
             **result,
             "status": "evaluated",
             "evaluation_source_commit": identity["source_commit"],
+            **(replay_fields(replay, identity) if replay is not None else {}),
         },
     )
 
@@ -279,6 +285,7 @@ def main():
     phase.add_argument("--smoke", action="store_true")
     phase.add_argument("--smoke-run", type=Path)
     phase.add_argument("--resume", action="store_true")
+    phase.add_argument("--replay-full", type=Path)
     args = parser.parse_args()
     if args.output.resolve().parent != STUDY or os.environ.get("CUDA_VISIBLE_DEVICES") != str(
         args.gpu
@@ -316,14 +323,27 @@ def main():
             or smoke["validation_prediction_shape"] != [300, 4486]
         ):
             raise ValueError("the official scBIG J2 smoke did not pass")
+    if args.replay_full is not None:
+        args.replay_full = args.replay_full.resolve()
+        if args.replay_full.parent != STUDY or args.replay_full == args.output.resolve():
+            raise ValueError("frozen replay requires a distinct original study run")
+        verify_replay(args.replay_full, identity, "flow_inference.msgpack", conditions=592)
+        if (args.output / "result.json").exists():
+            raise FileExistsError("the full-gene replay already completed")
     with lock(SERVER / "runtime" / f"v2-gpu-{args.gpu}.lock"):
         admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
         if not args.resume:
-            args.output.mkdir()
+            args.output.mkdir(exist_ok=args.replay_full is not None)
         atomic_json(
             args.output / "worker.json", {"owner": process_info(os.getpid()), "gpu": args.gpu}
         )
-        run(args.output, identity, smoke=args.smoke, resume=args.resume)
+        run(
+            args.output,
+            identity,
+            smoke=args.smoke,
+            resume=args.resume or args.replay_full is not None,
+            replay=args.replay_full,
+        )
 
 
 if __name__ == "__main__":

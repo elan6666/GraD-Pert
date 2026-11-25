@@ -38,6 +38,13 @@ for GraD-Pert, GEARS, TxPert, and nonlearned baselines.
   may substitute for an independent within-cell dataset.
 - All models consume the exact same canonical condition split and 300-control
   evaluation manifests; equality means IDs and hashes, not merely equal seeds.
+- The double-holdout study ranks models on the full canonical expression
+  axis: all 5,000 Jurkat J2 genes and all 3,352 Cross-cell K562 C2 genes.
+  For each unsupported output gene, fill all predictions for that condition
+  with the mean from its 300 frozen input controls. Publish the ordered gene
+  list, native and imputed counts, and the imputed-gene list with every score.
+  Use training perturbations only for the Systema reference. Historical
+  common-panel scores are auxiliary, and the frozen fit remains unchanged.
 - Apply the frozen official GEARS default-graph representability intersection
   to every model's train/validation/test partitions. Preserve the source split
   assignment and order of retained conditions; never let one runner silently

@@ -422,3 +422,11 @@ R16 CPU目标构建a1在读取表达值前失败：repeatability终态使用`out
 - 证据：K562 a2 工程预检0次更新，初始诊断611秒；服务器安装的AnnData CSR实现对row slice＋column array回退self.to_memory后再筛列。表面view先筛列的fake测试没有覆盖实际后端。
 - 预防：数值读取边界须落实到HDF5授权坐标/稀疏data offsets；结构indices/indptr与数值分开，禁止to_memory后mask。增加真实h5py dense/CSR/CSC测试和禁止数值offset代理，保留行顺序、重复行和RNG。rchar累计不是物理磁盘吞吐；HDF5逻辑选择不等于内部压缩块零物理触碰。
 - 状态：active；a2取消保留，修复用新提交和新attempt原生验证，不覆盖历史结果。
+
+## 2026-11-26 — Double-holdout scores depend on the gene axis
+
+Jurkat J2 and Cross-cell K562 C2 now report 5,000 and 3,352 genes respectively as
+the main result. Match the gene-order digest before comparing Pearson values.
+In each condition, use the mean of its 300 fixed input controls for model outputs
+with no native gene mapping. Publish native counts and the ordered imputation
+mask. Older common-panel scores remain useful for coverage sensitivity.

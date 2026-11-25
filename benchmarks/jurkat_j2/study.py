@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 
 from benchmarks.common.condition_response import FrozenConditionResponse, summarize_response
+from benchmarks.common.full_gene_evaluation import coverage, fill_missing_predictions
 from benchmarks.common.study_fit_partition import open_jurkat_double_holdout_fit
 from benchmarks.crosscell.remaining_c2_readiness import hgnc_links, reconcile
 from benchmarks.crosscell.study_paths import COHORT_SHA, DATA, DATASET, PROTOCOL, SERVER, STUDY
@@ -69,8 +70,8 @@ def references():
     return load_evaluation_state(**args), load_evaluation_state(validation_only=True, **args)
 
 
-def frozen_receipt(output, identity, checkpoint_name):
-    if (output / "result.json").exists():
+def frozen_receipt(output, identity, checkpoint_name, *, replay=False):
+    if not replay and (output / "result.json").exists():
         raise FileExistsError("the frozen J2 run already has a result")
     receipt = read_json(output / "training_result.json")
     if (
@@ -86,13 +87,15 @@ def frozen_receipt(output, identity, checkpoint_name):
     return receipt
 
 
-def evaluate_segment(predict, output, receipt, *, deadline):
+def evaluate_segment(predict, output, receipt, *, deadline, full_axis=False, native_columns=None):
     try:
         return evaluate(
             predict,
             output,
             deadline=deadline,
             journal_identity=receipt["checkpoint_sha256"],
+            full_axis=full_axis,
+            native_columns=native_columns,
         )
     except EvaluationBudgetExpired:
         progress = read_json(output / "evaluation_progress.json")
@@ -109,11 +112,24 @@ def evaluate_segment(predict, output, receipt, *, deadline):
         return None
 
 
-def evaluate(predict, output, *, deadline=None, journal_identity=None, assist=None):
-    """Score the common J2 axis. The model receives fixed original controls."""
+def evaluate(
+    predict,
+    output,
+    *,
+    deadline=None,
+    journal_identity=None,
+    assist=None,
+    full_axis=False,
+    native_columns=None,
+):
+    """Score J2 with fixed original input controls and train-only references."""
     reference, systema = references()
     with context() as data:
-        axis = score_axis(data.expression_gene_ids)
+        axis = (
+            np.arange(len(data.expression_gene_ids))
+            if full_axis
+            else score_axis(data.expression_gene_ids)
+        )
         genes = [data.expression_gene_ids[i] for i in axis]
         if (
             systema.manifest.systema_reference_condition_ids != list(data.split.train_conditions)
@@ -121,6 +137,7 @@ def evaluate(predict, output, *, deadline=None, journal_identity=None, assist=No
             or len(data.control_manifest.draws) != EXPECTED_CONDITIONS
         ):
             raise ValueError("the train-only reference or held-out J2 cohort changed")
+        axis_coverage = coverage(output, genes, native_columns, 5000) if full_axis else {}
         responses = FrozenConditionResponse(data, columns=axis)
         baseline = systema.systema_reference[axis]
         control_centers = dict(
@@ -138,6 +155,7 @@ def evaluate(predict, output, *, deadline=None, journal_identity=None, assist=No
                 sha256_json(genes),
                 systema.manifest.systema_reference_content_sha256,
                 data.control_manifest_file_sha256,
+                *([axis_coverage["evaluation_genes_sha256"]] if full_axis else []),
             ]
         )
         values, records = [], []
@@ -183,6 +201,8 @@ def evaluate(predict, output, *, deadline=None, journal_identity=None, assist=No
                     raise ValueError("the frozen J2 controls changed")
                 full = controls.expression
                 predicted = np.asarray(predict(name, full, ids, axis), dtype=np.float32)
+                if full_axis and native_columns is not None:
+                    predicted = fill_missing_predictions(predicted, full, native_columns)
                 truth = data.load_truth_rows(name)
                 projected = truth.expression[:, axis]
                 metric = compute_condition_metrics_v2(
@@ -230,6 +250,7 @@ def evaluate(predict, output, *, deadline=None, journal_identity=None, assist=No
         atomic_text(csv_path, "".join(json.dumps(r, allow_nan=False) + "\n" for r in records))
         response = summarize_response(records)
         return {
+            **axis_coverage,
             "conditions": len(values),
             "test_controls_per_condition": 300,
             "test_panel_genes": len(genes),

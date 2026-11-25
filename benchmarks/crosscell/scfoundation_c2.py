@@ -21,9 +21,11 @@ import torch
 from scipy import sparse
 
 from benchmarks.common import official_module_session
+from benchmarks.common.full_gene_evaluation import replay_fields, verify_replay
 from benchmarks.common.study_fit_partition import crosscell_fit_rows
 from benchmarks.crosscell.common_score_panel import AUDIT, AUDIT_SHA, PANEL, load_panel
 from benchmarks.crosscell.official_fit_probe import SUPPORT_SHA
+from benchmarks.crosscell.remaining_c2_readiness import hgnc_links, reconcile
 from benchmarks.crosscell.scfoundation_c2_weight_probe import (
     COMMIT,
     FOUNDATION_WEIGHTS,
@@ -229,6 +231,26 @@ def encoder_token_gate(positions, include_zero_tokens):
         encoders.getEncoerDecoderData = original
 
 
+def native_output_projection(genes, native, fitted_columns, fitted_positions):
+    """Read canonical genes from the official decoder, preferring frozen aliases."""
+    vocabulary = {gene: index for index, gene in enumerate(native)}
+    audit = reconcile(genes, set(native), hgnc_links(), verified_aliases={})
+    unresolved = set(audit["unresolved"])
+    projection = dict(zip(fitted_columns, fitted_positions, strict=True))
+    occupied = set(projection.values())
+    for column, gene in enumerate(genes):
+        if column in projection or gene in unresolved:
+            continue
+        alias = audit["aliases"].get(gene, gene)
+        if alias in audit["collisions"] and alias != gene:
+            continue
+        if vocabulary[alias] not in occupied:
+            projection[column] = vocabulary[alias]
+            occupied.add(vocabulary[alias])
+    columns = np.asarray(sorted(projection))
+    return columns, np.asarray([projection[column] for column in columns])
+
+
 def initialize(output, source, rows, cohort, compatibility, panel, limit, val_limit):
     Gears, network = released_module()
     audit = read_json(AUDIT)["scfoundation"]
@@ -410,7 +432,11 @@ def run(output, identity, args):
     panel = load_panel(source, cross, cohort)
     compatibility = read_json(SUPPORT)
     limit, val_limit = 5, 2
-    if not args.smoke:
+    replay = args.replay_full
+    if replay is not None:
+        original = verify_replay(replay, identity, "checkpoint.pt", conditions=128)
+        limit, val_limit = original["fit_microbatches"], original["val_microbatches"]
+    elif not args.smoke:
         smoke = read_json(args.smoke_run / "result.json")
         if smoke["status"] != "trained_validation_only" or any(
             smoke[k] != identity[k]
@@ -439,34 +465,45 @@ def run(output, identity, args):
         output, source, rows, cohort, compatibility, panel, limit, val_limit
     )
     setup_seconds = time.monotonic() - start
-    fit_start = time.monotonic()
     all_allowed = args.encoder_tokens == "all_allowed"
-    with encoder_token_gate(positions, all_allowed):
-        model.train(epochs=1, result_dir=str(output), lr=0.01, weight_decay=5e-4)
-    fit_seconds = time.monotonic() - fit_start
-    checkpoint = output / "checkpoint.pt"
-    checkpoint_sha = sha256_file(checkpoint)
-    frozen = model.best_model
+    if replay is None:
+        fit_start = time.monotonic()
+        with encoder_token_gate(positions, all_allowed):
+            model.train(epochs=1, result_dir=str(output), lr=0.01, weight_decay=5e-4)
+        fit_seconds = time.monotonic() - fit_start
+        checkpoint = output / "checkpoint.pt"
+        checkpoint_sha = sha256_file(checkpoint)
+        frozen = model.best_model
+        fit = dict(
+            identity,
+            **selection,
+            setup_seconds=setup_seconds,
+            fit_seconds=fit_seconds,
+            checkpoint_sha256=checkpoint_sha,
+            optimizer_updates=(selection["fit_microbatches"] + ACCUMULATION - 1) // ACCUMULATION,
+            epochs=1,
+            official_epoch_reference=OFFICIAL_EPOCHS,
+            batch=BATCH,
+            accumulation_steps=ACCUMULATION,
+            validation_de_basis="top20_absolute_training_mean_delta_over_source_controls",
+            budget_policy="single reduced epoch with a seeded fitting prefix and held validation",
+            fit_test_conditions_accessed=0,
+        )
+        atomic_json(output / "fit_receipt.json", fit)
+    else:
+        if any(original[key] != value for key, value in selection.items()):
+            raise ValueError("scFoundation frozen fit selection changed")
+        checkpoint = replay / "checkpoint.pt"
+        checkpoint_sha = original["checkpoint_sha256"]
+        fit = {**original, **replay_fields(replay, identity)}
+        # The scorer replaces evaluation fields from the original common panel.
+        fit.pop("score_panel_sha256", None)
+        frozen = model.model
+    frozen = frozen.cuda()
     frozen.load_state_dict(torch.load(checkpoint, map_location="cpu", weights_only=True))
     frozen.requires_grad_(False).eval()
-    fit = dict(
-        identity,
-        **selection,
-        setup_seconds=setup_seconds,
-        fit_seconds=fit_seconds,
-        checkpoint_sha256=checkpoint_sha,
-        optimizer_updates=(selection["fit_microbatches"] + ACCUMULATION - 1) // ACCUMULATION,
-        epochs=1,
-        official_epoch_reference=OFFICIAL_EPOCHS,
-        batch=BATCH,
-        accumulation_steps=ACCUMULATION,
-        validation_de_basis="top20_absolute_training_mean_delta_over_source_controls",
-        budget_policy="single reduced epoch with a seeded fitting prefix and held validation",
-        fit_test_conditions_accessed=0,
-    )
-    atomic_json(output / "fit_receipt.json", fit)
-
-    diagnostics = not args.smoke and args.matched_fit_batches is not None
+    readout = positions
+    diagnostics = replay is None and not args.smoke and args.matched_fit_batches is not None
     embeddings, deltas = {}, {}
 
     def record_response(condition, prediction, truth):
@@ -487,7 +524,7 @@ def run(output, identity, args):
                 batch = Batch(
                     values, positions, [targets[name]] * len(values), [name] * len(values)
                 )
-                y.append(frozen(batch.to("cuda"))[:, positions].cpu().numpy())
+                y.append(frozen(batch.to("cuda"))[:, readout].cpu().numpy())
         if diagnostics:
             if len(states) != len(y):
                 raise ValueError("GEARS cross-gene representation coverage changed")
@@ -513,11 +550,20 @@ def run(output, identity, args):
     else:
         data = anndata.read_h5ad(source, backed="r")
         try:
+            canonical = list(data.var_names)
             projection = data.var_names.get_indexer(panel["score_genes"])
         finally:
             data.file.close()
         if (projection < 0).any():
             raise ValueError("common score columns not present in the frozen C2 axis")
+        native_columns = None
+        if replay is not None:
+            vocabulary = UPSTREAM / "model/OS_scRNA_gene_index.19264.tsv"
+            with vocabulary.open() as stream:
+                native = [row["gene_name"] for row in csv.DictReader(stream, delimiter="\t")]
+            native_columns, readout = native_output_projection(
+                canonical, native, projection, positions
+            )
         # Input still uses the masked common panel. The scorer checks the original frozen pairings.
         with official_module_session(
             checkout_root=TXPERT_CHECKOUT,
@@ -534,8 +580,10 @@ def run(output, identity, args):
                 compatibility,
                 output,
                 journal_key=checkpoint_sha,
-                score_genes=panel["score_genes"],
-                prediction_on_score_panel=True,
+                score_genes=panel["score_genes"] if replay is None else None,
+                prediction_on_score_panel=replay is None,
+                full_axis=replay is not None,
+                native_columns=native_columns,
                 record_response=record_response if diagnostics else None,
                 stop_starting_conditions_at=start + WALL_SECONDS,
             )
@@ -582,6 +630,7 @@ def main():
     choice = parser.add_mutually_exclusive_group(required=True)
     choice.add_argument("--smoke", action="store_true")
     choice.add_argument("--smoke-run", type=Path)
+    choice.add_argument("--replay-full", type=Path)
     args = parser.parse_args()
     if args.encoder_tokens == "all_allowed" and args.matched_fit_batches is None:
         parser.error("all-allowed tokens are reserved for the matched-prefix ablation")
@@ -595,12 +644,18 @@ def main():
         }.items()
     ):
         raise ValueError("scFoundation requires the study and admitted CUDA environment")
+    if args.replay_full is not None:
+        args.replay_full = args.replay_full.resolve()
+        if args.replay_full.parent != STUDY or args.replay_full == output:
+            raise ValueError("frozen replay requires a distinct original study run")
+        if (output / "result.json").exists():
+            raise FileExistsError("the full-gene replay already completed")
     source = inspect_source_identity(
         REPO,
         formal=True,
         expected_repository="https://github.com/elan6666/GraD-Pert.git",
         remote_ref="refs/heads/codex/perturbation-holdout-study",
-        verification_method="github_rest_live",
+        verification_method="git_ls_remote_live" if args.replay_full else "github_rest_live",
         publication_receipt=args.publication,
         expected_publication_receipt_sha256=args.publication_sha,
     )
@@ -620,7 +675,7 @@ def main():
     )
     with lock(SERVER / f"runtime/v2-gpu-{args.gpu}.lock"):
         admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
-        output.mkdir()
+        output.mkdir(exist_ok=args.replay_full is not None)
         atomic_json(output / "worker.json", {"owner": process_info(os.getpid()), "gpu": args.gpu})
         run(output, identity, args)
 

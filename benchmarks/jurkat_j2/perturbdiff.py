@@ -15,6 +15,7 @@ import numpy as np
 import torch
 import yaml
 
+from benchmarks.common.full_gene_evaluation import replay_fields, verify_replay
 from benchmarks.crosscell.official_fit_probe import COMMITS, PRIOR_SHA
 from benchmarks.crosscell.perturbdiff_c2 import (
     ASSETS,
@@ -71,11 +72,14 @@ def j2_prior(fitted, test, path):
     return sorted(missing & fitted), sorted(missing & test)
 
 
-def run(output, cfg, identity, smoke, fit_seconds, *, resume):
+def run(output, cfg, identity, smoke, fit_seconds, *, resume, replay=None):
     started = time.monotonic()
-    checkpoint = output / "checkpoint.pt"
+    parent = replay or output
+    checkpoint = parent / "checkpoint.pt"
     if resume:
-        receipt = frozen_receipt(output, identity, checkpoint.name)
+        receipt = frozen_receipt(
+            parent, {**identity, "run_id": parent.name}, checkpoint.name, replay=replay is not None
+        )
     prepared = fit_data(cfg["seed"])
     adata = prepared.adata
     axis = score_axis(prepared.gene_ids)
@@ -199,7 +203,11 @@ def run(output, cfg, identity, smoke, fit_seconds, *, resume):
         ]
 
     result = evaluate_segment(
-        apply, output, receipt, deadline=started + cfg["max_wall_seconds"] - 60
+        apply,
+        output,
+        receipt,
+        deadline=started + cfg["max_wall_seconds"] - 60,
+        full_axis=replay is not None,
     )
     if result is None:
         return
@@ -212,6 +220,7 @@ def run(output, cfg, identity, smoke, fit_seconds, *, resume):
             **result,
             "status": "evaluated",
             "evaluation_source_commit": identity["source_commit"],
+            **(replay_fields(replay, identity) if replay is not None else {}),
         },
     )
 
@@ -227,6 +236,7 @@ def main():
     phase.add_argument("--smoke", action="store_true")
     phase.add_argument("--smoke-run", type=Path)
     phase.add_argument("--resume", action="store_true")
+    phase.add_argument("--replay-full", type=Path)
     args = parser.parse_args()
     if args.output.resolve().parent != STUDY or os.environ.get("CUDA_VISIBLE_DEVICES") != str(
         args.gpu
@@ -272,16 +282,31 @@ def main():
                 cfg["max_wall_seconds"] - 592 * smoke["seconds_per_condition"] * 1.10 - 180,
             ),
         )
+    if args.replay_full is not None:
+        args.replay_full = args.replay_full.resolve()
+        if args.replay_full.parent != STUDY or args.replay_full == args.output.resolve():
+            raise ValueError("frozen replay requires a distinct original study run")
+        verify_replay(args.replay_full, identity, "checkpoint.pt", conditions=592)
+        if (args.output / "result.json").exists():
+            raise FileExistsError("the full-gene replay already completed")
     with lock(SERVER / "runtime" / f"v2-gpu-{args.gpu}.lock"):
         admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
         torch.manual_seed(cfg["seed"])
         torch.cuda.set_per_process_memory_fraction(0.90)
         if not args.resume:
-            args.output.mkdir()
+            args.output.mkdir(exist_ok=args.replay_full is not None)
         atomic_json(
             args.output / "worker.json", {"owner": process_info(os.getpid()), "gpu": args.gpu}
         )
-        run(args.output, cfg, identity, args.smoke, fit_seconds, resume=args.resume)
+        run(
+            args.output,
+            cfg,
+            identity,
+            args.smoke,
+            fit_seconds,
+            resume=args.resume or args.replay_full is not None,
+            replay=args.replay_full,
+        )
 
 
 if __name__ == "__main__":

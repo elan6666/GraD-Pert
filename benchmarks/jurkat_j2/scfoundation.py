@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from benchmarks.common.full_gene_evaluation import replay_fields, verify_replay
 from benchmarks.crosscell import scfoundation_c2 as released
 from benchmarks.crosscell.remaining_c2_readiness import hgnc_links, reconcile
 from benchmarks.crosscell.study_paths import COHORT_SHA, REPO, SERVER, STUDY
@@ -117,7 +118,7 @@ def initialize(output, fit_batches, *, frozen_graph=None):
         fit_batches,
         20,
     )
-    return model, positions, target_map, val_loader, provenance, columns
+    return model, positions, target_map, val_loader, provenance, columns, genes, native
 
 
 J2_SCORE_BATCHES = (6, 12, 24)
@@ -174,17 +175,19 @@ def select_score_batch(predict, name, values):
     return selected["batch"], rows
 
 
-def run(output, identity, *, smoke, fit_batches, resume, assist=None):
+def run(output, identity, *, smoke, fit_batches, resume, assist=None, replay=None):
     started = time.monotonic()
     torch.manual_seed(released.SEED)
-    parent = assist[0] if assist is not None else output
+    parent = replay or (assist[0] if assist is not None else output)
     checkpoint = parent / "checkpoint.pt"
     coexpression = parent / "coexpression.npz"
     if resume:
-        fit_record = frozen_receipt(parent, {**identity, "run_id": parent.name}, checkpoint.name)
+        fit_record = frozen_receipt(
+            parent, {**identity, "run_id": parent.name}, checkpoint.name, replay=replay is not None
+        )
         if sha256_file(coexpression) != fit_record["coexpression_sha256"]:
             raise ValueError("the frozen J2 co-expression graph changed")
-    model, positions, targets, val_loader, provenance, columns = initialize(
+    model, positions, targets, val_loader, provenance, columns, genes, native = initialize(
         output, fit_batches, frozen_graph=coexpression if resume else None
     )
     if resume:
@@ -209,6 +212,14 @@ def run(output, identity, *, smoke, fit_batches, resume, assist=None):
     frozen.load_state_dict(torch.load(checkpoint, map_location="cpu", weights_only=True))
     frozen.eval().requires_grad_(False)
 
+    from benchmarks.crosscell.scfoundation_c2 import native_output_projection
+
+    native_columns, readout = (
+        native_output_projection(genes, native, columns, positions)
+        if replay is not None
+        else (None, positions)
+    )
+
     @torch.inference_mode()
     def predict(name, values, batch_size):
         predictions = []
@@ -217,7 +228,7 @@ def run(output, identity, *, smoke, fit_batches, resume, assist=None):
             batch = released.Batch(
                 chunk, positions, [targets[name]] * len(chunk), [name] * len(chunk)
             )
-            predictions.append(frozen(batch.to("cuda"))[:, positions].cpu().numpy())
+            predictions.append(frozen(batch.to("cuda"))[:, readout].cpu().numpy())
         return np.concatenate(predictions)
 
     if smoke:
@@ -269,7 +280,7 @@ def run(output, identity, *, smoke, fit_batches, resume, assist=None):
         )
 
     def predict_projected(name, values, _ids, axis):
-        return predict(name, values[:, axis], score_batch)
+        return predict(name, values[:, columns], score_batch)
 
     if assist is not None:
         measured = evaluate(
@@ -298,6 +309,8 @@ def run(output, identity, *, smoke, fit_batches, resume, assist=None):
         output,
         fit_record,
         deadline=started + 10500,
+        full_axis=replay is not None,
+        native_columns=native_columns,
     )
     if measured is None:
         return
@@ -314,6 +327,7 @@ def run(output, identity, *, smoke, fit_batches, resume, assist=None):
             if batch_receipt.exists()
             else None,
             "evaluation_source_commit": identity["source_commit"],
+            **(replay_fields(replay, identity) if replay is not None else {}),
         },
     )
 
@@ -329,6 +343,7 @@ def main():
     phase.add_argument("--smoke", action="store_true")
     phase.add_argument("--smoke-run", type=Path)
     phase.add_argument("--resume", action="store_true")
+    phase.add_argument("--replay-full", type=Path)
     phase.add_argument("--assist-parent", type=Path)
     parser.add_argument("--assist-start", type=int)
     args = parser.parse_args()
@@ -382,18 +397,26 @@ def main():
             or smoke["validation_prediction_shape"] != [300, 4486]
         ):
             raise ValueError("the official J2 smoke did not pass")
+    if args.replay_full is not None:
+        args.replay_full = args.replay_full.resolve()
+        if args.replay_full.parent != STUDY or args.replay_full == args.output.resolve():
+            raise ValueError("frozen replay requires a distinct original study run")
+        verify_replay(args.replay_full, identity, "checkpoint.pt", conditions=592)
+        if (args.output / "result.json").exists():
+            raise FileExistsError("the full-gene replay already completed")
     with lock(SERVER / "runtime" / f"v2-gpu-{args.gpu}.lock"):
         admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
         if not args.resume:
-            output.mkdir()
+            output.mkdir(exist_ok=args.replay_full is not None)
         atomic_json(output / "worker.json", {"owner": process_info(os.getpid()), "gpu": args.gpu})
         run(
             output,
             identity,
             smoke=args.smoke,
             fit_batches=5 if args.smoke else 1500,
-            resume=args.resume or assist is not None,
+            resume=args.resume or assist is not None or args.replay_full is not None,
             assist=assist,
+            replay=args.replay_full,
         )
 
 

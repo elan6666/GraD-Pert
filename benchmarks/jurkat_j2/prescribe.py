@@ -101,7 +101,14 @@ def main():
     phase = parser.add_mutually_exclusive_group(required=True)
     phase.add_argument("--smoke", action="store_true")
     phase.add_argument("--smoke-run", type=Path)
+    phase.add_argument("--replay-full", type=Path)
     args = parser.parse_args()
+    if args.replay_full is not None:
+        args.replay_full = args.replay_full.resolve()
+        if args.replay_full.parent != STUDY or args.replay_full == args.output.resolve():
+            raise ValueError("frozen replay requires a distinct original study run")
+        if (args.output / "result.json").exists():
+            raise FileExistsError("the full-gene replay already completed")
     if args.output.resolve().parent != STUDY or os.environ.get("CUDA_VISIBLE_DEVICES") != str(
         args.gpu
     ):
@@ -138,11 +145,20 @@ def main():
             or smoke.get("validation_prediction_shape") != [300, 4486]
         ):
             raise ValueError("the official J2 smoke did not pass")
-    args.output.mkdir()
+    args.output.mkdir(exist_ok=args.replay_full is not None)
     with wait_for_gpu(args.output, args.gpu, args.gpu_uuid):
         if torch.cuda.device_count() != 1:
             raise RuntimeError("PRESCRIBE J2 requires one CUDA device")
-        run(args.output, identity, cfg, args.smoke, False, time.monotonic(), j2=True)
+        run(
+            args.output,
+            identity,
+            cfg,
+            args.smoke,
+            False,
+            time.monotonic(),
+            j2=True,
+            replay=args.replay_full,
+        )
 
 
 if __name__ == "__main__":

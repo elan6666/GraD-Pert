@@ -10,6 +10,7 @@ from pathlib import Path
 import anndata
 import numpy as np
 
+from benchmarks.common.full_gene_evaluation import coverage, fill_missing_predictions
 from benchmarks.common.study_fit_partition import crosscell_fit_rows
 from benchmarks.crosscell.study_paths import COHORT_SHA, CROSS, STUDY
 from gradpert.data._io import atomic_json, atomic_text, read_json
@@ -63,6 +64,8 @@ def score(
     score_genes=None,
     prediction_on_score_panel=False,
     record_response=None,
+    full_axis=False,
+    native_columns=None,
 ):
     ids = cohort["condition_ids"]
     draw_path = Path(cohort["shared_frozen_draws_path"])
@@ -74,6 +77,8 @@ def score(
         raise ValueError("C2 paired test cohort changed")
     if prediction_on_score_panel and score_genes is None:
         raise ValueError("a projected predictor requires a declared score panel")
+    if full_axis and score_genes is not None:
+        raise ValueError("full-gene evaluation cannot score a subset")
     if journal_key is not None:
         journal_key = sha256_json(
             {
@@ -90,6 +95,9 @@ def score(
     adata = anndata.read_h5ad(source, backed="r")
     try:
         previous_means = metrics.PERT_MEANS.pop(target_line, None)
+        axis_coverage = coverage(output, adata.var_names, native_columns, 3352) if full_axis else {}
+        if full_axis and journal_key is not None:
+            journal_key = sha256_json([journal_key, axis_coverage["evaluation_genes_sha256"]])
         if score_genes is None:
             columns = slice(None)
         else:
@@ -138,6 +146,8 @@ def score(
                 if include_control_row_ids
                 else predict_controls(condition, controls)
             )
+            if full_axis and native_columns is not None:
+                prediction = fill_missing_predictions(prediction, controls, native_columns)
             projected_controls = controls[:, columns]
             expected_shape = (
                 projected_controls.shape if prediction_on_score_panel else controls.shape
@@ -207,6 +217,7 @@ def score(
         for row in records
     ]
     return {
+        **axis_coverage,
         "conditions": len(records),
         "condition_ids_sha256": cohort["condition_ids_sha256"],
         "paired_rows_sha256": cohort["per_condition_pairing_sha256"],

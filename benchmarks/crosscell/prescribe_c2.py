@@ -21,6 +21,7 @@ from sklearn.decomposition import PCA
 from torch.utils.data import DataLoader
 
 from benchmarks.common import official_module_session
+from benchmarks.common.full_gene_evaluation import replay_fields, verify_replay
 from benchmarks.common.study_fit_partition import allowed_expression_indices, crosscell_fit_rows
 from benchmarks.crosscell.common_score_panel import AUDIT, AUDIT_SHA, PANEL, load_panel
 from benchmarks.crosscell.official_fit_probe import COMMITS, PRIOR_SHA, SUPPORT_SHA
@@ -225,7 +226,7 @@ def prepare_batch(controls, conditions, aliases, **targets):
     )
 
 
-def run(output, identity, cfg, smoke, cpu_check, started, shared=None, *, j2=False):
+def run(output, identity, cfg, smoke, cpu_check, started, shared=None, *, j2=False, replay=None):
     if j2:
         from benchmarks.jurkat_j2.prescribe import fit_inputs
 
@@ -242,6 +243,25 @@ def run(output, identity, cfg, smoke, cpu_check, started, shared=None, *, j2=Fal
     projection = visible.get_indexer(scores)
     if np.any(projection < 0):
         raise ValueError("PRESCRIBE cannot produce the common output panel")
+    if replay is not None:
+        original = verify_replay(replay, identity, "best.ckpt", conditions=592 if j2 else 128)
+        if original["config_sha256"] != identity["config_sha256"]:
+            raise ValueError("PRESCRIBE replay configuration changed")
+        fit_receipt = read_json(replay / "training_result.json")
+        archive = replay / "fit_projection.npz"
+        if sha256_file(archive) != fit_receipt["fit_projection_sha256"]:
+            raise ValueError("frozen PRESCRIBE projection changed")
+        with np.load(archive, allow_pickle=False) as frozen_projection:
+            if (
+                not np.array_equal(cols, frozen_projection["visible_indices"])
+                or not np.array_equal(projection, frozen_projection["projection"])
+                or not np.allclose(pca.components_, frozen_projection["components"], atol=1e-6)
+                or not np.allclose(pca.mean_, frozen_projection["mean"], atol=1e-6)
+            ):
+                raise ValueError("recreated PRESCRIBE inputs differ from the saved projection")
+            pca.components_ = frozen_projection["components"]
+            pca.mean_ = frozen_projection["mean"]
+        projection = slice(None)
     atomic_json(output / "fit_data_receipt.json", {**identity, **receipt})
     if cpu_check:
         atomic_json(
@@ -375,21 +395,6 @@ def run(output, identity, cfg, smoke, cpu_check, started, shared=None, *, j2=Fal
                 certainty_budget=cfg["certainty_budget"],
                 bound=cfg["bound"],
             )
-            warmup = NaturalPosteriorNetworkFlowLightningModule(
-                model,
-                learning_rate=cfg["warmup_lr"],
-                early_stopping=False,
-                stage="warmup",
-                log_prob_positive=False,
-            )
-            warm, warm_timer = trainer(
-                1 if smoke else cfg["warmup_epochs"], enable_checkpointing=False
-            )
-            warm.callbacks.append(warm_timer)
-            worker(output, "warmup", identity["gpu"])
-            warm.fit(warmup, loader("train"), loader("val"))
-            if warm.global_step < 1 or warm.current_epoch != (1 if smoke else cfg["warmup_epochs"]):
-                raise RuntimeError("PRESCRIBE warmup did not finish its configured epochs")
             main_module = NaturalPosteriorNetworkLightningModule(
                 model=model,
                 data_name="c2",
@@ -413,58 +418,85 @@ def run(output, identity, cfg, smoke, cpu_check, started, shared=None, *, j2=Fal
                 },
             )
             main_module.hparams.pop("model", None)
-            checkpoint = ModelCheckpoint(
-                dirpath=output,
-                filename="best",
-                monitor="val/loss",
-                mode="min",
-                save_top_k=1,
-                save_weights_only=True,
-            )
-            main, main_timer = trainer(1 if smoke else cfg["epochs"], callbacks=[checkpoint])
-            main.callbacks.append(main_timer)
-            worker(output, "fit", identity["gpu"])
-            main.fit(main_module, loader("train"), loader("val"))
-            if (
-                main.global_step < 1
-                or not checkpoint.best_model_path
-                or not torch.isfinite(checkpoint.best_model_score).item()
-            ):
-                raise RuntimeError(
-                    "official PRESCRIBE did not produce a finite validation checkpoint"
+            if replay is None:
+                warmup = NaturalPosteriorNetworkFlowLightningModule(
+                    model,
+                    learning_rate=cfg["warmup_lr"],
+                    early_stopping=False,
+                    stage="warmup",
+                    log_prob_positive=False,
                 )
-            saved = torch.load(checkpoint.best_model_path, map_location="cpu", weights_only=True)
+                warm, warm_timer = trainer(
+                    1 if smoke else cfg["warmup_epochs"], enable_checkpointing=False
+                )
+                warm.callbacks.append(warm_timer)
+                worker(output, "warmup", identity["gpu"])
+                warm.fit(warmup, loader("train"), loader("val"))
+                if warm.global_step < 1 or warm.current_epoch != (
+                    1 if smoke else cfg["warmup_epochs"]
+                ):
+                    raise RuntimeError("PRESCRIBE warmup did not finish its configured epochs")
+                checkpoint = ModelCheckpoint(
+                    dirpath=output,
+                    filename="best",
+                    monitor="val/loss",
+                    mode="min",
+                    save_top_k=1,
+                    save_weights_only=True,
+                )
+                main, main_timer = trainer(1 if smoke else cfg["epochs"], callbacks=[checkpoint])
+                main.callbacks.append(main_timer)
+                worker(output, "fit", identity["gpu"])
+                main.fit(main_module, loader("train"), loader("val"))
+                if (
+                    main.global_step < 1
+                    or not checkpoint.best_model_path
+                    or not torch.isfinite(checkpoint.best_model_score).item()
+                ):
+                    raise RuntimeError(
+                        "official PRESCRIBE did not produce a finite validation checkpoint"
+                    )
+                checkpoint_path = checkpoint.best_model_path
+            else:
+                checkpoint_path = replay / "best.ckpt"
+            saved = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
             main_module.load_state_dict(saved["state_dict"], strict=True)
             model.cuda().eval().requires_grad_(False)
-            val_row = roles["val"][0]
-            sample = roles["source_control"][:300]
-            value = predict(names[val_row], matrix[sample].toarray())
-            if value.shape != (300, len(scores)) or not np.isfinite(value).all():
-                raise ValueError("PRESCRIBE validation inference did not match the common panel")
-            receipt.update(
-                warmup_optimizer_updates=warm.global_step,
-                optimizer_updates=main.global_step,
-                best_epoch=int(saved["epoch"]) + 1,
-                best_val_loss=float(checkpoint.best_model_score),
-                checkpoint_sha256=sha256_file(checkpoint.best_model_path),
-                validation_prediction_shape=list(value.shape),
-            )
+            if replay is None:
+                val_row = roles["val"][0]
+                sample = roles["source_control"][:300]
+                value = predict(names[val_row], matrix[sample].toarray())
+                if value.shape != (300, len(scores)) or not np.isfinite(value).all():
+                    raise ValueError(
+                        "PRESCRIBE validation inference did not match the common panel"
+                    )
+                receipt.update(
+                    warmup_optimizer_updates=warm.global_step,
+                    optimizer_updates=main.global_step,
+                    best_epoch=int(saved["epoch"]) + 1,
+                    best_val_loss=float(checkpoint.best_model_score),
+                    checkpoint_sha256=sha256_file(checkpoint.best_model_path),
+                    validation_prediction_shape=list(value.shape),
+                )
         finally:
             os.chdir(REPO)
-    np.savez(
-        output / "fit_projection.npz",
-        components=pca.components_,
-        mean=pca.mean_,
-        visible_indices=cols,
-        projection=projection,
-        control_pca_mean=controls.mean(0),
-        control_pca_cov=np.cov(controls, rowvar=False),
-    )
-    receipt["fit_projection_sha256"] = sha256_file(output / "fit_projection.npz")
-    receipt["main_epochs_completed"] = main.current_epoch
-    if shared is not None:
-        receipt["shared_gpu_evidence"] = shared.evidence()
-    atomic_json(output / "training_result.json", {**identity, **receipt})
+    if replay is not None:
+        receipt = {**fit_receipt, **replay_fields(replay, identity)}
+    else:
+        np.savez(
+            output / "fit_projection.npz",
+            components=pca.components_,
+            mean=pca.mean_,
+            visible_indices=cols,
+            projection=projection,
+            control_pca_mean=controls.mean(0),
+            control_pca_cov=np.cov(controls, rowvar=False),
+        )
+        receipt["fit_projection_sha256"] = sha256_file(output / "fit_projection.npz")
+        receipt["main_epochs_completed"] = main.current_epoch
+        if shared is not None:
+            receipt["shared_gpu_evidence"] = shared.evidence()
+        atomic_json(output / "training_result.json", {**identity, **receipt})
     if smoke:
         atomic_json(
             output / "result.json",
@@ -486,6 +518,8 @@ def run(output, identity, cfg, smoke, cpu_check, started, shared=None, *, j2=Fal
             output,
             deadline=started + cfg["wall_seconds"],
             journal_identity=receipt["checkpoint_sha256"],
+            full_axis=replay is not None,
+            native_columns=cols if replay is not None else None,
         )
     else:
         with official_module_session(
@@ -503,14 +537,18 @@ def run(output, identity, cfg, smoke, cpu_check, started, shared=None, *, j2=Fal
                 read_json(SUPPORT),
                 output,
                 journal_key=receipt["checkpoint_sha256"],
-                score_genes=scores,
-                prediction_on_score_panel=True,
+                score_genes=scores if replay is None else None,
+                prediction_on_score_panel=replay is None,
+                full_axis=replay is not None,
+                native_columns=cols if replay is not None else None,
                 stop_starting_conditions_at=started + cfg["wall_seconds"],
             )
     if result.get("conditions") != (592 if j2 else 128) or list(output.rglob("*.pkl")):
         raise RuntimeError("PRESCRIBE did not finish a complete metrics-only evaluation")
     if shared is not None:
         receipt["shared_gpu_evidence"] = shared.evidence()
+    if replay is not None and sha256_file(replay / "best.ckpt") != original["checkpoint_sha256"]:
+        raise ValueError("the frozen PRESCRIBE checkpoint changed during scoring")
     atomic_json(output / "result.json", {**identity, **receipt, **result, "status": "evaluated"})
 
 
@@ -564,7 +602,14 @@ def main():
     phase.add_argument("--cpu-check", action="store_true")
     phase.add_argument("--smoke", action="store_true")
     phase.add_argument("--smoke-run", type=Path)
+    phase.add_argument("--replay-full", type=Path)
     args = parser.parse_args()
+    if args.replay_full is not None:
+        args.replay_full = args.replay_full.resolve()
+        if args.replay_full.parent != STUDY or args.replay_full == args.output.resolve():
+            raise ValueError("frozen replay requires a distinct original study run")
+        if (args.output / "result.json").exists():
+            raise FileExistsError("the full-gene replay already completed")
     if args.output.resolve().parent != STUDY:
         raise ValueError("PRESCRIBE output must stay within the research study")
     if args.cpu_check:
@@ -588,7 +633,7 @@ def main():
         formal=True,
         expected_repository="https://github.com/elan6666/GraD-Pert.git",
         remote_ref="refs/heads/codex/perturbation-holdout-study",
-        verification_method="github_rest_live",
+        verification_method="git_ls_remote_live" if args.replay_full else "github_rest_live",
         publication_receipt=args.publication,
         expected_publication_receipt_sha256=args.publication_sha,
     )
@@ -628,7 +673,7 @@ def main():
         ):
             raise ValueError("PRESCRIBE official GPU smoke did not pass")
     cfg = yaml.safe_load(CONFIG.read_text())
-    args.output.mkdir()
+    args.output.mkdir(exist_ok=args.replay_full is not None)
     if args.cpu_check:
         run(args.output, identity, cfg, False, True, time.monotonic())
     else:
@@ -639,7 +684,16 @@ def main():
             if shared is not None:
                 shared.configure_allocator()
             worker(args.output, "fit_data", args.gpu)
-            run(args.output, identity, cfg, args.smoke, False, time.monotonic(), shared)
+            run(
+                args.output,
+                identity,
+                cfg,
+                args.smoke,
+                False,
+                time.monotonic(),
+                shared,
+                replay=args.replay_full,
+            )
 
 
 if __name__ == "__main__":
