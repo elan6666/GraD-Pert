@@ -126,7 +126,7 @@ def prepare(output, origin):
     )
 
 
-def infer(inputs, output, *, stop=None):
+def infer(inputs, output, *, stop=None, seconds=10400):
     """Emit a condition-mean prediction and its receipts. No truth is loaded."""
     import subprocess
     import tarfile
@@ -144,6 +144,19 @@ def infer(inputs, output, *, stop=None):
     if torch.cuda.device_count() != 1:
         raise ValueError("portable inference requires a single GPU")
     output.mkdir(exist_ok=True)
+    journal = output / "mean-receipts"
+    journal.mkdir(exist_ok=True)
+    device = torch.cuda.get_device_name()
+    manifest_sha = sha256_file(inputs / "manifest.json")
+    plan = {
+        "manifest_sha256": manifest_sha,
+        "gpu": device,
+        "torch": str(torch.__version__),
+    }
+    plan_path = output / "inference-plan.json"
+    if plan_path.exists() and read_json(plan_path) != plan:
+        raise ValueError("resuming on a different model input or CUDA runtime")
+    atomic_json(plan_path, plan)
     upstream = output / "official"
     upstream.mkdir(exist_ok=True)
     with tarfile.open(inputs / "official.tar") as package:
@@ -170,23 +183,42 @@ def infer(inputs, output, *, stop=None):
     if rows.shape != (manifest["conditions"], 300) or controls.shape[1] != 5000:
         raise ValueError("portable frozen input population changed")
     count = len(conditions) if stop is None else min(stop, len(conditions))
+    if count < 1 or seconds <= 0:
+        raise ValueError("at least one condition and a positive inference budget are required")
     started = time.monotonic()
     means = []
     for i, (name, indices) in enumerate(zip(conditions[:count], rows[:count], strict=True), 1):
         name = str(name)
-        torch.manual_seed(int(sha256_json([cfg["evaluation_seed"], name])[:8], 16))
-        values = predict(
-            model,
-            vocab,
-            cfg,
-            name.removesuffix("+ctrl"),
-            "jurkat",
-            controls[indices].toarray(),
-            batches[indices],
-        )
-        if values.shape != (300, 5000) or not np.isfinite(values).all():
-            raise ValueError("invalid portable PerturbDiff predictions")
-        means.append(values.mean(0, dtype=np.float64))
+        saved = journal / f"{i:03d}.npz"
+        if saved.is_file():
+            with np.load(saved, allow_pickle=False) as complete:
+                if str(complete["condition"]) != name:
+                    raise ValueError("a condition receipt moved on the frozen axis")
+                mean = complete["mean"]
+        else:
+            if time.monotonic() - started >= seconds:
+                print(f"Segment ended at {i - 1}/{count} conditions", flush=True)
+                return
+            torch.manual_seed(int(sha256_json([cfg["evaluation_seed"], name])[:8], 16))
+            values = predict(
+                model,
+                vocab,
+                cfg,
+                name.removesuffix("+ctrl"),
+                "jurkat",
+                controls[indices].toarray(),
+                batches[indices],
+            )
+            if values.shape != (300, 5000) or not np.isfinite(values).all():
+                raise ValueError("invalid portable PerturbDiff predictions")
+            mean = values.mean(0, dtype=np.float64)
+            temporary = saved.with_suffix(".tmp")
+            with temporary.open("wb") as stream:
+                np.savez_compressed(stream, condition=name, mean=mean)
+            temporary.replace(saved)
+        if mean.shape != (5000,) or not np.isfinite(mean).all():
+            raise ValueError("invalid saved PerturbDiff condition mean")
+        means.append(mean)
         if i == 1 or i % 10 == 0 or i == count:
             print(f"{i}/{count} conditions, {time.monotonic() - started:.1f}s", flush=True)
     predictions = output / "condition-means.npz"
@@ -194,15 +226,15 @@ def infer(inputs, output, *, stop=None):
     atomic_json(
         output / "inference.json",
         {
-            "manifest_sha256": sha256_file(inputs / "manifest.json"),
+            "manifest_sha256": manifest_sha,
             "predictions_sha256": sha256_file(predictions),
             "checkpoint_sha256": manifest["files"]["checkpoint.pt"],
             "conditions": count,
             "test_controls_per_condition": 300,
             "test_updates": 0,
             "test_truth_accessed": False,
-            "gpu": torch.cuda.get_device_name(),
-            "torch": torch.__version__,
+            "gpu": device,
+            "torch": str(torch.__version__),
             "elapsed_seconds": time.monotonic() - started,
             "driver": subprocess.check_output(
                 ["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"], text=True
@@ -278,6 +310,7 @@ def main():
             command.add_argument(name, type=Path)
         if action == "infer":
             command.add_argument("--stop", type=int)
+            command.add_argument("--seconds", type=int, default=10400)
     args = vars(parser.parse_args())
     command = args.pop("command")
     {"prepare": prepare, "infer": infer, "score": score}[command](**args)

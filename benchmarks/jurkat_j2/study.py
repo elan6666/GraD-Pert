@@ -131,6 +131,8 @@ def evaluate(
             else score_axis(data.expression_gene_ids)
         )
         genes = [data.expression_gene_ids[i] for i in axis]
+        if full_axis and sha256_json(genes) != cohort()["expression_gene_order_sha256"]:
+            raise ValueError("the frozen full J2 gene order changed")
         if (
             systema.manifest.systema_reference_condition_ids != list(data.split.train_conditions)
             or data.control_manifest_file_sha256 != cohort()["evaluation_controls_sha256"]
