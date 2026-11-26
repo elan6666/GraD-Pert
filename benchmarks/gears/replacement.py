@@ -9,6 +9,7 @@ import anndata
 import numpy as np
 import pandas as pd
 import torch
+from scipy import sparse
 
 from benchmarks.expression_holdout.contract import FittedAdapter
 from benchmarks.expression_holdout.gears import (
@@ -29,6 +30,15 @@ ASSET_HASHES = {
     ),
 }
 GO_SHA = "99622d9215462e7bbea99a5f6c0b1e86febfef9f57226269418053484fcb3f9f"
+
+
+class GearsCSR(sparse.csr_matrix):
+    """Bridge the pinned GEARS pandas mask to SciPy sparse indexing."""
+
+    def __getitem__(self, index):
+        if isinstance(index, pd.Series):
+            index = index.to_numpy()
+        return super().__getitem__(index)
 
 
 class Batch:
@@ -191,6 +201,7 @@ def fit(prepared, config, runtime, output, *, on_epoch):
     eval_batch = train_cfg.pop("eval_batch_size")
     rows_for_graph = np.sort(np.concatenate((train, controls)))
     graph_adata = prepared.adata[rows_for_graph].copy()
+    graph_adata.X = GearsCSR(graph_adata.X)
     graph_adata.obs["condition_name"] = graph_adata.obs.condition
     graph_adata.uns["non_zeros_gene_idx"] = train_nonzero
     data.adata = graph_adata
