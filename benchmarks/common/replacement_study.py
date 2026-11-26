@@ -42,7 +42,7 @@ def targets(condition):
     return [gene for gene in condition.split("+") if gene != "ctrl"]
 
 
-def run(args, output, identity):
+def run(args, output, identity, shared=None):
     started = time.monotonic()
     if args.scenario == "J2":
         prepared = j2.fit_data(seed=1)
@@ -84,6 +84,8 @@ def run(args, output, identity):
     epochs = args.epochs or (40 if args.model == "scouter" else 20)
 
     def on_epoch(epoch, value):
+        if shared is not None:
+            shared.check()
         elapsed = time.monotonic() - capture_start
         atomic_json(
             output / "training_progress.json",
@@ -152,7 +154,13 @@ def run(args, output, identity):
             atomic_json(output / "result.json", {**receipt, "formal_eligible": False})
             return
 
+        last_gpu_check = time.monotonic()
+
         def predict(name, controls):
+            nonlocal last_gpu_check
+            if shared is not None and time.monotonic() - last_gpu_check >= 10:
+                shared.check()
+                last_gpu_check = time.monotonic()
             return model_module.predict(
                 fitted, controls, targets(name), genes, cell_batch=128, query_count=300, seed=1
             )
@@ -204,7 +212,17 @@ def run(args, output, identity):
                 return
         if metrics["conditions"] != len(condition_ids):
             raise ValueError("frozen evaluation omitted test conditions")
-        atomic_json(output / "result.json", {**receipt, **metrics, "status": "evaluated"})
+        if (
+            metrics["native_prediction_genes"] != len(genes)
+            or metrics["imputed_prediction_genes"] != 0
+            or metrics["systema_reference_scope"] != "train_only"
+        ):
+            raise ValueError("replacement baseline changed the all-native frozen scoring contract")
+        gpu_evidence = shared.evidence() if shared is not None else {}
+        atomic_json(
+            output / "result.json",
+            {**receipt, **metrics, "gpu_evidence": gpu_evidence, "status": "evaluated"},
+        )
 
 
 def main():
@@ -220,11 +238,18 @@ def main():
     parser.add_argument("--wall-minutes", type=int, default=180)
     parser.add_argument("--epochs", type=int)
     parser.add_argument("--validation-only", action="store_true")
+    parser.add_argument("--smoke-run", type=Path)
+    parser.add_argument("--share-gpu", action="store_true")
     args = parser.parse_args()
     if not 0 < args.fit_minutes < args.wall_minutes or (
         args.epochs is not None and args.epochs < 1
     ):
         parser.error("expected a positive fit budget below total and positive epoch limit")
+    if args.model == "gears":
+        if args.validation_only and args.epochs != 1:
+            parser.error("GEARS smoke requires exactly one validation-only epoch")
+        if not args.validation_only and args.smoke_run is None:
+            parser.error("GEARS formal execution requires the completed dataset smoke")
     output = args.output.resolve()
     if output.parent != STUDY or os.getenv("CUDA_VISIBLE_DEVICES") != str(args.gpu):
         raise ValueError("expected the study output root and one selected physical CUDA device")
@@ -247,12 +272,51 @@ def main():
         "gpu": args.gpu,
         "selected_eval_checkpoint": "last",
     }
-    with lock(SERVER / f"runtime/v2-gpu-{args.gpu}.lock"):
-        admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
+    if args.smoke_run is not None:
+        smoke = args.smoke_run.resolve()
+        smoke_receipt = read_json(smoke / "result.json")
+        if (
+            smoke.parent != STUDY
+            or smoke_receipt["model"] != args.model
+            or smoke_receipt["scenario"] != args.scenario
+            or smoke_receipt["source_commit"] != source.commit
+            or smoke_receipt["cohort_sha256"] != COHORT_SHA
+            or smoke_receipt["status"] != "trained_validation_only"
+            or smoke_receipt["epochs_completed"] != 1
+            or smoke_receipt["test_conditions_accessed_during_fit"] != 0
+            or smoke_receipt["checkpoint_sha256"] != sha256_file(smoke / "last.pt")
+            or smoke_receipt["output_validation_shape"]
+            != [300, 5000 if args.scenario == "J2" else 3352]
+        ):
+            raise ValueError("GEARS smoke receipt is incompatible with this formal fit")
+        identity["smoke_receipt_sha256"] = sha256_file(smoke / "result.json")
+    lock_mode = "replacement-shared" if args.share_gpu else "v2"
+    with lock(SERVER / f"runtime/{lock_mode}-gpu-{args.gpu}.lock"):
+        shared = None
+        if args.share_gpu:
+            from benchmarks.crosscell.prescribe_gpu import SharedGpu
+
+            # Preserve resident processes and enforce a separate allocator cap.
+            shared = SharedGpu(
+                args.gpu,
+                args.gpu_uuid,
+                {
+                    "allocator_mib": 12288,
+                    "process_mib": 14336,
+                    "reserve_mib": 4096,
+                    "foreign_limit_mib": 13312,
+                    "pause_ratio": 0.0,
+                },
+                allow_same_account_resident=True,
+            )
+            shared.admit()
+            shared.configure_allocator()
+        else:
+            admit_selected_idle(snapshot(os.getpid()), args.gpu, args.gpu_uuid)
         output.mkdir(exist_ok=False)
         atomic_json(output / "worker.json", {**identity, "owner": process_info(os.getpid())})
         torch.manual_seed(1)
-        run(args, output, identity)
+        run(args, output, identity, shared=shared)
 
 
 if __name__ == "__main__":

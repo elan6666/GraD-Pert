@@ -57,15 +57,21 @@ def official_control_metadata(adata: Any):
     return adata
 
 
-def masked_official_loss(original: Any, allowed: np.ndarray):
+def masked_official_loss(original: Any, allowed: np.ndarray, *, static_filter=False):
     """Official fourth-power/direction loss on the allowed axis, including ctrl."""
     remap = {int(index): position for position, index in enumerate(allowed)}
 
+    cached_source = None
+    masks = {}
+
     def loss(pred, truth, perts, ctrl=None, direction_lambda=1e-3, dict_filter=None):
-        masks = {
-            condition: [remap[int(i)] for i in indices if int(i) in remap]
-            for condition, indices in (dict_filter or {}).items()
-        }
+        nonlocal cached_source, masks
+        if not static_filter or dict_filter is not cached_source:
+            masks = {
+                condition: [remap[int(i)] for i in indices if int(i) in remap]
+                for condition, indices in (dict_filter or {}).items()
+            }
+            cached_source = dict_filter
         if any(p != "ctrl" and not masks.get(p) for p in set(perts)):
             raise ValueError("condition has no allowed official nonzero loss genes")
         return original(
