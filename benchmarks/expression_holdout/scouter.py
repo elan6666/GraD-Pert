@@ -195,19 +195,30 @@ def masked_official_loss(original: Any, allowed: np.ndarray):
     """Restrict the tensors, then execute the unchanged official loss."""
     remap = {int(index): position for position, index in enumerate(allowed)}
 
+    source = None
+    masks = {}
+
     def loss(pred, truth, ctrl, group, nonzero_idx_dict, gamma, lambda_):
-        masks = {
-            condition: [remap[int(i)] for i in indices if int(i) in remap]
-            for condition, indices in nonzero_idx_dict.items()
-        }
-        if any(not masks.get(condition) for condition in set(group)):
+        nonlocal source
+        # The pinned training API uses static, per-fit dictionaries throughout the run.
+        if source is not nonzero_idx_dict:
+            source = nonzero_idx_dict
+            masks.clear()
+        batch_masks = {}
+        for condition in set(group):
+            if condition not in masks:
+                masks[condition] = [
+                    remap[int(i)] for i in source.get(condition, ()) if int(i) in remap
+                ]
+            batch_masks[condition] = masks[condition]
+        if any(not indices for indices in batch_masks.values()):
             raise ValueError("condition has no allowed official nonzero loss genes")
         return original(
             pred[:, allowed],
             truth[:, allowed],
             ctrl[:, allowed],
             group,
-            nonzero_idx_dict=masks,
+            nonzero_idx_dict=batch_masks,
             gamma=gamma,
             lambda_=lambda_,
         )
@@ -246,29 +257,33 @@ def contextual_dataset_factory(original: Any, prepared: Any, pair_audit: list):
         rng = np.random.RandomState(seed)
         # The official dataset pairs once, then reuses those pairs each epoch.
         # Preserve cycling/shuffling within each compatible candidate pool.
-        pools: dict[tuple[int, ...], list[int]] = {}
-        offsets: dict[tuple[int, ...], int] = {}
+        pools = {}
         paired = []
+        verified = {}
         for pert_index in dataset.PertCellIndx:
             row = str(dataset.bcode[int(pert_index)])
-            candidates = tuple(int(i) for i in maps.get(row, ()))
-            if not candidates:
+            raw = maps.get(row, ())
+            if not raw:
                 raise ValueError(f"no compatible training controls for {row}")
-            if any(
-                row_names[i] not in local_ctrl
-                or prepared.row_context_ids[i] != prepared.row_context_ids[row_lookup[row]]
-                for i in candidates
-            ):
-                raise ValueError("context pairing candidates violate the canonical context")
-            if candidates not in pools:
-                pool = list(candidates)
-                if shuffle:
-                    rng.shuffle(pool)
-                pools[candidates] = pool
-                offsets[candidates] = 0
-            offset = offsets[candidates]
-            chosen = pools[candidates][offset % len(candidates)]
-            offsets[candidates] = offset + 1
+            context = prepared.row_context_ids[row_lookup[row]]
+            key = (id(raw), context)
+            if key not in verified:
+                candidates = tuple(int(i) for i in raw)
+                if any(
+                    row_names[i] not in local_ctrl or prepared.row_context_ids[i] != context
+                    for i in candidates
+                ):
+                    raise ValueError("context pairing candidates violate the canonical context")
+                if candidates not in pools:
+                    pool = list(candidates)
+                    if shuffle:
+                        rng.shuffle(pool)
+                    pools[candidates] = [pool, 0]
+                verified[key] = pools[candidates]
+            pool_state = verified[key]
+            pool, offset = pool_state
+            chosen = pool[offset % len(pool)]
+            pool_state[1] += 1
             paired.append(local_ctrl[row_names[chosen]])
             pair_audit.append((row, row_names[chosen]))
         dataset.CtrlCellIndx = np.asarray(paired, dtype=np.int64)
@@ -279,6 +294,20 @@ def contextual_dataset_factory(original: Any, prepared: Any, pair_audit: list):
 
 class _UpdateLimitReached(Exception):
     pass
+
+
+class FitBudgetReached(Exception):
+    """The fitted model reached its wall budget after a complete validation epoch."""
+
+
+class ValidationHistory(list):
+    def __init__(self, on_epoch):
+        super().__init__()
+        self.on_epoch = on_epoch
+
+    def append(self, value):
+        super().append(value)
+        self.on_epoch(len(self), value)
 
 
 @contextmanager
@@ -306,7 +335,16 @@ def bounded_official_updates(module: Any, limit: int | None, counter: dict):
         module.optim.Adam = original
 
 
-def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
+def fit(
+    prepared,
+    config: dict,
+    runtime: dict,
+    output: Path,
+    max_updates=None,
+    *,
+    on_epoch=None,
+    fit_role_masks=False,
+):
     import torch
     from scipy import sparse
 
@@ -345,14 +383,30 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
     data.adata.uns["rank_genes_groups"] = {
         str(c): [] for c in data.adata.obs.condition.unique() if str(c) != "ctrl"
     }
-    masks = official_nonzero_masks(data, allowed)
-    for condition in (*prepared.train_conditions, *prepared.val_conditions):
-        if not set(masks.get(condition, ())) & set(allowed):
-            raise ValueError(f"no allowed nonzero loss genes: {condition}")
     train_rows = [*prepared.train_row_ids, *prepared.control_row_ids]
     val_rows = [*prepared.val_row_ids, *prepared.control_row_ids]
+    if not fit_role_masks:
+        masks = official_nonzero_masks(data, allowed)
     data.train_adata = data.adata[list(dict.fromkeys(train_rows))].copy()
     data.val_adata = data.adata[list(dict.fromkeys(val_rows))].copy()
+    if fit_role_masks:
+        full = data.adata
+        try:
+            data.adata = data.train_adata
+            data.adata.uns["rank_genes_groups"] = {c: [] for c in prepared.train_conditions}
+            train_masks = official_nonzero_masks(data, allowed)
+            validation_only = set(prepared.val_conditions) - set(prepared.train_conditions)
+            data.adata = data.val_adata
+            data.adata.uns["rank_genes_groups"] = {c: [] for c in sorted(validation_only)}
+            val_masks = official_nonzero_masks(data, allowed)
+            masks = {**val_masks, **train_masks}
+        finally:
+            data.adata = full
+        data.train_adata.uns["gene_idx_non_zeros"] = masks
+    allowed_set = set(allowed)
+    for condition in (*prepared.train_conditions, *prepared.val_conditions):
+        if not set(masks.get(condition, ())) & allowed_set:
+            raise ValueError(f"no allowed nonzero loss genes: {condition}")
     data.test_adata = data.adata[:0].copy()
     data.train_conds = [*prepared.train_conditions, "ctrl"]
     data.val_conds = [*prepared.val_conditions, "ctrl"]
@@ -361,6 +415,8 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
     np.random.seed(int(runtime["seed"]))
     model = package.Scouter(data, device=runtime["device"])
     model.model_init(**config["model"])
+    if on_epoch is not None:
+        model.loss_history["val_loss"] = ValidationHistory(on_epoch)
     training = resolve_training_recipe(config["training"])
     if len(prepared.train_row_ids) < int(training["batch_size"]):
         raise ValueError("official drop_last loader would contain zero training batches")
@@ -371,6 +427,7 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
     final_states: list = []
     counter = {"updates": 0}
     stopped = False
+    budget_reached = False
     try:
         with (
             independent_best_snapshot(model.network, before_restore=final_states.append),
@@ -380,13 +437,19 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
                 model.train(**training)
             except _UpdateLimitReached:
                 stopped = True
+            except FitBudgetReached:
+                budget_reached = True
         if final_states:
             model.network.load_state_dict(final_states[-1])
     finally:
         module.BalancedDataset, module.gears_loss = original_dataset, original_loss
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
-    if max_updates is None and len(model.loss_history["train_loss"]) != training["n_epochs"]:
+    if (
+        max_updates is None
+        and not budget_reached
+        and len(model.loss_history["train_loss"]) != training["n_epochs"]
+    ):
         raise RuntimeError("Scouter did not complete the authorized fixed epoch budget")
     torch.save(deepcopy(model.network.state_dict()), output / "last.pt")
     return FittedAdapter(
@@ -400,10 +463,16 @@ def fit(prepared, config: dict, runtime: dict, output: Path, max_updates=None):
             "last_capture": "before_official_best_restore" if final_states else "final_state",
             "official_selection": "validation allowed-expression loss; min_delta=0.001",
             "official_dropout_statistics_axis": "allowed expression genes only",
-            "loss_history": model.loss_history,
+            "dropout_fit_scope": (
+                "train for trained conditions; validation for validation-only conditions"
+                if fit_role_masks
+                else "all sanitized train and validation rows"
+            ),
+            "loss_history": {name: list(values) for name, values in model.loss_history.items()},
             "epochs_requested": training["n_epochs"],
             "epochs_completed": len(model.loss_history["train_loss"]),
             "early_stopping": False,
+            "wall_budget_reached": budget_reached,
             "configured_patience": config["training"]["patience"],
             "resolved_patience": training["patience"],
             "pair_count": len(pairs),
